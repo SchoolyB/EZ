@@ -568,6 +568,23 @@ static bool tc_is_stdlib_import(TypeChecker *tc, const char *name) {
     return false;
 }
 
+/* If type_name is module-prefixed (e.g. "T_Query"), mark that module used.
+ * The parser rewrites "T.Query" to "T_Query", so we split on the first
+ * underscore and check whether the prefix is a known import. */
+static void tc_mark_type_module_used(TypeChecker *tc, const char *type_name) {
+    if (!type_name) return;
+    const char *us = strchr(type_name, '_');
+    if (!us || us == type_name) return;
+    size_t prefix_len = (size_t)(us - type_name);
+    for (int mi = 0; mi < tc->import_count; mi++) {
+        if (strlen(tc->imported_modules[mi]) == prefix_len &&
+            strncmp(tc->imported_modules[mi], type_name, prefix_len) == 0) {
+            tc->import_used[mi] = true;
+            return;
+        }
+    }
+}
+
 static bool tc_is_builtin(const char *name) {
     static const char *builtins[] = {
         "println", "print", "eprintln", "eprint", "input",
@@ -3852,6 +3869,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_STRUCT_VALUE: {
         const char *sname = node->data.struct_value.name;
+        tc_mark_type_module_used(tc, sname);
         StructInfo *si = find_struct(tc, sname);
         /* E2015: check for duplicate field names in struct literal */
         for (int i = 0; i < node->data.struct_value.count; i++) {
@@ -4043,6 +4061,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_NEW_EXPR:
+        tc_mark_type_module_used(tc, node->data.new_expr.type_name);
         if (!is_struct_name(tc, node->data.new_expr.type_name)) {
             char msg[256];
             snprintf(msg, sizeof(msg),
@@ -4442,6 +4461,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         EzType *declared = node->data.var_decl.type_name
             ? tc_type_from_name(tc, node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
+        tc_mark_type_module_used(tc, node->data.var_decl.type_name);
 
         /* E3057: reject composite types as map keys before downstream checks
          * produce misleading cascades (e.g. struct-literal-in-index-position
@@ -6589,6 +6609,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (!ptypes) continue;
             for (int j = 0; j < pc; j++) {
                 ptypes[j] = tc_type_from_name(tc, stmt->data.func_decl.params[j].type_name);
+                tc_mark_type_module_used(tc, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
@@ -6596,6 +6617,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (!rtypes) { free(ptypes); continue; }
             for (int j = 0; j < rc; j++) {
                 rtypes[j] = tc_type_from_name(tc, stmt->data.func_decl.return_types[j]);
+                tc_mark_type_module_used(tc, stmt->data.func_decl.return_types[j]);
             }
 
             /* E4008: main() cannot have parameters or return types */
