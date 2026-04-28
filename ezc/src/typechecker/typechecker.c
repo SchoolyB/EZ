@@ -6266,10 +6266,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                 }
             }
+            Scope *case_outer = tc->current_scope;
+            tc->current_scope = scope_create(case_outer);
             check_block(tc, node->data.when_stmt.cases[i].body);
+            tc->current_scope = case_outer;
         }
         if (node->data.when_stmt.default_body) {
+            Scope *def_outer = tc->current_scope;
+            tc->current_scope = scope_create(def_outer);
             check_block(tc, node->data.when_stmt.default_body);
+            tc->current_scope = def_outer;
         }
         /* #strict exhaustiveness check for enum types */
         if (node->data.when_stmt.is_strict && !node->data.when_stmt.default_body) {
