@@ -21,8 +21,18 @@ type DocEntry struct {
 	File        string
 }
 
-// generateDocs is the entry point for the ez doc command
-func generateDocs(args []string) {
+// defaultDocOutputPath is used when the caller does not pass --output.
+const defaultDocOutputPath = "DOCS.md"
+
+// generateDocs is the entry point for the ez doc command. outputPath is
+// the destination markdown file; an empty string falls back to
+// defaultDocOutputPath so the legacy `DOCS.md`-in-cwd behavior is
+// unchanged for callers that do not pass --output.
+func generateDocs(args []string, outputPath string) {
+	if outputPath == "" {
+		outputPath = defaultDocOutputPath
+	}
+
 	var entries []DocEntry
 
 	for _, arg := range args {
@@ -46,13 +56,21 @@ func generateDocs(args []string) {
 
 	output := generateMarkdown(entries)
 
-	err := os.WriteFile("DOCS.md", []byte(output), 0644)
-	if err != nil {
-		fmt.Printf("Error writing DOCS.md: %v\n", err)
+	// Make sure the parent directory exists when --output points at a
+	// nested path like docs/API.md.
+	if dir := filepath.Dir(outputPath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fmt.Printf("Error creating output directory %s: %v\n", dir, err)
+			return
+		}
+	}
+
+	if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+		fmt.Printf("Error writing %s: %v\n", outputPath, err)
 		return
 	}
 
-	fmt.Printf("Generated DOCS.md with %d documented item(s)\n", len(entries))
+	fmt.Printf("Generated %s with %d documented item(s)\n", outputPath, len(entries))
 }
 
 // collectDocsFromFile extracts documented items from a single .ez file using text scanning.
