@@ -1014,15 +1014,37 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
-                const char *suggestion = suggest_name(tc, name);
-                if (suggestion) {
-                    char help[256];
-                    snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                /* Check if the name matches a named return value */
+                bool is_named_return = false;
+                const char *nr_type = NULL;
+                if (tc->current_has_named_returns && tc->current_return_names) {
+                    for (int i = 0; i < tc->current_return_count; i++) {
+                        if (tc->current_return_names[i] &&
+                            strcmp(tc->current_return_names[i], name) == 0) {
+                            is_named_return = true;
+                            nr_type = tc->current_return_type_names[i];
+                            break;
+                        }
+                    }
+                }
+                if (is_named_return) {
+                    char help[512];
+                    snprintf(help, sizeof(help),
+                        "'%s' is a named return value in the function signature — did you forget to declare 'mut %s %s' at function scope?",
+                        name, name, nr_type ? nr_type : "?");
                     diag_error_help(tc->diag, "E4001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
                 } else {
-                    diag_error_msg(tc->diag, "E4001", strdup(msg),
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    const char *suggestion = suggest_name(tc, name);
+                    if (suggestion) {
+                        char help[256];
+                        snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                        diag_error_help(tc->diag, "E4001", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
+                    } else {
+                        diag_error_msg(tc->diag, "E4001", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                 }
             }
         }
