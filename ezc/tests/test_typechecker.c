@@ -1191,6 +1191,203 @@ static void test_error_E4007_duplicate_struct(void) {
     diag_destroy(d);
 }
 
+/* ===== Batch: untested error codes ===== */
+
+static void test_error_E3047_enum_no_member(void) {
+    DiagnosticList *d = check_diag(
+        "const Color enum { RED GREEN BLUE }\n"
+        "do main() { mut c = Color.YELLOW }");
+    ASSERT(has_code(d, "E3047"));
+    diag_destroy(d);
+}
+
+static void test_error_E3048_string_plus(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut s string = \"a\" + \"b\" }");
+    ASSERT(has_code(d, "E3048"));
+    diag_destroy(d);
+}
+
+/* E3049, E3077, E5026 need full compilation to trigger — tested via integration */
+
+static void test_error_E3057_invalid_map_key(void) {
+    DiagnosticList *d = check_diag(
+        "const P struct { x int }\n"
+        "do main() { mut m map[P:int] = {} }");
+    ASSERT(has_code(d, "E3057"));
+    diag_destroy(d);
+}
+
+static void test_error_E3059_const_map(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { const m map[string:int] = {\"a\": 1} }");
+    ASSERT(has_code(d, "E3059"));
+    diag_destroy(d);
+}
+
+static void test_error_E3061_recursive_struct(void) {
+    DiagnosticList *d = check_diag(
+        "const Node struct { next Node }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E3061"));
+    diag_destroy(d);
+}
+
+static void test_error_E3063_return_addr_local(void) {
+    DiagnosticList *d = check_diag(
+        "do bad() -> ptr<int> {\n"
+        "  mut x int = 42\n"
+        "  return addr(x)\n"
+        "}");
+    ASSERT(has_code(d, "E3063"));
+    diag_destroy(d);
+}
+
+/* E3068 requires parsing "void" as a return type, which the parser may
+   reject before the typechecker sees it. Removed — tested via integration. */
+
+static void test_error_E3072_return_nil_non_pointer(void) {
+    DiagnosticList *d = check_diag(
+        "do bad() -> int { return nil }");
+    ASSERT(has_code(d, "E3072"));
+    diag_destroy(d);
+}
+
+static void test_error_E3073_return_in_main(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { return }");
+    ASSERT(has_code(d, "E3073"));
+    diag_destroy(d);
+}
+
+static void test_error_E3074_array_compare(void) {
+    DiagnosticList *d = check_diag(
+        "do main() {\n"
+        "  mut a [int] = {1, 2}\n"
+        "  mut b [int] = {1, 2}\n"
+        "  if a == b { }\n"
+        "}");
+    ASSERT(has_code(d, "E3074"));
+    diag_destroy(d);
+}
+
+static void test_error_E3076_map_compare(void) {
+    DiagnosticList *d = check_diag(
+        "do main() {\n"
+        "  mut a map[string:int] = {\"x\": 1}\n"
+        "  mut b map[string:int] = {\"x\": 1}\n"
+        "  if a == b { }\n"
+        "}");
+    ASSERT(has_code(d, "E3076"));
+    diag_destroy(d);
+}
+
+static void test_error_E3078_pointer_arithmetic(void) {
+    DiagnosticList *d = check_diag(
+        "do main() {\n"
+        "  mut x int = 10\n"
+        "  mut p = addr(x)\n"
+        "  mut q = p + 1\n"
+        "}");
+    ASSERT(has_code(d, "E3078"));
+    diag_destroy(d);
+}
+
+static void test_error_E3080_named_return_mismatch(void) {
+    DiagnosticList *d = check_diag(
+        "do get() -> (result int) {\n"
+        "  mut other int = 42\n"
+        "  return other\n"
+        "}");
+    ASSERT(has_code(d, "E3080"));
+    diag_destroy(d);
+}
+
+static void test_error_E3082_wildcard_named_return(void) {
+    DiagnosticList *d = check_diag(
+        "do get(x ?) -> (val ?) { return x }\n"
+        "do main() { println(get(1)) }");
+    ASSERT(has_code(d, "E3082"));
+    diag_destroy(d);
+}
+
+static void test_error_E2014_duplicate_enum_variant(void) {
+    DiagnosticList *d = check_diag(
+        "const Color enum { RED RED }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2014"));
+    diag_destroy(d);
+}
+
+static void test_error_E2015_duplicate_struct_field_init(void) {
+    DiagnosticList *d = check_diag(
+        "const P struct { x int }\n"
+        "do main() { mut p = P{x: 1, x: 2} }");
+    ASSERT(has_code(d, "E2015"));
+    diag_destroy(d);
+}
+
+static void test_error_E2063_duplicate_named_return(void) {
+    DiagnosticList *d = check_diag(
+        "do bad() -> (x int, x int) {\n"
+        "  mut x int = 1\n"
+        "  return x, x\n"
+        "}\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2063"));
+    diag_destroy(d);
+}
+
+static void test_error_E2064_field_func_conflict(void) {
+    DiagnosticList *d = check_diag(
+        "const S struct {\n"
+        "  name int\n"
+        "  do name() -> int { return 0 }\n"
+        "}\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2064"));
+    diag_destroy(d);
+}
+
+static void test_error_E2065_enum_variant_same_as_type(void) {
+    DiagnosticList *d = check_diag(
+        "const Color enum { Color }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2065"));
+    diag_destroy(d);
+}
+
+static void test_error_E2066_struct_field_same_as_type(void) {
+    DiagnosticList *d = check_diag(
+        "const Foo struct { Foo int }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2066"));
+    diag_destroy(d);
+}
+
+static void test_error_E2067_empty_struct(void) {
+    DiagnosticList *d = check_diag(
+        "const Empty struct { }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2067"));
+    diag_destroy(d);
+}
+
+static void test_error_E4008_main_with_params(void) {
+    DiagnosticList *d = check_diag(
+        "do main(x int) { }");
+    ASSERT(has_code(d, "E4008"));
+    diag_destroy(d);
+}
+
+static void test_error_E5025_invalid_assign_target(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { 42 = 10 }");
+    ASSERT(has_code(d, "E5025"));
+    diag_destroy(d);
+}
+
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -1383,6 +1580,30 @@ int main(void) {
     RUN_TEST(test_error_E2050_continue_outside_loop);
     RUN_TEST(test_error_E3024_some_paths_missing_return);
     RUN_TEST(test_error_E4007_duplicate_struct);
+
+    /* Batch: previously untested error codes */
+    RUN_TEST(test_error_E2014_duplicate_enum_variant);
+    RUN_TEST(test_error_E2015_duplicate_struct_field_init);
+    RUN_TEST(test_error_E2063_duplicate_named_return);
+    RUN_TEST(test_error_E2064_field_func_conflict);
+    RUN_TEST(test_error_E2065_enum_variant_same_as_type);
+    RUN_TEST(test_error_E2066_struct_field_same_as_type);
+    RUN_TEST(test_error_E2067_empty_struct);
+    RUN_TEST(test_error_E3047_enum_no_member);
+    RUN_TEST(test_error_E3048_string_plus);
+    RUN_TEST(test_error_E3057_invalid_map_key);
+    RUN_TEST(test_error_E3059_const_map);
+    RUN_TEST(test_error_E3061_recursive_struct);
+    RUN_TEST(test_error_E3063_return_addr_local);
+    RUN_TEST(test_error_E3072_return_nil_non_pointer);
+    RUN_TEST(test_error_E3073_return_in_main);
+    RUN_TEST(test_error_E3074_array_compare);
+    RUN_TEST(test_error_E3076_map_compare);
+    RUN_TEST(test_error_E3078_pointer_arithmetic);
+    RUN_TEST(test_error_E3080_named_return_mismatch);
+    RUN_TEST(test_error_E3082_wildcard_named_return);
+    RUN_TEST(test_error_E4008_main_with_params);
+    RUN_TEST(test_error_E5025_invalid_assign_target);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

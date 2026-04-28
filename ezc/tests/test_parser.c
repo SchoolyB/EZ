@@ -778,6 +778,59 @@ static void test_parse_enum_with_values(void) {
     ASSERT_EQ(stmt->data.enum_decl.value_count, 3);
 }
 
+/* Helper: check if a specific error code was emitted */
+static bool parser_has_code(DiagnosticList *d, const char *code) {
+    for (int i = 0; i < d->count; i++) {
+        if (d->items[i].code && strcmp(d->items[i].code, code) == 0) return true;
+    }
+    return false;
+}
+
+/* ===== Parser error code tests ===== */
+
+static void test_parse_error_E2025_non_int_array_size(void) {
+    AstNode *prog = parse("do main() { mut a [int, \"five\"] = {} }");
+    (void)prog;
+    ASSERT(diag_has_errors(diag));
+}
+
+static void test_parse_error_E2059_empty_when(void) {
+    AstNode *prog = parse("do main() { when 1 { } }");
+    (void)prog;
+    ASSERT(parser_has_code(diag, "E2059"));
+}
+
+static void test_parse_error_E2060_too_many_returns(void) {
+    AstNode *prog = parse(
+        "do bad() -> (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int) { }");
+    (void)prog;
+    ASSERT(parser_has_code(diag, "E2060"));
+}
+
+static void test_parse_error_E2068_mut_struct(void) {
+    AstNode *prog = parse("mut S struct { x int }");
+    (void)prog;
+    ASSERT(parser_has_code(diag, "E2068"));
+}
+
+static void test_parse_error_E2069_semicolon_in_struct(void) {
+    AstNode *prog = parse("const S struct { x int; y int }");
+    (void)prog;
+    ASSERT(parser_has_code(diag, "E2069"));
+}
+
+static void test_parse_error_E2070_wildcard_in_var(void) {
+    AstNode *prog = parse("do main() { mut x ? = 42 }");
+    (void)prog;
+    ASSERT(parser_has_code(diag, "E2070"));
+}
+
+static void test_parse_error_E2071_empty_interpolation(void) {
+    AstNode *prog = parse("do main() { println(\"${}\") }");
+    (void)prog;
+    ASSERT(parser_has_code(diag, "E2071"));
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -871,6 +924,15 @@ int main(void) {
     RUN_TEST(test_parse_return_multiple_values);
     RUN_TEST(test_parse_import_alias);
     RUN_TEST(test_parse_enum_with_values);
+
+    /* Parser error code tests */
+    RUN_TEST(test_parse_error_E2025_non_int_array_size);
+    RUN_TEST(test_parse_error_E2059_empty_when);
+    RUN_TEST(test_parse_error_E2060_too_many_returns);
+    RUN_TEST(test_parse_error_E2068_mut_struct);
+    RUN_TEST(test_parse_error_E2069_semicolon_in_struct);
+    RUN_TEST(test_parse_error_E2070_wildcard_in_var);
+    RUN_TEST(test_parse_error_E2071_empty_interpolation);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

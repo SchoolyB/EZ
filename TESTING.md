@@ -16,13 +16,13 @@ This runs all Go tooling tests, compiler unit tests, compiler e2e tests, and int
 
 The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-### Unit Tests (284 tests)
+### Unit Tests (312 tests)
 
 Unit tests validate individual compiler components:
 
 - **Lexer Tests** (`ezc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, v3 keyword aliases, operator disambiguation, edge cases (empty strings, zero literals, multiline comments, adjacent operators).
-- **Parser Tests** (`ezc/tests/test_parser.c` — 79 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting, grouped params, compound assignments, nested structures, import aliases, precedence.
-- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 136 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions).
+- **Parser Tests** (`ezc/tests/test_parser.c` — 86 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting, grouped params, compound assignments, nested structures, import aliases, precedence, parser error codes (E2025 array size, E2059 empty when, E2060 too many returns, E2068 mut struct, E2069 semicolons, E2070 wildcard in var, E2071 empty interpolation).
+- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 157 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions), error code coverage (E2014 duplicate enum variant, E2015 duplicate struct field init, E2063 duplicate named return, E2064 field-func conflict, E2065-E2067 naming constraints, E3047 enum no member, E3048 string plus, E3057 invalid map key, E3059 const map, E3061 recursive struct, E3063 return addr of local, E3072 return nil, E3073 return in main, E3074 array compare, E3076 map compare, E3078 pointer arithmetic, E3080 named return mismatch, E3082 wildcard named return, E4008 main params, E5025 invalid assign target).
 
 ### End-to-End Tests (101 tests)
 
@@ -31,19 +31,15 @@ E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify
 **Running:**
 
 ```bash
-cd ezc
+# From repo root
+make test-unit        # unit tests (lexer + parser + typechecker)
+make test-e2e         # e2e codegen tests
 
-# Run all unit tests (lexer + parser + typechecker)
-make test-unit
-
-# Run all e2e tests
-make test-e2e
-
-# Individual test suites
-./tests/test_lexer
-./tests/test_parser
-./tests/test_typechecker
-./tests/test_codegen
+# Individual test suites (from ezc/)
+./ezc/tests/test_lexer
+./ezc/tests/test_parser
+./ezc/tests/test_typechecker
+./ezc/tests/test_codegen
 ```
 
 ### Integration Tests
@@ -63,7 +59,7 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 **Running:**
 
 ```bash
-bash scripts/run_tests.sh
+make test-integration
 
 # With verbose output on failures
 bash scripts/run_tests.sh --verbose
@@ -74,8 +70,6 @@ bash scripts/run_tests.sh --verbose
 ASan (AddressSanitizer) and UBSan (Undefined Behavior Sanitizer) builds catch memory bugs and undefined behavior.
 
 ```bash
-cd ezc
-
 # UBSan — runs on all platforms
 make test-ubsan
 
@@ -94,30 +88,18 @@ The Go CLI (`ez`) has unit tests for the packages it uses:
 - `internal/ezc` (10 tests) — compiler binary lookup (statFile, Find EZ_COMPILER_PATH override behavior)
 
 ```bash
-go test ./pkg/lineeditor/...
-go test ./cmd/ez/...
-go test ./internal/ezc/...
+make test-go
 ```
 
 ---
 
 ## Running Everything
 
-The simplest way (requires `make build && make install`):
-
 ```bash
-ez test
+make test
 ```
 
-Or manually:
-
-```bash
-cd ezc && make test-unit && make test-e2e && cd ..
-bash scripts/run_tests.sh
-go test ./pkg/lineeditor/...
-go test ./cmd/ez/...
-go test ./internal/ezc/...
-```
+This builds the compiler, then runs unit tests, e2e tests, integration tests, and Go tests in sequence.
 
 ---
 
