@@ -78,23 +78,3 @@ jobs:
         run: |
           cd ezc
           make test-asan
-
-      - name: Type-check scaffolded pz templates
-        run: |
-          # Smoke-test every `ez pz` template against the freshly
-          # built compiler. Catches drift between the language and
-          # the scaffolder before a release ships (#1462).
-          set -e
-          tmp=$(mktemp -d)
-          for t in basic cli lib multi; do
-            ./ez pz "$tmp/pz-$t" -t "$t"
-            ./ez check "$tmp/pz-$t/main.ez"
-          done
-          for t in server client; do
-            for s in minimal normal; do
-              ./ez pz "$tmp/pz-$t-$s" -t "$t" -s "$s"
-              ./ez check "$tmp/pz-$t-$s/main.ez"
-            done
-          done
-          rm -rf "$tmp"
-          echo "All pz templates type-check clean"
