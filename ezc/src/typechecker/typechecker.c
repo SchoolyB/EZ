@@ -5124,7 +5124,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (node->data.var_decl.value &&
                 node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
                 node->data.var_decl.type_name &&
-                strcmp(node->data.var_decl.type_name, "[func]") == 0) {
+                (strcmp(node->data.var_decl.type_name, "[func]") == 0 ||
+                 strncmp(node->data.var_decl.type_name, "[func(", 6) == 0)) {
                 AstNode *lit = node->data.var_decl.value;
                 int n = lit->data.array_value.count;
                 Symbol *sym = scope_lookup_local(tc->current_scope,
