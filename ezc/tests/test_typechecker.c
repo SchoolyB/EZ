@@ -1373,6 +1373,13 @@ static void test_error_E2067_empty_struct(void) {
     diag_destroy(d);
 }
 
+static void test_error_E3083_c_string_non_pointer(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut msg = c_string(\"hello\") }");
+    ASSERT(has_code(d, "E3083"));
+    diag_destroy(d);
+}
+
 static void test_error_E4008_main_with_params(void) {
     DiagnosticList *d = check_diag(
         "do main(x int) { }");
@@ -1604,6 +1611,7 @@ int main(void) {
     RUN_TEST(test_error_E3082_wildcard_named_return);
     RUN_TEST(test_error_E4008_main_with_params);
     RUN_TEST(test_error_E5025_invalid_assign_target);
+    RUN_TEST(test_error_E3083_c_string_non_pointer);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

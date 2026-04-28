@@ -16,13 +16,13 @@ This runs all Go tooling tests, compiler unit tests, compiler e2e tests, and int
 
 The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-### Unit Tests (312 tests)
+### Unit Tests (313 tests)
 
 Unit tests validate individual compiler components:
 
 - **Lexer Tests** (`ezc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, v3 keyword aliases, operator disambiguation, edge cases (empty strings, zero literals, multiline comments, adjacent operators).
 - **Parser Tests** (`ezc/tests/test_parser.c` — 86 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting, grouped params, compound assignments, nested structures, import aliases, precedence, parser error codes (E2025 array size, E2059 empty when, E2060 too many returns, E2068 mut struct, E2069 semicolons, E2070 wildcard in var, E2071 empty interpolation).
-- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 157 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions), error code coverage (E2014 duplicate enum variant, E2015 duplicate struct field init, E2063 duplicate named return, E2064 field-func conflict, E2065-E2067 naming constraints, E3047 enum no member, E3048 string plus, E3057 invalid map key, E3059 const map, E3061 recursive struct, E3063 return addr of local, E3072 return nil, E3073 return in main, E3074 array compare, E3076 map compare, E3078 pointer arithmetic, E3080 named return mismatch, E3082 wildcard named return, E4008 main params, E5025 invalid assign target).
+- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 158 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions), error code coverage (E2014 duplicate enum variant, E2015 duplicate struct field init, E2063 duplicate named return, E2064 field-func conflict, E2065-E2067 naming constraints, E3047 enum no member, E3048 string plus, E3057 invalid map key, E3059 const map, E3061 recursive struct, E3063 return addr of local, E3072 return nil, E3073 return in main, E3074 array compare, E3076 map compare, E3078 pointer arithmetic, E3080 named return mismatch, E3082 wildcard named return, E4008 main params, E5025 invalid assign target).
 
 ### End-to-End Tests (101 tests)
 
@@ -53,7 +53,7 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 - `integration-tests/pass/warnings/` — 24 warning detection tests (includes W2012 float-when)
 - `integration-tests/pass/multi-file/` — 38 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions, imported struct with enum field, import-use-types, extensionless imports, directory imports, directory alias, mixed import styles, directory with stdlib, transitive directory)
 - `integration-tests/pass/stress/` — 42 stress tests (29 core + 13 stdlib)
-- `integration-tests/fail/errors/` — 555 error detection tests (includes negation-overflow and TYPE_MIN/-1 div/mod panics for int/i64/i32/i16/i8, E3046 hex-top-bit-to-int and above-UINT64_MAX, E3068 void in typed-func return, compound-assign overflow panics for int/uint across +=/-=/*=//=/%=, E3069 inverted &-on-param, E2001 missing param comma, E3070 nested ensure in if/for/when, E3071 return nil from wildcard-return, E3082 wildcard named return, E4001 named return hint, E6002 extensionless not found, E6003 empty directory import)
+- `integration-tests/fail/errors/` — 556 error detection tests (includes negation-overflow and TYPE_MIN/-1 div/mod panics for int/i64/i32/i16/i8, E3046 hex-top-bit-to-int and above-UINT64_MAX, E3068 void in typed-func return, compound-assign overflow panics for int/uint across +=/-=/*=//=/%=, E3069 inverted &-on-param, E2001 missing param comma, E3070 nested ensure in if/for/when, E3071 return nil from wildcard-return, E3082 wildcard named return, E4001 named return hint, E6002 extensionless not found, E6003 empty directory import)
 - `integration-tests/fail/multi-file/` — 20 multi-file error detection tests (collision, private access, type mismatch, undefined module, cross-file error attribution)
 
 **Running:**
