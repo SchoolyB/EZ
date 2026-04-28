@@ -1430,6 +1430,16 @@ do get_info() -> (name, city string, age int) {
 
 Named return values must be enclosed in parentheses. The names serve as documentation for callers and tooling (e.g., `ez doc`) but have no effect on the function's scope or variable declarations.
 
+**Restriction:** Wildcard types (`?`) cannot be used in named return positions (E3082). Since `?` resolves to a different concrete type at each call site, the name adds no useful documentation. Use an unnamed return instead:
+
+```ez
+// Error: wildcard type '?' cannot be named
+do first(arr [?]) -> (result ?) { ... }
+
+// OK: unnamed wildcard return
+do first(arr [?]) -> ? { ... }
+```
+
 #### 7.3.5 Void Functions
 
 Functions without a return type return no value:
@@ -1695,6 +1705,7 @@ mut y = first({"a", "b"})     // ? binds to string
 | Array type in variable (`[?]`) | Rejected (E2070) |
 | Map type in variable (`map[string:?]`) | Rejected (E2070) |
 | `new(?)` | Rejected |
+| Named return type (`-> (name ?)`) | Rejected (E3082) — use unnamed `-> (?)` instead |
 
 #### Binding rules
 

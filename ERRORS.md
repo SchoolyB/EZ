@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 170 codes** (159 errors, 11 warnings)
+**Total: 171 codes** (160 errors, 11 warnings)
 
 ---
 
@@ -139,6 +139,7 @@
 | `E3079` | types | cannot take a mutable reference to a const variable; declare the reference as 'const', or copy() the value to get an independent mutable instance |
 | `E3080` | types | function must return named variable '%s', not a different expression |
 | `E3081` | types | function '%s' used as a statement without being called; did you mean '%s()'? |
+| `E3082` | types | wildcard type '?' cannot be used in named return positions; use an unnamed return instead |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -214,4 +215,4 @@
 
 ---
 
-*Generated on 2026-04-27 04:01:53 UTC*
+*Generated on 2026-04-28 03:58:28 UTC*

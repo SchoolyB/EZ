@@ -5941,6 +5941,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             break;
                         }
                     }
+                    /* E3082: wildcard type '?' in named return position */
+                    if (i < node->data.func_decl.return_type_count &&
+                        node->data.func_decl.return_types[i] &&
+                        strcmp(node->data.func_decl.return_types[i], "?") == 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "wildcard type '?' cannot be used in named return value '%s'; use an unnamed return instead (e.g. -> (?, int))",
+                            rn);
+                        diag_error_msg(tc->diag, "E3082", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     /* E2063: named return collides with parameter */
                     for (int j = 0; j < node->data.func_decl.param_count; j++) {
                         if (strcmp(node->data.func_decl.params[j].name, rn) == 0) {
