@@ -1,5 +1,135 @@
 # Changelog
 
+## [3.0.0](https://github.com/SchoolyB/EZ/compare/v2.0.0...v3.0.0) (2026-04-28)
+
+EZ 3.0 is a "from the ground up rewrite". The Go-based interpreter has been replaced by a **compiled backend** that emits C and produces native binaries. Every stage of the pipeline — lexer, parser, typechecker, and code generator is now written in C. The Go CLI remains as the user-facing tooling wrapper.
+
+### Breaking Changes
+
+- **Compiled, not interpreted.** EZ programs now compile to native binaries via C. The Go interpreter is gone.
+- **`@std` module removed.** All former `@std` functions (`println`, `print`, `len` `input`, `assert`, `panic`, `exit`, etc.) are now **builtins** — always available, no import needed.
+- **`module` keyword removed.** Modules are identified by their filesystem path. Using `module` now produces E2061.
+- **`#suppress` attribute removed.** Warning suppression moved to the CLI: `ez build -q W1001,W2003`.
+- **`#enum(type)` attribute removed.** Enum variants are always integer-valued.
+- **`nil` is no longer a type.** `nil` is a value only — use `Error`, pointer types, or optionals for nullability.
+- **`ez run` removed.** Compile and run files directly with `ez <file.ez>`.
+- **`temp` renamed to `mut`.** All mutable variable declarations now use `mut`.
+- **`import & use` syntax replaced** by `import and use`. The `&` shorthand no longer works.
+- **`new()` now returns a pointer.** `new(StructName)` returns `^Struct`, not a value.
+- **`bare func` type removed.** Function references require full signatures: `func(int, int) -> int`.
+- **`sleep_s`, `sleep_ms`, `sleep_ns` moved from time module to builtins.**
+- **Many more!**
+
+### New Features
+
+**Compiler & Type System**
+- Native compilation via C backend source to binary in one step
+- Scope-based automatic memory management — every scope gets its own arena allocator. Allocations are freed when the scope exits. Values that escape (via return, outer assignment, or container storage) are automatically copied to the parent scope. No garbage collector, no manual free for normal code.
+- Overflow-checked integer arithmetic at runtime
+- Division-by-zero runtime checks
+- Wildcard type `?` for generic-style functions monomorphised per call site
+- Implicit int-to-float coercion in assignments, arguments, and returns
+- `private` keyword for functions and constants
+- Named return values in function signatures
+- Default parameter values for functions
+- Struct functions — functions defined inside structs with instance dispatch (`point.distance()`)
+- `for_each i, item in arr` — index-value destructuring for arrays
+- `for_each k, v in myMap` — key-value destructuring for maps
+- `while` keyword as an alias for `as_long_as`
+- `#json` attribute for struct-based JSON serialization/deserialization
+- Wildcard struct fields
+- `or_return` for error propagation
+
+**Pointers**
+- `^Type` pointer syntax — e.g. `^int`, `^Point`
+- `new(StructName)` now returns a `^Struct` pointer to a heap-allocated struct
+- `addr(variable)` returns the memory address of a variable as a pointer
+- Dereference pointers with `p^`
+- Auto-deref for struct field access — `ptr.field` works without explicit deref
+- Pointer comparison limited to `==`/`!=` with `nil` only. No pointer arithmetic
+
+**Functions as First-Class Types**
+- `func` is a type — functions can be stored in variables, passed as arguments, and returned from functions
+- Full signature syntax: `func(int, int) -> int`
+- `()func` call syntax for invoking function references
+
+**Breaking: `temp` renamed to `mut`**
+- The `temp` keyword for mutable variables is now `mut`
+
+**New Builtins**
+- `sleep_s()`, `sleep_ms()`, `sleep_ns()` — sleep functions (formerly in the @time module, now builtins)
+- `addr()` — returns a pointer to a variable
+
+**Wide Integer Types**
+- `i256`, `u256` — new wide integer sizes
+- `i128`, `u128` — reimplemented as portable struct-based types (previously interpreter-only)
+
+**C Interop**
+- `import c"header.h"` to include C headers
+- Call C functions via `c.func()` syntax
+- `c_string()` builtin to convert C `char*` back to EZ strings
+- Access C constants via `c.CONSTANT`
+- Type mapping between EZ and C primitives
+
+**Module System**
+- Filesystem-based module identity (directory name = module name)
+- Directory imports merge all `.ez` files into one namespace
+- Import aliasing: `import m @math`
+- `import and use` combined syntax (replaces the former `import & use`)
+- Module-qualified struct literals: `lib.Point{x: 1}`
+- Module-qualified enum access
+- Extensionless file and directory imports
+- Transitive imports and import caching
+- Duplicate module name detection with E6001
+
+**Standard Library**
+
+All 27 stdlib modules now run on the compiled C backend. Modules that existed in the v2 interpreter (`@http`, `@server`, `@regex`, `@csv`, `@threads`, etc.) have been reimplemented in C.
+
+New modules:
+- `@net` — TCP sockets and DNS
+- `@atomic` — lock-free assembly-backed operations (x86_64 + ARM64)
+- `@mem` — manual arena-based memory management
+- `@fmt` — formatted output, padding, number formatting
+- `@sync` — mutexes (split from former `@threads`)
+- `@channels` — typed channels (split from former `@threads`)
+
+Notable changes to existing modules:
+- `@io` — added 23 filesystem and path manipulation functions
+- All fallible stdlib functions now have `_result` variants that return `(T, Error)` instead of panicking
+- `to_char()` and `char_count()` builtins for Unicode codepoint access
+
+**CLI Tooling**
+
+New commands:
+- `ez report` — system info for bug reports (OS, CPU, RAM, C compiler, install path)
+- `ez test` — unified test runner with aggregated counts
+- `ez install <version>` — pin to a specific version
+
+New flags:
+- `--pre` — install pre-release versions via `ez update --pre`
+- `-q` / `--quiet` — suppress warnings (global or per-code, e.g. `-q W1001,W2003`)
+- `--no-color` — plain output without ANSI colors
+- `--emit-c` — inspect the generated C source
+- `--time` — show compilation timing
+
+Other changes:
+- Single embedded binary — `ezc` compiler and runtime are embedded in the `ez` binary, no separate install needed
+- `ez version` now shows installed, latest stable, and latest pre-release
+
+**Error System**
+- Centralized error code registry (`error_codes.h`) with auto-generated `ERRORS.md`
+- Rust-inspired diagnostics: error code, message, source location, caret pointing, optional help hints
+- 100+ compile-time error checks across lexer, parser, typechecker
+- Warning system with per-code suppression
+- Runtime panics with file/line/column info for division-by-zero, nil deref, array OOB, stack overflow
+
+**Testing & CI**
+- 1,200+ tests: unit (C), end-to-end, integration (pass + fail + warning + stress + multi-file)
+- UBSan and ASan sanitizer builds in CI
+
+---
+
 ## [2.0.0](https://github.com/SchoolyB/EZ/compare/v1.4.9...v2.0.0) (2026-02-14)
 
 
