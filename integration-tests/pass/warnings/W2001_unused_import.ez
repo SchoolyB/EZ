@@ -1,0 +1,10 @@
+/*
+ * Warning Test: W2001 - unused import
+ * Expected: warning[W2001]
+ */
+
+import @math
+
+do main() {
+    println("hello")
+}
