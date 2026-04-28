@@ -119,8 +119,15 @@ make build
 | `make build` | Build the `ez` binary |
 | `make install` | Install to `/usr/local/bin` |
 | `make clean` | Remove build artifacts |
+| `make test` | Run the full test suite |
+| `make test-unit` | C unit tests (lexer, parser, typechecker) |
+| `make test-e2e` | End-to-end codegen tests |
+| `make test-integration` | Integration tests (pass + fail) |
+| `make test-go` | Go unit tests |
+| `make test-ubsan` | UBSan sanitizer tests |
+| `make test-asan` | ASan+UBSan tests (Linux recommended) |
 
-Integration tests run via a shell script rather than a Makefile target — see [Running Tests](#running-tests).
+All test targets can be run from the repo root — no need to `cd` into subdirectories.
 
 ---
 
@@ -215,23 +222,26 @@ EZ/
 
 ## Running Tests
 
-### Unit Tests
+The simplest way to run everything:
 
 ```bash
-# Run all tests via the ez CLI
-ez test
-
-# Compiler tests only
-cd ezc
-make test-unit     # unit tests
-make test-e2e      # end-to-end tests
+make test
 ```
 
-### Integration Tests
+This builds the compiler, then runs unit tests, e2e tests, integration tests, and Go tests in sequence.
+
+### Individual Suites
 
 ```bash
-bash scripts/run_tests.sh
+make test-unit        # C unit tests (lexer, parser, typechecker)
+make test-e2e         # End-to-end codegen tests
+make test-integration # Integration tests (pass + fail .ez programs)
+make test-go          # Go unit tests (lineeditor, CLI, ezc wrapper)
+make test-ubsan       # UBSan sanitizer tests
+make test-asan        # ASan+UBSan tests (Linux recommended)
 ```
+
+All targets run from the repo root.
 
 ---
 
@@ -405,7 +415,7 @@ Keep the description short (under ~72 characters), lowercase, no period at the e
 
 - Keep changes focused and small when possible
 - Include a clear description of what changed and why
-- Make sure all tests pass (`ez test` or `cd ezc && make test-unit && make test-e2e`)
+- Make sure all tests pass (`make test`)
 - Include unit and/or integration tests for new features and bug fixes
 
 ---

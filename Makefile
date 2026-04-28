@@ -1,5 +1,7 @@
 # EZ Language Build System
-.PHONY: build stubs install uninstall clean help
+.PHONY: build stubs install uninstall clean help \
+       test test-unit test-e2e test-integration test-go \
+       test-ubsan test-asan
 
 BINARY_NAME=ez
 INSTALL_PATH=/usr/local/bin
@@ -21,6 +23,42 @@ help:
 	@echo "  make install   - Install ez to $(INSTALL_PATH)"
 	@echo "  make uninstall - Remove ez from $(INSTALL_PATH)"
 	@echo "  make clean     - Remove built binaries"
+	@echo ""
+	@echo "Test targets:"
+	@echo "  make test             - Run the full test suite (unit + e2e + integration + Go)"
+	@echo "  make test-unit        - Run C unit tests (lexer, parser, typechecker)"
+	@echo "  make test-e2e         - Run end-to-end codegen tests"
+	@echo "  make test-integration - Run integration tests (pass + fail)"
+	@echo "  make test-go          - Run Go unit tests"
+	@echo "  make test-ubsan       - Run UBSan sanitizer tests"
+	@echo "  make test-asan        - Run ASan+UBSan sanitizer tests (Linux recommended)"
+
+# ===== Test targets =====
+# Delegate compiler tests to ezc/Makefile; Go tests run from the root.
+
+test: build test-unit test-e2e test-integration test-go
+	@echo ""
+	@echo "All test suites completed."
+
+test-unit:
+	@$(MAKE) -C ezc test-unit
+
+test-e2e: build
+	@$(MAKE) -C ezc test-e2e
+
+test-integration: build
+	@bash scripts/run_tests.sh
+
+test-go: stubs
+	@echo ""
+	@echo "=== Go Unit Tests ==="
+	$(GO) test ./pkg/lineeditor/... ./cmd/ez/... ./internal/ezc/...
+
+test-ubsan:
+	@$(MAKE) -C ezc test-ubsan
+
+test-asan:
+	@$(MAKE) -C ezc test-asan
 
 # Create zero-length embed stubs. go:embed directives in
 # internal/ezc/embedded.go require these files to exist at `go build`

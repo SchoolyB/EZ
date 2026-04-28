@@ -29,52 +29,31 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      # ===== Go CLI =====
-      - name: Create embed stubs
-        run: make stubs
-
-      - name: Build ez CLI
-        run: go build -o ez ./cmd/ez
+      - name: Build
+        run: make build
 
       - name: Run Go unit tests
-        run: go test ./pkg/lineeditor/...
-
-      # ===== EZ Compiler =====
-      - name: Build EZ compiler
-        run: |
-          cd ezc
-          make clean
-          make build
+        run: make test-go
 
       - name: Run EZ unit tests (lexer + parser + typechecker)
         continue-on-error: true
-        run: |
-          cd ezc
-          make test-unit
+        run: make test-unit
 
       - name: Run EZ end-to-end tests
         continue-on-error: true
-        run: |
-          cd ezc
-          make test-e2e
+        run: make test-e2e
 
-      - name: Run EZ integration tests (core + stdlib + named returns)
+      - name: Run EZ integration tests
         continue-on-error: true
-        run: |
-          cd ezc
-          make test-integration
+        run: make test-integration
 
       - name: Run EZ UBSan tests
         continue-on-error: true
-        run: |
-          cd ezc
-          make test-ubsan
+        run: make test-ubsan
 
       - name: Run EZ ASan tests (Linux only)
         if: runner.os == 'Linux'
         continue-on-error: true
         env:
           ASAN_OPTIONS: detect_leaks=0
-        run: |
-          cd ezc
-          make test-asan
+        run: make test-asan
