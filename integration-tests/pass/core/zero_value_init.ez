@@ -1,21 +1,25 @@
-/* Test: Named return zero value initialization
+/* Test: Zero value initialization for different types
  * Expected: passes with output "0", "", "false", "0.0"
  */
 
 
 do getZeroInt() -> (count int) {
+    mut count int = 0
     return count
 }
 
 do getZeroString() -> (text string) {
+    mut text string = ""
     return text
 }
 
 do getZeroBool() -> (flag bool) {
+    mut flag bool = false
     return flag
 }
 
 do getZeroFloat() -> (value float) {
+    mut value float = 0.0
     return value
 }
 

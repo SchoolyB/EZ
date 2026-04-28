@@ -1,10 +1,10 @@
-/* Test: Basic named return variable
+/* Test: Basic named return value
  * Expected: passes with output "Alice"
  */
 
 
 do getUserName() -> (name string) {
-    name = "Alice"
+    mut name string = "Alice"
     return name
 }
 

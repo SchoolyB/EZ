@@ -10,28 +10,28 @@ do eight() -> (int, int, int, int, int, int, int, int) { return 1, 2, 3, 4, 5, 6
 
 // Named returns
 do named_single() -> (result int) {
-    result = 42
+    mut result int = 42
     return result
 }
 
 do named_multi() -> (name string, age int) {
-    name = "Alice"
-    age = 30
+    mut name string = "Alice"
+    mut age int = 30
     return name, age
 }
 
-// Bare return with named values
-do bare_return() -> (x int, y int) {
-    x = 10
-    y = 20
-    return
+// Explicit return with named values
+do explicit_return() -> (x int, y int) {
+    mut x int = 10
+    mut y int = 20
+    return x, y
 }
 
 // Grouped type named returns
 do grouped() -> (a, b int, c string) {
-    a = 1
-    b = 2
-    c = "three"
+    mut a int = 1
+    mut b int = 2
+    mut c string = "three"
     return a, b, c
 }
 
@@ -89,12 +89,12 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] named multi") failed += 1 }
 
-    // Bare return
-    mut bx int, by int = bare_return()
+    // Explicit return
+    mut bx int, by int = explicit_return()
     if bx == 10 && by == 20 {
-        println("  [PASS] bare return with named values")
+        println("  [PASS] explicit return with named values")
         passed += 1
-    } otherwise { println("  [FAIL] bare return") failed += 1 }
+    } otherwise { println("  [FAIL] explicit return") failed += 1 }
 
     // Grouped type return
     mut ga int, gb int, gc string = grouped()

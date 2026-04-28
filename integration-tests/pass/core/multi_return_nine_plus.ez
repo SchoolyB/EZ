@@ -6,15 +6,15 @@
 
 
 do nine_values() -> (a int, b int, c int, d int, e int, f int, g int, h int, i int) {
-    a = 1
-    b = 2
-    c = 3
-    d = 4
-    e = 5
-    f = 6
-    g = 7
-    h = 8
-    i = 9
+    mut a int = 1
+    mut b int = 2
+    mut c int = 3
+    mut d int = 4
+    mut e int = 5
+    mut f int = 6
+    mut g int = 7
+    mut h int = 8
+    mut i int = 9
     return a, b, c, d, e, f, g, h, i
 }
 
@@ -23,22 +23,22 @@ do twelve_values() -> (int, int, int, int, int, int, int, int, int, int, int, in
 }
 
 do sixteen_values() -> (a int, b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int) {
-    a = 1
-    b = 2
-    c = 3
-    d = 4
-    e = 5
-    f = 6
-    g = 7
-    h = 8
-    i = 9
-    j = 10
-    k = 11
-    l = 12
-    m = 13
-    n = 14
-    o = 15
-    p = 16
+    mut a int = 1
+    mut b int = 2
+    mut c int = 3
+    mut d int = 4
+    mut e int = 5
+    mut f int = 6
+    mut g int = 7
+    mut h int = 8
+    mut i int = 9
+    mut j int = 10
+    mut k int = 11
+    mut l int = 12
+    mut m int = 13
+    mut n int = 14
+    mut o int = 15
+    mut p int = 16
     return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p
 }
 

@@ -1,4 +1,4 @@
-/* Test: Named return variable with different variable returned
+/* Test: Named return value with different variable returned
  * Related to #1238 — verifies that returning a different
  * variable than the named return still produces correct output.
  * Note: W2011 warning not yet implemented (#1552)
@@ -17,7 +17,7 @@ do get_pair() -> (name string, age int) {
 }
 
 do get_proper() -> (name string) {
-    name = "Alice"
+    mut name string = "Alice"
     return name
 }
 

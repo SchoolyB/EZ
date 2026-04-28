@@ -1,11 +1,11 @@
-/* Test: Named return variables sharing a type
+/* Test: Named return values sharing a type
  * Expected: passes with output "John" and "Doe"
  */
 
 
 do getNames() -> (first, last string) {
-    first = "John"
-    last = "Doe"
+    mut first string = "John"
+    mut last string = "Doe"
     return first, last
 }
 

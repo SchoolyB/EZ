@@ -8,8 +8,8 @@
  */
 
 do pair(a ?, b ?) -> (first int, second int) {
-    first = a
-    second = b
+    mut first int = a
+    mut second int = b
     return first, second
 }
 
@@ -58,7 +58,7 @@ do main() {
 }
 
 do divmod(a int, b int) -> (q int, r int) {
-    q = a / b
-    r = a % b
+    mut q int = a / b
+    mut r int = a % b
     return q, r
 }

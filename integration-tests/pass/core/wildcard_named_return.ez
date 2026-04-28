@@ -1,5 +1,5 @@
 /*
- * wildcard_named_return.ez - Named return with wildcard type -> (name ?)
+ * wildcard_named_return.ez - Named return with wildcard type -> (first ?, count int)
  *
  * Regression for #1502 (bug reported during hunt):
  *   - Parser didn't accept TOK_QUESTION in named return type position,
@@ -12,8 +12,8 @@
  */
 
 do first_and_len(arr [?]) -> (first ?, count int) {
-    first = arr[0]
-    count = len(arr)
+    mut first = arr[0]
+    mut count int = len(arr)
     return first, count
 }
 

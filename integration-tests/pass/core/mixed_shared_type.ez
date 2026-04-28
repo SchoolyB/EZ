@@ -1,12 +1,12 @@
-/* Test: Mixed shared type named return variables
+/* Test: Mixed shared type named return values
  * Expected: passes with output "Alice", "NYC", "30"
  */
 
 
 do getFullInfo() -> (name, city string, age int) {
-    name = "Alice"
-    city = "NYC"
-    age = 30
+    mut name string = "Alice"
+    mut city string = "NYC"
+    mut age int = 30
     return name, city, age
 }
 

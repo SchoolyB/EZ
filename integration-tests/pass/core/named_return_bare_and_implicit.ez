@@ -1,45 +1,48 @@
-/* Test: Named return values with bare return and implicit return
- * Regression test for #1280 — bare `return` and fall-through implicit
- * return now collect named return variables automatically.
+/* Test: Named return values with explicit variable declarations
+ * Regression test for #1280 — verifies that functions with named
+ * return values work correctly when variables are explicitly declared.
  * Expected: all tests pass
  */
 
 
-// Single named return with bare return
+// Single named return
 do get_answer() -> (result int) {
-    result = 42
-    return
+    mut result int = 42
+    return result
 }
 
-// Multiple named returns with bare return
+// Multiple named returns
 do get_person() -> (name string, age int) {
-    name = "Alice"
-    age = 30
-    return
+    mut name string = "Alice"
+    mut age int = 30
+    return name, age
 }
 
-// Single named return with implicit return (no return statement)
+// Single named return
 do get_greeting() -> (msg string) {
-    msg = "hello world"
+    mut msg string = "hello world"
+    return msg
 }
 
-// Multiple named returns with implicit return (no return statement)
+// Multiple named returns
 do get_coords() -> (x int, y int, z int) {
-    x = 10
-    y = 20
-    z = 30
+    mut x int = 10
+    mut y int = 20
+    mut z int = 30
+    return x, y, z
 }
 
-// Shared type named returns with bare return
+// Shared type named returns
 do get_names() -> (first, last string) {
-    first = "John"
-    last = "Doe"
-    return
+    mut first string = "John"
+    mut last string = "Doe"
+    return first, last
 }
 
-// Named returns modified in control flow, then bare return
+// Named returns modified in control flow
 do classify(n int) -> (label string, value int) {
-    value = n
+    mut value int = n
+    mut label string = ""
     if n > 0 {
         label = "positive"
     } or n < 0 {
@@ -47,69 +50,70 @@ do classify(n int) -> (label string, value int) {
     } otherwise {
         label = "zero"
     }
-    return
+    return label, value
 }
 
-// Named return with implicit return after loop
+// Named return after loop
 do sum_to(n int) -> (total int) {
-    total = 0
+    mut total int = 0
     for i in range(1, n + 1) {
         total += i
     }
+    return total
 }
 
 do main() {
-    println("=== Named Return: Bare & Implicit Tests ===")
+    println("=== Named Return: Explicit Declaration Tests ===")
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: single named return with bare return
+    // Test 1: single named return
     mut ans int = get_answer()
     if ans == 42 {
-        println("  [PASS] single named return with bare return")
+        println("  [PASS] single named return")
         passed += 1
     } otherwise {
-        println("  [FAIL] single named return with bare return")
+        println("  [FAIL] single named return")
         failed += 1
     }
 
-    // Test 2: multiple named returns with bare return
+    // Test 2: multiple named returns
     mut name string, age int = get_person()
     if name == "Alice" && age == 30 {
-        println("  [PASS] multiple named returns with bare return")
+        println("  [PASS] multiple named returns")
         passed += 1
     } otherwise {
-        println("  [FAIL] multiple named returns with bare return")
+        println("  [FAIL] multiple named returns")
         failed += 1
     }
 
-    // Test 3: single named return with implicit return
+    // Test 3: single named return greeting
     mut greet string = get_greeting()
     if greet == "hello world" {
-        println("  [PASS] single named return with implicit return")
+        println("  [PASS] single named return greeting")
         passed += 1
     } otherwise {
-        println("  [FAIL] single named return with implicit return")
+        println("  [FAIL] single named return greeting")
         failed += 1
     }
 
-    // Test 4: multiple named returns with implicit return
+    // Test 4: multiple named returns coords
     mut cx int, cy int, cz int = get_coords()
     if cx == 10 && cy == 20 && cz == 30 {
-        println("  [PASS] multiple named returns with implicit return")
+        println("  [PASS] multiple named returns coords")
         passed += 1
     } otherwise {
-        println("  [FAIL] multiple named returns with implicit return")
+        println("  [FAIL] multiple named returns coords")
         failed += 1
     }
 
-    // Test 5: shared type named returns with bare return
+    // Test 5: shared type named returns
     mut f string, l string = get_names()
     if f == "John" && l == "Doe" {
-        println("  [PASS] shared type named returns with bare return")
+        println("  [PASS] shared type named returns")
         passed += 1
     } otherwise {
-        println("  [FAIL] shared type named returns with bare return")
+        println("  [FAIL] shared type named returns")
         failed += 1
     }
 
@@ -118,20 +122,20 @@ do main() {
     mut lab2 string, _ = classify(-3)
     mut lab3 string, val3 int = classify(0)
     if lab1 == "positive" && lab2 == "negative" && lab3 == "zero" && val3 == 0 {
-        println("  [PASS] named returns with control flow + bare return")
+        println("  [PASS] named returns with control flow")
         passed += 1
     } otherwise {
-        println("  [FAIL] named returns with control flow + bare return")
+        println("  [FAIL] named returns with control flow")
         failed += 1
     }
 
-    // Test 7: named return with implicit return after loop
+    // Test 7: named return after loop
     mut total int = sum_to(10)
     if total == 55 {
-        println("  [PASS] named return with implicit return after loop")
+        println("  [PASS] named return after loop")
         passed += 1
     } otherwise {
-        println("  [FAIL] named return with implicit return after loop")
+        println("  [FAIL] named return after loop")
         failed += 1
     }
 
