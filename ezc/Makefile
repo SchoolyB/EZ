@@ -143,7 +143,7 @@ install: build
 	install -m 644 $(RT_LIB) /usr/local/lib/ezc/
 
 # Shared objects needed by test binaries (everything except main.o)
-TEST_DEPS = src/util/arena.o src/util/buf.o src/util/error.o \
+TEST_DEPS = src/util/arena.o src/util/buf.o src/util/error.o src/util/error_codes.o \
             src/lexer/token.o src/lexer/lexer.o \
             src/parser/ast.o src/parser/parser.o \
             src/typechecker/types.o src/typechecker/scope.o src/typechecker/typechecker.o
@@ -179,7 +179,7 @@ test-integration: build
 
 # Sanitizer builds — catch undefined behavior (and memory bugs on Linux)
 # Must compile ALL source files with sanitizer flags
-TEST_SRC_FILES = src/util/arena.c src/util/buf.c src/util/error.c \
+TEST_SRC_FILES = src/util/arena.c src/util/buf.c src/util/error.c src/util/error_codes.c \
                  src/lexer/token.c src/lexer/lexer.c \
                  src/parser/ast.c src/parser/parser.c \
                  src/typechecker/types.c src/typechecker/scope.c src/typechecker/typechecker.c
