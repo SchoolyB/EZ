@@ -3684,6 +3684,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             case TK_STRING: c_elem = "EzString"; break;
             case TK_ARRAY: c_elem = "EzArray"; break;
             case TK_MAP: c_elem = "EzMap"; break;
+            case TK_FUNCTION: c_elem = "void *"; break;
             default: break;
             }
             if (val_t->kind == TK_STRUCT) {
@@ -3696,6 +3697,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             if (et->kind == TK_ARRAY) c_elem = "EzArray";
             else if (et->kind == TK_MAP) c_elem = "EzMap";
             else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
+            else if (et->kind == TK_FUNCTION) c_elem = "void *";
         }
         const char *alloc_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
         emitf(cg, "{ %s _av = ", c_elem);
@@ -3731,6 +3733,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             case TK_FLOAT: c_elem = "double"; break;
             case TK_BOOL: c_elem = "bool"; break;
             case TK_STRING: c_elem = "EzString"; break;
+            case TK_FUNCTION: c_elem = "void *"; break;
             default: break;
             }
             if (val_t->kind == TK_STRUCT) {
