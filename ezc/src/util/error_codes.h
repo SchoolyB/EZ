@@ -153,7 +153,8 @@
     EZ_ERROR("E3079", "types", "cannot take a mutable reference to a const variable; declare the reference as 'const', or copy() the value to get an independent mutable instance") \
     EZ_ERROR("E3080", "types", "function must return named variable '%s', not a different expression") \
     EZ_ERROR("E3081", "types", "function '%s' used as a statement without being called; did you mean '%s()'?") \
-    EZ_ERROR("E3082", "types", "wildcard type '?' cannot be used in named return positions; use an unnamed return instead")
+    EZ_ERROR("E3082", "types", "wildcard type '?' cannot be used in named return positions; use an unnamed return instead") \
+    EZ_ERROR("E3083", "types", "c_string() requires a raw C pointer; cannot convert a non-pointer type")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

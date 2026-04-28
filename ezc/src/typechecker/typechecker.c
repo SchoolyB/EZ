@@ -2736,6 +2736,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "c_string") == 0) {
+                if (node->data.call.arg_count >= 1) {
+                    EzType *arg0 = resolve_expr(tc, node->data.call.args[0]);
+                    if (arg0 && arg0->kind != TK_POINTER && arg0->kind != TK_UNKNOWN) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "c_string() requires a raw C pointer; '%s' is not a pointer type. "
+                            "c_string() is only valid with values from C interop (import c\"header.h\")",
+                            type_name(arg0));
+                        diag_error_msg(tc->diag, "E3083", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                }
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
