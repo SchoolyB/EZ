@@ -1,19 +1,20 @@
-/* Test: Named return value with different variable returned
- * Related to #1238 — verifies that returning a different
- * variable than the named return still produces correct output.
+/* Test: Named return values — matching and mismatched variable names
+ * Related to #1238 — E3080 enforces that returned variables must match
+ * the named return identifiers. This test verifies correct behavior
+ * when variable names match the named returns.
  * Note: W2011 warning not yet implemented (#1552)
  */
 
 
 do get_value() -> (result int) {
-    mut other int = 99
-    return other
+    mut result int = 99
+    return result
 }
 
 do get_pair() -> (name string, age int) {
-    mut n string = "Bob"
-    mut a int = 25
-    return n, a
+    mut name string = "Bob"
+    mut age int = 25
+    return name, age
 }
 
 do get_proper() -> (name string) {
@@ -22,31 +23,31 @@ do get_proper() -> (name string) {
 }
 
 do main() {
-    println("=== Named Return Mismatch Tests ===")
+    println("=== Named Return Tests ===")
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: returning different var than named — value is correct
+    // Test 1: single named return — value is correct
     mut v int = get_value()
     if v == 99 {
-        println("  [PASS] returning other var produces correct value")
+        println("  [PASS] named return produces correct value")
         passed += 1
     } otherwise {
-        println("  [FAIL] returning other var")
+        println("  [FAIL] named return")
         failed += 1
     }
 
-    // Test 2: multi-return with different vars — values correct
+    // Test 2: multi-return with named vars — values correct
     mut n string, a int = get_pair()
     if n == "Bob" && a == 25 {
-        println("  [PASS] multi-return with different vars correct")
+        println("  [PASS] multi named return correct")
         passed += 1
     } otherwise {
-        println("  [FAIL] multi-return with different vars")
+        println("  [FAIL] multi named return")
         failed += 1
     }
 
-    // Test 3: proper named return — no warning, correct value
+    // Test 3: proper named return — correct value
     mut proper string = get_proper()
     if proper == "Alice" {
         println("  [PASS] proper named return — correct value")
