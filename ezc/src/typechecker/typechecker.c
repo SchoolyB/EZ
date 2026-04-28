@@ -906,7 +906,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
              * location instead. */
             int line = node->token.line;
             int col = node->token.column;
-            bool is_func_type = (pt->name && strcmp(pt->name, "func") == 0);
+            bool is_func_type = (pt->kind == TK_FUNCTION ||
+                                   (pt->name && strcmp(pt->name, "func") == 0));
             if (pt->kind == TK_VOID) {
                 diag_error_msg(tc->diag, "E3041",
                     strdup("cannot interpolate void expression; the function does not return a value"),
