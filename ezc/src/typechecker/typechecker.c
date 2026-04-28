@@ -6094,6 +6094,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* W2011: named return value declared but no matching variable in body */
+        if (node->data.func_decl.return_names) {
+            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                const char *rn = node->data.func_decl.return_names[i];
+                if (!rn) continue;
+                Symbol *sym = scope_lookup_local(func_scope, rn);
+                if (!sym) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "named return value '%s' is declared in the signature but no matching variable exists in the function body",
+                        rn);
+                    diag_warning_msg(tc->diag, "W2011", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
+        }
+
         /* Warn about unused variables in this function scope */
         for (int si = 0; si < func_scope->count; si++) {
             Symbol *s = &func_scope->symbols[si];
