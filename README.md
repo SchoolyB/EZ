@@ -133,7 +133,7 @@ ez build <file.ez> -o app Compile to a distributable binary
 ez check <file.ez>        Type check without compiling
 ez repl                   Interactive REPL
 ez watch <file.ez>        Watch for changes, re-run on save
-ez doc ./...              Generate docs from #doc attributes
+ez doc <file.ez>           Generate docs from #doc attributes
 ez pz <name>             Scaffold a new project
 ez test                   Run the full test suite
 ez report                 Print system info for bug reports
