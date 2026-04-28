@@ -1403,14 +1403,14 @@ if err != nil {
 }
 ```
 
-#### 7.3.4 Named Return Variables
+#### 7.3.4 Named Return Values
 
-Return values can be given names, which declares them as variables within the function body:
+Return values can be given names to document what each position in the return tuple represents. Named return values are **labels only** — they do not implicitly declare variables in the function body. The programmer must explicitly declare any variables they use:
 
 ```ez
 do divide(a, b int) -> (quotient int, remainder int) {
-    quotient = a / b
-    remainder = a % b
+    mut quotient int = a / b
+    mut remainder int = a % b
     return quotient, remainder
 }
 
@@ -1421,33 +1421,14 @@ Named returns support grouped types (multiple names sharing one type):
 
 ```ez
 do get_info() -> (name, city string, age int) {
-    name = "Alice"
-    city = "NYC"
-    age = 30
+    mut name string = "Alice"
+    mut city string = "NYC"
+    mut age int = 30
     return name, city, age
 }
 ```
 
-Named return variables must be enclosed in parentheses. They are regular variables within the function scope. Named returns support two implicit return patterns:
-
-1. **Bare `return`** — returns the named variables in declaration order:
-```ez
-do divide(a, b int) -> (quotient int, remainder int) {
-    quotient = a / b
-    remainder = a % b
-    return  // implicitly returns quotient, remainder
-}
-```
-
-2. **No `return` statement** — falling off the end of the function returns the named variables:
-```ez
-do divide(a, b int) -> (quotient int, remainder int) {
-    quotient = a / b
-    remainder = a % b
-}  // implicitly returns quotient, remainder
-```
-
-Explicit `return quotient, remainder` also works. All three forms are equivalent.
+Named return values must be enclosed in parentheses. The names serve as documentation for callers and tooling (e.g., `ez doc`) but have no effect on the function's scope or variable declarations.
 
 #### 7.3.5 Void Functions
 
