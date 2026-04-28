@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4001 - undefined variable matching named return value
+ * Expected: E4001 with hint about declaring the named return variable
+ */
+
+do getValue() -> (result int) {
+    return result
+}
+
+do main() {
+    println(getValue())
+}

@@ -1,0 +1,15 @@
+/*
+ * Error Test: E4001 - named return variable declared in inner scope only
+ * Expected: E4001 with hint — variable exists inside if block but not at function scope
+ */
+
+do getValue(x int) -> (result int) {
+    if x > 0 {
+        mut result int = 42
+    }
+    return result
+}
+
+do main() {
+    println(getValue(1))
+}
