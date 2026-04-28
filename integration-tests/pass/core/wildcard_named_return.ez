@@ -1,24 +1,18 @@
 /*
- * wildcard_named_return.ez - Named return with wildcard type -> (first ?, count int)
+ * wildcard_named_return.ez - Wildcard return types in multi-return functions
  *
- * Regression for #1502 (bug reported during hunt):
- *   - Parser didn't accept TOK_QUESTION in named return type position,
- *     causing `-> (first ?, count int)` to misparse.
- *   - Codegen emitted a single EzMulti typedef but wildcard returns
- *     need per-instantiation structs (the fields change per binding).
- *
- * Exercises: wildcard named return with int binding, wildcard named
- * return with string binding, mixed wildcard + concrete named returns.
+ * Regression for #1502 / #1557: wildcard types cannot be used in named
+ * return positions (E3082). Wildcard returns must be unnamed. This test
+ * verifies that unnamed wildcard returns work correctly across different
+ * type bindings.
  */
 
-do first_and_len(arr [?]) -> (first ?, count int) {
-    mut first = arr[0]
-    mut count int = len(arr)
-    return first, count
+do first_and_len(arr [?]) -> (?, int) {
+    return arr[0], len(arr)
 }
 
 do main() {
-    println("=== Wildcard Named Return Test ===")
+    println("=== Wildcard Return Test ===")
     mut passed int = 0
     mut failed int = 0
 

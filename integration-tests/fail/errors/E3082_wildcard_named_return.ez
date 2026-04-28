@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3082 - wildcard type in named return position
+ * Expected: "wildcard type '?' cannot be used in named return positions"
+ */
+
+do first_and_len(arr [?]) -> (first ?, count int) {
+    return arr[0], len(arr)
+}
+
+do main() {
+    mut v int, n int = first_and_len({10, 20, 30})
+    println(v)
+}
