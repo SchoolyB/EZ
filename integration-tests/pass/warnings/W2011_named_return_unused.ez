@@ -1,15 +1,13 @@
 /*
- * Warning Test: W2011 - named-return-unused
- * Expected: warning about named return variable not being used in return
- *
- * DISABLED: W2011 not yet implemented (#1552)
+ * Warning Test: W2011 - named return value unused
+ * Expected: W2011 warning — named return 'result' declared in signature
+ * but no matching variable exists in the function body.
  */
 
-// do getName() -> (name string) {
-//     mut other string = "Alice"
-//     return other  // Warning: returning 'other' instead of named return 'name'
-// }
+do getValue() -> (result int) {
+    return 42
+}
 
 do main() {
-    // placeholder — re-enable when W2011 is implemented (#1552)
+    println(getValue())
 }
