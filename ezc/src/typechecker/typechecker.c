@@ -1371,6 +1371,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Fallback for [func(...)->T] arrays: parse the return type from
+         * the array's typed element type. Covers dynamically appended
+         * refs where func_array_refs isn't populated (#1558). */
+        if (fn && fn->kind == NODE_INDEX_EXPR &&
+            fn->data.index_expr.left->kind == NODE_LABEL) {
+            const char *arr_name = fn->data.index_expr.left->data.label.value;
+            Symbol *arr_sym = scope_lookup(tc->current_scope, arr_name);
+            if (arr_sym && arr_sym->type && arr_sym->type->kind == TK_ARRAY &&
+                arr_sym->type->element_type &&
+                strncmp(arr_sym->type->element_type, "func(", 5) == 0) {
+                EzType *elem_t = type_from_name(arr_sym->type->element_type);
+                if (elem_t && elem_t->func_sig &&
+                    elem_t->func_sig->return_count > 0 &&
+                    elem_t->func_sig->return_types[0]) {
+                    result = type_from_name(elem_t->func_sig->return_types[0]);
+                    typetable_set(tc->type_table, node, result);
+                    return result;
+                }
+            }
+        }
+
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
         } else if (fn->kind == NODE_MEMBER_EXPR &&
