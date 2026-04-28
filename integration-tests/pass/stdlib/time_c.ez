@@ -89,8 +89,8 @@ do main() {
         failed += 1
     }
 
-    // time.to_time(ts)
-    mut clock string = time.to_time(now)
+    // time.to_clock(ts)
+    mut clock string = time.to_clock(now)
     if len(clock) > 0 {
         println("  [PASS] clock (${clock})")
         passed += 1

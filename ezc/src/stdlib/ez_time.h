@@ -28,7 +28,7 @@ int64_t ez_time_weekday(int64_t ts);
 EzString ez_time_format(EzArena *arena, EzString fmt, int64_t ts);
 EzString ez_time_to_iso(EzArena *arena, int64_t ts);
 EzString ez_time_date(EzArena *arena, int64_t ts);
-EzString ez_time_to_time(EzArena *arena, int64_t ts);
+EzString ez_time_to_clock(EzArena *arena, int64_t ts);
 
 /* Performance */
 int64_t ez_time_tick(void);

@@ -52,7 +52,7 @@ EzString ez_time_date(EzArena *arena, int64_t ts) {
     return ez_time_format(arena, ez_string_lit("%Y-%m-%d"), ts);
 }
 
-EzString ez_time_to_time(EzArena *arena, int64_t ts) {
+EzString ez_time_to_clock(EzArena *arena, int64_t ts) {
     return ez_time_format(arena, ez_string_lit("%H:%M:%S"), ts);
 }
 

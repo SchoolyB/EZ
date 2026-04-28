@@ -1760,7 +1760,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "time") == 0) {
                 if (strcmp(mfn, "format") == 0 || strcmp(mfn, "to_iso") == 0 ||
-                    strcmp(mfn, "date") == 0 || strcmp(mfn, "to_time") == 0) {
+                    strcmp(mfn, "date") == 0 || strcmp(mfn, "to_clock") == 0) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "now") == 0 || strcmp(mfn, "now_ms") == 0 ||
                            strcmp(mfn, "now_ns") == 0 || strcmp(mfn, "tick") == 0 ||
@@ -3297,7 +3297,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"hour","time",TK_INT},{"minute","time",TK_INT},{"second","time",TK_INT},
                             {"weekday","time",TK_INT},
                             {"format","time",TK_STRING},{"to_iso","time",TK_STRING},
-                            {"date","time",TK_STRING},{"to_time","time",TK_STRING},
+                            {"date","time",TK_STRING},{"to_clock","time",TK_STRING},
                             /* @uuid */
                             {"generate_hyphenated","uuid",TK_STRING},{"generate","uuid",TK_STRING},
                             {"is_valid","uuid",TK_BOOL},

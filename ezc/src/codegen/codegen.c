@@ -3003,7 +3003,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
 
 static bool emit_time_call(CodeGen *cg, AstNode *node, const char *func) {
     bool needs_arena = (strcmp(func, "format") == 0 || strcmp(func, "to_iso") == 0 ||
-        strcmp(func, "date") == 0 || strcmp(func, "to_time") == 0);
+        strcmp(func, "date") == 0 || strcmp(func, "to_clock") == 0);
     emitf(cg, "ez_time_%s(", func);
     if (needs_arena) emit(cg, "ez_default_arena, ");
     for (int i = 0; i < node->data.call.arg_count; i++) {
@@ -4519,7 +4519,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"now","time"},{"now_ms","time"},{"now_ns","time"},{"tick","time"},
                 {"elapsed_ms","time"},{"year","time"},{"month","time"},{"day","time"},
                 {"hour","time"},{"minute","time"},{"second","time"},{"weekday","time"},
-                {"format","time"},{"to_iso","time"},{"date","time"},{"to_time","time"},
+                {"format","time"},{"to_iso","time"},{"date","time"},{"to_clock","time"},
                 /* @uuid */
                 {"generate_hyphenated","uuid"},{"generate","uuid"},{"is_valid","uuid"},
                 /* @bytes */

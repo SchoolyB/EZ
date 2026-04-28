@@ -2323,7 +2323,7 @@ Unless noted otherwise, all math functions accept `int`, `float`, and sized nume
 | `format` | `(format string, timestamp int) -> string` | Format time |
 | `to_iso` | `(timestamp int) -> string` | ISO 8601 string |
 | `date` | `(timestamp int) -> string` | Date (YYYY-MM-DD) |
-| `to_time` | `(timestamp int) -> string` | Time (HH:MM:SS) |
+| `to_clock` | `(timestamp int) -> string` | Time (HH:MM:SS) |
 
 #### Performance Timing
 
