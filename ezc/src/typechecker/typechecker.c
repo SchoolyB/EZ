@@ -5901,17 +5901,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             scope_define(func_scope, p->name, ptype, p->mutable);
         }
 
-        /* E3060: wildcard in return type but no wildcard in any parameter */
+        /* E3060: wildcard in return type but no wildcard in any parameter.
+         * Suppress when every wildcard return is in a named position — E3082
+         * handles that case with a more specific message. */
         {
             bool ret_has_wc = false;
+            bool all_wc_named = true;
             bool param_has_wc = false;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 if (type_name_has_wildcard(node->data.func_decl.return_types[i])) {
                     ret_has_wc = true;
-                    break;
+                    if (!node->data.func_decl.return_names ||
+                        !node->data.func_decl.return_names[i]) {
+                        all_wc_named = false;
+                    }
                 }
             }
-            if (ret_has_wc) {
+            if (ret_has_wc && !all_wc_named) {
                 for (int i = 0; i < node->data.func_decl.param_count; i++) {
                     if (type_name_has_wildcard(node->data.func_decl.params[i].type_name)) {
                         param_has_wc = true;
