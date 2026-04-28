@@ -924,8 +924,8 @@ static void test_e2e_named_return(void) {
     char *out = compile_and_run(
         ""
         "do divide(a int, b int) -> (q int, r int) {\n"
-        "  q = a / b\n"
-        "  r = a % b\n"
+        "  mut q int = a / b\n"
+        "  mut r int = a % b\n"
         "  return q, r\n"
         "}\n"
         "do main() {\n"
