@@ -25,13 +25,21 @@ static const char *http_cstr(EzString s, char *buf, size_t bufsz) {
 /* Parse a URL into host, port, and path components */
 static bool parse_url(const char *url, char *host, size_t host_sz,
                       int *port, char *path, size_t path_sz) {
-    /* Skip http:// prefix */
+    /* Require http:// or https:// scheme */
     const char *p = url;
     if (strncmp(p, "http://", 7) == 0) {
         p += 7;
     } else if (strncmp(p, "https://", 8) == 0) {
         /* HTTPS not supported yet */
         p += 8;
+    } else {
+        return false;
+    }
+
+    /* Reject empty host or host containing whitespace */
+    if (*p == '\0' || *p == '/' || *p == ':') return false;
+    for (const char *c = p; *c && *c != '/' && *c != ':'; c++) {
+        if (*c == ' ' || *c == '\t') return false;
     }
 
     /* Extract host[:port] */
@@ -140,7 +148,8 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     char host[256], path[2048];
     int port;
     if (!parse_url(url_buf, host, sizeof(host), &port, path, sizeof(path))) {
-        err_resp.body = ez_string_new(arena, "invalid URL", 11);
+        const char *detail = "invalid URL: missing scheme (expected http:// or https://)";
+        err_resp.body = ez_string_new(arena, detail, (int32_t)strlen(detail));
         return err_resp;
     }
 
