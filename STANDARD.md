@@ -2465,7 +2465,8 @@ Error-returning variants: `get`, `post`, `put`, `delete`, `head`, `patch`
 
 #### HttpResponse Type
 
-The `HttpResponse` struct contains:
+The `HttpResponse` struct is available when either `@http` or `@server` is imported.
+
 - `status int` - HTTP status code
 - `body string` - Response body
 - `headers map` - Response headers
@@ -2605,6 +2606,8 @@ An HTTP server module with dynamic handlers and path parameters.
 | `redirect` | `(status int, url string) -> HttpResponse` | Create redirect response |
 
 #### Request Type
+
+The `HttpRequest` type is only available when `@server` is imported. Importing `@http` alone does not provide this type.
 
 Every handler receives an `HttpRequest` struct:
 

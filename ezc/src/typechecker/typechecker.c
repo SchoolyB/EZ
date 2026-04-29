@@ -6858,7 +6858,9 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         resp_types[1] = &TYPE_STRING;
         resp_types[2] = type_from_name("map[string:string]");
         register_struct(tc, "HttpResponse", resp_fields, resp_types, 3);
+    }
 
+    if (tc_is_imported_module(tc, "server")) {
         static const char *req_fields[] = {"method", "path", "body", "query", "headers", "params"};
         static EzType *req_types[6];
         req_types[0] = &TYPE_STRING;
