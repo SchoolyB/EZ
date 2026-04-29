@@ -217,6 +217,22 @@ const char *type_name(EzType *t) {
         snprintf(out, sizeof(bufs[0]), "^%s", t->name);
         return out;
     }
+    if (t->kind == TK_ARRAY && t->element_type) {
+        static char bufs[4][128];
+        static int slot = 0;
+        char *out = bufs[slot];
+        slot = (slot + 1) & 3;
+        snprintf(out, sizeof(bufs[0]), "[%s]", t->element_type);
+        return out;
+    }
+    if (t->kind == TK_MAP && t->key_type && t->value_type) {
+        static char bufs[4][128];
+        static int slot = 0;
+        char *out = bufs[slot];
+        slot = (slot + 1) & 3;
+        snprintf(out, sizeof(bufs[0]), "map[%s:%s]", t->key_type, t->value_type);
+        return out;
+    }
     return t->name;
 }
 
