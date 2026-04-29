@@ -772,6 +772,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
                 /* Fall back to AST-based inference if no type info */
                 if (tk == TK_UNKNOWN) {
+                    if (cg->wildcard_binding) {
+                        EzType *wc = type_from_name(cg->wildcard_binding);
+                        if (wc) { tk = wc->kind; t = wc; }
+                    }
+                }
+                if (tk == TK_UNKNOWN) {
                     if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
                     else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
                     else if (part->kind == NODE_STRING_VALUE) tk = TK_STRING;
@@ -805,6 +811,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
             EzType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
             TypeKind tk = t ? t->kind : TK_UNKNOWN;
+            if (tk == TK_UNKNOWN) {
+                if (cg->wildcard_binding) {
+                    EzType *wc = type_from_name(cg->wildcard_binding);
+                    if (wc) { tk = wc->kind; t = wc; }
+                }
+            }
             if (tk == TK_UNKNOWN) {
                 if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
                 else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
