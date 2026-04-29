@@ -1,0 +1,80 @@
+/*
+ * csv_format_headers.ez - Test csv.format() and csv.headers()
+ * Covers: csv.format() alias + csv.headers() wired in #1580
+ */
+
+import @csv
+import @strings
+
+do main() {
+    println("=== csv.format / csv.headers Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // === csv.format() ===
+
+    // Test 1: format is alias for encode
+    mut row [string] = {"Alice", "30", "NYC"}
+    mut fmt_result string = csv.format(row)
+    mut enc_result string = csv.encode(row)
+    if fmt_result == enc_result {
+        println("  [PASS] format() == encode()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format='${fmt_result}' vs encode='${enc_result}'")
+        failed += 1
+    }
+
+    // Test 2: format contains expected values
+    if strings.contains(fmt_result, "Alice") && strings.contains(fmt_result, "30") {
+        println("  [PASS] format() contains values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format missing values: '${fmt_result}'")
+        failed += 1
+    }
+
+    // === csv.headers() ===
+
+    // Test 3: headers extracts first row
+    mut csv_data string = "name,age,city\nAlice,30,NYC\nBob,25,LA"
+    mut rows [[string]] = csv.decode(csv_data)
+    mut hdrs [string] = csv.headers(rows)
+    if len(hdrs) == 3 {
+        println("  [PASS] headers() returns 3 columns")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] headers() length: expected 3, got ${len(hdrs)}")
+        failed += 1
+    }
+
+    // Test 4: headers values are correct
+    if hdrs[0] == "name" && hdrs[1] == "age" && hdrs[2] == "city" {
+        println("  [PASS] headers() values correct")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] headers() values wrong")
+        failed += 1
+    }
+
+    // Test 5: headers from single-row CSV
+    mut single string = "id,value"
+    mut single_rows [[string]] = csv.decode(single)
+    mut single_hdrs [string] = csv.headers(single_rows)
+    if len(single_hdrs) == 2 && single_hdrs[0] == "id" && single_hdrs[1] == "value" {
+        println("  [PASS] headers() single-row CSV")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] headers() single-row CSV")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

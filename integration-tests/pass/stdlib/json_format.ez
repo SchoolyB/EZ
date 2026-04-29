@@ -1,0 +1,76 @@
+/*
+ * json_format.ez - Test json.format() alias for json.encode()
+ * Covers: json.format() wired in #1580
+ */
+
+import @json
+import @strings
+
+do main() {
+    println("=== json.format Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: format(int) matches encode(int)
+    mut fmt_int string = json.format(42)
+    mut enc_int string = json.encode(42)
+    if fmt_int == enc_int {
+        println("  [PASS] format(int) == encode(int)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format='${fmt_int}' vs encode='${enc_int}'")
+        failed += 1
+    }
+
+    // Test 2: format(string)
+    mut fmt_str string = json.format("hello")
+    if fmt_str == "\"hello\"" {
+        println("  [PASS] format(string)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format(string): got '${fmt_str}'")
+        failed += 1
+    }
+
+    // Test 3: format(bool)
+    mut fmt_bool string = json.format(true)
+    if fmt_bool == "true" {
+        println("  [PASS] format(bool)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format(bool): got '${fmt_bool}'")
+        failed += 1
+    }
+
+    // Test 4: format(array)
+    mut arr [int] = {1, 2, 3}
+    mut fmt_arr string = json.format(arr)
+    mut enc_arr string = json.encode(arr)
+    if fmt_arr == enc_arr {
+        println("  [PASS] format(array) == encode(array)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format='${fmt_arr}' vs encode='${enc_arr}'")
+        failed += 1
+    }
+
+    // Test 5: format(map)
+    mut m map[string:int] = {"x": 10}
+    mut fmt_map string = json.format(m)
+    if strings.contains(fmt_map, "\"x\"") && strings.contains(fmt_map, "10") {
+        println("  [PASS] format(map)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format(map): got '${fmt_map}'")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
