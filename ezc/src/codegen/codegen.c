@@ -157,6 +157,8 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
+    if (strcmp(type_name, "HttpRequest") == 0) return "EzRequest";
+    if (strcmp(type_name, "HttpResponse") == 0) return "EzResponse";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
