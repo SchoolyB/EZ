@@ -4271,31 +4271,50 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * "func(...)->(R1,R2)" for multi-return. */
         if (ref_sig) {
             char buf[512];
-            int n = snprintf(buf, sizeof(buf), "func(");
-            for (int i = 0; i < ref_sig->param_count; i++) {
+            size_t bufsz = sizeof(buf);
+            int n = snprintf(buf, bufsz, "func(");
+            if ((size_t)n >= bufsz) n = (int)bufsz - 1;
+            for (int i = 0; i < ref_sig->param_count && (size_t)n < bufsz - 1; i++) {
                 bool mut_p = (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL &&
                               i < ref_sig->decl->data.func_decl.param_count &&
                               ref_sig->decl->data.func_decl.params[i].mutable);
                 const char *ptn = (ref_sig->param_types[i] && ref_sig->param_types[i]->name)
                     ? ref_sig->param_types[i]->name : "int";
-                n += snprintf(buf + n, sizeof(buf) - (size_t)n, "%s%s%s",
+                int w = snprintf(buf + n, bufsz - (size_t)n, "%s%s%s",
                     i ? "," : "", mut_p ? "&" : "", ptn);
+                if (w > 0 && (size_t)w < bufsz - (size_t)n) n += w;
+                else { n = (int)bufsz - 1; break; }
             }
-            n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")");
+            if ((size_t)n < bufsz - 1) {
+                int w = snprintf(buf + n, bufsz - (size_t)n, ")");
+                if (w > 0 && (size_t)w < bufsz - (size_t)n) n += w;
+                else n = (int)bufsz - 1;
+            }
             if (ref_sig->return_count == 1 && ref_sig->return_types[0] &&
                 ref_sig->return_types[0]->name &&
-                strcmp(ref_sig->return_types[0]->name, "void") != 0) {
-                n += snprintf(buf + n, sizeof(buf) - (size_t)n, "->%s",
+                strcmp(ref_sig->return_types[0]->name, "void") != 0 &&
+                (size_t)n < bufsz - 1) {
+                int w = snprintf(buf + n, bufsz - (size_t)n, "->%s",
                     ref_sig->return_types[0]->name);
-            } else if (ref_sig->return_count > 1) {
-                n += snprintf(buf + n, sizeof(buf) - (size_t)n, "->(");
-                for (int i = 0; i < ref_sig->return_count; i++) {
+                if (w > 0 && (size_t)w < bufsz - (size_t)n) n += w;
+                else n = (int)bufsz - 1;
+            } else if (ref_sig->return_count > 1 && (size_t)n < bufsz - 1) {
+                int w = snprintf(buf + n, bufsz - (size_t)n, "->(");
+                if (w > 0 && (size_t)w < bufsz - (size_t)n) n += w;
+                else n = (int)bufsz - 1;
+                for (int i = 0; i < ref_sig->return_count && (size_t)n < bufsz - 1; i++) {
                     const char *rn = (ref_sig->return_types[i] && ref_sig->return_types[i]->name)
                         ? ref_sig->return_types[i]->name : "int";
-                    n += snprintf(buf + n, sizeof(buf) - (size_t)n, "%s%s",
+                    w = snprintf(buf + n, bufsz - (size_t)n, "%s%s",
                         i ? "," : "", rn);
+                    if (w > 0 && (size_t)w < bufsz - (size_t)n) n += w;
+                    else { n = (int)bufsz - 1; break; }
                 }
-                n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")");
+                if ((size_t)n < bufsz - 1) {
+                    w = snprintf(buf + n, bufsz - (size_t)n, ")");
+                    if (w > 0 && (size_t)w < bufsz - (size_t)n) n += w;
+                    else n = (int)bufsz - 1;
+                }
             }
             char *encoded = strdup(buf);
             result = type_from_name(encoded);

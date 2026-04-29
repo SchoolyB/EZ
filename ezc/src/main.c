@@ -1149,10 +1149,16 @@ int main(int argc, char **argv) {
         };
         char srcs[CMD_BUF_SIZE];
         int off = 0;
-        for (int i = 0; i < (int)(sizeof(runtime_srcs)/sizeof(runtime_srcs[0])); i++)
-            off += snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, runtime_srcs[i]);
-        for (int i = 0; i < (int)(sizeof(stdlib_srcs)/sizeof(stdlib_srcs[0])); i++)
-            off += snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, stdlib_srcs[i]);
+        for (int i = 0; i < (int)(sizeof(runtime_srcs)/sizeof(runtime_srcs[0])); i++) {
+            int w = snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, runtime_srcs[i]);
+            if (w > 0 && (size_t)w < sizeof(srcs) - (size_t)off) off += w;
+            else { off = (int)sizeof(srcs); break; }
+        }
+        for (int i = 0; i < (int)(sizeof(stdlib_srcs)/sizeof(stdlib_srcs[0])); i++) {
+            int w = snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, stdlib_srcs[i]);
+            if (w > 0 && (size_t)w < sizeof(srcs) - (size_t)off) off += w;
+            else { off = (int)sizeof(srcs); break; }
+        }
 
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "

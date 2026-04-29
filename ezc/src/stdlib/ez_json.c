@@ -106,7 +106,9 @@ EzString ez_json_encode_array_int(EzArena *arena, EzArray *arr) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (i > 0) { buf[pos++] = ','; }
         int64_t val = *(int64_t *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
-        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%" PRId64, val);
+        int w = snprintf(buf + pos, need + 1 - (size_t)pos, "%" PRId64, val);
+        if (w > 0 && (size_t)w < need + 1 - (size_t)pos) pos += w;
+        else { pos = (int)need; break; }
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
@@ -122,7 +124,9 @@ EzString ez_json_encode_array_float(EzArena *arena, EzArray *arr) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (i > 0) { buf[pos++] = ','; }
         double val = *(double *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
-        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%g", val);
+        int w = snprintf(buf + pos, need + 1 - (size_t)pos, "%g", val);
+        if (w > 0 && (size_t)w < need + 1 - (size_t)pos) pos += w;
+        else { pos = (int)need; break; }
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
@@ -199,7 +203,9 @@ EzString ez_json_encode_map_int(EzArena *arena, EzMap *m) {
         int64_t *val = (int64_t *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%" PRId64, *val);
+        int w = snprintf(buf + pos, need + 1 - (size_t)pos, "%" PRId64, *val);
+        if (w > 0 && (size_t)w < need + 1 - (size_t)pos) pos += w;
+        else { pos = (int)need; break; }
         entry++;
     }
     buf[pos++] = '}';
@@ -230,7 +236,9 @@ EzString ez_json_encode_map_float(EzArena *arena, EzMap *m) {
         double *val = (double *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%g", *val);
+        int w = snprintf(buf + pos, need + 1 - (size_t)pos, "%g", *val);
+        if (w > 0 && (size_t)w < need + 1 - (size_t)pos) pos += w;
+        else { pos = (int)need; break; }
         entry++;
     }
     buf[pos++] = '}';
