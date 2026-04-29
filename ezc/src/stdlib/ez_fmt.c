@@ -9,9 +9,7 @@
 #include <inttypes.h>
 
 void ez_fmt_eprintln_str(EzString s) {
-    fputc('"', stderr);
     fwrite(s.data, 1, (size_t)s.len, stderr);
-    fputc('"', stderr);
     fputc('\n', stderr);
 }
 
@@ -32,9 +30,7 @@ void ez_fmt_eprintln_bool(bool v) {
 }
 
 void ez_fmt_eprint_str(EzString s) {
-    fputc('"', stderr);
     fwrite(s.data, 1, (size_t)s.len, stderr);
-    fputc('"', stderr);
 }
 
 EzString ez_fmt_pad_left(EzArena *arena, EzString s, int64_t width, char ch) {

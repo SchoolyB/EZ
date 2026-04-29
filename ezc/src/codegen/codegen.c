@@ -2107,7 +2107,7 @@ static AstNode *find_struct_decl(CodeGen *cg, const char *name) {
 
 /* Emit C statements that print the value of c_expr (of type t) to stream.
  * stream is "stdout" or "stderr". Handles all types recursively. */
-static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream) {
+static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream, bool in_container) {
     if (!t || t->kind == TK_UNKNOWN) {
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
@@ -2129,8 +2129,13 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         break;
     case TK_STRING:
         emit_indent(cg);
-        emitf(cg, "fprintf(%s, \"\\\"%%.*s\\\"\", (int)(%s).len, (%s).data);\n",
-               stream, c_expr, c_expr);
+        if (in_container) {
+            emitf(cg, "fprintf(%s, \"\\\"%%.*s\\\"\", (int)(%s).len, (%s).data);\n",
+                   stream, c_expr, c_expr);
+        } else {
+            emitf(cg, "fprintf(%s, \"%%.*s\", (int)(%s).len, (%s).data);\n",
+                   stream, c_expr, c_expr);
+        }
         break;
     case TK_BOOL:
         emit_indent(cg);
@@ -2139,7 +2144,11 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         break;
     case TK_CHAR:
         emit_indent(cg);
-        emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
+        if (in_container) {
+            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
+        } else {
+            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream, stream);
+        }
         break;
     case TK_NIL:
         emit_indent(cg);
@@ -2175,7 +2184,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
                      "EZ_ARRAY_GET((%s), %s, _ez_pi%d)", c_expr, c_elem, uid);
         }
 
-        emit_value_print(cg, elem_expr, elem_t, stream);
+        emit_value_print(cg, elem_expr, elem_t, stream, true);
 
         cg->indent--;
         emit_indent(cg);
@@ -2215,7 +2224,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         char key_expr[256];
         snprintf(key_expr, sizeof(key_expr),
                  "*(%s *)ez_map_key_at(&(%s), %s)", c_key, c_expr, sl);
-        emit_value_print(cg, key_expr, key_t, stream);
+        emit_value_print(cg, key_expr, key_t, stream, true);
 
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \": \");\n", stream);
@@ -2224,7 +2233,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         char val_expr[256];
         snprintf(val_expr, sizeof(val_expr),
                  "*(%s *)ez_map_value_at(&(%s), %s)", c_val, c_expr, sl);
-        emit_value_print(cg, val_expr, val_t, stream);
+        emit_value_print(cg, val_expr, val_t, stream, true);
 
         cg->indent--;
         emit_indent(cg);
@@ -2253,7 +2262,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
                 char field_expr[256];
                 snprintf(field_expr, sizeof(field_expr), "(%s).%s", c_expr, f->name);
                 EzType *ft = type_from_name(f->type_name);
-                emit_value_print(cg, field_expr, ft, stream);
+                emit_value_print(cg, field_expr, ft, stream, true);
             }
         }
 
@@ -2324,7 +2333,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     char var[32];
     snprintf(var, sizeof(var), "_ez_pv%d", uid);
 
-    emit_value_print(cg, var, t, stream);
+    emit_value_print(cg, var, t, stream, false);
 
     if (newline) {
         emit_indent(cg);
