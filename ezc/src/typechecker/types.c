@@ -47,22 +47,23 @@ EzType *type_array(const char *elem_type) {
 EzType *type_struct(const char *name) {
     EzType *t = type_alloc();
     t->kind = TK_STRUCT;
-    t->name = name;
+    t->name = strdup(name);
     return t;
 }
 
 EzType *type_enum(const char *name) {
     EzType *t = type_alloc();
     t->kind = TK_ENUM;
-    t->name = name;
+    t->name = strdup(name);
     return t;
 }
 
 EzType *type_pointer(const char *pointee_type) {
     EzType *t = type_alloc();
     t->kind = TK_POINTER;
-    t->element_type = pointee_type; /* reuse element_type for pointee */
-    t->name = pointee_type;
+    const char *dup = strdup(pointee_type);
+    t->element_type = dup;
+    t->name = dup;
     return t;
 }
 
@@ -248,32 +249,32 @@ EzType *type_from_name(const char *name) {
         strcmp(name, "i32") == 0 || strcmp(name, "i64") == 0) {
         EzType *t = type_alloc();
         t->kind = TK_INT;
-        t->name = name;
+        t->name = strdup(name);
         return t;
     }
     if (strcmp(name, "i128") == 0 || strcmp(name, "i256") == 0) {
         EzType *t = type_alloc();
         t->kind = TK_INT;
-        t->name = name;
+        t->name = strdup(name);
         return t;
     }
     if (strcmp(name, "u8") == 0 || strcmp(name, "u16") == 0 ||
         strcmp(name, "u32") == 0 || strcmp(name, "u64") == 0) {
         EzType *t = type_alloc();
         t->kind = TK_UINT;
-        t->name = name;
+        t->name = strdup(name);
         return t;
     }
     if (strcmp(name, "u128") == 0 || strcmp(name, "u256") == 0) {
         EzType *t = type_alloc();
         t->kind = TK_UINT;
-        t->name = name;
+        t->name = strdup(name);
         return t;
     }
     if (strcmp(name, "f32") == 0 || strcmp(name, "f64") == 0) {
         EzType *t = type_alloc();
         t->kind = TK_FLOAT;
-        t->name = name;
+        t->name = strdup(name);
         return t;
     }
     if (strcmp(name, "bool") == 0)   return &TYPE_BOOL;
@@ -295,7 +296,7 @@ EzType *type_from_name(const char *name) {
     if (strncmp(name, "func(", 5) == 0) {
         EzType *t = type_alloc();
         t->kind = TK_FUNCTION;
-        t->name = name; /* canonical encoded form is the name */
+        t->name = strdup(name);
         t->func_sig = parse_func_sig(name);
         return t;
     }
