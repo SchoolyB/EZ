@@ -6797,18 +6797,28 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     tc->program = program;
 
-    /* Register built-in stdlib struct types */
-    {
-        static const char *http_fields[] = {"status", "body", "headers"};
-        static EzType *http_types[3];
-        http_types[0] = &TYPE_INT;
-        http_types[1] = &TYPE_STRING;
-        http_types[2] = type_from_name("map[string:string]");
-        register_struct(tc, "HttpResponse", http_fields, http_types, 3);
-    }
-
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
+
+    /* Register stdlib struct types scoped to their module imports */
+    if (tc_is_imported_module(tc, "server") || tc_is_imported_module(tc, "http")) {
+        static const char *resp_fields[] = {"status", "body", "headers"};
+        static EzType *resp_types[3];
+        resp_types[0] = &TYPE_INT;
+        resp_types[1] = &TYPE_STRING;
+        resp_types[2] = type_from_name("map[string:string]");
+        register_struct(tc, "HttpResponse", resp_fields, resp_types, 3);
+
+        static const char *req_fields[] = {"method", "path", "body", "query", "headers", "params"};
+        static EzType *req_types[6];
+        req_types[0] = &TYPE_STRING;
+        req_types[1] = &TYPE_STRING;
+        req_types[2] = &TYPE_STRING;
+        req_types[3] = type_from_name("map[string:string]");
+        req_types[4] = type_from_name("map[string:string]");
+        req_types[5] = type_from_name("map[string:string]");
+        register_struct(tc, "HttpRequest", req_fields, req_types, 6);
+    }
 
     /* Collect 'using' and 'import and use' module names */
     for (int i = 0; i < program->data.program.stmt_count; i++) {

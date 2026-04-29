@@ -2592,6 +2592,8 @@ An HTTP server module with dynamic handlers and path parameters.
 | `add_router` | `() -> Router` | Create a new router |
 | `add_route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
 | `listen` | `(port int, router Router)` | Start HTTP server on port (blocks until killed) |
+| `cors` | `(router Router, origin string)` | Enable CORS with the given origin |
+| `use` | `(router Router, ()middleware)` | Register a middleware function |
 
 #### Response Builders
 
@@ -2604,7 +2606,7 @@ An HTTP server module with dynamic handlers and path parameters.
 
 #### Request Type
 
-Every handler receives a `Request` struct:
+Every handler receives an `HttpRequest` struct:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -2618,17 +2620,18 @@ Every handler receives a `Request` struct:
 ```ez
 import @server
 
-do home(req Request) -> HttpResponse {
+do home(req HttpRequest) -> HttpResponse {
     return server.text(200, "Welcome!")
 }
 
-do get_user(req Request) -> HttpResponse {
+do get_user(req HttpRequest) -> HttpResponse {
     mut id = req.params["id"]
     return server.json(200, {"id": id})
 }
 
 do main() {
     mut r = server.add_router()
+    server.cors(r, "*")
     server.add_route(r, "GET", "/", ()home)
     server.add_route(r, "GET", "/users/:id", ()get_user)
     server.listen(8080, r)
