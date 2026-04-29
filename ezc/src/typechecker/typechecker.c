@@ -699,8 +699,10 @@ static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
         }
         /* #1585: after registration completes, reject uppercase names that
          * aren't registered as structs or enums. During registration we must
-         * allow forward references, so only enforce this in later passes. */
-        if (!tc->registering) {
+         * allow forward references, so only enforce this in later passes.
+         * Exempt built-in types that are mapped directly in codegen without
+         * struct registration (e.g. Error → EzError*). */
+        if (!tc->registering && strcmp(name, "Error") != 0) {
             return &TYPE_UNKNOWN;
         }
     }

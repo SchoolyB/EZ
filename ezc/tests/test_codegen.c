@@ -448,7 +448,7 @@ static void test_e2e_mem_usage(void) {
         "    mem.destroy(a)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n\"allocated\"");
+    ASSERT_STR_EQ(out, "0\nallocated");
 }
 
 static void test_e2e_mem_reset(void) {
@@ -1059,7 +1059,7 @@ static void test_e2e_sized_int_i8(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "127\n\"i8\"");
+    ASSERT_STR_EQ(out, "127\ni8");
 }
 
 static void test_e2e_sized_int_u8(void) {
@@ -1071,7 +1071,7 @@ static void test_e2e_sized_int_u8(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255\n\"u8\"");
+    ASSERT_STR_EQ(out, "255\nu8");
 }
 
 static void test_e2e_sized_int_i32(void) {
@@ -1095,7 +1095,7 @@ static void test_e2e_sized_int_u64(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1000000\n\"u64\"");
+    ASSERT_STR_EQ(out, "1000000\nu64");
 }
 
 static void test_e2e_sized_float_f32(void) {
@@ -1118,7 +1118,7 @@ static void test_e2e_byte_type(void) {
         "  println(type_of(b))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255\n\"byte\"");
+    ASSERT_STR_EQ(out, "255\nbyte");
 }
 
 /* ===== Cast Expression ===== */
@@ -1203,7 +1203,7 @@ static void test_e2e_sized_int_i16(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "32767\n\"i16\"");
+    ASSERT_STR_EQ(out, "32767\ni16");
 }
 
 static void test_e2e_sized_int_i64(void) {
@@ -1215,7 +1215,7 @@ static void test_e2e_sized_int_i64(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "9223372036854775807\n\"i64\"");
+    ASSERT_STR_EQ(out, "9223372036854775807\ni64");
 }
 
 static void test_e2e_sized_int_u16(void) {
@@ -1227,7 +1227,7 @@ static void test_e2e_sized_int_u16(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "65535\n\"u16\"");
+    ASSERT_STR_EQ(out, "65535\nu16");
 }
 
 static void test_e2e_sized_int_u32(void) {
@@ -1239,7 +1239,7 @@ static void test_e2e_sized_int_u32(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "4294967295\n\"u32\"");
+    ASSERT_STR_EQ(out, "4294967295\nu32");
 }
 
 static void test_e2e_sized_float_f64(void) {
