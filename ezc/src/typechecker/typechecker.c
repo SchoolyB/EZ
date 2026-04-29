@@ -2154,8 +2154,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "sync") == 0) {
                 if (strcmp(mfn, "mutex") == 0) {
                     result = type_struct("Mutex"); /* EzMutex; opaque */
+                } else if (strcmp(mfn, "try_lock") == 0) {
+                    result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "lock") == 0 || strcmp(mfn, "unlock") == 0 ||
-                           strcmp(mfn, "try_lock") == 0 || strcmp(mfn, "destroy") == 0) {
+                           strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);

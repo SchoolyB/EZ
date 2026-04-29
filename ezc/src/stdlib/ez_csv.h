@@ -18,6 +18,9 @@ EzArray ez_csv_parse(EzArena *arena, EzString csv_string);
 /* Convert array of arrays of strings to CSV string */
 EzString ez_csv_stringify(EzArena *arena, EzArray *data);
 
+/* Extract the first row (headers) from parsed CSV data */
+EzArray ez_csv_headers(EzArena *arena, EzArray *data);
+
 /* Read CSV file */
 EzArray ez_csv_read(EzArena *arena, EzString path);
 

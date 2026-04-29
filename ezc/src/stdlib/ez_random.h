@@ -24,6 +24,9 @@ int32_t ez_random_char_range(int32_t min, int32_t max);
 EzArray ez_random_shuffle(EzArena *arena, EzArray *arr);
 EzArray ez_random_sample(EzArena *arena, EzArray *arr, int32_t n);
 
+/* Explicit seeding */
+void ez_random_seed(int64_t value);
+
 /* Random hex string */
 EzString ez_random_hex(EzArena *arena, int64_t length);
 

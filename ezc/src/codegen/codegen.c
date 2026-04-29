@@ -3152,6 +3152,22 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "cors") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_cors(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "use") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_use(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", (EzMiddleware)");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     return false;
 }
 
@@ -3350,10 +3366,16 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "encode") == 0) {
+    if (strcmp(func, "encode") == 0 || strcmp(func, "format") == 0) {
         emit(cg, "({ EzArray _csv_a = ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, "; ez_csv_stringify(ez_default_arena, &_csv_a); })");
+        return true;
+    }
+    if (strcmp(func, "headers") == 0) {
+        emit(cg, "({ EzArray _csv_a = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_csv_headers(ez_default_arena, &_csv_a); })");
         return true;
     }
     if (strcmp(func, "write_file") == 0) {
@@ -3378,7 +3400,7 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @json module --- */
 
 static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "encode") == 0) {
+    if (strcmp(func, "encode") == 0 || strcmp(func, "format") == 0) {
         AstNode *arg = node->data.call.args[0];
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_MAP) {
@@ -3633,6 +3655,12 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "random_hex") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_random_hex(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "seed") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_random_seed(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -4304,6 +4332,12 @@ static bool emit_sync_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "unlock") == 0) {
         emit(cg, "ez_sync_unlock(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "try_lock") == 0) {
+        emit(cg, "ez_sync_try_lock(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;

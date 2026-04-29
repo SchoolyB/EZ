@@ -31,6 +31,10 @@ EzRouter ez_server_router(void) {
     r.count = 0;
     r.capacity = 16;
     r.routes = malloc(sizeof(EzRoute) * r.capacity);
+    r.cors_origin = NULL;
+    r.middlewares = NULL;
+    r.mw_count = 0;
+    r.mw_capacity = 0;
     return r;
 }
 
@@ -55,6 +59,22 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
     route->pattern = p;
 
     route->handler = handler;
+}
+
+void ez_server_cors(EzRouter *r, EzString origin) {
+    EzArena *a = get_server_arena();
+    char *o = ez_arena_alloc(a, origin.len + 1);
+    memcpy(o, origin.data, origin.len);
+    o[origin.len] = '\0';
+    r->cors_origin = o;
+}
+
+void ez_server_use(EzRouter *r, EzMiddleware fn) {
+    if (r->mw_count >= r->mw_capacity) {
+        r->mw_capacity = r->mw_capacity == 0 ? 8 : r->mw_capacity * 2;
+        r->middlewares = realloc(r->middlewares, sizeof(EzMiddleware) * r->mw_capacity);
+    }
+    r->middlewares[r->mw_count++] = fn;
 }
 
 /* Check if a route pattern matches a path, extracting params */
@@ -216,20 +236,37 @@ static void *handle_connection(void *arg) {
                 break;
             }
         }
+
+        /* Run middleware */
+        for (int i = 0; i < ctx->router->mw_count; i++) {
+            ctx->router->middlewares[i](&req, &resp);
+        }
     }
 
-    /* Build HTTP response */
+    /* Build HTTP response with optional CORS headers */
+    char cors_hdrs[512];
+    cors_hdrs[0] = '\0';
+    if (ctx->router->cors_origin) {
+        snprintf(cors_hdrs, sizeof(cors_hdrs),
+            "Access-Control-Allow-Origin: %s\r\n"
+            "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS\r\n"
+            "Access-Control-Allow-Headers: Content-Type, Authorization\r\n",
+            ctx->router->cors_origin);
+    }
+
     char resp_buf[65536];
     int resp_len = snprintf(resp_buf, sizeof(resp_buf),
         "HTTP/1.1 %d OK\r\n"
         "Content-Type: %.*s\r\n"
         "Content-Length: %d\r\n"
+        "%s"
         "Connection: close\r\n"
         "\r\n"
         "%.*s",
         (int)resp.status,
         (int)resp.content_type.len, resp.content_type.data,
         (int)resp.body.len,
+        cors_hdrs,
         (int)resp.body.len, resp.body.data);
 
     send(ctx->client_fd, resp_buf, resp_len, 0);
