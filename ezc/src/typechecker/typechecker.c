@@ -1299,13 +1299,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (right->kind == TK_ARRAY && right->element_type) {
                 EzType *elem = type_from_name(right->element_type);
                 if (elem->kind != TK_UNKNOWN && left->kind != elem->kind &&
-                    !(is_int_kind(left->kind) && is_int_kind(elem->kind))) {
+                    !(is_int_kind(left->kind) && is_int_kind(elem->kind)) &&
+                    !(left->name && strcmp(left->name, right->element_type) == 0)) {
                     mismatch = true;
                 }
             } else if (right->kind == TK_MAP && right->key_type) {
                 EzType *key = type_from_name(right->key_type);
                 if (key->kind != TK_UNKNOWN && left->kind != key->kind &&
-                    !(is_int_kind(left->kind) && is_int_kind(key->kind))) {
+                    !(is_int_kind(left->kind) && is_int_kind(key->kind)) &&
+                    !(left->name && strcmp(left->name, right->key_type) == 0)) {
                     mismatch = true;
                 }
             } else if (right->kind == TK_STRING) {
