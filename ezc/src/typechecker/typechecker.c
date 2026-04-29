@@ -697,6 +697,12 @@ static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
             if (is_enum_name(tc, prefixed)) return type_enum(prefixed);
             if (is_struct_name(tc, prefixed)) return type_struct(prefixed);
         }
+        /* #1585: after registration completes, reject uppercase names that
+         * aren't registered as structs or enums. During registration we must
+         * allow forward references, so only enforce this in later passes. */
+        if (!tc->registering) {
+            return &TYPE_UNKNOWN;
+        }
     }
     return t;
 }
@@ -3929,6 +3935,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         const char *sname = node->data.struct_value.name;
         tc_mark_type_module_used(tc, sname);
         StructInfo *si = find_struct(tc, sname);
+        /* E4016: reject undefined/unimported struct types in struct literals */
+        if (!si && !is_struct_name(tc, sname)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "undefined type '%s'; check the spelling or import the module that defines it",
+                sname);
+            diag_error_msg(tc->diag, "E4016", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            result = &TYPE_UNKNOWN;
+            break;
+        }
         /* E2015: check for duplicate field names in struct literal */
         for (int i = 0; i < node->data.struct_value.count; i++) {
             if (!node->data.struct_value.field_names[i]) continue;
@@ -4519,6 +4536,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         EzType *declared = node->data.var_decl.type_name
             ? tc_type_from_name(tc, node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
+        /* E4016: explicitly annotated type name that doesn't exist */
+        if (node->data.var_decl.type_name && declared->kind == TK_UNKNOWN &&
+            node->data.var_decl.type_name[0] >= 'A' && node->data.var_decl.type_name[0] <= 'Z') {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "undefined type '%s'; check the spelling or import the module that defines it",
+                node->data.var_decl.type_name);
+            diag_error_msg(tc->diag, "E4016", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         tc_mark_type_module_used(tc, node->data.var_decl.type_name);
 
         /* E3057: reject composite types as map keys before downstream checks
@@ -5940,6 +5967,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
             EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
+            /* E4016: undefined parameter type */
+            if (p->type_name && ptype->kind == TK_UNKNOWN &&
+                p->type_name[0] >= 'A' && p->type_name[0] <= 'Z') {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "undefined type '%s'; check the spelling or import the module that defines it",
+                    p->type_name);
+                diag_error_msg(tc->diag, "E4016", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
             /* E3001: validate default value type matches parameter type */
             if (p->default_value && p->type_name) {
                 EzType *def_t = resolve_expr(tc, p->default_value);
@@ -6061,6 +6098,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 tc->current_return_types[i] = tc_type_from_name(tc, node->data.func_decl.return_types[i]);
                 tc->current_return_type_names[i] = node->data.func_decl.return_types[i];
+                /* E4016: undefined return type */
+                const char *rtn = node->data.func_decl.return_types[i];
+                if (rtn && tc->current_return_types[i]->kind == TK_UNKNOWN &&
+                    rtn[0] >= 'A' && rtn[0] <= 'Z') {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "undefined type '%s'; check the spelling or import the module that defines it",
+                        rtn);
+                    diag_error_msg(tc->diag, "E4016", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
         } else {
             tc->current_return_types = NULL;
@@ -6426,6 +6474,7 @@ static bool struct_contains_by_value(AstNode *program, AstNode *decl,
 }
 
 static void register_declarations(TypeChecker *tc, AstNode *program) {
+    tc->registering = true;
     /* Validate and record imports */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
@@ -6779,6 +6828,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             }
         }
     }
+    tc->registering = false;
 }
 
 /* --- Public API --- */

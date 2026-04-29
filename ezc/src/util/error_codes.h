@@ -169,7 +169,8 @@
     EZ_ERROR("E4012", "names", "variable '%s' shadows a type definition with the same name") \
     EZ_ERROR("E4013", "names", "variable '%s' shadows a function with the same name") \
     EZ_ERROR("E4014", "names", "variable '%s' shadows an imported module with the same name") \
-    EZ_ERROR("E4015", "names", "'%s' is private and cannot be accessed from outside its file")
+    EZ_ERROR("E4015", "names", "'%s' is private and cannot be accessed from outside its file") \
+    EZ_ERROR("E4016", "names", "undefined type '%s'; check the spelling or import the module that defines it")
 
 /* --- E5xxx: Usage Problems --- */
 #define EZ_USAGE_ERRORS \
