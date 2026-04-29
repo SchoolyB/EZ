@@ -1,0 +1,10 @@
+/*
+ * Error Test: E4016 - undefined struct type in variable declaration
+ * Expected: E4016 "undefined type 'Foo'"
+ * Covers: E4016 rejects unknown capitalized types (#1585)
+ */
+
+do main() {
+    mut x Foo = 42
+    println("${x}")
+}
