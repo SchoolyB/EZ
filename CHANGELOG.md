@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.1.0](https://github.com/SchoolyB/EZ/compare/v3.0.0...v3.1.0) (2026-04-29)
+
+
+### Features
+
+* **cli:** add -o/--output flag to ez doc ([3f590e8](https://github.com/SchoolyB/EZ/commit/3f590e8c0dd224ebc79fb1f56d365eb399a71896))
+* **cli:** add -o/--output flag to ez doc ([0916278](https://github.com/SchoolyB/EZ/commit/09162785a00cbaba53e6b60d08543048e4a2f87e))
+
+
+### Bug Fixes
+
+* **codegen:** map HttpRequest/HttpResponse to correct C types ([#1585](https://github.com/SchoolyB/EZ/issues/1585)) ([2cc6dbd](https://github.com/SchoolyB/EZ/commit/2cc6dbd6037531551ad23cc1c1f959c64332398d))
+* **codegen:** resolve wildcard type in string interpolation ([#1584](https://github.com/SchoolyB/EZ/issues/1584)) ([646f1cb](https://github.com/SchoolyB/EZ/commit/646f1cbaa337c191742c14ffad51cf2c0106f781))
+* **codegen:** revert string/char quote encapsulation in print functions ([#1580](https://github.com/SchoolyB/EZ/issues/1580)) ([f0cdb28](https://github.com/SchoolyB/EZ/commit/f0cdb283931bb3335ecb31df202a916efb0aa1fc))
+* **stdlib:** wire 7 partially implemented stdlib functions end-to-end ([#1580](https://github.com/SchoolyB/EZ/issues/1580)) ([8d6b8bd](https://github.com/SchoolyB/EZ/commit/8d6b8bdf658205f675989e657c9e0f3bc793bddf))
+* typechecker hardening, stdlib wiring, and code scanning fixes ([dd5fe8b](https://github.com/SchoolyB/EZ/commit/dd5fe8b5be97d12599a5043f66069cf474c69423))
+* **typechecker,codegen:** validate 'in' operator types and wire string containment ([#1589](https://github.com/SchoolyB/EZ/issues/1589), [#1590](https://github.com/SchoolyB/EZ/issues/1590)) ([ddbd4f5](https://github.com/SchoolyB/EZ/commit/ddbd4f5ed71a39365a91829958578c4aedf798e7))
+* **typechecker:** allow enum values in 'in' operator for matching collections ([#1589](https://github.com/SchoolyB/EZ/issues/1589)) ([c85bb8c](https://github.com/SchoolyB/EZ/commit/c85bb8cedd4a2e36650beeacf4e697e2e7f05590))
+* **typechecker:** exempt built-in Error type from E4016 and fix missed e2e expectations ([#1585](https://github.com/SchoolyB/EZ/issues/1585)) ([014a814](https://github.com/SchoolyB/EZ/commit/014a814eef5f143e12a070d9637e725d73b3db53))
+* **typechecker:** format array/map types in error messages ([#1589](https://github.com/SchoolyB/EZ/issues/1589)) ([bdb6570](https://github.com/SchoolyB/EZ/commit/bdb65709e3e50a743d5a232bc7193566c4e1310e))
+* **typechecker:** register HttpRequest type and scope HTTP types to imports ([#1585](https://github.com/SchoolyB/EZ/issues/1585)) ([58b3bbe](https://github.com/SchoolyB/EZ/commit/58b3bbed4a8b096817c1ed77089372d16322fb77))
+* **typechecker:** reject return statements with too many values ([#1588](https://github.com/SchoolyB/EZ/issues/1588)) ([7397aee](https://github.com/SchoolyB/EZ/commit/7397aee55612b621a4d6a64ea6696f2e68d2bc52))
+* **typechecker:** reject type names passed to type_of() ([#1586](https://github.com/SchoolyB/EZ/issues/1586)) ([f573e12](https://github.com/SchoolyB/EZ/commit/f573e122a8c7f421a5deabd1837fbc3ea51cb883))
+* **typechecker:** reject undefined/unimported struct types ([#1585](https://github.com/SchoolyB/EZ/issues/1585)) ([da55c33](https://github.com/SchoolyB/EZ/commit/da55c33145a649c5840a582ec9af101a8b5e6463))
+* **typechecker:** scope HttpRequest to server module only ([#1585](https://github.com/SchoolyB/EZ/issues/1585)) ([7095990](https://github.com/SchoolyB/EZ/commit/70959902a7c6aa53a32441ea4ac1a63b1b3383e0))
+* **typechecker:** validate argument count for struct function calls ([#1587](https://github.com/SchoolyB/EZ/issues/1587)) ([fd0695e](https://github.com/SchoolyB/EZ/commit/fd0695ef451731c210f73e3e94cca5d121a5ca83))
+* **typechecker:** validate argument types for range, assert, exit, panic builtins ([#1591](https://github.com/SchoolyB/EZ/issues/1591)) ([ef21472](https://github.com/SchoolyB/EZ/commit/ef214725f77a274d655deaad8f05b690a879e6aa))
+
 ## [3.0.0](https://github.com/SchoolyB/EZ/compare/v2.0.0...v3.0.0) (2026-04-28)
 
 EZ 3.0 is a "from the ground up rewrite". The Go-based interpreter has been replaced by a **compiled backend** that emits C and produces native binaries. Every stage of the pipeline — lexer, parser, typechecker, and code generator is now written in C. The Go CLI remains as the user-facing tooling wrapper.
