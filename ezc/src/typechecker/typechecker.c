@@ -2571,6 +2571,38 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             } else {
                                 result = &TYPE_VOID;
                             }
+                            /* E5008: validate argument count (after AST rewrite
+                             * which prepended self as arg[0]). Both arg_count
+                             * and param_count include self, so they compare
+                             * directly. Display counts subtract 1 to hide self. */
+                            {
+                                int min_params = ssig->param_count;
+                                if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                                    min_params = 0;
+                                    for (int pi = 0; pi < ssig->decl->data.func_decl.param_count; pi++) {
+                                        if (!ssig->decl->data.func_decl.params[pi].default_value)
+                                            min_params++;
+                                    }
+                                }
+                                if (node->data.call.arg_count < min_params ||
+                                    node->data.call.arg_count > ssig->param_count) {
+                                    int display_got = node->data.call.arg_count - 1;
+                                    int display_max = ssig->param_count - 1;
+                                    int display_min = min_params - 1;
+                                    char emsg[256];
+                                    if (display_min == display_max) {
+                                        snprintf(emsg, sizeof(emsg),
+                                            "function '%s.%s' expects %d argument(s), got %d",
+                                            sname, mfn, display_max, display_got);
+                                    } else {
+                                        snprintf(emsg, sizeof(emsg),
+                                            "function '%s.%s' expects %d-%d argument(s), got %d",
+                                            sname, mfn, display_min, display_max, display_got);
+                                    }
+                                    diag_error_msg(tc->diag, "E5008", strdup(emsg),
+                                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                                }
+                            }
                             /* Validate argument types (after AST rewrite) */
                             {
                                 int check_count = node->data.call.arg_count < ssig->param_count
