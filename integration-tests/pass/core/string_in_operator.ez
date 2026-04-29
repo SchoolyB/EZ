@@ -1,0 +1,92 @@
+/*
+ * string_in_operator.ez - Test 'in' operator for string containment
+ * Covers: char in string, string in string, !in variants (#1589, #1590)
+ */
+
+do main() {
+    println("=== String 'in' Operator Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    mut greeting string = "Hello, World!"
+
+    // Test 1: char in string (found)
+    if 'H' in greeting {
+        println("  [PASS] char 'H' in string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char 'H' not found in string")
+        failed += 1
+    }
+
+    // Test 2: char in string (not found)
+    if 'z' in greeting {
+        println("  [FAIL] char 'z' found in string")
+        failed += 1
+    } otherwise {
+        println("  [PASS] char 'z' not in string")
+        passed += 1
+    }
+
+    // Test 3: char !in string
+    if 'z' !in greeting {
+        println("  [PASS] char 'z' !in string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char 'z' !in failed")
+        failed += 1
+    }
+
+    // Test 4: string in string (substring found)
+    if "World" in greeting {
+        println("  [PASS] substring \"World\" in string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] substring \"World\" not found")
+        failed += 1
+    }
+
+    // Test 5: string in string (not found)
+    if "xyz" in greeting {
+        println("  [FAIL] substring \"xyz\" found")
+        failed += 1
+    } otherwise {
+        println("  [PASS] substring \"xyz\" not in string")
+        passed += 1
+    }
+
+    // Test 6: string !in string
+    if "xyz" !in greeting {
+        println("  [PASS] substring \"xyz\" !in string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] substring \"xyz\" !in failed")
+        failed += 1
+    }
+
+    // Test 7: empty string in string (should be found)
+    if "" in greeting {
+        println("  [PASS] empty string in string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty string not found")
+        failed += 1
+    }
+
+    // Test 8: char at end of string
+    if '!' in greeting {
+        println("  [PASS] char '!' at end of string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char '!' not found at end")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
