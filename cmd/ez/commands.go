@@ -143,10 +143,12 @@ Examples:
   ez doc file.ez        Generate docs for a single file
   ez doc a.ez b.ez      Generate docs for multiple files
 
-Output is written to DOCS.md in the current working directory.`,
+Output is written to DOCS.md by default. Use -o/--output to write
+to a different path (parent directories are created as needed).`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		generateDocs(args)
+		output, _ := cmd.Flags().GetString("output")
+		generateDocs(args, output)
 	},
 }
 
@@ -505,6 +507,8 @@ Use "ez [command] --help" for more information about a command.
 	rootCmd.Flags().Bool("no-color", false, "Disable colored output")
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+
+	docCmd.Flags().StringP("output", "o", defaultDocOutputPath, "Path to write generated markdown")
 
 	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
