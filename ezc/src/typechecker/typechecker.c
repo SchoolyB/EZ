@@ -2684,6 +2684,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "type_of") == 0) {
+                /* E3084: type_of() with a type name instead of a value */
+                if (node->data.call.arg_count > 0) {
+                    AstNode *arg = node->data.call.args[0];
+                    if (arg->kind == NODE_LABEL) {
+                        const char *aname = arg->data.label.value;
+                        Symbol *sym = scope_lookup(tc->current_scope, aname);
+                        if (!sym && (is_struct_name(tc, aname) || is_enum_name(tc, aname))) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "type_of() expects a value, not a type name '%s'; use type_of(instance) instead",
+                                aname);
+                            diag_error_msg(tc->diag, "E3084", strdup(msg),
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                        }
+                    }
+                }
                 /* E3038: type_of() on void function result */
                 if (node->data.call.arg_count > 0) {
                     EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
