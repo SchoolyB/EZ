@@ -2885,6 +2885,55 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                        strcmp(fn_name, "sleep_s") == 0 ||
                        strcmp(fn_name, "sleep_ms") == 0 ||
                        strcmp(fn_name, "sleep_ns") == 0) {
+                /* Validate argument types for these builtins */
+                if (strcmp(fn_name, "exit") == 0 && node->data.call.arg_count >= 1) {
+                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "exit() expects an integer argument, got '%s'", type_name(at));
+                        diag_error_msg(tc->diag, "E3001", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                } else if (strcmp(fn_name, "panic") == 0 && node->data.call.arg_count >= 1) {
+                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind != TK_UNKNOWN && at->kind != TK_STRING) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "panic() expects a string argument, got '%s'", type_name(at));
+                        diag_error_msg(tc->diag, "E3001", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                } else if (strcmp(fn_name, "assert") == 0 && node->data.call.arg_count >= 1) {
+                    EzType *cond_t = resolve_expr(tc, node->data.call.args[0]);
+                    if (cond_t->kind != TK_UNKNOWN && cond_t->kind != TK_BOOL) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "assert() condition must be a bool, got '%s'", type_name(cond_t));
+                        diag_error_msg(tc->diag, "E3001", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                    if (node->data.call.arg_count >= 2) {
+                        EzType *msg_t = resolve_expr(tc, node->data.call.args[1]);
+                        if (msg_t->kind != TK_UNKNOWN && msg_t->kind != TK_STRING) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "assert() message must be a string, got '%s'", type_name(msg_t));
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                        }
+                    }
+                } else if ((strcmp(fn_name, "sleep_s") == 0 || strcmp(fn_name, "sleep_ms") == 0 ||
+                            strcmp(fn_name, "sleep_ns") == 0) && node->data.call.arg_count >= 1) {
+                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "%s() expects an integer argument, got '%s'", fn_name, type_name(at));
+                        diag_error_msg(tc->diag, "E3001", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                }
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
@@ -4149,6 +4198,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_RANGE_EXPR: {
+        /* Validate range arguments are integer types */
+        AstNode *parts[] = { node->data.range_expr.start,
+                             node->data.range_expr.end,
+                             node->data.range_expr.step };
+        const char *labels[] = { "start", "end", "step" };
+        for (int ri = 0; ri < 3; ri++) {
+            if (!parts[ri]) continue;
+            EzType *pt = resolve_expr(tc, parts[ri]);
+            if (pt->kind != TK_UNKNOWN && !is_int_kind(pt->kind)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "range() %s argument must be an integer type, got '%s'",
+                    labels[ri], type_name(pt));
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), parts[ri]->token.line,
+                    parts[ri]->token.column, 0);
+            }
+        }
         EzType *rt = type_alloc();
         rt->kind = TK_INT;
         rt->name = "Range<int>";
