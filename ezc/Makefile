@@ -5,7 +5,7 @@
 
 CC ?= cc
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "unknown")
-CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -Wno-unused-parameter -DEZ_VERSION=\"$(VERSION)\"
+CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wno-unused-parameter -DEZ_VERSION=\"$(VERSION)\"
 # Auto-generate header dependencies so incremental builds rebuild every
 # TU whose transitively-included headers changed. Without this, editing
 # a shared header (e.g. scope.h) leaves stale .o files that were built

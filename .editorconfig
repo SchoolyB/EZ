@@ -1,0 +1,46 @@
+# EditorConfig is awesome: https://editorconfig.org
+#
+# Editor-agnostic defaults for the EZ repo. Captures the conventions
+# that already live in the source: 4-space indent for C, gofmt-style
+# tabs for Go, tabs for Makefiles, 2-space indent for YAML/Markdown,
+# UTF-8 encoding, and LF line endings.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Go: gofmt enforces tabs.
+[*.go]
+indent_style = tab
+
+# C/C++: 4-space indent matches `ezc/.clang-format` (IndentWidth: 4).
+[*.{c,h,cpp,hpp}]
+indent_style = space
+indent_size = 4
+
+# Makefiles require literal tabs in recipe lines.
+[{Makefile,makefile,GNUmakefile,*.mk}]
+indent_style = tab
+
+# YAML/JSON/TOML: 2-space indent matches the workflow files.
+[*.{yml,yaml,json,toml}]
+indent_style = space
+indent_size = 2
+
+# Markdown allows trailing spaces (for hard line breaks); keep
+# everything else consistent with the global section.
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+# Shell scripts: 2-space indent, LF, final newline.
+[*.{sh,bash,zsh}]
+indent_style = space
+indent_size = 2

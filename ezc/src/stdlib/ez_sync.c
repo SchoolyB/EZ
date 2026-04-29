@@ -31,6 +31,13 @@ void ez_sync_unlock(EzMutex m) {
     }
 }
 
+bool ez_sync_try_lock(EzMutex m) {
+    if (m._internal) {
+        return pthread_mutex_trylock((pthread_mutex_t *)m._internal) == 0;
+    }
+    return false;
+}
+
 void ez_sync_destroy(EzMutex m) {
     if (m._internal) {
         pthread_mutex_destroy((pthread_mutex_t *)m._internal);

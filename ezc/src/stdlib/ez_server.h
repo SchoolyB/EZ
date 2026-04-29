@@ -38,11 +38,18 @@ typedef struct {
     EzResponse (*handler)(EzRequest);
 } EzRoute;
 
+/* Middleware function pointer */
+typedef void (*EzMiddleware)(EzRequest *req, EzResponse *resp);
+
 /* Router — holds registered routes */
 typedef struct {
     EzRoute *routes;
     int count;
     int capacity;
+    const char *cors_origin;    /* NULL = no CORS */
+    EzMiddleware *middlewares;
+    int mw_count;
+    int mw_capacity;
 } EzRouter;
 
 /* Create a new router */
@@ -54,6 +61,12 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
 
 /* Start listening — blocks until killed */
 void ez_server_listen(int64_t port, EzRouter *r);
+
+/* Enable CORS with the given origin (e.g. "*" or "http://example.com") */
+void ez_server_cors(EzRouter *r, EzString origin);
+
+/* Register a middleware function */
+void ez_server_use(EzRouter *r, EzMiddleware fn);
 
 /* Response builders */
 EzResponse ez_server_text(int64_t status, EzString body);

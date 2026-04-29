@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 173 codes** (161 errors, 12 warnings)
+**Total: 176 codes** (164 errors, 12 warnings)
 
 ---
 
@@ -141,6 +141,8 @@
 | `E3081` | types | function '%s' used as a statement without being called; did you mean '%s()'? |
 | `E3082` | types | wildcard type '?' cannot be used in named return positions; use an unnamed return instead |
 | `E3083` | types | c_string() requires a raw C pointer; cannot convert a non-pointer type |
+| `E3084` | types | type_of() expects a value, not a type name; use type_of(instance) instead |
+| `E3085` | types | 'in' operator type mismatch: cannot check if '%s' is in '%s' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -153,6 +155,7 @@
 | `E4013` | names | variable '%s' shadows a function with the same name |
 | `E4014` | names | variable '%s' shadows an imported module with the same name |
 | `E4015` | names | '%s' is private and cannot be accessed from outside its file |
+| `E4016` | names | undefined type '%s'; check the spelling or import the module that defines it |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | wrong number of arguments; the function expects a different count than was provided |
 | `E5011` | usage | return value of '%s' is not used; assign it to a variable or use '_' to discard |
@@ -217,4 +220,4 @@
 
 ---
 
-*Generated on 2026-04-28 05:26:56 UTC*
+*Generated on 2026-04-29 22:39:15 UTC*

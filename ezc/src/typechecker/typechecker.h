@@ -133,6 +133,9 @@ typedef struct {
     int destroyed_arena_count;
     int destroyed_arena_cap;
 
+    /* #1585: true during register_declarations to allow forward references */
+    bool registering;
+
 } TypeChecker;
 
 /* Create and run the type checker */

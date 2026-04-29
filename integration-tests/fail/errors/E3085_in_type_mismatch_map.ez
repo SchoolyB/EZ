@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3085 - 'in' operator type mismatch (string in map[int:string])
+ * Expected: E3085 "'in' operator type mismatch"
+ * Covers: #1589
+ */
+
+do main() {
+    mut m map[int:string] = {1: "one", 2: "two"}
+    if "hello" in m {
+        println("found")
+    }
+}

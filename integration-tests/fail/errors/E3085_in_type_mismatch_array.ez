@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3085 - 'in' operator type mismatch (int in [string])
+ * Expected: E3085 "'in' operator type mismatch"
+ * Covers: #1589
+ */
+
+do main() {
+    mut names [string] = {"alice", "bob"}
+    if 42 in names {
+        println("found")
+    }
+}

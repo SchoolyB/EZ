@@ -154,7 +154,9 @@
     EZ_ERROR("E3080", "types", "function must return named variable '%s', not a different expression") \
     EZ_ERROR("E3081", "types", "function '%s' used as a statement without being called; did you mean '%s()'?") \
     EZ_ERROR("E3082", "types", "wildcard type '?' cannot be used in named return positions; use an unnamed return instead") \
-    EZ_ERROR("E3083", "types", "c_string() requires a raw C pointer; cannot convert a non-pointer type")
+    EZ_ERROR("E3083", "types", "c_string() requires a raw C pointer; cannot convert a non-pointer type") \
+    EZ_ERROR("E3084", "types", "type_of() expects a value, not a type name; use type_of(instance) instead") \
+    EZ_ERROR("E3085", "types", "'in' operator type mismatch: cannot check if '%s' is in '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -169,7 +171,8 @@
     EZ_ERROR("E4012", "names", "variable '%s' shadows a type definition with the same name") \
     EZ_ERROR("E4013", "names", "variable '%s' shadows a function with the same name") \
     EZ_ERROR("E4014", "names", "variable '%s' shadows an imported module with the same name") \
-    EZ_ERROR("E4015", "names", "'%s' is private and cannot be accessed from outside its file")
+    EZ_ERROR("E4015", "names", "'%s' is private and cannot be accessed from outside its file") \
+    EZ_ERROR("E4016", "names", "undefined type '%s'; check the spelling or import the module that defines it")
 
 /* --- E5xxx: Usage Problems --- */
 #define EZ_USAGE_ERRORS \

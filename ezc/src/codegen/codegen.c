@@ -157,6 +157,8 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
+    if (strcmp(type_name, "HttpRequest") == 0) return "EzRequest";
+    if (strcmp(type_name, "HttpResponse") == 0) return "EzResponse";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
@@ -772,6 +774,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
                 /* Fall back to AST-based inference if no type info */
                 if (tk == TK_UNKNOWN) {
+                    if (cg->wildcard_binding) {
+                        EzType *wc = type_from_name(cg->wildcard_binding);
+                        if (wc) { tk = wc->kind; t = wc; }
+                    }
+                }
+                if (tk == TK_UNKNOWN) {
                     if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
                     else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
                     else if (part->kind == NODE_STRING_VALUE) tk = TK_STRING;
@@ -805,6 +813,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
             EzType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
             TypeKind tk = t ? t->kind : TK_UNKNOWN;
+            if (tk == TK_UNKNOWN) {
+                if (cg->wildcard_binding) {
+                    EzType *wc = type_from_name(cg->wildcard_binding);
+                    if (wc) { tk = wc->kind; t = wc; }
+                }
+            }
             if (tk == TK_UNKNOWN) {
                 if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
                 else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
@@ -1262,6 +1276,30 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "; ez_maps_has_key(&");
                 emit_expression(cg, node->data.infix.right);
                 emit(cg, ", &_ik); })");
+                break;
+            }
+            /* String membership: char in string or string in string */
+            if (arr_t && arr_t->kind == TK_STRING) {
+                EzType *left_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
+                if (left_t && left_t->kind == TK_CHAR) {
+                    /* char in string → memchr scan */
+                    if (negated) emit(cg, "!");
+                    emit(cg, "(memchr(");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ".data, ");
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, ", (size_t)");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ".len) != NULL)");
+                } else {
+                    /* string in string → substring check */
+                    if (negated) emit(cg, "!");
+                    emit(cg, "ez_strings_contains(");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, ")");
+                }
                 break;
             }
             if (negated) emit(cg, "!");
@@ -2107,7 +2145,7 @@ static AstNode *find_struct_decl(CodeGen *cg, const char *name) {
 
 /* Emit C statements that print the value of c_expr (of type t) to stream.
  * stream is "stdout" or "stderr". Handles all types recursively. */
-static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream) {
+static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream, bool in_container) {
     if (!t || t->kind == TK_UNKNOWN) {
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
@@ -2129,8 +2167,13 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         break;
     case TK_STRING:
         emit_indent(cg);
-        emitf(cg, "fprintf(%s, \"\\\"%%.*s\\\"\", (int)(%s).len, (%s).data);\n",
-               stream, c_expr, c_expr);
+        if (in_container) {
+            emitf(cg, "fprintf(%s, \"\\\"%%.*s\\\"\", (int)(%s).len, (%s).data);\n",
+                   stream, c_expr, c_expr);
+        } else {
+            emitf(cg, "fprintf(%s, \"%%.*s\", (int)(%s).len, (%s).data);\n",
+                   stream, c_expr, c_expr);
+        }
         break;
     case TK_BOOL:
         emit_indent(cg);
@@ -2139,7 +2182,11 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         break;
     case TK_CHAR:
         emit_indent(cg);
-        emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
+        if (in_container) {
+            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
+        } else {
+            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream, stream);
+        }
         break;
     case TK_NIL:
         emit_indent(cg);
@@ -2175,7 +2222,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
                      "EZ_ARRAY_GET((%s), %s, _ez_pi%d)", c_expr, c_elem, uid);
         }
 
-        emit_value_print(cg, elem_expr, elem_t, stream);
+        emit_value_print(cg, elem_expr, elem_t, stream, true);
 
         cg->indent--;
         emit_indent(cg);
@@ -2215,7 +2262,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         char key_expr[256];
         snprintf(key_expr, sizeof(key_expr),
                  "*(%s *)ez_map_key_at(&(%s), %s)", c_key, c_expr, sl);
-        emit_value_print(cg, key_expr, key_t, stream);
+        emit_value_print(cg, key_expr, key_t, stream, true);
 
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \": \");\n", stream);
@@ -2224,7 +2271,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         char val_expr[256];
         snprintf(val_expr, sizeof(val_expr),
                  "*(%s *)ez_map_value_at(&(%s), %s)", c_val, c_expr, sl);
-        emit_value_print(cg, val_expr, val_t, stream);
+        emit_value_print(cg, val_expr, val_t, stream, true);
 
         cg->indent--;
         emit_indent(cg);
@@ -2253,7 +2300,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
                 char field_expr[256];
                 snprintf(field_expr, sizeof(field_expr), "(%s).%s", c_expr, f->name);
                 EzType *ft = type_from_name(f->type_name);
-                emit_value_print(cg, field_expr, ft, stream);
+                emit_value_print(cg, field_expr, ft, stream, true);
             }
         }
 
@@ -2324,7 +2371,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     char var[32];
     snprintf(var, sizeof(var), "_ez_pv%d", uid);
 
-    emit_value_print(cg, var, t, stream);
+    emit_value_print(cg, var, t, stream, false);
 
     if (newline) {
         emit_indent(cg);
@@ -3152,6 +3199,22 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "cors") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_cors(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "use") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_use(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", (EzMiddleware)");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     return false;
 }
 
@@ -3350,10 +3413,16 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "encode") == 0) {
+    if (strcmp(func, "encode") == 0 || strcmp(func, "format") == 0) {
         emit(cg, "({ EzArray _csv_a = ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, "; ez_csv_stringify(ez_default_arena, &_csv_a); })");
+        return true;
+    }
+    if (strcmp(func, "headers") == 0) {
+        emit(cg, "({ EzArray _csv_a = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_csv_headers(ez_default_arena, &_csv_a); })");
         return true;
     }
     if (strcmp(func, "write_file") == 0) {
@@ -3378,7 +3447,7 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @json module --- */
 
 static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "encode") == 0) {
+    if (strcmp(func, "encode") == 0 || strcmp(func, "format") == 0) {
         AstNode *arg = node->data.call.args[0];
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_MAP) {
@@ -3633,6 +3702,12 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "random_hex") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_random_hex(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "seed") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_random_seed(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -4304,6 +4379,12 @@ static bool emit_sync_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "unlock") == 0) {
         emit(cg, "ez_sync_unlock(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "try_lock") == 0) {
+        emit(cg, "ez_sync_try_lock(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;

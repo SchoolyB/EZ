@@ -92,6 +92,14 @@ EzString ez_csv_stringify(EzArena *arena, EzArray *data) {
     return (EzString){ buf, pos };
 }
 
+EzArray ez_csv_headers(EzArena *arena, EzArray *data) {
+    if (data->len > 0) {
+        EzArray first_row = EZ_ARRAY_GET(*data, EzArray, 0);
+        return ez_array_copy(arena, &first_row);
+    }
+    return ez_array_new(arena, sizeof(EzString), 0);
+}
+
 EzArray ez_csv_read(EzArena *arena, EzString path) {
     FILE *f = fopen(path.data, "rb");
     if (!f) return ez_array_new(arena, sizeof(EzArray), 1);

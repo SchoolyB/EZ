@@ -22,6 +22,7 @@ typedef struct {
 EzMutex ez_sync_mutex(void);
 void ez_sync_lock(EzMutex m);
 void ez_sync_unlock(EzMutex m);
+bool ez_sync_try_lock(EzMutex m);
 void ez_sync_destroy(EzMutex m);
 
 #endif

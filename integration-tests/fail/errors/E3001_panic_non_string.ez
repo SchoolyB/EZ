@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3001 - panic() with non-string argument
+ * Expected: E3001 "panic() expects a string argument"
+ * Covers: #1591
+ */
+
+do main() {
+    panic(42)
+}

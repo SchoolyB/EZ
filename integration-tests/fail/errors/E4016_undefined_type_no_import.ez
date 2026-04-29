@@ -1,0 +1,13 @@
+/*
+ * Error Test: E4016 - undefined type without import
+ * Expected: E4016 "undefined type 'HttpRequest'"
+ * Covers: HTTP types scoped to imports, E4016 error (#1585)
+ */
+
+do handler(req HttpRequest) -> HttpResponse {
+    return req
+}
+
+do main() {
+    println("should not reach here")
+}

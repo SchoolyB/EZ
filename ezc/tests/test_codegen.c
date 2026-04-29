@@ -74,7 +74,7 @@ static void test_e2e_hello(void) {
         ""
         "do main() { println(\"Hello, World!\") }");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"Hello, World!\"");
+    ASSERT_STR_EQ(out, "Hello, World!");
 }
 
 /* --- Arithmetic --- */
@@ -118,7 +118,7 @@ static void test_e2e_interpolation(void) {
         "    println(\"${name} is ${age}\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"Alice is 30\"");
+    ASSERT_STR_EQ(out, "Alice is 30");
 }
 
 /* --- If/or/otherwise --- */
@@ -137,7 +137,7 @@ static void test_e2e_if_else(void) {
         "    }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"medium\"");
+    ASSERT_STR_EQ(out, "medium");
 }
 
 /* --- For loop --- */
@@ -254,7 +254,7 @@ static void test_e2e_ensure(void) {
         "}\n"
         "do main() { work() }");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"working\"\n\"cleaned\"");
+    ASSERT_STR_EQ(out, "working\ncleaned");
 }
 
 /* --- Structs --- */
@@ -334,7 +334,7 @@ static void test_e2e_for_each(void) {
         "    }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"a\"\n\"b\"\n\"c\"");
+    ASSERT_STR_EQ(out, "a\nb\nc");
 }
 
 /* --- When/Is --- */
@@ -351,7 +351,7 @@ static void test_e2e_when(void) {
         "    }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"two\"");
+    ASSERT_STR_EQ(out, "two");
 }
 
 /* --- Len builtin --- */
@@ -375,7 +375,7 @@ static void test_e2e_type_of(void) {
         "    println(type_of(true))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"int\"\n\"string\"\n\"bool\"");
+    ASSERT_STR_EQ(out, "int\nstring\nbool");
 }
 
 /* --- Compound assignment --- */
@@ -404,7 +404,7 @@ static void test_e2e_char(void) {
         "    println(c)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "'A'");
+    ASSERT_STR_EQ(out, "A");
 }
 
 /* --- Blank identifier --- */
@@ -433,7 +433,7 @@ static void test_e2e_mem_arena_create_destroy(void) {
         "    println(\"destroyed\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"created\"\n\"destroyed\"");
+    ASSERT_STR_EQ(out, "created\ndestroyed");
 }
 
 static void test_e2e_mem_usage(void) {
@@ -448,7 +448,7 @@ static void test_e2e_mem_usage(void) {
         "    mem.destroy(a)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n\"allocated\"");
+    ASSERT_STR_EQ(out, "0\nallocated");
 }
 
 static void test_e2e_mem_reset(void) {
@@ -463,7 +463,7 @@ static void test_e2e_mem_reset(void) {
         "    mem.destroy(a)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"used\"\n0");
+    ASSERT_STR_EQ(out, "used\n0");
 }
 
 static void test_e2e_mem_alloc_string(void) {
@@ -476,7 +476,7 @@ static void test_e2e_mem_alloc_string(void) {
         "    println(s)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"arena string\"");
+    ASSERT_STR_EQ(out, "arena string");
 }
 
 static void test_e2e_mem_alloc_array(void) {
@@ -509,7 +509,7 @@ static void test_e2e_mem_ensure_cleanup(void) {
         "    println(\"done\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"working\"\n\"done\"");
+    ASSERT_STR_EQ(out, "working\ndone");
 }
 
 /* ===== Pointer Tests ===== */
@@ -557,7 +557,7 @@ static void test_e2e_ptr_addr(void) {
         "    if a > 0 { println(\"ok\") }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"ok\"");
+    ASSERT_STR_EQ(out, "ok");
 }
 
 static void test_e2e_ptr_nil(void) {
@@ -570,7 +570,7 @@ static void test_e2e_ptr_nil(void) {
         "    }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"null\"");
+    ASSERT_STR_EQ(out, "null");
 }
 
 static void test_e2e_ptr_write_through(void) {
@@ -651,7 +651,7 @@ static void test_e2e_default_params(void) {
         "    println(greet(\"EZC\"))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"Hello, World!\"\n\"Hello, EZC!\"");
+    ASSERT_STR_EQ(out, "Hello, World!\nHello, EZC!");
 }
 
 static void test_e2e_in_operator(void) {
@@ -663,7 +663,7 @@ static void test_e2e_in_operator(void) {
         "    if 9 !in nums { println(\"not found\") }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"found\"\n\"not found\"");
+    ASSERT_STR_EQ(out, "found\nnot found");
 }
 
 static void test_e2e_os_args(void) {
@@ -738,7 +738,7 @@ static void test_e2e_fixed_array(void) {
         "  println(\"${arr[0]},${arr[1]},${arr[2]}\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"10,20,30\"");
+    ASSERT_STR_EQ(out, "10,20,30");
 }
 
 static void test_e2e_nested_array(void) {
@@ -751,7 +751,7 @@ static void test_e2e_nested_array(void) {
         "  println(\"${r0[0]},${r0[1]},${r1[0]},${r1[1]}\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"1,2,3,4\"");
+    ASSERT_STR_EQ(out, "1,2,3,4");
 }
 
 /* ===== Threads Tests ===== */
@@ -769,9 +769,9 @@ static void test_e2e_threads_spawn_join(void) {
         "}");
     ASSERT_NOT_NULL(out);
     /* Output order may vary due to threading, but "done" must be last */
-    ASSERT(strstr(out, "\"done\"") != NULL);
-    ASSERT(strstr(out, "\"w1\"") != NULL);
-    ASSERT(strstr(out, "\"w2\"") != NULL);
+    ASSERT(strstr(out, "done") != NULL);
+    ASSERT(strstr(out, "w1") != NULL);
+    ASSERT(strstr(out, "w2") != NULL);
 }
 
 static void test_e2e_threads_channel(void) {
@@ -787,7 +787,7 @@ static void test_e2e_threads_channel(void) {
         "  channels.close(ch)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"42,100\"");
+    ASSERT_STR_EQ(out, "42,100");
 }
 
 static void test_e2e_threads_sleep(void) {
@@ -798,7 +798,7 @@ static void test_e2e_threads_sleep(void) {
         "  println(\"awake\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"awake\"");
+    ASSERT_STR_EQ(out, "awake");
 }
 
 /* ===== Function Reference Tests ===== */
@@ -880,7 +880,7 @@ static void test_e2e_or_return(void) {
         "  println(v)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"success\"");
+    ASSERT_STR_EQ(out, "success");
 }
 
 /* ===== Enum Attributes ===== */
@@ -915,7 +915,7 @@ static void test_e2e_string_enum(void) {
         "  println(Status.DONE)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"todo\"\n\"done\"");
+    ASSERT_STR_EQ(out, "todo\ndone");
 }
 
 /* ===== Named Returns ===== */
@@ -933,7 +933,7 @@ static void test_e2e_named_return(void) {
         "  println(\"${q},${r}\")\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"3,2\"");
+    ASSERT_STR_EQ(out, "3,2");
 }
 
 /* ===== Mutable Indexed/Member Params ===== */
@@ -1059,7 +1059,7 @@ static void test_e2e_sized_int_i8(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "127\n\"i8\"");
+    ASSERT_STR_EQ(out, "127\ni8");
 }
 
 static void test_e2e_sized_int_u8(void) {
@@ -1071,7 +1071,7 @@ static void test_e2e_sized_int_u8(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255\n\"u8\"");
+    ASSERT_STR_EQ(out, "255\nu8");
 }
 
 static void test_e2e_sized_int_i32(void) {
@@ -1095,7 +1095,7 @@ static void test_e2e_sized_int_u64(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1000000\n\"u64\"");
+    ASSERT_STR_EQ(out, "1000000\nu64");
 }
 
 static void test_e2e_sized_float_f32(void) {
@@ -1106,7 +1106,7 @@ static void test_e2e_sized_float_f32(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"f32\"");
+    ASSERT_STR_EQ(out, "f32");
 }
 
 static void test_e2e_byte_type(void) {
@@ -1118,7 +1118,7 @@ static void test_e2e_byte_type(void) {
         "  println(type_of(b))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255\n\"byte\"");
+    ASSERT_STR_EQ(out, "255\nbyte");
 }
 
 /* ===== Cast Expression ===== */
@@ -1203,7 +1203,7 @@ static void test_e2e_sized_int_i16(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "32767\n\"i16\"");
+    ASSERT_STR_EQ(out, "32767\ni16");
 }
 
 static void test_e2e_sized_int_i64(void) {
@@ -1215,7 +1215,7 @@ static void test_e2e_sized_int_i64(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "9223372036854775807\n\"i64\"");
+    ASSERT_STR_EQ(out, "9223372036854775807\ni64");
 }
 
 static void test_e2e_sized_int_u16(void) {
@@ -1227,7 +1227,7 @@ static void test_e2e_sized_int_u16(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "65535\n\"u16\"");
+    ASSERT_STR_EQ(out, "65535\nu16");
 }
 
 static void test_e2e_sized_int_u32(void) {
@@ -1239,7 +1239,7 @@ static void test_e2e_sized_int_u32(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "4294967295\n\"u32\"");
+    ASSERT_STR_EQ(out, "4294967295\nu32");
 }
 
 static void test_e2e_sized_float_f64(void) {
@@ -1250,7 +1250,7 @@ static void test_e2e_sized_float_f64(void) {
         "  println(type_of(x))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"f64\"");
+    ASSERT_STR_EQ(out, "f64");
 }
 
 /* Note: ** power operator codegen emits raw C '**' which is invalid.
@@ -1300,7 +1300,7 @@ static void test_e2e_bool_and_or(void) {
         "  if !(a && b) { println(\"not-ok\") }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"and-ok\"\n\"or-ok\"\n\"not-ok\"");
+    ASSERT_STR_EQ(out, "and-ok\nor-ok\nnot-ok");
 }
 
 static void test_e2e_short_circuit(void) {
@@ -1315,7 +1315,7 @@ static void test_e2e_short_circuit(void) {
         "  println(called)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n\"good\"\n0");
+    ASSERT_STR_EQ(out, "0\ngood\n0");
 }
 
 /* ===== String Comparison ===== */
@@ -1331,7 +1331,7 @@ static void test_e2e_string_compare(void) {
         "  if a != c { println(\"neq\") }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"eq\"\n\"neq\"");
+    ASSERT_STR_EQ(out, "eq\nneq");
 }
 
 /* ===== Negative Arithmetic ===== */
@@ -1417,7 +1417,7 @@ static void test_e2e_foreach_index(void) {
         "  }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"0:a\"\n\"1:b\"\n\"2:c\"");
+    ASSERT_STR_EQ(out, "0:a\n1:b\n2:c");
 }
 
 /* ===== Const Values ===== */
@@ -1434,7 +1434,7 @@ static void test_e2e_const_values(void) {
         "  println(FLAG)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3.14\n\"EZ\"\ntrue");
+    ASSERT_STR_EQ(out, "3.14\nEZ\ntrue");
 }
 
 /* ===== Empty Containers ===== */
@@ -1486,7 +1486,7 @@ static void test_e2e_string_index(void) {
         "  println(s[4])\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "'h'\n'o'");
+    ASSERT_STR_EQ(out, "h\no");
 }
 
 /* ===== Enum Comparison ===== */
@@ -1506,7 +1506,7 @@ static void test_e2e_enum_compare(void) {
         "  if d != Dir.UP { println(\"not up\") }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"left\"\n\"not up\"");
+    ASSERT_STR_EQ(out, "left\nnot up");
 }
 
 /* ===== Grouped Parameters ===== */
@@ -1564,7 +1564,7 @@ static void test_e2e_strict_when(void) {
         "  println(label)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "\"left\"");
+    ASSERT_STR_EQ(out, "left");
 }
 
 /* ===== C interop ===== */

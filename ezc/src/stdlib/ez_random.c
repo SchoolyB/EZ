@@ -15,6 +15,11 @@ static void ensure_seed(void) {
     if (!_seeded) { srand((unsigned)time(NULL)); _seeded = true; }
 }
 
+void ez_random_seed(int64_t value) {
+    srand((unsigned)value);
+    _seeded = true;
+}
+
 double ez_random_float_unit(void) {
     ensure_seed();
     return (double)rand() / RAND_MAX;
