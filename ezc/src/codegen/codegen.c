@@ -1278,6 +1278,30 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ", &_ik); })");
                 break;
             }
+            /* String membership: char in string or string in string */
+            if (arr_t && arr_t->kind == TK_STRING) {
+                EzType *left_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
+                if (left_t && left_t->kind == TK_CHAR) {
+                    /* char in string → memchr scan */
+                    if (negated) emit(cg, "!");
+                    emit(cg, "(memchr(");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ".data, ");
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, ", (size_t)");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ".len) != NULL)");
+                } else {
+                    /* string in string → substring check */
+                    if (negated) emit(cg, "!");
+                    emit(cg, "ez_strings_contains(");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, ")");
+                }
+                break;
+            }
             if (negated) emit(cg, "!");
             {
                 const char *contains_fn = "ez_arrays_contains_int";

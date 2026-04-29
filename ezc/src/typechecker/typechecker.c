@@ -1290,6 +1290,41 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3085: validate type compatibility for in/not_in/!in */
+        if ((strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) &&
+            !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+            bool mismatch = false;
+            const char *left_tn = type_name(left);
+            const char *right_tn = type_name(right);
+            if (right->kind == TK_ARRAY && right->element_type) {
+                EzType *elem = type_from_name(right->element_type);
+                if (elem->kind != TK_UNKNOWN && left->kind != elem->kind &&
+                    !(is_int_kind(left->kind) && is_int_kind(elem->kind))) {
+                    mismatch = true;
+                }
+            } else if (right->kind == TK_MAP && right->key_type) {
+                EzType *key = type_from_name(right->key_type);
+                if (key->kind != TK_UNKNOWN && left->kind != key->kind &&
+                    !(is_int_kind(left->kind) && is_int_kind(key->kind))) {
+                    mismatch = true;
+                }
+            } else if (right->kind == TK_STRING) {
+                /* char in string and string in string are valid */
+                if (left->kind != TK_CHAR && left->kind != TK_STRING) {
+                    mismatch = true;
+                }
+            }
+            if (mismatch) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "'in' operator type mismatch: cannot check if '%s' is in '%s'",
+                    left_tn, right_tn);
+                diag_error_msg(tc->diag, "E3085", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                infix_errored = true;
+            }
+        }
+
         if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0 ||
