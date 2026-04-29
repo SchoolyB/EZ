@@ -1,0 +1,18 @@
+/*
+ * Error Test: E5008 - struct function called with too few arguments
+ * Expected: E5008 "function 'Math.add' expects 2 argument(s), got 1"
+ * Covers: struct function arg count validation (#1587)
+ */
+
+const Math struct {
+    _pad int
+
+    do add(a int, b int) -> int {
+        return a + b
+    }
+}
+
+do main() {
+    mut r int = Math.add(1)
+    println("${r}")
+}
