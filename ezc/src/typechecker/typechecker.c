@@ -5604,11 +5604,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strdup("missing return value; function expects a return value"),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
-                   node->data.return_stmt.count != tc->current_return_count &&
-                   node->data.return_stmt.count < tc->current_return_count) {
+                   node->data.return_stmt.count != tc->current_return_count) {
             /* E3013: wrong number of return values (skip or_return synthetic returns
              * which have count=1 but the function expects more; that's handled by codegen) */
-            /* Only error if user explicitly returns fewer values */
             bool is_or_return_synthetic = false;
             if (node->data.return_stmt.count == 1 &&
                 node->data.return_stmt.values[0]->kind == NODE_MEMBER_EXPR) {
