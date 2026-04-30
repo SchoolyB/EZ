@@ -123,7 +123,7 @@ static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
 static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (!type_name) return "int64_t";
 
-    /* Wildcard substitution (#1443): if '?' appears in the type
+    /* if Wildcard type'?' appears in the type
      * string while a generic instantiation is active, rewrite via
      * cg_effective_type_str and recurse through the normal mapping. */
     if (cg && cg->wildcard_binding && strchr(type_name, '?')) {
@@ -243,7 +243,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
 /* Resolve an EZ type to its C type for map key/value storage.
  * Uses ez_type_to_c_cg for struct/array/map types, hardcoded for primitives.
  * Routes the input through cg_effective_type_str so '?' inside a generic
- * instantiation resolves to the active wildcard binding (#1463). */
+ * instantiation resolves to the active wildcard binding. */
 static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn) return "int64_t";
     ez_tn = cg_effective_type_str(cg, ez_tn);
@@ -263,7 +263,7 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     }
 }
 
-/* --- Deep copy machinery (#1465, #1466) ---
+/* --- Deep copy machinery , ) ---
  *
  * A value is "needs-deep-copy" iff reading one C-level copy of it
  * would share mutable backing storage with the source. That covers
@@ -592,7 +592,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_LABEL: {
         const char *name = safe_name(node->data.label.value);
         const char *raw = node->data.label.value;
-        /* #1519: bare stdlib constants from using-modules */
+        /* : bare stdlib constants from using-modules */
         static const struct { const char *n; const char *mod; const char *val; } _cg_consts[] = {
             {"PI","math","3.14159265358979323846"},{"E","math","2.71828182845904523536"},
             {"TAU","math","6.28318530717958647692"},{"PHI","math","1.61803398874989484820"},
@@ -1100,7 +1100,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        /* #1520: use mangled name for generic struct instantiations */
+        /* : use mangled name for generic struct instantiations */
         if (node->data.struct_value.wildcard_binding) {
             const char *binding = node->data.struct_value.wildcard_binding;
             char mangled[256];
@@ -1191,7 +1191,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Check if either operand is a string; need special handling */
         EzType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
         EzType *rt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
-        /* Inside a generic instantiation (#1443), operands that were
+        /* Inside a generic instantiation, operands that were
          * typed TK_UNKNOWN in the main pass (because they traced back
          * to a '?' parameter) should be treated as the active wildcard
          * binding so string/struct comparisons pick up the right path. */
@@ -2699,7 +2699,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
              * emitter so nested collections, structs containing
              * collections, collections containing such structs, and any
              * transitive mix of those all come out fully independent
-             * of the source (#1465, #1466). */
+             * of the source , ). */
             int t = next_dc_tag();
             const char *c_type = (at->kind == TK_ARRAY) ? "EzArray"
                                : (at->kind == TK_MAP) ? "EzMap"
@@ -2956,7 +2956,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         /* Key buffer must match the map's declared key storage type
          * (ez_map_elem_c_type), not whatever C type the argument expression
          * happens to have; otherwise the hash/memcmp compares the wrong
-         * number of bytes. Issue #1430 follow-up. */
+         * number of bytes. */
         const char *c_key = "int64_t";
         EzType *map_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
@@ -3512,9 +3512,9 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    /* #1496: json.parse(); dispatch to per-struct helper when the
+    /* : json.parse(); dispatch to per-struct helper when the
      * call node's typetable entry is a #json struct (pushed by the
-     * var_decl handler via #1507). Falls back to ez_json_decode for
+     * var_decl handler via ). Falls back to ez_json_decode for
      * the map-based path. */
     if (strcmp(func, "parse") == 0 && node->data.call.arg_count >= 1) {
         EzType *target_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
@@ -3543,7 +3543,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    /* #1496: json.stringify(); dispatch to per-struct helper when
+    /* : json.stringify(); dispatch to per-struct helper when
      * the argument is a #json struct. */
     if (strcmp(func, "stringify") == 0 && node->data.call.arg_count >= 1) {
         AstNode *arg = node->data.call.args[0];
@@ -3778,7 +3778,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emitf(cg, "{ %s _av = ", c_elem);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ");
-        /* #1521: escape arena-allocated data to the outer arena when
+        /* : escape arena-allocated data to the outer arena when
          * inside a loop scope. Strings get a simple copy; arrays, maps,
          * and structs with embedded pointers need a full deep copy. */
         if (cg->loop_scope_depth > 0) {
@@ -4774,7 +4774,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             snprintf(ns_name, ns_len, "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
             if (!ns_func) {
-                /* #1505: check if `member` is a func-typed data field
+                /* : check if `member` is a func-typed data field
                  * on the struct. If so, emit as a function-pointer call
                  * through the field access. We get here when the variable
                  * has a struct type but neither <struct>_<member> nor
@@ -4901,7 +4901,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     if (fn_name && target_func) {
         /* Known function; use ez_fn_ prefix. For generic functions,
          * rewrite to the mangled instantiation name derived from the
-         * first wildcard parameter's argument type (#1443). */
+         * first wildcard parameter's argument type ). */
         bool tf_generic = false;
         for (int pi = 0; pi < target_func->data.func_decl.param_count && !tf_generic; pi++) {
             if (target_func->data.func_decl.params[pi].type_name &&
@@ -4925,7 +4925,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
                 if (!at) continue;
                 if (strcmp(ptn, "?") == 0) {
-                    /* #1506: inside a generic body, the arg's typetable
+                    /* : inside a generic body, the arg's typetable
                      * entry is still TK_UNKNOWN ("unknown") from the
                      * main-pass walk. If the outer wildcard_binding is
                      * active, use it as the binding; that's the
@@ -4943,7 +4943,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 } else if (strncmp(ptn, "map[", 4) == 0 && at->kind == TK_MAP &&
                            at->key_type && at->value_type) {
                     /* map[K:V] with '?' in the key, value, or both slots
-                     * (#1463). Mirror bind_wildcard() in the typechecker:
+                     * ). Mirror bind_wildcard() in the typechecker:
                      * the concrete side (if any) must match the arg's
                      * corresponding slot; the wildcard side binds to the
                      * arg's slot. */
@@ -5406,7 +5406,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                    node->data.var_decl.value->kind == NODE_LABEL) {
             /* Copy-by-default: deep copy when assigning from another
              * variable. Route through emit_deep_array_copy so nested
-             * array elements get independent backing storage (#1465). */
+             * array elements get independent backing storage ). */
             EzType *src_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
             const char *elem_tn = (src_t && src_t->kind == TK_ARRAY)
@@ -5501,7 +5501,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (val->kind == NODE_MAP_VALUE) {
             c_type = "EzMap";
         } else if (val->kind == NODE_STRUCT_VALUE) {
-            /* #1520: use mangled name for generic struct instantiations */
+            /* : use mangled name for generic struct instantiations */
             if (val->data.struct_value.wildcard_binding) {
                 const char *binding = val->data.struct_value.wildcard_binding;
                 const char *base = val->data.struct_value.name;
@@ -6051,7 +6051,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
 
     /* Array copy-by-default: arr2 = arr1 deep-copies the array.
      * Routes through emit_deep_array_copy so nested inner arrays get
-     * independent backing storage (#1465). Applies to any RHS expression
+     * independent backing storage ). Applies to any RHS expression
      * (variables, call results, etc.) to prevent use-after-free when the
      * source array lives on a function-local arena. */
     if (strcmp(node->data.assign.op, "=") == 0) {
@@ -6098,7 +6098,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
 
     /* Default assignment; suppress ref auto-deref when assigning to a pointer target */
 
-    /* #1521: when inside a loop scope and assigning a string/container
+    /* : when inside a loop scope and assigning a string/container
      * value to a plain variable with =, escape the value to the outer
      * arena so it survives the iteration arena's destruction. */
     if (cg->loop_scope_depth > 0 && strcmp(node->data.assign.op, "=") == 0 &&
@@ -6168,7 +6168,7 @@ static void emit_ensure_cleanup(CodeGen *cg) {
     }
 }
 
-/* #1521: emit escape + cleanup for a non-void function return.
+/* : emit escape + cleanup for a non-void function return.
  * Escapes the return value (_ret) to _func_saved, then destroys
  * the function arena and returns. */
 static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
@@ -6271,7 +6271,7 @@ static void emit_block(CodeGen *cg, AstNode *node) {
 }
 
 static void emit_if_statement(CodeGen *cg, AstNode *node) {
-    /* #1521: per-block arena for if/otherwise so temporaries are freed */
+    /* : per-block arena for if/otherwise so temporaries are freed */
     static int if_scope_counter = 0;
     int isc = if_scope_counter++;
     emit_indent(cg);
@@ -6391,7 +6391,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     }
 
     cg->indent++;
-    /* #1521 phase 2: per-iteration scratch arena */
+    /*  phase 2: per-iteration scratch arena */
     if (cg->loop_scope_depth == 0) {
         emit_indent(cg);
         emit(cg, "EzArena *_ez_outer_arena = ez_default_arena;\n");
@@ -6422,7 +6422,7 @@ static void emit_while_statement(CodeGen *cg, AstNode *node) {
     emit(cg, ") {\n");
 
     cg->indent++;
-    /* #1521 phase 2: per-iteration scratch arena */
+    /*  phase 2: per-iteration scratch arena */
     if (cg->loop_scope_depth == 0) {
         emit_indent(cg);
         emit(cg, "EzArena *_ez_outer_arena = ez_default_arena;\n");
@@ -6451,7 +6451,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit(cg, "for (;;) {\n");
 
     cg->indent++;
-    /* #1521 phase 2: per-iteration scratch arena */
+    /*  phase 2: per-iteration scratch arena */
     if (cg->loop_scope_depth == 0) {
         emit_indent(cg);
         emit(cg, "EzArena *_ez_outer_arena = ez_default_arena;\n");
@@ -6475,7 +6475,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit(cg, "}\n");
 }
 
-/* #1508: extract the base (unmangled) function name for multi-return
+/* : extract the base (unmangled) function name for multi-return
  * struct references. The monomorphiser temporarily renames functions
  * to `<name>__<binding>`, but the EzMulti typedef is emitted once
  * under the original name. Returns a pointer to a small ring of
@@ -6496,7 +6496,7 @@ static const char *multi_base_name(const char *fn_name) {
     return out;
 }
 
-/* #1502 + #1508: pick the right multi-return struct name. Use
+/*  + : pick the right multi-return struct name. Use
  * the full mangled name when return types contain '?'
  * (per-instantiation struct), base name otherwise (shared). */
 static const char *multi_ret_name(AstNode *func) {
@@ -6527,12 +6527,12 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
     if (node->data.func_decl.return_type_count == 1) {
         return ez_type_to_c_cg(cg, node->data.func_decl.return_types[0]);
     }
-    /* #1508 + #1502: for multi-return, use `EzMulti_<name>`. The
+    /*  + : for multi-return, use `EzMulti_<name>`. The
      * monomorphiser temporarily renames the func to `<name>__<binding>`.
      * When return types DON'T contain '?', all instantiations share one
-     * struct → use the base name (#1508). When return types DO contain
+     * struct → use the base name ). When return types DO contain
      * '?', each instantiation gets its own struct → use the full
-     * mangled name (#1502). */
+     * mangled name ). */
     static char buf[256];
     const char *fn_name = node->data.func_decl.name;
     bool has_wc_ret = false;
@@ -6544,10 +6544,10 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
         }
     }
     if (!has_wc_ret) {
-        /* #1508: strip __<binding> suffix; shared struct. */
+        /* : strip __<binding> suffix; shared struct. */
         snprintf(buf, sizeof(buf), "EzMulti_%s", multi_base_name(fn_name));
     } else {
-        /* #1502: use the full (possibly mangled) name; per-instantiation
+        /* : use the full (possibly mangled) name; per-instantiation
          * struct. The wildcard_binding is active so ez_type_to_c_cg will
          * substitute '?' in the struct fields. */
         snprintf(buf, sizeof(buf), "EzMulti_%s", fn_name);
@@ -6583,7 +6583,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     emit(cg, " {\n");
     cg->indent++;
 
-    /* #1521: scope-based memory management.
+    /* : scope-based memory management.
      * Void functions: save/restore arena watermark to free temporaries.
      * Non-void functions: create a per-function arena so temporaries
      * are freed, and escape the return value to the caller's arena. */
@@ -6624,7 +6624,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         emit_block(cg, node->data.func_decl.body);
         /* Emit ensure cleanup at end of function (for implicit returns) */
         emit_ensure_cleanup(cg);
-        /* #1521: cleanup function-scoped memory */
+        /* : cleanup function-scoped memory */
         if (!is_main) {
             if (is_void_fn) {
                 emit_indent(cg);
@@ -6753,7 +6753,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             /* for_each item in array → iterate EzArray */
             const char *c_elem = "int64_t";
             if (coll_t && coll_t->kind == TK_ARRAY && coll_t->element_type) {
-                /* Wildcard substitution (#1443): a generic parameter
+                /* Wildcard substitution ): a generic parameter
                  * typed `[?]` stores "?" as its element_type; swap it
                  * out for the active instantiation's concrete binding
                  * before resolving to a C type. */
@@ -6788,7 +6788,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, ", %s, %s);\n", c_elem, idx_name);
         }
 
-        /* #1521 phase 2: per-iteration scratch arena */
+        /*  phase 2: per-iteration scratch arena */
         if (cg->loop_scope_depth == 0) {
             emit_indent(cg);
             emit(cg, "EzArena *_ez_outer_arena = ez_default_arena;\n");
@@ -6914,7 +6914,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     }
     case NODE_FUNC_DECL: {
-        /* Generic function (#1443): emit one specialised copy per
+        /* Generic function ): emit one specialised copy per
          * concrete instantiation the typechecker recorded. If a
          * generic function was declared but never called, there are
          * no instantiations and we skip emission entirely; the
@@ -6947,7 +6947,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 const char *saved = cg->wildcard_binding;
                 cg->wildcard_binding = concrete;
                 /* Per-instantiation multi-return typedefs were already
-                 * emitted in the forward-declaration loop (#1502). */
+                 * emitted in the forward-declaration loop ). */
                 emit_func_declaration(cg, node, false);
                 cg->wildcard_binding = saved;
             }
@@ -7234,7 +7234,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     }
                     /* Non-flags without explicit value: omit `= N` and
                      * let C's enum auto-increment continue from the
-                     * last explicit value (#1511). The old code emitted
+                     * last explicit value ). The old code emitted
                      * `= j` (0-based position) which ignored preceding
                      * explicit values entirely. */
                     emit(cg, ",\n");
@@ -7290,7 +7290,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (deps_met) {
                     emitted[i] = true;
                     emit_count++;
-                    /* #1520: skip generic structs here; they're
+                    /* : skip generic structs here; they're
                      * emitted per-instantiation below. */
                     if (s->data.struct_decl.is_generic) continue;
                     emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
@@ -7316,7 +7316,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
-    /* #1520: emit per-instantiation typedefs for generic (wildcard) structs.
+    /* : emit per-instantiation typedefs for generic (wildcard) structs.
      * For each recorded binding, substitute ? → concrete in field types
      * and emit under a mangled name (e.g. EzStruct_Pair__int). */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
@@ -7344,7 +7344,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
-    /* #1496: emit JSON parse/stringify helpers for #json structs. Each
+    /* : emit JSON parse/stringify helpers for #json structs. Each
      * #json struct gets two static functions:
      *   - ez_json_parse_<Name>(arena, json_string) → EzStruct_<Name>
      *   - ez_json_stringify_<Name>(arena, struct_value) → EzString
@@ -7494,7 +7494,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
     /* Emit multi-return type definitions. Skip generic functions whose
      * return types contain '?'; those need per-instantiation typedefs
-     * emitted during monomorphisation (#1502). */
+     * emitted during monomorphisation ). */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_FUNC_DECL &&
@@ -7520,7 +7520,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             continue;
         }
 
-        /* Detect wildcard generics (#1443); emit one forward per
+        /* Detect wildcard generics ); emit one forward per
          * instantiation under a mangled name, skipping the un-specialised
          * signature which would contain '?' in C. */
         bool has_wc = false;
@@ -7550,9 +7550,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             const char *emit_name = has_wc ? mangled : orig_name;
             /* Temporarily set the func name to the mangled version so
              * func_return_type sees the right name for multi-return
-             * structs (#1502 + #1508). */
+             * structs  + ). */
             if (has_wc) stmt->data.func_decl.name = mangled;
-            /* #1502: emit per-instantiation multi-return typedef
+            /* : emit per-instantiation multi-return typedef
              * before the forward declaration that references it. */
             if (has_wc && stmt->data.func_decl.return_type_count > 1) {
                 bool has_wc_ret = false;

@@ -163,7 +163,7 @@ static StructInfo *find_struct(TypeChecker *tc, const char *name) {
 
 static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const char *field) {
     StructInfo *si = find_struct(tc, struct_name);
-    /* #1520: for mangled generic struct names (Pair__int), fall back
+    /* : for mangled generic struct names (Pair__int), fall back
      * to the base name (Pair) since fields are registered there.
      * When the field type is "?", substitute the concrete binding
      * extracted from the mangled suffix. */
@@ -184,7 +184,7 @@ static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const
     if (!si) return &TYPE_UNKNOWN;
     for (int i = 0; i < si->field_count; i++) {
         if (strcmp(si->field_names[i], field) == 0) {
-            /* #1520: if the field type is ? (registered as TK_UNKNOWN)
+            /* : if the field type is ? (registered as TK_UNKNOWN)
              * and we have a generic binding from the mangled name,
              * substitute to the concrete type. Check the raw decl
              * type_name since the resolved EzType lost the "?" marker. */
@@ -300,7 +300,7 @@ static char *bind_wildcard(const char *param_tn, EzType *arg_t) {
             return strdup(arg_t->element_type);
         }
     }
-    /* map[K:V] with '?' in either slot (#1463). The array path above
+    /* map[K:V] with '?' in either slot (). The array path above
      * only handles "[?]"; the equivalent TK_MAP path here was missing,
      * so every generic map helper silently fell through to NULL. */
     if (strncmp(param_tn, "map[", 4) == 0 && arg_t->kind == TK_MAP &&
@@ -377,7 +377,7 @@ static void finalize_generic_sig(FuncSig *fs, AstNode *decl) {
 static bool record_instantiation(FuncSig *fs, const char *concrete,
                                   AstNode *call_site) {
     if (!fs || !concrete) return false;
-    /* #1506: reject "unknown" as a concrete binding. This comes from
+    /* : reject "unknown" as a concrete binding. This comes from
      * the main-pass walk of a generic body where the inner call's
      * arguments are still `?` (TK_UNKNOWN). The real bindings are
      * recorded during the slice-4 re-check pass once the outer
@@ -603,7 +603,7 @@ static bool tc_is_builtin(const char *name) {
     return false;
 }
 
-/* #1519: stdlib constants reachable via `import and use` / `using`. */
+/* : stdlib constants reachable via `import and use` / `using`. */
 typedef struct { const char *name; const char *mod; TypeKind ret; } UsingConst;
 static const UsingConst _using_consts[] = {
     {"PI","math",TK_FLOAT},{"E","math",TK_FLOAT},{"TAU","math",TK_FLOAT},
@@ -683,7 +683,7 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
 static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
     if (name && is_enum_name(tc, name)) return type_enum(name);
     EzType *t = type_from_name(name);
-    /* #1519: try prefixed type names from using-modules so bare
+    /* : try prefixed type names from using-modules so bare
      * "Point" resolves to "shapes_Point" when shapes is using'd.
      * type_from_name returns TK_STRUCT for any capitalized name
      * even if the struct isn't registered, so check is_struct_name
@@ -697,7 +697,7 @@ static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
             if (is_enum_name(tc, prefixed)) return type_enum(prefixed);
             if (is_struct_name(tc, prefixed)) return type_struct(prefixed);
         }
-        /* #1585: after registration completes, reject uppercase names that
+        /* : after registration completes, reject uppercase names that
          * aren't registered as structs or enums. During registration we must
          * allow forward references, so only enforce this in later passes.
          * Exempt built-in types that are mapped directly in codegen without
@@ -822,7 +822,7 @@ static bool check_integer_range(DiagnosticList *diag, const char *file,
 
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
 
-/* #1483: shared void-expression guard. Emits E3038 at `expr` when `t`
+/* : shared void-expression guard. Emits E3038 at `expr` when `t`
  * is TK_VOID. `context` is a short phrase describing what the
  * position wants ("println argument", "map value", "binary operand",
  * etc.). If `expr` is a direct call to a named function, the error
@@ -849,7 +849,7 @@ static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
         NODE_FILE(tc, expr), expr->token.line, expr->token.column, 0);
 }
 
-/* #1497: emit E4005 at a stdlib call site where the function name
+/* : emit E4005 at a stdlib call site where the function name
  * isn't recognized. Shared between every module dispatch branch that
  * has a fallthrough "unknown function" else. Without this, typing
  * `strings.totally_fake_function()` silently types as `string` (or
@@ -869,7 +869,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
      * multiple times (e.g. builtin call args resolved by both the general
      * call path and the builtin-specific path).
      *
-     * #1506: skip the cache for call expressions during the re-check
+     * : skip the cache for call expressions during the re-check
      * pass (suppress_typetable_writes is true). The re-check walks
      * generic bodies with concrete parameter bindings; inner calls to
      * other generic functions need to re-run the dispatch to record
@@ -877,7 +877,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
      * TK_UNKNOWN from the main pass short-circuits the resolution and
      * the inner function's binding never gets recorded. */
     EzType *cached = typetable_get(tc->type_table, node);
-    /* #1506: bypass the cache entirely during the re-check pass
+    /* : bypass the cache entirely during the re-check pass
      * (suppress_typetable_writes). The re-check walks generic bodies
      * with concrete param bindings; stale TK_UNKNOWN entries from the
      * main pass prevent inner generic calls from resolving their
@@ -923,7 +923,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (pt->kind == TK_STRUCT ||
                        pt->kind == TK_POINTER ||
                        is_func_type) {
-                /* #1499: interpolation codegen only handles scalars,
+                /* : interpolation codegen only handles scalars,
                  * strings, arrays, and maps. Structs, pointers, and
                  * func references fall through to a `%lld` + long-long
                  * cast in the generated C, which clang rejects. Catch
@@ -1001,7 +1001,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = type_from_name(result->element_type);
             }
         } else if (find_func(tc, name)) {
-            /* Bare function name used as a value (#1475). Call sites
+            /* Bare function name used as a value (). Call sites
              * inspect node->data.call.function directly and never
              * recurse through resolve_expr for a LABEL callee, and
              * NODE_FUNC_REF reads its inner label without going
@@ -1079,7 +1079,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         EzType *right = resolve_expr(tc, node->data.infix.right);
         const char *op = node->data.infix.op;
 
-        /* #1488: track whether any op-specific check has rejected the
+        /* : track whether any op-specific check has rejected the
          * expression so the final result can be collapsed to TK_UNKNOWN
          * instead of one operand's type. Otherwise `mut x int = true +
          * 1` fires E3002 at the '+' and then cascades into E3001 "can't
@@ -1087,7 +1087,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * the left operand rather than a real result type. */
         bool infix_errored = false;
 
-        /* #1483: void operands never make sense in any binary
+        /* : void operands never make sense in any binary
          * operator. Check both sides at the kind level before any
          * op-specific diagnostic runs, so `1 + nothing()` and
          * `nothing() == x` report a clean E3038 instead of
@@ -1120,7 +1120,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
-        /* E3002: literal divide/modulo by zero (#1474). Catches the
+        /* E3002: literal divide/modulo by zero (). Catches the
          * statically-detectable case where the RHS is an integer or
          * float literal zero (including a prefix -0). Runtime checks
          * still cover the dynamic case. */
@@ -1166,7 +1166,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
-        /* E3002 (#1487): nil in any operator other than equality. `nil
+        /* E3002 (): nil in any operator other than equality. `nil
          * == x` and `nil != x` are valid against nullable types (the
          * existing comparison path already validates that); every
          * other operator on nil is nonsense. Catches both
@@ -1340,7 +1340,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else {
             result = left;
         }
-        /* #1488: if any op-level check rejected the expression, drop
+        /* : if any op-level check rejected the expression, drop
          * result to TK_UNKNOWN so downstream var_decl / return / etc.
          * checks that already skip TK_UNKNOWN don't cascade a second
          * diagnostic off one of the (invalid) operand types. */
@@ -1391,7 +1391,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         /* Resolve argument types first. Skip the argument of ref()
          * when it's a bare function name; the ref() builtin handler
          * below resolves it specially, and the general resolve_expr
-         * path would fire E3031 on the bare name (#1475 follow-up). */
+         * path would fire E3031 on the bare name ( follow-up). */
         bool is_ref_call = (node->data.call.function &&
             node->data.call.function->kind == NODE_LABEL &&
             strcmp(node->data.call.function->data.label.value, "ref") == 0);
@@ -1417,7 +1417,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* [func] array + constant index + literal-of-func-refs origin:
          * recover the original referenced function's return type so it
-         * survives the trip through void* storage (#1458). */
+         * survives the trip through void* storage (). */
         if (fn && fn->kind == NODE_INDEX_EXPR &&
             fn->data.index_expr.left->kind == NODE_LABEL &&
             fn->data.index_expr.index->kind == NODE_INT_VALUE) {
@@ -1440,7 +1440,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* Fallback for [func(...)->T] arrays: parse the return type from
          * the array's typed element type. Covers dynamically appended
-         * refs where func_array_refs isn't populated (#1558). */
+         * refs where func_array_refs isn't populated (). */
         if (fn && fn->kind == NODE_INDEX_EXPR &&
             fn->data.index_expr.left->kind == NODE_LABEL) {
             const char *arr_name = fn->data.index_expr.left->data.label.value;
@@ -1573,7 +1573,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* c.func() without import c"..."; but only if "c" isn't a
              * local variable. A variable named `c` with a struct type
              * should fall through to the struct-method dispatch, not
-             * be treated as the C interop module (#1509). */
+             * be treated as the C interop module (). */
             if (!mod_imported && strcmp(mod, "c") == 0 &&
                 !scope_lookup(tc->current_scope, "c")) {
                 diag_error_msg(tc->diag, "E4001",
@@ -1897,10 +1897,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
                 else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
                 else if (strcmp(mfn, "parse") == 0) {
-                    /* #1496: json.parse() return type depends on
+                    /* : json.parse() return type depends on
                      * assignment context. Start as UNKNOWN; the
                      * var_decl handler pushes the declared struct
-                     * type onto the call node via #1507's mechanism. */
+                     * type onto the call node via 's mechanism. */
                     result = &TYPE_UNKNOWN;
                 } else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
                            strcmp(mfn, "format") == 0 || strcmp(mfn, "pretty_print") == 0) {
@@ -2501,7 +2501,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         sym->type->kind == TK_POINTER)) {
                         const char *sname = sym->type->kind == TK_POINTER
                             ? sym->type->element_type : sym->type->name;
-                        /* #1505: check if `mfn` is a data field of type func
+                        /* : check if `mfn` is a data field of type func
                          * before trying struct-function dispatch. A func-typed
                          * field should be called as a function pointer, not
                          * mistaken for a struct method. The bare "func" type
@@ -2694,7 +2694,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                  * function lookup BEFORE calling resolve_expr on the
                  * label, otherwise the E3031 "bare function name as
                  * value" check fires and rejects a legitimate
-                 * use (#1475 follow-up). */
+                 * use ( follow-up). */
                 if (arg->kind == NODE_LABEL &&
                     find_func(tc, arg->data.label.value)) {
                     FuncSig *rfs = find_func(tc, arg->data.label.value);
@@ -2726,7 +2726,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_pointer(pointee_name);
                 }
             } else if (strcmp(fn_name, "len") == 0) {
-                /* E7015 (#1490): len() only works on string / array / map.
+                /* E7015 (): len() only works on string / array / map.
                  * Codegen blindly emits '.len' on the receiver, which
                  * works for the runtime's EzArray / EzMap / EzString
                  * structs but bombs with a raw clang "no member 'len'"
@@ -2990,7 +2990,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {
                     sig->used = true;
-                    /* #1519: if this bare name is a using-module alias,
+                    /* : if this bare name is a using-module alias,
                      * also mark the prefixed sig + import as used so
                      * W1002/W1003 don't fire on the source. */
                     for (int ui = 0; ui < tc->using_module_count; ui++) {
@@ -3214,11 +3214,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_UNKNOWN; /* callable func ref; return type unknown */
                         /* If we know which static function this var holds,
                          * validate arity + argument types at compile time
-                         * (issue #1437) and propagate the real return type. */
+                         * and propagate the real return type. */
                         FuncSig *ref_sig = fn_sym->func_ref_name
                             ? find_func(tc, fn_sym->func_ref_name) : NULL;
                         if (ref_sig) {
-                            /* #1503: compute min arity by counting
+                            /* : compute min arity by counting
                              * params without default values. */
                             int min_arity = ref_sig->param_count;
                             if (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL) {
@@ -3834,7 +3834,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
-                /* #1505: func-typed fields resolve as TK_UNKNOWN (name="func")
+                /* : func-typed fields resolve as TK_UNKNOWN (name="func")
                  * via type_from_name because "func" maps to TK_UNKNOWN. Don't
                  * emit E3010 "no field" when the field genuinely exists; it's
                  * just a func field. */
@@ -3954,7 +3954,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Reject negative literal index at compile time. Applies to
-         * arrays and strings (#1500); the analogous runtime panic
+         * arrays and strings (); the analogous runtime panic
          * fires for both, and there's no reason to wait until then
          * when the index is a literal '-N'. */
         if ((left->kind == TK_ARRAY || left->kind == TK_STRING) &&
@@ -4032,7 +4032,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         for (int i = 0; i < node->data.map_value.count; i++) {
             EzType *kt = resolve_expr(tc, node->data.map_value.keys[i]);
             EzType *vt = resolve_expr(tc, node->data.map_value.values[i]);
-            /* #1483: void can't be a map key or value. */
+            /* : void can't be a map key or value. */
             reject_void_in_context(tc, node->data.map_value.keys[i], kt, "map key");
             reject_void_in_context(tc, node->data.map_value.values[i], vt, "map value");
         }
@@ -4130,7 +4130,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
-        /* #1520: for generic structs, infer the wildcard binding from
+        /* : for generic structs, infer the wildcard binding from
          * the field values and record the instantiation on the struct
          * decl so codegen can emit per-binding typedefs. */
         AstNode *sdecl = find_struct_in_program(tc->program, sname);
@@ -4741,7 +4741,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         if (node->data.var_decl.value) {
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
-            /* #1507: when a func-pointer call returns TK_UNKNOWN but
+            /* : when a func-pointer call returns TK_UNKNOWN but
              * the assignment target has a concrete declared type,
              * push the declared type onto the call node's typetable
              * entry so codegen can derive the correct function-pointer
@@ -4802,7 +4802,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     node->data.var_decl.value->token.line,
                     node->data.var_decl.value->token.column, 0);
             }
-            /* E3001 (#1479): \`mut f func = expr\` requires expr to be a
+            /* E3001 (): \`mut f func = expr\` requires expr to be a
              * function reference. The declared type "func" round-trips as
              * TK_UNKNOWN via type_from_name, so the generic mismatch check
              * below can't see it; it would fall through to "declared is
@@ -4848,7 +4848,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        !(is_int_kind(declared->kind) && is_int_kind(value_type->kind)) &&
                        /* Allow enum → int (enums are int-backed) but not
                         * the reverse; int literals / variables can't be
-                        * assigned to enum variables (#1472). */
+                        * assigned to enum variables (). */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
                        /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
                        !(node->data.var_decl.value &&
@@ -4863,7 +4863,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        !(is_int_kind(declared->kind) && value_type->kind == TK_POINTER) &&
                        /* Skip mismatch when assigning pointer (addr) to ^T */
                        !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
-                       /* #1433: implicit int→float coercion when target is float */
+                       /* : implicit int→float coercion when target is float */
                        !(declared->kind == TK_FLOAT && is_int_kind(value_type->kind))) {
                 /* Type mismatch */
                 char msg[256];
@@ -4874,7 +4874,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Struct-to-struct name mismatch (both TK_STRUCT but different names).
-             * #1519: skip when one name is a module-prefixed alias of the
+             * : skip when one name is a module-prefixed alias of the
              * other (e.g. "Point" vs "shapes_Point" via import and use). */
             bool struct_alias_match = false;
             if (declared->kind == TK_STRUCT && value_type->kind == TK_STRUCT &&
@@ -4942,7 +4942,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         node->token.line, node->token.column,
                         node->data.var_decl.type_name, lit_val);
                 }
-                /* E3001 (#1477): assigning an array literal `{}` to a map
+                /* E3001 (): assigning an array literal `{}` to a map
                  * variable falls through the normal type check because the
                  * literal has no elements to derive a concrete element type
                  * from, and codegen then emits ez_array_new which the C
@@ -5038,7 +5038,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     compatible = true;
                                 if (expected_et->kind == TK_ENUM && actual_et->kind == TK_ENUM)
                                     compatible = true;
-                                /* #1433: int→float coercion in array initializer */
+                                /* : int→float coercion in array initializer */
                                 if (expected_et->kind == TK_FLOAT && is_int_kind(actual_et->kind))
                                     compatible = true;
                                 if (!compatible) {
@@ -5067,12 +5067,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
-                /* #1486: map literal key/value type mismatch. Parallel
+                /* : map literal key/value type mismatch. Parallel
                  * to the array E3053 check above; walks NODE_MAP_VALUE
                  * pairs and rejects entries whose key or value type
                  * doesn't match the declared map's K/V. The void case is
                  * already caught in NODE_MAP_VALUE's
-                 * reject_void_in_context path (#1483); this block
+                 * reject_void_in_context path (); this block
                  * covers the non-void-but-wrong-type leak. */
                 if (strncmp(tn, "map[", 4) == 0 &&
                     node->data.var_decl.value->kind == NODE_MAP_VALUE) {
@@ -5148,7 +5148,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
-        /* E3062 (#1480): handle types (channels, mutexes, threads)
+        /* E3062 (): handle types (channels, mutexes, threads)
          * cannot be declared const; every meaningful operation on
          * them mutates internal state, so const is a semantic lie.
          * Same class as the E3059 map check above. */
@@ -5375,7 +5375,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
             /* Per-element tracking for [func] arrays initialised with a
-             * literal of func refs (#1458). Preserves each element's
+             * literal of func refs (). Preserves each element's
              * originating function name so constant-index calls can
              * recover the real return type (e.g. struct returns) that
              * would otherwise be erased by the void* storage. */
@@ -5459,7 +5459,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (const_name) {
             diag_error_codef(tc->diag, "E3005", NODE_FILE(tc, node), node->token.line, node->token.column, 0, const_name);
         }
-        /* E3036 (#1515): range check on reassignment; the var_decl path
+        /* E3036 (): range check on reassignment; the var_decl path
          * already catches out-of-range literals at declaration, but
          * reassignment (`x = 300` where x is u8) was unchecked. */
         if (target->kind == NODE_LABEL && node->data.assign.value) {
@@ -5474,7 +5474,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
-        /* E3036 (#1515): range check on struct field assignment. */
+        /* E3036 (): range check on struct field assignment. */
         if (target->kind == NODE_MEMBER_EXPR &&
             target->data.member.object->kind == NODE_LABEL &&
             node->data.assign.value) {
@@ -5525,7 +5525,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 !(target_t->kind == TK_POINTER && node->data.assign.value->kind == NODE_LABEL &&
                   scope_lookup(tc->current_scope, node->data.assign.value->data.label.value) &&
                   scope_lookup(tc->current_scope, node->data.assign.value->data.label.value)->is_ref) &&
-                /* #1433: implicit int→float coercion */
+                /* : implicit int→float coercion */
                 !(target_t->kind == TK_FLOAT && is_int_kind(value_t->kind)) &&
                 /* nil is a valid value for pointer and Error variables */
                 !(value_t->kind == TK_NIL &&
@@ -5560,7 +5560,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
-        /* #1521: reject addr() of local assigned to outer-scope variable,
+        /* : reject addr() of local assigned to outer-scope variable,
          * and warn on cross-scope pointer assignments. */
         if (target->kind == NODE_LABEL && node->data.assign.value &&
             node->data.assign.value->kind == NODE_CALL_EXPR &&
@@ -5600,7 +5600,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             break;
         }
-        /* #1521: reject addr() of local variable in return; the
+        /* : reject addr() of local variable in return; the
          * local's memory is freed when the function returns. */
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             AstNode *rv = node->data.return_stmt.values[i];
@@ -5661,7 +5661,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
             /* Returning a value from a void function; suppress when
              * we've rewritten main()'s declared return type to void
-             * after E4008 (#1482). */
+             * after E4008 (). */
             if (!tc->current_main_return_suppressed) {
                 diag_error_msg(tc->diag, "E3006", strdup("cannot return a value from a void function"),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -5697,7 +5697,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check first return value type (skip for or_return synthetic returns) */
             EzType *ret_t = resolve_expr(tc, node->data.return_stmt.values[0]);
             EzType *expected = tc->current_return_types[0];
-            /* #1507: same push as var_decl; when a func-pointer call
+            /* : same push as var_decl; when a func-pointer call
              * is the return value and the function's declared return
              * type is concrete, push it onto the call node so codegen
              * uses the right function-pointer return cast. */
@@ -5713,7 +5713,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 !(is_int_kind(expected->kind) && is_int_kind(ret_t->kind)) &&
                 /* Allow enum → int return (enums are int-backed) but not
                  * the reverse; returning an int from a function declared
-                 * to return an enum is a type error (#1472). */
+                 * to return an enum is a type error (). */
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
                 !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
@@ -5736,7 +5736,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
-            /* #1514: pointer depth mismatch (e.g. returning ^^int
+            /* : pointer depth mismatch (e.g. returning ^^int
              * from a function declared -> ^int). Both sides are
              * TK_POINTER so the kind check above passes, but the
              * element_type strings differ ("int" vs "^int"). */
@@ -5845,7 +5845,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     full);
             }
         }
-        /* #1521: double-free detection for mem.destroy() */
+        /* : double-free detection for mem.destroy() */
         if (expr && expr->kind == NODE_CALL_EXPR &&
             expr->data.call.function->kind == NODE_MEMBER_EXPR) {
             AstNode *obj = expr->data.call.function->data.member.object;
@@ -5921,7 +5921,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_IF_STMT: {
         EzType *cond_t = resolve_expr(tc, node->data.if_stmt.condition);
-        /* E3038 (#1476): void function call as condition. The same check
+        /* E3038 (): void function call as condition. The same check
          * already exists for variable assignment and arithmetic; wire
          * it up for control-flow conditions too. The 'or' branch of an
          * if chain is parsed as a nested NODE_IF_STMT, so this one spot
@@ -6048,7 +6048,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_WHILE_STMT: {
         EzType *wh_cond_t = resolve_expr(tc, node->data.while_stmt.condition);
-        /* E3038 (#1476): void function call as 'as_long_as' condition. */
+        /* E3038 (): void function call as 'as_long_as' condition. */
         if (wh_cond_t && wh_cond_t->kind == TK_VOID) {
             AstNode *c = node->data.while_stmt.condition;
             char msg[256];
@@ -6240,7 +6240,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         /* Save using-module count so function-scoped `using` doesn't
-         * leak to subsequent functions (#1519). */
+         * leak to subsequent functions (). */
         int prev_using_count = tc->using_module_count;
 
         /* Track current function return types for return statement checking */
@@ -6287,7 +6287,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             tc->current_return_count = 0;
         }
 
-        /* #1482: main() is always void, and E4008 was already emitted
+        /* : main() is always void, and E4008 was already emitted
          * by register_declarations when the user attached a return
          * type. Treat main's effective return type as void for the
          * body walk so downstream "must return a value" (E3024),
@@ -6591,7 +6591,7 @@ static bool is_valid_module(const char *name) {
     return false;
 }
 
-/* #1489: look up a struct declaration in the program by name. Returns
+/* : look up a struct declaration in the program by name. Returns
  * NULL if no struct with the given name exists. Used by the by-value
  * recursion detector below. */
 static AstNode *find_struct_in_program(AstNode *program, const char *name) {
@@ -6606,7 +6606,7 @@ static AstNode *find_struct_in_program(AstNode *program, const char *name) {
     return NULL;
 }
 
-/* #1489: depth-first walk of a struct's by-value field graph, testing
+/* : depth-first walk of a struct's by-value field graph, testing
  * whether `target` appears transitively. Pointer fields (^T), arrays
  * ([T]), and maps (map[K:V]) are treated as heap-indirected; they
  * break the chain since the inner type lives behind a fat-pointer
@@ -6796,7 +6796,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (strcmp(fnames[j], stmt->data.struct_decl.name) == 0) {
                     diag_error_codef(tc->diag, "E2066", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, fnames[j], stmt->data.struct_decl.name);
                 }
-                /* E3061 (#1489): struct field cannot be the enclosing
+                /* E3061 (): struct field cannot be the enclosing
                  * struct by value; that produces an infinite-size
                  * type. Direct self-reference or transitive cycles
                  * through other by-value struct fields both count.
@@ -6860,7 +6860,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
 
-            /* #1520: detect generic structs (any field with ? in type) */
+            /* : detect generic structs (any field with ? in type) */
             stmt->data.struct_decl.is_generic = false;
             stmt->data.struct_decl.instantiations = NULL;
             stmt->data.struct_decl.instantiation_count = 0;
@@ -7151,7 +7151,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     }
 
     /* Pass 3: re-check generic function bodies per instantiation
-     * (#1443 slice 4). The main pass walked bodies with '?' as
+     * ( slice 4). The main pass walked bodies with '?' as
      * TK_UNKNOWN, so operations the concrete type doesn't support
      * (e.g. `a + b` on strings) slipped through. For every recorded
      * instantiation, rebind the parameters to concrete types and

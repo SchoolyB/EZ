@@ -26,7 +26,7 @@ typedef struct {
                                   validation (NULL if not assigned from a
                                   static func ref) */
     /* For [func] array vars initialised with a literal of func refs
-     * (#1458): per-element referenced function names, length == the
+     *per-element referenced function names, length == the
      * literal's count. NULL entries mark elements that aren't a
      * static func ref. Used by call-site type inference on
      * arr[const](...) expressions so struct return types survive the

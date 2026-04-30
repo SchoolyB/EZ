@@ -28,7 +28,7 @@ typedef struct {
     /* Current function context (for multi-return, ensure) */
     AstNode *current_func;
 
-    /* #1521: loop scoping depth — when > 0, codegen is inside a
+    /* loop scoping depth — when > 0, codegen is inside a
      * scoped loop and container mutations need escape-copy logic. */
     int loop_scope_depth;
 
@@ -82,7 +82,7 @@ typedef struct {
     int c_header_cap;
     bool has_c_imports;
 
-    /* Active wildcard binding (#1443). Set while emitting a specialised
+    /* Active wildcard binding (). Set while emitting a specialised
      * instantiation of a generic function so type-string lookups can
      * substitute "?" with a concrete type name, and so the mangled
      * function name can be appended at call sites. NULL outside a

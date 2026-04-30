@@ -147,7 +147,7 @@ static Precedence token_precedence(TokenType t) {
 
 /* Read a type name: simple (int, Person) or qualified (models.Task).
  * Assumes current token is the first identifier. Returns arena-allocated string. */
-/* Wildcard type placeholder for generics (issue #1443). Stored as the
+/* Wildcard type placeholder for generics. Stored as the
  * string "?" in the same slot as any other type name so the rest of
  * the compiler can carry it through unchanged until typechecker
  * instantiation (slice 2) replaces it with a concrete type. */
@@ -511,7 +511,7 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
             }
 
             char *expr_text = arena_strndup(p->arena, expr_start, s - expr_start);
-            /* #1484: reject '${}' (and whitespace-only '${ }') before
+            /* reject '${}' (and whitespace-only '${ }') before
              * spinning up a sub-parser. Otherwise the sub-parser hits
              * EOF on an empty input and reports E2002 with the stale
              * file-start position it was initialized to, which is
@@ -1065,7 +1065,7 @@ static AstNode *parse_var_declaration(Parser *p) {
      * lands on the existing E2070 diagnostic below; without it, the
      * token falls through to the generic "unexpected token" fallback
      * and the user gets no hint about why `?` isn't allowed here
-     * (#1481). */
+     * (). */
     /* E2079: reject 'nil' as a type annotation. nil is a value per the
      * language, not a type; consume the token to avoid a cascading
      * "nil is an unexpected expression statement" diagnostic. */
@@ -1533,7 +1533,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                     (!is_type || peek_token_is(p, TOK_IDENT) ||
                      peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET) ||
                      peek_token_is(p, TOK_QUESTION))) {
-                    /* Named return: name type; store both (#1502: accept
+                    /* Named return: name type; store both (: accept
                      * TOK_QUESTION, TOK_LBRACKET, TOK_CARET as type-start
                      * tokens so `(first ?, items [int], ptr ^T)` work) */
                     const char *ret_name = p->cur_token.literal;
@@ -1774,7 +1774,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
     node->data.struct_decl.funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
 
     while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
-        /* #1518: skip #doc attributes on struct functions. Consume
+        /* : skip #doc attributes on struct functions. Consume
          * the attribute + any parenthesised args, then continue so
          * the next token (do/private do) is handled normally. */
         if (cur_token_is(p, TOK_DOC)) {
@@ -1848,7 +1848,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
             node->data.struct_decl.fields = new_fields;
         }
 
-        /* E2070 (#1481 follow-up): wildcard `?` in field-name position
+        /* E2070 ( follow-up): wildcard `?` in field-name position
          * used to slip past the struct-field guard; the existing check
          * further down only inspects the type slot; and embed '?' in
          * the generated C struct identifier, where clang rejected it
@@ -1893,7 +1893,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
         /* Current token is now the type; parse it and backfill all names in this group */
         const char *type_name = parse_complex_type(p);
         if (!type_name) return NULL;
-        /* #1520: `?` is now allowed in struct fields for generic structs.
+        /* : `?` is now allowed in struct fields for generic structs.
          * The E2070 rejection was removed; the typechecker validates
          * binding consistency at each struct literal usage site. */
         for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
@@ -1962,7 +1962,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             continue;
         }
 
-        /* E2070 (#1481 follow-up): wildcard `?` in variant-name position
+        /* E2070 ( follow-up): wildcard `?` in variant-name position
          * used to slip past the parser and embed '?' in the generated C
          * enum identifier, where clang rejected it with a raw C error.
          * Catch it here before reading the variant name. */
@@ -2345,7 +2345,7 @@ static AstNode *parse_statement(Parser *p) {
         return stmt;
     }
     case TOK_JSON_ATTR: {
-        /* #json; applies to the next struct declaration (#1496) */
+        /* #json; applies to the next struct declaration () */
         next_token(p);
         AstNode *stmt = parse_statement(p);
         if (stmt && stmt->kind == NODE_STRUCT_DECL) {
@@ -2467,4 +2467,3 @@ AstNode *parser_parse_program(Parser *p) {
 
     return program;
 }
-
