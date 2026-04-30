@@ -1,5 +1,5 @@
 /*
- * ez_map.h - Hash map type for EZC
+ * ez_map.h - Hash map type for EZ
  *
  * Open-addressing hash table with linear probing.
  * Keys and values stored as fixed-size blobs.

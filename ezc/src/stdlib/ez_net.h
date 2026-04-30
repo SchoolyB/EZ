@@ -1,5 +1,5 @@
 /*
- * ez_net.h - @net module for EZC
+ * ez_net.h - @net module for EZ
  *
  * Low-level TCP/UDP networking primitives.
  *

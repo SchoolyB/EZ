@@ -1,5 +1,5 @@
 /*
- * ez_sqlite.h - @sqlite module for EZC
+ * ez_sqlite.h - @sqlite module for EZ
  *
  * Backed by the SQLite3 amalgamation.
  *

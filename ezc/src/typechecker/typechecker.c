@@ -1,5 +1,4 @@
 /*
- * typechecker.c - Type checking pass for the EZ language
  *
  * Walks the AST, resolves expression types, checks type correctness,
  * and builds a type table that the codegen can query.

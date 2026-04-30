@@ -1,5 +1,5 @@
 /*
- * ez_array.h - Dynamic array type for EZC
+ * ez_array.h - Dynamic array type for EZ
  *
  * EzArray is a fat pointer: data + len + cap + elem_size.
  * All backing storage is allocated from an arena.

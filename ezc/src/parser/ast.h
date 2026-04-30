@@ -1,5 +1,4 @@
 /*
- * ast.h - Abstract Syntax Tree node definitions for the EZ language
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.

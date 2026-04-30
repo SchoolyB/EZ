@@ -1,5 +1,5 @@
 /*
- * ez_random.h - @random module for EZC
+ * ez_random.h - @random module for EZ
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.

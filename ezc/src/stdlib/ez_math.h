@@ -1,5 +1,5 @@
 /*
- * ez_math.h - @math module for EZC
+ * ez_math.h - @math module for EZ
  *
  * Most functions are thin wrappers around <math.h>.
  * Constants are handled by codegen (math.PI, math.E, etc.)

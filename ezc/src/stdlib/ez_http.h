@@ -1,5 +1,5 @@
 /*
- * ez_http.h - @http module for EZC
+ * ez_http.h - @http module for EZ
  *
  * HTTP client using raw sockets (no libcurl dependency).
  *

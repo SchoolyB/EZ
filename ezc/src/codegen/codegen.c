@@ -1,5 +1,4 @@
 /*
- * codegen.c - C code generator for the EZ language
  *
  * Walks the AST and emits C source code.
  *

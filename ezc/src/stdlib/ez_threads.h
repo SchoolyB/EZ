@@ -1,5 +1,5 @@
 /*
- * ez_threads.h - @threads module for EZC
+ * ez_threads.h - @threads module for EZ
  *
  * Thread spawning and joining. Built on POSIX pthreads.
  * See @sync for mutexes, @channels for message passing.

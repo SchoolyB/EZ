@@ -1,5 +1,5 @@
 /*
- * ez_server.h - @server module for EZC
+ * ez_server.h - @server module for EZ
  *
  * HTTP server with routing, path params, and handler functions.
  * Uses @net for sockets and @threads for concurrency.

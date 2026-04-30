@@ -1,5 +1,4 @@
 /*
- * typechecker.h - Type checking pass for the EZ language
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.

@@ -1,5 +1,5 @@
 /*
- * ez_bigint.h - Wide integer types (i128, u128, i256, u256) for EZC
+ * ez_bigint.h - Wide integer types (i128, u128, i256, u256) for EZ
  *
  * Struct-based portable implementation backed by uint64_t limbs.
  *
