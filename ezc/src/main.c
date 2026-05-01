@@ -617,7 +617,7 @@ int main(int argc, char **argv) {
         input_dir[sizeof(input_dir) - 1] = '\0';
         char *last_slash = strrchr(input_dir, '/');
         if (last_slash) *(last_slash + 1) = '\0';
-        else strcpy(input_dir, "./");
+        else { input_dir[0] = '.'; input_dir[1] = '/'; input_dir[2] = '\0'; }
 
         /* Process imports iteratively — re-scan after each merge to find transitive imports.
          * The already_imported cache prevents infinite loops and duplicate processing. */
