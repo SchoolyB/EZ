@@ -30,6 +30,24 @@ static void emit_call_expression(CodeGen *cg, AstNode *node);
 static bool codegen_is_enum(CodeGen *cg, const char *name);
 static void emit_to_string(CodeGen *cg, AstNode *arg);
 
+/* Resolve an unprefixed type name (e.g. "Point") to its module-prefixed
+ * form (e.g. "lib_Point") by searching struct declarations and enum names.
+ * Returns the prefixed name if found, otherwise returns the original. */
+static const char *resolve_unprefixed_name(CodeGen *cg, const char *name) {
+    if (!cg || !name) return name;
+    for (int i = 0; i < cg->struct_decl_count; i++) {
+        const char *dn = cg->struct_decls[i]->data.struct_decl.name;
+        const char *us = strrchr(dn, '_');
+        if (us && strcmp(us + 1, name) == 0) return dn;
+    }
+    for (int i = 0; i < cg->enum_count; i++) {
+        const char *en = cg->enum_names[i];
+        const char *us = strrchr(en, '_');
+        if (us && strcmp(us + 1, name) == 0) return en;
+    }
+    return name;
+}
+
 /* --- Helpers --- */
 
 static void emit(CodeGen *cg, const char *s) {
@@ -116,18 +134,18 @@ static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
     if (!type_name || !cg || !cg->wildcard_binding) return type_name;
     if (!strchr(type_name, '?')) return type_name;
     size_t cl = strlen(cg->wildcard_binding);
-    /* Count wildcards to compute exact output size */
-    size_t need = 0;
-    for (const char *q = type_name; *q; q++) {
-        if (*q == '?') need += cl;
-        else need += 1;
-    }
-    char *out = malloc(need + 1);
+    static char bufs[4][EZ_TYPE_NAME_MAX];
+    static int slot = 0;
+    char *out = bufs[slot];
+    slot = (slot + 1) & 3;
     char *w = out;
-    for (const char *q = type_name; *q; q++) {
+    char *end = out + EZ_TYPE_NAME_MAX - 1;
+    for (const char *q = type_name; *q && w < end; q++) {
         if (*q == '?') {
-            memcpy(w, cg->wildcard_binding, cl);
-            w += cl;
+            size_t avail = (size_t)(end - w);
+            size_t copy = cl < avail ? cl : avail;
+            memcpy(w, cg->wildcard_binding, copy);
+            w += copy;
         } else {
             *w++ = *q;
         }
@@ -224,26 +242,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         const char *resolved = type_name;
         /* Resolve unprefixed names from 'import and use' */
         if (cg && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
-            /* Check if a prefixed version exists in struct declarations */
-            for (int si = 0; si < cg->struct_decl_count; si++) {
-                const char *dn = cg->struct_decls[si]->data.struct_decl.name;
-                const char *us = strrchr(dn, '_');
-                if (us && strcmp(us + 1, type_name) == 0) {
-                    resolved = dn;
-                    break;
-                }
-            }
-            /* Check enums too */
-            if (resolved == type_name) {
-                for (int ei = 0; ei < cg->enum_count; ei++) {
-                    const char *en = cg->enum_names[ei];
-                    const char *us = strrchr(en, '_');
-                    if (us && strcmp(us + 1, type_name) == 0) {
-                        resolved = en;
-                        break;
-                    }
-                }
-            }
+            resolved = resolve_unprefixed_name(cg, type_name);
         }
         if (cg && codegen_is_enum(cg, resolved)) {
             snprintf(buf, sizeof(buf), "EzEnum_%s", resolved);
@@ -1105,15 +1104,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
             if (!found) {
-                /* Try prefixed names */
-                for (int si = 0; si < cg->struct_decl_count; si++) {
-                    const char *dn = cg->struct_decls[si]->data.struct_decl.name;
-                    const char *us = strrchr(dn, '_');
-                    if (us && strcmp(us + 1, sname) == 0) {
-                        sname = dn;
-                        break;
-                    }
-                }
+                sname = resolve_unprefixed_name(cg, sname);
             }
         }
         /* : use mangled name for generic struct instantiations */
@@ -1667,14 +1658,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (codegen_is_enum(cg, mod)) {
                     resolved_enum = mod;
                 } else {
-                    for (int ei = 0; ei < cg->enum_count; ei++) {
-                        const char *en = cg->enum_names[ei];
-                        const char *us = strrchr(en, '_');
-                        if (us && strcmp(us + 1, mod) == 0) {
-                            resolved_enum = en;
-                            break;
-                        }
-                    }
+                    const char *r = resolve_unprefixed_name(cg, mod);
+                    if (r != mod && codegen_is_enum(cg, r)) resolved_enum = r;
                 }
                 if (resolved_enum) {
                     emitf(cg, "EzEnum_%s_%s", resolved_enum, mem);

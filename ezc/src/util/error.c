@@ -201,10 +201,7 @@ void diag_set_source(DiagnosticList *dl, const char *file, const char *source) {
 }
 
 bool diag_has_errors(DiagnosticList *dl) {
-    for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_ERROR) return true;
-    }
-    return false;
+    return diag_error_count(dl) > 0;
 }
 
 int diag_error_count(DiagnosticList *dl) {
@@ -328,11 +325,11 @@ void diag_print_all(DiagnosticList *dl) {
 }
 
 void diag_print_summary(DiagnosticList *dl) {
-    int errors = diag_error_count(dl);
-    int warnings = 0;
+    int errors = 0, warnings = 0;
     for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_WARNING &&
-            !is_warning_suppressed(dl, &dl->items[i]))
+        if (dl->items[i].severity == SEV_ERROR) errors++;
+        else if (dl->items[i].severity == SEV_WARNING &&
+                 !is_warning_suppressed(dl, &dl->items[i]))
             warnings++;
     }
 
