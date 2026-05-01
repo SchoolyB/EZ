@@ -6338,7 +6338,6 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
     if (cg->loop_scope_depth == 0) {
         emit(cg, "EzArena *_ez_outer_arena = ez_default_arena; ");
     }
-    int if_depth = cg->loop_scope_depth;
     emitf(cg, "EzArena *_if_arena_%d = ez_arena_create(%d); ", isc, CG_IF_ARENA_SIZE);
     emitf(cg, "EzArena *_if_saved_%d = ez_default_arena; ", isc);
     emitf(cg, "ez_default_arena = _if_arena_%d;\n", isc);
@@ -7422,7 +7421,6 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         emitf(cg, "    EzMap _m = ez_json_decode(arena, text);\n");
         for (int j = 0; j < fc; j++) {
             StructField *f = &stmt->data.struct_decl.fields[j];
-            const char *ct = ez_type_to_c_cg(cg, f->type_name);
             if (strcmp(f->type_name, "string") == 0) {
                 emitf(cg, "    { EzString _k = ez_string_lit(\"%s\"); void *_v = ez_map_get(&_m, &_k);\n", f->name);
                 emitf(cg, "      if (_v) _r.%s = *(EzString *)_v; }\n", safe_name(f->name));
