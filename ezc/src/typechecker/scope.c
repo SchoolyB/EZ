@@ -19,13 +19,11 @@ Scope *scope_create(Scope *parent) {
 
 void scope_define(Scope *s, const char *name, EzType *type, bool mutable) {
     /* Check for redefinition in current scope */
-    for (int i = 0; i < s->count; i++) {
-        if (strcmp(s->symbols[i].name, name) == 0) {
-            /* Update existing */
-            s->symbols[i].type = type;
-            s->symbols[i].mutable = mutable;
-            return;
-        }
+    Symbol *existing = scope_lookup_local(s, name);
+    if (existing) {
+        existing->type = type;
+        existing->mutable = mutable;
+        return;
     }
 
     if (s->count >= s->cap) {
