@@ -2244,7 +2244,8 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         const char *elem_tn = t->element_type ? t->element_type : "int";
         EzType *elem_t = type_from_name(elem_tn);
         char c_elem[EZ_TYPE_NAME_MAX];
-        snprintf(c_elem, sizeof(c_elem), "%s", ez_type_to_c_cg(cg, elem_tn));
+        strncpy(c_elem, ez_type_to_c_cg(cg, elem_tn), sizeof(c_elem) - 1);
+        c_elem[sizeof(c_elem) - 1] = '\0';
 
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"{\");\n", stream);
@@ -2285,8 +2286,10 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         EzType *key_t = type_from_name(key_tn);
         EzType *val_t = type_from_name(val_tn);
         char c_key[EZ_TYPE_NAME_MAX], c_val[EZ_TYPE_NAME_MAX];
-        snprintf(c_key, sizeof(c_key), "%s", ez_type_to_c_cg(cg, key_tn));
-        snprintf(c_val, sizeof(c_val), "%s", ez_type_to_c_cg(cg, val_tn));
+        strncpy(c_key, ez_type_to_c_cg(cg, key_tn), sizeof(c_key) - 1);
+        c_key[sizeof(c_key) - 1] = '\0';
+        strncpy(c_val, ez_type_to_c_cg(cg, val_tn), sizeof(c_val) - 1);
+        c_val[sizeof(c_val) - 1] = '\0';
 
         char mi[CG_SHORT_VAR_BUF], sl[CG_SHORT_VAR_BUF];
         snprintf(mi, sizeof(mi), "_ez_mi%d", uid);
@@ -2408,7 +2411,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
         const char *pointee_tn = t->element_type ? t->element_type : "int";
         snprintf(c_type, sizeof(c_type), "%s *", ez_type_to_c_cg(cg, pointee_tn));
     }
-    else snprintf(c_type, sizeof(c_type), "%s", ez_type_to_c_cg(cg, type_name(t)));
+    else { strncpy(c_type, ez_type_to_c_cg(cg, type_name(t)), sizeof(c_type) - 1); c_type[sizeof(c_type) - 1] = '\0'; }
 
     emit_indent(cg);
     emitf(cg, "%s _ez_pv%d = ", c_type, uid);
@@ -2765,7 +2768,9 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                     at->key_type ? at->key_type : "",
                     at->value_type ? at->value_type : "");
             } else {
-                snprintf(full_tn, sizeof(full_tn), "%s", at->name ? at->name : "");
+                const char *_name = at->name ? at->name : "";
+                strncpy(full_tn, _name, sizeof(full_tn) - 1);
+                full_tn[sizeof(full_tn) - 1] = '\0';
             }
             emit_value_deep_copy(cg, full_tn, src_var);
             emit(cg, "; })");
@@ -6545,7 +6550,8 @@ static const char *multi_base_name(const char *fn_name) {
         memcpy(out, fn_name, n);
         out[n] = '\0';
     } else {
-        snprintf(out, sizeof(bufs[0]), "%s", fn_name);
+        strncpy(out, fn_name, sizeof(bufs[0]) - 1);
+        out[sizeof(bufs[0]) - 1] = '\0';
     }
     return out;
 }

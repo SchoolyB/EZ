@@ -2401,8 +2401,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 arg_t->value_type ? arg_t->value_type : "?");
                         else if (arg_t->kind == TK_POINTER && arg_t->element_type)
                             snprintf(tn, sizeof(tn), "^%s", arg_t->element_type);
-                        else
-                            snprintf(tn, sizeof(tn), "%s", type_name(arg_t));
+                        else {
+                            strncpy(tn, type_name(arg_t), sizeof(tn) - 1);
+                            tn[sizeof(tn) - 1] = '\0';
+                        }
                         diag_error_codef(tc->diag, "E3017", NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0, mfn, tn);
                     }
@@ -4307,8 +4309,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 char tn[EZ_TYPE_NAME_MAX];
                 if (src_t->kind == TK_ARRAY && src_t->element_type)
                     snprintf(tn, sizeof(tn), "[%s]", src_t->element_type);
-                else
-                    snprintf(tn, sizeof(tn), "%s", type_name(src_t));
+                else {
+                    strncpy(tn, type_name(src_t), sizeof(tn) - 1);
+                    tn[sizeof(tn) - 1] = '\0';
+                }
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "cannot cast '%s' to '%s'",
@@ -4665,8 +4669,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         snprintf(display, sizeof(display), "%s.%s",
                             call_fn->data.member.object->data.label.value,
                             call_fn->data.member.member);
-                    else
-                        snprintf(display, sizeof(display), "%s", call_name);
+                    else {
+                        strncpy(display, call_name, sizeof(display) - 1);
+                        display[sizeof(display) - 1] = '\0';
+                    }
                     diag_error_codef(tc->diag, "E3045", NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0, display);
                 }
