@@ -1790,6 +1790,16 @@ import "./utils", "./lib/utils"
 import "./utils", lib_utils "./lib/utils"
 ```
 
+**Directory import semantics:**
+
+When a directory is imported, all `.ez` files within it are merged into a single module namespace (the directory name). The following rules apply:
+
+- Files within the directory may import each other via relative paths (e.g., `import "./types.ez"`). These sibling cross-references are resolved internally and do not create separate namespaces — all symbols remain under the directory's namespace.
+- Transitive imports inside directory files resolve relative to the importing file's location, not the entry file.
+- If a file inside a directory imports its own parent directory (self-referential import), it is rejected with E6004.
+- If a directory import is followed by a direct import of a file already in that directory, the compiler emits W2015 indicating the import is redundant — the directory namespace should be used instead.
+- If two files in a directory declare the same symbol name, it is a collision error (E4004).
+
 **Deduplication:** If the same file is imported multiple times (e.g., directly by main and transitively through another import), it is only processed once. No error is emitted.
 
 ### 8.3 Combined Import and Use
