@@ -2081,11 +2081,55 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
                 (strcmp(obj, "encoding") == 0) ||
                 (strcmp(obj, "crypto") == 0) ||
                 (strcmp(obj, "uuid") == 0)) return "_str";
-            /* Check if it's a struct-namespaced function */
-            if (codegen_is_enum(cg, obj) || (obj[0] >= 'A' && obj[0] <= 'Z')) {
-                /* Look up forward declaration to determine return type */
-                /* For now, check if the generated C declaration returns EzString */
-                (void)mem; /* TODO: proper return type lookup */
+            /* Check if it's a struct-namespaced function or instance method call */
+            {
+                const char *struct_name = NULL;
+                /* Direct struct type call: Foo.greet() */
+                if (obj[0] >= 'A' && obj[0] <= 'Z') {
+                    struct_name = obj;
+                } else {
+                    /* Instance call: f.greet() — look up variable's struct type */
+                    EzType *obj_t = cg->type_table
+                        ? typetable_get(cg->type_table, fn->data.member.object) : NULL;
+                    if (obj_t && (obj_t->kind == TK_STRUCT || obj_t->kind == TK_POINTER) && obj_t->name) {
+                        struct_name = obj_t->name;
+                    }
+                }
+                if (struct_name) {
+                    AstNode *sdecl = find_struct_decl(cg, struct_name);
+                    if (sdecl) {
+                        for (int fi = 0; fi < sdecl->data.struct_decl.func_count; fi++) {
+                            AstNode *sf = sdecl->data.struct_decl.funcs[fi].func_decl;
+                            if (!sf || sf->kind != NODE_FUNC_DECL) continue;
+                            /* Match: struct funcs are prefixed as StructName_funcName in all_funcs,
+                             * but the original name is stored before prefixing in the struct decl.
+                             * After codegen_init prefixes them, compare with prefixed form. */
+                            const char *sf_name = sf->data.func_decl.name;
+                            /* Check both prefixed (StructName_func) and bare (func) forms */
+                            bool match = (strcmp(sf_name, mem) == 0);
+                            if (!match) {
+                                size_t sn_len = strlen(struct_name);
+                                if (strlen(sf_name) > sn_len + 1 &&
+                                    strncmp(sf_name, struct_name, sn_len) == 0 &&
+                                    sf_name[sn_len] == '_' &&
+                                    strcmp(sf_name + sn_len + 1, mem) == 0) {
+                                    match = true;
+                                }
+                            }
+                            if (match && sf->data.func_decl.return_type_count > 0) {
+                                const char *rt = sf->data.func_decl.return_types[0];
+                                if (strcmp(rt, "string") == 0) return "_str";
+                                if (strcmp(rt, "float") == 0 || strcmp(rt, "f32") == 0 || strcmp(rt, "f64") == 0) return "_float";
+                                if (strcmp(rt, "bool") == 0) return "_bool";
+                                if (strcmp(rt, "char") == 0) return "_char";
+                                if (strcmp(rt, "uint") == 0 || strcmp(rt, "u8") == 0 ||
+                                    strcmp(rt, "u16") == 0 || strcmp(rt, "u32") == 0 ||
+                                    strcmp(rt, "u64") == 0) return "_uint";
+                                return "_int";
+                            }
+                        }
+                    }
+                }
             }
         }
     }
