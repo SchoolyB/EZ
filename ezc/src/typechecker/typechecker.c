@@ -4262,6 +4262,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_CAST_EXPR: {
         EzType *src_t = resolve_expr(tc, node->data.cast.value);
         EzType *dst_t = type_from_name(node->data.cast.target_type);
+        /* Resolve user-defined enum types that type_from_name() can't find */
+        if (!dst_t && is_enum_name(tc, node->data.cast.target_type))
+            dst_t = type_enum(node->data.cast.target_type);
         /* Allowlist-based cast validation */
         if (src_t && src_t->kind != TK_UNKNOWN && dst_t && dst_t->kind != TK_UNKNOWN) {
             bool allowed = false;

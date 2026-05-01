@@ -1923,7 +1923,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
         if (strcmp(target, "string") == 0) {
             /* any → string: use to_string functions */
-            emit_to_string(cg, val);
+            if (val_kind == TK_CHAR) {
+                /* char → string: single-character string, not ASCII value */
+                emit(cg, "ez_string_new(ez_default_arena, (char[]){(char)(");
+                emit_expression(cg, val);
+                emit(cg, "), '\\0'}, 1)");
+            } else {
+                emit_to_string(cg, val);
+            }
         } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) && val_kind == TK_STRING) {
             /* string → int */
             emit(cg, "ez_builtin_string_to_int(");
@@ -1939,6 +1946,43 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "ez_float_to_int((double)(");
             emit_expression(cg, val);
             emit(cg, "), __FILE__, __LINE__)");
+        } else if (val_kind == TK_STRING) {
+            /* string → numeric (targets other than int/float handled above):
+             * parse to int64/double first, then apply narrowing check */
+            if (strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0) {
+                emit(cg, "(uint64_t)ez_builtin_string_to_int(");
+                emit_expression(cg, val);
+                emit(cg, ")");
+            } else if (strcmp(target, "f32") == 0) {
+                emit(cg, "(float)ez_builtin_string_to_float(");
+                emit_expression(cg, val);
+                emit(cg, ")");
+            } else {
+                /* Sized integer targets — parse then range-check */
+                const char *smin = NULL, *smax = NULL;
+                bool is_unsigned = false;
+                if (strcmp(target, "i8") == 0) { smin = "-128"; smax = "127"; }
+                else if (strcmp(target, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+                else if (strcmp(target, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+                else if (strcmp(target, "u8") == 0 || strcmp(target, "byte") == 0) { is_unsigned = true; smax = "255"; }
+                else if (strcmp(target, "u16") == 0) { is_unsigned = true; smax = "65535"; }
+                else if (strcmp(target, "u32") == 0) { is_unsigned = true; smax = "4294967295ULL"; }
+
+                if (smax && is_unsigned) {
+                    emitf(cg, "(%s)ez_ucast_check(ez_builtin_string_to_int(", ez_type_to_c_cg(cg, target));
+                    emit_expression(cg, val);
+                    emitf(cg, "), %s, \"%s\", __FILE__, %d)", smax, target, node->token.line);
+                } else if (smax) {
+                    emitf(cg, "(%s)ez_cast_check(ez_builtin_string_to_int(", ez_type_to_c_cg(cg, target));
+                    emit_expression(cg, val);
+                    emitf(cg, "), %s, %s, \"%s\", __FILE__, %d)", smin, smax, target, node->token.line);
+                } else {
+                    /* Fallback: parse to int and cast */
+                    emitf(cg, "((%s)ez_builtin_string_to_int(", ez_type_to_c_cg(cg, target));
+                    emit_expression(cg, val);
+                    emit(cg, "))");
+                }
+            }
         } else {
             /* Numeric casts: range-checked for narrowing, raw for widening */
             const char *smin = NULL, *smax = NULL;
