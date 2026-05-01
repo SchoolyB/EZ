@@ -950,7 +950,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                    (pt->name && strcmp(pt->name, "func") == 0));
             if (pt->kind == TK_VOID) {
                 diag_error_msg(tc->diag, "E3041",
-                    strdup("cannot interpolate void expression; the function does not return a value"),
+                    "cannot interpolate void expression; the function does not return a value",
                     NODE_FILE(tc, node), line, col, 0);
             } else if (pt->kind == TK_STRUCT ||
                        pt->kind == TK_POINTER ||
@@ -1147,7 +1147,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (strcmp(op, "%") == 0 &&
             (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
             diag_error_msg(tc->diag, "E3002",
-                strdup("modulo (%) only works on integers, not floats"),
+                "modulo (%) only works on integers, not floats",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
@@ -1399,7 +1399,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 node->data.postfix.left->kind != NODE_INDEX_EXPR &&
                 node->data.postfix.left->kind != NODE_MEMBER_EXPR) {
                 diag_error_msg(tc->diag, "E5015",
-                    strdup("++ and -- require a variable; you cannot increment a literal or expression"),
+                    "++ and -- require a variable; you cannot increment a literal or expression",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* ++ and -- only valid on mutable numeric types */
@@ -1609,7 +1609,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!mod_imported && strcmp(mod, "c") == 0 &&
                 !scope_lookup(tc->current_scope, "c")) {
                 diag_error_msg(tc->diag, "E4001",
-                    strdup("C interop requires a C header import; add import c\"header.h\" at the top of the file"),
+                    "C interop requires a C header import; add import c\"header.h\" at the top of the file",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 result = &TYPE_UNKNOWN;
                 break;
@@ -1840,7 +1840,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     EzType *count_t = typetable_get(tc->type_table, node->data.call.args[1]);
                     if (count_t && count_t->kind == TK_FLOAT) {
                         diag_error_msg(tc->diag, "E7004",
-                            strdup("strings.repeat() count must be an integer, not a float"),
+                            "strings.repeat() count must be an integer, not a float",
                             NODE_FILE(tc, node->data.call.args[1]), node->data.call.args[1]->token.line,
                             node->data.call.args[1]->token.column, 0);
                     }
@@ -1851,7 +1851,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         EzType *bt = typetable_get(tc->type_table, node->data.call.args[si]);
                         if (bt && bt->kind == TK_FLOAT) {
                             diag_error_msg(tc->diag, "E7004",
-                                strdup("strings.slice() bounds must be integers, not floats"),
+                                "strings.slice() bounds must be integers, not floats",
                                 NODE_FILE(tc, node->data.call.args[si]), node->data.call.args[si]->token.line,
                                 node->data.call.args[si]->token.column, 0);
                         }
@@ -2214,7 +2214,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                               arg0->data.call.function->kind == NODE_LABEL &&
                               strcmp(arg0->data.call.function->data.label.value, "ref") == 0)) {
                             diag_error_msg(tc->diag, "E7006",
-                                strdup("threads.spawn() requires a function reference; use ()func_name or ref(func_name)"),
+                                "threads.spawn() requires a function reference; use ()func_name or ref(func_name)",
                                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
@@ -2715,7 +2715,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                  * '&(rvalue)' to clang. */
                 if (!is_lvalue_expr(arg)) {
                     diag_error_msg(tc->diag, "E3012",
-                        strdup("addr() requires a variable, field, or index expression; cannot take address of a literal or expression"),
+                        "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 EzType *arg_t = resolve_expr(tc, arg);
@@ -2740,7 +2740,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                      * and produced opaque generated-C errors. */
                     if (!is_lvalue_expr(arg)) {
                         diag_error_msg(tc->diag, "E3012",
-                            strdup("ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression"),
+                            "ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression",
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                     /* Build a pointer type that preserves the full source type.
@@ -2806,7 +2806,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
                     if (arg_t->kind == TK_VOID) {
                         diag_error_msg(tc->diag, "E3038",
-                            strdup("cannot use type_of() on a void function; the function does not return a value"),
+                            "cannot use type_of() on a void function; the function does not return a value",
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                 }
@@ -3889,7 +3889,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (!sym->ret_types && idx > 0) {
                     /* Single-return function used in multi-variable assignment */
                     diag_error_msg(tc->diag, "E3006",
-                        strdup("too many variables; the function returns only 1 value"),
+                        "too many variables; the function returns only 1 value",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_UNKNOWN;
                 } else {
@@ -4603,7 +4603,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                               node->kind == NODE_WHEN_STMT);
         if (is_executable) {
             diag_error_msg(tc->diag, "E2056",
-                strdup("executable statements are not allowed at file scope; put this inside a function"),
+                "executable statements are not allowed at file scope; put this inside a function",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
     }
@@ -4613,7 +4613,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* E3038: void cannot be used as variable type */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "void") == 0) {
             diag_error_msg(tc->diag, "E3038",
-                strdup("'void' cannot be used as a variable type"),
+                "'void' cannot be used as a variable type",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* E3038: void in array/map types.
@@ -4625,7 +4625,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                  strncmp(tn, "[func(", 6) == 0;
             if (!is_typed_func && strstr(tn, "void") != NULL && strcmp(tn, "void") != 0) {
                 diag_error_msg(tc->diag, "E3038",
-                    strdup("'void' cannot be used as an element type in arrays or maps"),
+                    "'void' cannot be used as an element type in arrays or maps",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
@@ -4731,7 +4731,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* E2002: private not allowed inside functions */
         if (node->data.var_decl.is_private && tc->func_depth > 0) {
             diag_error_msg(tc->diag, "E2002",
-                strdup("'private' cannot be used inside a function; it only applies to top-level declarations"),
+                "'private' cannot be used inside a function; it only applies to top-level declarations",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
@@ -4784,7 +4784,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* E3038: cannot assign void function result */
             if (value_type->kind == TK_VOID) {
                 diag_error_msg(tc->diag, "E3038",
-                    strdup("cannot assign the result of a void function to a variable"),
+                    "cannot assign the result of a void function to a variable",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for multi-return to single variable
@@ -4813,7 +4813,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Reject bare 'mut x = nil' with no type context */
             if (value_type->kind == TK_NIL && declared->kind == TK_UNKNOWN) {
                 diag_error_msg(tc->diag, "E3001",
-                    strdup("cannot infer type from nil; add a type annotation (e.g., mut x Error = nil)"),
+                    "cannot infer type from nil; add a type annotation (e.g., mut x Error = nil)",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* E3066: typed-func variable assigned a function reference with a
@@ -4951,12 +4951,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 bool exceeds_u64 = node->data.var_decl.value->data.int_value.overflow_u64;
                 if (exceeds_u64 && !is_bigint) {
                     diag_error_msg(tc->diag, "E3046",
-                        strdup("integer literal overflows 64-bit integer; max value is 18446744073709551615"),
+                        "integer literal overflows 64-bit integer; max value is 18446744073709551615",
                         NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0);
                 } else if (!exceeds_u64 && !is_bigint && !is_u64_like) {
                     diag_error_msg(tc->diag, "E3046",
-                        strdup("integer literal overflows 64-bit integer; max value is 9223372036854775807"),
+                        "integer literal overflows 64-bit integer; max value is 9223372036854775807",
                         NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0);
                 }
@@ -5021,7 +5021,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             /* Element exceeds UINT64_MAX entirely; always an error. */
                             if (el_overflowed_u64) {
                                 diag_error_msg(tc->diag, "E3046",
-                                    strdup("integer literal overflows 64-bit integer; max value is 18446744073709551615"),
+                                    "integer literal overflows 64-bit integer; max value is 18446744073709551615",
                                     NODE_FILE(tc, el), el->token.line, el->token.column, 0);
                                 continue;
                             }
@@ -5031,7 +5031,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             if (el_overflowed) {
                                 if (!elem_is_u64_like) {
                                     diag_error_msg(tc->diag, "E3046",
-                                        strdup("integer literal overflows 64-bit integer; max value is 9223372036854775807"),
+                                        "integer literal overflows 64-bit integer; max value is 9223372036854775807",
                                         NODE_FILE(tc, el), el->token.line, el->token.column, 0);
                                 }
                                 continue;
@@ -5469,7 +5469,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             target->kind != NODE_PREFIX_EXPR &&
             target->kind != NODE_POSTFIX_EXPR) {
             diag_error_msg(tc->diag, "E5025",
-                strdup("cannot assign to this expression; left side of '=' must be a variable, field, or index"),
+                "cannot assign to this expression; left side of '=' must be a variable, field, or index",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
@@ -5625,7 +5625,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * variable that main never declares, and the C compile fails. */
         if (tc->current_func_is_main) {
             diag_error_msg(tc->diag, "E3073",
-                strdup("'return' is not allowed in main(); main exits when control reaches the closing brace"),
+                "'return' is not allowed in main(); main exits when control reaches the closing brace",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             break;
         }
@@ -5692,14 +5692,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
              * we've rewritten main()'s declared return type to void
              * after E4008 (). */
             if (!tc->current_main_return_suppressed) {
-                diag_error_msg(tc->diag, "E3006", strdup("cannot return a value from a void function"),
+                diag_error_msg(tc->diag, "E3006", "cannot return a value from a void function",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count == 0 &&
                    !tc->current_has_named_returns) {
             /* Bare return in non-void function (without named returns) */
             diag_error_msg(tc->diag, "E3006",
-                strdup("missing return value; function expects a return value"),
+                "missing return value; function expects a return value",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
                    node->data.return_stmt.count != tc->current_return_count) {
@@ -6592,7 +6592,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             } else {
                 /* #strict on non-enum: just warn that it has no effect without default */
                 diag_error_msg(tc->diag, "E3056",
-                    strdup("#strict when on a non-enum type requires a default branch to be exhaustive"),
+                    "#strict when on a non-enum type requires a default branch to be exhaustive",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
@@ -6972,12 +6972,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (strcmp(stmt->data.func_decl.name, "main") == 0) {
                 if (pc > 0) {
                     diag_error_msg(tc->diag, "E4008",
-                        strdup("'main' function cannot have parameters; main() takes no arguments"),
+                        "'main' function cannot have parameters; main() takes no arguments",
                         NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 if (rc > 0) {
                     diag_error_msg(tc->diag, "E4008",
-                        strdup("'main' function cannot have a return type; main() always returns void"),
+                        "'main' function cannot have a return type; main() always returns void",
                         NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
             }
@@ -7282,7 +7282,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             if (last) err_line = last->token.line;
         }
         diag_error_msg(tc->diag, "E4005",
-            strdup("program has no main() function; every program needs 'do main() { }'"),
+            "program has no main() function; every program needs 'do main() { }'",
             tc->file, err_line, 1, 0);
     }
 
