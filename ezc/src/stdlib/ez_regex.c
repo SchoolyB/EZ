@@ -12,11 +12,15 @@
 #include <string.h>
 #include <stdio.h>
 
+#define EZ_REGEX_PAT_BUF        4096
+#define EZ_REGEX_TXT_BUF        8192
+#define EZ_REGEX_RESULT_BUF     16384
+
 /* Helper: compile pattern into a null-terminated C string and regex_t.
  * Returns 0 on success, non-zero on error. Caller must regfree on success. */
 static int compile_pattern(EzString pattern, regex_t *re, int flags) {
     /* Null-terminate the pattern */
-    char pat_buf[4096];
+    char pat_buf[EZ_REGEX_PAT_BUF];
     int plen = pattern.len < (int32_t)sizeof(pat_buf) - 1 ? pattern.len : (int32_t)sizeof(pat_buf) - 1;
     memcpy(pat_buf, pattern.data, (size_t)plen);
     pat_buf[plen] = '\0';
@@ -43,7 +47,7 @@ bool ez_regex_match(EzString pattern, EzString text) {
     regex_t re;
     if (compile_pattern(pattern, &re, REG_NOSUB) != 0) return false;
 
-    char txt_buf[8192];
+    char txt_buf[EZ_REGEX_TXT_BUF];
     to_cstr(text, txt_buf, sizeof(txt_buf));
 
     int result = regexec(&re, txt_buf, 0, NULL, 0);
@@ -57,7 +61,7 @@ EzString ez_regex_find(EzArena *arena, EzString pattern, EzString text) {
         return (EzString){"", 0};
     }
 
-    char txt_buf[8192];
+    char txt_buf[EZ_REGEX_TXT_BUF];
     to_cstr(text, txt_buf, sizeof(txt_buf));
 
     regmatch_t match;
@@ -77,7 +81,7 @@ EzArray ez_regex_find_all(EzArena *arena, EzString pattern, EzString text) {
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) return arr;
 
-    char txt_buf[8192];
+    char txt_buf[EZ_REGEX_TXT_BUF];
     to_cstr(text, txt_buf, sizeof(txt_buf));
 
     const char *cursor = txt_buf;
@@ -104,19 +108,19 @@ EzString ez_regex_replace(EzArena *arena, EzString pattern, EzString text, EzStr
         return text;
     }
 
-    char txt_buf[8192];
+    char txt_buf[EZ_REGEX_TXT_BUF];
     to_cstr(text, txt_buf, sizeof(txt_buf));
 
-    char repl_buf[4096];
+    char repl_buf[EZ_REGEX_PAT_BUF];
     to_cstr(replacement, repl_buf, sizeof(repl_buf));
 
     /* Build result by replacing all matches */
-    char result[16384];
+    char result[EZ_REGEX_RESULT_BUF];
     int pos = 0;
     const char *cursor = txt_buf;
     regmatch_t match;
 
-    while (regexec(&re, cursor, 1, &match, 0) == 0 && pos < (int)sizeof(result) - 4096) {
+    while (regexec(&re, cursor, 1, &match, 0) == 0 && pos < (int)sizeof(result) - EZ_REGEX_PAT_BUF) {
         /* Copy text before match */
         int pre_len = (int)match.rm_so;
         memcpy(result + pos, cursor, (size_t)pre_len);
@@ -153,7 +157,7 @@ EzArray ez_regex_split(EzArena *arena, EzString pattern, EzString text) {
         return arr;
     }
 
-    char txt_buf[8192];
+    char txt_buf[EZ_REGEX_TXT_BUF];
     to_cstr(text, txt_buf, sizeof(txt_buf));
 
     const char *cursor = txt_buf;

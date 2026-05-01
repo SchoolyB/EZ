@@ -1,11 +1,11 @@
 /*
- * parser.c - Recursive descent parser for the EZ language
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
 #include "parser.h"
+#include "../util/constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +14,9 @@
 
 #define MAX_MULTI_VARS 16
 #define MAX_SHARED_RETURNS 16
+#define EZ_FLOAT_LIT_BUF    128
+#define EZ_TMP_NAME_BUF     32
+#define EZ_FIELD_NAME_BUF   8
 
 /* Operator precedence levels */
 typedef enum {
@@ -64,7 +67,7 @@ static bool expect_peek(Parser *p, TokenType t) {
         next_token(p);
         return true;
     }
-    char buf[256];
+    char buf[EZ_MSG_BUF_SIZE];
     snprintf(buf, sizeof(buf), "expected '%s', got '%s'",
         token_type_name(t), token_type_name(p->peek_token.type));
     /* Point at current token (where the expected token should be), not the peek token */
@@ -147,7 +150,7 @@ static Precedence token_precedence(TokenType t) {
 
 /* Read a type name: simple (int, Person) or qualified (models.Task).
  * Assumes current token is the first identifier. Returns arena-allocated string. */
-/* Wildcard type placeholder for generics (issue #1443). Stored as the
+/* Wildcard type placeholder for generics. Stored as the
  * string "?" in the same slot as any other type name so the rest of
  * the compiler can carry it through unchanged until typechecker
  * instantiation (slice 2) replaces it with a concrete type. */
@@ -297,7 +300,7 @@ static const char *parse_complex_type(Parser *p) {
         }
         next_token(p); /* consume ( */
         /* Build params buffer */
-        char params[512] = {0};
+        char params[EZ_MSG_BUF_LARGE] = {0};
         size_t plen = 0;
         if (!peek_token_is(p, TOK_RPAREN)) {
             next_token(p); /* first param */
@@ -322,7 +325,7 @@ static const char *parse_complex_type(Parser *p) {
         /* Optional -> R | -> (R1, R2, ...).
          * Absence of -> means "no return value" (the canonical encoding
          * just omits the suffix; there is no user-facing 'void' type). */
-        char ret[256] = {0};
+        char ret[EZ_MSG_BUF_SIZE] = {0};
         bool has_return = false;
         if (peek_token_is(p, TOK_ARROW)) {
             next_token(p); /* -> */
@@ -442,7 +445,7 @@ static AstNode *parse_float_literal(Parser *p) {
     /* Strip underscores before parsing; atof stops at _ */
     const char *lit = p->cur_token.literal;
     if (strchr(lit, '_')) {
-        char buf[128];
+        char buf[EZ_FLOAT_LIT_BUF];
         int j = 0;
         for (int i = 0; lit[i] && j < (int)sizeof(buf) - 1; i++) {
             if (lit[i] != '_') buf[j++] = lit[i];
@@ -511,7 +514,7 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
             }
 
             char *expr_text = arena_strndup(p->arena, expr_start, s - expr_start);
-            /* #1484: reject '${}' (and whitespace-only '${ }') before
+            /* reject '${}' (and whitespace-only '${ }') before
              * spinning up a sub-parser. Otherwise the sub-parser hits
              * EOF on an empty input and reports E2002 with the stale
              * file-start position it was initialized to, which is
@@ -657,8 +660,8 @@ static AstNode *parse_prefix(Parser *p) {
                     p->cur_token.literal[0] >= 'A' && p->cur_token.literal[0] <= 'Z' &&
                     peek_token_is(p, TOK_LBRACE) && !p->no_struct_literal) {
                     /* mod.Name{; module-qualified struct literal */
-                    char *prefixed = arena_alloc(p->arena, 256);
-                    snprintf(prefixed, 256, "%s_%s", mod, p->cur_token.literal);
+                    char *prefixed = arena_alloc(p->arena, EZ_MSG_BUF_SIZE);
+                    snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod, p->cur_token.literal);
                     next_token(p); /* move to { */
                     return parse_struct_literal(p, prefixed);
                 }
@@ -888,7 +891,7 @@ static AstNode *parse_prefix(Parser *p) {
     {
         /* Skip generic error for ILLEGAL tokens; the lexer already emitted a specific diagnostic */
         if (p->cur_token.type != TOK_ILLEGAL) {
-            char buf[256];
+            char buf[EZ_MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf), "unexpected token '%s'",
                 token_type_name(p->cur_token.type));
             diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, buf),
@@ -1046,7 +1049,7 @@ static AstNode *parse_var_declaration(Parser *p) {
     if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
         next_token(p);
     } else if (is_keyword_token(p->peek_token.type)) {
-        char msg[256];
+        char msg[EZ_MSG_BUF_SIZE];
         snprintf(msg, sizeof(msg),
             "'%s' is a reserved keyword and cannot be used as a variable name",
             p->peek_token.literal);
@@ -1065,7 +1068,7 @@ static AstNode *parse_var_declaration(Parser *p) {
      * lands on the existing E2070 diagnostic below; without it, the
      * token falls through to the generic "unexpected token" fallback
      * and the user gets no hint about why `?` isn't allowed here
-     * (#1481). */
+     * (). */
     /* E2079: reject 'nil' as a type annotation. nil is a value per the
      * language, not a type; consume the token to avoid a cascading
      * "nil is an unexpected expression statement" diagnostic. */
@@ -1133,8 +1136,8 @@ static AstNode *parse_var_declaration(Parser *p) {
 
             /* Generate unique temp name */
             static int multi_var_counter = 0;
-            char *tmp_name = arena_alloc(p->arena, 32);
-            snprintf(tmp_name, 32, "_ez_tmp%d", multi_var_counter++);
+            char *tmp_name = arena_alloc(p->arena, EZ_TMP_NAME_BUF);
+            snprintf(tmp_name, EZ_TMP_NAME_BUF, "_ez_tmp%d", multi_var_counter++);
 
             /* Create a block with: __auto_type _tmp = expr; type x = _tmp.v0; ... */
             AstNode *block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
@@ -1161,8 +1164,8 @@ static AstNode *parse_var_declaration(Parser *p) {
                 AstNode *label = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
                 label->data.label.value = tmp_name;
                 member->data.member.object = label;
-                char *field = arena_alloc(p->arena, 8);
-                snprintf(field, 8, "v%d", i);
+                char *field = arena_alloc(p->arena, EZ_FIELD_NAME_BUF);
+                snprintf(field, EZ_FIELD_NAME_BUF, "v%d", i);
                 member->data.member.member = field;
                 vd->data.var_decl.value = member;
                 block->data.block.stmts[block->data.block.count++] = vd;
@@ -1187,8 +1190,8 @@ static AstNode *parse_var_declaration(Parser *p) {
              *   type x = _tmp.v0
              */
             static int or_return_counter = 0;
-            char *tmp_name = arena_alloc(p->arena, 32);
-            snprintf(tmp_name, 32, "_ez_or%d", or_return_counter++);
+            char *tmp_name = arena_alloc(p->arena, EZ_TMP_NAME_BUF);
+            snprintf(tmp_name, EZ_TMP_NAME_BUF, "_ez_or%d", or_return_counter++);
 
             AstNode *block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
             block->data.block.cap = 4;
@@ -1322,7 +1325,7 @@ static AstNode *parse_func_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FUNC_DECL, p->cur_token);
 
     if (is_keyword_token(p->peek_token.type)) {
-        char msg[256];
+        char msg[EZ_MSG_BUF_SIZE];
         snprintf(msg, sizeof(msg),
             "'%s' is a reserved keyword and cannot be used as a function name",
             p->peek_token.literal);
@@ -1366,7 +1369,7 @@ static AstNode *parse_func_declaration(Parser *p) {
             /* Check for reserved names as parameters */
             if (p->cur_token.type != TOK_IDENT && p->cur_token.type != TOK_BLANK) {
                 /* Keyword used as parameter name */
-                char buf[256];
+                char buf[EZ_MSG_BUF_SIZE];
                 snprintf(buf, sizeof(buf),
                     "'%s' is a keyword and cannot be used as a parameter name",
                     param->name);
@@ -1387,7 +1390,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 };
                 for (int ri = 0; reserved[ri]; ri++) {
                     if (strcmp(param->name, reserved[ri]) == 0) {
-                        char buf[256];
+                        char buf[EZ_MSG_BUF_SIZE];
                         snprintf(buf, sizeof(buf),
                             "'%s' is a built-in name and cannot be used as a parameter name",
                             param->name);
@@ -1429,7 +1432,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 /* Forward-progress guard: any unexpected token between
                  * params that isn't ',' or ')' would otherwise loop
                  * forever. Surface it as a parse error and bail. */
-                char buf[256];
+                char buf[EZ_MSG_BUF_SIZE];
                 snprintf(buf, sizeof(buf),
                     "unexpected token '%s' in parameter list; expected ',' or ')'",
                     p->peek_token.literal ? p->peek_token.literal : "?");
@@ -1449,7 +1452,7 @@ static AstNode *parse_func_declaration(Parser *p) {
             p_i->type_name = node->data.func_decl.params[i + 1].type_name;
         }
         if (!p_i->type_name) {
-            char buf[256];
+            char buf[EZ_MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf),
                 "parameter '%s' is missing a type; every parameter must have a type (e.g., %s int)",
                 p_i->name, p_i->name);
@@ -1533,7 +1536,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                     (!is_type || peek_token_is(p, TOK_IDENT) ||
                      peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET) ||
                      peek_token_is(p, TOK_QUESTION))) {
-                    /* Named return: name type; store both (#1502: accept
+                    /* Named return: name type; store both (: accept
                      * TOK_QUESTION, TOK_LBRACKET, TOK_CARET as type-start
                      * tokens so `(first ?, items [int], ptr ^T)` work) */
                     const char *ret_name = p->cur_token.literal;
@@ -1686,7 +1689,7 @@ static AstNode *parse_import_statement(Parser *p) {
                     p->file, p->cur_token.line, p->cur_token.column, 0);
             }
         } else if (cur_token_is(p, TOK_IDENT)) {
-            char buf[256];
+            char buf[EZ_MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf),
                 "expected @module or \"path\" after import, got '%s'",
                 p->cur_token.literal);
@@ -1774,7 +1777,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
     node->data.struct_decl.funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
 
     while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
-        /* #1518: skip #doc attributes on struct functions. Consume
+        /* : skip #doc attributes on struct functions. Consume
          * the attribute + any parenthesised args, then continue so
          * the next token (do/private do) is handled normally. */
         if (cur_token_is(p, TOK_DOC)) {
@@ -1848,7 +1851,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
             node->data.struct_decl.fields = new_fields;
         }
 
-        /* E2070 (#1481 follow-up): wildcard `?` in field-name position
+        /* E2070 ( follow-up): wildcard `?` in field-name position
          * used to slip past the struct-field guard; the existing check
          * further down only inspects the type slot; and embed '?' in
          * the generated C struct identifier, where clang rejected it
@@ -1893,7 +1896,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
         /* Current token is now the type; parse it and backfill all names in this group */
         const char *type_name = parse_complex_type(p);
         if (!type_name) return NULL;
-        /* #1520: `?` is now allowed in struct fields for generic structs.
+        /* : `?` is now allowed in struct fields for generic structs.
          * The E2070 rejection was removed; the typechecker validates
          * binding consistency at each struct literal usage site. */
         for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
@@ -1962,7 +1965,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             continue;
         }
 
-        /* E2070 (#1481 follow-up): wildcard `?` in variant-name position
+        /* E2070 ( follow-up): wildcard `?` in variant-name position
          * used to slip past the parser and embed '?' in the generated C
          * enum identifier, where clang rejected it with a raw C error.
          * Catch it here before reading the variant name. */
@@ -2260,7 +2263,7 @@ static AstNode *parse_statement(Parser *p) {
     case TOK_CONST:
         /* Check for keyword used as name: const for struct / mut for int */
         if (is_keyword_token(p->peek_token.type)) {
-            char msg[256];
+            char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved keyword and cannot be used as a name",
                 p->peek_token.literal);
@@ -2345,7 +2348,7 @@ static AstNode *parse_statement(Parser *p) {
         return stmt;
     }
     case TOK_JSON_ATTR: {
-        /* #json; applies to the next struct declaration (#1496) */
+        /* #json; applies to the next struct declaration () */
         next_token(p);
         AstNode *stmt = parse_statement(p);
         if (stmt && stmt->kind == NODE_STRUCT_DECL) {
@@ -2467,4 +2470,3 @@ AstNode *parser_parse_program(Parser *p) {
 
     return program;
 }
-

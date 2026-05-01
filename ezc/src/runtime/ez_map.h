@@ -1,5 +1,5 @@
 /*
- * ez_map.h - Hash map type for EZC
+ * ez_map.h - Hash map type for EZ
  *
  * Open-addressing hash table with linear probing.
  * Keys and values stored as fixed-size blobs.
@@ -12,6 +12,10 @@
 #define EZ_MAP_H
 
 #include "ez_runtime.h"
+
+#define EZ_MAP_MIN_CAP      8
+#define EZ_MAP_LOAD_NUM     3
+#define EZ_MAP_LOAD_DEN     4
 
 typedef struct {
     void *keys;

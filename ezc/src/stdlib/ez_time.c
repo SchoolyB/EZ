@@ -6,6 +6,7 @@
  */
 
 #include "ez_time.h"
+#include "../util/constants.h"
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
@@ -15,13 +16,13 @@ int64_t ez_time_now(void) { return (int64_t)time(NULL); }
 int64_t ez_time_now_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    return (int64_t)ts.tv_sec * 1000 + (int64_t)ts.tv_nsec / 1000000;
+    return (int64_t)ts.tv_sec * MS_PER_SEC + (int64_t)ts.tv_nsec / NS_PER_MS;
 }
 
 int64_t ez_time_now_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    return (int64_t)ts.tv_sec * 1000000000 + (int64_t)ts.tv_nsec;
+    return (int64_t)ts.tv_sec * NS_PER_SEC + (int64_t)ts.tv_nsec;
 }
 
 static struct tm *get_tm(int64_t ts) {
@@ -38,7 +39,7 @@ int64_t ez_time_second(int64_t ts) { return get_tm(ts)->tm_sec; }
 int64_t ez_time_weekday(int64_t ts) { return get_tm(ts)->tm_wday; }
 
 EzString ez_time_format(EzArena *arena, EzString fmt, int64_t ts) {
-    char buf[256];
+    char buf[EZ_MSG_BUF_SIZE];
     struct tm *tm = get_tm(ts);
     int len = (int)strftime(buf, sizeof(buf), fmt.data, tm);
     return ez_string_new(arena, buf, len);
@@ -59,9 +60,9 @@ EzString ez_time_to_clock(EzArena *arena, int64_t ts) {
 int64_t ez_time_tick(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (int64_t)ts.tv_sec * 1000000000 + (int64_t)ts.tv_nsec;
+    return (int64_t)ts.tv_sec * NS_PER_SEC + (int64_t)ts.tv_nsec;
 }
 
 int64_t ez_time_elapsed_ms(int64_t start_tick) {
-    return (ez_time_tick() - start_tick) / 1000000;
+    return (ez_time_tick() - start_tick) / NS_PER_MS;
 }

@@ -1,5 +1,5 @@
 /*
- * ez_sync.h - @sync module for EZC
+ * ez_sync.h - @sync module for EZ
  *
  * Synchronization primitives: mutex lock/unlock.
  * Built on POSIX pthreads.

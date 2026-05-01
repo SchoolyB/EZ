@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 176 codes** (164 errors, 12 warnings)
+**Total: 180 codes** (165 errors, 15 warnings)
 
 ---
 
@@ -167,6 +167,7 @@
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
+| `E6004` | imports | cannot import own module directory |
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference; use ()function_name to pass a function |
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 or greater) |
@@ -192,6 +193,9 @@
 | `W2007` | safety | this variable shadows a global constant or variable |
 | `W2011` | safety | named return value is declared in the signature but no matching variable exists in the function body |
 | `W2012` | safety | when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon |
+| `W2013` | imports | duplicate import of already-imported module |
+| `W2014` | imports | intra-directory import already included by directory import |
+| `W2015` | imports | file already imported as part of a directory import; redundant import |
 | `W3003` | safety | fixed-size array is not fully initialized; remaining elements will be zero-valued |
 | `W3004` | safety | pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer |
 
@@ -220,4 +224,4 @@
 
 ---
 
-*Generated on 2026-04-29 22:39:15 UTC*
+*Generated on 2026-05-01 16:43:32 UTC*

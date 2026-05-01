@@ -1,5 +1,4 @@
 /*
- * typechecker.h - Type checking pass for the EZ language
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -43,7 +42,7 @@ typedef struct {
     int def_line;       /* line where function was declared */
     bool is_private;    /* true if declared with 'private' keyword */
 
-    /* Wildcard type support (issue #1443).
+    /* Wildcard type support .
      * A function is "generic" if any of its param or return type strings
      * contain a '?'. Generic functions are instantiated per call site:
      * at each call the wildcard is bound to a concrete type derived from
@@ -91,7 +90,7 @@ typedef struct {
     const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;
     bool current_has_named_returns; /* true if current function uses named return values */
-    bool current_main_return_suppressed; /* #1482: main() had a declared return
+    bool current_main_return_suppressed; /*  main() had a declared return
                                           * type, E4008 already fired, we zeroed
                                           * current_return_count so downstream
                                           * "must return" / "return from void"
@@ -102,7 +101,7 @@ typedef struct {
                                            * the closing brace */
     const char **current_return_names; /* named return variable names (NULL entries for unnamed) */
 
-    /* Pass 3 / #1443 slice 4: when true, resolve_expr must not write
+    /* Pass 3 / slice 4: when true, resolve_expr must not write
      * into the type table. Re-checking a generic function body with
      * concretely-bound parameters would otherwise clobber the main
      * pass's type_table entries for the shared body AST and break
@@ -128,12 +127,12 @@ typedef struct {
     int alias_count;
     int alias_cap;
 
-    /* #1521: track mem.destroy() calls for double-free detection */
+    /*  track mem.destroy() calls for double-free detection */
     const char **destroyed_arenas;
     int destroyed_arena_count;
     int destroyed_arena_cap;
 
-    /* #1585: true during register_declarations to allow forward references */
+    /*  true during register_declarations to allow forward references */
     bool registering;
 
 } TypeChecker;

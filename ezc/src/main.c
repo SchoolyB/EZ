@@ -20,6 +20,7 @@
 
 #include "util/arena.h"
 #include "util/error.h"
+#include "util/constants.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "typechecker/typechecker.h"
@@ -30,6 +31,8 @@
 #endif
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
+#define EZ_MAX_IMPORTS 256
+#define EZ_COMPILER_ARENA_SIZE (1024 * 1024)
 
 static void print_usage(void) {
     fprintf(stderr, "EZ Programming Language v%s\n", EZ_VERSION);
@@ -90,7 +93,7 @@ static bool write_file(const char *path, const char *content) {
 
 /* Resolve the directory containing the ezc binary itself */
 static const char *get_self_dir(const char *argv0) {
-    static char buf[1024];
+    static char buf[PATH_BUF_SIZE];
 
 #ifdef __APPLE__
     /* macOS: use _NSGetExecutablePath */
@@ -244,9 +247,8 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
             rewrite_labels(node->data.return_stmt.values[i], orig, prefixed, count, arena);
         break;
     case NODE_VAR_DECL:
-        /* Rewrite struct/enum type annotation: mut req Request → mut req mod_Request */
-        if (node->data.var_decl.type_name &&
-            node->data.var_decl.type_name[0] >= 'A' && node->data.var_decl.type_name[0] <= 'Z') {
+        /* Rewrite type annotation: mut req Request → mut req mod_Request */
+        if (node->data.var_decl.type_name) {
             for (int i = 0; i < count; i++) {
                 if (strcmp(node->data.var_decl.type_name, orig[i]) == 0) {
                     node->data.var_decl.type_name = prefixed[i];
@@ -334,8 +336,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         break;
     case NODE_CAST_EXPR:
         /* Rewrite cast target type: as(Request, x) → as(mod_Request, x) */
-        if (node->data.cast.target_type &&
-            node->data.cast.target_type[0] >= 'A' && node->data.cast.target_type[0] <= 'Z') {
+        if (node->data.cast.target_type) {
             for (int i = 0; i < count; i++) {
                 if (strcmp(node->data.cast.target_type, orig[i]) == 0) {
                     node->data.cast.target_type = prefixed[i];
@@ -347,8 +348,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         break;
     case NODE_NEW_EXPR:
         /* Rewrite new() type: new(Hero) → new(mod_Hero) */
-        if (node->data.new_expr.type_name &&
-            node->data.new_expr.type_name[0] >= 'A' && node->data.new_expr.type_name[0] <= 'Z') {
+        if (node->data.new_expr.type_name) {
             for (int i = 0; i < count; i++) {
                 if (strcmp(node->data.new_expr.type_name, orig[i]) == 0) {
                     node->data.new_expr.type_name = prefixed[i];
@@ -361,7 +361,6 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         /* Rewrite return types in nested function declarations */
         for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
             const char *rt = node->data.func_decl.return_types[i];
-            if (rt[0] < 'A' || rt[0] > 'Z') continue;
             for (int j = 0; j < count; j++) {
                 if (strcmp(rt, orig[j]) == 0) {
                     node->data.func_decl.return_types[i] = prefixed[j];
@@ -372,7 +371,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         /* Rewrite parameter types in nested function declarations */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
             const char *pt = node->data.func_decl.params[i].type_name;
-            if (!pt || pt[0] < 'A' || pt[0] > 'Z') continue;
+            if (!pt) continue;
             for (int j = 0; j < count; j++) {
                 if (strcmp(pt, orig[j]) == 0) {
                     node->data.func_decl.params[i].type_name = prefixed[j];
@@ -387,7 +386,8 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
 }
 
 /* Import cache: track already-imported files to avoid duplicates and cycles */
-static const char *imported_files[256];
+static const char *imported_files[EZ_MAX_IMPORTS];
+static const char *imported_modules_map[EZ_MAX_IMPORTS]; /* module name that imported each file */
 static int imported_file_count = 0;
 
 static bool already_imported(const char *path) {
@@ -397,10 +397,23 @@ static bool already_imported(const char *path) {
     return false;
 }
 
-static void mark_imported(const char *path) {
-    if (imported_file_count < 256) {
-        imported_files[imported_file_count++] = path;
+static const char *imported_by_module(const char *path) {
+    for (int i = 0; i < imported_file_count; i++) {
+        if (strcmp(imported_files[i], path) == 0) return imported_modules_map[i];
     }
+    return NULL;
+}
+
+static void mark_imported_with_module(const char *path, const char *mod) {
+    if (imported_file_count < EZ_MAX_IMPORTS) {
+        imported_files[imported_file_count] = path;
+        imported_modules_map[imported_file_count] = mod;
+        imported_file_count++;
+    }
+}
+
+static void mark_imported(const char *path) {
+    mark_imported_with_module(path, NULL);
 }
 
 /* Scan a directory for .ez files. Returns count of files found.
@@ -535,7 +548,7 @@ int main(int argc, char **argv) {
     if (!source) return 1;
 
     /* Create compiler arena and diagnostics */
-    Arena *arena = arena_create(1024 * 1024);
+    Arena *arena = arena_create(EZ_COMPILER_ARENA_SIZE);
     DiagnosticList *diag = diag_create();
     diag_set_source(diag, input_file, source);
     if (no_color) diag->use_color = false;
@@ -592,14 +605,20 @@ int main(int argc, char **argv) {
 
     /* Resolve local imports: parse imported .ez files and merge declarations */
     {
-        /* Mark the main file as already imported (prevents circular import loops) */
-        mark_imported(input_file);
+        /* Mark the main file as already imported (prevents circular import loops).
+         * Use realpath so that diamond dependencies reaching the main file via
+         * different relative paths are still detected as duplicates. */
+        {
+            char *rp = realpath(input_file, NULL);
+            mark_imported(rp ? arena_strdup(arena, rp) : input_file);
+            free(rp);
+        }
 
         /* Derive main file's module name for circular import resolution */
         const char *main_base = input_file;
         const char *main_slash = strrchr(input_file, '/');
         if (main_slash) main_base = main_slash + 1;
-        char main_mod_buf[256];
+        char main_mod_buf[EZ_MSG_BUF_SIZE];
         size_t main_mod_len = strlen(main_base);
         if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".ez") == 0) {
             memcpy(main_mod_buf, main_base, main_mod_len - 3);
@@ -614,7 +633,7 @@ int main(int argc, char **argv) {
         input_dir[sizeof(input_dir) - 1] = '\0';
         char *last_slash = strrchr(input_dir, '/');
         if (last_slash) *(last_slash + 1) = '\0';
-        else strcpy(input_dir, "./");
+        else { input_dir[0] = '.'; input_dir[1] = '/'; input_dir[2] = '\0'; }
 
         /* Process imports iteratively — re-scan after each merge to find transitive imports.
          * The already_imported cache prevents infinite loops and duplicate processing. */
@@ -623,11 +642,11 @@ int main(int argc, char **argv) {
             found_new_import = false;
 
             /* Collect current import statements */
-            AstNode *import_stmts[256];
+            AstNode *import_stmts[EZ_MAX_IMPORTS];
             int import_stmt_count = 0;
             for (int si = 0; si < program->data.program.stmt_count; si++) {
                 if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
-                    import_stmt_count < 256) {
+                    import_stmt_count < EZ_MAX_IMPORTS) {
                     import_stmts[import_stmt_count++] = program->data.program.stmts[si];
                 }
             }
@@ -639,11 +658,15 @@ int main(int argc, char **argv) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
                 if (item->is_stdlib || item->is_c_import || !item->path) continue;
 
-                /* Resolve path relative to input file directory */
+                /* Resolve path relative to the file that contains the import.
+                 * For imports written directly in the entry file, source_dir is NULL
+                 * and we fall back to input_dir. For transitive imports injected from
+                 * imported files, source_dir points at the importing file's directory. */
                 char import_path[PATH_BUF_SIZE];
                 const char *rel = item->path;
                 if (rel[0] == '.' && rel[1] == '/') rel += 2;
-                snprintf(import_path, sizeof(import_path), "%s%s", input_dir, rel);
+                const char *base_dir = item->source_dir ? item->source_dir : input_dir;
+                snprintf(import_path, sizeof(import_path), "%s%s", base_dir, rel);
 
                 /* Determine import kind: direct .ez file, extensionless file, or directory.
                  * Build a list of actual .ez file paths to import. */
@@ -672,10 +695,30 @@ int main(int argc, char **argv) {
                         import_path[sizeof(import_path) - 1] = '\0';
                     } else if (stat(import_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                         /* Case 3: directory import — scan for .ez files */
+
+                        /* Self-referential directory import: if the importing file
+                         * lives inside the directory it is trying to import, reject. */
+                        if (item->source_dir) {
+                            char *norm_dir = realpath(import_path, NULL);
+                            char *norm_src = realpath(item->source_dir, NULL);
+                            if (norm_dir && norm_src && strcmp(norm_dir, norm_src) == 0) {
+                                char msg[EZ_MSG_BUF_LARGE];
+                                snprintf(msg, sizeof(msg),
+                                    "cannot import own module directory '%s'", item->path);
+                                diag_error(diag, "E6004", strdup(msg),
+                                    input_file, stmt->token.line, stmt->token.column, 0);
+                                free(norm_dir);
+                                free(norm_src);
+                                continue;
+                            }
+                            free(norm_dir);
+                            free(norm_src);
+                        }
+
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]) * MAX_DIR_FILES);
                         file_count = scan_ez_files(import_path, file_list, MAX_DIR_FILES);
                         if (file_count == 0) {
-                            char msg[512];
+                            char msg[EZ_MSG_BUF_LARGE];
                             snprintf(msg, sizeof(msg), "directory '%s' contains no .ez files", item->path);
                             diag_error(diag, "E6003", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
@@ -683,7 +726,7 @@ int main(int argc, char **argv) {
                         }
                     } else {
                         /* Nothing found */
-                        char msg[512];
+                        char msg[EZ_MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", item->path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -695,7 +738,22 @@ int main(int argc, char **argv) {
                 const char *mod_base = rel;
                 const char *slash = strrchr(rel, '/');
                 if (slash) mod_base = slash + 1;
-                char mod_name_buf[256];
+
+                /* For directory imports the path ends with '/' so mod_base
+                 * points at the empty string after it.  Back up to extract
+                 * the actual directory name (e.g. "engine" from "src/engine/"). */
+                if (mod_base[0] == '\0' && slash && slash > rel) {
+                    const char *prev = slash - 1;
+                    while (prev > rel && *prev != '/') prev--;
+                    if (*prev == '/') prev++;
+                    size_t dlen = (size_t)(slash - prev);
+                    char dir_name[EZ_MSG_BUF_SIZE];
+                    memcpy(dir_name, prev, dlen);
+                    dir_name[dlen] = '\0';
+                    mod_base = arena_strdup(arena, dir_name);
+                }
+
+                char mod_name_buf[EZ_MSG_BUF_SIZE];
                 size_t mod_len = strlen(mod_base);
                 if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".ez") == 0) {
                     memcpy(mod_name_buf, mod_base, mod_len - 3);
@@ -705,16 +763,47 @@ int main(int argc, char **argv) {
                 }
                 const char *mod_name = item->alias ? item->alias : arena_strdup(arena, mod_name_buf);
 
+                /* Normalize import_path so diamond deps resolve to the same canonical path */
+                char norm_import[PATH_BUF_SIZE];
+                {
+                    char *rp = realpath(import_path, NULL);
+                    if (rp) {
+                        strncpy(norm_import, rp, sizeof(norm_import) - 1);
+                        norm_import[sizeof(norm_import) - 1] = '\0';
+                        free(rp);
+                    } else {
+                        strncpy(norm_import, import_path, sizeof(norm_import) - 1);
+                        norm_import[sizeof(norm_import) - 1] = '\0';
+                    }
+                }
+
                 /* Module name collision detection — only for DIRECT imports from the same file.
-                 * Don't collide with the main file's own module name. */
-                static const char *seen_modules[256];
-                static const char *seen_paths[256];
+                 * Don't collide with the main file's own module name.
+                 * Diamond dependencies (same file via different paths) emit a warning
+                 * and are skipped rather than causing a false E6001 error. */
+                static const char *seen_modules[EZ_MAX_IMPORTS];
+                static const char *seen_paths[EZ_MAX_IMPORTS];
                 static int seen_count = 0;
                 bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
-                    if (strcmp(seen_modules[sm], mod_name) == 0 &&
-                        strcmp(seen_paths[sm], import_path) != 0) {
-                        char msg[256];
+                    if (strcmp(seen_modules[sm], mod_name) == 0) {
+                        if (strcmp(seen_paths[sm], norm_import) == 0) {
+                            /* Same file, same module name — diamond dependency.
+                             * Only warn for direct imports; transitive diamonds
+                             * (from inside directory modules) are silently deduped. */
+                            if (!item->source_dir) {
+                                char msg[EZ_MSG_BUF_SIZE];
+                                snprintf(msg, sizeof(msg),
+                                    "module '%s' is already imported; duplicate import ignored",
+                                    mod_name);
+                                diag_warning(diag, "W2013", strdup(msg),
+                                    input_file, stmt->token.line, stmt->token.column, 0);
+                            }
+                            collision = true;
+                            break;
+                        }
+                        /* Different file, same module name — genuine collision */
+                        char msg[EZ_MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported — use an alias to distinguish them",
                             mod_name);
@@ -725,9 +814,9 @@ int main(int argc, char **argv) {
                     }
                 }
                 if (collision) continue;
-                if (seen_count < 256) {
+                if (seen_count < EZ_MAX_IMPORTS) {
                     seen_modules[seen_count] = mod_name;
-                    seen_paths[seen_count] = arena_strdup(arena, import_path);
+                    seen_paths[seen_count] = arena_strdup(arena, norm_import);
                     seen_count++;
                 }
 
@@ -735,19 +824,78 @@ int main(int argc, char **argv) {
                 if (!item->alias) item->alias = mod_name;
                 if (!item->module) item->module = mod_name;
 
-                /* Process each file in the import (1 for single file, N for directory) */
+                /* Process each file in the import (1 for single file, N for directory).
+                 * For directory imports, we use a two-pass approach:
+                 *   Pass 1: Parse all files, collect ALL declaration names across all files
+                 *   Pass 2: Rewrite using the combined mapping, then merge
+                 * This ensures sibling references (e.g. logic.ez referencing types.ez's
+                 * structs) get properly rewritten to their prefixed names. */
+
+                /* Storage for parsed programs in the directory */
+                AstNode *parsed_programs[MAX_DIR_FILES];
+                const char *parsed_paths[MAX_DIR_FILES];
+                int parsed_count = 0;
+
+                /* Sibling import aliases collected during parse pass.
+                 * After all names are known, compound mappings (alias_Name → mod_Name)
+                 * are generated for each alias × declaration name. */
+                const char *sibling_aliases[EZ_MAX_IMPORTS];
+                int sibling_alias_count = 0;
+
+                /* Combined name mapping across all files in this import */
+                const char *orig_names[EZ_MAX_IMPORTS];
+                const char *new_names[EZ_MAX_IMPORTS];
+                int name_count = 0;
+
+                /* Parse pass: parse each file, collect names, inject transitive imports */
                 for (int fi = 0; fi < file_count; fi++) {
                     const char *cur_file_path = file_list[fi];
 
+                    /* Normalize the path so diamond dependencies (same file
+                     * reached via different relative paths) are deduplicated. */
+                    char *norm = realpath(cur_file_path, NULL);
+                    const char *norm_path = norm ? arena_strdup(arena, norm) : cur_file_path;
+                    free(norm);
+
                     /* Skip if already imported (handles cycles and duplicates) */
-                    if (already_imported(cur_file_path)) continue;
-                    mark_imported(arena_strdup(arena, cur_file_path));
+                    if (already_imported(norm_path)) {
+                        /* If this is a transitive import from inside a directory
+                         * module referencing a sibling already pulled in by the
+                         * directory import, emit an informational warning. */
+                        if (item->source_dir && file_count == 1) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "import of '%s' is redundant; already included by directory import",
+                                item->path);
+                            diag_warning(diag, "W2014", strdup(msg),
+                                input_file, stmt->token.line, stmt->token.column, 0);
+                        } else if (!item->source_dir && file_count == 1) {
+                            /* Direct import of a file already pulled in by a directory import */
+                            const char *owner_mod = imported_by_module(norm_path);
+                            char msg[EZ_MSG_BUF_LARGE];
+                            if (owner_mod) {
+                                snprintf(msg, sizeof(msg),
+                                    "file '%s' was already imported as part of a directory import; "
+                                    "use the '%s' namespace (e.g. %s.%s()) instead",
+                                    item->path, owner_mod, owner_mod, mod_name_buf);
+                            } else {
+                                snprintf(msg, sizeof(msg),
+                                    "file '%s' was already imported as part of a directory import; "
+                                    "this import is redundant",
+                                    item->path);
+                            }
+                            diag_warning(diag, "W2015", strdup(msg),
+                                input_file, stmt->token.line, stmt->token.column, 0);
+                        }
+                        continue;
+                    }
+                    mark_imported_with_module(norm_path, mod_name);
                     found_new_import = true;
 
                     /* Read and parse the imported file */
                     char *imp_source = read_file(cur_file_path);
                     if (!imp_source) {
-                        char msg[512];
+                        char msg[EZ_MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", cur_file_path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -760,42 +908,188 @@ int main(int argc, char **argv) {
 
                     if (!imp_program || diag_has_errors(diag)) continue;
 
-                /* Import statements from the imported file are also merged into the
-                 * main program so the while loop picks them up on the next iteration. */
-                for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
-                    AstNode *ts = imp_program->data.program.stmts[ti];
-                    if (ts->kind != NODE_IMPORT_STMT) continue;
-                    /* Insert the import statement into the main program for later processing */
-                    if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
-                        int nc = program->data.program.stmt_cap * 2;
-                        AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
-                        memcpy(ns, program->data.program.stmts,
-                               sizeof(AstNode *) * program->data.program.stmt_count);
-                        program->data.program.stmts = ns;
-                        program->data.program.stmt_cap = nc;
+                    /* Inject transitive import statements into the main program.
+                     * Sibling imports (pointing to other files in the same directory)
+                     * are NOT injected — instead their module alias is added to the
+                     * rewrite mapping so qualified references like types.Item get
+                     * rewritten to mylib.Item → resolves as mylib_Item. */
+                    {
+                        char cur_dir[PATH_BUF_SIZE];
+                        strncpy(cur_dir, cur_file_path, sizeof(cur_dir) - 1);
+                        cur_dir[sizeof(cur_dir) - 1] = '\0';
+                        char *cd_slash = strrchr(cur_dir, '/');
+                        if (cd_slash) *(cd_slash + 1) = '\0';
+                        else { cur_dir[0] = '.'; cur_dir[1] = '/'; cur_dir[2] = '\0'; }
+                        const char *src_dir = arena_strdup(arena, cur_dir);
+
+                        /* Normalize the directory being imported for sibling detection */
+                        char *norm_import_dir = realpath(import_path, NULL);
+
+                        for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
+                            AstNode *ts = imp_program->data.program.stmts[ti];
+                            if (ts->kind != NODE_IMPORT_STMT) continue;
+
+                            bool all_sibling = true;
+                            for (int xi = 0; xi < ts->data.import_stmt.count; xi++) {
+                                ImportItem *titem = &ts->data.import_stmt.items[xi];
+                                if (titem->is_stdlib || titem->is_c_import) {
+                                    all_sibling = false;
+                                    continue;
+                                }
+                                if (!titem->path) continue;
+
+                                /* Resolve the transitive import path */
+                                const char *trel = titem->path;
+                                if (trel[0] == '.' && trel[1] == '/') trel += 2;
+                                char tres[PATH_BUF_SIZE];
+                                snprintf(tres, sizeof(tres), "%s%s", src_dir, trel);
+
+                                /* Check if it resolves to a file inside the same directory */
+                                size_t trlen = strlen(tres);
+                                bool is_sibling = false;
+                                /* Try with .ez extension if not already present */
+                                char tres_ez[PATH_BUF_SIZE];
+                                const char *tres_check = tres;
+                                if (trlen < 3 || strcmp(tres + trlen - 3, ".ez") != 0) {
+                                    snprintf(tres_ez, sizeof(tres_ez), "%s.ez", tres);
+                                    tres_check = tres_ez;
+                                }
+                                char *norm_tres = realpath(tres_check, NULL);
+                                if (norm_tres && norm_import_dir) {
+                                    /* Check if the file's directory matches import_path */
+                                    char *tslash = strrchr(norm_tres, '/');
+                                    if (tslash) {
+                                        size_t dir_len = (size_t)(tslash - norm_tres);
+                                        size_t imp_dir_len = strlen(norm_import_dir);
+                                        /* Strip trailing slash from norm_import_dir for comparison */
+                                        if (imp_dir_len > 0 && norm_import_dir[imp_dir_len - 1] == '/')
+                                            imp_dir_len--;
+                                        if (dir_len == imp_dir_len &&
+                                            strncmp(norm_tres, norm_import_dir, dir_len) == 0) {
+                                            is_sibling = true;
+                                        }
+                                    }
+                                }
+                                free(norm_tres);
+
+                                if (is_sibling) {
+                                    /* Collect sibling alias for compound mapping generation later */
+                                    const char *sib_alias = titem->alias;
+                                    if (!sib_alias) {
+                                        /* Derive alias from path (filename without .ez) */
+                                        const char *sib_base = trel;
+                                        const char *sib_slash = strrchr(trel, '/');
+                                        if (sib_slash) sib_base = sib_slash + 1;
+                                        char sib_buf[EZ_MSG_BUF_SIZE];
+                                        size_t sib_len = strlen(sib_base);
+                                        if (sib_len > 3 && strcmp(sib_base + sib_len - 3, ".ez") == 0) {
+                                            memcpy(sib_buf, sib_base, sib_len - 3);
+                                            sib_buf[sib_len - 3] = '\0';
+                                        } else {
+                                            snprintf(sib_buf, sizeof(sib_buf), "%s", sib_base);
+                                        }
+                                        sib_alias = arena_strdup(arena, sib_buf);
+                                    }
+                                    /* Track unique sibling aliases */
+                                    bool already_tracked = false;
+                                    for (int sa = 0; sa < sibling_alias_count; sa++) {
+                                        if (strcmp(sibling_aliases[sa], sib_alias) == 0) {
+                                            already_tracked = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!already_tracked && sibling_alias_count < EZ_MAX_IMPORTS) {
+                                        sibling_aliases[sibling_alias_count++] = sib_alias;
+                                    }
+                                    /* Null out the sibling import path so it's not injected */
+                                    titem->path = NULL;
+                                } else {
+                                    all_sibling = false;
+                                    if (!titem->source_dir) {
+                                        titem->source_dir = src_dir;
+                                    }
+                                }
+                            }
+
+                            /* Only inject import stmt if it has non-sibling items */
+                            if (!all_sibling) {
+                                if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
+                                    int nc = program->data.program.stmt_cap * 2;
+                                    AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
+                                    memcpy(ns, program->data.program.stmts,
+                                           sizeof(AstNode *) * program->data.program.stmt_count);
+                                    program->data.program.stmts = ns;
+                                    program->data.program.stmt_cap = nc;
+                                }
+                                program->data.program.stmts[program->data.program.stmt_count++] = ts;
+                            }
+                        }
+                        free(norm_import_dir);
                     }
-                    program->data.program.stmts[program->data.program.stmt_count++] = ts;
+
+                    /* Collect declaration names from this file into the combined mapping */
+                    for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
+                        AstNode *s = imp_program->data.program.stmts[mi];
+                        const char *oname = NULL;
+                        if (s->kind == NODE_FUNC_DECL) oname = s->data.func_decl.name;
+                        else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
+                        else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
+                        else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
+                        if (oname && name_count < EZ_MAX_IMPORTS) {
+                            orig_names[name_count] = oname;
+                            char *pn = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                            snprintf(pn, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
+                            new_names[name_count] = pn;
+                            name_count++;
+                        }
+                    }
+
+                    /* Store parsed program for the rewrite pass */
+                    parsed_programs[parsed_count] = imp_program;
+                    parsed_paths[parsed_count] = cur_file_path;
+                    parsed_count++;
                 }
 
-                /* Collect original names before prefixing */
-                const char *orig_names[256];
-                const char *new_names[256];
-                int name_count = 0;
-                for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
-                    AstNode *s = imp_program->data.program.stmts[mi];
-                    const char *oname = NULL;
-                    if (s->kind == NODE_FUNC_DECL) oname = s->data.func_decl.name;
-                    else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
-                    else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
-                    else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
-                    if (oname && name_count < 256) {
-                        orig_names[name_count] = oname;
-                        char *pn = arena_alloc(arena, 256);
-                        snprintf(pn, 256, "%s_%s", mod_name, oname);
-                        new_names[name_count] = pn;
-                        name_count++;
+                /* Generate compound mappings for sibling imports.
+                 * The parser converts types.Item → types_Item at parse time, so we
+                 * need mappings like types_Item → mylib_Item for each alias × name. */
+                {
+                    int base_name_count = name_count;
+                    for (int sa = 0; sa < sibling_alias_count; sa++) {
+                        const char *alias = sibling_aliases[sa];
+                        for (int ni = 0; ni < base_name_count; ni++) {
+                            if (name_count >= EZ_MAX_IMPORTS) break;
+                            /* Build "alias_OrigName" and map to "mod_OrigName" */
+                            char *compound = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                            snprintf(compound, EZ_MSG_BUF_SIZE, "%s_%s", alias, orig_names[ni]);
+                            /* Avoid duplicates */
+                            bool dup = false;
+                            for (int ci = 0; ci < name_count; ci++) {
+                                if (strcmp(orig_names[ci], compound) == 0) { dup = true; break; }
+                            }
+                            if (dup) continue;
+                            orig_names[name_count] = compound;
+                            new_names[name_count] = new_names[ni]; /* same as mod_OrigName */
+                            name_count++;
+                        }
+                        /* Also add bare alias → mod_name for label references */
+                        if (name_count < EZ_MAX_IMPORTS) {
+                            bool dup = false;
+                            for (int ci = 0; ci < name_count; ci++) {
+                                if (strcmp(orig_names[ci], alias) == 0) { dup = true; break; }
+                            }
+                            if (!dup) {
+                                orig_names[name_count] = alias;
+                                new_names[name_count] = mod_name;
+                                name_count++;
+                            }
+                        }
                     }
                 }
+
+                /* Rewrite+merge pass: use combined mapping to rewrite ALL files */
+                for (int pi = 0; pi < parsed_count; pi++) {
+                    AstNode *imp_program = parsed_programs[pi];
 
                 /* Merge imported declarations into main program.
                  * Two passes: var_decls first (so they're in scope for function bodies),
@@ -807,11 +1101,10 @@ int main(int argc, char **argv) {
                     if (imp_stmt->kind != NODE_VAR_DECL) continue;
 
                     if (!imp_stmt->data.var_decl.mutable) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
-                        if (imp_stmt->data.var_decl.type_name &&
-                            imp_stmt->data.var_decl.type_name[0] >= 'A' && imp_stmt->data.var_decl.type_name[0] <= 'Z') {
+                        if (imp_stmt->data.var_decl.type_name) {
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(imp_stmt->data.var_decl.type_name, orig_names[ni]) == 0) {
                                     imp_stmt->data.var_decl.type_name = new_names[ni];
@@ -820,8 +1113,8 @@ int main(int argc, char **argv) {
                             }
                         }
                     } else {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         imp_stmt->data.var_decl.is_private = true;
                     }
@@ -862,15 +1155,14 @@ int main(int argc, char **argv) {
 
                     /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
                         /* Rewrite internal references in function body */
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
-                        /* Rewrite return type references (only struct/enum types) */
+                        /* Rewrite return type references */
                         for (int ri = 0; ri < imp_stmt->data.func_decl.return_type_count; ri++) {
                             const char *rt = imp_stmt->data.func_decl.return_types[ri];
-                            if (rt[0] < 'A' || rt[0] > 'Z') continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(rt, orig_names[ni]) == 0) {
                                     imp_stmt->data.func_decl.return_types[ri] = new_names[ni];
@@ -878,12 +1170,10 @@ int main(int argc, char **argv) {
                                 }
                             }
                         }
-                        /* Rewrite parameter type references (only struct/enum types, not primitives) */
+                        /* Rewrite parameter type references */
                         for (int pi = 0; pi < imp_stmt->data.func_decl.param_count; pi++) {
                             const char *pt = imp_stmt->data.func_decl.params[pi].type_name;
                             if (!pt) continue;
-                            /* Only rewrite types that start with uppercase (struct/enum names) */
-                            if (pt[0] < 'A' || pt[0] > 'Z') continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(pt, orig_names[ni]) == 0) {
                                     imp_stmt->data.func_decl.params[pi].type_name = new_names[ni];
@@ -895,16 +1185,16 @@ int main(int argc, char **argv) {
 
                     /* Prefix struct names and rewrite field type references */
                     if (imp_stmt->kind == NODE_STRUCT_DECL) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
                         /* Rewrite field types that reference other imported types */
-                        for (int fi = 0; fi < imp_stmt->data.struct_decl.field_count; fi++) {
-                            const char *ft = imp_stmt->data.struct_decl.fields[fi].type_name;
-                            if (!ft || ft[0] < 'A' || ft[0] > 'Z') continue;
+                        for (int fld = 0; fld < imp_stmt->data.struct_decl.field_count; fld++) {
+                            const char *ft = imp_stmt->data.struct_decl.fields[fld].type_name;
+                            if (!ft) continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(ft, orig_names[ni]) == 0) {
-                                    imp_stmt->data.struct_decl.fields[fi].type_name = new_names[ni];
+                                    imp_stmt->data.struct_decl.fields[fld].type_name = new_names[ni];
                                     break;
                                 }
                             }
@@ -918,7 +1208,6 @@ int main(int argc, char **argv) {
                             /* Rewrite return types */
                             for (int ri = 0; ri < fn->data.func_decl.return_type_count; ri++) {
                                 const char *rt = fn->data.func_decl.return_types[ri];
-                                if (rt[0] < 'A' || rt[0] > 'Z') continue;
                                 for (int ni = 0; ni < name_count; ni++) {
                                     if (strcmp(rt, orig_names[ni]) == 0) {
                                         fn->data.func_decl.return_types[ri] = new_names[ni];
@@ -929,7 +1218,7 @@ int main(int argc, char **argv) {
                             /* Rewrite parameter types */
                             for (int pi = 0; pi < fn->data.func_decl.param_count; pi++) {
                                 const char *pt = fn->data.func_decl.params[pi].type_name;
-                                if (!pt || pt[0] < 'A' || pt[0] > 'Z') continue;
+                                if (!pt) continue;
                                 for (int ni = 0; ni < name_count; ni++) {
                                     if (strcmp(pt, orig_names[ni]) == 0) {
                                         fn->data.func_decl.params[pi].type_name = new_names[ni];
@@ -942,8 +1231,8 @@ int main(int argc, char **argv) {
 
                     /* Prefix enum names with module name */
                     if (imp_stmt->kind == NODE_ENUM_DECL) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
                         imp_stmt->data.enum_decl.name = prefixed;
                     }
 
@@ -975,7 +1264,12 @@ int main(int argc, char **argv) {
                     program->data.program.stmts[insert_at] = imp_stmt;
                     program->data.program.stmt_count++;
                 }
-                } /* end for (fi: each file in import) */
+                } /* end for (pi: rewrite+merge pass) */
+
+                /* Mark this import item as fully processed so re-scanning
+                 * the import list on the next while iteration doesn't
+                 * trigger a spurious W2013 "already imported" warning. */
+                item->path = NULL;
             }
         }
         } /* end while (found_new_import) */
@@ -1034,7 +1328,7 @@ int main(int argc, char **argv) {
     /* Write generated C to temp file */
     const char *out_base = strrchr(output_file, '/');
     out_base = out_base ? out_base + 1 : output_file;
-    char c_file[1024];
+    char c_file[PATH_BUF_SIZE];
     snprintf(c_file, sizeof(c_file), "/tmp/ez_%s.c", out_base);
 
     if (!write_file(c_file, c_code)) {
@@ -1112,7 +1406,7 @@ int main(int argc, char **argv) {
     }
 
     /* Build debug/optimization flags */
-    char extra_flags[128] = "";
+    char extra_flags[EZ_TYPE_NAME_MAX] = "";
     if (debug_symbols) {
         snprintf(extra_flags, sizeof(extra_flags), "-g %s", opt_level);
     } else {

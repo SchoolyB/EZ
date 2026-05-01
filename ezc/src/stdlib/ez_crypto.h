@@ -1,5 +1,5 @@
 /*
- * ez_crypto.h - @crypto module for EZC
+ * ez_crypto.h - @crypto module for EZ
  *
  * Embedded implementations — no OpenSSL dependency.
  *

@@ -18,6 +18,11 @@
 #include <netdb.h>
 #include <sys/time.h>
 
+#define EZ_NET_HOST_BUF         256
+#define EZ_NET_PORT_BUF         16
+#define EZ_NET_MAX_RECV_BUF     1048576
+#define EZ_NET_LISTEN_BACKLOG   128
+
 /* Helper: null-terminate an EzString */
 static const char *net_cstr(EzString s, char *buf, size_t bufsz) {
     size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
@@ -30,7 +35,7 @@ EzSocket ez_net_dial(EzArena *arena, EzString host, int64_t port) {
     (void)arena;
     EzSocket sock = {-1};
 
-    char host_buf[256];
+    char host_buf[EZ_NET_HOST_BUF];
     net_cstr(host, host_buf, sizeof(host_buf));
 
     /* Resolve hostname */
@@ -39,7 +44,7 @@ EzSocket ez_net_dial(EzArena *arena, EzString host, int64_t port) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    char port_str[16];
+    char port_str[EZ_NET_PORT_BUF];
     snprintf(port_str, sizeof(port_str), "%d", (int)port);
 
     if (getaddrinfo(host_buf, port_str, &hints, &res) != 0) {
@@ -79,7 +84,7 @@ EzString ez_net_recv(EzArena *arena, EzSocket sock, int64_t max_bytes) {
     if (sock.fd < 0 || max_bytes <= 0) return (EzString){"", 0};
 
     size_t bufsz = (size_t)max_bytes;
-    if (bufsz > 1048576) bufsz = 1048576; /* cap at 1MB */
+    if (bufsz > EZ_NET_MAX_RECV_BUF) bufsz = EZ_NET_MAX_RECV_BUF; /* cap at 1MB */
     char *buf = ez_arena_alloc(arena, bufsz);
 
     ssize_t n = recv(sock.fd, buf, bufsz, 0);
@@ -110,7 +115,7 @@ EzSocket ez_net_listen(EzArena *arena, int64_t port) {
         return sock;
     }
 
-    if (listen(fd, 128) != 0) {
+    if (listen(fd, EZ_NET_LISTEN_BACKLOG) != 0) {
         close(fd);
         return sock;
     }
@@ -143,7 +148,7 @@ void ez_net_set_timeout(EzSocket sock, int64_t milliseconds) {
 }
 
 EzString ez_net_resolve(EzArena *arena, EzString hostname) {
-    char host_buf[256];
+    char host_buf[EZ_NET_HOST_BUF];
     net_cstr(hostname, host_buf, sizeof(host_buf));
 
     struct addrinfo hints, *res;

@@ -1,5 +1,5 @@
 /*
- * ez_regex.h - @regex module for EZC
+ * ez_regex.h - @regex module for EZ
  *
  * Regular expression operations using POSIX regex.
  *

@@ -1,5 +1,5 @@
 /*
- * ez_atomic.h - @atomic module for EZC
+ * ez_atomic.h - @atomic module for EZ
  *
  * Lock-free atomic operations backed by hand-written assembly
  * (ARM64 and x86_64).

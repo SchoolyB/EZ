@@ -1,5 +1,5 @@
 /*
- * ez_strings.h - @strings module for EZC
+ * ez_strings.h - @strings module for EZ
  *
  * String manipulation functions.
  *

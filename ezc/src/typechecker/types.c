@@ -6,6 +6,7 @@
  */
 
 #include "types.h"
+#include "../util/constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -211,7 +212,7 @@ const char *type_name(EzType *t) {
      * A small ring of static buffers lets callers chain type_name() calls
      * inside one snprintf() without clobbering the previous result. */
     if (t->kind == TK_POINTER && t->name) {
-        static char bufs[4][128];
+        static char bufs[4][EZ_TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
@@ -219,7 +220,7 @@ const char *type_name(EzType *t) {
         return out;
     }
     if (t->kind == TK_ARRAY && t->element_type) {
-        static char bufs[4][128];
+        static char bufs[4][EZ_TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
@@ -227,7 +228,7 @@ const char *type_name(EzType *t) {
         return out;
     }
     if (t->kind == TK_MAP && t->key_type && t->value_type) {
-        static char bufs[4][128];
+        static char bufs[4][EZ_TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;

@@ -1,5 +1,5 @@
 /*
- * ez_binary.h - @binary module for EZC
+ * ez_binary.h - @binary module for EZ
  *
  * Binary encoding/decoding for integers and floats
  * in little-endian and big-endian byte order.
