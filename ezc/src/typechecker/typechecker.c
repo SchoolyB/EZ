@@ -4654,10 +4654,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* Check for type keyword used as value: mut x = int */
         if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_LABEL) {
             const char *vname = node->data.var_decl.value->data.label.value;
-            if (strcmp(vname, "int") == 0 || strcmp(vname, "uint") == 0 ||
-                strcmp(vname, "float") == 0 || strcmp(vname, "string") == 0 ||
-                strcmp(vname, "bool") == 0 || strcmp(vname, "char") == 0 ||
-                strcmp(vname, "byte") == 0 || strcmp(vname, "void") == 0) {
+            if (is_reserved_type_name(vname)) {
                 diag_error_codef(tc->diag, "E3011", NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                     node->data.var_decl.value->token.column, 0, vname, vname);
             }
