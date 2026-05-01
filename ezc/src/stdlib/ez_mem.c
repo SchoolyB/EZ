@@ -11,7 +11,7 @@
 #define EZ_MAX_ARENA_SIZE (1024LL * 1024 * 1024)
 
 EzArena *ez_mem_arena(int64_t size) {
-    if (size <= 0) size = 4096;
+    if (size <= 0) size = EZ_MIN_ARENA_SIZE;
     if (size > EZ_MAX_ARENA_SIZE) {
         fflush(stdout);
         fprintf(stderr, "panic: mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB\n",

@@ -1,5 +1,5 @@
 /*
- * ez_mem.h - @mem module for EZC (memory management)
+ * ez_mem.h - @mem module for EZ (memory management)
  *
  * Manual memory management via arena allocation.
  *

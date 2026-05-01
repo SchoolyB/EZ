@@ -1,5 +1,5 @@
 /*
- * ez_bigint.h - Wide integer types (i128, u128, i256, u256) for EZC
+ * ez_bigint.h - Wide integer types (i128, u128, i256, u256) for EZ
  *
  * Struct-based portable implementation backed by uint64_t limbs.
  *
@@ -19,6 +19,12 @@ typedef struct { uint64_t lo; int64_t hi; } ez_i128;
 typedef struct { uint64_t lo; uint64_t hi; } ez_u128;
 typedef struct { uint64_t w[4]; } ez_i256;  /* w[0]=lo ... w[3]=hi */
 typedef struct { uint64_t w[4]; } ez_u256;
+
+/* --- Max decimal digits for string rendering --- */
+#define I128_MAX_DIGITS     21
+#define U128_MAX_DIGITS     21
+#define I256_MAX_DIGITS     40
+#define U256_MAX_DIGITS     80
 
 /* --- Zero Constants --- */
 
@@ -602,9 +608,7 @@ static inline ez_i256 ez_i256_from_decimal(const char *s) {
 static inline ez_i128 ez_i128_add_checked(ez_i128 a, ez_i128 b, const char *file, int line) {
     ez_i128 r = ez_i128_add(a, b);
     if ((a.hi >= 0 && b.hi >= 0 && r.hi < 0) || (a.hi < 0 && b.hi < 0 && r.hi >= 0)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: i128 addition result is too large — value exceeds the range of this type\n", file, line);
-        exit(1);
+        ez_panic(file, line, "i128 addition result is too large — value exceeds the range of this type");
     }
     return r;
 }
@@ -612,9 +616,7 @@ static inline ez_i128 ez_i128_add_checked(ez_i128 a, ez_i128 b, const char *file
 static inline ez_i128 ez_i128_sub_checked(ez_i128 a, ez_i128 b, const char *file, int line) {
     ez_i128 r = ez_i128_sub(a, b);
     if ((a.hi >= 0 && b.hi < 0 && r.hi < 0) || (a.hi < 0 && b.hi >= 0 && r.hi >= 0)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: i128 subtraction result is too large — value exceeds the range of this type\n", file, line);
-        exit(1);
+        ez_panic(file, line, "i128 subtraction result is too large — value exceeds the range of this type");
     }
     return r;
 }
@@ -626,9 +628,7 @@ static inline ez_i128 ez_i128_mul_checked(ez_i128 a, ez_i128 b, const char *file
     if (!a_zero && !b_zero) {
         ez_i128 check = ez_i128_div(r, b);
         if (!ez_i128_eq(check, a)) {
-            fflush(stdout);
-            fprintf(stderr, "panic at %s:%d: i128 multiplication result is too large — value exceeds the range of this type\n", file, line);
-            exit(1);
+            ez_panic(file, line, "i128 multiplication result is too large — value exceeds the range of this type");
         }
     }
     return r;
@@ -637,18 +637,14 @@ static inline ez_i128 ez_i128_mul_checked(ez_i128 a, ez_i128 b, const char *file
 static inline ez_u128 ez_u128_add_checked(ez_u128 a, ez_u128 b, const char *file, int line) {
     ez_u128 r = ez_u128_add(a, b);
     if (ez_u128_lt(r, a)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: u128 addition result is too large — value exceeds the range of this type\n", file, line);
-        exit(1);
+        ez_panic(file, line, "u128 addition result is too large — value exceeds the range of this type");
     }
     return r;
 }
 
 static inline ez_u128 ez_u128_sub_checked(ez_u128 a, ez_u128 b, const char *file, int line) {
     if (ez_u128_lt(a, b)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: u128 subtraction result is negative, but this unsigned type cannot hold negative values\n", file, line);
-        exit(1);
+        ez_panic(file, line, "u128 subtraction result is negative, but this unsigned type cannot hold negative values");
     }
     return ez_u128_sub(a, b);
 }
@@ -660,9 +656,7 @@ static inline ez_u128 ez_u128_mul_checked(ez_u128 a, ez_u128 b, const char *file
     if (!a_zero && !b_zero) {
         ez_u128 check = ez_u128_div(r, b);
         if (!ez_u128_eq(check, a)) {
-            fflush(stdout);
-            fprintf(stderr, "panic at %s:%d: u128 multiplication result is too large — value exceeds the range of this type\n", file, line);
-            exit(1);
+            ez_panic(file, line, "u128 multiplication result is too large — value exceeds the range of this type");
         }
     }
     return r;
@@ -674,9 +668,7 @@ static inline ez_i256 ez_i256_add_checked(ez_i256 a, ez_i256 b, const char *file
     bool b_neg = ez_i256_is_neg(b);
     bool r_neg = ez_i256_is_neg(r);
     if ((!a_neg && !b_neg && r_neg) || (a_neg && b_neg && !r_neg)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: i256 addition result is too large — value exceeds the range of this type\n", file, line);
-        exit(1);
+        ez_panic(file, line, "i256 addition result is too large — value exceeds the range of this type");
     }
     return r;
 }
@@ -687,9 +679,7 @@ static inline ez_i256 ez_i256_sub_checked(ez_i256 a, ez_i256 b, const char *file
     bool b_neg = ez_i256_is_neg(b);
     bool r_neg = ez_i256_is_neg(r);
     if ((!a_neg && b_neg && r_neg) || (a_neg && !b_neg && !r_neg)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: i256 subtraction result is too large — value exceeds the range of this type\n", file, line);
-        exit(1);
+        ez_panic(file, line, "i256 subtraction result is too large — value exceeds the range of this type");
     }
     return r;
 }
@@ -701,9 +691,7 @@ static inline ez_i256 ez_i256_mul_checked(ez_i256 a, ez_i256 b, const char *file
     if (!a_zero && !b_zero) {
         ez_i256 check = ez_i256_div(r, b);
         if (!ez_i256_eq(check, a)) {
-            fflush(stdout);
-            fprintf(stderr, "panic at %s:%d: i256 multiplication result is too large — value exceeds the range of this type\n", file, line);
-            exit(1);
+            ez_panic(file, line, "i256 multiplication result is too large — value exceeds the range of this type");
         }
     }
     return r;
@@ -712,18 +700,14 @@ static inline ez_i256 ez_i256_mul_checked(ez_i256 a, ez_i256 b, const char *file
 static inline ez_u256 ez_u256_add_checked(ez_u256 a, ez_u256 b, const char *file, int line) {
     ez_u256 r = ez_u256_add(a, b);
     if (ez_u256_lt(r, a)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: u256 addition result is too large — value exceeds the range of this type\n", file, line);
-        exit(1);
+        ez_panic(file, line, "u256 addition result is too large — value exceeds the range of this type");
     }
     return r;
 }
 
 static inline ez_u256 ez_u256_sub_checked(ez_u256 a, ez_u256 b, const char *file, int line) {
     if (ez_u256_lt(a, b)) {
-        fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: u256 subtraction result is negative, but this unsigned type cannot hold negative values\n", file, line);
-        exit(1);
+        ez_panic(file, line, "u256 subtraction result is negative, but this unsigned type cannot hold negative values");
     }
     return ez_u256_sub(a, b);
 }
@@ -735,9 +719,7 @@ static inline ez_u256 ez_u256_mul_checked(ez_u256 a, ez_u256 b, const char *file
     if (!a_zero && !b_zero) {
         ez_u256 check = ez_u256_div(r, b);
         if (!ez_u256_eq(check, a)) {
-            fflush(stdout);
-            fprintf(stderr, "panic at %s:%d: u256 multiplication result is too large — value exceeds the range of this type\n", file, line);
-            exit(1);
+            ez_panic(file, line, "u256 multiplication result is too large — value exceeds the range of this type");
         }
     }
     return r;
@@ -748,7 +730,7 @@ static inline ez_u256 ez_u256_mul_checked(ez_u256 a, ez_u256 b, const char *file
 /* Helper: convert unsigned 128-bit to decimal string */
 static inline EzString ez_u128_to_string(EzArena *arena, ez_u128 val) {
     if (val.hi == 0) {
-        char buf[21];
+        char buf[U128_MAX_DIGITS];
         snprintf(buf, sizeof(buf), "%" PRIu64, val.lo);
         size_t len = strlen(buf);
         char *s = (char *)ez_arena_alloc(arena, len + 1);
@@ -756,8 +738,8 @@ static inline EzString ez_u128_to_string(EzArena *arena, ez_u128 val) {
         return (EzString){ s, (int32_t)len };
     }
     /* For large values, extract digits by repeated division */
-    char buf[40];
-    int pos = 39;
+    char buf[I256_MAX_DIGITS];
+    int pos = I256_MAX_DIGITS - 1;
     buf[pos] = '\0';
     ez_u128 ten = { 10, 0 };
     ez_u128 v = val;
@@ -767,8 +749,8 @@ static inline EzString ez_u128_to_string(EzArena *arena, ez_u128 val) {
         buf[--pos] = '0' + (char)rem.lo;
         v = q;
     }
-    if (pos == 39) buf[--pos] = '0';
-    size_t len = 39 - pos;
+    if (pos == I256_MAX_DIGITS - 1) buf[--pos] = '0';
+    size_t len = (I256_MAX_DIGITS - 1) - pos;
     char *s = (char *)ez_arena_alloc(arena, len + 1);
     memcpy(s, buf + pos, len + 1);
     return (EzString){ s, (int32_t)len };
@@ -793,15 +775,15 @@ static inline EzString ez_i128_to_string(EzArena *arena, ez_i128 val) {
 /* Helper: convert unsigned 256-bit to decimal string */
 static inline EzString ez_u256_to_string(EzArena *arena, ez_u256 val) {
     if (val.w[1] == 0 && val.w[2] == 0 && val.w[3] == 0) {
-        char buf[21];
+        char buf[U128_MAX_DIGITS];
         snprintf(buf, sizeof(buf), "%" PRIu64, val.w[0]);
         size_t len = strlen(buf);
         char *s = (char *)ez_arena_alloc(arena, len + 1);
         memcpy(s, buf, len + 1);
         return (EzString){ s, (int32_t)len };
     }
-    char buf[80];
-    int pos = 79;
+    char buf[U256_MAX_DIGITS];
+    int pos = U256_MAX_DIGITS - 1;
     buf[pos] = '\0';
     ez_u256 ten = EZ_U256_ZERO;
     ten.w[0] = 10;
@@ -812,8 +794,8 @@ static inline EzString ez_u256_to_string(EzArena *arena, ez_u256 val) {
         buf[--pos] = '0' + (char)rem.w[0];
         v = q;
     }
-    if (pos == 79) buf[--pos] = '0';
-    size_t len = 79 - pos;
+    if (pos == U256_MAX_DIGITS - 1) buf[--pos] = '0';
+    size_t len = (U256_MAX_DIGITS - 1) - pos;
     char *s = (char *)ez_arena_alloc(arena, len + 1);
     memcpy(s, buf + pos, len + 1);
     return (EzString){ s, (int32_t)len };

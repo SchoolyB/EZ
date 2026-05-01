@@ -1,5 +1,5 @@
 /*
- * ez_json.h - @json module for EZC
+ * ez_json.h - @json module for EZ
  *
  * Minimal JSON parser and emitter.
  *

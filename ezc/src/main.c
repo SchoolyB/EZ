@@ -20,6 +20,7 @@
 
 #include "util/arena.h"
 #include "util/error.h"
+#include "util/constants.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "typechecker/typechecker.h"
@@ -30,6 +31,8 @@
 #endif
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
+#define EZ_MAX_IMPORTS 256
+#define EZ_COMPILER_ARENA_SIZE (1024 * 1024)
 
 static void print_usage(void) {
     fprintf(stderr, "EZ Programming Language v%s\n", EZ_VERSION);
@@ -90,7 +93,7 @@ static bool write_file(const char *path, const char *content) {
 
 /* Resolve the directory containing the ezc binary itself */
 static const char *get_self_dir(const char *argv0) {
-    static char buf[1024];
+    static char buf[PATH_BUF_SIZE];
 
 #ifdef __APPLE__
     /* macOS: use _NSGetExecutablePath */
@@ -387,7 +390,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
 }
 
 /* Import cache: track already-imported files to avoid duplicates and cycles */
-static const char *imported_files[256];
+static const char *imported_files[EZ_MAX_IMPORTS];
 static int imported_file_count = 0;
 
 static bool already_imported(const char *path) {
@@ -398,7 +401,7 @@ static bool already_imported(const char *path) {
 }
 
 static void mark_imported(const char *path) {
-    if (imported_file_count < 256) {
+    if (imported_file_count < EZ_MAX_IMPORTS) {
         imported_files[imported_file_count++] = path;
     }
 }
@@ -535,7 +538,7 @@ int main(int argc, char **argv) {
     if (!source) return 1;
 
     /* Create compiler arena and diagnostics */
-    Arena *arena = arena_create(1024 * 1024);
+    Arena *arena = arena_create(EZ_COMPILER_ARENA_SIZE);
     DiagnosticList *diag = diag_create();
     diag_set_source(diag, input_file, source);
     if (no_color) diag->use_color = false;
@@ -599,7 +602,7 @@ int main(int argc, char **argv) {
         const char *main_base = input_file;
         const char *main_slash = strrchr(input_file, '/');
         if (main_slash) main_base = main_slash + 1;
-        char main_mod_buf[256];
+        char main_mod_buf[EZ_MSG_BUF_SIZE];
         size_t main_mod_len = strlen(main_base);
         if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".ez") == 0) {
             memcpy(main_mod_buf, main_base, main_mod_len - 3);
@@ -614,7 +617,7 @@ int main(int argc, char **argv) {
         input_dir[sizeof(input_dir) - 1] = '\0';
         char *last_slash = strrchr(input_dir, '/');
         if (last_slash) *(last_slash + 1) = '\0';
-        else strcpy(input_dir, "./");
+        else { input_dir[0] = '.'; input_dir[1] = '/'; input_dir[2] = '\0'; }
 
         /* Process imports iteratively — re-scan after each merge to find transitive imports.
          * The already_imported cache prevents infinite loops and duplicate processing. */
@@ -623,11 +626,11 @@ int main(int argc, char **argv) {
             found_new_import = false;
 
             /* Collect current import statements */
-            AstNode *import_stmts[256];
+            AstNode *import_stmts[EZ_MAX_IMPORTS];
             int import_stmt_count = 0;
             for (int si = 0; si < program->data.program.stmt_count; si++) {
                 if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
-                    import_stmt_count < 256) {
+                    import_stmt_count < EZ_MAX_IMPORTS) {
                     import_stmts[import_stmt_count++] = program->data.program.stmts[si];
                 }
             }
@@ -675,7 +678,7 @@ int main(int argc, char **argv) {
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]) * MAX_DIR_FILES);
                         file_count = scan_ez_files(import_path, file_list, MAX_DIR_FILES);
                         if (file_count == 0) {
-                            char msg[512];
+                            char msg[EZ_MSG_BUF_LARGE];
                             snprintf(msg, sizeof(msg), "directory '%s' contains no .ez files", item->path);
                             diag_error(diag, "E6003", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
@@ -683,7 +686,7 @@ int main(int argc, char **argv) {
                         }
                     } else {
                         /* Nothing found */
-                        char msg[512];
+                        char msg[EZ_MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", item->path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -695,7 +698,7 @@ int main(int argc, char **argv) {
                 const char *mod_base = rel;
                 const char *slash = strrchr(rel, '/');
                 if (slash) mod_base = slash + 1;
-                char mod_name_buf[256];
+                char mod_name_buf[EZ_MSG_BUF_SIZE];
                 size_t mod_len = strlen(mod_base);
                 if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".ez") == 0) {
                     memcpy(mod_name_buf, mod_base, mod_len - 3);
@@ -707,14 +710,14 @@ int main(int argc, char **argv) {
 
                 /* Module name collision detection — only for DIRECT imports from the same file.
                  * Don't collide with the main file's own module name. */
-                static const char *seen_modules[256];
-                static const char *seen_paths[256];
+                static const char *seen_modules[EZ_MAX_IMPORTS];
+                static const char *seen_paths[EZ_MAX_IMPORTS];
                 static int seen_count = 0;
                 bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
                     if (strcmp(seen_modules[sm], mod_name) == 0 &&
                         strcmp(seen_paths[sm], import_path) != 0) {
-                        char msg[256];
+                        char msg[EZ_MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported — use an alias to distinguish them",
                             mod_name);
@@ -725,7 +728,7 @@ int main(int argc, char **argv) {
                     }
                 }
                 if (collision) continue;
-                if (seen_count < 256) {
+                if (seen_count < EZ_MAX_IMPORTS) {
                     seen_modules[seen_count] = mod_name;
                     seen_paths[seen_count] = arena_strdup(arena, import_path);
                     seen_count++;
@@ -747,7 +750,7 @@ int main(int argc, char **argv) {
                     /* Read and parse the imported file */
                     char *imp_source = read_file(cur_file_path);
                     if (!imp_source) {
-                        char msg[512];
+                        char msg[EZ_MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", cur_file_path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -778,8 +781,8 @@ int main(int argc, char **argv) {
                 }
 
                 /* Collect original names before prefixing */
-                const char *orig_names[256];
-                const char *new_names[256];
+                const char *orig_names[EZ_MAX_IMPORTS];
+                const char *new_names[EZ_MAX_IMPORTS];
                 int name_count = 0;
                 for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
                     AstNode *s = imp_program->data.program.stmts[mi];
@@ -788,10 +791,10 @@ int main(int argc, char **argv) {
                     else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
                     else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
                     else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
-                    if (oname && name_count < 256) {
+                    if (oname && name_count < EZ_MAX_IMPORTS) {
                         orig_names[name_count] = oname;
-                        char *pn = arena_alloc(arena, 256);
-                        snprintf(pn, 256, "%s_%s", mod_name, oname);
+                        char *pn = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(pn, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
                         new_names[name_count] = pn;
                         name_count++;
                     }
@@ -807,8 +810,8 @@ int main(int argc, char **argv) {
                     if (imp_stmt->kind != NODE_VAR_DECL) continue;
 
                     if (!imp_stmt->data.var_decl.mutable) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         if (imp_stmt->data.var_decl.type_name &&
                             imp_stmt->data.var_decl.type_name[0] >= 'A' && imp_stmt->data.var_decl.type_name[0] <= 'Z') {
@@ -820,8 +823,8 @@ int main(int argc, char **argv) {
                             }
                         }
                     } else {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         imp_stmt->data.var_decl.is_private = true;
                     }
@@ -862,8 +865,8 @@ int main(int argc, char **argv) {
 
                     /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
                         /* Rewrite internal references in function body */
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
@@ -895,8 +898,8 @@ int main(int argc, char **argv) {
 
                     /* Prefix struct names and rewrite field type references */
                     if (imp_stmt->kind == NODE_STRUCT_DECL) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
                         /* Rewrite field types that reference other imported types */
                         for (int fi = 0; fi < imp_stmt->data.struct_decl.field_count; fi++) {
@@ -942,8 +945,8 @@ int main(int argc, char **argv) {
 
                     /* Prefix enum names with module name */
                     if (imp_stmt->kind == NODE_ENUM_DECL) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
+                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
                         imp_stmt->data.enum_decl.name = prefixed;
                     }
 
@@ -1034,7 +1037,7 @@ int main(int argc, char **argv) {
     /* Write generated C to temp file */
     const char *out_base = strrchr(output_file, '/');
     out_base = out_base ? out_base + 1 : output_file;
-    char c_file[1024];
+    char c_file[PATH_BUF_SIZE];
     snprintf(c_file, sizeof(c_file), "/tmp/ez_%s.c", out_base);
 
     if (!write_file(c_file, c_code)) {
@@ -1112,7 +1115,7 @@ int main(int argc, char **argv) {
     }
 
     /* Build debug/optimization flags */
-    char extra_flags[128] = "";
+    char extra_flags[EZ_TYPE_NAME_MAX] = "";
     if (debug_symbols) {
         snprintf(extra_flags, sizeof(extra_flags), "-g %s", opt_level);
     } else {

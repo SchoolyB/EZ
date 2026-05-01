@@ -1,5 +1,5 @@
 /*
- * ez_io.h - @io module for EZC (file I/O)
+ * ez_io.h - @io module for EZ (file I/O)
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.

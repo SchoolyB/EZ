@@ -1,5 +1,5 @@
 /*
- * ez_channels.h - @channels module for EZC
+ * ez_channels.h - @channels module for EZ
  *
  * Bounded, blocking channels for message passing between threads.
  * Built on POSIX pthreads.

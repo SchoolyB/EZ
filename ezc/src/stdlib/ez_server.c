@@ -16,12 +16,19 @@
 #include <pthread.h>
 #include <sys/socket.h>
 
+#define EZ_SERVER_BUF_SIZE          65536
+#define EZ_SERVER_REQUEST_ARENA     (64 * 1024)
+#define EZ_SERVER_CORS_BUF          512
+#define EZ_ROUTER_INITIAL_CAP       16
+#define EZ_HTTP_METHOD_BUF          16
+#define EZ_HTTP_PATH_BUF_SERVER     2048
+
 /* Global arena for server allocations */
 static EzArena *server_arena = NULL;
 
 static EzArena *get_server_arena(void) {
     if (!server_arena) {
-        server_arena = ez_arena_create(1024 * 1024); /* 1MB */
+        server_arena = ez_arena_create(EZ_DEFAULT_ARENA_SIZE);
     }
     return server_arena;
 }
@@ -29,7 +36,7 @@ static EzArena *get_server_arena(void) {
 EzRouter ez_server_router(void) {
     EzRouter r;
     r.count = 0;
-    r.capacity = 16;
+    r.capacity = EZ_ROUTER_INITIAL_CAP;
     r.routes = malloc(sizeof(EzRoute) * r.capacity);
     r.cors_origin = NULL;
     r.middlewares = NULL;
@@ -195,10 +202,10 @@ typedef struct {
 
 static void *handle_connection(void *arg) {
     ConnCtx *ctx = (ConnCtx *)arg;
-    EzArena *arena = ez_arena_create(64 * 1024); /* 64KB per request */
+    EzArena *arena = ez_arena_create(EZ_SERVER_REQUEST_ARENA); /* 64KB per request */
 
     /* Receive request data */
-    char buf[65536];
+    char buf[EZ_SERVER_BUF_SIZE];
     ssize_t n = recv(ctx->client_fd, buf, sizeof(buf) - 1, 0);
     if (n <= 0) {
         close(ctx->client_fd);
@@ -217,12 +224,12 @@ static void *handle_connection(void *arg) {
 
     EzResponse resp;
     resp.status = 404;
-    resp.body = ez_string_new(arena, "Not Found", 9);
-    resp.content_type = ez_string_new(arena, "text/plain", 10);
+    resp.body = ez_string_new(arena, "Not Found", sizeof("Not Found") - 1);
+    resp.content_type = ez_string_new(arena, "text/plain", sizeof("text/plain") - 1);
 
     if (parse_request(arena, buf, (int)n, &req)) {
         /* Find matching route */
-        char method_buf[16], path_buf[2048];
+        char method_buf[EZ_HTTP_METHOD_BUF], path_buf[EZ_HTTP_PATH_BUF_SERVER];
         memcpy(method_buf, req.method.data, req.method.len);
         method_buf[req.method.len] = '\0';
         memcpy(path_buf, req.path.data, req.path.len);
@@ -244,7 +251,7 @@ static void *handle_connection(void *arg) {
     }
 
     /* Build HTTP response with optional CORS headers */
-    char cors_hdrs[512];
+    char cors_hdrs[EZ_SERVER_CORS_BUF];
     cors_hdrs[0] = '\0';
     if (ctx->router->cors_origin) {
         snprintf(cors_hdrs, sizeof(cors_hdrs),
@@ -254,7 +261,7 @@ static void *handle_connection(void *arg) {
             ctx->router->cors_origin);
     }
 
-    char resp_buf[65536];
+    char resp_buf[EZ_SERVER_BUF_SIZE];
     int resp_len = snprintf(resp_buf, sizeof(resp_buf),
         "HTTP/1.1 %d OK\r\n"
         "Content-Type: %.*s\r\n"

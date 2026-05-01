@@ -1,5 +1,5 @@
 /*
- * ez_fmt.h - @fmt module for EZC (formatted output)
+ * ez_fmt.h - @fmt module for EZ (formatted output)
  *
  * EZC-only module for C-style formatted I/O.
  *

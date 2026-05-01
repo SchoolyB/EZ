@@ -1,5 +1,4 @@
 /*
- * ast.h - Abstract Syntax Tree node definitions for the EZ language
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -161,7 +160,7 @@ struct AstNode {
             const char **field_names;
             AstNode **field_values;
             int count;
-            const char *wildcard_binding; /* #1520: concrete type for ? fields */
+            const char *wildcard_binding; /*concrete type for ? fields */
         } struct_value;
 
         /* NODE_PREFIX_EXPR */
@@ -275,7 +274,7 @@ struct AstNode {
             int return_type_count;
             AstNode *body;
             bool is_private;
-            /* Wildcard generics (#1443): concrete type bindings recorded
+            /* Wildcard generics concrete type bindings recorded
              * by the typechecker per call site. Codegen emits one
              * specialised C function for each entry. NULL/0 for
              * non-generic functions. */
@@ -305,7 +304,7 @@ struct AstNode {
             int func_count;
             bool is_json; /* #json attribute — enables JSON ser/deser */
             bool is_generic; /* has ? in at least one field type */
-            const char **instantiations; /* concrete bindings (#1520) */
+            const char **instantiations; /* concrete bindings */
             int instantiation_count;
         } struct_decl;
 

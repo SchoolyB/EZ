@@ -14,6 +14,12 @@
 #include <errno.h>
 #include <glob.h>
 
+#define EZ_IO_PATH_BUF          4096
+#define EZ_IO_COPY_BUF          8192
+#define EZ_IO_MAX_SEGMENTS      256
+#define EZ_IO_DIR_MODE          0755
+#define EZ_IO_WALK_INITIAL_CAP  32
+
 /* ---- Path manipulation (pure, no I/O) ---- */
 
 EzString ez_io_path_join(EzArena *arena, EzString a, EzString b) {
@@ -105,7 +111,7 @@ EzString ez_io_normalize(EzArena *arena, EzString path) {
     bool absolute = (buf[0] == '/');
 
     /* Split into segments */
-    char *segments[256];
+    char *segments[EZ_IO_MAX_SEGMENTS];
     int seg_count = 0;
     char *tok = buf;
     while (*tok) {
@@ -122,7 +128,7 @@ EzString ez_io_normalize(EzArena *arena, EzString path) {
                 segments[seg_count++] = seg_start;
             }
         } else {
-            if (seg_count < 256) segments[seg_count++] = seg_start;
+            if (seg_count < EZ_IO_MAX_SEGMENTS) segments[seg_count++] = seg_start;
         }
     }
 
@@ -219,7 +225,7 @@ bool ez_io_copy_file(EzString src, EzString dst) {
     if (!in) return false;
     FILE *out = fopen(dst.data, "wb");
     if (!out) { fclose(in); return false; }
-    char buf[8192];
+    char buf[EZ_IO_COPY_BUF];
     size_t n;
     bool ok = true;
     while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
@@ -254,23 +260,23 @@ EzArray ez_io_list_dir(EzArena *arena, EzString path) {
 }
 
 bool ez_io_make_dir(EzString path) {
-    return mkdir(path.data, 0755) == 0;
+    return mkdir(path.data, EZ_IO_DIR_MODE) == 0;
 }
 
 bool ez_io_make_dir_all(EzString path) {
     if (path.len == 0) return false;
-    char buf[4096];
+    char buf[EZ_IO_PATH_BUF];
     if ((size_t)path.len >= sizeof(buf)) return false;
     memcpy(buf, path.data, (size_t)path.len);
     buf[path.len] = '\0';
     for (char *p = buf + 1; *p; p++) {
         if (*p == '/' || *p == '\\') {
             *p = '\0';
-            mkdir(buf, 0755);
+            mkdir(buf, EZ_IO_DIR_MODE);
             *p = '/';
         }
     }
-    return mkdir(buf, 0755) == 0 || errno == EEXIST;
+    return mkdir(buf, EZ_IO_DIR_MODE) == 0 || errno == EEXIST;
 }
 
 bool ez_io_remove_dir(EzString path) {
@@ -284,7 +290,7 @@ static bool remove_dir_recursive(const char *path) {
     bool ok = true;
     while ((ent = readdir(d)) != NULL) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-        char child[4096];
+        char child[EZ_IO_PATH_BUF];
         snprintf(child, sizeof(child), "%s/%s", path, ent->d_name);
         struct stat st;
         if (stat(child, &st) != 0) { ok = false; continue; }
@@ -304,7 +310,7 @@ bool ez_io_remove_dir_all(EzString path) {
 }
 
 static void walk_recursive(EzArena *arena, const char *base, const char *rel, EzArray *out) {
-    char full[4096];
+    char full[EZ_IO_PATH_BUF];
     if (rel[0] == '\0') {
         snprintf(full, sizeof(full), "%s", base);
     } else {
@@ -322,7 +328,7 @@ static void walk_recursive(EzArena *arena, const char *base, const char *rel, Ez
             child_rel = ez_string_format(arena, "%s/%s", rel, ent->d_name);
         }
         ez_array_push(arena, out, &child_rel);
-        char child_full[4096];
+        char child_full[EZ_IO_PATH_BUF];
         snprintf(child_full, sizeof(child_full), "%s/%s", full, ent->d_name);
         struct stat st;
         if (stat(child_full, &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -333,7 +339,7 @@ static void walk_recursive(EzArena *arena, const char *base, const char *rel, Ez
 }
 
 EzArray ez_io_walk(EzArena *arena, EzString path) {
-    EzArray arr = ez_array_new(arena, (int32_t)sizeof(EzString), 32);
+    EzArray arr = ez_array_new(arena, (int32_t)sizeof(EzString), EZ_IO_WALK_INITIAL_CAP);
     walk_recursive(arena, path.data, "", &arr);
     return arr;
 }

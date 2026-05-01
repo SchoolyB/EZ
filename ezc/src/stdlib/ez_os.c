@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <limits.h>
 
+#define EZ_HOSTNAME_BUF 256
+
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -51,7 +53,7 @@ EzString ez_os_cwd(EzArena *arena) {
 }
 
 EzString ez_os_hostname(EzArena *arena) {
-    char buf[256];
+    char buf[EZ_HOSTNAME_BUF];
     if (gethostname(buf, sizeof(buf)) == 0) {
         return ez_string_new(arena, buf, (int32_t)strlen(buf));
     }

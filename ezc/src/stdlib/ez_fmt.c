@@ -8,6 +8,10 @@
 #include "ez_fmt.h"
 #include <inttypes.h>
 
+#define EZ_INT64_BITS       64
+#define EZ_FMT_INT_BUF      32
+#define EZ_FMT_FLOAT_BUF    64
+
 void ez_fmt_eprintln_str(EzString s) {
     fwrite(s.data, 1, (size_t)s.len, stderr);
     fputc('\n', stderr);
@@ -64,7 +68,7 @@ EzString ez_fmt_center(EzArena *arena, EzString s, int64_t width, char ch) {
 }
 
 EzString ez_fmt_int_to_hex(EzArena *arena, int64_t n) {
-    char tmp[32];
+    char tmp[EZ_FMT_INT_BUF];
     int len = snprintf(tmp, sizeof(tmp), "%" PRIx64, (uint64_t)n);
     char *buf = (char *)ez_arena_alloc(arena, (size_t)len);
     memcpy(buf, tmp, (size_t)len);
@@ -77,21 +81,21 @@ EzString ez_fmt_int_to_binary(EzArena *arena, int64_t n) {
         buf[0] = '0';
         return (EzString){buf, 1};
     }
-    char tmp[65];
-    int pos = 64;
+    char tmp[EZ_INT64_BITS + 1];
+    int pos = EZ_INT64_BITS;
     uint64_t v = (uint64_t)n;
     while (v > 0) {
         tmp[--pos] = (char)('0' + (v & 1));
         v >>= 1;
     }
-    int len = 64 - pos;
+    int len = EZ_INT64_BITS - pos;
     char *buf = (char *)ez_arena_alloc(arena, (size_t)len);
     memcpy(buf, tmp + pos, (size_t)len);
     return (EzString){buf, len};
 }
 
 EzString ez_fmt_int_to_octal(EzArena *arena, int64_t n) {
-    char tmp[32];
+    char tmp[EZ_FMT_INT_BUF];
     int len = snprintf(tmp, sizeof(tmp), "%" PRIo64, (uint64_t)n);
     char *buf = (char *)ez_arena_alloc(arena, (size_t)len);
     memcpy(buf, tmp, (size_t)len);
@@ -99,7 +103,7 @@ EzString ez_fmt_int_to_octal(EzArena *arena, int64_t n) {
 }
 
 EzString ez_fmt_float_fixed(EzArena *arena, double f, int64_t decimals) {
-    char tmp[64];
+    char tmp[EZ_FMT_FLOAT_BUF];
     int len = snprintf(tmp, sizeof(tmp), "%.*f", (int)decimals, f);
     char *buf = (char *)ez_arena_alloc(arena, (size_t)len);
     memcpy(buf, tmp, (size_t)len);
@@ -107,7 +111,7 @@ EzString ez_fmt_float_fixed(EzArena *arena, double f, int64_t decimals) {
 }
 
 EzString ez_fmt_float_sci(EzArena *arena, double f) {
-    char tmp[64];
+    char tmp[EZ_FMT_FLOAT_BUF];
     int len = snprintf(tmp, sizeof(tmp), "%e", f);
     char *buf = (char *)ez_arena_alloc(arena, (size_t)len);
     memcpy(buf, tmp, (size_t)len);

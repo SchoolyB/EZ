@@ -1,5 +1,5 @@
 /*
- * ez_uuid.h - @uuid module for EZC
+ * ez_uuid.h - @uuid module for EZ
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
