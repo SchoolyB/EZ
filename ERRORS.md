@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 179 codes** (165 errors, 14 warnings)
+**Total: 180 codes** (165 errors, 15 warnings)
 
 ---
 
@@ -195,6 +195,7 @@
 | `W2012` | safety | when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon |
 | `W2013` | imports | duplicate import of already-imported module |
 | `W2014` | imports | intra-directory import already included by directory import |
+| `W2015` | imports | file already imported as part of a directory import; redundant import |
 | `W3003` | safety | fixed-size array is not fully initialized; remaining elements will be zero-valued |
 | `W3004` | safety | pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer |
 
@@ -223,4 +224,4 @@
 
 ---
 
-*Generated on 2026-05-01 14:44:49 UTC*
+*Generated on 2026-05-01 15:30:05 UTC*

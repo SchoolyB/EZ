@@ -811,7 +811,24 @@ int main(int argc, char **argv) {
                 if (!item->alias) item->alias = mod_name;
                 if (!item->module) item->module = mod_name;
 
-                /* Process each file in the import (1 for single file, N for directory) */
+                /* Process each file in the import (1 for single file, N for directory).
+                 * For directory imports, we use a two-pass approach:
+                 *   Pass 1: Parse all files, collect ALL declaration names across all files
+                 *   Pass 2: Rewrite using the combined mapping, then merge
+                 * This ensures sibling references (e.g. logic.ez referencing types.ez's
+                 * structs) get properly rewritten to their prefixed names. */
+
+                /* Storage for parsed programs in the directory */
+                AstNode *parsed_programs[MAX_DIR_FILES];
+                const char *parsed_paths[MAX_DIR_FILES];
+                int parsed_count = 0;
+
+                /* Combined name mapping across all files in this import */
+                const char *orig_names[EZ_MAX_IMPORTS];
+                const char *new_names[EZ_MAX_IMPORTS];
+                int name_count = 0;
+
+                /* Parse pass: parse each file, collect names, inject transitive imports */
                 for (int fi = 0; fi < file_count; fi++) {
                     const char *cur_file_path = file_list[fi];
 
@@ -832,6 +849,15 @@ int main(int argc, char **argv) {
                                 "import of '%s' is redundant; already included by directory import",
                                 item->path);
                             diag_warning(diag, "W2014", strdup(msg),
+                                input_file, stmt->token.line, stmt->token.column, 0);
+                        } else if (!item->source_dir && file_count == 1) {
+                            /* Direct import of a file already pulled in by a directory import */
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "file '%s' was already imported as part of a directory import; "
+                                "this import is redundant",
+                                item->path);
+                            diag_warning(diag, "W2015", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
                         }
                         continue;
@@ -855,63 +881,64 @@ int main(int argc, char **argv) {
 
                     if (!imp_program || diag_has_errors(diag)) continue;
 
-                /* Import statements from the imported file are also merged into the
-                 * main program so the while loop picks them up on the next iteration.
-                 * Set source_dir on each injected import item so transitive paths
-                 * resolve relative to the file they were written in. */
-                {
-                    /* Compute the directory of cur_file_path */
-                    char cur_dir[PATH_BUF_SIZE];
-                    strncpy(cur_dir, cur_file_path, sizeof(cur_dir) - 1);
-                    cur_dir[sizeof(cur_dir) - 1] = '\0';
-                    char *cd_slash = strrchr(cur_dir, '/');
-                    if (cd_slash) *(cd_slash + 1) = '\0';
-                    else { cur_dir[0] = '.'; cur_dir[1] = '/'; cur_dir[2] = '\0'; }
-                    const char *src_dir = arena_strdup(arena, cur_dir);
+                    /* Inject transitive import statements into the main program */
+                    {
+                        char cur_dir[PATH_BUF_SIZE];
+                        strncpy(cur_dir, cur_file_path, sizeof(cur_dir) - 1);
+                        cur_dir[sizeof(cur_dir) - 1] = '\0';
+                        char *cd_slash = strrchr(cur_dir, '/');
+                        if (cd_slash) *(cd_slash + 1) = '\0';
+                        else { cur_dir[0] = '.'; cur_dir[1] = '/'; cur_dir[2] = '\0'; }
+                        const char *src_dir = arena_strdup(arena, cur_dir);
 
-                    for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
-                        AstNode *ts = imp_program->data.program.stmts[ti];
-                        if (ts->kind != NODE_IMPORT_STMT) continue;
+                        for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
+                            AstNode *ts = imp_program->data.program.stmts[ti];
+                            if (ts->kind != NODE_IMPORT_STMT) continue;
 
-                        /* Tag each import item with the source directory */
-                        for (int xi = 0; xi < ts->data.import_stmt.count; xi++) {
-                            if (!ts->data.import_stmt.items[xi].source_dir) {
-                                ts->data.import_stmt.items[xi].source_dir = src_dir;
+                            for (int xi = 0; xi < ts->data.import_stmt.count; xi++) {
+                                if (!ts->data.import_stmt.items[xi].source_dir) {
+                                    ts->data.import_stmt.items[xi].source_dir = src_dir;
+                                }
                             }
-                        }
 
-                        /* Insert the import statement into the main program for later processing */
-                        if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
-                            int nc = program->data.program.stmt_cap * 2;
-                            AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
-                            memcpy(ns, program->data.program.stmts,
-                                   sizeof(AstNode *) * program->data.program.stmt_count);
-                            program->data.program.stmts = ns;
-                            program->data.program.stmt_cap = nc;
+                            if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
+                                int nc = program->data.program.stmt_cap * 2;
+                                AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
+                                memcpy(ns, program->data.program.stmts,
+                                       sizeof(AstNode *) * program->data.program.stmt_count);
+                                program->data.program.stmts = ns;
+                                program->data.program.stmt_cap = nc;
+                            }
+                            program->data.program.stmts[program->data.program.stmt_count++] = ts;
                         }
-                        program->data.program.stmts[program->data.program.stmt_count++] = ts;
                     }
+
+                    /* Collect declaration names from this file into the combined mapping */
+                    for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
+                        AstNode *s = imp_program->data.program.stmts[mi];
+                        const char *oname = NULL;
+                        if (s->kind == NODE_FUNC_DECL) oname = s->data.func_decl.name;
+                        else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
+                        else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
+                        else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
+                        if (oname && name_count < EZ_MAX_IMPORTS) {
+                            orig_names[name_count] = oname;
+                            char *pn = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+                            snprintf(pn, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
+                            new_names[name_count] = pn;
+                            name_count++;
+                        }
+                    }
+
+                    /* Store parsed program for the rewrite pass */
+                    parsed_programs[parsed_count] = imp_program;
+                    parsed_paths[parsed_count] = cur_file_path;
+                    parsed_count++;
                 }
 
-                /* Collect original names before prefixing */
-                const char *orig_names[EZ_MAX_IMPORTS];
-                const char *new_names[EZ_MAX_IMPORTS];
-                int name_count = 0;
-                for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
-                    AstNode *s = imp_program->data.program.stmts[mi];
-                    const char *oname = NULL;
-                    if (s->kind == NODE_FUNC_DECL) oname = s->data.func_decl.name;
-                    else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
-                    else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
-                    else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
-                    if (oname && name_count < EZ_MAX_IMPORTS) {
-                        orig_names[name_count] = oname;
-                        char *pn = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                        snprintf(pn, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
-                        new_names[name_count] = pn;
-                        name_count++;
-                    }
-                }
+                /* Rewrite+merge pass: use combined mapping to rewrite ALL files */
+                for (int pi = 0; pi < parsed_count; pi++) {
+                    AstNode *imp_program = parsed_programs[pi];
 
                 /* Merge imported declarations into main program.
                  * Two passes: var_decls first (so they're in scope for function bodies),
@@ -1015,12 +1042,12 @@ int main(int argc, char **argv) {
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
                         /* Rewrite field types that reference other imported types */
-                        for (int fi = 0; fi < imp_stmt->data.struct_decl.field_count; fi++) {
-                            const char *ft = imp_stmt->data.struct_decl.fields[fi].type_name;
+                        for (int fld = 0; fld < imp_stmt->data.struct_decl.field_count; fld++) {
+                            const char *ft = imp_stmt->data.struct_decl.fields[fld].type_name;
                             if (!ft || ft[0] < 'A' || ft[0] > 'Z') continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(ft, orig_names[ni]) == 0) {
-                                    imp_stmt->data.struct_decl.fields[fi].type_name = new_names[ni];
+                                    imp_stmt->data.struct_decl.fields[fld].type_name = new_names[ni];
                                     break;
                                 }
                             }
@@ -1091,7 +1118,12 @@ int main(int argc, char **argv) {
                     program->data.program.stmts[insert_at] = imp_stmt;
                     program->data.program.stmt_count++;
                 }
-                } /* end for (fi: each file in import) */
+                } /* end for (pi: rewrite+merge pass) */
+
+                /* Mark this import item as fully processed so re-scanning
+                 * the import list on the next while iteration doesn't
+                 * trigger a spurious W2013 "already imported" warning. */
+                item->path = NULL;
             }
         }
         } /* end while (found_new_import) */

@@ -217,6 +217,7 @@
     EZ_WARNING("W2012", "safety", "when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon") \
     EZ_WARNING("W2013", "imports", "duplicate import of already-imported module") \
     EZ_WARNING("W2014", "imports", "intra-directory import already included by directory import") \
+    EZ_WARNING("W2015", "imports", "file already imported as part of a directory import; redundant import") \
     EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized; remaining elements will be zero-valued") \
     EZ_WARNING("W3004", "safety", "pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer")
 
