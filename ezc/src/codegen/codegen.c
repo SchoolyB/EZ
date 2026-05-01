@@ -45,13 +45,20 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
 
     if (needed < 0) return;
 
-    char *tmp = malloc((size_t)needed + 1);
+    /* Ensure buffer has space, then format directly into it */
+    size_t req = cg->output.len + (size_t)needed + 1;
+    if (req > cg->output.cap) {
+        size_t new_cap = cg->output.cap * 2;
+        if (new_cap < req) new_cap = req;
+        cg->output.data = realloc(cg->output.data, new_cap);
+        cg->output.cap = new_cap;
+    }
+
     va_start(args, fmt);
-    vsnprintf(tmp, (size_t)needed + 1, fmt, args);
+    vsnprintf(cg->output.data + cg->output.len, (size_t)needed + 1, fmt, args);
     va_end(args);
 
-    buf_append(&cg->output, tmp);
-    free(tmp);
+    cg->output.len += (size_t)needed;
 }
 
 static void emit_indent(CodeGen *cg) {
