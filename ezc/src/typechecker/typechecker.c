@@ -419,41 +419,42 @@ static FuncSig *find_func(TypeChecker *tc, const char *name) {
     return NULL;
 }
 
-/* Check whether a stdlib module.function has a _result variant.
- * Only functions listed here support multi-var (value, Error) destructuring. */
+/* Fallible stdlib function lookup table.
+ * Each entry maps a (module, function) pair to a flag indicating it supports
+ * multi-var (value, Error) destructuring via a _result variant. */
+typedef struct {
+    const char *mod;
+    const char *fn;
+} FallibleEntry;
+
+static const FallibleEntry fallible_stdlib[] = {
+    /* io */
+    {"io", "read_file"}, {"io", "write_file"}, {"io", "delete_file"},
+    {"io", "copy_file"}, {"io", "move_file"}, {"io", "list_dir"},
+    {"io", "make_dir"}, {"io", "make_dir_all"}, {"io", "remove_dir"},
+    {"io", "remove_dir_all"}, {"io", "walk"}, {"io", "append_file"},
+    {"io", "rename_file"},
+    /* sqlite */
+    {"sqlite", "open"}, {"sqlite", "exec"}, {"sqlite", "query"},
+    /* net */
+    {"net", "connect"}, {"net", "listen"}, {"net", "accept"},
+    {"net", "send"}, {"net", "receive"}, {"net", "resolve"},
+    /* http */
+    {"http", "get"}, {"http", "post"}, {"http", "put"},
+    {"http", "delete"}, {"http", "head"}, {"http", "patch"},
+    /* csv */
+    {"csv", "read_file"}, {"csv", "write_file"},
+    /* json */
+    {"json", "decode"},
+    /* regex */
+    {"regex", "find"}, {"regex", "find_all"},
+    {"regex", "replace"}, {"regex", "split"},
+};
+
 static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
-    if (strcmp(mod, "io") == 0) {
-        return (strcmp(fn, "read_file") == 0 || strcmp(fn, "write_file") == 0 ||
-                strcmp(fn, "delete_file") == 0 || strcmp(fn, "copy_file") == 0 ||
-                strcmp(fn, "move_file") == 0 || strcmp(fn, "list_dir") == 0 ||
-                strcmp(fn, "make_dir") == 0 || strcmp(fn, "make_dir_all") == 0 ||
-                strcmp(fn, "remove_dir") == 0 || strcmp(fn, "remove_dir_all") == 0 ||
-                strcmp(fn, "walk") == 0 || strcmp(fn, "append_file") == 0 ||
-                strcmp(fn, "rename_file") == 0);
-    }
-    if (strcmp(mod, "sqlite") == 0) {
-        return (strcmp(fn, "open") == 0 || strcmp(fn, "exec") == 0 ||
-                strcmp(fn, "query") == 0);
-    }
-    if (strcmp(mod, "net") == 0) {
-        return (strcmp(fn, "connect") == 0 || strcmp(fn, "listen") == 0 ||
-                strcmp(fn, "accept") == 0 || strcmp(fn, "send") == 0 ||
-                strcmp(fn, "receive") == 0 || strcmp(fn, "resolve") == 0);
-    }
-    if (strcmp(mod, "http") == 0) {
-        return (strcmp(fn, "get") == 0 || strcmp(fn, "post") == 0 ||
-                strcmp(fn, "put") == 0 || strcmp(fn, "delete") == 0 ||
-                strcmp(fn, "head") == 0 || strcmp(fn, "patch") == 0);
-    }
-    if (strcmp(mod, "csv") == 0) {
-        return (strcmp(fn, "read_file") == 0 || strcmp(fn, "write_file") == 0);
-    }
-    if (strcmp(mod, "json") == 0) {
-        return (strcmp(fn, "decode") == 0);
-    }
-    if (strcmp(mod, "regex") == 0) {
-        return (strcmp(fn, "find") == 0 || strcmp(fn, "find_all") == 0 ||
-                strcmp(fn, "replace") == 0 || strcmp(fn, "split") == 0);
+    for (int i = 0; i < (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0])); i++) {
+        if (strcmp(mod, fallible_stdlib[i].mod) == 0 &&
+            strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
     }
     return false;
 }
@@ -461,38 +462,67 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
 /* Return the primary (non-error) type for a fallible stdlib function.
  * This mirrors the type registration blocks so that multi-var synthesis
  * doesn't depend on sym->type being resolved first. */
+typedef enum {
+    FT_BOOL, FT_INT, FT_STRING,
+    FT_ARRAY_STRING, FT_ARRAY_MAP,
+    FT_STRUCT_DATABASE, FT_STRUCT_SOCKET, FT_STRUCT_LISTENER,
+    FT_STRUCT_HTTP_RESPONSE, FT_STRUCT_MAP,
+} FallibleType;
+
+typedef struct {
+    const char *mod;
+    const char *fn;
+    FallibleType type;
+} FallibleTypeEntry;
+
+static const FallibleTypeEntry fallible_type_table[] = {
+    /* io */
+    {"io", "read_file", FT_STRING},
+    {"io", "list_dir", FT_ARRAY_STRING}, {"io", "walk", FT_ARRAY_STRING},
+    {"io", "write_file", FT_BOOL}, {"io", "delete_file", FT_BOOL},
+    {"io", "copy_file", FT_BOOL}, {"io", "move_file", FT_BOOL},
+    {"io", "make_dir", FT_BOOL}, {"io", "make_dir_all", FT_BOOL},
+    {"io", "remove_dir", FT_BOOL}, {"io", "remove_dir_all", FT_BOOL},
+    {"io", "append_file", FT_BOOL}, {"io", "rename_file", FT_BOOL},
+    /* sqlite */
+    {"sqlite", "open", FT_STRUCT_DATABASE},
+    {"sqlite", "query", FT_ARRAY_MAP},
+    {"sqlite", "exec", FT_BOOL},
+    /* net */
+    {"net", "connect", FT_STRUCT_SOCKET}, {"net", "accept", FT_STRUCT_SOCKET},
+    {"net", "listen", FT_STRUCT_LISTENER},
+    {"net", "send", FT_INT},
+    {"net", "receive", FT_STRING}, {"net", "resolve", FT_STRING},
+    /* http */
+    {"http", "get", FT_STRUCT_HTTP_RESPONSE}, {"http", "post", FT_STRUCT_HTTP_RESPONSE},
+    {"http", "put", FT_STRUCT_HTTP_RESPONSE}, {"http", "delete", FT_STRUCT_HTTP_RESPONSE},
+    {"http", "head", FT_STRUCT_HTTP_RESPONSE}, {"http", "patch", FT_STRUCT_HTTP_RESPONSE},
+    /* csv */
+    {"csv", "read_file", FT_ARRAY_STRING}, {"csv", "write_file", FT_BOOL},
+    /* json */
+    {"json", "decode", FT_STRUCT_MAP},
+    /* regex */
+    {"regex", "find", FT_STRING}, {"regex", "replace", FT_STRING},
+    {"regex", "find_all", FT_ARRAY_STRING}, {"regex", "split", FT_ARRAY_STRING},
+};
+
 static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
-    if (strcmp(mod, "io") == 0) {
-        if (strcmp(fn, "read_file") == 0) return &TYPE_STRING;
-        if (strcmp(fn, "list_dir") == 0 || strcmp(fn, "walk") == 0) return type_array("string");
-        /* write_file, delete_file, copy_file, move_file, make_dir, make_dir_all,
-         * remove_dir, remove_dir_all, append_file, rename_file */
-        return &TYPE_BOOL;
-    }
-    if (strcmp(mod, "sqlite") == 0) {
-        if (strcmp(fn, "open") == 0) return type_struct("Database");
-        if (strcmp(fn, "query") == 0) return type_array("map");
-        return &TYPE_BOOL; /* exec */
-    }
-    if (strcmp(mod, "net") == 0) {
-        if (strcmp(fn, "connect") == 0 || strcmp(fn, "accept") == 0) return type_struct("Socket");
-        if (strcmp(fn, "listen") == 0) return type_struct("Listener");
-        if (strcmp(fn, "send") == 0) return &TYPE_INT;
-        return &TYPE_STRING; /* receive, resolve */
-    }
-    if (strcmp(mod, "http") == 0) {
-        return type_struct("HttpResponse"); /* all methods */
-    }
-    if (strcmp(mod, "csv") == 0) {
-        if (strcmp(fn, "read_file") == 0) return type_array("string");
-        return &TYPE_BOOL; /* write_file */
-    }
-    if (strcmp(mod, "json") == 0) {
-        return type_struct("Map"); /* decode */
-    }
-    if (strcmp(mod, "regex") == 0) {
-        if (strcmp(fn, "find") == 0 || strcmp(fn, "replace") == 0) return &TYPE_STRING;
-        return type_array("string"); /* find_all, split */
+    for (int i = 0; i < (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0])); i++) {
+        if (strcmp(mod, fallible_type_table[i].mod) == 0 &&
+            strcmp(fn, fallible_type_table[i].fn) == 0) {
+            switch (fallible_type_table[i].type) {
+            case FT_BOOL:                return &TYPE_BOOL;
+            case FT_INT:                 return &TYPE_INT;
+            case FT_STRING:              return &TYPE_STRING;
+            case FT_ARRAY_STRING:        return type_array("string");
+            case FT_ARRAY_MAP:           return type_array("map");
+            case FT_STRUCT_DATABASE:     return type_struct("Database");
+            case FT_STRUCT_SOCKET:       return type_struct("Socket");
+            case FT_STRUCT_LISTENER:     return type_struct("Listener");
+            case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
+            case FT_STRUCT_MAP:          return type_struct("Map");
+            }
+        }
     }
     return NULL;
 }
