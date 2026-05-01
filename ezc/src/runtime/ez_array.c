@@ -12,7 +12,7 @@ EzArray ez_array_new(EzArena *arena, int32_t elem_size, int32_t initial_cap) {
     EzArray arr;
     arr.elem_size = elem_size;
     arr.len = 0;
-    arr.cap = initial_cap > 0 ? initial_cap : 4;
+    arr.cap = initial_cap > 0 ? initial_cap : EZ_ARRAY_MIN_CAP;
     arr.data = ez_arena_alloc(arena, (size_t)arr.cap * (size_t)arr.elem_size);
     return arr;
 }
@@ -21,7 +21,7 @@ EzArray ez_array_from(EzArena *arena, const void *data, int32_t elem_size, int32
     EzArray arr;
     arr.elem_size = elem_size;
     arr.len = count;
-    arr.cap = count > 0 ? count : 4;
+    arr.cap = count > 0 ? count : EZ_ARRAY_MIN_CAP;
     arr.data = ez_arena_alloc(arena, (size_t)arr.cap * (size_t)arr.elem_size);
     if (count > 0 && data) {
         memcpy(arr.data, data, (size_t)count * (size_t)elem_size);
@@ -46,7 +46,7 @@ void ez_array_set(EzArray *arr, int32_t index, const void *value, const char *fi
 
 void ez_array_push(EzArena *arena, EzArray *arr, const void *value) {
     if (arr->len >= arr->cap) {
-        int32_t new_cap = arr->cap < 4 ? 4 : arr->cap * 2;
+        int32_t new_cap = arr->cap < EZ_ARRAY_MIN_CAP ? EZ_ARRAY_MIN_CAP : arr->cap * 2;
         if (new_cap < arr->cap) {
             fprintf(stderr, "EZ runtime: array capacity overflow\n");
             exit(1);

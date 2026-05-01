@@ -6,12 +6,19 @@
  */
 
 #include "ez_builtins.h"
+#include "../util/constants.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <time.h>
+
+#define EZ_TOSTRING_BUF_SIZE    4096
+#define EZ_TOSTRING_SAFE_LIMIT  (EZ_TOSTRING_BUF_SIZE - 96)
+#define EZ_INT_STR_BUF          32
+#define EZ_FLOAT_STR_BUF        64
+#define EZ_INPUT_BUF_SIZE       4096
 
 /* Format a double using the shortest representation that round-trips */
 static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
@@ -65,7 +72,7 @@ void ez_builtin_println_uint(uint64_t v) {
 }
 
 void ez_builtin_println_float(double v) {
-    char buf[64];
+    char buf[EZ_FLOAT_STR_BUF];
     fmt_shortest_float(buf, sizeof(buf), v);
     printf("%s\n", buf);
 }
@@ -98,7 +105,7 @@ void ez_builtin_print_uint(uint64_t v) {
 }
 
 void ez_builtin_print_float(double v) {
-    char buf[64];
+    char buf[EZ_FLOAT_STR_BUF];
     fmt_shortest_float(buf, sizeof(buf), v);
     printf("%s", buf);
 }
@@ -154,7 +161,7 @@ void ez_builtin_eprint_addr(uintptr_t v) {
 /* --- input --- */
 
 EzString ez_builtin_input(EzArena *arena) {
-    char buf[4096];
+    char buf[EZ_INPUT_BUF_SIZE];
     if (fgets(buf, sizeof(buf), stdin) == NULL) {
         return ez_string_lit("");
     }
@@ -200,8 +207,8 @@ void ez_builtin_sleep_ms(int64_t ms) {
     if (ms < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld ms)\n", (long long)ms); exit(1); }
     if (ms > 0) {
         struct timespec ts;
-        ts.tv_sec = ms / 1000;
-        ts.tv_nsec = (ms % 1000) * 1000000;
+        ts.tv_sec = ms / MS_PER_SEC;
+        ts.tv_nsec = (ms % MS_PER_SEC) * NS_PER_MS;
         nanosleep(&ts, NULL);
     }
 }
@@ -209,8 +216,8 @@ void ez_builtin_sleep_ms(int64_t ms) {
 void ez_builtin_sleep_ns(int64_t ns) {
     if (ns > 0) {
         struct timespec ts;
-        ts.tv_sec = ns / 1000000000;
-        ts.tv_nsec = ns % 1000000000;
+        ts.tv_sec = ns / NS_PER_SEC;
+        ts.tv_nsec = ns % NS_PER_SEC;
         nanosleep(&ts, NULL);
     }
 }
@@ -218,19 +225,19 @@ void ez_builtin_sleep_ns(int64_t ns) {
 /* --- to_string --- */
 
 EzString ez_builtin_to_string_int(EzArena *arena, int64_t v) {
-    char buf[32];
+    char buf[EZ_INT_STR_BUF];
     int len = snprintf(buf, sizeof(buf), "%" PRId64, v);
     return ez_string_new(arena, buf, (int32_t)len);
 }
 
 EzString ez_builtin_to_string_uint(EzArena *arena, uint64_t v) {
-    char buf[32];
+    char buf[EZ_INT_STR_BUF];
     int len = snprintf(buf, sizeof(buf), "%" PRIu64, v);
     return ez_string_new(arena, buf, (int32_t)len);
 }
 
 EzString ez_builtin_to_string_float(EzArena *arena, double v) {
-    char buf[64];
+    char buf[EZ_FLOAT_STR_BUF];
     int len = fmt_shortest_float(buf, sizeof(buf), v);
     return ez_string_new(arena, buf, (int32_t)len);
 }
@@ -246,7 +253,7 @@ EzString ez_builtin_to_string_bool(EzArena *arena, bool v) {
 /* --- from_string --- */
 
 int64_t ez_builtin_string_to_int(EzString s) {
-    char buf[64];
+    char buf[EZ_FLOAT_STR_BUF];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
@@ -261,7 +268,7 @@ int64_t ez_builtin_string_to_int(EzString s) {
 }
 
 double ez_builtin_string_to_float(EzString s) {
-    char buf[64];
+    char buf[EZ_FLOAT_STR_BUF];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
@@ -278,10 +285,10 @@ double ez_builtin_string_to_float(EzString s) {
 /* --- composite to_string --- */
 
 EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {
-    char buf[4096];
+    char buf[EZ_TOSTRING_BUF_SIZE];
     int pos = 0;
     buf[pos++] = '{';
-    for (int32_t i = 0; i < arr->len && pos < 4000; i++) {
+    for (int32_t i = 0; i < arr->len && pos < EZ_TOSTRING_SAFE_LIMIT; i++) {
         if (i > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
         switch (elem_kind) {
         case 0:
@@ -289,7 +296,7 @@ EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind)
                 EZ_ARRAY_GET(*arr, int64_t, i));
             break;
         case 1: {
-            char fbuf[64];
+            char fbuf[EZ_FLOAT_STR_BUF];
             fmt_shortest_float(fbuf, sizeof(fbuf), EZ_ARRAY_GET(*arr, double, i));
             pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
             break;
@@ -402,10 +409,10 @@ EzString ez_builtin_char_to_utf8(EzArena *arena, int32_t cp) {
 }
 
 EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
-    char buf[4096];
+    char buf[EZ_TOSTRING_BUF_SIZE];
     int pos = 0;
     buf[pos++] = '{';
-    for (int32_t oi = 0; oi < m->order_len && pos < 4000; oi++) {
+    for (int32_t oi = 0; oi < m->order_len && pos < EZ_TOSTRING_SAFE_LIMIT; oi++) {
         int32_t i = m->order[oi];
         if (m->states[i] != 1) continue;
         if (oi > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
@@ -416,7 +423,7 @@ EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
         switch (val_kind) {
         case 0: pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRId64, *(int64_t *)vp); break;
         case 1: {
-            char fbuf[64];
+            char fbuf[EZ_FLOAT_STR_BUF];
             fmt_shortest_float(fbuf, sizeof(fbuf), *(double *)vp);
             pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
             break;

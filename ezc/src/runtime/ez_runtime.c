@@ -186,7 +186,7 @@ int ez_call_depth = 0;
 /* --- Runtime Init/Shutdown --- */
 
 void ez_runtime_init(void) {
-    ez_default_arena = ez_arena_create(1024 * 1024); /* 1 MB default */
+    ez_default_arena = ez_arena_create(EZ_DEFAULT_ARENA_SIZE);
 }
 
 void ez_runtime_shutdown(void) {

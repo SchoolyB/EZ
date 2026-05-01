@@ -17,6 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* --- Arena Defaults --- */
+#define EZ_DEFAULT_ARENA_SIZE   (1024 * 1024)
+#define EZ_MIN_ARENA_SIZE       4096
+
 /* --- Arena Allocator --- */
 
 typedef struct EzArenaBlock {

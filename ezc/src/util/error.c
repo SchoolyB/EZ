@@ -7,11 +7,16 @@
 
 #include "error.h"
 #include "error_codes.h"
+#include "constants.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#define EZ_MAX_ERRORS_DISPLAYED 20
+#define EZ_DIAG_INITIAL_CAP     16
+#define EZ_DIAG_FORMAT_BUF      1024
 
 /* --- ANSI color codes --- */
 
@@ -47,7 +52,7 @@ static const char *read_source_line(const char *source, int line_num) {
     while (*line_end && *line_end != '\n') line_end++;
 
     /* Copy line to static buffer (single-threaded compiler — safe) */
-    static char buf[2048];
+    static char buf[EZ_SOURCE_LINE_MAX];
     int len = (int)(line_end - line_start);
     if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
     memcpy(buf, line_start, len);
@@ -91,10 +96,10 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     int end_col, const char *help) {
 
     /* Cap errors at 20 to avoid flooding output */
-    if (sev == SEV_ERROR && diag_error_count(dl) >= 20) return;
+    if (sev == SEV_ERROR && diag_error_count(dl) >= EZ_MAX_ERRORS_DISPLAYED) return;
 
     if (dl->count >= dl->cap) {
-        dl->cap = dl->cap ? dl->cap * 2 : 16;
+        dl->cap = dl->cap ? dl->cap * 2 : EZ_DIAG_INITIAL_CAP;
         dl->items = realloc(dl->items, sizeof(Diagnostic) * dl->cap);
     }
 
@@ -168,7 +173,7 @@ void diag_warning_msg(DiagnosticList *dl, const char *code, const char *message,
 static void emit_codef(DiagnosticList *dl, Severity sev, const char *code,
     const char *file, int line, int col_start, int end_col, va_list ap) {
     const char *tmpl = lookup_or_placeholder(code);
-    char buf[1024];
+    char buf[EZ_DIAG_FORMAT_BUF];
     vsnprintf(buf, sizeof(buf), tmpl, ap);
     diag_add(dl, sev, code, strdup(buf), file, line, col_start, end_col, NULL);
 }

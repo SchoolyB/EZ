@@ -7,11 +7,21 @@
  */
 
 #include "codegen.h"
+#include "../util/constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+
+#define CG_IF_ARENA_SIZE        4096
+#define CG_LOOP_ARENA_SIZE      16384
+#define CG_FUNC_ARENA_SIZE      65536
+#define CG_OUTPUT_BUF_INITIAL   4096
+#define CG_MAX_STRUCT_DECLS     256
+#define CG_MAX_MEMBER_CHAIN     32
+#define CG_VAR_NAME_BUF         64
+#define CG_SHORT_VAR_BUF        32
 
 /* Forward declarations */
 static void emit_statement(CodeGen *cg, AstNode *node);
@@ -80,7 +90,7 @@ static bool is_c_keyword(const char *name) {
 
 static const char *safe_name(const char *name) {
     if (!name || !is_c_keyword(name)) return name;
-    static char bufs[4][256];
+    static char bufs[4][EZ_MSG_BUF_SIZE];
     static int idx = 0;
     int i = idx++ & 3;
     snprintf(bufs[i], sizeof(bufs[i]), "_ez_%s", name);
@@ -164,11 +174,11 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
 
     /* Pointer type: ^T; use C pointer (ring buffer avoids aliasing on recursion) */
     if (type_name[0] == '^') {
-        static char ptrbufs[4][256];
+        static char ptrbufs[4][EZ_MSG_BUF_SIZE];
         static int ptridx = 0;
         char *buf = ptrbufs[ptridx++ & 3];
         const char *pointee = ez_type_to_c_cg(cg, type_name + 1);
-        snprintf(buf, 256, "%s *", pointee);
+        snprintf(buf, EZ_MSG_BUF_SIZE, "%s *", pointee);
         return buf;
     }
 
@@ -186,7 +196,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     const char *dot = strchr(type_name, '.');
     if (dot) {
         const char *base = dot + 1;
-        static char buf[256];
+        static char buf[EZ_MSG_BUF_SIZE];
         if (cg && codegen_is_enum(cg, base)) {
             snprintf(buf, sizeof(buf), "EzEnum_%s", base);
         } else {
@@ -203,7 +213,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         if (us && us[1] >= 'A' && us[1] <= 'Z') is_user_type = true;
     }
     if (is_user_type) {
-        static char buf[256];
+        static char buf[EZ_MSG_BUF_SIZE];
         const char *resolved = type_name;
         /* Resolve unprefixed names from 'import and use' */
         if (cg && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
@@ -309,7 +319,7 @@ static void emit_array_deep_copy(CodeGen *cg, const char *ez_tn, const char *src
     }
 
     /* Extract element type name from "[T]" (dropping any ",N" sized tail). */
-    char elem_tn[256];
+    char elem_tn[EZ_MSG_BUF_SIZE];
     size_t elen = len - 2;
     if (elen >= sizeof(elem_tn)) elen = sizeof(elem_tn) - 1;
     memcpy(elem_tn, ez_tn + 1, elen);
@@ -340,7 +350,7 @@ static void emit_array_deep_copy(CodeGen *cg, const char *ez_tn, const char *src
         t, t, t, t,
         c_elem, t);
 
-    char inner_var[192];
+    char inner_var[EZ_MSG_BUF_SIZE];
     snprintf(inner_var, sizeof(inner_var),
         "((%s *)_ds%d.data)[_di%d]", c_elem, t, t);
     emit_value_deep_copy(cg, elem_tn, inner_var);
@@ -368,8 +378,8 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
         emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
         return;
     }
-    char key_tn[128];
-    char val_tn[256];
+    char key_tn[EZ_TYPE_NAME_MAX];
+    char val_tn[EZ_MSG_BUF_SIZE];
     size_t klen = (size_t)(colon - start);
     if (klen >= sizeof(key_tn)) klen = sizeof(key_tn) - 1;
     memcpy(key_tn, start, klen);
@@ -408,7 +418,7 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
         c_val, t, c_val, t, t,
         c_val, t);
 
-    char src_val_var[64];
+    char src_val_var[CG_VAR_NAME_BUF];
     snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", t);
     emit_value_deep_copy(cg, val_tn, src_val_var);
 
@@ -434,7 +444,7 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
         StructField *f = &sdecl->data.struct_decl.fields[i];
         if (!f->type_name || !f->name) continue;
         if (!type_needs_deep_copy(cg, f->type_name)) continue;
-        char src_field[192];
+        char src_field[EZ_MSG_BUF_SIZE];
         snprintf(src_field, sizeof(src_field), "_ss%d.%s", t, f->name);
         emitf(cg, "_sd%d.%s = ", t, f->name);
         emit_value_deep_copy(cg, f->type_name, src_field);
@@ -475,9 +485,9 @@ static void emit_deep_array_copy(CodeGen *cg, AstNode *src_node, const char *ele
     emitf(cg, "({ EzArray _dtop%d = ", t);
     emit_expression(cg, src_node);
     emit(cg, "; ");
-    char src_var[32];
+    char src_var[CG_SHORT_VAR_BUF];
     snprintf(src_var, sizeof(src_var), "_dtop%d", t);
-    char full_tn[256];
+    char full_tn[EZ_MSG_BUF_SIZE];
     snprintf(full_tn, sizeof(full_tn), "[%s]", elem_type_name ? elem_type_name : "");
     emit_value_deep_copy(cg, full_tn, src_var);
     emit(cg, "; })");
@@ -644,7 +654,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_FLOAT_VALUE: {
         /* Emit float with enough precision, ensuring a decimal point so C
          * treats it as double (e.g. 1.0 must emit "1.0", not "1") */
-        char fbuf[64];
+        char fbuf[CG_VAR_NAME_BUF];
         snprintf(fbuf, sizeof(fbuf), "%.17g", node->data.float_value.value);
         if (!strchr(fbuf, '.') && !strchr(fbuf, 'e')) {
             size_t flen = strlen(fbuf);
@@ -990,7 +1000,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         case TK_POINTER: {
             const char *pointee = elem_t->element_type ? elem_t->element_type : "void";
             const char *c_pointee = ez_type_to_c_cg(cg, pointee);
-            static char ptr_buf[256];
+            static char ptr_buf[EZ_MSG_BUF_SIZE];
             snprintf(ptr_buf, sizeof(ptr_buf), "%s *", c_pointee);
             c_type = ptr_buf;
             break;
@@ -1031,7 +1041,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
             if (!decl_mt && kt) c_key_type = ez_map_elem_c_type(cg, type_name(kt));
             if (!decl_mt && vt && vt->kind == TK_POINTER) {
-                static char map_ptr_buf[256];
+                static char map_ptr_buf[EZ_MSG_BUF_SIZE];
                 const char *pointee = vt->element_type ? vt->element_type : "void";
                 snprintf(map_ptr_buf, sizeof(map_ptr_buf), "%s *", ez_type_to_c_cg(cg, pointee));
                 c_val_type = map_ptr_buf;
@@ -1102,7 +1112,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* : use mangled name for generic struct instantiations */
         if (node->data.struct_value.wildcard_binding) {
             const char *binding = node->data.struct_value.wildcard_binding;
-            char mangled[256];
+            char mangled[EZ_MSG_BUF_SIZE];
             size_t mpos = snprintf(mangled, sizeof(mangled), "%s__", sname);
             for (const char *c = binding; *c && mpos < sizeof(mangled) - 1; c++) {
                 mangled[mpos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -1823,7 +1833,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_MAP) c_elem = "EzMap";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_POINTER) {
-                    static char idx_ptr_buf[256];
+                    static char idx_ptr_buf[EZ_MSG_BUF_SIZE];
                     const char *pointee = et->element_type ? et->element_type : "void";
                     snprintf(idx_ptr_buf, sizeof(idx_ptr_buf), "%s *", ez_type_to_c_cg(cg, pointee));
                     c_elem = idx_ptr_buf;
@@ -2195,7 +2205,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         int uid = _ez_print_uid++;
         const char *elem_tn = t->element_type ? t->element_type : "int";
         EzType *elem_t = type_from_name(elem_tn);
-        char c_elem[128];
+        char c_elem[EZ_TYPE_NAME_MAX];
         snprintf(c_elem, sizeof(c_elem), "%s", ez_type_to_c_cg(cg, elem_tn));
 
         emit_indent(cg);
@@ -2208,7 +2218,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         emitf(cg, "if (_ez_pi%d > 0) fprintf(%s, \", \");\n", uid, stream);
 
         /* For composite element types, capture in temp var */
-        char elem_expr[256];
+        char elem_expr[EZ_MSG_BUF_SIZE];
         if (elem_t->kind == TK_STRUCT || elem_t->kind == TK_ARRAY ||
             elem_t->kind == TK_MAP || elem_t->kind == TK_POINTER) {
             int euid = _ez_print_uid++;
@@ -2236,11 +2246,11 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         const char *val_tn = t->value_type ? t->value_type : "int";
         EzType *key_t = type_from_name(key_tn);
         EzType *val_t = type_from_name(val_tn);
-        char c_key[128], c_val[128];
+        char c_key[EZ_TYPE_NAME_MAX], c_val[EZ_TYPE_NAME_MAX];
         snprintf(c_key, sizeof(c_key), "%s", ez_type_to_c_cg(cg, key_tn));
         snprintf(c_val, sizeof(c_val), "%s", ez_type_to_c_cg(cg, val_tn));
 
-        char mi[32], sl[32];
+        char mi[CG_SHORT_VAR_BUF], sl[CG_SHORT_VAR_BUF];
         snprintf(mi, sizeof(mi), "_ez_mi%d", uid);
         snprintf(sl, sizeof(sl), "_ez_sl%d", uid);
 
@@ -2258,7 +2268,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         emitf(cg, "if (%s > 0) fprintf(%s, \", \");\n", mi, stream);
 
         /* Print key */
-        char key_expr[256];
+        char key_expr[EZ_MSG_BUF_SIZE];
         snprintf(key_expr, sizeof(key_expr),
                  "*(%s *)ez_map_key_at(&(%s), %s)", c_key, c_expr, sl);
         emit_value_print(cg, key_expr, key_t, stream, true);
@@ -2267,7 +2277,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         emitf(cg, "fprintf(%s, \": \");\n", stream);
 
         /* Print value */
-        char val_expr[256];
+        char val_expr[EZ_MSG_BUF_SIZE];
         snprintf(val_expr, sizeof(val_expr),
                  "*(%s *)ez_map_value_at(&(%s), %s)", c_val, c_expr, sl);
         emit_value_print(cg, val_expr, val_t, stream, true);
@@ -2296,7 +2306,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
                 emit_indent(cg);
                 emitf(cg, "fprintf(%s, \"%s: \");\n", stream, f->name);
 
-                char field_expr[256];
+                char field_expr[EZ_MSG_BUF_SIZE];
                 snprintf(field_expr, sizeof(field_expr), "(%s).%s", c_expr, f->name);
                 EzType *ft = type_from_name(f->type_name);
                 emit_value_print(cg, field_expr, ft, stream, true);
@@ -2353,7 +2363,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
 
     /* Capture expression in temp var to evaluate only once */
     int uid = _ez_print_uid++;
-    char c_type[128];
+    char c_type[EZ_TYPE_NAME_MAX];
     if (t->kind == TK_ARRAY) snprintf(c_type, sizeof(c_type), "EzArray");
     else if (t->kind == TK_MAP) snprintf(c_type, sizeof(c_type), "EzMap");
     else if (t->kind == TK_POINTER) {
@@ -2367,7 +2377,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     emit_expression(cg, arg);
     emit(cg, ";\n");
 
-    char var[32];
+    char var[CG_SHORT_VAR_BUF];
     snprintf(var, sizeof(var), "_ez_pv%d", uid);
 
     emit_value_print(cg, var, t, stream, false);
@@ -2706,9 +2716,9 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emitf(cg, "({ %s _cpy%d = ", c_type, t);
             emit_expression(cg, arg);
             emit(cg, "; ");
-            char src_var[32];
+            char src_var[CG_SHORT_VAR_BUF];
             snprintf(src_var, sizeof(src_var), "_cpy%d", t);
-            char full_tn[256];
+            char full_tn[EZ_MSG_BUF_SIZE];
             if (at->kind == TK_ARRAY) {
                 snprintf(full_tn, sizeof(full_tn), "[%s]",
                     at->element_type ? at->element_type : "");
@@ -4720,7 +4730,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             const char *mod = obj->data.member.object->data.label.value;
             const char *type_name = obj->data.member.member;
             /* Build full prefixed name: mod_Struct_func */
-            char full_name[256];
+            char full_name[EZ_MSG_BUF_SIZE];
             snprintf(full_name, sizeof(full_name), "%s_%s_%s", mod, type_name, member);
             AstNode *ns_func = find_func(cg, full_name);
             if (ns_func) {
@@ -5161,7 +5171,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         size_t fn_emit_len = 0;
         /* Pull off the just-emitted "ez_fn_<name>" so we can prepend the
          * statement-expression bindings. */
-        char saved_fn[128] = {0};
+        char saved_fn[EZ_TYPE_NAME_MAX] = {0};
         if (out_len > 0) {
             /* Walk back to start of the most recent identifier */
             size_t scan = out_len;
@@ -5268,7 +5278,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
 static const char *extract_array_elem_type(const char *type_name) {
     if (!type_name || type_name[0] != '[') return NULL;
-    static char buf[128];
+    static char buf[EZ_TYPE_NAME_MAX];
     size_t len = strlen(type_name);
     if (len < 3) return NULL;
     /* Dynamic array "[int]" -> "int" */
@@ -5436,7 +5446,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Copy-by-default: deep copy when assigning a map from another
              * variable so mutations to the copy don't alias the original. */
             int t = next_dc_tag();
-            char src_var[64];
+            char src_var[CG_VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_ms%d", t);
             emitf(cg, "({ EzMap %s = ", src_var);
             emit_expression(cg, node->data.var_decl.value);
@@ -5504,7 +5514,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             if (val->data.struct_value.wildcard_binding) {
                 const char *binding = val->data.struct_value.wildcard_binding;
                 const char *base = val->data.struct_value.name;
-                static char sv_buf[256];
+                static char sv_buf[EZ_MSG_BUF_SIZE];
                 size_t sp = snprintf(sv_buf, sizeof(sv_buf), "%s__", base);
                 for (const char *c = binding; *c && sp < sizeof(sv_buf) - 1; c++)
                     sv_buf[sp++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -5659,7 +5669,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Copy-by-default: deep copy structs (and maps) that contain
              * arrays/maps/strings so the copy is fully independent. */
             int t = next_dc_tag();
-            char src_var[64];
+            char src_var[CG_VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_vdc%d", t);
             emitf(cg, "({ %s %s = ", c_type, src_var);
             emit_expression(cg, node->data.var_decl.value);
@@ -5869,7 +5879,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* Nested pointer field assignment: o.inner.val = value (where some ancestor is ptr<T>)
      * Walk the member chain to find the pointer root, then emit nil-check + chain. */
     if (node->data.assign.target->kind == NODE_MEMBER_EXPR) {
-        const char *chain[32];
+        const char *chain[CG_MAX_MEMBER_CHAIN];
         int depth = 0;
         AstNode *cur = node->data.assign.target;
         AstNode *ptr_root = NULL;
@@ -5913,7 +5923,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             if (strcmp(node->data.assign.op, "=") == 0 && cg->loop_scope_depth > 0) {
                 EzType *field_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
                 if (field_t && field_t->kind == TK_ARRAY) {
-                    char tn[256];
+                    char tn[EZ_MSG_BUF_SIZE];
                     snprintf(tn, sizeof(tn), "[%s]", field_t->element_type ? field_t->element_type : "");
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
@@ -6065,7 +6075,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         /* Map copy-by-default: map2 = map1 deep-copies the map. */
         if (tgt_t && tgt_t->kind == TK_MAP) {
             int t = next_dc_tag();
-            char src_var[64];
+            char src_var[CG_VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_ma%d", t);
             emit(cg, "{ EzMap ");
             emitf(cg, "%s = ", src_var);
@@ -6082,7 +6092,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             type_needs_deep_copy(cg, tgt_t->name)) {
             int t = next_dc_tag();
             const char *ct = ez_type_to_c_cg(cg, tgt_t->name);
-            char src_var[64];
+            char src_var[CG_VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_sa%d", t);
             emitf(cg, "{ %s %s = ", ct, src_var);
             emit_expression(cg, node->data.assign.value);
@@ -6279,7 +6289,7 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "EzArena *_ez_outer_arena = ez_default_arena; ");
     }
     int if_depth = cg->loop_scope_depth;
-    emitf(cg, "EzArena *_if_arena_%d = ez_arena_create(4096); ", isc);
+    emitf(cg, "EzArena *_if_arena_%d = ez_arena_create(%d); ", isc, CG_IF_ARENA_SIZE);
     emitf(cg, "EzArena *_if_saved_%d = ez_default_arena; ", isc);
     emitf(cg, "ez_default_arena = _if_arena_%d;\n", isc);
     cg->loop_scope_depth++;
@@ -6397,7 +6407,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     }
     int f_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(16384);\n", f_depth);
+    emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(%d);\n", f_depth, CG_LOOP_ARENA_SIZE);
     emit_indent(cg);
     emitf(cg, "EzArena *_saved_arena_%d = ez_default_arena;\n", f_depth);
     emit_indent(cg);
@@ -6428,7 +6438,7 @@ static void emit_while_statement(CodeGen *cg, AstNode *node) {
     }
     int w_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(16384);\n", w_depth);
+    emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(%d);\n", w_depth, CG_LOOP_ARENA_SIZE);
     emit_indent(cg);
     emitf(cg, "EzArena *_saved_arena_%d = ez_default_arena;\n", w_depth);
     emit_indent(cg);
@@ -6457,7 +6467,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     }
     int l_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(16384);\n", l_depth);
+    emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(%d);\n", l_depth, CG_LOOP_ARENA_SIZE);
     emit_indent(cg);
     emitf(cg, "EzArena *_saved_arena_%d = ez_default_arena;\n", l_depth);
     emit_indent(cg);
@@ -6480,7 +6490,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
  * under the original name. Returns a pointer to a small ring of
  * static buffers so a few concurrent uses stay alive. */
 static const char *multi_base_name(const char *fn_name) {
-    static char bufs[4][256];
+    static char bufs[4][EZ_MSG_BUF_SIZE];
     static int bi = 0;
     char *out = bufs[bi]; bi = (bi + 1) & 3;
     const char *dunder = strstr(fn_name, "__");
@@ -6532,7 +6542,7 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
      * struct → use the base name ). When return types DO contain
      * '?', each instantiation gets its own struct → use the full
      * mangled name ). */
-    static char buf[256];
+    static char buf[EZ_MSG_BUF_SIZE];
     const char *fn_name = node->data.func_decl.name;
     bool has_wc_ret = false;
     for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
@@ -6593,7 +6603,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
             emit(cg, "EzScopeMark _scope_mark = ez_scope_save(ez_default_arena);\n");
         } else {
             emit_indent(cg);
-            emit(cg, "EzArena *_func_arena = ez_arena_create(65536);\n");
+            emitf(cg, "EzArena *_func_arena = ez_arena_create(%d);\n", CG_FUNC_ARENA_SIZE);
             emit_indent(cg);
             emit(cg, "EzArena *_func_saved = ez_default_arena;\n");
             emit_indent(cg);
@@ -6687,7 +6697,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         if (is_map_iter) {
             /* for_each on map; iterate occupied slots with internal counter */
             static int map_iter_counter = 0;
-            char mi_name[32];
+            char mi_name[CG_SHORT_VAR_BUF];
             snprintf(mi_name, sizeof(mi_name), "_ez_mi%d", map_iter_counter++);
 
             const char *c_key = "EzString";
@@ -6699,7 +6709,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             if (coll_t->value_type) c_val = ez_map_elem_c_type(cg, coll_t->value_type);
 
             /* Iterate in insertion order using the order array */
-            char slot_name[32];
+            char slot_name[CG_SHORT_VAR_BUF];
             snprintf(slot_name, sizeof(slot_name), "_ez_sl%d", map_iter_counter - 1);
             /* Guard against mutation during iteration */
             emit_expression(cg, coll);
@@ -6773,7 +6783,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
              * iteration doesn't cause an infinite loop. The loop visits
              * only the elements that existed when for_each began. */
             static int arr_iter_counter = 0;
-            char len_name[32];
+            char len_name[CG_SHORT_VAR_BUF];
             snprintf(len_name, sizeof(len_name), "_ez_alen%d", arr_iter_counter++);
             emitf(cg, "{ int32_t %s = ", len_name);
             emit_expression(cg, coll);
@@ -6794,7 +6804,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         }
         int fe_depth = cg->loop_scope_depth;
         emit_indent(cg);
-        emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(16384);\n", fe_depth);
+        emitf(cg, "EzArena *_iter_arena_%d = ez_arena_create(%d);\n", fe_depth, CG_LOOP_ARENA_SIZE);
         emit_indent(cg);
         emitf(cg, "EzArena *_saved_arena_%d = ez_default_arena;\n", fe_depth);
         emit_indent(cg);
@@ -6935,7 +6945,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 /* Build the mangled name: `<name>__<concrete>` with
                  * non-alnum chars replaced by underscores so array/map
                  * bindings stay legal C identifiers. */
-                char mangled[256];
+                char mangled[EZ_MSG_BUF_SIZE];
                 size_t pos = snprintf(mangled, sizeof(mangled), "%s__", orig_name);
                 for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -7007,8 +7017,8 @@ static bool codegen_is_enum(CodeGen *cg, const char *name) {
 
 CodeGen codegen_create(const char *file) {
     CodeGen cg;
-    cg.output = buf_create(4096);
-    cg.global_init = buf_create(256);
+    cg.output = buf_create(CG_OUTPUT_BUF_INITIAL);
+    cg.global_init = buf_create(EZ_MSG_BUF_SIZE);
     cg.indent = 0;
     cg.has_mem = false;
     cg.has_fmt = false;
@@ -7247,10 +7257,10 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
      * Structs that reference other structs as value fields must come after them. */
     {
         int struct_count = 0;
-        AstNode *structs[256];
+        AstNode *structs[CG_MAX_STRUCT_DECLS];
         for (int i = 0; i < program->data.program.stmt_count; i++) {
             if (program->data.program.stmts[i]->kind == NODE_STRUCT_DECL &&
-                struct_count < 256) {
+                struct_count < CG_MAX_STRUCT_DECLS) {
                 structs[struct_count++] = program->data.program.stmts[i];
             }
         }
@@ -7266,7 +7276,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (struct_count > 0) emit(cg, "\n");
 
         /* Simple topological sort: repeatedly emit structs with no unresolved deps */
-        bool emitted[256] = {false};
+        bool emitted[CG_MAX_STRUCT_DECLS] = {false};
         int emit_count = 0;
         for (int pass = 0; pass < struct_count && emit_count < struct_count; pass++) {
             for (int i = 0; i < struct_count; i++) {
@@ -7323,7 +7333,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_generic) continue;
         for (int ii = 0; ii < stmt->data.struct_decl.instantiation_count; ii++) {
             const char *concrete = stmt->data.struct_decl.instantiations[ii];
-            char mangled[256];
+            char mangled[EZ_MSG_BUF_SIZE];
             size_t pos = snprintf(mangled, sizeof(mangled), "%s__", stmt->data.struct_decl.name);
             for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
                 mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -7536,7 +7546,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         const char *orig_name = stmt->data.func_decl.name;
         for (int r = 0; r < emit_rounds; r++) {
             const char *saved_binding = cg->wildcard_binding;
-            char mangled[256];
+            char mangled[EZ_MSG_BUF_SIZE];
             if (has_wc) {
                 const char *concrete = stmt->data.func_decl.instantiations[r];
                 cg->wildcard_binding = concrete;

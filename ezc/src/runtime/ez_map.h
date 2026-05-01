@@ -13,6 +13,10 @@
 
 #include "ez_runtime.h"
 
+#define EZ_MAP_MIN_CAP      8
+#define EZ_MAP_LOAD_NUM     3
+#define EZ_MAP_LOAD_DEN     4
+
 typedef struct {
     void *keys;
     void *values;

@@ -13,6 +13,9 @@
 
 #include "ez_runtime.h"
 
+#define EZ_ARRAY_MIN_CAP            4
+#define EZ_MAX_INLINE_ELEM_SIZE     64
+
 typedef struct {
     void *data;
     int32_t len;

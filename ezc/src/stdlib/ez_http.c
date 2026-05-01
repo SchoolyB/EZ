@@ -14,6 +14,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define EZ_HTTP_DEFAULT_PORT    80
+#define EZ_HTTP_TIMEOUT_MS      10000
+#define EZ_HTTP_URL_BUF         4096
+#define EZ_HTTP_HOST_BUF        256
+#define EZ_HTTP_PATH_BUF        2048
+#define EZ_HTTP_REQ_BUF         8192
+#define EZ_HTTP_RESP_BUF        1048576
+#define EZ_HTTP_MIN_RESP_LEN    12
+
 /* Helper: null-terminate an EzString */
 static const char *http_cstr(EzString s, char *buf, size_t bufsz) {
     size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
@@ -59,7 +68,7 @@ static bool parse_url(const char *url, char *host, size_t host_sz,
         if (hlen >= host_sz) hlen = host_sz - 1;
         memcpy(host, p, hlen);
         host[hlen] = '\0';
-        *port = 80;
+        *port = EZ_HTTP_DEFAULT_PORT;
     }
 
     /* Path */
@@ -83,7 +92,7 @@ static EzHttpResponse parse_response(EzArena *arena, const char *data, int data_
     resp.body = (EzString){"", 0};
     resp.headers = ez_map_new(arena, sizeof(EzString), sizeof(EzString), 16);
 
-    if (data_len < 12) return resp;
+    if (data_len < EZ_HTTP_MIN_RESP_LEN) return resp;
 
     /* Parse status line: HTTP/1.1 200 OK */
     if (strncmp(data, "HTTP/", 5) == 0) {
@@ -142,10 +151,10 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     err_resp.body = (EzString){"", 0};
     err_resp.headers = ez_map_new(arena, sizeof(EzString), sizeof(EzString), 4);
 
-    char url_buf[4096];
+    char url_buf[EZ_HTTP_URL_BUF];
     http_cstr(url, url_buf, sizeof(url_buf));
 
-    char host[256], path[2048];
+    char host[EZ_HTTP_HOST_BUF], path[EZ_HTTP_PATH_BUF];
     int port;
     if (!parse_url(url_buf, host, sizeof(host), &port, path, sizeof(path))) {
         const char *detail = "invalid URL: missing scheme (expected http:// or https://)";
@@ -162,10 +171,10 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     }
 
     /* Set 10s timeout */
-    ez_net_set_timeout(sock, 10000);
+    ez_net_set_timeout(sock, EZ_HTTP_TIMEOUT_MS);
 
     /* Build request */
-    char req[8192];
+    char req[EZ_HTTP_REQ_BUF];
     int req_len;
 
     if (body.data && body.len > 0) {
@@ -192,7 +201,7 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     ez_net_send(sock, req_str);
 
     /* Receive response (up to 1MB) */
-    char resp_buf[1048576];
+    char resp_buf[EZ_HTTP_RESP_BUF];
     int total = 0;
     while (total < (int)sizeof(resp_buf) - 1) {
         EzString chunk = ez_net_recv(arena, sock, sizeof(resp_buf) - total);

@@ -48,7 +48,7 @@ static void *val_ptr(EzMap *m, int32_t idx) {
 }
 
 EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap) {
-    if (initial_cap < 8) initial_cap = 8;
+    if (initial_cap < EZ_MAP_MIN_CAP) initial_cap = EZ_MAP_MIN_CAP;
     EzMap m;
     m.key_size = key_size;
     m.value_size = value_size;
@@ -118,7 +118,7 @@ void ez_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
         exit(1);
     }
     /* Check load factor */
-    if (m->count * 4 >= m->capacity * 3) {
+    if (m->count * EZ_MAP_LOAD_DEN >= m->capacity * EZ_MAP_LOAD_NUM) {
         rehash(arena, m);
     }
 
