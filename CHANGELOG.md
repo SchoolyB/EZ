@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.1.1](https://github.com/SchoolyB/EZ/compare/v3.1.0...v3.1.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* **codegen:** remove two unused-variable warnings ([121647d](https://github.com/SchoolyB/EZ/commit/121647d7de0ba2230e4a0c5191e06dfd0e3c55af))
+* **codegen:** remove two unused-variable warnings ([#1597](https://github.com/SchoolyB/EZ/issues/1597)) ([8cbc765](https://github.com/SchoolyB/EZ/commit/8cbc7654275f3b7cec5664ea43cb55627f984fd1))
+* **codegen:** resolve struct function return types in resolve_print_suffix ([#1595](https://github.com/SchoolyB/EZ/issues/1595)) ([8b4647a](https://github.com/SchoolyB/EZ/commit/8b4647ac36e67df696adb4e2175c27a7ecb3039d))
+* import system, cast system, and code quality improvements ([542ecd0](https://github.com/SchoolyB/EZ/commit/542ecd03894c22cb1e87fa81ce95fbe0bf43219a))
+* **imports:** propagate stdlib imports from transitive files ([#1596](https://github.com/SchoolyB/EZ/issues/1596)) ([9bc943f](https://github.com/SchoolyB/EZ/commit/9bc943f3829286311532f820db3e7e29d11944cb))
+* **imports:** resolve transitive paths, diamond deps, and directory imports ([#1596](https://github.com/SchoolyB/EZ/issues/1596)) ([377c170](https://github.com/SchoolyB/EZ/commit/377c170d65ef9a2507fc6a71843fde7f195d7a45))
+* **imports:** sibling cross-references, spurious W2013, and redundant file warning ([#1596](https://github.com/SchoolyB/EZ/issues/1596)) ([e9814a9](https://github.com/SchoolyB/EZ/commit/e9814a935da50401c4c748256a8df8767807b8e7))
+* **imports:** sibling struct access, W2015 namespace hint, W2013 transitive suppression ([#1596](https://github.com/SchoolyB/EZ/issues/1596)) ([144bbc3](https://github.com/SchoolyB/EZ/commit/144bbc3ed80aa300162fb215905a1720fd1cd4e7))
+* **test:** correct relative path in dir-transitive test ([#1596](https://github.com/SchoolyB/EZ/issues/1596)) ([6827f2b](https://github.com/SchoolyB/EZ/commit/6827f2b1a869b515a6b9cea7b71dc8704e5bf0e5))
+* **typechecker:** various bugs in the cast() system ([#1598](https://github.com/SchoolyB/EZ/issues/1598)) ([b6dfc20](https://github.com/SchoolyB/EZ/commit/b6dfc2048113693cbab729365f6c21d94989c8e7))
+
 ## [3.1.0](https://github.com/SchoolyB/EZ/compare/v3.0.0...v3.1.0) (2026-04-29)
 
 
