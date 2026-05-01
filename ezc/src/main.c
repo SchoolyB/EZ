@@ -595,8 +595,14 @@ int main(int argc, char **argv) {
 
     /* Resolve local imports: parse imported .ez files and merge declarations */
     {
-        /* Mark the main file as already imported (prevents circular import loops) */
-        mark_imported(input_file);
+        /* Mark the main file as already imported (prevents circular import loops).
+         * Use realpath so that diamond dependencies reaching the main file via
+         * different relative paths are still detected as duplicates. */
+        {
+            char *rp = realpath(input_file, NULL);
+            mark_imported(rp ? arena_strdup(arena, rp) : input_file);
+            free(rp);
+        }
 
         /* Derive main file's module name for circular import resolution */
         const char *main_base = input_file;
@@ -642,11 +648,15 @@ int main(int argc, char **argv) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
                 if (item->is_stdlib || item->is_c_import || !item->path) continue;
 
-                /* Resolve path relative to input file directory */
+                /* Resolve path relative to the file that contains the import.
+                 * For imports written directly in the entry file, source_dir is NULL
+                 * and we fall back to input_dir. For transitive imports injected from
+                 * imported files, source_dir points at the importing file's directory. */
                 char import_path[PATH_BUF_SIZE];
                 const char *rel = item->path;
                 if (rel[0] == '.' && rel[1] == '/') rel += 2;
-                snprintf(import_path, sizeof(import_path), "%s%s", input_dir, rel);
+                const char *base_dir = item->source_dir ? item->source_dir : input_dir;
+                snprintf(import_path, sizeof(import_path), "%s%s", base_dir, rel);
 
                 /* Determine import kind: direct .ez file, extensionless file, or directory.
                  * Build a list of actual .ez file paths to import. */
@@ -675,6 +685,26 @@ int main(int argc, char **argv) {
                         import_path[sizeof(import_path) - 1] = '\0';
                     } else if (stat(import_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                         /* Case 3: directory import — scan for .ez files */
+
+                        /* Self-referential directory import: if the importing file
+                         * lives inside the directory it is trying to import, reject. */
+                        if (item->source_dir) {
+                            char *norm_dir = realpath(import_path, NULL);
+                            char *norm_src = realpath(item->source_dir, NULL);
+                            if (norm_dir && norm_src && strcmp(norm_dir, norm_src) == 0) {
+                                char msg[EZ_MSG_BUF_LARGE];
+                                snprintf(msg, sizeof(msg),
+                                    "cannot import own module directory '%s'", item->path);
+                                diag_error(diag, "E6004", strdup(msg),
+                                    input_file, stmt->token.line, stmt->token.column, 0);
+                                free(norm_dir);
+                                free(norm_src);
+                                continue;
+                            }
+                            free(norm_dir);
+                            free(norm_src);
+                        }
+
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]) * MAX_DIR_FILES);
                         file_count = scan_ez_files(import_path, file_list, MAX_DIR_FILES);
                         if (file_count == 0) {
@@ -698,6 +728,21 @@ int main(int argc, char **argv) {
                 const char *mod_base = rel;
                 const char *slash = strrchr(rel, '/');
                 if (slash) mod_base = slash + 1;
+
+                /* For directory imports the path ends with '/' so mod_base
+                 * points at the empty string after it.  Back up to extract
+                 * the actual directory name (e.g. "engine" from "src/engine/"). */
+                if (mod_base[0] == '\0' && slash && slash > rel) {
+                    const char *prev = slash - 1;
+                    while (prev > rel && *prev != '/') prev--;
+                    if (*prev == '/') prev++;
+                    size_t dlen = (size_t)(slash - prev);
+                    char dir_name[EZ_MSG_BUF_SIZE];
+                    memcpy(dir_name, prev, dlen);
+                    dir_name[dlen] = '\0';
+                    mod_base = arena_strdup(arena, dir_name);
+                }
+
                 char mod_name_buf[EZ_MSG_BUF_SIZE];
                 size_t mod_len = strlen(mod_base);
                 if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".ez") == 0) {
@@ -708,15 +753,43 @@ int main(int argc, char **argv) {
                 }
                 const char *mod_name = item->alias ? item->alias : arena_strdup(arena, mod_name_buf);
 
+                /* Normalize import_path so diamond deps resolve to the same canonical path */
+                char norm_import[PATH_BUF_SIZE];
+                {
+                    char *rp = realpath(import_path, NULL);
+                    if (rp) {
+                        strncpy(norm_import, rp, sizeof(norm_import) - 1);
+                        norm_import[sizeof(norm_import) - 1] = '\0';
+                        free(rp);
+                    } else {
+                        strncpy(norm_import, import_path, sizeof(norm_import) - 1);
+                        norm_import[sizeof(norm_import) - 1] = '\0';
+                    }
+                }
+
                 /* Module name collision detection — only for DIRECT imports from the same file.
-                 * Don't collide with the main file's own module name. */
+                 * Don't collide with the main file's own module name.
+                 * Diamond dependencies (same file via different paths) emit a warning
+                 * and are skipped rather than causing a false E6001 error. */
                 static const char *seen_modules[EZ_MAX_IMPORTS];
                 static const char *seen_paths[EZ_MAX_IMPORTS];
                 static int seen_count = 0;
                 bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
-                    if (strcmp(seen_modules[sm], mod_name) == 0 &&
-                        strcmp(seen_paths[sm], import_path) != 0) {
+                    if (strcmp(seen_modules[sm], mod_name) == 0) {
+                        if (strcmp(seen_paths[sm], norm_import) == 0) {
+                            /* Same file, same module name — diamond dependency.
+                             * Emit a warning and skip silently. */
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "module '%s' is already imported; duplicate import ignored",
+                                mod_name);
+                            diag_warning(diag, "W2013", strdup(msg),
+                                input_file, stmt->token.line, stmt->token.column, 0);
+                            collision = true;
+                            break;
+                        }
+                        /* Different file, same module name — genuine collision */
                         char msg[EZ_MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported — use an alias to distinguish them",
@@ -730,7 +803,7 @@ int main(int argc, char **argv) {
                 if (collision) continue;
                 if (seen_count < EZ_MAX_IMPORTS) {
                     seen_modules[seen_count] = mod_name;
-                    seen_paths[seen_count] = arena_strdup(arena, import_path);
+                    seen_paths[seen_count] = arena_strdup(arena, norm_import);
                     seen_count++;
                 }
 
@@ -742,9 +815,28 @@ int main(int argc, char **argv) {
                 for (int fi = 0; fi < file_count; fi++) {
                     const char *cur_file_path = file_list[fi];
 
+                    /* Normalize the path so diamond dependencies (same file
+                     * reached via different relative paths) are deduplicated. */
+                    char *norm = realpath(cur_file_path, NULL);
+                    const char *norm_path = norm ? arena_strdup(arena, norm) : cur_file_path;
+                    free(norm);
+
                     /* Skip if already imported (handles cycles and duplicates) */
-                    if (already_imported(cur_file_path)) continue;
-                    mark_imported(arena_strdup(arena, cur_file_path));
+                    if (already_imported(norm_path)) {
+                        /* If this is a transitive import from inside a directory
+                         * module referencing a sibling already pulled in by the
+                         * directory import, emit an informational warning. */
+                        if (item->source_dir && file_count == 1) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "import of '%s' is redundant; already included by directory import",
+                                item->path);
+                            diag_warning(diag, "W2014", strdup(msg),
+                                input_file, stmt->token.line, stmt->token.column, 0);
+                        }
+                        continue;
+                    }
+                    mark_imported(norm_path);
                     found_new_import = true;
 
                     /* Read and parse the imported file */
@@ -764,20 +856,41 @@ int main(int argc, char **argv) {
                     if (!imp_program || diag_has_errors(diag)) continue;
 
                 /* Import statements from the imported file are also merged into the
-                 * main program so the while loop picks them up on the next iteration. */
-                for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
-                    AstNode *ts = imp_program->data.program.stmts[ti];
-                    if (ts->kind != NODE_IMPORT_STMT) continue;
-                    /* Insert the import statement into the main program for later processing */
-                    if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
-                        int nc = program->data.program.stmt_cap * 2;
-                        AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
-                        memcpy(ns, program->data.program.stmts,
-                               sizeof(AstNode *) * program->data.program.stmt_count);
-                        program->data.program.stmts = ns;
-                        program->data.program.stmt_cap = nc;
+                 * main program so the while loop picks them up on the next iteration.
+                 * Set source_dir on each injected import item so transitive paths
+                 * resolve relative to the file they were written in. */
+                {
+                    /* Compute the directory of cur_file_path */
+                    char cur_dir[PATH_BUF_SIZE];
+                    strncpy(cur_dir, cur_file_path, sizeof(cur_dir) - 1);
+                    cur_dir[sizeof(cur_dir) - 1] = '\0';
+                    char *cd_slash = strrchr(cur_dir, '/');
+                    if (cd_slash) *(cd_slash + 1) = '\0';
+                    else { cur_dir[0] = '.'; cur_dir[1] = '/'; cur_dir[2] = '\0'; }
+                    const char *src_dir = arena_strdup(arena, cur_dir);
+
+                    for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
+                        AstNode *ts = imp_program->data.program.stmts[ti];
+                        if (ts->kind != NODE_IMPORT_STMT) continue;
+
+                        /* Tag each import item with the source directory */
+                        for (int xi = 0; xi < ts->data.import_stmt.count; xi++) {
+                            if (!ts->data.import_stmt.items[xi].source_dir) {
+                                ts->data.import_stmt.items[xi].source_dir = src_dir;
+                            }
+                        }
+
+                        /* Insert the import statement into the main program for later processing */
+                        if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
+                            int nc = program->data.program.stmt_cap * 2;
+                            AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
+                            memcpy(ns, program->data.program.stmts,
+                                   sizeof(AstNode *) * program->data.program.stmt_count);
+                            program->data.program.stmts = ns;
+                            program->data.program.stmt_cap = nc;
+                        }
+                        program->data.program.stmts[program->data.program.stmt_count++] = ts;
                     }
-                    program->data.program.stmts[program->data.program.stmt_count++] = ts;
                 }
 
                 /* Collect original names before prefixing */

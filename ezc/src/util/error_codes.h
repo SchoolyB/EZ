@@ -189,7 +189,8 @@
 #define EZ_IMPORT_ERRORS \
     EZ_ERROR("E6001", "imports", "unknown module '@%s'") \
     EZ_ERROR("E6002", "imports", "cannot find file or directory '%s'") \
-    EZ_ERROR("E6003", "imports", "directory '%s' contains no .ez files")
+    EZ_ERROR("E6003", "imports", "directory '%s' contains no .ez files") \
+    EZ_ERROR("E6004", "imports", "cannot import own module directory")
 
 /* --- E7xxx+: Standard Library --- */
 #define EZ_STDLIB_ERRORS \
@@ -214,6 +215,8 @@
     EZ_WARNING("W2007", "safety", "this variable shadows a global constant or variable") \
     EZ_WARNING("W2011", "safety", "named return value is declared in the signature but no matching variable exists in the function body") \
     EZ_WARNING("W2012", "safety", "when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon") \
+    EZ_WARNING("W2013", "imports", "duplicate import of already-imported module") \
+    EZ_WARNING("W2014", "imports", "intra-directory import already included by directory import") \
     EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized; remaining elements will be zero-valued") \
     EZ_WARNING("W3004", "safety", "pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer")
 
