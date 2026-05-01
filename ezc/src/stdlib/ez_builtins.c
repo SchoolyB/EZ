@@ -28,8 +28,14 @@ static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
         double rt;
         if (sscanf(buf, "%lf", &rt) == 1 && rt == v) break;
     }
-    if (!strchr(buf, '.') && !strchr(buf, 'e') && !strchr(buf, 'i') &&
-        !strchr(buf, 'n') && n + 2 < (int)bufsz) {
+    bool has_special = false;
+    for (int i = 0; buf[i]; i++) {
+        if (buf[i] == '.' || buf[i] == 'e' || buf[i] == 'i' || buf[i] == 'n') {
+            has_special = true;
+            break;
+        }
+    }
+    if (!has_special && n + 2 < (int)bufsz) {
         buf[n++] = '.';
         buf[n++] = '0';
         buf[n] = '\0';
