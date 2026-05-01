@@ -4555,42 +4555,48 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         /* Also handle std.println(); std module functions are builtins */
         if (!module && emit_builtin_call(cg, node, func)) return;
 
-        /* Module dispatch table */
+        /* Module dispatch table — sorted alphabetically for binary search */
         typedef bool (*ModuleHandler)(CodeGen *, AstNode *, const char *);
-        static const struct { const char *name; ModuleHandler handler; } modules[] = {
-            {"mem",      emit_mem_call},
-            {"math",     emit_math_call},
+        typedef struct { const char *name; ModuleHandler handler; } ModuleEntry;
+        static const ModuleEntry modules[] = {
+            {"arrays",   emit_arrays_call},
+            {"atomic",   emit_atomic_call},
+            {"binary",   emit_binary_call},
+            {"bytes",    emit_bytes_call},
+            {"channels", emit_channels_call},
+            {"crypto",   emit_crypto_call},
+            {"csv",      emit_csv_call},
+            {"encoding", emit_encoding_call},
+            {"fmt",      emit_fmt_call},
+            {"http",     emit_http_call},
+            {"io",       emit_io_call},
+            {"json",     emit_json_call},
             {"maps",     emit_maps_call},
+            {"math",     emit_math_call},
+            {"mem",      emit_mem_call},
+            {"net",      emit_net_call},
+            {"os",       emit_os_call},
+            {"random",   emit_random_call},
+            {"regex",    emit_regex_call},
+            {"server",   emit_server_call},
+            {"sqlite",   emit_sqlite_call},
+            {"strings",  emit_strings_call},
+            {"sync",     emit_sync_call},
+            {"threads",  emit_threads_call},
             {"time",     emit_time_call},
             {"uuid",     emit_uuid_call},
-            {"encoding", emit_encoding_call},
-            {"crypto",   emit_crypto_call},
-            {"bytes",    emit_bytes_call},
-            {"binary",   emit_binary_call},
-            {"csv",      emit_csv_call},
-            {"json",     emit_json_call},
-            {"sqlite",   emit_sqlite_call},
-            {"random",   emit_random_call},
-            {"threads",  emit_threads_call},
-            {"sync",     emit_sync_call},
-            {"atomic",   emit_atomic_call},
-            {"channels", emit_channels_call},
-            {"arrays",   emit_arrays_call},
-            {"os",       emit_os_call},
-            {"io",       emit_io_call},
-            {"strings",  emit_strings_call},
-            {"fmt",      emit_fmt_call},
-            {"regex",    emit_regex_call},
-            {"net",      emit_net_call},
-            {"http",     emit_http_call},
-            {"server",   emit_server_call},
         };
         if (module) {
-            for (int i = 0; i < (int)(sizeof(modules) / sizeof(modules[0])); i++) {
-                if (strcmp(module, modules[i].name) == 0) {
-                    if (modules[i].handler(cg, node, func)) return;
+            int lo = 0, hi = (int)(sizeof(modules) / sizeof(modules[0])) - 1;
+            while (lo <= hi) {
+                int mid = (lo + hi) / 2;
+                int cmp = strcmp(module, modules[mid].name);
+                if (cmp == 0) {
+                    if (modules[mid].handler(cg, node, func)) return;
                     break;
                 }
+                if (cmp < 0) hi = mid - 1;
+                else lo = mid + 1;
             }
         }
         /* Unqualified call not handled by builtins; try 'using' modules.
