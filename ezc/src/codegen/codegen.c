@@ -1698,17 +1698,19 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (mod[0] >= 'a' && mod[0] <= 'z') {
                 /* Check if mod is an imported module by looking for mod_ prefixed declarations */
                 bool is_module = false;
-                size_t cn_len = strlen(mod) + 1 + strlen(mem) + 1;
+                size_t mod_len = strlen(mod);
+                size_t mem_len = strlen(mem);
+                size_t cn_len = mod_len + 1 + mem_len + 1;
                 char *check_name = malloc(cn_len);
                 snprintf(check_name, cn_len, "%s_%s", mod, mem);
                 /* Check functions, variables via find_func */
                 if (find_func(cg, check_name)) is_module = true;
                 /* Check if any function starts with mod_ prefix */
                 if (!is_module) {
-                    size_t pfx_len = strlen(mod) + 2;
+                    size_t pfx_len = mod_len + 2;
                     char *prefix = malloc(pfx_len);
                     snprintf(prefix, pfx_len, "%s_", mod);
-                    size_t plen = strlen(prefix);
+                    size_t plen = pfx_len - 1;
                     for (int fi = 0; fi < cg->func_count; fi++) {
                         if (strncmp(cg->all_funcs[fi]->data.func_decl.name, prefix, plen) == 0) {
                             is_module = true;
@@ -5032,8 +5034,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     }
                 }
             }
-            size_t mn_need = strlen("ez_fn_") + strlen(resolved_fn_name) + 2
-                + (binding ? strlen(binding) : 0) + 1;
+            size_t rfn_len = strlen(resolved_fn_name);
+            size_t bind_len = binding ? strlen(binding) : 0;
+            size_t mn_need = 6 + rfn_len + 2 + bind_len + 1; /* 6 = strlen("ez_fn_") */
             char *mangled = malloc(mn_need);
             size_t pos = (size_t)snprintf(mangled, mn_need, "ez_fn_%s__",
                 resolved_fn_name);
@@ -7482,8 +7485,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             if (j > 0) emitf(cg, "    _buf[_pos++] = ','; _buf[_pos++] = ' ';\n");
             /* Key */
             emitf(cg, "    _buf[_pos++] = '\"';\n");
+            int fname_len = (int)strlen(f->name);
             emitf(cg, "    memcpy(_buf + _pos, \"%s\", %d); _pos += %d;\n",
-                f->name, (int)strlen(f->name), (int)strlen(f->name));
+                f->name, fname_len, fname_len);
             emitf(cg, "    _buf[_pos++] = '\"'; _buf[_pos++] = ':'; _buf[_pos++] = ' ';\n");
             /* Value */
             if (strcmp(f->type_name, "string") == 0) {
@@ -7537,7 +7541,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (fn && fn->kind == NODE_FUNC_DECL) {
                     const char *sn = stmt->data.struct_decl.name;
                     const char *fn_name = fn->data.func_decl.name;
-                    size_t ns_len = strlen(sn) + 1 + strlen(fn_name) + 1;
+                    size_t sn_len = strlen(sn);
+                    size_t fn_len = strlen(fn_name);
+                    size_t ns_len = sn_len + 1 + fn_len + 1;
                     char *ns_name = malloc(ns_len);
                     snprintf(ns_name, ns_len, "%s_%s", sn, fn_name);
                     fn->data.func_decl.name = ns_name;
