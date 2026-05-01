@@ -527,6 +527,125 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
     return NULL;
 }
 
+/* Stdlib argument count validation table.
+ * Each entry maps a (module, function) pair to the expected min/max arg count.
+ * Functions with variable args use different min/max values. */
+typedef struct {
+    const char *mod;
+    const char *fn;
+    int min_args;
+    int max_args;
+} StdlibArgEntry;
+
+static const StdlibArgEntry stdlib_arg_table[] = {
+    /* io */
+    {"io", "read_file", 1, 1},
+    {"io", "write_file", 2, 2}, {"io", "append_file", 2, 2},
+    {"io", "file_exists", 1, 1}, {"io", "is_file", 1, 1},
+    {"io", "is_directory", 1, 1}, {"io", "file_size", 1, 1},
+    {"io", "delete_file", 1, 1},
+    {"io", "rename_file", 2, 2}, {"io", "copy_file", 2, 2}, {"io", "move_file", 2, 2},
+    {"io", "list_dir", 1, 1}, {"io", "walk", 1, 1}, {"io", "glob", 1, 1},
+    {"io", "make_dir", 1, 1}, {"io", "make_dir_all", 1, 1},
+    {"io", "remove_dir", 1, 1}, {"io", "remove_dir_all", 1, 1},
+    {"io", "path_join", 2, 2}, {"io", "dirname", 1, 1},
+    {"io", "basename", 1, 1}, {"io", "extension", 1, 1},
+    {"io", "is_absolute", 1, 1}, {"io", "normalize", 1, 1},
+    /* strings */
+    {"strings", "to_upper", 1, 1}, {"strings", "to_lower", 1, 1},
+    {"strings", "is_empty", 1, 1}, {"strings", "contains", 2, 2},
+    {"strings", "starts_with", 2, 2}, {"strings", "ends_with", 2, 2},
+    {"strings", "index_of", 2, 2}, {"strings", "count", 2, 2},
+    {"strings", "trim", 1, 1}, {"strings", "trim_left", 1, 1},
+    {"strings", "trim_right", 1, 1}, {"strings", "replace", 3, 3},
+    {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
+    {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
+    {"strings", "slice", 3, 3},
+    /* json */
+    {"json", "decode", 1, 1}, {"json", "encode", 1, 1},
+    {"json", "stringify", 1, 1}, {"json", "format", 1, 1},
+    {"json", "is_valid", 1, 1}, {"json", "pretty_print", 2, 2},
+    {"json", "parse", 1, 1},
+    /* crypto */
+    {"crypto", "sha256", 1, 1}, {"crypto", "md5", 1, 1},
+    {"crypto", "random_hex", 1, 1},
+    /* encoding */
+    {"encoding", "base64_encode", 1, 1}, {"encoding", "base64_decode", 1, 1},
+    {"encoding", "hex_encode", 1, 1}, {"encoding", "hex_decode", 1, 1},
+    {"encoding", "url_encode", 1, 1}, {"encoding", "url_decode", 1, 1},
+    /* uuid */
+    {"uuid", "generate", 0, 0}, {"uuid", "generate_hyphenated", 0, 0},
+    {"uuid", "is_valid", 1, 1},
+    /* regex */
+    {"regex", "is_valid", 1, 1}, {"regex", "is_match", 2, 2},
+    {"regex", "find", 2, 2}, {"regex", "find_all", 2, 2},
+    {"regex", "replace", 3, 3}, {"regex", "split", 2, 2},
+    /* csv */
+    {"csv", "parse", 1, 1}, {"csv", "decode", 1, 1},
+    {"csv", "encode", 1, 1}, {"csv", "format", 1, 1},
+    {"csv", "read_file", 1, 1}, {"csv", "write_file", 2, 2},
+    {"csv", "headers", 1, 1},
+    /* http */
+    {"http", "get", 1, 1}, {"http", "delete", 1, 1}, {"http", "head", 1, 1},
+    {"http", "post", 2, 2}, {"http", "put", 2, 2}, {"http", "patch", 2, 2},
+    /* net */
+    {"net", "connect", 2, 2}, {"net", "listen", 1, 1},
+    {"net", "accept", 1, 1}, {"net", "send", 2, 2},
+    {"net", "receive", 2, 2}, {"net", "close", 1, 1},
+    {"net", "set_timeout", 2, 2}, {"net", "resolve", 1, 1},
+    /* time */
+    {"time", "now", 0, 0}, {"time", "now_ms", 0, 0}, {"time", "now_ns", 0, 0},
+    {"time", "year", 1, 1}, {"time", "month", 1, 1}, {"time", "day", 1, 1},
+    {"time", "hour", 1, 1}, {"time", "minute", 1, 1}, {"time", "second", 1, 1},
+    {"time", "weekday", 1, 1}, {"time", "format", 2, 2},
+    {"time", "to_iso", 1, 1}, {"time", "date", 1, 1}, {"time", "to_clock", 1, 1},
+    {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1},
+    /* os */
+    {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2},
+    {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
+    {"os", "hostname", 0, 0}, {"os", "pid", 0, 0},
+    {"os", "current_os", 0, 0}, {"os", "arch", 0, 0},
+    /* random (variable args) */
+    {"random", "rand_float", 0, 2}, {"random", "rand_int", 1, 2},
+    {"random", "rand_bool", 0, 0}, {"random", "rand_byte", 0, 0},
+    {"random", "rand_char", 0, 2}, {"random", "random_hex", 1, 1},
+    {"random", "choice", 1, 1}, {"random", "shuffle", 1, 1},
+    {"random", "sample", 2, 2}, {"random", "seed", 1, 1},
+    /* sqlite */
+    {"sqlite", "open", 1, 1}, {"sqlite", "close", 1, 1},
+    {"sqlite", "exec", 2, 99}, {"sqlite", "query", 2, 99},
+    /* bytes */
+    {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
+    {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
+    {"bytes", "to_hex", 1, 1}, {"bytes", "to_base64", 1, 1},
+};
+
+static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
+    const char *fn, AstNode *node)
+{
+    int nargs = node->data.call.arg_count;
+    for (int i = 0; i < (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0])); i++) {
+        if (strcmp(mod, stdlib_arg_table[i].mod) == 0 &&
+            strcmp(fn, stdlib_arg_table[i].fn) == 0) {
+            if (nargs < stdlib_arg_table[i].min_args || nargs > stdlib_arg_table[i].max_args) {
+                char msg[EZ_MSG_BUF_SIZE];
+                if (stdlib_arg_table[i].min_args == stdlib_arg_table[i].max_args) {
+                    snprintf(msg, sizeof(msg),
+                        "function '%s.%s' expects %d argument(s), got %d",
+                        mod, fn, stdlib_arg_table[i].min_args, nargs);
+                } else {
+                    snprintf(msg, sizeof(msg),
+                        "function '%s.%s' expects %d to %d argument(s), got %d",
+                        mod, fn, stdlib_arg_table[i].min_args, stdlib_arg_table[i].max_args, nargs);
+                }
+                diag_error_msg(tc->diag, "E5008", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            return;
+        }
+    }
+}
+
 /* --- "Did you mean?" suggestion helper --- */
 
 static int levenshtein(const char *a, const char *b) {
@@ -1668,6 +1787,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!tc_is_stdlib_import(tc, mod_raw)) {
                 goto user_module_dispatch;
             }
+            /* Validate argument count for stdlib function calls */
+            tc_check_stdlib_arg_count(tc, mod, mfn, node);
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena"); /* arena pointer; opaque */
@@ -4799,11 +4920,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check for multi-return to single variable
              * (skip if this is part of a multi-var expansion; the value will be a .v0 access) */
             if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
-                node->data.var_decl.value->data.call.function->kind == NODE_LABEL &&
                 strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
                 strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
-                const char *call_name = node->data.var_decl.value->data.call.function->data.label.value;
-                FuncSig *sig = find_func(tc, call_name);
+                AstNode *call_fn = node->data.var_decl.value->data.call.function;
+                const char *call_name = NULL;
+                FuncSig *sig = NULL;
+                if (call_fn->kind == NODE_LABEL) {
+                    call_name = call_fn->data.label.value;
+                    sig = find_func(tc, call_name);
+                } else if (call_fn->kind == NODE_MEMBER_EXPR &&
+                           call_fn->data.member.object->kind == NODE_LABEL) {
+                    const char *mod_raw = call_fn->data.member.object->data.label.value;
+                    const char *mod = tc_resolve_alias(tc, mod_raw);
+                    const char *mfn = call_fn->data.member.member;
+                    char prefixed[EZ_MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+                    sig = find_func(tc, prefixed);
+                    call_name = mfn;
+                }
                 if (sig && sig->return_count > 1) {
                     diag_error_codef(tc->diag, "E3040", NODE_FILE(tc, node), node->token.line, node->token.column, 0, call_name, sig->return_count, call_name);
                 }
@@ -5384,6 +5518,26 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                        }
+                    }
+                }
+                /* User-defined module calls (mod.func); look up the prefixed
+                 * function signature and propagate multi-return types so
+                 * destructuring like `mut a, b = mod.func()` works. */
+                if (fn->kind == NODE_MEMBER_EXPR &&
+                    fn->data.member.object->kind == NODE_LABEL) {
+                    const char *mod_raw = fn->data.member.object->data.label.value;
+                    const char *mod = tc_resolve_alias(tc, mod_raw);
+                    const char *mfn = fn->data.member.member;
+                    char prefixed[EZ_MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+                    FuncSig *sig = find_func(tc, prefixed);
+                    if (sig && sig->return_count > 1) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            sym->ret_types = sig->return_types;
+                            sym->ret_count = sig->return_count;
                         }
                     }
                 }
