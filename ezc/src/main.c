@@ -932,7 +932,11 @@ int main(int argc, char **argv) {
                             bool all_sibling = true;
                             for (int xi = 0; xi < ts->data.import_stmt.count; xi++) {
                                 ImportItem *titem = &ts->data.import_stmt.items[xi];
-                                if (titem->is_stdlib || titem->is_c_import || !titem->path) continue;
+                                if (titem->is_stdlib || titem->is_c_import) {
+                                    all_sibling = false;
+                                    continue;
+                                }
+                                if (!titem->path) continue;
 
                                 /* Resolve the transitive import path */
                                 const char *trel = titem->path;
