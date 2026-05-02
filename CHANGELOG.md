@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.1.2](https://github.com/SchoolyB/EZ/compare/v3.1.1...v3.1.2) (2026-05-02)
+
+
+### Bug Fixes
+
+* **parser,typechecker:** parse complex multi-return types and hide internal name prefixes ([88c5c3b](https://github.com/SchoolyB/EZ/commit/88c5c3bf0db6c3169bf57643310dad7e1fac906b))
+* **typechecker:** handle multi-return and arg validation for module calls ([5669924](https://github.com/SchoolyB/EZ/commit/5669924daad80f2f1cf96026ca35acecd3a41926))
+* **typechecker:** handle range exprs in import rewriting and in/!in type checks ([6d2f8c1](https://github.com/SchoolyB/EZ/commit/6d2f8c1904ba9e84570f3e0cf800a8d467f9f028))
+* **typechecker:** validate argument types for stdlib function calls ([6f34119](https://github.com/SchoolyB/EZ/commit/6f3411985dd7aaa4e6f31028e4797cf44d348a5c))
+* wire arrays.remove() function ([bfc8f03](https://github.com/SchoolyB/EZ/commit/bfc8f0317d62cbc8a6e3b4bc8caf4a27e66f2563))
+
 ## [3.1.1](https://github.com/SchoolyB/EZ/compare/v3.1.0...v3.1.1) (2026-05-01)
 
 
