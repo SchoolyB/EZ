@@ -1595,6 +1595,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (left->kind != TK_CHAR && left->kind != TK_STRING) {
                     mismatch = true;
                 }
+            } else if (right->name && strcmp(right->name, "Range<int>") == 0) {
+                /* range() produces Range<int>; only integer types can be checked */
+                if (!is_int_kind(left->kind)) {
+                    mismatch = true;
+                }
             }
             if (mismatch) {
                 char msg[EZ_MSG_BUF_SIZE];

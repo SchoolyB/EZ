@@ -357,6 +357,11 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
             }
         }
         break;
+    case NODE_RANGE_EXPR:
+        rewrite_labels(node->data.range_expr.start, orig, prefixed, count, arena);
+        rewrite_labels(node->data.range_expr.end, orig, prefixed, count, arena);
+        rewrite_labels(node->data.range_expr.step, orig, prefixed, count, arena);
+        break;
     case NODE_FUNC_DECL:
         /* Rewrite return types in nested function declarations */
         for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
