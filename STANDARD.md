@@ -2113,6 +2113,7 @@ The `==` and `!=` operators on arrays are not allowed (E3074); use `arrays.is_eq
 | `append` | `(&arr [T], value T)` | Append element |
 | `prepend` | `(&arr [T], value T)` | Insert value at front |
 | `insert_at` | `(&arr [T], index int, value T)` | Insert at index |
+| `remove` | `(&arr [T], value T)` | Remove first occurrence of value |
 | `remove_at` | `(&arr [T], index int)` | Remove element at index |
 | `remove_first` | `(&arr [T]) -> T` | Remove and return first element (panic if empty) |
 | `remove_last` | `(&arr [T]) -> T` | Remove and return last element (panic if empty) |
