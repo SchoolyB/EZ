@@ -21,6 +21,14 @@
  * Imported nodes carry their original file path in token.file; main-file nodes have NULL. */
 #define NODE_FILE(tc, n) ((n)->token.file ? (n)->token.file : (tc)->file)
 
+/* Helper: get the user-facing display name for a declaration.
+ * Import merging prefixes names (e.g. foo → mod_foo) but errors should
+ * show the original name the user wrote. */
+#define FUNC_DISPLAY_NAME(n) ((n)->data.func_decl.original_name ? (n)->data.func_decl.original_name : (n)->data.func_decl.name)
+#define VAR_DISPLAY_NAME(n)  ((n)->data.var_decl.original_name  ? (n)->data.var_decl.original_name  : (n)->data.var_decl.name)
+#define STRUCT_DISPLAY_NAME(n) ((n)->data.struct_decl.original_name ? (n)->data.struct_decl.original_name : (n)->data.struct_decl.name)
+#define ENUM_DISPLAY_NAME(n) ((n)->data.enum_decl.original_name ? (n)->data.enum_decl.original_name : (n)->data.enum_decl.name)
+
 /* --- Type Table (open-addressing hash, pointer keys) --- */
 
 static uint32_t hash_ptr(const void *ptr) {
@@ -4917,7 +4925,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved type name and cannot be used as a variable name",
-                node->data.var_decl.name);
+                VAR_DISPLAY_NAME(node));
             diag_error_msg(tc->diag, "E2038", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
@@ -4959,7 +4967,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
-            diag_error_codef(tc->diag, "E2011", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name);
+            diag_error_codef(tc->diag, "E2011", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node));
         }
         /* Check for type keyword used as value: mut x = int */
         if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_LABEL) {
@@ -4998,10 +5006,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             bool has_size = size_comma != NULL;
             if (node->data.var_decl.mutable && has_size) {
-                diag_error_codef(tc->diag, "E3054", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name,
+                diag_error_codef(tc->diag, "E3054", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
                     (int)(size_comma - tn), tn);
             } else if (!node->data.var_decl.mutable && !has_size) {
-                diag_error_codef(tc->diag, "E3055", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name,
+                diag_error_codef(tc->diag, "E3055", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
                     (int)(strlen(tn) - 2), tn + 1,
                     node->data.var_decl.value && node->data.var_decl.value->kind == NODE_ARRAY_VALUE
                         ? node->data.var_decl.value->data.array_value.count : 0);
@@ -5498,7 +5506,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             Symbol *existing = scope_lookup_local(tc->current_scope,
                 node->data.var_decl.name);
             if (existing) {
-                diag_error_codef(tc->diag, "E4003", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name, existing->def_line);
+                diag_error_codef(tc->diag, "E4003", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node), existing->def_line);
             }
             /* W2002/W2007: check if variable shadows outer scope */
             if (!existing && tc->current_scope->parent) {
@@ -5517,13 +5525,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     if (is_global) {
                         snprintf(msg, sizeof(msg),
                             "variable '%s' shadows a global constant or variable declared on line %d",
-                            node->data.var_decl.name, outer_sym->def_line);
+                            VAR_DISPLAY_NAME(node), outer_sym->def_line);
                         diag_warning_msg(tc->diag, "W2007", strdup(msg),
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     } else {
                         snprintf(msg, sizeof(msg),
                             "variable '%s' shadows a variable declared on line %d",
-                            node->data.var_decl.name, outer_sym->def_line);
+                            VAR_DISPLAY_NAME(node), outer_sym->def_line);
                         diag_warning_msg(tc->diag, "W2002", strdup(msg),
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
@@ -5532,16 +5540,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* E4012: shadows a type */
             if (is_struct_name(tc, node->data.var_decl.name) ||
                 is_enum_name(tc, node->data.var_decl.name)) {
-                diag_error_codef(tc->diag, "E4012", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name);
+                diag_error_codef(tc->diag, "E4012", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node));
             }
             /* E4013: shadows a function */
             if (find_func(tc, node->data.var_decl.name)) {
-                diag_error_codef(tc->diag, "E4013", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name);
+                diag_error_codef(tc->diag, "E4013", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node));
             }
             /* E4014: shadows an imported module */
             for (int mi = 0; mi < tc->import_count; mi++) {
                 if (strcmp(tc->imported_modules[mi], node->data.var_decl.name) == 0) {
-                    diag_error_codef(tc->diag, "E4014", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.var_decl.name);
+                    diag_error_codef(tc->diag, "E4014", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node));
                     break;
                 }
             }
@@ -6432,13 +6440,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved type name and cannot be used as a function name",
-                node->data.func_decl.name);
+                FUNC_DISPLAY_NAME(node));
             diag_error_msg(tc->diag, "E2038", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Check for nested function declarations */
         if (tc->func_depth > 0) {
-            diag_error_codef(tc->diag, "E2051", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.func_decl.name);
+            diag_error_codef(tc->diag, "E2051", NODE_FILE(tc, node), node->token.line, node->token.column, 0, FUNC_DISPLAY_NAME(node));
         }
 
         Scope *func_scope = scope_create(tc->current_scope);
@@ -6684,10 +6692,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
             if (!has_return && !has_named_returns) {
-                diag_error_codef(tc->diag, "E3024", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.func_decl.name);
+                diag_error_codef(tc->diag, "E3024", NODE_FILE(tc, node), node->token.line, node->token.column, 0, FUNC_DISPLAY_NAME(node));
             } else if (has_return && !has_named_returns &&
                        !all_paths_return(node->data.func_decl.body)) {
-                diag_error_codef(tc->diag, "E3035", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.func_decl.name);
+                diag_error_codef(tc->diag, "E3035", NODE_FILE(tc, node), node->token.line, node->token.column, 0, FUNC_DISPLAY_NAME(node));
             }
         }
 
@@ -7038,15 +7046,15 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         if (stmt->kind != NODE_ENUM_DECL) continue;
 
         /* E2038: reserved name for enums */
-        const char *en = stmt->data.enum_decl.name;
-        if (is_reserved_type_name(en)) {
+        const char *en = ENUM_DISPLAY_NAME(stmt);
+        if (is_reserved_type_name(stmt->data.enum_decl.name)) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
             diag_error_msg(tc->diag, "E2038", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
         /* E2016: empty enum */
         if (stmt->data.enum_decl.value_count == 0) {
-            diag_error_codef(tc->diag, "E2016", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.enum_decl.name);
+            diag_error_codef(tc->diag, "E2016", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, en);
         }
         /* E3033: check for duplicate enum values */
         for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
@@ -7057,7 +7065,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     stmt->data.enum_decl.values[k].value->kind == NODE_INT_VALUE &&
                     stmt->data.enum_decl.values[j].value->data.int_value.value ==
                     stmt->data.enum_decl.values[k].value->data.int_value.value) {
-                    diag_error_codef(tc->diag, "E3033", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.enum_decl.name,
+                    diag_error_codef(tc->diag, "E3033", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, en,
                         stmt->data.enum_decl.values[k].name,
                         stmt->data.enum_decl.values[j].name);
                     break;
@@ -7070,13 +7078,13 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (strcmp(stmt->data.enum_decl.values[j].name,
                        stmt->data.enum_decl.name) == 0) {
                 diag_error_codef(tc->diag, "E2065", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.enum_decl.values[j].name,
-                    stmt->data.enum_decl.name);
+                    en);
             }
             for (int k = 0; k < j; k++) {
                 if (strcmp(stmt->data.enum_decl.values[k].name,
                           stmt->data.enum_decl.values[j].name) == 0) {
                     diag_error_codef(tc->diag, "E2014", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.enum_decl.values[j].name,
-                        stmt->data.enum_decl.name);
+                        en);
                     break;
                 }
             }
@@ -7096,7 +7104,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "a type named '%s' is already declared",
-                stmt->data.enum_decl.name);
+                ENUM_DISPLAY_NAME(stmt));
             diag_error_msg(tc->diag, "E4007", strdup(msg),
                 NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
@@ -7115,7 +7123,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         if (stmt->kind == NODE_STRUCT_DECL) {
             /* E2067: empty struct */
             if (stmt->data.struct_decl.field_count == 0) {
-                diag_error_codef(tc->diag, "E2067", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.struct_decl.name);
+                diag_error_codef(tc->diag, "E2067", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, STRUCT_DISPLAY_NAME(stmt));
             }
             int fc = stmt->data.struct_decl.field_count;
             const char **fnames = malloc(sizeof(const char *) * (fc ? fc : 1));
@@ -7136,7 +7144,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 }
                 /* E2066: field name matches struct type name */
                 if (strcmp(fnames[j], stmt->data.struct_decl.name) == 0) {
-                    diag_error_codef(tc->diag, "E2066", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, fnames[j], stmt->data.struct_decl.name);
+                    diag_error_codef(tc->diag, "E2066", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, fnames[j], STRUCT_DISPLAY_NAME(stmt));
                 }
                 /* E3061 (): struct field cannot be the enclosing
                  * struct by value; that produces an infinite-size
@@ -7162,14 +7170,15 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                     if (is_cycle) {
                         char msg[EZ_MSG_BUF_SIZE];
+                        const char *display = STRUCT_DISPLAY_NAME(stmt);
                         if (strcmp(ftn, self_name) == 0) {
                             snprintf(msg, sizeof(msg),
                                 "struct '%s' cannot contain itself by value; use a pointer field '^%s' for recursive types",
-                                self_name, self_name);
+                                display, display);
                         } else {
                             snprintf(msg, sizeof(msg),
                                 "struct '%s' cannot contain itself by value through '%s'; break the cycle with a pointer field '^%s'",
-                                self_name, ftn, ftn);
+                                display, ftn, ftn);
                         }
                         diag_error_msg(tc->diag, "E3061", strdup(msg),
                             NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
@@ -7178,14 +7187,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 /* Check for duplicate field names */
                 for (int k = 0; k < j; k++) {
                     if (strcmp(fnames[k], fnames[j]) == 0) {
-                        diag_error_codef(tc->diag, "E2013", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, fnames[j], stmt->data.struct_decl.name);
+                        diag_error_codef(tc->diag, "E2013", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, fnames[j], STRUCT_DISPLAY_NAME(stmt));
                         break;
                     }
                 }
             }
             /* E2037/E2038: reserved name check for structs */
-            const char *sn = stmt->data.struct_decl.name;
-            if (is_reserved_type_name(sn)) {
+            const char *sn = STRUCT_DISPLAY_NAME(stmt);
+            if (is_reserved_type_name(stmt->data.struct_decl.name)) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as a struct name", sn);
                 diag_error_msg(tc->diag, "E2037", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
@@ -7196,7 +7205,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "a type named '%s' is already declared",
-                    stmt->data.struct_decl.name);
+                    STRUCT_DISPLAY_NAME(stmt));
                 diag_error_msg(tc->diag, "E4007", strdup(msg),
                     NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
@@ -7226,7 +7235,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         char msg[EZ_MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
                             "duplicate function '%s' in struct '%s'",
-                            fn->data.func_decl.name, stmt->data.struct_decl.name);
+                            fn->data.func_decl.name, STRUCT_DISPLAY_NAME(stmt));
                         diag_error_msg(tc->diag, "E2037", strdup(msg),
                             NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
                         break;
@@ -7236,7 +7245,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 for (int k = 0; k < fc; k++) {
                     if (strcmp(fnames[k], fn->data.func_decl.name) == 0) {
                         diag_error_codef(tc->diag, "E2064", NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0, fn->data.func_decl.name, fnames[k],
-                            stmt->data.struct_decl.name);
+                            STRUCT_DISPLAY_NAME(stmt));
                         break;
                     }
                 }
@@ -7299,7 +7308,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column);
             /* Check for duplicate function names */
             if (find_func(tc, stmt->data.func_decl.name)) {
-                diag_error_codef(tc->diag, "E4004", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.func_decl.name);
+                diag_error_codef(tc->diag, "E4004", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, FUNC_DISPLAY_NAME(stmt));
             }
             /* E4007: function name conflicts with a type */
             if (is_struct_name(tc, stmt->data.func_decl.name) ||
@@ -7618,9 +7627,12 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             strcmp(fs->name, "main") != 0 &&
             !fs->is_private &&
             !(fs->name[0] >= 'A' && fs->name[0] <= 'Z' && strchr(fs->name, '_'))) {
+            const char *display = (fs->decl && fs->decl->kind == NODE_FUNC_DECL &&
+                fs->decl->data.func_decl.original_name) ?
+                fs->decl->data.func_decl.original_name : fs->name;
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
-                "function '%s' is declared but never called", fs->name);
+                "function '%s' is declared but never called", display);
             diag_warning_msg(tc->diag, "W1003", strdup(msg),
                 tc->file, fs->def_line, 1, 0);
         }
