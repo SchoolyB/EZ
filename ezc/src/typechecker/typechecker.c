@@ -527,6 +527,10 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
     return NULL;
 }
 
+/* Forward declaration — resolve_expr is defined later but needed by
+ * stdlib arg-type validation. */
+static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
+
 /* Stdlib argument count validation table.
  * Each entry maps a (module, function) pair to the expected min/max arg count.
  * Functions with variable args use different min/max values. */
@@ -642,6 +646,133 @@ static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             return;
+        }
+    }
+}
+
+/* Stdlib first-argument type validation.
+ * Most stdlib modules have a dominant first-arg type (e.g. strings.* expects
+ * a string, arrays.* expects an array). This table defines per-function
+ * expected types so we can catch type mismatches before they leak to C.
+ * ARG_ANY means no validation (the function accepts mixed types). */
+typedef enum {
+    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY
+} ExpectedArgKind;
+
+typedef struct {
+    const char *mod;
+    const char *fn;
+    int arg_index;        /* which argument to check (0-based) */
+    ExpectedArgKind kind; /* expected type kind */
+} StdlibArgTypeEntry;
+
+static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
+    /* strings: first arg is always a string */
+    {"strings", "to_upper", 0, ARG_STRING}, {"strings", "to_lower", 0, ARG_STRING},
+    {"strings", "is_empty", 0, ARG_STRING}, {"strings", "contains", 0, ARG_STRING},
+    {"strings", "starts_with", 0, ARG_STRING}, {"strings", "ends_with", 0, ARG_STRING},
+    {"strings", "index_of", 0, ARG_STRING}, {"strings", "count", 0, ARG_STRING},
+    {"strings", "trim", 0, ARG_STRING}, {"strings", "trim_left", 0, ARG_STRING},
+    {"strings", "trim_right", 0, ARG_STRING}, {"strings", "replace", 0, ARG_STRING},
+    {"strings", "repeat", 0, ARG_STRING}, {"strings", "reverse", 0, ARG_STRING},
+    {"strings", "split", 0, ARG_STRING}, {"strings", "slice", 0, ARG_STRING},
+    {"strings", "join", 0, ARG_ARRAY},
+    /* io: path args are strings */
+    {"io", "read_file", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
+    {"io", "append_file", 0, ARG_STRING}, {"io", "file_exists", 0, ARG_STRING},
+    {"io", "is_file", 0, ARG_STRING}, {"io", "is_directory", 0, ARG_STRING},
+    {"io", "file_size", 0, ARG_STRING}, {"io", "delete_file", 0, ARG_STRING},
+    {"io", "rename_file", 0, ARG_STRING}, {"io", "copy_file", 0, ARG_STRING},
+    {"io", "move_file", 0, ARG_STRING}, {"io", "list_dir", 0, ARG_STRING},
+    {"io", "walk", 0, ARG_STRING}, {"io", "glob", 0, ARG_STRING},
+    {"io", "make_dir", 0, ARG_STRING}, {"io", "make_dir_all", 0, ARG_STRING},
+    {"io", "remove_dir", 0, ARG_STRING}, {"io", "remove_dir_all", 0, ARG_STRING},
+    {"io", "path_join", 0, ARG_STRING}, {"io", "dirname", 0, ARG_STRING},
+    {"io", "basename", 0, ARG_STRING}, {"io", "extension", 0, ARG_STRING},
+    {"io", "is_absolute", 0, ARG_STRING}, {"io", "normalize", 0, ARG_STRING},
+    /* maps: first arg is a map */
+    {"maps", "is_empty", 0, ARG_MAP}, {"maps", "has_key", 0, ARG_MAP},
+    {"maps", "contains_value", 0, ARG_MAP}, {"maps", "get_keys", 0, ARG_MAP},
+    {"maps", "get_values", 0, ARG_MAP}, {"maps", "get_or_default", 0, ARG_MAP},
+    {"maps", "remove_key", 0, ARG_MAP}, {"maps", "clear", 0, ARG_MAP},
+    {"maps", "merge", 0, ARG_MAP}, {"maps", "is_equal", 0, ARG_MAP},
+    /* crypto: string data */
+    {"crypto", "sha256", 0, ARG_STRING}, {"crypto", "md5", 0, ARG_STRING},
+    {"crypto", "random_hex", 0, ARG_INT},
+    /* encoding: string data */
+    {"encoding", "base64_encode", 0, ARG_STRING}, {"encoding", "base64_decode", 0, ARG_STRING},
+    {"encoding", "hex_encode", 0, ARG_STRING}, {"encoding", "hex_decode", 0, ARG_STRING},
+    {"encoding", "url_encode", 0, ARG_STRING}, {"encoding", "url_decode", 0, ARG_STRING},
+    /* regex: first arg (pattern) is string */
+    {"regex", "is_valid", 0, ARG_STRING}, {"regex", "is_match", 0, ARG_STRING},
+    {"regex", "find", 0, ARG_STRING}, {"regex", "find_all", 0, ARG_STRING},
+    {"regex", "replace", 0, ARG_STRING}, {"regex", "split", 0, ARG_STRING},
+    /* json */
+    {"json", "decode", 0, ARG_STRING}, {"json", "is_valid", 0, ARG_STRING},
+    {"json", "parse", 0, ARG_STRING},
+    /* csv */
+    {"csv", "parse", 0, ARG_STRING}, {"csv", "decode", 0, ARG_STRING},
+    {"csv", "read_file", 0, ARG_STRING}, {"csv", "write_file", 0, ARG_STRING},
+    {"csv", "headers", 0, ARG_ARRAY},
+    /* bytes */
+    {"bytes", "from_string", 0, ARG_STRING}, {"bytes", "from_hex", 0, ARG_STRING},
+    {"bytes", "from_base64", 0, ARG_STRING}, {"bytes", "to_string", 0, ARG_ARRAY},
+    {"bytes", "to_hex", 0, ARG_ARRAY}, {"bytes", "to_base64", 0, ARG_ARRAY},
+    /* sqlite */
+    {"sqlite", "open", 0, ARG_STRING},
+};
+
+static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
+    if (!actual || actual->kind == TK_UNKNOWN) return true; /* can't validate */
+    switch (expected) {
+    case ARG_STRING: return actual->kind == TK_STRING;
+    case ARG_INT:    return actual->kind == TK_INT || actual->kind == TK_UINT ||
+                            actual->kind == TK_BYTE;
+    case ARG_FLOAT:  return actual->kind == TK_FLOAT;
+    case ARG_BOOL:   return actual->kind == TK_BOOL;
+    case ARG_ARRAY:  return actual->kind == TK_ARRAY;
+    case ARG_MAP:    return actual->kind == TK_MAP;
+    case ARG_ANY:    return true;
+    }
+    return true;
+}
+
+static const char *expected_kind_name(ExpectedArgKind kind) {
+    switch (kind) {
+    case ARG_STRING: return "string";
+    case ARG_INT:    return "int";
+    case ARG_FLOAT:  return "float";
+    case ARG_BOOL:   return "bool";
+    case ARG_ARRAY:  return "array";
+    case ARG_MAP:    return "map";
+    case ARG_ANY:    return "any";
+    }
+    return "unknown";
+}
+
+static void tc_check_stdlib_arg_types(TypeChecker *tc, const char *mod,
+    const char *fn, AstNode *node)
+{
+    for (int i = 0; i < (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0])); i++) {
+        if (strcmp(mod, stdlib_arg_type_table[i].mod) == 0 &&
+            strcmp(fn, stdlib_arg_type_table[i].fn) == 0) {
+            int idx = stdlib_arg_type_table[i].arg_index;
+            if (idx < node->data.call.arg_count) {
+                EzType *arg_t = resolve_expr(tc, node->data.call.args[idx]);
+                if (!arg_kind_matches(stdlib_arg_type_table[i].kind, arg_t)) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "%s.%s() expects %s as argument %d, got '%s'",
+                        mod, fn, expected_kind_name(stdlib_arg_type_table[i].kind),
+                        idx + 1, type_name(arg_t));
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node->data.call.args[idx]),
+                        node->data.call.args[idx]->token.line,
+                        node->data.call.args[idx]->token.column, 0);
+                }
+            }
+            /* Don't return — there may be multiple entries for the same function
+             * checking different argument positions. */
         }
     }
 }
@@ -970,8 +1101,6 @@ static bool check_integer_range(DiagnosticList *diag, const char *file,
 }
 
 /* --- Expression type resolution --- */
-
-static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
 
 /* : shared void-expression guard. Emits E3038 at `expr` when `t`
  * is TK_VOID. `context` is a short phrase describing what the
@@ -1789,6 +1918,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
             /* Validate argument count for stdlib function calls */
             tc_check_stdlib_arg_count(tc, mod, mfn, node);
+            tc_check_stdlib_arg_types(tc, mod, mfn, node);
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena"); /* arena pointer; opaque */
@@ -2265,6 +2395,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0);
                         }
+                    }
+                }
+                /* All arrays.* functions expect an array as the first argument */
+                if (node->data.call.arg_count > 0) {
+                    AstNode *arg0 = node->data.call.args[0];
+                    EzType *arg0_t = resolve_expr(tc, arg0);
+                    if (arg0_t && arg0_t->kind != TK_ARRAY && arg0_t->kind != TK_UNKNOWN) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "arrays.%s() expects an array as the first argument, got '%s'",
+                            mfn, type_name(arg0_t));
+                        diag_error_msg(tc->diag, "E3001", strdup(msg),
+                            NODE_FILE(tc, arg0), arg0->token.line, arg0->token.column, 0);
                     }
                 }
             } else if (strcmp(mod, "os") == 0) {
