@@ -618,6 +618,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     /* sqlite */
     {"sqlite", "open", 1, 1}, {"sqlite", "close", 1, 1},
     {"sqlite", "exec", 2, 99}, {"sqlite", "query", 2, 99},
+    /* arrays */
+    {"arrays", "remove", 2, 2},
     /* bytes */
     {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
     {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},

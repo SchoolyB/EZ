@@ -37,6 +37,34 @@ void ez_arrays_remove_at(EzArray *arr, int32_t index) {
     arr->len--;
 }
 
+void ez_arrays_remove_int(EzArray *arr, int64_t value) {
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (*(int64_t *)((char *)arr->data + i * arr->elem_size) == value) {
+            ez_arrays_remove_at(arr, i);
+            return;
+        }
+    }
+}
+
+void ez_arrays_remove_float(EzArray *arr, double value) {
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (*(double *)((char *)arr->data + i * arr->elem_size) == value) {
+            ez_arrays_remove_at(arr, i);
+            return;
+        }
+    }
+}
+
+void ez_arrays_remove_str(EzArray *arr, EzString value) {
+    for (int32_t i = 0; i < arr->len; i++) {
+        EzString *s = (EzString *)((char *)arr->data + i * arr->elem_size);
+        if (s->len == value.len && memcmp(s->data, value.data, s->len) == 0) {
+            ez_arrays_remove_at(arr, i);
+            return;
+        }
+    }
+}
+
 void ez_arrays_clear(EzArray *arr) {
     arr->len = 0;
 }
