@@ -1527,10 +1527,17 @@ static AstNode *parse_func_declaration(Parser *p) {
                         strcmp(lit, "f64") == 0 || strcmp(lit, "string") == 0 ||
                         strcmp(lit, "bool") == 0 || strcmp(lit, "char") == 0 ||
                         strcmp(lit, "byte") == 0 ||
+                        (strcmp(lit, "map") == 0 && peek_token_is(p, TOK_LBRACKET)) ||
+                        (strcmp(lit, "func") == 0 && peek_token_is(p, TOK_LPAREN)) ||
                         (lit[0] >= 'A' && lit[0] <= 'Z')); /* struct/enum types */
                 }
 
-                if (cur_token_is(p, TOK_IDENT) &&
+                /* map[K:V] and func(...) are complex types, not named returns */
+                bool is_complex_type_start = is_type && cur_token_is(p, TOK_IDENT) &&
+                    ((strcmp(p->cur_token.literal, "map") == 0 && peek_token_is(p, TOK_LBRACKET)) ||
+                     (strcmp(p->cur_token.literal, "func") == 0 && peek_token_is(p, TOK_LPAREN)));
+
+                if (cur_token_is(p, TOK_IDENT) && !is_complex_type_start &&
                     (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_QUESTION) ||
                      peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_CARET)) &&
                     (!is_type || peek_token_is(p, TOK_IDENT) ||
@@ -1576,14 +1583,16 @@ static AstNode *parse_func_declaration(Parser *p) {
                         }
                     }
                 } else {
-                    /* Plain type (no name) */
+                    /* Plain type (no name) — use parse_complex_type to
+                     * handle array, map, and pointer return types like
+                     * [string], map[K:V], ^T, not just simple idents. */
                     int idx = node->data.func_decl.return_type_count;
                     if (idx >= ret_cap) {
                         diag_error_code(p->diag, "E2060", p->file, p->cur_token.line, p->cur_token.column, 0);
                         return NULL;
                     }
                     node->data.func_decl.return_names[idx] = NULL;
-                    node->data.func_decl.return_types[idx] = read_type_name(p);
+                    node->data.func_decl.return_types[idx] = parse_complex_type(p);
                     node->data.func_decl.return_type_count++;
                 }
                 if (peek_token_is(p, TOK_COMMA)) {

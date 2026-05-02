@@ -357,6 +357,11 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
             }
         }
         break;
+    case NODE_RANGE_EXPR:
+        rewrite_labels(node->data.range_expr.start, orig, prefixed, count, arena);
+        rewrite_labels(node->data.range_expr.end, orig, prefixed, count, arena);
+        rewrite_labels(node->data.range_expr.step, orig, prefixed, count, arena);
+        break;
     case NODE_FUNC_DECL:
         /* Rewrite return types in nested function declarations */
         for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
@@ -1101,6 +1106,7 @@ int main(int argc, char **argv) {
                     if (imp_stmt->kind != NODE_VAR_DECL) continue;
 
                     if (!imp_stmt->data.var_decl.mutable) {
+                        imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
                         char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
@@ -1113,6 +1119,7 @@ int main(int argc, char **argv) {
                             }
                         }
                     } else {
+                        imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
                         char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
@@ -1155,6 +1162,7 @@ int main(int argc, char **argv) {
 
                     /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
+                        imp_stmt->data.func_decl.original_name = imp_stmt->data.func_decl.name;
                         char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
@@ -1185,6 +1193,7 @@ int main(int argc, char **argv) {
 
                     /* Prefix struct names and rewrite field type references */
                     if (imp_stmt->kind == NODE_STRUCT_DECL) {
+                        imp_stmt->data.struct_decl.original_name = imp_stmt->data.struct_decl.name;
                         char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
@@ -1231,6 +1240,7 @@ int main(int argc, char **argv) {
 
                     /* Prefix enum names with module name */
                     if (imp_stmt->kind == NODE_ENUM_DECL) {
+                        imp_stmt->data.enum_decl.original_name = imp_stmt->data.enum_decl.name;
                         char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
                         imp_stmt->data.enum_decl.name = prefixed;

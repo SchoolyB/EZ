@@ -16,6 +16,9 @@ void ez_arrays_append(EzArena *arena, EzArray *arr, const void *value);
 void ez_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const void *value);
 void ez_arrays_prepend(EzArena *arena, EzArray *arr, const void *value);
 void ez_arrays_remove_at(EzArray *arr, int32_t index);
+void ez_arrays_remove_int(EzArray *arr, int64_t value);
+void ez_arrays_remove_float(EzArray *arr, double value);
+void ez_arrays_remove_str(EzArray *arr, EzString value);
 void ez_arrays_clear(EzArray *arr);
 void ez_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t count);
 

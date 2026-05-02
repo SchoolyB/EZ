@@ -3943,6 +3943,23 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "remove") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+            strcmp(arr_t->element_type, "string") == 0) {
+            emit(cg, "ez_arrays_remove_str(");
+        } else if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+                   strcmp(arr_t->element_type, "float") == 0) {
+            emit(cg, "ez_arrays_remove_float(");
+        } else {
+            emit(cg, "ez_arrays_remove_int(");
+        }
+        emit_array_arg_addr(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_arrays_clear(");
         emit_array_arg_addr(cg, node->data.call.args[0]);
@@ -4660,7 +4677,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"distance","math"},
                 /* @arrays */
                 {"append","arrays"},{"insert_at","arrays"},{"prepend","arrays"},
-                {"remove_at","arrays"},{"sort_asc","arrays"},{"sort_desc","arrays"},
+                {"remove","arrays"},{"remove_at","arrays"},{"sort_asc","arrays"},{"sort_desc","arrays"},
                 {"concat","arrays"},{"get_sum","arrays"},{"get_min","arrays"},{"get_max","arrays"},
                 {"clear","arrays"},{"get_first","arrays"},{"get_last","arrays"},
                 {"remove_last","arrays"},{"remove_first","arrays"},

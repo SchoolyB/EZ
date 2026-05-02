@@ -2113,6 +2113,7 @@ The `==` and `!=` operators on arrays are not allowed (E3074); use `arrays.is_eq
 | `append` | `(&arr [T], value T)` | Append element |
 | `prepend` | `(&arr [T], value T)` | Insert value at front |
 | `insert_at` | `(&arr [T], index int, value T)` | Insert at index |
+| `remove` | `(&arr [T], value T)` | Remove first occurrence of value |
 | `remove_at` | `(&arr [T], index int)` | Remove element at index |
 | `remove_first` | `(&arr [T]) -> T` | Remove and return first element (panic if empty) |
 | `remove_last` | `(&arr [T]) -> T` | Remove and return last element (panic if empty) |
@@ -2428,6 +2429,24 @@ Error-returning variant: `decode`
 | `normalize` | `(path string) -> string` | Clean and normalize path |
 
 Error-returning variants: `read_file`, `write_file`, `delete_file`, `append_file`, `rename_file`, `copy_file`, `move_file`, `list_dir`, `make_dir`, `make_dir_all`, `remove_dir`, `remove_dir_all`, `walk`
+
+#### Path Resolution
+
+All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `csv.read_file`, `csv.write_file`, and `sqlite.open`) are resolved relative to the **current working directory** of the process — the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
+
+```ez
+// Given project layout:
+//   project/
+//     main.ez
+//     src/cli.ez
+//     data/config.json
+
+// Running from project/:  ez main.ez
+// All of these resolve from project/, regardless of which .ez file calls them:
+io.read_file("data/config.json")      // project/data/config.json
+io.read_file("./data/config.json")    // same thing
+io.read_file("/etc/hosts")            // absolute path — unaffected by cwd
+```
 
 ### 9.10 OS Module (`@os`)
 

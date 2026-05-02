@@ -202,6 +202,7 @@ struct AstNode {
         /* NODE_VAR_DECL */
         struct {
             const char *name;
+            const char *original_name; /* pre-prefix name for error messages */
             const char *type_name;
             AstNode *value;
             bool mutable;
@@ -268,6 +269,7 @@ struct AstNode {
         /* NODE_FUNC_DECL */
         struct {
             const char *name;
+            const char *original_name; /* pre-prefix name for error messages */
             Param *params;
             int param_count;
             const char **return_types;
@@ -299,6 +301,7 @@ struct AstNode {
         /* NODE_STRUCT_DECL */
         struct {
             const char *name;
+            const char *original_name; /* pre-prefix name for error messages */
             StructField *fields;
             int field_count;
             StructFunc *funcs;
@@ -312,6 +315,7 @@ struct AstNode {
         /* NODE_ENUM_DECL */
         struct {
             const char *name;
+            const char *original_name; /* pre-prefix name for error messages */
             EnumVal *values;
             int value_count;
             bool is_flags;
