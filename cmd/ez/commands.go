@@ -508,7 +508,6 @@ Use "ez [command] --help" for more information about a command.
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	watchCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
-	watchCmd.Flags().Bool("no-color", false, "Disable colored output")
 
 	docCmd.Flags().StringP("output", "o", defaultDocOutputPath, "Path to write generated markdown")
 
