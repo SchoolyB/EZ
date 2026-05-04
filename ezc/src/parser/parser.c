@@ -908,10 +908,17 @@ static AstNode *parse_infix_expression(Parser *p, AstNode *left) {
     node->data.infix.op = p->cur_token.literal;
     Precedence prec = token_precedence(p->cur_token.type);
     bool is_membership = (p->cur_token.type == TOK_IN || p->cur_token.type == TOK_NOT_IN);
+    /* Suppress struct-literal parsing on the RHS of comparisons and
+     * membership operators.  In `if x < Foo {`, the `{` is the
+     * if-block, not the start of a struct literal `Foo{ ... }`. */
+    bool suppress_struct_lit = is_membership ||
+        p->cur_token.type == TOK_LT || p->cur_token.type == TOK_GT ||
+        p->cur_token.type == TOK_LT_EQ || p->cur_token.type == TOK_GT_EQ ||
+        p->cur_token.type == TOK_EQ || p->cur_token.type == TOK_NOT_EQ;
     next_token(p);
-    if (is_membership) p->no_struct_literal = true;
+    if (suppress_struct_lit) p->no_struct_literal = true;
     node->data.infix.right = parse_expression(p, prec);
-    if (is_membership) p->no_struct_literal = false;
+    if (suppress_struct_lit) p->no_struct_literal = false;
     return node;
 }
 
