@@ -1304,12 +1304,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else if (tc_is_using_constant(tc, name)) {
             result = tc_resolve_using_constant_type(tc, name);
         } else if (tc_is_builtin(name)) {
-            /* Bare builtin function name used as a value — same error as
-             * user-defined functions (E3031). Call sites go through
-             * NODE_CALL_EXPR, not NODE_LABEL, so reaching here means the
-             * user wrote e.g. `input` instead of `input()`. */
-            diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node),
-                node->token.line, node->token.column, 0, name, name, name);
+            EzType *bt = type_from_name(name);
+            if (bt != &TYPE_UNKNOWN) {
+                /* Builtin type name (int, i128, float, etc.) used as a
+                 * bare label — valid as an argument to size_of(Type). */
+                result = bt;
+            } else {
+                /* Bare builtin function name used as a value (e.g. `input`
+                 * instead of `input()`). */
+                diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0, name, name, name);
+            }
         } else if (!is_enum_name(tc, name) &&
                    !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
