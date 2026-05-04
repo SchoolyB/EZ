@@ -1,0 +1,86 @@
+name: Bug Report
+description: Report a bug in the EZ compiler, runtime, stdlib, or tooling
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The fields below mirror the
+        bug-report template in [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md#bug-reports)
+        — fill them out and a maintainer will triage quickly.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How serious is this bug?
+      options:
+        - Crash (compiler or runtime aborts)
+        - Incorrect output (program runs but produces the wrong result)
+        - Misleading error (compile-time error message is confusing or wrong)
+        - Cosmetic (formatting / wording / minor UX)
+    validations:
+      required: true
+
+  - type: textarea
+    id: system-info
+    attributes:
+      label: System info — paste the full output of `ez report`
+      description: |
+        Run `ez report` and paste the complete output. Version, commit, install
+        path, OS, CPU, RAM, and C compiler info are all load-bearing for triage.
+      placeholder: |
+        $ ez report
+        ...
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One paragraph. What's broken, in plain language.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal `.ez` program that triggers the bug. Inline the code below.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: |
+        What actually happens. Include the error message verbatim if there is
+        one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: where-to-look
+    attributes:
+      label: Where to look (optional)
+      description: |
+        If you have a guess at the root cause, note it here. Saves triage time.
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related (optional)
+      description: Link any related issues or recent commits that touched the same area.

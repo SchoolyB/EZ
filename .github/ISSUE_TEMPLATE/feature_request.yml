@@ -1,0 +1,47 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for EZ
+title: "feat: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest an enhancement. The fields below
+        mirror the feature-request template in
+        [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md#feature-requests).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What should the feature do? Plain language is fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: |
+        Why is this needed? What problem does it solve, or what does it unlock,
+        that the current language or tooling doesn't?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Other approaches you weighed and why they fall short. Helps the
+        discussion converge faster.
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples (optional)
+      description: |
+        Sketch how the feature would look in EZ source. Pseudo-syntax is fine.
+      render: text
