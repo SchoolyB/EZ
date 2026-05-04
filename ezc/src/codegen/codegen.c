@@ -4477,6 +4477,46 @@ static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- strconv module --- */
+
+static bool emit_strconv_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_fallible = (strcmp(func, "to_int") == 0 ||
+        strcmp(func, "to_uint") == 0 ||
+        strcmp(func, "to_float") == 0 ||
+        strcmp(func, "to_bool") == 0);
+    bool needs_arena = (strcmp(func, "from_int") == 0 ||
+        strcmp(func, "from_uint") == 0 ||
+        strcmp(func, "from_float") == 0);
+
+    if (is_fallible) {
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        if (is_multi_var) {
+            emitf(cg, "ez_strconv_%s_result(", func);
+        } else {
+            emitf(cg, "ez_strconv_%s(", func);
+        }
+        for (int i = 0; i < node->data.call.arg_count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[i]);
+        }
+        emit(cg, ")");
+        return true;
+    }
+
+    if (needs_arena) {
+        emitf(cg, "ez_strconv_%s(ez_default_arena, ", func);
+    } else {
+        emitf(cg, "ez_strconv_%s(", func);
+    }
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (i > 0) emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
 /* --- @sync module --- */
 
 static bool emit_sync_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -4631,6 +4671,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"regex",    emit_regex_call},
             {"server",   emit_server_call},
             {"sqlite",   emit_sqlite_call},
+            {"strconv",  emit_strconv_call},
             {"strings",  emit_strings_call},
             {"sync",     emit_sync_call},
             {"threads",  emit_threads_call},
@@ -7281,6 +7322,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_binary.h\"\n");
     emit(cg, "#include \"ez_csv.h\"\n");
     emit(cg, "#include \"ez_json.h\"\n");
+    emit(cg, "#include \"ez_strconv.h\"\n");
     emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "#include \"ez_sync.h\"\n");

@@ -2094,6 +2094,26 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
+            } else if (strcmp(mod, "strconv") == 0) {
+                if (strcmp(mfn, "to_int") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "to_uint") == 0) {
+                    result = &TYPE_UINT;
+                } else if (strcmp(mfn, "to_float") == 0) {
+                    result = &TYPE_FLOAT;
+                } else if (strcmp(mfn, "to_bool") == 0 ||
+                           strcmp(mfn, "is_numeric") == 0 ||
+                           strcmp(mfn, "is_integer") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "from_int") == 0 ||
+                           strcmp(mfn, "from_uint") == 0 ||
+                           strcmp(mfn, "from_float") == 0 ||
+                           strcmp(mfn, "from_bool") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
                     strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
@@ -7000,7 +7020,8 @@ static bool is_valid_module(const char *name) {
         "math", "strings", "arrays", "maps", "io", "os", "time",
         "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
         "binary", "fmt", "http", "server", "regex", "net", "threads",
-        "sync", "atomic", "channels", "mem", "sqlite", "errors", "db", NULL
+        "sync", "atomic", "channels", "mem", "sqlite", "errors", "db",
+        "strconv", NULL
     };
     for (int i = 0; modules[i]; i++) {
         if (strcmp(name, modules[i]) == 0) return true;
