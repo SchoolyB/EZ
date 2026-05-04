@@ -2697,6 +2697,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, prefixed);
                 if (sig) {
                     sig->used = true;
+                    /* E4017: private struct function called from outside the struct */
+                    if (sig->is_private &&
+                        !(tc->current_struct_name && strcmp(tc->current_struct_name, mod) == 0)) {
+                        diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0, mod, mfn);
+                    }
                     result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
                     /* E5008: check argument count */
                     if (node->data.call.arg_count != sig->param_count) {
@@ -2735,6 +2741,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
+                                ai + 1, mod, mfn, param_t->name, arg_t->name);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                        if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
                                 ai + 1, mod, mfn, param_t->name, arg_t->name);
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
@@ -2790,6 +2808,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 } else {
+                    /* E4018: struct has no function with this name */
+                    diag_error_codef(tc->diag, "E4018", NODE_FILE(tc, node),
+                        node->token.line, node->token.column, 0, mod, mfn);
                     result = &TYPE_VOID;
                 }
             } else {
@@ -2862,6 +2883,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                         }
                         if (is_self_method) {
+                            /* E4017: private struct function via instance dispatch */
+                            if (ssig->is_private &&
+                                !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
+                                diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
+                                    node->token.line, node->token.column, 0, sname, mfn);
+                            }
                             /* Rewrite the call AST: change the member-expr
                              * object from the instance label to the type
                              * name, and prepend the instance as arg[0]. */
@@ -2938,6 +2965,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             "argument %d of '%s.%s': expected %s, got %s",
                                             ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(amsg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                    /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                                    if (arg_t && param_t &&
+                                        arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                                        arg_t->name && param_t->name &&
+                                        strcmp(arg_t->name, param_t->name) != 0) {
+                                        char smsg[EZ_MSG_BUF_SIZE];
+                                        snprintf(smsg, sizeof(smsg),
+                                            "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
+                                            ai + 1, sname, mfn, param_t->name, arg_t->name);
+                                        diag_error_msg(tc->diag, "E3001", strdup(smsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -3446,6 +3487,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected enum '%s', got enum '%s'",
+                                ai + 1, fn_name, param_t->name, arg_t->name);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                        if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected struct '%s', got struct '%s'",
                                 ai + 1, fn_name, param_t->name, arg_t->name);
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
@@ -6788,12 +6841,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "struct", node->data.struct_decl.name);
         }
         /* Type-check struct-namespaced function bodies */
+        tc->current_struct_name = node->data.struct_decl.name;
         for (int i = 0; i < node->data.struct_decl.func_count; i++) {
             AstNode *fn = node->data.struct_decl.funcs[i].func_decl;
             if (fn && fn->kind == NODE_FUNC_DECL) {
                 check_statement(tc, fn);
             }
         }
+        tc->current_struct_name = NULL;
         break;
 
     case NODE_ENUM_DECL:

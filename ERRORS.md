@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 180 codes** (165 errors, 15 warnings)
+**Total: 182 codes** (167 errors, 15 warnings)
 
 ---
 
@@ -156,6 +156,8 @@
 | `E4014` | names | variable '%s' shadows an imported module with the same name |
 | `E4015` | names | '%s' is private and cannot be accessed from outside its file |
 | `E4016` | names | undefined type '%s'; check the spelling or import the module that defines it |
+| `E4017` | names | function '%s.%s' is private and cannot be called from outside the struct |
+| `E4018` | names | struct '%s' has no function named '%s' |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | wrong number of arguments; the function expects a different count than was provided |
 | `E5011` | usage | return value of '%s' is not used; assign it to a variable or use '_' to discard |
@@ -224,4 +226,4 @@
 
 ---
 
-*Generated on 2026-05-01 16:43:32 UTC*
+*Generated on 2026-05-04 14:11:10 UTC*

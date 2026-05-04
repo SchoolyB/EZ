@@ -135,6 +135,10 @@ typedef struct {
     /*  true during register_declarations to allow forward references */
     bool registering;
 
+    /* Name of the struct whose function body is currently being checked.
+     * NULL when outside a struct function body. Used for private access. */
+    const char *current_struct_name;
+
 } TypeChecker;
 
 /* Create and run the type checker */
