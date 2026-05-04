@@ -1,0 +1,16 @@
+/*
+ * Error Test: E4017 - private struct function called via namespace dispatch
+ * Expected: "private and cannot be called from outside the struct"
+ */
+
+const Secret struct {
+    value int
+
+    private do hidden(a int, b int) -> int {
+        return a * b
+    }
+}
+
+do main() {
+    mut r int = Secret.hidden(5, 6)
+}

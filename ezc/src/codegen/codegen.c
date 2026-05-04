@@ -615,6 +615,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             {"LN10","math","2.30258509299404568402"},{"INF","math","(1.0/0.0)"},
             {"NEG_INF","math","(-1.0/0.0)"},{"EPSILON","math","2.2204460492503131e-16"},
             {"MAC_OS","os","0"},{"LINUX","os","1"},{"WINDOWS","os","2"},{"OTHER","os","3"},
+            {"BASE_2","strconv","2"},{"BASE_8","strconv","8"},{"BASE_10","strconv","10"},
+            {"BASE_16","strconv","16"},{"BASE_36","strconv","36"},
             {NULL,NULL,NULL}
         };
         bool emitted_const = false;
@@ -1649,6 +1651,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (strcmp(mem, "LINUX") == 0)   { emit(cg, "1"); break; }
                 if (strcmp(mem, "WINDOWS") == 0) { emit(cg, "2"); break; }
                 if (strcmp(mem, "OTHER") == 0)   { emit(cg, "3"); break; }
+            }
+
+            /* @strconv constants */
+            if (strcmp(mod, "strconv") == 0) {
+                if (strcmp(mem, "BASE_2") == 0)  { emit(cg, "2"); break; }
+                if (strcmp(mem, "BASE_8") == 0)  { emit(cg, "8"); break; }
+                if (strcmp(mem, "BASE_10") == 0) { emit(cg, "10"); break; }
+                if (strcmp(mem, "BASE_16") == 0) { emit(cg, "16"); break; }
+                if (strcmp(mem, "BASE_36") == 0) { emit(cg, "36"); break; }
             }
 
             /* Check if this is an enum access: EnumName.VALUE or prefix_EnumName.VALUE */
@@ -4477,6 +4488,52 @@ static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- strconv module --- */
+
+static bool emit_strconv_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_fallible = (strcmp(func, "to_int") == 0 ||
+        strcmp(func, "to_uint") == 0 ||
+        strcmp(func, "to_float") == 0 ||
+        strcmp(func, "to_bool") == 0);
+    bool has_base = (strcmp(func, "to_int") == 0 ||
+        strcmp(func, "to_uint") == 0);
+    bool needs_arena = (strcmp(func, "from_int") == 0 ||
+        strcmp(func, "from_uint") == 0 ||
+        strcmp(func, "from_float") == 0);
+
+    if (is_fallible) {
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        if (is_multi_var) {
+            emitf(cg, "ez_strconv_%s_result(", func);
+        } else {
+            emitf(cg, "ez_strconv_%s(", func);
+        }
+        for (int i = 0; i < node->data.call.arg_count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[i]);
+        }
+        /* Default base=10 for to_int/to_uint when not provided */
+        if (has_base && node->data.call.arg_count == 1) {
+            emit(cg, ", 10");
+        }
+        emit(cg, ")");
+        return true;
+    }
+
+    if (needs_arena) {
+        emitf(cg, "ez_strconv_%s(ez_default_arena, ", func);
+    } else {
+        emitf(cg, "ez_strconv_%s(", func);
+    }
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (i > 0) emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
 /* --- @sync module --- */
 
 static bool emit_sync_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -4631,6 +4688,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"regex",    emit_regex_call},
             {"server",   emit_server_call},
             {"sqlite",   emit_sqlite_call},
+            {"strconv",  emit_strconv_call},
             {"strings",  emit_strings_call},
             {"sync",     emit_sync_call},
             {"threads",  emit_threads_call},
@@ -7281,6 +7339,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_binary.h\"\n");
     emit(cg, "#include \"ez_csv.h\"\n");
     emit(cg, "#include \"ez_json.h\"\n");
+    emit(cg, "#include \"ez_strconv.h\"\n");
     emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "#include \"ez_sync.h\"\n");
