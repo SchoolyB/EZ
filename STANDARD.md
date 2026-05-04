@@ -2840,6 +2840,77 @@ Formatted output and string formatting functions.
 
 Accepts `string`, `int`, `float`, and `bool` arguments for formatted output functions. Composite types (structs, arrays, maps) are not supported and are rejected at compile time (E3017). Use `println` for printing composite types.
 
+### 9.28 Strconv Module (`@strconv`)
+
+String-to-type and type-to-string conversion functions with proper error handling.
+
+#### Fallible Conversions (string → type)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `to_int` | `(s string, base int = 10) -> (int, Error)` | Parse string as signed integer in given base |
+| `to_uint` | `(s string, base int = 10) -> (uint, Error)` | Parse string as unsigned integer in given base |
+| `to_float` | `(s string) -> (float, Error)` | Parse string as floating-point number |
+| `to_bool` | `(s string) -> (bool, Error)` | Parse string as boolean |
+
+**Behavior:**
+- When assigned to a single variable (`mut n int = strconv.to_int("42")`), panics on invalid input.
+- When destructured (`mut n, err = strconv.to_int("42")`), returns an Error instead of panicking.
+
+**`to_int` / `to_uint` rules:**
+- The `base` parameter must be an integer between **2 and 36** (inclusive). Invalid bases produce compile-time error E5009 when passed as a literal, or a runtime panic/error when passed as a variable.
+- Leading/trailing whitespace is **not** tolerated — the entire string must be a valid representation.
+- `to_uint` rejects strings containing a `-` sign (returns error or panics).
+- For bases > 10, letters `A`–`Z` (case-insensitive) represent digits 10–35.
+
+**`to_float` rules:**
+- Accepts standard decimal notation (e.g. `"3.14"`, `"-0.5"`, `"100"`).
+- Does **not** accept hex floats, infinity, or NaN strings.
+
+**`to_bool` rules:**
+- Accepts `"true"` and `"false"` (case-insensitive: `"TRUE"`, `"True"`, `"FALSE"`, etc. are valid).
+- All other strings produce an error or panic. There is no implicit truthiness — `"1"`, `"0"`, `"yes"`, `"no"` are **not** valid.
+
+#### Type-to-String Conversions (type → string)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `from_int` | `(n int) -> string` | Convert integer to decimal string |
+| `from_uint` | `(n uint) -> string` | Convert unsigned integer to decimal string |
+| `from_float` | `(f float) -> string` | Convert float to string (shortest representation) |
+| `from_bool` | `(b bool) -> string` | Convert boolean to `"true"` or `"false"` |
+
+These functions never fail.
+
+#### Query Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `is_numeric` | `(s string) -> bool` | Returns true if string is a valid numeric representation (integer or decimal) |
+| `is_integer` | `(s string) -> bool` | Returns true if string is a valid integer (digits only, optional leading sign) |
+
+**`is_numeric` rules:**
+- Accepts optional leading `+` or `-`, followed by digits with at most one `.` decimal point.
+- Empty strings return `false`.
+- Does not accept scientific notation, hex prefixes, or whitespace.
+
+**`is_integer` rules:**
+- Accepts optional leading `+` or `-`, followed by one or more digits (`0`–`9`).
+- Empty strings return `false`.
+- Does not validate whether the value fits in an `int` or `uint`.
+
+#### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `BASE_2` | `2` | Binary |
+| `BASE_8` | `8` | Octal |
+| `BASE_10` | `10` | Decimal (default) |
+| `BASE_16` | `16` | Hexadecimal |
+| `BASE_36` | `36` | Base-36 (digits + full alphabet) |
+
+Constants can be used qualified (`strconv.BASE_16`) or bare after `import and use @strconv`. Any integer value between 2 and 36 is also accepted directly as the base argument.
+
 ---
 
 ## 10. Error Handling
