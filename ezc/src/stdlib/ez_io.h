@@ -47,7 +47,10 @@ EzString ez_io_normalize(EzArena *arena, EzString path);
 
 /* Tuple-returning versions for (value, Error) pattern */
 typedef struct { EzString v0; EzError *v1; } EzResult_string;
+#ifndef EZRESULT_BOOL_DEFINED
+#define EZRESULT_BOOL_DEFINED
 typedef struct { bool v0; EzError *v1; } EzResult_bool;
+#endif
 typedef struct { EzArray v0; EzError *v1; } EzResult_array;
 
 EzResult_string ez_io_read_file_result(EzArena *arena, EzString path);

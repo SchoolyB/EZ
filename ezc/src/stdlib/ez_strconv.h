@@ -11,6 +11,10 @@
 #include "../runtime/ez_runtime.h"
 
 /* Result types for fallible conversions */
+#ifndef EZRESULT_BOOL_DEFINED
+#define EZRESULT_BOOL_DEFINED
+typedef struct { bool v0; EzError *v1; } EzResult_bool;
+#endif
 typedef struct { uint64_t v0; EzError *v1; } EzResult_uint;
 typedef struct { double v0; EzError *v1; } EzResult_float;
 

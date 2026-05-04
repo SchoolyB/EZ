@@ -457,6 +457,9 @@ static const FallibleEntry fallible_stdlib[] = {
     /* regex */
     {"regex", "find"}, {"regex", "find_all"},
     {"regex", "replace"}, {"regex", "split"},
+    /* strconv */
+    {"strconv", "to_int"}, {"strconv", "to_uint"},
+    {"strconv", "to_float"}, {"strconv", "to_bool"},
 };
 
 static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
@@ -471,7 +474,7 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
  * This mirrors the type registration blocks so that multi-var synthesis
  * doesn't depend on sym->type being resolved first. */
 typedef enum {
-    FT_BOOL, FT_INT, FT_STRING,
+    FT_BOOL, FT_INT, FT_UINT, FT_FLOAT, FT_STRING,
     FT_ARRAY_STRING, FT_ARRAY_MAP,
     FT_STRUCT_DATABASE, FT_STRUCT_SOCKET, FT_STRUCT_LISTENER,
     FT_STRUCT_HTTP_RESPONSE, FT_STRUCT_MAP,
@@ -512,6 +515,9 @@ static const FallibleTypeEntry fallible_type_table[] = {
     /* regex */
     {"regex", "find", FT_STRING}, {"regex", "replace", FT_STRING},
     {"regex", "find_all", FT_ARRAY_STRING}, {"regex", "split", FT_ARRAY_STRING},
+    /* strconv */
+    {"strconv", "to_int", FT_INT}, {"strconv", "to_uint", FT_UINT},
+    {"strconv", "to_float", FT_FLOAT}, {"strconv", "to_bool", FT_BOOL},
 };
 
 static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
@@ -521,6 +527,8 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
             switch (fallible_type_table[i].type) {
             case FT_BOOL:                return &TYPE_BOOL;
             case FT_INT:                 return &TYPE_INT;
+            case FT_UINT:                return &TYPE_UINT;
+            case FT_FLOAT:               return &TYPE_FLOAT;
             case FT_STRING:              return &TYPE_STRING;
             case FT_ARRAY_STRING:        return type_array("string");
             case FT_ARRAY_MAP:           return type_array("map");
