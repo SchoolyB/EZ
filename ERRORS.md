@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 182 codes** (167 errors, 15 warnings)
+**Total: 183 codes** (168 errors, 15 warnings)
 
 ---
 
@@ -160,6 +160,7 @@
 | `E4018` | names | struct '%s' has no function named '%s' |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | wrong number of arguments; the function expects a different count than was provided |
+| `E5009` | arguments | invalid base for integer conversion; base must be between 2 and 36 |
 | `E5011` | usage | return value of '%s' is not used; assign it to a variable or use '_' to discard |
 | `E5015` | usage | postfix ++ and -- require a variable, not a value or expression |
 | `E5023` | usage | cannot use '%s' on type '%s'; only integer types support increment/decrement |
@@ -226,4 +227,4 @@
 
 ---
 
-*Generated on 2026-05-04 14:11:10 UTC*
+*Generated on 2026-05-04 16:26:30 UTC*

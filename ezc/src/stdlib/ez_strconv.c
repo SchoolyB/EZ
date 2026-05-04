@@ -14,23 +14,23 @@
 
 /* --- Panicking conversions --- */
 
-int64_t ez_strconv_to_int(EzString s) {
+int64_t ez_strconv_to_int(EzString s, int base) {
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
     char *end = NULL;
     errno = 0;
-    int64_t result = strtoll(buf, &end, 10);
+    int64_t result = strtoll(buf, &end, base);
     if (end == buf || *end != '\0' || errno == ERANGE) {
         fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_int: cannot convert \"%s\" to int\n", buf);
+        fprintf(stderr, "panic: strconv.to_int: cannot convert \"%s\" to int (base %d)\n", buf, base);
         exit(1);
     }
     return result;
 }
 
-uint64_t ez_strconv_to_uint(EzString s) {
+uint64_t ez_strconv_to_uint(EzString s, int base) {
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -46,10 +46,10 @@ uint64_t ez_strconv_to_uint(EzString s) {
     }
     char *end = NULL;
     errno = 0;
-    uint64_t result = strtoull(buf, &end, 10);
+    uint64_t result = strtoull(buf, &end, base);
     if (end == buf || *end != '\0' || errno == ERANGE) {
         fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_uint: cannot convert \"%s\" to uint\n", buf);
+        fprintf(stderr, "panic: strconv.to_uint: cannot convert \"%s\" to uint (base %d)\n", buf, base);
         exit(1);
     }
     return result;
@@ -98,14 +98,14 @@ bool ez_strconv_to_bool(EzString s) {
 
 /* --- Fallible conversions (result versions) --- */
 
-EzResult_int ez_strconv_to_int_result(EzString s) {
+EzResult_int ez_strconv_to_int_result(EzString s, int base) {
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
     char *end = NULL;
     errno = 0;
-    int64_t result = strtoll(buf, &end, 10);
+    int64_t result = strtoll(buf, &end, base);
     if (end == buf || *end != '\0' || errno == ERANGE) {
         EzString msg = ez_string_lit("cannot convert string to int");
         EzError *err = ez_error_new(ez_default_arena, msg);
@@ -114,7 +114,7 @@ EzResult_int ez_strconv_to_int_result(EzString s) {
     return (EzResult_int){result, NULL};
 }
 
-EzResult_uint ez_strconv_to_uint_result(EzString s) {
+EzResult_uint ez_strconv_to_uint_result(EzString s, int base) {
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -130,7 +130,7 @@ EzResult_uint ez_strconv_to_uint_result(EzString s) {
     }
     char *end = NULL;
     errno = 0;
-    uint64_t result = strtoull(buf, &end, 10);
+    uint64_t result = strtoull(buf, &end, base);
     if (end == buf || *end != '\0' || errno == ERANGE) {
         EzString msg = ez_string_lit("cannot convert string to uint");
         EzError *err = ez_error_new(ez_default_arena, msg);

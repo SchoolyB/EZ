@@ -180,6 +180,7 @@
 #define EZ_USAGE_ERRORS \
     EZ_ERROR("E5007", "usage", "cannot modify immutable %s '%s'; declare with 'mut' to allow modification") \
     EZ_ERROR("E5008", "arguments", "wrong number of arguments; the function expects a different count than was provided") \
+    EZ_ERROR("E5009", "arguments", "invalid base for integer conversion; base must be between 2 and 36") \
     EZ_ERROR("E5011", "usage", "return value of '%s' is not used; assign it to a variable or use '_' to discard") \
     EZ_ERROR("E5015", "usage", "postfix ++ and -- require a variable, not a value or expression") \
     EZ_ERROR("E5023", "usage", "cannot use '%s' on type '%s'; only integer types support increment/decrement") \

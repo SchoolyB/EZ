@@ -640,6 +640,12 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
     {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
     {"bytes", "to_hex", 1, 1}, {"bytes", "to_base64", 1, 1},
+    /* strconv */
+    {"strconv", "to_int", 1, 2}, {"strconv", "to_uint", 1, 2},
+    {"strconv", "to_float", 1, 1}, {"strconv", "to_bool", 1, 1},
+    {"strconv", "from_int", 1, 1}, {"strconv", "from_uint", 1, 1},
+    {"strconv", "from_float", 1, 1}, {"strconv", "from_bool", 1, 1},
+    {"strconv", "is_numeric", 1, 1}, {"strconv", "is_integer", 1, 1},
 };
 
 static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
@@ -665,6 +671,28 @@ static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
             }
             return;
         }
+    }
+}
+
+/* Compile-time validation for strconv base parameter.
+ * When the second arg to to_int/to_uint is a literal integer, verify it's
+ * in the valid range [2, 36]. */
+static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
+    const char *fn, AstNode *node)
+{
+    if (strcmp(mod, "strconv") != 0) return;
+    if (strcmp(fn, "to_int") != 0 && strcmp(fn, "to_uint") != 0) return;
+    if (node->data.call.arg_count < 2) return;
+    AstNode *base_arg = node->data.call.args[1];
+    if (base_arg->kind != NODE_INT_VALUE) return;
+    int64_t base = base_arg->data.int_value.value;
+    if (base < 2 || base > 36) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "invalid base %lld for strconv.%s; base must be between 2 and 36",
+            (long long)base, fn);
+        diag_error_msg(tc->diag, "E5009", strdup(msg),
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
     }
 }
 
@@ -912,6 +940,8 @@ static const UsingConst _using_consts[] = {
     {"EPSILON","math",TK_FLOAT},
     {"MAC_OS","os",TK_INT},{"LINUX","os",TK_INT},{"WINDOWS","os",TK_INT},{"OTHER","os",TK_INT},
     {"READ_ONLY","io",TK_INT},{"WRITE_ONLY","io",TK_INT},{"READ_WRITE","io",TK_INT},
+    {"BASE_2","strconv",TK_INT},{"BASE_8","strconv",TK_INT},{"BASE_10","strconv",TK_INT},
+    {"BASE_16","strconv",TK_INT},{"BASE_36","strconv",TK_INT},
     {NULL,NULL,TK_UNKNOWN}
 };
 
@@ -1954,6 +1984,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* Validate argument count for stdlib function calls */
             tc_check_stdlib_arg_count(tc, mod, mfn, node);
             tc_check_stdlib_arg_types(tc, mod, mfn, node);
+            tc_check_strconv_base(tc, mod, mfn, node);
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena"); /* arena pointer; opaque */
@@ -4173,6 +4204,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (strcmp(obj_name, "os") == 0) {
                 result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
                 break;
+            }
+            if (strcmp(obj_name, "strconv") == 0) {
+                const char *mem = node->data.member.member;
+                if (strcmp(mem, "BASE_2") == 0 || strcmp(mem, "BASE_8") == 0 ||
+                    strcmp(mem, "BASE_10") == 0 || strcmp(mem, "BASE_16") == 0 ||
+                    strcmp(mem, "BASE_36") == 0) {
+                    result = &TYPE_INT;
+                    break;
+                }
             }
 
             /* Check if it's an enum access: Color.RED */

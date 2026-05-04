@@ -19,14 +19,14 @@ typedef struct { uint64_t v0; EzError *v1; } EzResult_uint;
 typedef struct { double v0; EzError *v1; } EzResult_float;
 
 /* Panicking conversions (single-var assignment) */
-int64_t ez_strconv_to_int(EzString s);
-uint64_t ez_strconv_to_uint(EzString s);
+int64_t ez_strconv_to_int(EzString s, int base);
+uint64_t ez_strconv_to_uint(EzString s, int base);
 double ez_strconv_to_float(EzString s);
 bool ez_strconv_to_bool(EzString s);
 
 /* Fallible conversions (multi-var destructuring) */
-EzResult_int ez_strconv_to_int_result(EzString s);
-EzResult_uint ez_strconv_to_uint_result(EzString s);
+EzResult_int ez_strconv_to_int_result(EzString s, int base);
+EzResult_uint ez_strconv_to_uint_result(EzString s, int base);
 EzResult_float ez_strconv_to_float_result(EzString s);
 EzResult_bool ez_strconv_to_bool_result(EzString s);
 
