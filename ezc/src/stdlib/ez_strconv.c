@@ -15,6 +15,11 @@
 /* --- Panicking conversions --- */
 
 int64_t ez_strconv_to_int(EzString s, int base) {
+    if (base < 2 || base > 36) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strconv.to_int: invalid base %d (must be 2-36)\n", base);
+        exit(1);
+    }
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -31,6 +36,11 @@ int64_t ez_strconv_to_int(EzString s, int base) {
 }
 
 uint64_t ez_strconv_to_uint(EzString s, int base) {
+    if (base < 2 || base > 36) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strconv.to_uint: invalid base %d (must be 2-36)\n", base);
+        exit(1);
+    }
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -99,6 +109,11 @@ bool ez_strconv_to_bool(EzString s) {
 /* --- Fallible conversions (result versions) --- */
 
 EzResult_int ez_strconv_to_int_result(EzString s, int base) {
+    if (base < 2 || base > 36) {
+        EzString msg = ez_string_lit("invalid base for integer conversion (must be 2-36)");
+        EzError *err = ez_error_new(ez_default_arena, msg);
+        return (EzResult_int){0, err};
+    }
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -115,6 +130,11 @@ EzResult_int ez_strconv_to_int_result(EzString s, int base) {
 }
 
 EzResult_uint ez_strconv_to_uint_result(EzString s, int base) {
+    if (base < 2 || base > 36) {
+        EzString msg = ez_string_lit("invalid base for integer conversion (must be 2-36)");
+        EzError *err = ez_error_new(ez_default_arena, msg);
+        return (EzResult_uint){0, err};
+    }
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);

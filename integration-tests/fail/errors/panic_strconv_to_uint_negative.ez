@@ -1,0 +1,10 @@
+/*
+ * Error Test: strconv.to_uint panics on negative input
+ * Expected: runtime panic
+ */
+
+import @strconv
+
+do main() {
+    mut x uint = strconv.to_uint("-5")
+}
