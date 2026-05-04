@@ -7078,11 +7078,13 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     if (tc->import_count >= tc->import_cap) {
                         tc->import_cap = tc->import_cap ? tc->import_cap * 2 : 16;
                         tc->imported_modules = realloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
+                        tc->import_files = realloc(tc->import_files, sizeof(const char *) * tc->import_cap);
                         tc->import_lines = realloc(tc->import_lines, sizeof(int) * tc->import_cap);
                         tc->import_used = realloc(tc->import_used, sizeof(bool) * tc->import_cap);
                         tc->import_is_stdlib = realloc(tc->import_is_stdlib, sizeof(bool) * tc->import_cap);
                     }
                     tc->imported_modules[tc->import_count] = item->alias ? item->alias : item->module;
+                    tc->import_files[tc->import_count] = stmt->token.file; /* NULL = main file */
                     tc->import_lines[tc->import_count] = stmt->token.line;
                     tc->import_used[tc->import_count] = item->is_c_import; /* C imports are always "used" */
                     tc->import_is_stdlib[tc->import_count] = item->is_stdlib;
@@ -7675,8 +7677,11 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             tc->file, err_line, 1, 0);
     }
 
-    /* Warn about unused imports */
+    /* Warn about unused imports (only for the main file; imports from
+     * sub-files are the sub-file author's responsibility). */
     for (int i = 0; i < tc->import_count; i++) {
+        if (tc->import_files[i] && tc->file &&
+            strcmp(tc->import_files[i], tc->file) != 0) continue; /* skip sub-file imports */
         if (!tc->import_used[i]) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),

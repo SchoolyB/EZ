@@ -110,6 +110,7 @@ typedef struct {
 
     /* Import tracking for unused import warnings */
     const char **imported_modules;
+    const char **import_files;   /* source file each import came from (NULL = main) */
     int *import_lines;
     bool *import_used;
     bool *import_is_stdlib;
