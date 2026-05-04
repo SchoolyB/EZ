@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.2.0](https://github.com/SchoolyB/EZ/compare/v3.1.2...v3.2.0) (2026-05-04)
+
+
+### Features
+
+* pass --quiet and --no-color flags through ez watch ([#1606](https://github.com/SchoolyB/EZ/issues/1606)) ([e35016e](https://github.com/SchoolyB/EZ/commit/e35016ea4d56054ba0d81be1a740f6dc323e0513)), closes [#1573](https://github.com/SchoolyB/EZ/issues/1573)
+* **stdlib:** add base parameter to strconv.to_int/to_uint ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([3fd62c8](https://github.com/SchoolyB/EZ/commit/3fd62c899378b192ceb631c85ad5f710b81ec93b))
+* **stdlib:** add strconv module ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([fbc995e](https://github.com/SchoolyB/EZ/commit/fbc995e64717428d6f12870f769b8e328ae9f8db))
+* **stdlib:** add strconv module for string/type conversions ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([ae8a310](https://github.com/SchoolyB/EZ/commit/ae8a3104e7059e4c3148d438370e005636f49f42))
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate --no-color flag on watchCmd ([1935e83](https://github.com/SchoolyB/EZ/commit/1935e83625e05725b040caee92f0b485bbff5c43))
+* **parser:** replace uppercase heuristic with struct name prescan ([e72004b](https://github.com/SchoolyB/EZ/commit/e72004b32cf3782b2c5ee7ee375bd4578556b741))
+* **parser:** suppress struct literal parsing on RHS of comparisons ([0db8b88](https://github.com/SchoolyB/EZ/commit/0db8b889c41283d081bc9cdaf2e57cde3d0d9ec6))
+* **repo:** enable blank issues in issue template config ([3f8db8f](https://github.com/SchoolyB/EZ/commit/3f8db8f91ff60fd8d37caf0ac1f09418660105ca))
+* **stdlib:** complete strconv module wiring (Makefile, fallible tables) ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([20e7ee0](https://github.com/SchoolyB/EZ/commit/20e7ee054d6a4a3c67f59bbfce8a3c8366dc8e35))
+* **typechecker:** allow type names in size_of while rejecting bare builtin functions ([b67ee7c](https://github.com/SchoolyB/EZ/commit/b67ee7c8f219c084cf208af9d4c79a0bf06a8fe8))
+* **typechecker:** enforce private access, reject nonexistent struct functions, catch struct type mismatches ([#1599](https://github.com/SchoolyB/EZ/issues/1599)) ([4151ca7](https://github.com/SchoolyB/EZ/commit/4151ca71990cf3cb882f75c360b96b7dca488d89))
+* **typechecker:** reject bare builtin names used as values ([3e48888](https://github.com/SchoolyB/EZ/commit/3e48888ed635c0ac1d1e5cb9ae9971535d179850))
+* **typechecker:** suppress false W1002 warnings for sub-file imports ([5df0121](https://github.com/SchoolyB/EZ/commit/5df01218580099a1009170a59dfa2593c79629a3))
+
 ## [3.1.2](https://github.com/SchoolyB/EZ/compare/v3.1.1...v3.1.2) (2026-05-02)
 
 
