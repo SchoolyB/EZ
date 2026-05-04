@@ -1,0 +1,13 @@
+/*
+ * Error Test: E4018 - calling a function that doesn't exist on a struct
+ * Expected: "struct 'Point' has no function named 'doesnt_exist'"
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    Point.doesnt_exist(1, 2, 3)
+}
