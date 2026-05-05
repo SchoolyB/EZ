@@ -2337,7 +2337,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         if (in_container) {
             emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
         } else {
-            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream, stream);
+            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream);
         }
         break;
     case TK_NIL:
