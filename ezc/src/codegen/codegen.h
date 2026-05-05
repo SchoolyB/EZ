@@ -36,6 +36,12 @@ typedef struct {
     int func_count;
     int func_cap;
 
+    /* Sorted view of all_funcs by func_decl.name, built lazily for
+     * O(log n) find_func lookups. all_funcs itself stays in insertion
+     * order because emission and several prefix-match scans depend on it. */
+    AstNode **funcs_by_name;
+    bool funcs_by_name_built;
+
     /* Type table from type checker (for type-aware codegen) */
     TypeTable *type_table;
 

@@ -589,14 +589,32 @@ static bool is_mutable_param(CodeGen *cg, const char *name) {
     return false;
 }
 
-/* Find a function declaration by name */
+static int func_name_cmp(const void *a, const void *b) {
+    const AstNode *fa = *(const AstNode *const *)a;
+    const AstNode *fb = *(const AstNode *const *)b;
+    return strcmp(fa->data.func_decl.name, fb->data.func_decl.name);
+}
+
+/* Find a function declaration by name. Builds and reuses a sorted view of
+ * cg->all_funcs so lookups are O(log n) after the first call. The view is
+ * invalidated whenever a new function is registered (see register sites). */
 static AstNode *find_func(CodeGen *cg, const char *name) {
-    for (int i = 0; i < cg->func_count; i++) {
-        if (strcmp(cg->all_funcs[i]->data.func_decl.name, name) == 0) {
-            return cg->all_funcs[i];
-        }
+    if (cg->func_count == 0) return NULL;
+    if (!cg->funcs_by_name_built) {
+        cg->funcs_by_name = xrealloc(cg->funcs_by_name,
+            sizeof(AstNode *) * (size_t)cg->func_count);
+        memcpy(cg->funcs_by_name, cg->all_funcs,
+            sizeof(AstNode *) * (size_t)cg->func_count);
+        qsort(cg->funcs_by_name, (size_t)cg->func_count, sizeof(AstNode *), func_name_cmp);
+        cg->funcs_by_name_built = true;
     }
-    return NULL;
+    /* Build a stack key node so bsearch can compare against the name field. */
+    AstNode key;
+    key.data.func_decl.name = name;
+    AstNode *key_ptr = &key;
+    AstNode **hit = bsearch(&key_ptr, cg->funcs_by_name, (size_t)cg->func_count,
+        sizeof(AstNode *), func_name_cmp);
+    return hit ? *hit : NULL;
 }
 
 /* Build the (field_name, struct_name) index for func-typed fields once.
@@ -7233,6 +7251,8 @@ CodeGen codegen_create(const char *file) {
     cg.all_funcs = NULL;
     cg.func_count = 0;
     cg.func_cap = 0;
+    cg.funcs_by_name = NULL;
+    cg.funcs_by_name_built = false;
     cg.type_table = NULL;
     cg.ref_vars = NULL;
     cg.ref_var_count = 0;
@@ -7857,6 +7877,7 @@ void codegen_destroy(CodeGen *cg) {
     buf_destroy(&cg->output);
     free(cg->enum_names);
     free(cg->all_funcs);
+    free(cg->funcs_by_name);
     free(cg->ref_vars);
     free(cg->bigint_var_names);
     free(cg->bigint_var_types);
