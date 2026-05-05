@@ -6,6 +6,7 @@
  */
 
 #include "ez_io.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -18,6 +19,7 @@
 #define EZ_IO_COPY_BUF          8192
 #define EZ_IO_MAX_SEGMENTS      256
 #define EZ_IO_DIR_MODE          0755
+#define EZ_IO_FILE_MODE         0644
 #define EZ_IO_WALK_INITIAL_CAP  32
 
 /* ---- Path manipulation (pure, no I/O) ---- */
@@ -223,8 +225,10 @@ bool ez_io_rename_file(EzString old_path, EzString new_path) {
 bool ez_io_copy_file(EzString src, EzString dst) {
     FILE *in = fopen(src.data, "rb");
     if (!in) return false;
-    FILE *out = fopen(dst.data, "wb");
-    if (!out) { fclose(in); return false; }
+    int out_fd = open(dst.data, O_WRONLY | O_CREAT | O_TRUNC, EZ_IO_FILE_MODE);
+    if (out_fd < 0) { fclose(in); return false; }
+    FILE *out = fdopen(out_fd, "wb");
+    if (!out) { close(out_fd); fclose(in); return false; }
     char buf[EZ_IO_COPY_BUF];
     size_t n;
     bool ok = true;

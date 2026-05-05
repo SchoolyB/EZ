@@ -8,6 +8,7 @@
 
 #include "codegen.h"
 #include "../util/constants.h"
+#include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -68,7 +69,7 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
     if (req > cg->output.cap) {
         size_t new_cap = cg->output.cap * 2;
         if (new_cap < req) new_cap = req;
-        cg->output.data = realloc(cg->output.data, new_cap);
+        cg->output.data = xrealloc(cg->output.data, new_cap);
         cg->output.cap = new_cap;
     }
 
@@ -518,7 +519,7 @@ static bool is_ref_var(CodeGen *cg, const char *name) {
 static void register_ref_var(CodeGen *cg, const char *name) {
     if (cg->ref_var_count >= cg->ref_var_cap) {
         cg->ref_var_cap = cg->ref_var_cap ? cg->ref_var_cap * 2 : 8;
-        cg->ref_vars = realloc(cg->ref_vars, sizeof(const char *) * cg->ref_var_cap);
+        cg->ref_vars = xrealloc(cg->ref_vars, sizeof(const char *) * cg->ref_var_cap);
     }
     cg->ref_vars[cg->ref_var_count++] = name;
 }
@@ -534,8 +535,8 @@ static bool is_bigint_type(const char *tn) {
 static void register_bigint_var(CodeGen *cg, const char *name, const char *type_name) {
     if (cg->bigint_var_count >= cg->bigint_var_cap) {
         cg->bigint_var_cap = cg->bigint_var_cap ? cg->bigint_var_cap * 2 : 8;
-        cg->bigint_var_names = realloc(cg->bigint_var_names, sizeof(const char *) * cg->bigint_var_cap);
-        cg->bigint_var_types = realloc(cg->bigint_var_types, sizeof(const char *) * cg->bigint_var_cap);
+        cg->bigint_var_names = xrealloc(cg->bigint_var_names, sizeof(const char *) * cg->bigint_var_cap);
+        cg->bigint_var_types = xrealloc(cg->bigint_var_types, sizeof(const char *) * cg->bigint_var_cap);
     }
     cg->bigint_var_names[cg->bigint_var_count] = name;
     cg->bigint_var_types[cg->bigint_var_count] = type_name;
@@ -588,14 +589,59 @@ static bool is_mutable_param(CodeGen *cg, const char *name) {
     return false;
 }
 
-/* Find a function declaration by name */
+static int func_name_cmp(const void *a, const void *b) {
+    const AstNode *fa = *(const AstNode *const *)a;
+    const AstNode *fb = *(const AstNode *const *)b;
+    return strcmp(fa->data.func_decl.name, fb->data.func_decl.name);
+}
+
+/* Find a function declaration by name. Builds and reuses a sorted view of
+ * cg->all_funcs so lookups are O(log n) after the first call. The view is
+ * invalidated whenever a new function is registered (see register sites). */
 static AstNode *find_func(CodeGen *cg, const char *name) {
-    for (int i = 0; i < cg->func_count; i++) {
-        if (strcmp(cg->all_funcs[i]->data.func_decl.name, name) == 0) {
-            return cg->all_funcs[i];
+    if (cg->func_count == 0) return NULL;
+    if (!cg->funcs_by_name_built) {
+        cg->funcs_by_name = xrealloc(cg->funcs_by_name,
+            sizeof(AstNode *) * (size_t)cg->func_count);
+        memcpy(cg->funcs_by_name, cg->all_funcs,
+            sizeof(AstNode *) * (size_t)cg->func_count);
+        qsort(cg->funcs_by_name, (size_t)cg->func_count, sizeof(AstNode *), func_name_cmp);
+        cg->funcs_by_name_built = true;
+    }
+    /* Build a stack key node so bsearch can compare against the name field. */
+    AstNode key;
+    key.data.func_decl.name = name;
+    AstNode *key_ptr = &key;
+    AstNode **hit = bsearch(&key_ptr, cg->funcs_by_name, (size_t)cg->func_count,
+        sizeof(AstNode *), func_name_cmp);
+    return hit ? *hit : NULL;
+}
+
+/* Build the (field_name, struct_name) index for func-typed fields once.
+ * Order matches struct_decls so the first-match heuristic is preserved. */
+static void build_func_field_index(CodeGen *cg) {
+    if (cg->func_field_index_built) return;
+    int total = 0;
+    for (int si = 0; si < cg->struct_decl_count; si++) {
+        total += cg->struct_decls[si]->data.struct_decl.field_count;
+    }
+    if (total > 0) {
+        cg->func_field_index = xmalloc(sizeof(*cg->func_field_index) * (size_t)total);
+    }
+    for (int si = 0; si < cg->struct_decl_count; si++) {
+        AstNode *sd = cg->struct_decls[si];
+        for (int fi = 0; fi < sd->data.struct_decl.field_count; fi++) {
+            StructField *sf = &sd->data.struct_decl.fields[fi];
+            if (sf->type_name &&
+                (strcmp(sf->type_name, "func") == 0 ||
+                 strncmp(sf->type_name, "func(", 5) == 0)) {
+                cg->func_field_index[cg->func_field_count].field_name = sf->name;
+                cg->func_field_index[cg->func_field_count].struct_name = sd->data.struct_decl.name;
+                cg->func_field_count++;
+            }
         }
     }
-    return NULL;
+    cg->func_field_index_built = true;
 }
 
 /* --- Expression Emission --- */
@@ -1698,13 +1744,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 size_t mem_len = strlen(mem);
                 size_t cn_len = mod_len + 1 + mem_len + 1;
                 char *check_name = malloc(cn_len);
+                if (!check_name) break;
                 snprintf(check_name, cn_len, "%s_%s", mod, mem);
                 /* Check functions, variables via find_func */
                 if (find_func(cg, check_name)) is_module = true;
+                free(check_name);
                 /* Check if any function starts with mod_ prefix */
                 if (!is_module) {
                     size_t pfx_len = mod_len + 2;
                     char *prefix = malloc(pfx_len);
+                    if (!prefix) break;
                     snprintf(prefix, pfx_len, "%s_", mod);
                     size_t plen = pfx_len - 1;
                     for (int fi = 0; fi < cg->func_count; fi++) {
@@ -1713,6 +1762,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                             break;
                         }
                     }
+                    free(prefix);
                 }
                 /* Check using_modules list */
                 if (!is_module) {
@@ -2287,7 +2337,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         if (in_container) {
             emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
         } else {
-            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream, stream);
+            emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream);
         }
         break;
     case TK_NIL:
@@ -4948,8 +4998,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
             size_t ns_len = strlen(resolved_name) + 1 + strlen(member) + 1;
             char *ns_name = malloc(ns_len);
+            if (!ns_name) return;
             snprintf(ns_name, ns_len, "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
+            free(ns_name);
             if (!ns_func) {
                 /* : check if `member` is a func-typed data field
                  * on the struct. If so, emit as a function-pointer call
@@ -4960,17 +5012,12 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* Fall back to scanning struct decls if the type_table
                  * doesn't have a hit for the label. */
                 if (!inst_t || inst_t->kind == TK_UNKNOWN) {
-                    for (int si = 0; si < cg->struct_decl_count; si++) {
-                        const char *sn = cg->struct_decls[si]->data.struct_decl.name;
-                        for (int fi = 0; fi < cg->struct_decls[si]->data.struct_decl.field_count; fi++) {
-                            StructField *sf = &cg->struct_decls[si]->data.struct_decl.fields[fi];
-                            if (strcmp(sf->name, member) == 0 && sf->type_name &&
-                                (strcmp(sf->type_name, "func") == 0 || strncmp(sf->type_name, "func(", 5) == 0)) {
-                                inst_t = type_struct(sn);
-                                break;
-                            }
+                    build_func_field_index(cg);
+                    for (int i = 0; i < cg->func_field_count; i++) {
+                        if (strcmp(cg->func_field_index[i].field_name, member) == 0) {
+                            inst_t = type_struct(cg->func_field_index[i].struct_name);
+                            break;
                         }
-                        if (inst_t && inst_t->kind == TK_STRUCT) break;
                     }
                 }
                 if (inst_t && (inst_t->kind == TK_STRUCT || inst_t->kind == TK_POINTER)) {
@@ -5153,6 +5200,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             size_t bind_len = binding ? strlen(binding) : 0;
             size_t mn_need = 6 + rfn_len + 2 + bind_len + 1; /* 6 = strlen("ez_fn_") */
             char *mangled = malloc(mn_need);
+            if (!mangled) return;
             size_t pos = (size_t)snprintf(mangled, mn_need, "ez_fn_%s__",
                 resolved_fn_name);
             if (binding) {
@@ -5162,6 +5210,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
             mangled[pos] = '\0';
             emit(cg, mangled);
+            free(mangled);
         } else {
             emit(cg, "ez_fn_");
             emit(cg, resolved_fn_name);
@@ -5202,8 +5251,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                             const char *rn_b = fref->data.member.member;
                             size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
                             char *rn = malloc(rn_len);
+                            if (!rn) continue;
                             snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
                             ref_func = find_func(cg, rn);
+                            free(rn);
                         }
                     }
                 }
@@ -7161,7 +7212,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         for (int j = 0; j < node->data.using_stmt.count; j++) {
             if (cg->using_module_count >= cg->using_module_cap) {
                 cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
-                cg->using_modules = realloc(cg->using_modules,
+                cg->using_modules = xrealloc(cg->using_modules,
                     sizeof(const char *) * (size_t)cg->using_module_cap);
             }
             cg->using_modules[cg->using_module_count++] = node->data.using_stmt.modules[j];
@@ -7200,6 +7251,8 @@ CodeGen codegen_create(const char *file) {
     cg.all_funcs = NULL;
     cg.func_count = 0;
     cg.func_cap = 0;
+    cg.funcs_by_name = NULL;
+    cg.funcs_by_name_built = false;
     cg.type_table = NULL;
     cg.ref_vars = NULL;
     cg.ref_var_count = 0;
@@ -7211,6 +7264,9 @@ CodeGen codegen_create(const char *file) {
     cg.struct_decls = NULL;
     cg.struct_decl_count = 0;
     cg.struct_decl_cap = 0;
+    cg.func_field_index = NULL;
+    cg.func_field_count = 0;
+    cg.func_field_index_built = false;
     cg.using_modules = NULL;
     cg.using_module_count = 0;
     cg.using_module_cap = 0;
@@ -7248,7 +7304,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     cg->has_c_imports = true;
                     if (cg->c_header_count >= cg->c_header_cap) {
                         cg->c_header_cap = cg->c_header_cap ? cg->c_header_cap * 2 : 4;
-                        cg->c_headers = realloc(cg->c_headers,
+                        cg->c_headers = xrealloc(cg->c_headers,
                             sizeof(const char *) * (size_t)cg->c_header_cap);
                     }
                     cg->c_headers[cg->c_header_count++] = item->path;
@@ -7258,7 +7314,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     const char *mname = item->alias ? item->alias : item->module;
                     if (cg->imported_module_count >= cg->imported_module_cap) {
                         cg->imported_module_cap = cg->imported_module_cap ? cg->imported_module_cap * 2 : 8;
-                        cg->imported_modules = realloc(cg->imported_modules,
+                        cg->imported_modules = xrealloc(cg->imported_modules,
                             sizeof(const char *) * (size_t)cg->imported_module_cap);
                     }
                     cg->imported_modules[cg->imported_module_count++] = mname;
@@ -7267,9 +7323,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
                     if (cg->alias_count >= cg->alias_cap) {
                         cg->alias_cap = cg->alias_cap ? cg->alias_cap * 2 : 8;
-                        cg->alias_names = realloc(cg->alias_names,
+                        cg->alias_names = xrealloc(cg->alias_names,
                             sizeof(const char *) * (size_t)cg->alias_cap);
-                        cg->alias_modules = realloc(cg->alias_modules,
+                        cg->alias_modules = xrealloc(cg->alias_modules,
                             sizeof(const char *) * (size_t)cg->alias_cap);
                     }
                     cg->alias_names[cg->alias_count] = item->alias;
@@ -7284,7 +7340,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     if (item->module) {
                         if (cg->using_module_count >= cg->using_module_cap) {
                             cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
-                            cg->using_modules = realloc(cg->using_modules,
+                            cg->using_modules = xrealloc(cg->using_modules,
                                 sizeof(const char *) * (size_t)cg->using_module_cap);
                         }
                         cg->using_modules[cg->using_module_count++] = item->module;
@@ -7296,7 +7352,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             for (int j = 0; j < stmt->data.using_stmt.count; j++) {
                 if (cg->using_module_count >= cg->using_module_cap) {
                     cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
-                    cg->using_modules = realloc(cg->using_modules,
+                    cg->using_modules = xrealloc(cg->using_modules,
                         sizeof(const char *) * (size_t)cg->using_module_cap);
                 }
                 cg->using_modules[cg->using_module_count++] = stmt->data.using_stmt.modules[j];
@@ -7305,7 +7361,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind == NODE_STRUCT_DECL) {
             if (cg->struct_decl_count >= cg->struct_decl_cap) {
                 cg->struct_decl_cap = cg->struct_decl_cap ? cg->struct_decl_cap * 2 : 16;
-                cg->struct_decls = realloc(cg->struct_decls,
+                cg->struct_decls = xrealloc(cg->struct_decls,
                     sizeof(AstNode *) * (size_t)cg->struct_decl_cap);
             }
             cg->struct_decls[cg->struct_decl_count++] = stmt;
@@ -7372,7 +7428,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             /* Register enum name */
             if (cg->enum_count >= cg->enum_cap) {
                 cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
-                cg->enum_names = realloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
+                cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
             }
             cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
 
@@ -7645,7 +7701,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind == NODE_FUNC_DECL) {
             if (cg->func_count >= cg->func_cap) {
                 cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
-                cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+                cg->all_funcs = xrealloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
             }
             cg->all_funcs[cg->func_count++] = stmt;
         }
@@ -7665,7 +7721,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
                     if (cg->func_count >= cg->func_cap) {
                         cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
-                        cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+                        cg->all_funcs = xrealloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
                     }
                     cg->all_funcs[cg->func_count++] = fn;
                 }
@@ -7718,12 +7774,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         const char *orig_name = stmt->data.func_decl.name;
         for (int r = 0; r < emit_rounds; r++) {
             const char *saved_binding = cg->wildcard_binding;
-            char mangled[EZ_MSG_BUF_SIZE];
+            /* mangled is heap-allocated so the AST temporarily points at
+             * stable memory while emit_multi_return_typedef / func_return_type
+             * read stmt->data.func_decl.name. */
+            char *mangled = NULL;
             if (has_wc) {
+                mangled = xmalloc(EZ_MSG_BUF_SIZE);
                 const char *concrete = stmt->data.func_decl.instantiations[r];
                 cg->wildcard_binding = concrete;
-                size_t pos = snprintf(mangled, sizeof(mangled), "%s__", orig_name);
-                for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
+                size_t pos = snprintf(mangled, EZ_MSG_BUF_SIZE, "%s__", orig_name);
+                for (const char *c = concrete; *c && pos < EZ_MSG_BUF_SIZE - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
                 }
                 mangled[pos] = '\0';
@@ -7763,6 +7823,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
             emit(cg, ");\n");
             cg->wildcard_binding = saved_binding;
+            free(mangled);
         }
     }
     emit(cg, "\n");
@@ -7821,10 +7882,12 @@ void codegen_destroy(CodeGen *cg) {
     buf_destroy(&cg->output);
     free(cg->enum_names);
     free(cg->all_funcs);
+    free(cg->funcs_by_name);
     free(cg->ref_vars);
     free(cg->bigint_var_names);
     free(cg->bigint_var_types);
     free(cg->struct_decls);
+    free(cg->func_field_index);
     free(cg->using_modules);
     free(cg->alias_names);
     free(cg->alias_modules);

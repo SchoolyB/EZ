@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <strings.h>
 
 #define STRCONV_BUF_SIZE 64
 
@@ -82,19 +83,10 @@ double ez_strconv_to_float(EzString s) {
 }
 
 bool ez_strconv_to_bool(EzString s) {
-    if (s.len == 4 &&
-        (s.data[0] == 't' || s.data[0] == 'T') &&
-        (s.data[1] == 'r' || s.data[1] == 'R') &&
-        (s.data[2] == 'u' || s.data[2] == 'U') &&
-        (s.data[3] == 'e' || s.data[3] == 'E')) {
+    if (s.len == 4 && strncasecmp(s.data, "true", 4) == 0) {
         return true;
     }
-    if (s.len == 5 &&
-        (s.data[0] == 'f' || s.data[0] == 'F') &&
-        (s.data[1] == 'a' || s.data[1] == 'A') &&
-        (s.data[2] == 'l' || s.data[2] == 'L') &&
-        (s.data[3] == 's' || s.data[3] == 'S') &&
-        (s.data[4] == 'e' || s.data[4] == 'E')) {
+    if (s.len == 5 && strncasecmp(s.data, "false", 5) == 0) {
         return false;
     }
     fflush(stdout);
@@ -176,19 +168,10 @@ EzResult_float ez_strconv_to_float_result(EzString s) {
 }
 
 EzResult_bool ez_strconv_to_bool_result(EzString s) {
-    if (s.len == 4 &&
-        (s.data[0] == 't' || s.data[0] == 'T') &&
-        (s.data[1] == 'r' || s.data[1] == 'R') &&
-        (s.data[2] == 'u' || s.data[2] == 'U') &&
-        (s.data[3] == 'e' || s.data[3] == 'E')) {
+    if (s.len == 4 && strncasecmp(s.data, "true", 4) == 0) {
         return (EzResult_bool){true, NULL};
     }
-    if (s.len == 5 &&
-        (s.data[0] == 'f' || s.data[0] == 'F') &&
-        (s.data[1] == 'a' || s.data[1] == 'A') &&
-        (s.data[2] == 'l' || s.data[2] == 'L') &&
-        (s.data[3] == 's' || s.data[3] == 'S') &&
-        (s.data[4] == 'e' || s.data[4] == 'E')) {
+    if (s.len == 5 && strncasecmp(s.data, "false", 5) == 0) {
         return (EzResult_bool){false, NULL};
     }
     EzString msg = ez_string_lit("cannot convert string to bool");
