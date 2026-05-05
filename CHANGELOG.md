@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.2.1](https://github.com/SchoolyB/EZ/compare/v3.2.0...v3.2.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* **codegen:** drop extra stream arg in non-container char print ([81bfbdf](https://github.com/SchoolyB/EZ/commit/81bfbdf036362700eb6694eb679220957097a65d))
+* **codegen:** heap-allocate mangled buffer in monomorphisation forward decl ([01a1842](https://github.com/SchoolyB/EZ/commit/01a184297a94036664497b2fc61885cf8fac7e81))
+* **io:** create copy_file destination with mode 0644 instead of 0666 ([e444039](https://github.com/SchoolyB/EZ/commit/e44403993e4004a8202077fa652fd76e08ac53f2))
+
+
+### Performance Improvements
+
+* **codegen:** build func-field index once instead of nested struct scan ([eced4b2](https://github.com/SchoolyB/EZ/commit/eced4b29144cb457703cc8931291f3bcf352cf45))
+* **codegen:** replace find_func linear scan with sorted bsearch index ([2dbb8ff](https://github.com/SchoolyB/EZ/commit/2dbb8ff3554b2e1e4a621e366760d916e4450b67))
+* **error_codes:** replace chained strcmp with sorted bsearch lookup ([5d36216](https://github.com/SchoolyB/EZ/commit/5d36216321a18462ef149f5ded52abae46b169f7))
+* **typechecker:** replace chained strcmp in type_from_name with bsearch table ([e62f607](https://github.com/SchoolyB/EZ/commit/e62f607c417d79cc48ed62e1d19dc9f6c199fcea))
+
 ## [3.2.0](https://github.com/SchoolyB/EZ/compare/v3.1.2...v3.2.0) (2026-05-04)
 
 
