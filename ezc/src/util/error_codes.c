@@ -11,12 +11,14 @@
  */
 
 #include "error_codes.h"
+#include <stdlib.h>
 #include <string.h>
 
-const char *ez_error_message(const char *code) {
-    if (!code) return NULL;
-#define EZ_ERROR(c, cat, msg) if (strcmp(code, c) == 0) return msg;
-#define EZ_WARNING(c, cat, msg) if (strcmp(code, c) == 0) return msg;
+typedef struct { const char *code; const char *msg; } ErrorEntry;
+
+static ErrorEntry entries[] = {
+#define EZ_ERROR(c, cat, msg) { c, msg },
+#define EZ_WARNING(c, cat, msg) { c, msg },
     EZ_LEXER_ERRORS
     EZ_PARSER_ERRORS
     EZ_TYPE_ERRORS
@@ -27,5 +29,23 @@ const char *ez_error_message(const char *code) {
     EZ_WARNINGS
 #undef EZ_ERROR
 #undef EZ_WARNING
-    return NULL;
+};
+
+#define ENTRY_COUNT (sizeof(entries) / sizeof(entries[0]))
+
+static int entry_cmp(const void *a, const void *b) {
+    return strcmp(((const ErrorEntry *)a)->code, ((const ErrorEntry *)b)->code);
+}
+
+static int sorted = 0;
+
+const char *ez_error_message(const char *code) {
+    if (!code) return NULL;
+    if (!sorted) {
+        qsort(entries, ENTRY_COUNT, sizeof(ErrorEntry), entry_cmp);
+        sorted = 1;
+    }
+    ErrorEntry key = { code, NULL };
+    ErrorEntry *hit = bsearch(&key, entries, ENTRY_COUNT, sizeof(ErrorEntry), entry_cmp);
+    return hit ? hit->msg : NULL;
 }
