@@ -9,6 +9,7 @@
 
 #include "typechecker.h"
 #include "../util/constants.h"
+#include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,10 +40,10 @@ static uint32_t hash_ptr(const void *ptr) {
 }
 
 TypeTable *typetable_create(void) {
-    TypeTable *tt = calloc(1, sizeof(TypeTable));
+    TypeTable *tt = xcalloc(1, sizeof(TypeTable));
     tt->cap = TYPETABLE_INIT_CAP;
-    tt->nodes = calloc((size_t)tt->cap, sizeof(AstNode *));
-    tt->types = calloc((size_t)tt->cap, sizeof(EzType *));
+    tt->nodes = xcalloc((size_t)tt->cap, sizeof(AstNode *));
+    tt->types = xcalloc((size_t)tt->cap, sizeof(EzType *));
     return tt;
 }
 
@@ -52,8 +53,8 @@ static void typetable_grow(TypeTable *tt) {
     EzType **old_types = tt->types;
 
     tt->cap = old_cap * 2;
-    tt->nodes = calloc((size_t)tt->cap, sizeof(AstNode *));
-    tt->types = calloc((size_t)tt->cap, sizeof(EzType *));
+    tt->nodes = xcalloc((size_t)tt->cap, sizeof(AstNode *));
+    tt->types = xcalloc((size_t)tt->cap, sizeof(EzType *));
     tt->count = 0;
 
     for (int i = 0; i < old_cap; i++) {
@@ -137,7 +138,7 @@ static void register_struct(TypeChecker *tc, const char *name,
     const char **field_names, EzType **field_types, int field_count) {
     if (tc->struct_count >= tc->struct_cap) {
         tc->struct_cap = tc->struct_cap ? tc->struct_cap * 2 : 8;
-        tc->structs = realloc(tc->structs, sizeof(StructInfo) * tc->struct_cap);
+        tc->structs = xrealloc(tc->structs, sizeof(StructInfo) * tc->struct_cap);
     }
     StructInfo *si = &tc->structs[tc->struct_count++];
     si->struct_name = name;
@@ -248,7 +249,7 @@ static void register_func(TypeChecker *tc, const char *name,
     EzType **return_types, int return_count) {
     if (tc->func_count >= tc->func_cap) {
         tc->func_cap = tc->func_cap ? tc->func_cap * 2 : 16;
-        tc->funcs = realloc(tc->funcs, sizeof(FuncSig) * tc->func_cap);
+        tc->funcs = xrealloc(tc->funcs, sizeof(FuncSig) * tc->func_cap);
     }
     FuncSig *fs = &tc->funcs[tc->func_count++];
     fs->name = name;
@@ -275,7 +276,7 @@ static char *substitute_wildcard(const char *src, const char *concrete) {
     size_t cl = strlen(concrete);
     size_t len = 0;
     for (const char *c = src; *c; c++) len += (*c == '?') ? cl : 1;
-    char *out = malloc(len + 1);
+    char *out = xmalloc(len + 1);
     char *w = out;
     for (const char *c = src; *c; c++) {
         if (*c == '?') { memcpy(w, concrete, cl); w += cl; }
@@ -398,9 +399,9 @@ static bool record_instantiation(FuncSig *fs, const char *concrete,
     }
     if (fs->instantiation_count >= fs->instantiation_cap) {
         fs->instantiation_cap = fs->instantiation_cap ? fs->instantiation_cap * 2 : 4;
-        fs->instantiations = realloc(fs->instantiations,
+        fs->instantiations = xrealloc(fs->instantiations,
             sizeof(const char *) * fs->instantiation_cap);
-        fs->instantiation_calls = realloc(fs->instantiation_calls,
+        fs->instantiation_calls = xrealloc(fs->instantiation_calls,
             sizeof(AstNode *) * fs->instantiation_cap);
     }
     char *stored = strdup(concrete);
@@ -410,7 +411,7 @@ static bool record_instantiation(FuncSig *fs, const char *concrete,
 
     if (fs->decl && fs->decl->kind == NODE_FUNC_DECL) {
         int n = fs->decl->data.func_decl.instantiation_count;
-        fs->decl->data.func_decl.instantiations = realloc(
+        fs->decl->data.func_decl.instantiations = xrealloc(
             (void *)fs->decl->data.func_decl.instantiations,
             sizeof(const char *) * (size_t)(n + 1));
         fs->decl->data.func_decl.instantiations[n] = stored;
@@ -830,7 +831,7 @@ static int levenshtein(const char *a, const char *b) {
     if (la == 0) return lb;
     if (lb == 0) return la;
     /* Use single-row DP */
-    int *row = malloc(sizeof(int) * (lb + 1));
+    int *row = xmalloc(sizeof(int) * (lb + 1));
     for (int j = 0; j <= lb; j++) row[j] = j;
     for (int i = 1; i <= la; i++) {
         int prev = row[0];
@@ -989,10 +990,10 @@ static void register_enum(TypeChecker *tc, const char *name, bool is_string,
     const char **values, int value_count) {
     if (tc->enum_count >= tc->enum_cap) {
         tc->enum_cap = tc->enum_cap ? tc->enum_cap * 2 : 8;
-        tc->enum_names = realloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
-        tc->enum_is_string = realloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
-        tc->enum_values = realloc(tc->enum_values, sizeof(const char **) * tc->enum_cap);
-        tc->enum_value_counts = realloc(tc->enum_value_counts, sizeof(int) * tc->enum_cap);
+        tc->enum_names = xrealloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
+        tc->enum_is_string = xrealloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
+        tc->enum_values = xrealloc(tc->enum_values, sizeof(const char **) * tc->enum_cap);
+        tc->enum_value_counts = xrealloc(tc->enum_value_counts, sizeof(int) * tc->enum_cap);
     }
     tc->enum_names[tc->enum_count] = name;
     tc->enum_is_string[tc->enum_count] = is_string;
@@ -2965,8 +2966,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                              * name, and prepend the instance as arg[0]. */
                             fn->data.member.object->data.label.value = strdup(sname);
                             int orig_count = node->data.call.arg_count;
-                            AstNode **new_args = malloc(sizeof(AstNode *) * (orig_count + 1));
-                            AstNode *self_arg = calloc(1, sizeof(AstNode));
+                            AstNode **new_args = xmalloc(sizeof(AstNode *) * (orig_count + 1));
+                            AstNode *self_arg = xcalloc(1, sizeof(AstNode));
                             self_arg->kind = NODE_LABEL;
                             self_arg->token = node->token;
                             self_arg->data.label.value = strdup(mod_raw);
@@ -4622,7 +4623,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (!already) {
                     int n = sdecl->data.struct_decl.instantiation_count;
-                    sdecl->data.struct_decl.instantiations = realloc(
+                    sdecl->data.struct_decl.instantiations = xrealloc(
                         (void *)sdecl->data.struct_decl.instantiations,
                         sizeof(const char *) * (size_t)(n + 1));
                     sdecl->data.struct_decl.instantiations[n] = strdup(binding);
@@ -4763,7 +4764,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             AstNode *obj = node->data.func_ref.function->data.member.object;
             const char *member = node->data.func_ref.function->data.member.member;
             if (obj->kind == NODE_LABEL) {
-                char *prefixed = malloc(strlen(obj->data.label.value) + strlen(member) + 2);
+                char *prefixed = xmalloc(strlen(obj->data.label.value) + strlen(member) + 2);
                 sprintf(prefixed, "%s_%s", obj->data.label.value, member);
                 ref_name = prefixed;
             }
@@ -5777,7 +5778,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 }
                                 if (binding) {
                                     int rc = decl->data.func_decl.return_type_count;
-                                    EzType **subbed = malloc(sizeof(EzType *) * (size_t)rc);
+                                    EzType **subbed = xmalloc(sizeof(EzType *) * (size_t)rc);
                                     for (int ri = 0; ri < rc; ri++) {
                                         char *sub = substitute_wildcard(
                                             decl->data.func_decl.return_types[ri], binding);
@@ -5804,7 +5805,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym && primary) {
-                            EzType **rt = malloc(sizeof(EzType *) * 2);
+                            EzType **rt = xmalloc(sizeof(EzType *) * 2);
                             rt[0] = primary;
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
@@ -5843,7 +5844,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     rname = fref->data.label.value;
                 } else if (fref->kind == NODE_MEMBER_EXPR &&
                            fref->data.member.object->kind == NODE_LABEL) {
-                    char *prefixed = malloc(
+                    char *prefixed = xmalloc(
                         strlen(fref->data.member.object->data.label.value) +
                         strlen(fref->data.member.member) + 2);
                     sprintf(prefixed, "%s_%s",
@@ -5872,7 +5873,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 Symbol *sym = scope_lookup_local(tc->current_scope,
                     node->data.var_decl.name);
                 if (sym && n > 0) {
-                    sym->func_array_refs = calloc((size_t)n, sizeof(const char *));
+                    sym->func_array_refs = xcalloc((size_t)n, sizeof(const char *));
                     sym->func_array_ref_count = n;
                     for (int ei = 0; ei < n; ei++) {
                         AstNode *el = lit->data.array_value.elements[ei];
@@ -5885,7 +5886,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             size_t plen =
                                 strlen(fref->data.member.object->data.label.value) +
                                 strlen(fref->data.member.member) + 2;
-                            char *pref = malloc(plen);
+                            char *pref = xmalloc(plen);
                             snprintf(pref, plen, "%s_%s",
                                 fref->data.member.object->data.label.value,
                                 fref->data.member.member);
@@ -6352,7 +6353,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 } else {
                     if (tc->destroyed_arena_count >= tc->destroyed_arena_cap) {
                         tc->destroyed_arena_cap = tc->destroyed_arena_cap ? tc->destroyed_arena_cap * 2 : 8;
-                        tc->destroyed_arenas = realloc(tc->destroyed_arenas,
+                        tc->destroyed_arenas = xrealloc(tc->destroyed_arenas,
                             (size_t)tc->destroyed_arena_cap * sizeof(const char *));
                     }
                     tc->destroyed_arenas[tc->destroyed_arena_count++] = arena_name;
@@ -6385,7 +6386,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 } else {
                     if (tc->destroyed_arena_count >= tc->destroyed_arena_cap) {
                         tc->destroyed_arena_cap = tc->destroyed_arena_cap ? tc->destroyed_arena_cap * 2 : 8;
-                        tc->destroyed_arenas = realloc(tc->destroyed_arenas,
+                        tc->destroyed_arenas = xrealloc(tc->destroyed_arenas,
                             (size_t)tc->destroyed_arena_cap * sizeof(const char *));
                     }
                     tc->destroyed_arenas[tc->destroyed_arena_count++] = arena_name;
@@ -6746,8 +6747,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (node->data.func_decl.return_type_count > 0) {
-            tc->current_return_types = malloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
-            tc->current_return_type_names = malloc(sizeof(const char *) * node->data.func_decl.return_type_count);
+            tc->current_return_types = xmalloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
+            tc->current_return_type_names = xmalloc(sizeof(const char *) * node->data.func_decl.return_type_count);
             tc->current_return_count = node->data.func_decl.return_type_count;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 tc->current_return_types[i] = tc_type_from_name(tc, node->data.func_decl.return_types[i]);
@@ -6898,7 +6899,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         for (int j = 0; j < node->data.using_stmt.count; j++) {
             if (tc->using_module_count >= tc->using_module_cap) {
                 tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
-                tc->using_modules = realloc(tc->using_modules,
+                tc->using_modules = xrealloc(tc->using_modules,
                     sizeof(const char *) * (size_t)tc->using_module_cap);
             }
             tc->using_modules[tc->using_module_count++] = node->data.using_stmt.modules[j];
@@ -7146,11 +7147,11 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (item->module || item->alias) {
                     if (tc->import_count >= tc->import_cap) {
                         tc->import_cap = tc->import_cap ? tc->import_cap * 2 : 16;
-                        tc->imported_modules = realloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
-                        tc->import_files = realloc(tc->import_files, sizeof(const char *) * tc->import_cap);
-                        tc->import_lines = realloc(tc->import_lines, sizeof(int) * tc->import_cap);
-                        tc->import_used = realloc(tc->import_used, sizeof(bool) * tc->import_cap);
-                        tc->import_is_stdlib = realloc(tc->import_is_stdlib, sizeof(bool) * tc->import_cap);
+                        tc->imported_modules = xrealloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
+                        tc->import_files = xrealloc(tc->import_files, sizeof(const char *) * tc->import_cap);
+                        tc->import_lines = xrealloc(tc->import_lines, sizeof(int) * tc->import_cap);
+                        tc->import_used = xrealloc(tc->import_used, sizeof(bool) * tc->import_cap);
+                        tc->import_is_stdlib = xrealloc(tc->import_is_stdlib, sizeof(bool) * tc->import_cap);
                     }
                     tc->imported_modules[tc->import_count] = item->alias ? item->alias : item->module;
                     tc->import_files[tc->import_count] = stmt->token.file; /* NULL = main file */
@@ -7163,8 +7164,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
                     if (tc->alias_count >= tc->alias_cap) {
                         tc->alias_cap = tc->alias_cap ? tc->alias_cap * 2 : 8;
-                        tc->alias_names = realloc(tc->alias_names, sizeof(const char *) * tc->alias_cap);
-                        tc->alias_modules = realloc(tc->alias_modules, sizeof(const char *) * tc->alias_cap);
+                        tc->alias_names = xrealloc(tc->alias_names, sizeof(const char *) * tc->alias_cap);
+                        tc->alias_modules = xrealloc(tc->alias_modules, sizeof(const char *) * tc->alias_cap);
                     }
                     tc->alias_names[tc->alias_count] = item->alias;
                     tc->alias_modules[tc->alias_count] = item->module;
@@ -7247,7 +7248,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
         int vc = stmt->data.enum_decl.value_count;
-        const char **vnames = malloc(sizeof(const char *) * (vc ? vc : 1));
+        const char **vnames = xmalloc(sizeof(const char *) * (vc ? vc : 1));
         for (int j = 0; j < vc; j++) {
             vnames[j] = stmt->data.enum_decl.values[j].name;
         }
@@ -7264,9 +7265,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 diag_error_codef(tc->diag, "E2067", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, STRUCT_DISPLAY_NAME(stmt));
             }
             int fc = stmt->data.struct_decl.field_count;
-            const char **fnames = malloc(sizeof(const char *) * (fc ? fc : 1));
-            EzType **ftypes = malloc(sizeof(EzType *) * (fc ? fc : 1));
-            if (!fnames || !ftypes) { free(fnames); free(ftypes); continue; }
+            const char **fnames = xmalloc(sizeof(const char *) * (fc ? fc : 1));
+            EzType **ftypes = xmalloc(sizeof(EzType *) * (fc ? fc : 1));
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = tc_type_from_name(tc, stmt->data.struct_decl.fields[j].type_name);
@@ -7388,19 +7388,17 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                 }
                 int pc = fn->data.func_decl.param_count;
-                EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
-                if (!ptypes) continue;
+                EzType **ptypes = xmalloc(sizeof(EzType *) * (pc ? pc : 1));
                 for (int k = 0; k < pc; k++) {
                     ptypes[k] = tc_type_from_name(tc, fn->data.func_decl.params[k].type_name);
                 }
                 int rc = fn->data.func_decl.return_type_count;
-                EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
-                if (!rtypes) { free(ptypes); continue; }
+                EzType **rtypes = xmalloc(sizeof(EzType *) * (rc ? rc : 1));
                 for (int k = 0; k < rc; k++) {
                     rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
                 /* Register with prefixed name: StructName_funcName */
-                char *prefixed = malloc(strlen(stmt->data.struct_decl.name) +
+                char *prefixed = xmalloc(strlen(stmt->data.struct_decl.name) +
                     strlen(fn->data.func_decl.name) + 2);
                 sprintf(prefixed, "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
                 register_func(tc, prefixed, ptypes, pc, rtypes, rc);
@@ -7413,16 +7411,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 
         if (stmt->kind == NODE_FUNC_DECL) {
             int pc = stmt->data.func_decl.param_count;
-            EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
-            if (!ptypes) continue;
+            EzType **ptypes = xmalloc(sizeof(EzType *) * (pc ? pc : 1));
             for (int j = 0; j < pc; j++) {
                 ptypes[j] = tc_type_from_name(tc, stmt->data.func_decl.params[j].type_name);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
-            EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
-            if (!rtypes) { free(ptypes); continue; }
+            EzType **rtypes = xmalloc(sizeof(EzType *) * (rc ? rc : 1));
             for (int j = 0; j < rc; j++) {
                 rtypes[j] = tc_type_from_name(tc, stmt->data.func_decl.return_types[j]);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.return_types[j]);
@@ -7494,7 +7490,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 /* --- Public API --- */
 
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
-    TypeChecker *tc = calloc(1, sizeof(TypeChecker));
+    TypeChecker *tc = xcalloc(1, sizeof(TypeChecker));
     tc->diag = diag;
     tc->file = file;
     tc->current_scope = scope_create(NULL);
@@ -7552,7 +7548,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 }
                 if (tc->using_module_count >= tc->using_module_cap) {
                     tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
-                    tc->using_modules = realloc(tc->using_modules,
+                    tc->using_modules = xrealloc(tc->using_modules,
                         sizeof(const char *) * (size_t)tc->using_module_cap);
                 }
                 tc->using_modules[tc->using_module_count++] = stmt->data.using_stmt.modules[j];
@@ -7571,7 +7567,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 if (item->module) {
                     if (tc->using_module_count >= tc->using_module_cap) {
                         tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
-                        tc->using_modules = realloc(tc->using_modules,
+                        tc->using_modules = xrealloc(tc->using_modules,
                             sizeof(const char *) * (size_t)tc->using_module_cap);
                     }
                     tc->using_modules[tc->using_module_count++] = item->module;
@@ -7685,8 +7681,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             EzType **ret_types = NULL;
             const char **ret_names = NULL;
             if (rc > 0) {
-                ret_types = malloc(sizeof(EzType *) * (size_t)rc);
-                ret_names = malloc(sizeof(const char *) * (size_t)rc);
+                ret_types = xmalloc(sizeof(EzType *) * (size_t)rc);
+                ret_names = xmalloc(sizeof(const char *) * (size_t)rc);
                 for (int ri = 0; ri < rc; ri++) {
                     char *sub = substitute_wildcard(
                         decl->data.func_decl.return_types[ri], concrete);

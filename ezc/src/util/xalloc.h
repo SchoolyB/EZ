@@ -34,4 +34,13 @@ static inline void *xmalloc(size_t size) {
     return p;
 }
 
+static inline void *xcalloc(size_t nmemb, size_t size) {
+    void *p = calloc(nmemb, size);
+    if (!p) {
+        fprintf(stderr, "ezc: out of memory\n");
+        exit(1);
+    }
+    return p;
+}
+
 #endif
