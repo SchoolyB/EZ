@@ -5206,8 +5206,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                             const char *rn_b = fref->data.member.member;
                             size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
                             char *rn = malloc(rn_len);
+                            if (!rn) continue;
                             snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
                             ref_func = find_func(cg, rn);
+                            free(rn);
                         }
                     }
                 }
