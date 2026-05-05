@@ -4948,8 +4948,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
             size_t ns_len = strlen(resolved_name) + 1 + strlen(member) + 1;
             char *ns_name = malloc(ns_len);
+            if (!ns_name) return;
             snprintf(ns_name, ns_len, "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
+            free(ns_name);
             if (!ns_func) {
                 /* : check if `member` is a func-typed data field
                  * on the struct. If so, emit as a function-pointer call
