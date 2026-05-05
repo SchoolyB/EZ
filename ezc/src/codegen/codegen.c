@@ -5155,6 +5155,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             size_t bind_len = binding ? strlen(binding) : 0;
             size_t mn_need = 6 + rfn_len + 2 + bind_len + 1; /* 6 = strlen("ez_fn_") */
             char *mangled = malloc(mn_need);
+            if (!mangled) return;
             size_t pos = (size_t)snprintf(mangled, mn_need, "ez_fn_%s__",
                 resolved_fn_name);
             if (binding) {
@@ -5164,6 +5165,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
             mangled[pos] = '\0';
             emit(cg, mangled);
+            free(mangled);
         } else {
             emit(cg, "ez_fn_");
             emit(cg, resolved_fn_name);
