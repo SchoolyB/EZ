@@ -599,6 +599,33 @@ static AstNode *find_func(CodeGen *cg, const char *name) {
     return NULL;
 }
 
+/* Build the (field_name, struct_name) index for func-typed fields once.
+ * Order matches struct_decls so the first-match heuristic is preserved. */
+static void build_func_field_index(CodeGen *cg) {
+    if (cg->func_field_index_built) return;
+    int total = 0;
+    for (int si = 0; si < cg->struct_decl_count; si++) {
+        total += cg->struct_decls[si]->data.struct_decl.field_count;
+    }
+    if (total > 0) {
+        cg->func_field_index = xmalloc(sizeof(*cg->func_field_index) * (size_t)total);
+    }
+    for (int si = 0; si < cg->struct_decl_count; si++) {
+        AstNode *sd = cg->struct_decls[si];
+        for (int fi = 0; fi < sd->data.struct_decl.field_count; fi++) {
+            StructField *sf = &sd->data.struct_decl.fields[fi];
+            if (sf->type_name &&
+                (strcmp(sf->type_name, "func") == 0 ||
+                 strncmp(sf->type_name, "func(", 5) == 0)) {
+                cg->func_field_index[cg->func_field_count].field_name = sf->name;
+                cg->func_field_index[cg->func_field_count].struct_name = sd->data.struct_decl.name;
+                cg->func_field_count++;
+            }
+        }
+    }
+    cg->func_field_index_built = true;
+}
+
 /* --- Expression Emission --- */
 
 static void emit_expression(CodeGen *cg, AstNode *node) {
@@ -4967,17 +4994,12 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* Fall back to scanning struct decls if the type_table
                  * doesn't have a hit for the label. */
                 if (!inst_t || inst_t->kind == TK_UNKNOWN) {
-                    for (int si = 0; si < cg->struct_decl_count; si++) {
-                        const char *sn = cg->struct_decls[si]->data.struct_decl.name;
-                        for (int fi = 0; fi < cg->struct_decls[si]->data.struct_decl.field_count; fi++) {
-                            StructField *sf = &cg->struct_decls[si]->data.struct_decl.fields[fi];
-                            if (strcmp(sf->name, member) == 0 && sf->type_name &&
-                                (strcmp(sf->type_name, "func") == 0 || strncmp(sf->type_name, "func(", 5) == 0)) {
-                                inst_t = type_struct(sn);
-                                break;
-                            }
+                    build_func_field_index(cg);
+                    for (int i = 0; i < cg->func_field_count; i++) {
+                        if (strcmp(cg->func_field_index[i].field_name, member) == 0) {
+                            inst_t = type_struct(cg->func_field_index[i].struct_name);
+                            break;
                         }
-                        if (inst_t && inst_t->kind == TK_STRUCT) break;
                     }
                 }
                 if (inst_t && (inst_t->kind == TK_STRUCT || inst_t->kind == TK_POINTER)) {
@@ -7222,6 +7244,9 @@ CodeGen codegen_create(const char *file) {
     cg.struct_decls = NULL;
     cg.struct_decl_count = 0;
     cg.struct_decl_cap = 0;
+    cg.func_field_index = NULL;
+    cg.func_field_count = 0;
+    cg.func_field_index_built = false;
     cg.using_modules = NULL;
     cg.using_module_count = 0;
     cg.using_module_cap = 0;
@@ -7836,6 +7861,7 @@ void codegen_destroy(CodeGen *cg) {
     free(cg->bigint_var_names);
     free(cg->bigint_var_types);
     free(cg->struct_decls);
+    free(cg->func_field_index);
     free(cg->using_modules);
     free(cg->alias_names);
     free(cg->alias_modules);

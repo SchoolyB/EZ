@@ -59,6 +59,16 @@ typedef struct {
     int struct_decl_count;
     int struct_decl_cap;
 
+    /* Lazy index of (field_name, struct_name) for func-typed struct fields,
+     * built on first lookup. Lets the member-call fallback heuristic skip
+     * the O(struct_count * field_count) scan over non-func fields. */
+    struct {
+        const char *field_name;
+        const char *struct_name;
+    } *func_field_index;
+    int func_field_count;
+    bool func_field_index_built;
+
     /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
     int using_module_count;
