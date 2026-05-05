@@ -7774,12 +7774,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         const char *orig_name = stmt->data.func_decl.name;
         for (int r = 0; r < emit_rounds; r++) {
             const char *saved_binding = cg->wildcard_binding;
-            char mangled[EZ_MSG_BUF_SIZE];
+            /* mangled is heap-allocated so the AST temporarily points at
+             * stable memory while emit_multi_return_typedef / func_return_type
+             * read stmt->data.func_decl.name. */
+            char *mangled = NULL;
             if (has_wc) {
+                mangled = xmalloc(EZ_MSG_BUF_SIZE);
                 const char *concrete = stmt->data.func_decl.instantiations[r];
                 cg->wildcard_binding = concrete;
-                size_t pos = snprintf(mangled, sizeof(mangled), "%s__", orig_name);
-                for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
+                size_t pos = snprintf(mangled, EZ_MSG_BUF_SIZE, "%s__", orig_name);
+                for (const char *c = concrete; *c && pos < EZ_MSG_BUF_SIZE - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
                 }
                 mangled[pos] = '\0';
@@ -7819,6 +7823,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
             emit(cg, ");\n");
             cg->wildcard_binding = saved_binding;
+            free(mangled);
         }
     }
     emit(cg, "\n");
