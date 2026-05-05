@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2073 - call-whitespace-before-paren
+ * Expected: "function calls cannot have whitespace between the name and the opening parenthesis"
+ */
+
+do main() {
+    println ("hello")
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3073 - return-in-main
+ * Expected: "'return' is not allowed in main()"
+ */
+
+do main() {
+    return
+}
