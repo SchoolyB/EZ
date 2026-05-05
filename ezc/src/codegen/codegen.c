@@ -1698,13 +1698,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 size_t mem_len = strlen(mem);
                 size_t cn_len = mod_len + 1 + mem_len + 1;
                 char *check_name = malloc(cn_len);
+                if (!check_name) break;
                 snprintf(check_name, cn_len, "%s_%s", mod, mem);
                 /* Check functions, variables via find_func */
                 if (find_func(cg, check_name)) is_module = true;
+                free(check_name);
                 /* Check if any function starts with mod_ prefix */
                 if (!is_module) {
                     size_t pfx_len = mod_len + 2;
                     char *prefix = malloc(pfx_len);
+                    if (!prefix) break;
                     snprintf(prefix, pfx_len, "%s_", mod);
                     size_t plen = pfx_len - 1;
                     for (int fi = 0; fi < cg->func_count; fi++) {
@@ -1713,6 +1716,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                             break;
                         }
                     }
+                    free(prefix);
                 }
                 /* Check using_modules list */
                 if (!is_module) {
