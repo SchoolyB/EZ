@@ -7,6 +7,7 @@
 
 #include "types.h"
 #include "../util/constants.h"
+#include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,7 +93,7 @@ static void split_top_commas(const char *src, int start, int end,
     *out_arr = NULL;
     if (end <= start) return;
     int cap = 4;
-    char **arr = (char **)malloc(sizeof(char *) * (size_t)cap);
+    char **arr = (char **)xmalloc(sizeof(char *) * (size_t)cap);
     int n = 0;
     int depth = 0;
     int seg_start = start;
@@ -102,12 +103,12 @@ static void split_top_commas(const char *src, int start, int end,
         else if (c == ')' || c == ']') depth--;
         if (depth == 0 && (c == ',' || i == end)) {
             int seg_len = i - seg_start;
-            char *seg = (char *)malloc((size_t)seg_len + 1);
+            char *seg = (char *)xmalloc((size_t)seg_len + 1);
             memcpy(seg, src + seg_start, (size_t)seg_len);
             seg[seg_len] = '\0';
             if (n == cap) {
                 cap *= 2;
-                arr = (char **)realloc(arr, sizeof(char *) * (size_t)cap);
+                arr = (char **)xrealloc(arr, sizeof(char *) * (size_t)cap);
             }
             arr[n++] = seg;
             seg_start = i + 1;
@@ -123,7 +124,7 @@ static EzFuncSig *parse_func_sig(const char *name) {
     if (strncmp(name, "func(", 5) != 0) return NULL;
     int rparen = find_matching_paren(name, 4);
     if (rparen < 0) return NULL;
-    EzFuncSig *sig = (EzFuncSig *)malloc(sizeof(EzFuncSig));
+    EzFuncSig *sig = (EzFuncSig *)xmalloc(sizeof(EzFuncSig));
     sig->param_count = 0;
     sig->param_types = NULL;
     sig->param_mutable = NULL;
@@ -136,8 +137,8 @@ static EzFuncSig *parse_func_sig(const char *name) {
     split_top_commas(name, 5, rparen, &raw_count, &raw_params);
     sig->param_count = raw_count;
     if (raw_count > 0) {
-        sig->param_types = (const char **)malloc(sizeof(char *) * (size_t)raw_count);
-        sig->param_mutable = (bool *)malloc(sizeof(bool) * (size_t)raw_count);
+        sig->param_types = (const char **)xmalloc(sizeof(char *) * (size_t)raw_count);
+        sig->param_mutable = (bool *)xmalloc(sizeof(bool) * (size_t)raw_count);
         for (int i = 0; i < raw_count; i++) {
             const char *p = raw_params[i];
             if (p[0] == '&') {
@@ -164,7 +165,7 @@ static EzFuncSig *parse_func_sig(const char *name) {
             split_top_commas(ret, 1, ret_len - 1, &rcount, &rets);
             sig->return_count = rcount;
             if (rcount > 0) {
-                sig->return_types = (const char **)malloc(sizeof(char *) * (size_t)rcount);
+                sig->return_types = (const char **)xmalloc(sizeof(char *) * (size_t)rcount);
                 for (int i = 0; i < rcount; i++) {
                     sig->return_types[i] = rets[i];
                 }
@@ -172,7 +173,7 @@ static EzFuncSig *parse_func_sig(const char *name) {
             free(rets);
         } else if (strcmp(ret, "void") != 0) {
             sig->return_count = 1;
-            sig->return_types = (const char **)malloc(sizeof(char *));
+            sig->return_types = (const char **)xmalloc(sizeof(char *));
             sig->return_types[0] = strdup(ret);
         }
     }
@@ -317,8 +318,7 @@ EzType *type_from_name(const char *name) {
     if (name[0] == '[') {
         size_t len = strlen(name);
         if (len > 2 && name[len - 1] == ']') {
-            char *elem = malloc(len - 1);
-            if (!elem) return &TYPE_UNKNOWN;
+            char *elem = xmalloc(len - 1);
             memcpy(elem, name + 1, len - 2);
             elem[len - 2] = '\0';
             /* Strip ",N" suffix for fixed-size arrays like [string,3] */
@@ -338,8 +338,7 @@ EzType *type_from_name(const char *name) {
         const char *colon = strchr(start, ':');
         if (colon) {
             size_t klen = (size_t)(colon - start);
-            char *key = malloc(klen + 1);
-            if (!key) return &TYPE_UNKNOWN;
+            char *key = xmalloc(klen + 1);
             memcpy(key, start, klen);
             key[klen] = '\0';
             t->key_type = key;
@@ -347,8 +346,7 @@ EzType *type_from_name(const char *name) {
             const char *vstart = colon + 1;
             size_t vlen = strlen(vstart);
             if (vlen > 0 && vstart[vlen - 1] == ']') vlen--;
-            char *val = malloc(vlen + 1);
-            if (!val) { free(key); return &TYPE_UNKNOWN; }
+            char *val = xmalloc(vlen + 1);
             memcpy(val, vstart, vlen);
             val[vlen] = '\0';
             t->value_type = val;
@@ -364,7 +362,7 @@ EzType *type_from_name(const char *name) {
             /* Build prefixed name: mod.Type → mod_Type */
             size_t prefix_len = (size_t)(dot - name);
             size_t base_len = strlen(base);
-            char *prefixed = malloc(prefix_len + 1 + base_len + 1);
+            char *prefixed = xmalloc(prefix_len + 1 + base_len + 1);
             memcpy(prefixed, name, prefix_len);
             prefixed[prefix_len] = '_';
             memcpy(prefixed + prefix_len + 1, base, base_len + 1);
