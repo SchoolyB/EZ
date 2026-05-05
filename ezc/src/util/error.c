@@ -8,6 +8,7 @@
 #include "error.h"
 #include "error_codes.h"
 #include "constants.h"
+#include "xalloc.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +81,8 @@ static const char *read_file_to_string(const char *path) {
 /* --- DiagnosticList management --- */
 
 DiagnosticList *diag_create(void) {
-    DiagnosticList *dl = calloc(1, sizeof(DiagnosticList));
+    DiagnosticList *dl = xmalloc(sizeof(DiagnosticList));
+    memset(dl, 0, sizeof(DiagnosticList));
     dl->use_color = isatty(STDERR_FILENO);
     return dl;
 }
@@ -100,7 +102,7 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
 
     if (dl->count >= dl->cap) {
         dl->cap = dl->cap ? dl->cap * 2 : EZ_DIAG_INITIAL_CAP;
-        dl->items = realloc(dl->items, sizeof(Diagnostic) * dl->cap);
+        dl->items = xrealloc(dl->items, sizeof(Diagnostic) * dl->cap);
     }
 
     Diagnostic *d = &dl->items[dl->count++];

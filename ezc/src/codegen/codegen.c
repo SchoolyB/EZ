@@ -8,6 +8,7 @@
 
 #include "codegen.h"
 #include "../util/constants.h"
+#include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -68,7 +69,7 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
     if (req > cg->output.cap) {
         size_t new_cap = cg->output.cap * 2;
         if (new_cap < req) new_cap = req;
-        cg->output.data = realloc(cg->output.data, new_cap);
+        cg->output.data = xrealloc(cg->output.data, new_cap);
         cg->output.cap = new_cap;
     }
 
@@ -518,7 +519,7 @@ static bool is_ref_var(CodeGen *cg, const char *name) {
 static void register_ref_var(CodeGen *cg, const char *name) {
     if (cg->ref_var_count >= cg->ref_var_cap) {
         cg->ref_var_cap = cg->ref_var_cap ? cg->ref_var_cap * 2 : 8;
-        cg->ref_vars = realloc(cg->ref_vars, sizeof(const char *) * cg->ref_var_cap);
+        cg->ref_vars = xrealloc(cg->ref_vars, sizeof(const char *) * cg->ref_var_cap);
     }
     cg->ref_vars[cg->ref_var_count++] = name;
 }
@@ -534,8 +535,8 @@ static bool is_bigint_type(const char *tn) {
 static void register_bigint_var(CodeGen *cg, const char *name, const char *type_name) {
     if (cg->bigint_var_count >= cg->bigint_var_cap) {
         cg->bigint_var_cap = cg->bigint_var_cap ? cg->bigint_var_cap * 2 : 8;
-        cg->bigint_var_names = realloc(cg->bigint_var_names, sizeof(const char *) * cg->bigint_var_cap);
-        cg->bigint_var_types = realloc(cg->bigint_var_types, sizeof(const char *) * cg->bigint_var_cap);
+        cg->bigint_var_names = xrealloc(cg->bigint_var_names, sizeof(const char *) * cg->bigint_var_cap);
+        cg->bigint_var_types = xrealloc(cg->bigint_var_types, sizeof(const char *) * cg->bigint_var_cap);
     }
     cg->bigint_var_names[cg->bigint_var_count] = name;
     cg->bigint_var_types[cg->bigint_var_count] = type_name;
@@ -7171,7 +7172,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         for (int j = 0; j < node->data.using_stmt.count; j++) {
             if (cg->using_module_count >= cg->using_module_cap) {
                 cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
-                cg->using_modules = realloc(cg->using_modules,
+                cg->using_modules = xrealloc(cg->using_modules,
                     sizeof(const char *) * (size_t)cg->using_module_cap);
             }
             cg->using_modules[cg->using_module_count++] = node->data.using_stmt.modules[j];
@@ -7258,7 +7259,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     cg->has_c_imports = true;
                     if (cg->c_header_count >= cg->c_header_cap) {
                         cg->c_header_cap = cg->c_header_cap ? cg->c_header_cap * 2 : 4;
-                        cg->c_headers = realloc(cg->c_headers,
+                        cg->c_headers = xrealloc(cg->c_headers,
                             sizeof(const char *) * (size_t)cg->c_header_cap);
                     }
                     cg->c_headers[cg->c_header_count++] = item->path;
@@ -7268,7 +7269,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     const char *mname = item->alias ? item->alias : item->module;
                     if (cg->imported_module_count >= cg->imported_module_cap) {
                         cg->imported_module_cap = cg->imported_module_cap ? cg->imported_module_cap * 2 : 8;
-                        cg->imported_modules = realloc(cg->imported_modules,
+                        cg->imported_modules = xrealloc(cg->imported_modules,
                             sizeof(const char *) * (size_t)cg->imported_module_cap);
                     }
                     cg->imported_modules[cg->imported_module_count++] = mname;
@@ -7277,9 +7278,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
                     if (cg->alias_count >= cg->alias_cap) {
                         cg->alias_cap = cg->alias_cap ? cg->alias_cap * 2 : 8;
-                        cg->alias_names = realloc(cg->alias_names,
+                        cg->alias_names = xrealloc(cg->alias_names,
                             sizeof(const char *) * (size_t)cg->alias_cap);
-                        cg->alias_modules = realloc(cg->alias_modules,
+                        cg->alias_modules = xrealloc(cg->alias_modules,
                             sizeof(const char *) * (size_t)cg->alias_cap);
                     }
                     cg->alias_names[cg->alias_count] = item->alias;
@@ -7294,7 +7295,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     if (item->module) {
                         if (cg->using_module_count >= cg->using_module_cap) {
                             cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
-                            cg->using_modules = realloc(cg->using_modules,
+                            cg->using_modules = xrealloc(cg->using_modules,
                                 sizeof(const char *) * (size_t)cg->using_module_cap);
                         }
                         cg->using_modules[cg->using_module_count++] = item->module;
@@ -7306,7 +7307,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             for (int j = 0; j < stmt->data.using_stmt.count; j++) {
                 if (cg->using_module_count >= cg->using_module_cap) {
                     cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
-                    cg->using_modules = realloc(cg->using_modules,
+                    cg->using_modules = xrealloc(cg->using_modules,
                         sizeof(const char *) * (size_t)cg->using_module_cap);
                 }
                 cg->using_modules[cg->using_module_count++] = stmt->data.using_stmt.modules[j];
@@ -7315,7 +7316,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind == NODE_STRUCT_DECL) {
             if (cg->struct_decl_count >= cg->struct_decl_cap) {
                 cg->struct_decl_cap = cg->struct_decl_cap ? cg->struct_decl_cap * 2 : 16;
-                cg->struct_decls = realloc(cg->struct_decls,
+                cg->struct_decls = xrealloc(cg->struct_decls,
                     sizeof(AstNode *) * (size_t)cg->struct_decl_cap);
             }
             cg->struct_decls[cg->struct_decl_count++] = stmt;
@@ -7382,7 +7383,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             /* Register enum name */
             if (cg->enum_count >= cg->enum_cap) {
                 cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
-                cg->enum_names = realloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
+                cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
             }
             cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
 
@@ -7655,7 +7656,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind == NODE_FUNC_DECL) {
             if (cg->func_count >= cg->func_cap) {
                 cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
-                cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+                cg->all_funcs = xrealloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
             }
             cg->all_funcs[cg->func_count++] = stmt;
         }
@@ -7675,7 +7676,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
                     if (cg->func_count >= cg->func_cap) {
                         cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
-                        cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+                        cg->all_funcs = xrealloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
                     }
                     cg->all_funcs[cg->func_count++] = fn;
                 }
