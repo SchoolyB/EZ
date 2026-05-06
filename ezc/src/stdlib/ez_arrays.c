@@ -17,12 +17,35 @@ void ez_arrays_append(EzArena *arena, EzArray *arr, const void *value) {
 }
 
 void ez_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const void *value) {
-    char zero[32] = {0};
-    ez_array_push(arena, arr, zero);
-    char *data = (char *)arr->data;
+    if (index < 0 || index > arr->len) {
+        ez_panic(__FILE__, __LINE__,
+            "arrays.insert_at: index %d is out of bounds for an array of length %d",
+            index, arr->len);
+    }
+
+    /* Grow if needed — same policy as ez_array_push */
+    if (arr->len >= arr->cap) {
+        int32_t new_cap = arr->cap < EZ_ARRAY_MIN_CAP ? EZ_ARRAY_MIN_CAP : arr->cap * 2;
+        if (new_cap < arr->cap) {
+            fprintf(stderr, "EZ runtime: array capacity overflow\n");
+            exit(1);
+        }
+        void *new_data = ez_arena_alloc(arena, (size_t)new_cap * (size_t)arr->elem_size);
+        if (arr->data && arr->len > 0) {
+            memcpy(new_data, arr->data, (size_t)arr->len * (size_t)arr->elem_size);
+        }
+        arr->data = new_data;
+        arr->cap = new_cap;
+    }
+
     size_t es = (size_t)arr->elem_size;
-    memmove(data + (index + 1) * es, data + index * es, (arr->len - 1 - index) * es);
+    char *data = (char *)arr->data;
+    if (index < arr->len) {
+        memmove(data + (index + 1) * es, data + index * es,
+                (size_t)(arr->len - index) * es);
+    }
     memcpy(data + index * es, value, es);
+    arr->len++;
 }
 
 void ez_arrays_prepend(EzArena *arena, EzArray *arr, const void *value) {
