@@ -67,7 +67,10 @@ EzArray ez_random_shuffle(EzArena *arena, EzArray *arr) {
     EzArray result = ez_array_copy(arena, arr);
     char *data = (char *)result.data;
     size_t es = (size_t)result.elem_size;
-    char tmp[64]; /* max element size */
+    /* Scratch slot sized to the actual element width. The previous
+     * fixed char tmp[64] overflowed the stack for any element type
+     * larger than 64 bytes (struct arrays, nested arrays/maps). */
+    void *tmp = ez_arena_alloc(arena, es);
     for (int32_t i = result.len - 1; i > 0; i--) {
         int32_t j = rand() % (i + 1);
         memcpy(tmp, data + i * es, es);
