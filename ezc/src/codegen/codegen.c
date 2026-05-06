@@ -2928,9 +2928,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    /* c_string(ptr); convert C char* to EZ string */
+    /* c_string(ptr); convert C char* to EZ string. Copies onto the
+     * arena so the result is safe to use even after the C-side buffer
+     * is freed or overwritten. NULL maps to "" instead of crashing. */
     if (strcmp(func, "c_string") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_string_lit((const char *)");
+        emit(cg, "ez_c_string_dup(ez_default_arena, (const char *)");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;

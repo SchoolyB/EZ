@@ -85,6 +85,12 @@ static inline EzString ez_string_lit_len(const char *s, int32_t len) {
 /* Create a string with a copy on the arena */
 EzString ez_string_new(EzArena *arena, const char *s, int32_t len);
 
+/* Create an EZ string from a C char* by copying onto the arena.
+ * NULL input -> empty string. Length is clamped at INT32_MAX. The
+ * result has the same lifetime contract as every other arena string,
+ * regardless of what happens to the source pointer afterwards. */
+EzString ez_c_string_dup(EzArena *arena, const char *s);
+
 /* String formatting (for interpolation) */
 EzString ez_string_format(EzArena *arena, const char *fmt, ...);
 
