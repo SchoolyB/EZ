@@ -142,6 +142,16 @@ do main() {
         failed += 1
     }
 
+    mut ins_end [int] = {1, 2}
+    arrays.insert_at(ins_end, 2, 3)
+    if len(ins_end) == 3 && ins_end[2] == 3 {
+        println("  [PASS] arrays.insert_at at len (append)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.insert_at at len: got ${ins_end}")
+        failed += 1
+    }
+
     // ==================== arrays.reverse ====================
     println("  -- arrays.reverse --")
 
