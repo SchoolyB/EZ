@@ -279,6 +279,18 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     }
 }
 
+/* Map a C key type back to its EzMap key-kind macro so the codegen can
+ * tag each ez_map_new_kind call. Float keys need this so -0.0/+0.0 and
+ * NaN are normalized at lookup time; other 8-byte keys (int, pointer)
+ * stay on the bytewise path. */
+static const char *ez_map_key_kind_macro(const char *c_key_type) {
+    if (!c_key_type) return "EZ_MAP_KEY_BYTES";
+    if (strcmp(c_key_type, "EzString") == 0) return "EZ_MAP_KEY_STRING";
+    if (strcmp(c_key_type, "double") == 0)   return "EZ_MAP_KEY_F64";
+    if (strcmp(c_key_type, "float") == 0)    return "EZ_MAP_KEY_F32";
+    return "EZ_MAP_KEY_BYTES";
+}
+
 /* --- Deep copy machinery , ) ---
  *
  * A value is "needs-deep-copy" iff reading one C-level copy of it
@@ -410,15 +422,15 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     int t = next_dc_tag();
     emitf(cg,
         "({ EzMap _ms%d = %s; "
-        "EzMap _md%d = ez_map_new(ez_default_arena, _ms%d.key_size, _ms%d.value_size, "
-        "_ms%d.order_len > 4 ? _ms%d.order_len * 2 : 8); "
+        "EzMap _md%d = ez_map_new_kind(ez_default_arena, _ms%d.key_size, _ms%d.value_size, "
+        "_ms%d.order_len > 4 ? _ms%d.order_len * 2 : 8, _ms%d.key_kind); "
         "for (int32_t _mi%d = 0; _mi%d < _ms%d.order_len; _mi%d++) { "
         "int32_t _mslot%d = _ms%d.order[_mi%d]; "
         "%s _mk%d = *(%s *)ez_map_key_at(&_ms%d, _mslot%d); "
         "%s _mvs%d = *(%s *)ez_map_value_at(&_ms%d, _mslot%d); "
         "%s _mvd%d = ",
         t, src_var,
-        t, t, t, t, t,
+        t, t, t, t, t, t,
         t, t, t, t,
         t, t, t,
         c_key, t, c_key, t, t,
@@ -1110,8 +1122,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
          * a unique temp name. */
         static int map_lit_counter = 0;
         int my_counter = map_lit_counter++;
-        emitf(cg, "({ EzMap _ml%d = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), %d); ",
-            my_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8);
+        emitf(cg, "({ EzMap _ml%d = ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), %d, %s); ",
+            my_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8,
+            ez_map_key_kind_macro(c_key_type));
 
         /* For nested map values, propagate the inner type so inner literals
          * resolve their key/value C types correctly. */
@@ -2103,8 +2116,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *c_vt = "int64_t";
                     if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
                     if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
-                    emitf(cg, "_np->%s = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8); ",
-                        safe_name(fn), c_kt, c_vt);
+                    emitf(cg, "_np->%s = ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s); ",
+                        safe_name(fn), c_kt, c_vt, ez_map_key_kind_macro(c_kt));
                 } else if (ft && ft[0] == '[') {
                     /* Array field — determine element C type */
                     EzType *at = type_from_name(ft);
@@ -5663,7 +5676,8 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             cg->current_var_type = saved_var_type;
         } else {
             /* No initializer; create empty map */
-            emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
+            emitf(cg, "ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s)",
+                c_kt, c_vt, ez_map_key_kind_macro(c_kt));
         }
         emit(cg, ";\n");
         return;

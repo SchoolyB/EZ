@@ -43,8 +43,9 @@ bool ez_maps_is_empty(EzMap *m) {
 }
 
 EzMap ez_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2) {
-    EzMap result = ez_map_new(arena, m1->key_size, m1->value_size,
-        m1->count + m2->count > 8 ? (m1->count + m2->count) * 2 : 8);
+    EzMap result = ez_map_new_kind(arena, m1->key_size, m1->value_size,
+        m1->count + m2->count > 8 ? (m1->count + m2->count) * 2 : 8,
+        m1->key_kind);
     /* Copy all entries from m1 */
     for (int32_t oi = 0; oi < m1->order_len; oi++) {
         int32_t slot = m1->order[oi];

@@ -17,6 +17,14 @@
 #define EZ_MAP_LOAD_NUM     3
 #define EZ_MAP_LOAD_DEN     4
 
+/* Key-kind discriminator. Multiple EZ key types share a key_size
+ * (e.g. int64/uint64/double/pointer all 8), so size alone cannot pick
+ * the right hash/equality. Codegen tags each map with its kind. */
+#define EZ_MAP_KEY_BYTES    0   /* int, bool, pointer, struct: bytewise */
+#define EZ_MAP_KEY_STRING   1   /* EzString: hash content, not struct bytes */
+#define EZ_MAP_KEY_F32      2   /* f32: normalize -0.0 and NaN */
+#define EZ_MAP_KEY_F64      3   /* f64/float: normalize -0.0 and NaN */
+
 typedef struct {
     void *keys;
     void *values;
@@ -28,10 +36,16 @@ typedef struct {
     int32_t value_size;
     int32_t order_len;      /* number of entries in order array */
     int32_t iterating;      /* >0 while a for_each is active */
+    int8_t  key_kind;       /* EZ_MAP_KEY_* */
 } EzMap;
 
-/* Create an empty map */
+/* Create an empty map. Auto-detects EzString by key_size; defaults to
+ * KEY_BYTES otherwise. Callers that need a specific kind (e.g. float
+ * keys) should use ez_map_new_kind. */
 EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap);
+
+/* Create an empty map with an explicit key kind. */
+EzMap ez_map_new_kind(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap, int8_t key_kind);
 
 /* Get a pointer to the value for a key, or NULL if not found */
 void *ez_map_get(EzMap *m, const void *key);
