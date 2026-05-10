@@ -7012,6 +7012,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, "{ int32_t %s = ", len_name);
             emit_expression(cg, coll);
             emit(cg, ".len;\n");
+            /* Guard against mutation during iteration */
+            emit_indent(cg);
+            emit_expression(cg, coll);
+            emit(cg, ".iterating++;\n");
             emit_indent(cg);
             emitf(cg, "for (int32_t %s = 0; %s < %s; %s++) {\n", idx_name, idx_name, len_name, idx_name);
             cg->indent++;
@@ -7054,8 +7058,11 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emit_indent(cg);
             emit(cg, "}\n");
         }
-        /* Close extra scope for array length snapshot */
+        /* Decrement array iteration guard, then close the snapshot block */
         if (coll_t && coll_t->kind != TK_MAP && coll_t->kind != TK_STRING) {
+            emit_indent(cg);
+            emit_expression(cg, coll);
+            emit(cg, ".iterating--;\n");
             emit_indent(cg);
             emit(cg, "}\n");
         }

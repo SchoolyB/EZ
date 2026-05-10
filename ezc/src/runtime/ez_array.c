@@ -13,6 +13,7 @@ EzArray ez_array_new(EzArena *arena, int32_t elem_size, int32_t initial_cap) {
     arr.elem_size = elem_size;
     arr.len = 0;
     arr.cap = initial_cap > 0 ? initial_cap : EZ_ARRAY_MIN_CAP;
+    arr.iterating = 0;
     arr.data = ez_arena_alloc(arena, (size_t)arr.cap * (size_t)arr.elem_size);
     return arr;
 }
@@ -22,6 +23,7 @@ EzArray ez_array_from(EzArena *arena, const void *data, int32_t elem_size, int32
     arr.elem_size = elem_size;
     arr.len = count;
     arr.cap = count > 0 ? count : EZ_ARRAY_MIN_CAP;
+    arr.iterating = 0;
     arr.data = ez_arena_alloc(arena, (size_t)arr.cap * (size_t)arr.elem_size);
     if (count > 0 && data) {
         memcpy(arr.data, data, (size_t)count * (size_t)elem_size);
@@ -37,6 +39,8 @@ void *ez_array_get_ptr(EzArray *arr, int32_t index, const char *file, int line) 
 }
 
 void ez_array_set(EzArray *arr, int32_t index, const void *value, const char *file, int line) {
+    if (arr->iterating > 0)
+        ez_panic(file, line, "cannot modify array during for_each iteration");
     if (index < 0 || index >= arr->len) {
         ez_panic(file, line, "array index out of bounds — tried to access index %d but the array only has %d elements", index, arr->len);
     }
@@ -45,6 +49,8 @@ void ez_array_set(EzArray *arr, int32_t index, const void *value, const char *fi
 }
 
 void ez_array_push(EzArena *arena, EzArray *arr, const void *value) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
     if (arr->len >= arr->cap) {
         int32_t new_cap = arr->cap < EZ_ARRAY_MIN_CAP ? EZ_ARRAY_MIN_CAP : arr->cap * 2;
         if (new_cap < arr->cap) {
