@@ -80,6 +80,12 @@ void diag_warning_help(DiagnosticList *dl, const char *code, const char *message
 void diag_error_code(DiagnosticList *dl, const char *code,
     const char *file, int line, int col, int end_col);
 
+/* Same shape as diag_error_code, plus an actionable hint shown as `= help:`
+ * under the diagnostic. Use this when the registry message states the
+ * problem and the hint tells the user how to fix it. */
+void diag_error_code_help(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col, int end_col, const char *help);
+
 void diag_error_codef(DiagnosticList *dl, const char *code,
     const char *file, int line, int col, int end_col, ...);
 
