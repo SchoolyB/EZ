@@ -4406,25 +4406,6 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "eprintln") == 0) {
-        if (node->data.call.arg_count == 0) {
-            emit(cg, "fputc('\\n', stderr)");
-        } else {
-            AstNode *arg = node->data.call.args[0];
-            emitf(cg, "ez_fmt_eprintln%s(", resolve_print_suffix(cg, arg));
-            emit_expression(cg, arg);
-            emit(cg, ")");
-        }
-        return true;
-    }
-
-    if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
-        emit(cg, "ez_fmt_eprint_str(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
-
     if (strcmp(func, "format") == 0 && node->data.call.arg_count >= 1) {
         emit(cg, "ez_string_format(ez_default_arena, ");
         AstNode *fmt_arg = node->data.call.args[0];
