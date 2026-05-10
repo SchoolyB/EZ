@@ -62,19 +62,61 @@ static char *read_file(const char *path) {
         return NULL;
     }
 
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    /* Try the seekable fast path. Fall through to streaming on any
+     * failure: pipes, FIFOs, /dev/stdin, /proc, sockets, etc. all make
+     * ftell return -1, which previously wrapped (size_t)-1 + 1 to 0
+     * and caused fread to write past the heap allocation. */
+    long size = -1;
+    if (fseek(f, 0, SEEK_END) == 0) {
+        size = ftell(f);
+        if (size >= 0) (void)fseek(f, 0, SEEK_SET);
+    }
 
-    char *buf = malloc((size_t)size + 1);
+    if (size >= 0) {
+        char *buf = malloc((size_t)size + 1);
+        if (!buf) {
+            fprintf(stderr, "ez: out of memory\n");
+            fclose(f);
+            return NULL;
+        }
+        size_t read = fread(buf, 1, (size_t)size, f);
+        buf[read] = '\0';
+        fclose(f);
+        return buf;
+    }
+
+    /* Streaming fallback for non-seekable inputs. */
+    clearerr(f);
+    size_t cap = 4096;
+    size_t len = 0;
+    char *buf = malloc(cap);
     if (!buf) {
         fprintf(stderr, "ez: out of memory\n");
         fclose(f);
         return NULL;
     }
-
-    size_t read = fread(buf, 1, (size_t)size, f);
-    buf[read] = '\0';
+    for (;;) {
+        if (len == cap) {
+            size_t new_cap = cap * 2;
+            char *new_buf = realloc(buf, new_cap);
+            if (!new_buf) {
+                free(buf);
+                fclose(f);
+                fprintf(stderr, "ez: out of memory\n");
+                return NULL;
+            }
+            buf = new_buf;
+            cap = new_cap;
+        }
+        size_t got = fread(buf + len, 1, cap - len, f);
+        if (got == 0) break;
+        len += got;
+    }
+    if (len + 1 > cap) {
+        char *grow = realloc(buf, len + 1);
+        if (grow) buf = grow;
+    }
+    buf[len] = '\0';
     fclose(f);
     return buf;
 }

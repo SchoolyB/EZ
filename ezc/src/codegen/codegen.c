@@ -279,6 +279,18 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     }
 }
 
+/* Map a C key type back to its EzMap key-kind macro so the codegen can
+ * tag each ez_map_new_kind call. Float keys need this so -0.0/+0.0 and
+ * NaN are normalized at lookup time; other 8-byte keys (int, pointer)
+ * stay on the bytewise path. */
+static const char *ez_map_key_kind_macro(const char *c_key_type) {
+    if (!c_key_type) return "EZ_MAP_KEY_BYTES";
+    if (strcmp(c_key_type, "EzString") == 0) return "EZ_MAP_KEY_STRING";
+    if (strcmp(c_key_type, "double") == 0)   return "EZ_MAP_KEY_F64";
+    if (strcmp(c_key_type, "float") == 0)    return "EZ_MAP_KEY_F32";
+    return "EZ_MAP_KEY_BYTES";
+}
+
 /* --- Deep copy machinery , ) ---
  *
  * A value is "needs-deep-copy" iff reading one C-level copy of it
@@ -410,15 +422,15 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     int t = next_dc_tag();
     emitf(cg,
         "({ EzMap _ms%d = %s; "
-        "EzMap _md%d = ez_map_new(ez_default_arena, _ms%d.key_size, _ms%d.value_size, "
-        "_ms%d.order_len > 4 ? _ms%d.order_len * 2 : 8); "
+        "EzMap _md%d = ez_map_new_kind(ez_default_arena, _ms%d.key_size, _ms%d.value_size, "
+        "_ms%d.order_len > 4 ? _ms%d.order_len * 2 : 8, _ms%d.key_kind); "
         "for (int32_t _mi%d = 0; _mi%d < _ms%d.order_len; _mi%d++) { "
         "int32_t _mslot%d = _ms%d.order[_mi%d]; "
         "%s _mk%d = *(%s *)ez_map_key_at(&_ms%d, _mslot%d); "
         "%s _mvs%d = *(%s *)ez_map_value_at(&_ms%d, _mslot%d); "
         "%s _mvd%d = ",
         t, src_var,
-        t, t, t, t, t,
+        t, t, t, t, t, t,
         t, t, t, t,
         t, t, t,
         c_key, t, c_key, t, t,
@@ -1110,8 +1122,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
          * a unique temp name. */
         static int map_lit_counter = 0;
         int my_counter = map_lit_counter++;
-        emitf(cg, "({ EzMap _ml%d = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), %d); ",
-            my_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8);
+        emitf(cg, "({ EzMap _ml%d = ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), %d, %s); ",
+            my_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8,
+            ez_map_key_kind_macro(c_key_type));
 
         /* For nested map values, propagate the inner type so inner literals
          * resolve their key/value C types correctly. */
@@ -2103,8 +2116,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *c_vt = "int64_t";
                     if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
                     if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
-                    emitf(cg, "_np->%s = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8); ",
-                        safe_name(fn), c_kt, c_vt);
+                    emitf(cg, "_np->%s = ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s); ",
+                        safe_name(fn), c_kt, c_vt, ez_map_key_kind_macro(c_kt));
                 } else if (ft && ft[0] == '[') {
                     /* Array field — determine element C type */
                     EzType *at = type_from_name(ft);
@@ -2928,9 +2941,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    /* c_string(ptr); convert C char* to EZ string */
+    /* c_string(ptr); convert C char* to EZ string. Copies onto the
+     * arena so the result is safe to use even after the C-side buffer
+     * is freed or overwritten. NULL maps to "" instead of crashing. */
     if (strcmp(func, "c_string") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_string_lit((const char *)");
+        emit(cg, "ez_c_string_dup(ez_default_arena, (const char *)");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -4404,25 +4419,6 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "eprintln") == 0) {
-        if (node->data.call.arg_count == 0) {
-            emit(cg, "fputc('\\n', stderr)");
-        } else {
-            AstNode *arg = node->data.call.args[0];
-            emitf(cg, "ez_fmt_eprintln%s(", resolve_print_suffix(cg, arg));
-            emit_expression(cg, arg);
-            emit(cg, ")");
-        }
-        return true;
-    }
-
-    if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
-        emit(cg, "ez_fmt_eprint_str(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
-
     if (strcmp(func, "format") == 0 && node->data.call.arg_count >= 1) {
         emit(cg, "ez_string_format(ez_default_arena, ");
         AstNode *fmt_arg = node->data.call.args[0];
@@ -5680,7 +5676,8 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             cg->current_var_type = saved_var_type;
         } else {
             /* No initializer; create empty map */
-            emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
+            emitf(cg, "ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s)",
+                c_kt, c_vt, ez_map_key_kind_macro(c_kt));
         }
         emit(cg, ";\n");
         return;
@@ -6370,14 +6367,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emit(cg, ";\n");
 }
 
-/* Collect ensure statements from a block */
-static void collect_ensures(AstNode *block, AstNode **ensures, int *count, int cap) {
+/* Collect ensure statements from a block, growing the buffer as needed. */
+static void collect_ensures(AstNode *block, AstNode ***ensures, int *count, int *cap) {
     if (!block || block->kind != NODE_BLOCK_STMT) return;
     for (int i = 0; i < block->data.block.count; i++) {
         AstNode *stmt = block->data.block.stmts[i];
-        if (stmt->kind == NODE_ENSURE_STMT && *count < cap) {
-            ensures[(*count)++] = stmt;
+        if (stmt->kind != NODE_ENSURE_STMT) continue;
+        if (*count == *cap) {
+            int new_cap = *cap ? *cap * 2 : 8;
+            *ensures = xrealloc(*ensures, sizeof(AstNode *) * (size_t)new_cap);
+            *cap = new_cap;
         }
+        (*ensures)[(*count)++] = stmt;
     }
 }
 
@@ -6385,9 +6386,10 @@ static void collect_ensures(AstNode *block, AstNode **ensures, int *count, int c
 static void emit_ensure_cleanup(CodeGen *cg) {
     if (!cg->current_func || !cg->current_func->data.func_decl.body) return;
 
-    AstNode *ensures[32];
+    AstNode **ensures = NULL;
     int ensure_count = 0;
-    collect_ensures(cg->current_func->data.func_decl.body, ensures, &ensure_count, 32);
+    int ensure_cap = 0;
+    collect_ensures(cg->current_func->data.func_decl.body, &ensures, &ensure_count, &ensure_cap);
 
     /* Emit in reverse (LIFO) order */
     for (int i = ensure_count - 1; i >= 0; i--) {
@@ -6395,6 +6397,8 @@ static void emit_ensure_cleanup(CodeGen *cg) {
         emit_expression(cg, ensures[i]->data.ensure_stmt.expr);
         emit(cg, ";\n");
     }
+
+    free(ensures);
 }
 
 /* : emit escape + cleanup for a non-void function return.
@@ -7008,6 +7012,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, "{ int32_t %s = ", len_name);
             emit_expression(cg, coll);
             emit(cg, ".len;\n");
+            /* Guard against mutation during iteration */
+            emit_indent(cg);
+            emit_expression(cg, coll);
+            emit(cg, ".iterating++;\n");
             emit_indent(cg);
             emitf(cg, "for (int32_t %s = 0; %s < %s; %s++) {\n", idx_name, idx_name, len_name, idx_name);
             cg->indent++;
@@ -7050,8 +7058,11 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emit_indent(cg);
             emit(cg, "}\n");
         }
-        /* Close extra scope for array length snapshot */
+        /* Decrement array iteration guard, then close the snapshot block */
         if (coll_t && coll_t->kind != TK_MAP && coll_t->kind != TK_STRING) {
+            emit_indent(cg);
+            emit_expression(cg, coll);
+            emit(cg, ".iterating--;\n");
             emit_indent(cg);
             emit(cg, "}\n");
         }

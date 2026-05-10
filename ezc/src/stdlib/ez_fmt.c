@@ -12,31 +12,6 @@
 #define EZ_FMT_INT_BUF      32
 #define EZ_FMT_FLOAT_BUF    64
 
-void ez_fmt_eprintln_str(EzString s) {
-    fwrite(s.data, 1, (size_t)s.len, stderr);
-    fputc('\n', stderr);
-}
-
-void ez_fmt_eprintln_int(int64_t v) {
-    fprintf(stderr, "%" PRId64 "\n", v);
-}
-
-void ez_fmt_eprintln_uint(uint64_t v) {
-    fprintf(stderr, "%" PRIu64 "\n", v);
-}
-
-void ez_fmt_eprintln_float(double v) {
-    fprintf(stderr, "%g\n", v);
-}
-
-void ez_fmt_eprintln_bool(bool v) {
-    fprintf(stderr, "%s\n", v ? "true" : "false");
-}
-
-void ez_fmt_eprint_str(EzString s) {
-    fwrite(s.data, 1, (size_t)s.len, stderr);
-}
-
 EzString ez_fmt_pad_left(EzArena *arena, EzString s, int64_t width, char ch) {
     if (s.len >= width) return s;
     int64_t pad = width - s.len;

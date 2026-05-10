@@ -1,0 +1,11 @@
+/*
+ * Error Test: arrays.insert_at runtime panic on positive out-of-bounds index
+ * Expected: panic with "out of bounds"
+ */
+
+import @arrays
+
+do main() {
+    mut xs [int] = {1, 2, 3}
+    arrays.insert_at(xs, 100, 999)
+}

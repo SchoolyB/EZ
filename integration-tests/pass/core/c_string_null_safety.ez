@@ -1,0 +1,44 @@
+/*
+ * c_string_null_safety.ez - c_string() handles NULL without crashing.
+ *
+ * c_string used to lower to ez_string_lit(ptr) which calls strlen()
+ * with no NULL check. The fix routes it through ez_c_string_dup,
+ * which returns "" for NULL.
+ *
+ * getenv on a name that is never set returns NULL on every conforming
+ * platform, so it's the simplest source of a NULL char* available
+ * from EZ-only code.
+ */
+
+import c "stdlib.h"
+
+do main() {
+    println("=== c_string NULL Safety Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    mut ptr = c.getenv("EZ_TEST_DEFINITELY_NOT_SET_VAR_8729")
+    mut s string = c_string(ptr)
+    if s == "" {
+        println("  [PASS] c_string(NULL) returns empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected '', got '${s}'")
+        failed += 1
+    }
+    if len(s) == 0 {
+        println("  [PASS] resulting string has len 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected len 0, got ${len(s)}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

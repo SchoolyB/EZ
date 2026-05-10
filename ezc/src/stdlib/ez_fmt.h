@@ -21,16 +21,6 @@
  * These helpers are for operations that need runtime support.
  */
 
-/* fmt.eprintln(value) — print to stderr with newline */
-void ez_fmt_eprintln_str(EzString s);
-void ez_fmt_eprintln_int(int64_t v);
-void ez_fmt_eprintln_uint(uint64_t v);
-void ez_fmt_eprintln_float(double v);
-void ez_fmt_eprintln_bool(bool v);
-
-/* fmt.eprint(value) — print to stderr without newline */
-void ez_fmt_eprint_str(EzString s);
-
 /* fmt.sprint(arena, values...) — concatenate values into a string */
 /* Handled by codegen via ez_string_format */
 

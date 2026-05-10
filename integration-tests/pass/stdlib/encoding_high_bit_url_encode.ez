@@ -1,0 +1,50 @@
+/*
+ * encoding_high_bit_url_encode.ez - url_encode on high-bit (>127) bytes.
+ *
+ * url_encode used to call isalnum on a signed char. For inputs whose
+ * high bit was set (e.g. UTF-8 continuation bytes) that is undefined
+ * behavior under the C ctype contract; on glibc it segfaults. The
+ * fix casts to unsigned char first.
+ *
+ * This test passes a UTF-8 string with bytes above 0x7F and asserts
+ * url_encode produces the expected percent-encoded output without
+ * crashing.
+ */
+
+import @encoding
+
+do main() {
+    println("=== url_encode High-Bit Byte Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // "café" — the é is 0xC3 0xA9 in UTF-8; both bytes have the high
+    // bit set. Pre-fix: isalnum on signed char with the high bit set
+    // is UB. Post-fix: each byte percent-encoded.
+    mut encoded string = encoding.url_encode("café")
+    if encoded == "caf%C3%A9" {
+        println("  [PASS] url_encode encodes UTF-8 high-bit bytes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 'caf%C3%A9', got '${encoded}'")
+        failed += 1
+    }
+
+    // Round-trip survives.
+    mut decoded string = encoding.url_decode(encoded)
+    if decoded == "café" {
+        println("  [PASS] url_decode round-trips high-bit bytes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] round-trip lost data: '${decoded}'")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

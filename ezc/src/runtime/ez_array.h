@@ -21,6 +21,7 @@ typedef struct {
     int32_t len;
     int32_t cap;
     int32_t elem_size;
+    int32_t iterating;          /* >0 while a for_each is active */
 } EzArray;
 
 /* Create an empty array with given element size and initial capacity */

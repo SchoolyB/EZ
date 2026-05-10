@@ -117,6 +117,19 @@ EzString ez_string_new(EzArena *arena, const char *s, int32_t len) {
     return str;
 }
 
+EzString ez_c_string_dup(EzArena *arena, const char *s) {
+    if (s == NULL) return ez_string_lit("");
+    size_t n = strlen(s);
+    if (n > (size_t)INT32_MAX) n = (size_t)INT32_MAX;
+    char *data = (char *)ez_arena_alloc(arena, n + 1);
+    memcpy(data, s, n);
+    data[n] = '\0';
+    EzString str;
+    str.data = data;
+    str.len = (int32_t)n;
+    return str;
+}
+
 EzString ez_string_format(EzArena *arena, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
