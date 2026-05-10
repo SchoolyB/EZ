@@ -6353,14 +6353,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emit(cg, ";\n");
 }
 
-/* Collect ensure statements from a block */
-static void collect_ensures(AstNode *block, AstNode **ensures, int *count, int cap) {
+/* Collect ensure statements from a block, growing the buffer as needed. */
+static void collect_ensures(AstNode *block, AstNode ***ensures, int *count, int *cap) {
     if (!block || block->kind != NODE_BLOCK_STMT) return;
     for (int i = 0; i < block->data.block.count; i++) {
         AstNode *stmt = block->data.block.stmts[i];
-        if (stmt->kind == NODE_ENSURE_STMT && *count < cap) {
-            ensures[(*count)++] = stmt;
+        if (stmt->kind != NODE_ENSURE_STMT) continue;
+        if (*count == *cap) {
+            int new_cap = *cap ? *cap * 2 : 8;
+            *ensures = xrealloc(*ensures, sizeof(AstNode *) * (size_t)new_cap);
+            *cap = new_cap;
         }
+        (*ensures)[(*count)++] = stmt;
     }
 }
 
@@ -6368,9 +6372,10 @@ static void collect_ensures(AstNode *block, AstNode **ensures, int *count, int c
 static void emit_ensure_cleanup(CodeGen *cg) {
     if (!cg->current_func || !cg->current_func->data.func_decl.body) return;
 
-    AstNode *ensures[32];
+    AstNode **ensures = NULL;
     int ensure_count = 0;
-    collect_ensures(cg->current_func->data.func_decl.body, ensures, &ensure_count, 32);
+    int ensure_cap = 0;
+    collect_ensures(cg->current_func->data.func_decl.body, &ensures, &ensure_count, &ensure_cap);
 
     /* Emit in reverse (LIFO) order */
     for (int i = ensure_count - 1; i >= 0; i--) {
@@ -6378,6 +6383,8 @@ static void emit_ensure_cleanup(CodeGen *cg) {
         emit_expression(cg, ensures[i]->data.ensure_stmt.expr);
         emit(cg, ";\n");
     }
+
+    free(ensures);
 }
 
 /* : emit escape + cleanup for a non-void function return.
