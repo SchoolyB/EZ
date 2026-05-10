@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.2.2](https://github.com/SchoolyB/EZ/compare/v3.2.1...v3.2.2) (2026-05-10)
+
+
+### Bug Fixes
+
+* **codegen:** grow ensure cleanup buffer dynamically ([3bfeecd](https://github.com/SchoolyB/EZ/commit/3bfeecd966843ea404eca93bc7f05d5f1ad28b54)), closes [#1630](https://github.com/SchoolyB/EZ/issues/1630)
+* **runtime/arrays:** panic on mutation during for_each iteration ([3a40baa](https://github.com/SchoolyB/EZ/commit/3a40baa31a312f1a6b865dcaa1870ed900b7e03b)), closes [#1628](https://github.com/SchoolyB/EZ/issues/1628)
+* runtime/codegen/stdlib fixes ([f294b4e](https://github.com/SchoolyB/EZ/commit/f294b4e4146ab889ba2233f775c50d1a29bc06a0))
+* **runtime/maps:** normalize float keys so +0.0 and -0.0 collide ([21e1476](https://github.com/SchoolyB/EZ/commit/21e1476904c590d3dee3640d7206061aeb57b8bf)), closes [#1631](https://github.com/SchoolyB/EZ/issues/1631)
+* **runtime:** make c_string() safe — NULL-check, copy onto arena, clamp length ([2b65ba6](https://github.com/SchoolyB/EZ/commit/2b65ba6bd066cc3b91ce582747129e02b301a3f4))
+* **stdlib/arrays:** bounds-check insert_at and drop fixed 32-byte stack buffer ([#1622](https://github.com/SchoolyB/EZ/issues/1622)) ([#1625](https://github.com/SchoolyB/EZ/issues/1625)) ([8693f7c](https://github.com/SchoolyB/EZ/commit/8693f7c725f4b53eff68841a26742115cc6e2779))
+* **stdlib/encoding:** validate base64_decode input and reject malformed data ([47f09fc](https://github.com/SchoolyB/EZ/commit/47f09fc9393c5396ec9b61f5a696cd734e09a533))
+* **stdlib/random:** size shuffle scratch buffer to actual element width ([e1da7ff](https://github.com/SchoolyB/EZ/commit/e1da7ff18d9d4dbec4d9dc0962c0a191d8c5a23f))
+* **stdlib/strings:** reject overflowing repeat and replace results ([9618ac5](https://github.com/SchoolyB/EZ/commit/9618ac5908d9e3d514a987b3a8587d26984dbf1f)), closes [#1615](https://github.com/SchoolyB/EZ/issues/1615)
+* **stdlib:** handle ftell failure on non-seekable inputs in read_file ([#1626](https://github.com/SchoolyB/EZ/issues/1626)) ([4e9b451](https://github.com/SchoolyB/EZ/commit/4e9b45181aa893b0df92af76df57641e8b8f47c7))
+
 ## [3.2.1](https://github.com/SchoolyB/EZ/compare/v3.2.0...v3.2.1) (2026-05-05)
 
 
