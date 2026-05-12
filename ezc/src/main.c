@@ -73,6 +73,11 @@ static char *read_file(const char *path) {
     }
 
     if (size >= 0) {
+        if ((size_t)size == (size_t)-1) {
+            fprintf(stderr, "ez: file too large\n");
+            fclose(f);
+            return NULL;
+        }
         char *buf = malloc((size_t)size + 1);
         if (!buf) {
             fprintf(stderr, "ez: out of memory\n");
@@ -97,6 +102,12 @@ static char *read_file(const char *path) {
     }
     for (;;) {
         if (len == cap) {
+            if (cap > (size_t)-1 / 2) {
+                free(buf);
+                fclose(f);
+                fprintf(stderr, "ez: file too large\n");
+                return NULL;
+            }
             size_t new_cap = cap * 2;
             char *new_buf = realloc(buf, new_cap);
             if (!new_buf) {
@@ -112,7 +123,7 @@ static char *read_file(const char *path) {
         if (got == 0) break;
         len += got;
     }
-    if (len + 1 > cap) {
+    if (len < (size_t)-1 && len + 1 > cap) {
         char *grow = realloc(buf, len + 1);
         if (grow) buf = grow;
     }
@@ -143,7 +154,7 @@ static const char *get_self_dir(const char *argv0) {
     if (_NSGetExecutablePath(buf, &size) == 0) {
         char *resolved = realpath(buf, NULL);
         if (resolved) {
-            strncpy(buf, resolved, sizeof(buf) - 1);
+            snprintf(buf, sizeof(buf), "%s", resolved);
             free(resolved);
             char *slash = strrchr(buf, '/');
             if (slash) *slash = '\0';
@@ -167,7 +178,7 @@ static const char *get_self_dir(const char *argv0) {
     if (argv0) {
         char *resolved = realpath(argv0, NULL);
         if (resolved) {
-            strncpy(buf, resolved, sizeof(buf) - 1);
+            snprintf(buf, sizeof(buf), "%s", resolved);
             free(resolved);
             char *slash = strrchr(buf, '/');
             if (slash) *slash = '\0';
@@ -607,9 +618,10 @@ int main(int argc, char **argv) {
         /* Parse comma-separated warning codes */
         char *codes_buf = strdup(quiet_codes_arg);
         int code_cap = 8;
-        diag->suppressed_codes = malloc(sizeof(const char *) * code_cap);
+        diag->suppressed_codes = calloc(code_cap, sizeof(const char *));
         diag->suppressed_count = 0;
-        char *tok = strtok(codes_buf, ",");
+        char *saveptr = NULL;
+        char *tok = strtok_r(codes_buf, ",", &saveptr);
         while (tok) {
             /* Validate: must start with W */
             if (tok[0] == 'E') {
@@ -627,7 +639,7 @@ int main(int argc, char **argv) {
                 diag->suppressed_codes = realloc(diag->suppressed_codes, sizeof(const char *) * code_cap);
             }
             diag->suppressed_codes[diag->suppressed_count++] = strdup(tok);
-            tok = strtok(NULL, ",");
+            tok = strtok_r(NULL, ",", &saveptr);
         }
         free(codes_buf);
     }
@@ -676,8 +688,7 @@ int main(int argc, char **argv) {
 
         /* Determine the directory of the input file */
         char input_dir[PATH_BUF_SIZE];
-        strncpy(input_dir, input_file, sizeof(input_dir) - 1);
-        input_dir[sizeof(input_dir) - 1] = '\0';
+        snprintf(input_dir, sizeof(input_dir), "%s", input_file);
         char *last_slash = strrchr(input_dir, '/');
         if (last_slash) *(last_slash + 1) = '\0';
         else { input_dir[0] = '.'; input_dir[1] = '/'; input_dir[2] = '\0'; }
@@ -724,8 +735,7 @@ int main(int argc, char **argv) {
                 if (iplen >= 3 && strcmp(import_path + iplen - 3, ".ez") == 0) {
                     /* Case 1: explicit .ez path — direct file import */
                     file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
-                    strncpy(file_list[0], import_path, PATH_BUF_SIZE - 1);
-                    file_list[0][PATH_BUF_SIZE - 1] = '\0';
+                    snprintf(file_list[0], PATH_BUF_SIZE, "%s", import_path);
                     file_count = 1;
                 } else {
                     /* Case 2: try appending .ez (extensionless file import) */
@@ -734,12 +744,10 @@ int main(int argc, char **argv) {
                     struct stat st;
                     if (stat(try_file, &st) == 0 && S_ISREG(st.st_mode)) {
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
-                        strncpy(file_list[0], try_file, PATH_BUF_SIZE - 1);
-                        file_list[0][PATH_BUF_SIZE - 1] = '\0';
+                        snprintf(file_list[0], PATH_BUF_SIZE, "%s", try_file);
                         file_count = 1;
                         /* Update import_path so collision detection uses the resolved path */
-                        strncpy(import_path, try_file, sizeof(import_path) - 1);
-                        import_path[sizeof(import_path) - 1] = '\0';
+                        snprintf(import_path, sizeof(import_path), "%s", try_file);
                     } else if (stat(import_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                         /* Case 3: directory import — scan for .ez files */
 
@@ -815,12 +823,10 @@ int main(int argc, char **argv) {
                 {
                     char *rp = realpath(import_path, NULL);
                     if (rp) {
-                        strncpy(norm_import, rp, sizeof(norm_import) - 1);
-                        norm_import[sizeof(norm_import) - 1] = '\0';
+                        snprintf(norm_import, sizeof(norm_import), "%s", rp);
                         free(rp);
                     } else {
-                        strncpy(norm_import, import_path, sizeof(norm_import) - 1);
-                        norm_import[sizeof(norm_import) - 1] = '\0';
+                        snprintf(norm_import, sizeof(norm_import), "%s", import_path);
                     }
                 }
 
@@ -962,8 +968,7 @@ int main(int argc, char **argv) {
                      * rewritten to mylib.Item → resolves as mylib_Item. */
                     {
                         char cur_dir[PATH_BUF_SIZE];
-                        strncpy(cur_dir, cur_file_path, sizeof(cur_dir) - 1);
-                        cur_dir[sizeof(cur_dir) - 1] = '\0';
+                        snprintf(cur_dir, sizeof(cur_dir), "%s", cur_file_path);
                         char *cd_slash = strrchr(cur_dir, '/');
                         if (cd_slash) *(cd_slash + 1) = '\0';
                         else { cur_dir[0] = '.'; cur_dir[1] = '/'; cur_dir[2] = '\0'; }
