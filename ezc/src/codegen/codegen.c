@@ -4043,13 +4043,27 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "sort_asc") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_sort_asc(");
+        EzType *sa_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *sa_elem = (sa_t && sa_t->kind == TK_ARRAY) ? sa_t->element_type : NULL;
+        if (sa_elem && strcmp(sa_elem, "float") == 0)
+            emit(cg, "ez_arrays_sort_asc_float(");
+        else if (sa_elem && strcmp(sa_elem, "string") == 0)
+            emit(cg, "ez_arrays_sort_asc_str(");
+        else
+            emit(cg, "ez_arrays_sort_asc(");
         emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "sort_desc") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_sort_desc(");
+        EzType *sd_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *sd_elem = (sd_t && sd_t->kind == TK_ARRAY) ? sd_t->element_type : NULL;
+        if (sd_elem && strcmp(sd_elem, "float") == 0)
+            emit(cg, "ez_arrays_sort_desc_float(");
+        else if (sd_elem && strcmp(sd_elem, "string") == 0)
+            emit(cg, "ez_arrays_sort_desc_str(");
+        else
+            emit(cg, "ez_arrays_sort_desc(");
         emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
