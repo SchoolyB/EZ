@@ -6,13 +6,15 @@
  */
 
 #include "scope.h"
+#include "../util/xalloc.h"
 #include <stdlib.h>
 #include <string.h>
 
 #define EZ_SCOPE_INITIAL_CAP 8
 
 Scope *scope_create(Scope *parent) {
-    Scope *s = calloc(1, sizeof(Scope));
+    Scope *s = xmalloc(sizeof(Scope));
+    memset(s, 0, sizeof(Scope));
     s->parent = parent;
     return s;
 }
@@ -28,7 +30,7 @@ void scope_define(Scope *s, const char *name, EzType *type, bool mutable) {
 
     if (s->count >= s->cap) {
         s->cap = s->cap ? s->cap * 2 : EZ_SCOPE_INITIAL_CAP;
-        s->symbols = realloc(s->symbols, sizeof(Symbol) * s->cap);
+        s->symbols = xrealloc(s->symbols, sizeof(Symbol) * s->cap);
     }
 
     Symbol *sym = &s->symbols[s->count++];

@@ -12,7 +12,7 @@
 
 EzString ez_strings_to_upper(EzArena *arena, EzString s) {
     char *buf = ez_arena_alloc(arena, (size_t)s.len + 1);
-    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)toupper(s.data[i]);
+    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)toupper((unsigned char)s.data[i]);
     buf[s.len] = '\0';
     EzString r = { buf, s.len };
     return r;
@@ -20,7 +20,7 @@ EzString ez_strings_to_upper(EzArena *arena, EzString s) {
 
 EzString ez_strings_to_lower(EzArena *arena, EzString s) {
     char *buf = ez_arena_alloc(arena, (size_t)s.len + 1);
-    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)tolower(s.data[i]);
+    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)tolower((unsigned char)s.data[i]);
     buf[s.len] = '\0';
     EzString r = { buf, s.len };
     return r;
@@ -28,20 +28,20 @@ EzString ez_strings_to_lower(EzArena *arena, EzString s) {
 
 EzString ez_strings_trim(EzArena *arena, EzString s) {
     int32_t start = 0, end = s.len;
-    while (start < end && isspace(s.data[start])) start++;
-    while (end > start && isspace(s.data[end - 1])) end--;
+    while (start < end && isspace((unsigned char)s.data[start])) start++;
+    while (end > start && isspace((unsigned char)s.data[end - 1])) end--;
     return ez_string_new(arena, s.data + start, end - start);
 }
 
 EzString ez_strings_trim_left(EzArena *arena, EzString s) {
     int32_t start = 0;
-    while (start < s.len && isspace(s.data[start])) start++;
+    while (start < s.len && isspace((unsigned char)s.data[start])) start++;
     return ez_string_new(arena, s.data + start, s.len - start);
 }
 
 EzString ez_strings_trim_right(EzArena *arena, EzString s) {
     int32_t end = s.len;
-    while (end > 0 && isspace(s.data[end - 1])) end--;
+    while (end > 0 && isspace((unsigned char)s.data[end - 1])) end--;
     return ez_string_new(arena, s.data, end);
 }
 
@@ -94,7 +94,13 @@ EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString
     /* Count occurrences to size the buffer */
     int64_t cnt = ez_strings_count(s, old_s);
     if (cnt == 0) return s;
-    int32_t new_len = s.len + (int32_t)cnt * (new_s.len - old_s.len);
+    int64_t new_len64 = (int64_t)s.len + cnt * ((int64_t)new_s.len - (int64_t)old_s.len);
+    if (new_len64 < 0 || new_len64 > INT32_MAX) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strings.replace() result exceeds maximum string length\n");
+        exit(1);
+    }
+    int32_t new_len = (int32_t)new_len64;
     char *buf = ez_arena_alloc(arena, (size_t)new_len + 1);
     int32_t pos = 0;
     for (int32_t i = 0; i < s.len; ) {
@@ -113,8 +119,14 @@ EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString
 
 EzString ez_strings_repeat(EzArena *arena, EzString s, int64_t count) {
     if (count < 0) { fflush(stdout); fprintf(stderr, "panic: strings.repeat() count cannot be negative (%lld)\n", (long long)count); exit(1); }
-    if (count == 0) return ez_string_lit("");
-    int32_t new_len = s.len * (int32_t)count;
+    if (count == 0 || s.len == 0) return ez_string_lit("");
+    int64_t new_len64 = (int64_t)s.len * count;
+    if (new_len64 > INT32_MAX) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strings.repeat() result exceeds maximum string length\n");
+        exit(1);
+    }
+    int32_t new_len = (int32_t)new_len64;
     char *buf = ez_arena_alloc(arena, (size_t)new_len + 1);
     for (int64_t i = 0; i < count; i++) {
         memcpy(buf + i * s.len, s.data, (size_t)s.len);

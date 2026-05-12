@@ -36,6 +36,12 @@ typedef struct {
     int func_count;
     int func_cap;
 
+    /* Sorted view of all_funcs by func_decl.name, built lazily for
+     * O(log n) find_func lookups. all_funcs itself stays in insertion
+     * order because emission and several prefix-match scans depend on it. */
+    AstNode **funcs_by_name;
+    bool funcs_by_name_built;
+
     /* Type table from type checker (for type-aware codegen) */
     TypeTable *type_table;
 
@@ -58,6 +64,16 @@ typedef struct {
     AstNode **struct_decls;
     int struct_decl_count;
     int struct_decl_cap;
+
+    /* Lazy index of (field_name, struct_name) for func-typed struct fields,
+     * built on first lookup. Lets the member-call fallback heuristic skip
+     * the O(struct_count * field_count) scan over non-func fields. */
+    struct {
+        const char *field_name;
+        const char *struct_name;
+    } *func_field_index;
+    int func_field_count;
+    bool func_field_index_built;
 
     /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;

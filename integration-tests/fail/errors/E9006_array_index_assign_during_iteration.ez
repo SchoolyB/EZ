@@ -1,0 +1,14 @@
+/*
+ * Test: E9006 - Cannot modify array during for_each iteration
+ * Expected: Runtime panic from a direct arr[i] = x assignment during a
+ * for_each. The guard sits in ez_array_set at the runtime layer.
+ */
+
+do main() {
+    mut arr [int] = {1, 2, 3, 4, 5}
+    for_each item in arr {
+        if item == 2 {
+            arr[0] = 99
+        }
+    }
+}

@@ -40,6 +40,70 @@ static AstNode *parse_expression(Parser *p, Precedence prec);
 static AstNode *parse_block_statement(Parser *p);
 static AstNode *parse_struct_literal(Parser *p, const char *name);
 
+/* --- Struct name pre-scan --- */
+
+/* Lightweight lexer scan to collect struct (and enum) names before the
+ * main parse.  This lets the parser disambiguate `Name{` (struct literal)
+ * from an identifier followed by a block without relying on uppercase
+ * heuristics.  The scan looks for `const <IDENT> struct` and
+ * `const <IDENT> enum` token triples. */
+static void prescan_struct_names(Parser *p) {
+    /* Save lexer state */
+    int saved_pos  = p->lexer->position;
+    int saved_rpos = p->lexer->read_position;
+    char saved_ch  = p->lexer->ch;
+    int saved_line = p->lexer->line;
+    int saved_col  = p->lexer->column;
+
+    /* Reset lexer to start of input */
+    p->lexer->position = 0;
+    p->lexer->read_position = 0;
+    p->lexer->line = 1;
+    p->lexer->column = 0;
+    p->lexer->ch = p->lexer->input[0];
+    if (p->lexer->input[0])
+        p->lexer->read_position = 1;
+
+    Token prev2 = {TOK_EOF, "", 0, 0, NULL, false};
+    Token prev1 = {TOK_EOF, "", 0, 0, NULL, false};
+    for (;;) {
+        Token tok = lexer_next_token(p->lexer);
+        if (tok.type == TOK_EOF) break;
+        /* Match: const <IDENT> struct  OR  const <IDENT> enum */
+        if (prev2.type == TOK_CONST && prev1.type == TOK_IDENT &&
+            (tok.type == TOK_STRUCT || tok.type == TOK_ENUM)) {
+            /* Add prev1.literal to struct_names */
+            if (p->struct_name_count >= p->struct_name_cap) {
+                int new_cap = p->struct_name_cap * 2;
+                const char **new_names = arena_alloc(p->arena,
+                    sizeof(const char *) * new_cap);
+                memcpy(new_names, p->struct_names,
+                    sizeof(const char *) * p->struct_name_count);
+                p->struct_names = new_names;
+                p->struct_name_cap = new_cap;
+            }
+            p->struct_names[p->struct_name_count++] =
+                arena_strdup(p->arena, prev1.literal);
+        }
+        prev2 = prev1;
+        prev1 = tok;
+    }
+
+    /* Restore lexer state */
+    p->lexer->position = saved_pos;
+    p->lexer->read_position = saved_rpos;
+    p->lexer->ch = saved_ch;
+    p->lexer->line = saved_line;
+    p->lexer->column = saved_col;
+}
+
+static bool parser_is_struct_name(Parser *p, const char *name) {
+    for (int i = 0; i < p->struct_name_count; i++) {
+        if (strcmp(p->struct_names[i], name) == 0) return true;
+    }
+    return false;
+}
+
 /* --- Helpers --- */
 
 static void next_token(Parser *p) {
@@ -531,6 +595,11 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
             } else {
                 Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
                 Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
+                /* Inherit struct names from parent so interpolated expressions
+                 * can recognize struct literals. */
+                expr_parser->struct_names = p->struct_names;
+                expr_parser->struct_name_count = p->struct_name_count;
+                expr_parser->struct_name_cap = p->struct_name_cap;
                 AstNode *expr = parse_expression(expr_parser, PREC_LOWEST);
                 if (expr) parts[count++] = expr;
             }
@@ -571,7 +640,7 @@ static AstNode *parse_string_literal(Parser *p) {
         for (int i = 0; raw[i]; i++) {
             if (raw[i] == '\\') { i++; continue; }
             if (raw[i] == '$' && raw[i + 1] != '{' && raw[i + 1] != '\0' &&
-                (isalpha(raw[i + 1]) || raw[i + 1] == '_')) {
+                (isalpha((unsigned char)raw[i + 1]) || raw[i + 1] == '_')) {
                 diag_error_code(p->diag, "E2057", p->file, p->cur_token.line, p->cur_token.column, 0);
                 break;
             }
@@ -657,8 +726,9 @@ static AstNode *parse_prefix(Parser *p) {
                 next_token(p); /* move to potential type name */
 
                 if (p->cur_token.type == TOK_IDENT &&
-                    p->cur_token.literal[0] >= 'A' && p->cur_token.literal[0] <= 'Z' &&
-                    peek_token_is(p, TOK_LBRACE) && !p->no_struct_literal) {
+                    peek_token_is(p, TOK_LBRACE) && !p->no_struct_literal &&
+                    (parser_is_struct_name(p, p->cur_token.literal) ||
+                     (p->cur_token.literal[0] >= 'A' && p->cur_token.literal[0] <= 'Z'))) {
                     /* mod.Name{; module-qualified struct literal */
                     char *prefixed = arena_alloc(p->arena, EZ_MSG_BUF_SIZE);
                     snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod, p->cur_token.literal);
@@ -676,11 +746,13 @@ static AstNode *parse_prefix(Parser *p) {
                 p->lexer->column = saved_col;
             }
         }
-        /* Check for struct literal: Name{ ... } */
+        /* Check for struct literal: Name{ ... }
+         * Use the prescan list first (exact match), fall back to uppercase
+         * heuristic for imported struct names not in the current file. */
         if (peek_token_is(p, TOK_LBRACE) && !p->no_struct_literal) {
             const char *name = p->cur_token.literal;
-            /* Only treat as struct literal if name starts with uppercase */
-            if (name[0] >= 'A' && name[0] <= 'Z') {
+            if (parser_is_struct_name(p, name) ||
+                (name[0] >= 'A' && name[0] <= 'Z')) {
                 next_token(p); /* move to { */
                 return parse_struct_literal(p, name);
             }
@@ -908,10 +980,17 @@ static AstNode *parse_infix_expression(Parser *p, AstNode *left) {
     node->data.infix.op = p->cur_token.literal;
     Precedence prec = token_precedence(p->cur_token.type);
     bool is_membership = (p->cur_token.type == TOK_IN || p->cur_token.type == TOK_NOT_IN);
+    /* Suppress struct-literal parsing on the RHS of comparisons and
+     * membership operators.  In `if x < Foo {`, the `{` is the
+     * if-block, not the start of a struct literal `Foo{ ... }`. */
+    bool suppress_struct_lit = is_membership ||
+        p->cur_token.type == TOK_LT || p->cur_token.type == TOK_GT ||
+        p->cur_token.type == TOK_LT_EQ || p->cur_token.type == TOK_GT_EQ ||
+        p->cur_token.type == TOK_EQ || p->cur_token.type == TOK_NOT_EQ;
     next_token(p);
-    if (is_membership) p->no_struct_literal = true;
+    if (suppress_struct_lit) p->no_struct_literal = true;
     node->data.infix.right = parse_expression(p, prec);
-    if (is_membership) p->no_struct_literal = false;
+    if (suppress_struct_lit) p->no_struct_literal = false;
     return node;
 }
 
@@ -1529,7 +1608,8 @@ static AstNode *parse_func_declaration(Parser *p) {
                         strcmp(lit, "byte") == 0 ||
                         (strcmp(lit, "map") == 0 && peek_token_is(p, TOK_LBRACKET)) ||
                         (strcmp(lit, "func") == 0 && peek_token_is(p, TOK_LPAREN)) ||
-                        (lit[0] >= 'A' && lit[0] <= 'Z')); /* struct/enum types */
+                        parser_is_struct_name(p, lit) ||
+                        (lit[0] >= 'A' && lit[0] <= 'Z')); /* struct/enum types (fallback for imports) */
                 }
 
                 /* map[K:V] and func(...) are complex types, not named returns */
@@ -1645,6 +1725,19 @@ static AstNode *parse_import_statement(Parser *p) {
             item->path = p->cur_token.literal;
             item->alias = "c";
             item->module = "c";
+            /* Validate path: only [A-Za-z0-9./_+-] permitted to prevent injection */
+            for (const char *q = item->path; *q; q++) {
+                unsigned char c = (unsigned char)*q;
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') ||
+                          c == '/' || c == '.' || c == '_' || c == '-' || c == '+';
+                if (!ok) {
+                    diag_error(p->diag, "E2080",
+                        arena_strdup(p->arena, "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted"),
+                        p->file, p->cur_token.line, p->cur_token.column, 0);
+                    break;
+                }
+            }
             goto import_item_done;
         }
 
@@ -2438,6 +2531,14 @@ Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticLi
     p->file = file;
     p->diag = diag;
     p->depth = 0;
+    p->no_struct_literal = false;
+    p->struct_name_count = 0;
+    p->struct_name_cap = 16;
+    p->struct_names = arena_alloc(arena, sizeof(const char *) * 16);
+
+    /* Pre-scan for struct/enum names before the main parse so we can
+     * disambiguate struct literals without capitalization heuristics. */
+    prescan_struct_names(p);
 
     /* Read two tokens to fill cur and peek */
     next_token(p);

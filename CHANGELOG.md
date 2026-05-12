@@ -1,5 +1,79 @@
 # Changelog
 
+## [3.3.0](https://github.com/SchoolyB/EZ/compare/v3.2.2...v3.3.0) (2026-05-12)
+
+
+### Features
+
+* **cli:** add `ez fmt` command for code formatting ([#1638](https://github.com/SchoolyB/EZ/issues/1638)) ([8e9027b](https://github.com/SchoolyB/EZ/commit/8e9027ba8ca2a2503793aca217acb11bc1434a1e)), closes [#1564](https://github.com/SchoolyB/EZ/issues/1564)
+
+
+### Bug Fixes
+
+* **cli:** remove --diff flag from ez fmt ([#1564](https://github.com/SchoolyB/EZ/issues/1564)) ([a0f2180](https://github.com/SchoolyB/EZ/commit/a0f2180b3f10f38b06f4178ea21e9d8268f1216c))
+* **parser:** reject invalid characters in C header import paths ([#1618](https://github.com/SchoolyB/EZ/issues/1618)) ([6646d68](https://github.com/SchoolyB/EZ/commit/6646d68694d7b345bb8bdcdb8b7a0ece4ce3bbae))
+* runtime security bugs ([f0d1151](https://github.com/SchoolyB/EZ/commit/f0d11516795c9648cd68e5c6aa45797ca7bcbc3a))
+* **runtime:** cast to unsigned char at all ctype.h call sites ([#1616](https://github.com/SchoolyB/EZ/issues/1616)) ([d40683b](https://github.com/SchoolyB/EZ/commit/d40683b7c43397b15f5041acd74e76f2604ec087))
+* **stdlib:** compute exact buffer size in csv stringify to prevent heap overflow ([#1617](https://github.com/SchoolyB/EZ/issues/1617)) ([6f3ae23](https://github.com/SchoolyB/EZ/commit/6f3ae23ad0a55dfbc20b0bbe2c99662c8eabb696))
+* **stdlib:** use correct comparators for float and string array sorts ([#1632](https://github.com/SchoolyB/EZ/issues/1632)) ([24afcd8](https://github.com/SchoolyB/EZ/commit/24afcd8a1d6fa8ea6297410c0d28968ce282696f))
+* **typechecker:** reject dynamic format strings and validate directives in fmt.printf/sprintf/format ([#1633](https://github.com/SchoolyB/EZ/issues/1633)) ([35b31c1](https://github.com/SchoolyB/EZ/commit/35b31c1469d587d10a51cd8813c6307db4b24e3d))
+
+## [3.2.2](https://github.com/SchoolyB/EZ/compare/v3.2.1...v3.2.2) (2026-05-10)
+
+
+### Bug Fixes
+
+* **codegen:** grow ensure cleanup buffer dynamically ([3bfeecd](https://github.com/SchoolyB/EZ/commit/3bfeecd966843ea404eca93bc7f05d5f1ad28b54)), closes [#1630](https://github.com/SchoolyB/EZ/issues/1630)
+* **runtime/arrays:** panic on mutation during for_each iteration ([3a40baa](https://github.com/SchoolyB/EZ/commit/3a40baa31a312f1a6b865dcaa1870ed900b7e03b)), closes [#1628](https://github.com/SchoolyB/EZ/issues/1628)
+* runtime/codegen/stdlib fixes ([f294b4e](https://github.com/SchoolyB/EZ/commit/f294b4e4146ab889ba2233f775c50d1a29bc06a0))
+* **runtime/maps:** normalize float keys so +0.0 and -0.0 collide ([21e1476](https://github.com/SchoolyB/EZ/commit/21e1476904c590d3dee3640d7206061aeb57b8bf)), closes [#1631](https://github.com/SchoolyB/EZ/issues/1631)
+* **runtime:** make c_string() safe — NULL-check, copy onto arena, clamp length ([2b65ba6](https://github.com/SchoolyB/EZ/commit/2b65ba6bd066cc3b91ce582747129e02b301a3f4))
+* **stdlib/arrays:** bounds-check insert_at and drop fixed 32-byte stack buffer ([#1622](https://github.com/SchoolyB/EZ/issues/1622)) ([#1625](https://github.com/SchoolyB/EZ/issues/1625)) ([8693f7c](https://github.com/SchoolyB/EZ/commit/8693f7c725f4b53eff68841a26742115cc6e2779))
+* **stdlib/encoding:** validate base64_decode input and reject malformed data ([47f09fc](https://github.com/SchoolyB/EZ/commit/47f09fc9393c5396ec9b61f5a696cd734e09a533))
+* **stdlib/random:** size shuffle scratch buffer to actual element width ([e1da7ff](https://github.com/SchoolyB/EZ/commit/e1da7ff18d9d4dbec4d9dc0962c0a191d8c5a23f))
+* **stdlib/strings:** reject overflowing repeat and replace results ([9618ac5](https://github.com/SchoolyB/EZ/commit/9618ac5908d9e3d514a987b3a8587d26984dbf1f)), closes [#1615](https://github.com/SchoolyB/EZ/issues/1615)
+* **stdlib:** handle ftell failure on non-seekable inputs in read_file ([#1626](https://github.com/SchoolyB/EZ/issues/1626)) ([4e9b451](https://github.com/SchoolyB/EZ/commit/4e9b45181aa893b0df92af76df57641e8b8f47c7))
+
+## [3.2.1](https://github.com/SchoolyB/EZ/compare/v3.2.0...v3.2.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* **codegen:** drop extra stream arg in non-container char print ([81bfbdf](https://github.com/SchoolyB/EZ/commit/81bfbdf036362700eb6694eb679220957097a65d))
+* **codegen:** heap-allocate mangled buffer in monomorphisation forward decl ([01a1842](https://github.com/SchoolyB/EZ/commit/01a184297a94036664497b2fc61885cf8fac7e81))
+* **io:** create copy_file destination with mode 0644 instead of 0666 ([e444039](https://github.com/SchoolyB/EZ/commit/e44403993e4004a8202077fa652fd76e08ac53f2))
+
+
+### Performance Improvements
+
+* **codegen:** build func-field index once instead of nested struct scan ([eced4b2](https://github.com/SchoolyB/EZ/commit/eced4b29144cb457703cc8931291f3bcf352cf45))
+* **codegen:** replace find_func linear scan with sorted bsearch index ([2dbb8ff](https://github.com/SchoolyB/EZ/commit/2dbb8ff3554b2e1e4a621e366760d916e4450b67))
+* **error_codes:** replace chained strcmp with sorted bsearch lookup ([5d36216](https://github.com/SchoolyB/EZ/commit/5d36216321a18462ef149f5ded52abae46b169f7))
+* **typechecker:** replace chained strcmp in type_from_name with bsearch table ([e62f607](https://github.com/SchoolyB/EZ/commit/e62f607c417d79cc48ed62e1d19dc9f6c199fcea))
+
+## [3.2.0](https://github.com/SchoolyB/EZ/compare/v3.1.2...v3.2.0) (2026-05-04)
+
+
+### Features
+
+* pass --quiet and --no-color flags through ez watch ([#1606](https://github.com/SchoolyB/EZ/issues/1606)) ([e35016e](https://github.com/SchoolyB/EZ/commit/e35016ea4d56054ba0d81be1a740f6dc323e0513)), closes [#1573](https://github.com/SchoolyB/EZ/issues/1573)
+* **stdlib:** add base parameter to strconv.to_int/to_uint ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([3fd62c8](https://github.com/SchoolyB/EZ/commit/3fd62c899378b192ceb631c85ad5f710b81ec93b))
+* **stdlib:** add strconv module ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([fbc995e](https://github.com/SchoolyB/EZ/commit/fbc995e64717428d6f12870f769b8e328ae9f8db))
+* **stdlib:** add strconv module for string/type conversions ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([ae8a310](https://github.com/SchoolyB/EZ/commit/ae8a3104e7059e4c3148d438370e005636f49f42))
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate --no-color flag on watchCmd ([1935e83](https://github.com/SchoolyB/EZ/commit/1935e83625e05725b040caee92f0b485bbff5c43))
+* **parser:** replace uppercase heuristic with struct name prescan ([e72004b](https://github.com/SchoolyB/EZ/commit/e72004b32cf3782b2c5ee7ee375bd4578556b741))
+* **parser:** suppress struct literal parsing on RHS of comparisons ([0db8b88](https://github.com/SchoolyB/EZ/commit/0db8b889c41283d081bc9cdaf2e57cde3d0d9ec6))
+* **repo:** enable blank issues in issue template config ([3f8db8f](https://github.com/SchoolyB/EZ/commit/3f8db8f91ff60fd8d37caf0ac1f09418660105ca))
+* **stdlib:** complete strconv module wiring (Makefile, fallible tables) ([#1603](https://github.com/SchoolyB/EZ/issues/1603)) ([20e7ee0](https://github.com/SchoolyB/EZ/commit/20e7ee054d6a4a3c67f59bbfce8a3c8366dc8e35))
+* **typechecker:** allow type names in size_of while rejecting bare builtin functions ([b67ee7c](https://github.com/SchoolyB/EZ/commit/b67ee7c8f219c084cf208af9d4c79a0bf06a8fe8))
+* **typechecker:** enforce private access, reject nonexistent struct functions, catch struct type mismatches ([#1599](https://github.com/SchoolyB/EZ/issues/1599)) ([4151ca7](https://github.com/SchoolyB/EZ/commit/4151ca71990cf3cb882f75c360b96b7dca488d89))
+* **typechecker:** reject bare builtin names used as values ([3e48888](https://github.com/SchoolyB/EZ/commit/3e48888ed635c0ac1d1e5cb9ae9971535d179850))
+* **typechecker:** suppress false W1002 warnings for sub-file imports ([5df0121](https://github.com/SchoolyB/EZ/commit/5df01218580099a1009170a59dfa2593c79629a3))
+
 ## [3.1.2](https://github.com/SchoolyB/EZ/compare/v3.1.1...v3.1.2) (2026-05-02)
 
 

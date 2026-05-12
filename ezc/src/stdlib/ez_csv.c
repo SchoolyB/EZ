@@ -74,9 +74,19 @@ EzString ez_csv_stringify(EzArena *arena, EzArray *data) {
         return (EzString){ buf, pos };
     }
 
-    /* Fallback: array of arrays (original behavior) */
-    int32_t est = data->len * 64;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Fallback: array of arrays ([[string]] rows).
+     * First pass: compute exact required size to avoid heap overflow. */
+    int32_t total = 0;
+    for (int32_t i = 0; i < data->len; i++) {
+        EzArray *row = (EzArray *)((char *)data->data + (size_t)i * sizeof(EzArray));
+        for (int32_t j = 0; j < row->len; j++) {
+            if (j > 0) total++; /* comma */
+            EzString *field = (EzString *)((char *)row->data + (size_t)j * sizeof(EzString));
+            total += field->len;
+        }
+        total++; /* newline */
+    }
+    char *buf = ez_arena_alloc(arena, (size_t)total + 1);
     int32_t pos = 0;
     for (int32_t i = 0; i < data->len; i++) {
         EzArray *row = (EzArray *)((char *)data->data + (size_t)i * sizeof(EzArray));

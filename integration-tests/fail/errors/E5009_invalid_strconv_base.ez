@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5009 - invalid base for integer conversion
+ * Expected: "invalid base" error at compile time
+ */
+
+import @strconv
+
+do main() {
+    mut x int = strconv.to_int("42", 1)
+}

@@ -1,6 +1,10 @@
 /*
  * Test: E9006 - Cannot modify array during for_each iteration
- * Expected: Runtime error when trying to modify array during iteration
+ * Expected: Runtime panic when arrays.remove mutates the array mid-iteration
+ *
+ * Earlier the second arg was 0, which arrays.remove searched for by value;
+ * since {1,2,3,4,5} contains no 0, the mutation never fired and the test
+ * exited 0. Use a value that is present so the panic actually triggers.
  */
 
 import and use @arrays
@@ -10,7 +14,7 @@ do main() {
     for_each item in arr {
         println("item: ${item}")
         if item == 2 {
-            arrays.remove(arr, 0)  // ERROR: cannot modify during iteration
+            arrays.remove(arr, 1)  // ERROR: cannot modify during iteration
         }
     }
 }

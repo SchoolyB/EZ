@@ -1,0 +1,15 @@
+/*
+ * Test: E9006 - Cannot modify array during for_each iteration
+ * Expected: Runtime panic from arrays.insert_at during a for_each.
+ */
+
+import and use @arrays
+
+do main() {
+    mut arr [int] = {1, 2, 3, 4, 5}
+    for_each item in arr {
+        if item == 2 {
+            arrays.insert_at(arr, 0, 99)
+        }
+    }
+}

@@ -9,6 +9,7 @@
 
 #include "typechecker.h"
 #include "../util/constants.h"
+#include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,10 +40,10 @@ static uint32_t hash_ptr(const void *ptr) {
 }
 
 TypeTable *typetable_create(void) {
-    TypeTable *tt = calloc(1, sizeof(TypeTable));
+    TypeTable *tt = xcalloc(1, sizeof(TypeTable));
     tt->cap = TYPETABLE_INIT_CAP;
-    tt->nodes = calloc((size_t)tt->cap, sizeof(AstNode *));
-    tt->types = calloc((size_t)tt->cap, sizeof(EzType *));
+    tt->nodes = xcalloc((size_t)tt->cap, sizeof(AstNode *));
+    tt->types = xcalloc((size_t)tt->cap, sizeof(EzType *));
     return tt;
 }
 
@@ -52,8 +53,8 @@ static void typetable_grow(TypeTable *tt) {
     EzType **old_types = tt->types;
 
     tt->cap = old_cap * 2;
-    tt->nodes = calloc((size_t)tt->cap, sizeof(AstNode *));
-    tt->types = calloc((size_t)tt->cap, sizeof(EzType *));
+    tt->nodes = xcalloc((size_t)tt->cap, sizeof(AstNode *));
+    tt->types = xcalloc((size_t)tt->cap, sizeof(EzType *));
     tt->count = 0;
 
     for (int i = 0; i < old_cap; i++) {
@@ -137,7 +138,7 @@ static void register_struct(TypeChecker *tc, const char *name,
     const char **field_names, EzType **field_types, int field_count) {
     if (tc->struct_count >= tc->struct_cap) {
         tc->struct_cap = tc->struct_cap ? tc->struct_cap * 2 : 8;
-        tc->structs = realloc(tc->structs, sizeof(StructInfo) * tc->struct_cap);
+        tc->structs = xrealloc(tc->structs, sizeof(StructInfo) * tc->struct_cap);
     }
     StructInfo *si = &tc->structs[tc->struct_count++];
     si->struct_name = name;
@@ -248,7 +249,7 @@ static void register_func(TypeChecker *tc, const char *name,
     EzType **return_types, int return_count) {
     if (tc->func_count >= tc->func_cap) {
         tc->func_cap = tc->func_cap ? tc->func_cap * 2 : 16;
-        tc->funcs = realloc(tc->funcs, sizeof(FuncSig) * tc->func_cap);
+        tc->funcs = xrealloc(tc->funcs, sizeof(FuncSig) * tc->func_cap);
     }
     FuncSig *fs = &tc->funcs[tc->func_count++];
     fs->name = name;
@@ -275,7 +276,7 @@ static char *substitute_wildcard(const char *src, const char *concrete) {
     size_t cl = strlen(concrete);
     size_t len = 0;
     for (const char *c = src; *c; c++) len += (*c == '?') ? cl : 1;
-    char *out = malloc(len + 1);
+    char *out = xmalloc(len + 1);
     char *w = out;
     for (const char *c = src; *c; c++) {
         if (*c == '?') { memcpy(w, concrete, cl); w += cl; }
@@ -398,9 +399,9 @@ static bool record_instantiation(FuncSig *fs, const char *concrete,
     }
     if (fs->instantiation_count >= fs->instantiation_cap) {
         fs->instantiation_cap = fs->instantiation_cap ? fs->instantiation_cap * 2 : 4;
-        fs->instantiations = realloc(fs->instantiations,
+        fs->instantiations = xrealloc(fs->instantiations,
             sizeof(const char *) * fs->instantiation_cap);
-        fs->instantiation_calls = realloc(fs->instantiation_calls,
+        fs->instantiation_calls = xrealloc(fs->instantiation_calls,
             sizeof(AstNode *) * fs->instantiation_cap);
     }
     char *stored = strdup(concrete);
@@ -410,7 +411,7 @@ static bool record_instantiation(FuncSig *fs, const char *concrete,
 
     if (fs->decl && fs->decl->kind == NODE_FUNC_DECL) {
         int n = fs->decl->data.func_decl.instantiation_count;
-        fs->decl->data.func_decl.instantiations = realloc(
+        fs->decl->data.func_decl.instantiations = xrealloc(
             (void *)fs->decl->data.func_decl.instantiations,
             sizeof(const char *) * (size_t)(n + 1));
         fs->decl->data.func_decl.instantiations[n] = stored;
@@ -457,6 +458,9 @@ static const FallibleEntry fallible_stdlib[] = {
     /* regex */
     {"regex", "find"}, {"regex", "find_all"},
     {"regex", "replace"}, {"regex", "split"},
+    /* strconv */
+    {"strconv", "to_int"}, {"strconv", "to_uint"},
+    {"strconv", "to_float"}, {"strconv", "to_bool"},
 };
 
 static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
@@ -471,7 +475,7 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
  * This mirrors the type registration blocks so that multi-var synthesis
  * doesn't depend on sym->type being resolved first. */
 typedef enum {
-    FT_BOOL, FT_INT, FT_STRING,
+    FT_BOOL, FT_INT, FT_UINT, FT_FLOAT, FT_STRING,
     FT_ARRAY_STRING, FT_ARRAY_MAP,
     FT_STRUCT_DATABASE, FT_STRUCT_SOCKET, FT_STRUCT_LISTENER,
     FT_STRUCT_HTTP_RESPONSE, FT_STRUCT_MAP,
@@ -512,6 +516,9 @@ static const FallibleTypeEntry fallible_type_table[] = {
     /* regex */
     {"regex", "find", FT_STRING}, {"regex", "replace", FT_STRING},
     {"regex", "find_all", FT_ARRAY_STRING}, {"regex", "split", FT_ARRAY_STRING},
+    /* strconv */
+    {"strconv", "to_int", FT_INT}, {"strconv", "to_uint", FT_UINT},
+    {"strconv", "to_float", FT_FLOAT}, {"strconv", "to_bool", FT_BOOL},
 };
 
 static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
@@ -521,6 +528,8 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
             switch (fallible_type_table[i].type) {
             case FT_BOOL:                return &TYPE_BOOL;
             case FT_INT:                 return &TYPE_INT;
+            case FT_UINT:                return &TYPE_UINT;
+            case FT_FLOAT:               return &TYPE_FLOAT;
             case FT_STRING:              return &TYPE_STRING;
             case FT_ARRAY_STRING:        return type_array("string");
             case FT_ARRAY_MAP:           return type_array("map");
@@ -632,6 +641,12 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
     {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
     {"bytes", "to_hex", 1, 1}, {"bytes", "to_base64", 1, 1},
+    /* strconv */
+    {"strconv", "to_int", 1, 2}, {"strconv", "to_uint", 1, 2},
+    {"strconv", "to_float", 1, 1}, {"strconv", "to_bool", 1, 1},
+    {"strconv", "from_int", 1, 1}, {"strconv", "from_uint", 1, 1},
+    {"strconv", "from_float", 1, 1}, {"strconv", "from_bool", 1, 1},
+    {"strconv", "is_numeric", 1, 1}, {"strconv", "is_integer", 1, 1},
 };
 
 static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
@@ -657,6 +672,28 @@ static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
             }
             return;
         }
+    }
+}
+
+/* Compile-time validation for strconv base parameter.
+ * When the second arg to to_int/to_uint is a literal integer, verify it's
+ * in the valid range [2, 36]. */
+static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
+    const char *fn, AstNode *node)
+{
+    if (strcmp(mod, "strconv") != 0) return;
+    if (strcmp(fn, "to_int") != 0 && strcmp(fn, "to_uint") != 0) return;
+    if (node->data.call.arg_count < 2) return;
+    AstNode *base_arg = node->data.call.args[1];
+    if (base_arg->kind != NODE_INT_VALUE) return;
+    int64_t base = base_arg->data.int_value.value;
+    if (base < 2 || base > 36) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "invalid base %lld for strconv.%s; base must be between 2 and 36",
+            (long long)base, fn);
+        diag_error_msg(tc->diag, "E5009", strdup(msg),
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
     }
 }
 
@@ -794,7 +831,7 @@ static int levenshtein(const char *a, const char *b) {
     if (la == 0) return lb;
     if (lb == 0) return la;
     /* Use single-row DP */
-    int *row = malloc(sizeof(int) * (lb + 1));
+    int *row = xmalloc(sizeof(int) * (lb + 1));
     for (int j = 0; j <= lb; j++) row[j] = j;
     for (int i = 1; i <= la; i++) {
         int prev = row[0];
@@ -904,6 +941,8 @@ static const UsingConst _using_consts[] = {
     {"EPSILON","math",TK_FLOAT},
     {"MAC_OS","os",TK_INT},{"LINUX","os",TK_INT},{"WINDOWS","os",TK_INT},{"OTHER","os",TK_INT},
     {"READ_ONLY","io",TK_INT},{"WRITE_ONLY","io",TK_INT},{"READ_WRITE","io",TK_INT},
+    {"BASE_2","strconv",TK_INT},{"BASE_8","strconv",TK_INT},{"BASE_10","strconv",TK_INT},
+    {"BASE_16","strconv",TK_INT},{"BASE_36","strconv",TK_INT},
     {NULL,NULL,TK_UNKNOWN}
 };
 
@@ -951,10 +990,10 @@ static void register_enum(TypeChecker *tc, const char *name, bool is_string,
     const char **values, int value_count) {
     if (tc->enum_count >= tc->enum_cap) {
         tc->enum_cap = tc->enum_cap ? tc->enum_cap * 2 : 8;
-        tc->enum_names = realloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
-        tc->enum_is_string = realloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
-        tc->enum_values = realloc(tc->enum_values, sizeof(const char **) * tc->enum_cap);
-        tc->enum_value_counts = realloc(tc->enum_value_counts, sizeof(int) * tc->enum_cap);
+        tc->enum_names = xrealloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
+        tc->enum_is_string = xrealloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
+        tc->enum_values = xrealloc(tc->enum_values, sizeof(const char **) * tc->enum_cap);
+        tc->enum_value_counts = xrealloc(tc->enum_value_counts, sizeof(int) * tc->enum_cap);
     }
     tc->enum_names[tc->enum_count] = name;
     tc->enum_is_string[tc->enum_count] = is_string;
@@ -1303,8 +1342,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node), node->token.line, node->token.column, 0, name, name, name);
         } else if (tc_is_using_constant(tc, name)) {
             result = tc_resolve_using_constant_type(tc, name);
+        } else if (tc_is_builtin(name)) {
+            EzType *bt = type_from_name(name);
+            if (bt != &TYPE_UNKNOWN) {
+                /* Builtin type name (int, i128, float, etc.) used as a
+                 * bare label — valid as an argument to size_of(Type). */
+                result = bt;
+            } else {
+                /* Bare builtin function name used as a value (e.g. `input`
+                 * instead of `input()`). */
+                diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0, name, name, name);
+            }
         } else if (!is_enum_name(tc, name) &&
-                   !tc_is_builtin(name) && !is_struct_name(tc, name) &&
+                   !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
             /* Check if it looks like a number with a leading underscore */
             if (name[0] == '_' && name[1] >= '0' && name[1] <= '9') {
@@ -1934,6 +1985,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* Validate argument count for stdlib function calls */
             tc_check_stdlib_arg_count(tc, mod, mfn, node);
             tc_check_stdlib_arg_types(tc, mod, mfn, node);
+            tc_check_strconv_base(tc, mod, mfn, node);
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena"); /* arena pointer; opaque */
@@ -2077,6 +2129,26 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "path_join") == 0 || strcmp(mfn, "dirname") == 0 ||
                            strcmp(mfn, "basename") == 0 || strcmp(mfn, "extension") == 0 ||
                            strcmp(mfn, "normalize") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
+                }
+            } else if (strcmp(mod, "strconv") == 0) {
+                if (strcmp(mfn, "to_int") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "to_uint") == 0) {
+                    result = &TYPE_UINT;
+                } else if (strcmp(mfn, "to_float") == 0) {
+                    result = &TYPE_FLOAT;
+                } else if (strcmp(mfn, "to_bool") == 0 ||
+                           strcmp(mfn, "is_numeric") == 0 ||
+                           strcmp(mfn, "is_integer") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "from_int") == 0 ||
+                           strcmp(mfn, "from_uint") == 0 ||
+                           strcmp(mfn, "from_float") == 0 ||
+                           strcmp(mfn, "from_bool") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -2658,12 +2730,95 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "float_fixed") == 0 ||
                     strcmp(mfn, "float_sci") == 0) {
                     result = &TYPE_STRING;
-                } else if (strcmp(mfn, "printf") == 0 || strcmp(mfn, "println") == 0 ||
-                           strcmp(mfn, "eprintln") == 0 || strcmp(mfn, "eprint") == 0) {
+                } else if (strcmp(mfn, "printf") == 0 || strcmp(mfn, "println") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
+                }
+                /* Validate printf/sprintf/format: literal format string + directive types */
+                {
+                    bool is_fmt_fn = strcmp(mfn, "printf") == 0 ||
+                                     strcmp(mfn, "sprintf") == 0 ||
+                                     strcmp(mfn, "format") == 0;
+                    if (is_fmt_fn && node->data.call.arg_count >= 1) {
+                        AstNode *fmt_arg = node->data.call.args[0];
+                        if (fmt_arg->kind != NODE_STRING_VALUE) {
+                            diag_error_codef(tc->diag, "E3086",
+                                NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                fmt_arg->token.column, 0, mfn);
+                        } else {
+                            /* Walk format string, validate each directive against arg type */
+                            const char *fstr = fmt_arg->data.string_value.value;
+                            const char *p = fstr;
+                            int di = 1;
+                            while (*p) {
+                                if (*p != '%') { p++; continue; }
+                                p++;
+                                if (!*p) break;
+                                if (*p == '%') { p++; continue; }
+                                if (*p == 'n') {
+                                    diag_error_codef(tc->diag, "E3087",
+                                        NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                        fmt_arg->token.column, 0);
+                                    break;
+                                }
+                                /* Skip flags, width, precision, length modifier */
+                                while (*p == '-' || *p == '+' || *p == ' ' || *p == '0' || *p == '#') p++;
+                                while (*p >= '0' && *p <= '9') p++;
+                                if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+                                if (*p == 'h') { p++; if (*p == 'h') p++; }
+                                else if (*p == 'l') { p++; if (*p == 'l') p++; }
+                                else if (*p == 'L') p++;
+                                char spec = *p ? *p++ : 0;
+                                if (!spec) break;
+                                if (di >= node->data.call.arg_count) { di++; continue; }
+                                AstNode *darg = node->data.call.args[di];
+                                EzType *dt = resolve_expr(tc, darg);
+                                di++;
+                                if (!dt) continue;
+                                const char *expected = NULL;
+                                bool ok = false;
+                                switch (spec) {
+                                case 'd': case 'i':
+                                    expected = "int or char";
+                                    ok = dt->kind == TK_INT || dt->kind == TK_CHAR || dt->kind == TK_BYTE;
+                                    break;
+                                case 'u':
+                                    expected = "uint";
+                                    ok = dt->kind == TK_UINT || dt->kind == TK_BYTE;
+                                    break;
+                                case 'x': case 'X': case 'o':
+                                    expected = "int or uint";
+                                    ok = dt->kind == TK_INT || dt->kind == TK_UINT || dt->kind == TK_BYTE;
+                                    break;
+                                case 'f': case 'g': case 'e': case 'G': case 'E':
+                                    expected = "float";
+                                    ok = dt->kind == TK_FLOAT;
+                                    break;
+                                case 's':
+                                    expected = "string";
+                                    ok = dt->kind == TK_STRING;
+                                    break;
+                                case 'c':
+                                    expected = "char";
+                                    ok = dt->kind == TK_CHAR || dt->kind == TK_INT;
+                                    break;
+                                default:
+                                    ok = true;
+                                    break;
+                                }
+                                if (!ok && expected) {
+                                    char spec_str[2] = { spec, '\0' };
+                                    diag_error_codef(tc->diag, "E3088",
+                                        NODE_FILE(tc, darg), darg->token.line,
+                                        darg->token.column, 0,
+                                        mfn, spec_str, expected, di - 1,
+                                        type_name(dt));
+                                }
+                            }
+                        }
+                    }
                 }
                 /* Validate that non-format args are primitive types */
                 for (int ai = 1; ai < node->data.call.arg_count; ai++) {
@@ -2697,6 +2852,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, prefixed);
                 if (sig) {
                     sig->used = true;
+                    /* E4017: private struct function called from outside the struct */
+                    if (sig->is_private &&
+                        !(tc->current_struct_name && strcmp(tc->current_struct_name, mod) == 0)) {
+                        diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0, mod, mfn);
+                    }
                     result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
                     /* E5008: check argument count */
                     if (node->data.call.arg_count != sig->param_count) {
@@ -2735,6 +2896,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
+                                ai + 1, mod, mfn, param_t->name, arg_t->name);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                        if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
                                 ai + 1, mod, mfn, param_t->name, arg_t->name);
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
@@ -2790,6 +2963,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 } else {
+                    /* E4018: struct has no function with this name */
+                    diag_error_codef(tc->diag, "E4018", NODE_FILE(tc, node),
+                        node->token.line, node->token.column, 0, mod, mfn);
                     result = &TYPE_VOID;
                 }
             } else {
@@ -2862,13 +3038,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                         }
                         if (is_self_method) {
+                            /* E4017: private struct function via instance dispatch */
+                            if (ssig->is_private &&
+                                !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
+                                diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
+                                    node->token.line, node->token.column, 0, sname, mfn);
+                            }
                             /* Rewrite the call AST: change the member-expr
                              * object from the instance label to the type
                              * name, and prepend the instance as arg[0]. */
                             fn->data.member.object->data.label.value = strdup(sname);
                             int orig_count = node->data.call.arg_count;
-                            AstNode **new_args = malloc(sizeof(AstNode *) * (orig_count + 1));
-                            AstNode *self_arg = calloc(1, sizeof(AstNode));
+                            AstNode **new_args = xmalloc(sizeof(AstNode *) * (orig_count + 1));
+                            AstNode *self_arg = xcalloc(1, sizeof(AstNode));
                             self_arg->kind = NODE_LABEL;
                             self_arg->token = node->token;
                             self_arg->data.label.value = strdup(mod_raw);
@@ -2938,6 +3120,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             "argument %d of '%s.%s': expected %s, got %s",
                                             ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(amsg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                    /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                                    if (arg_t && param_t &&
+                                        arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                                        arg_t->name && param_t->name &&
+                                        strcmp(arg_t->name, param_t->name) != 0) {
+                                        char smsg[EZ_MSG_BUF_SIZE];
+                                        snprintf(smsg, sizeof(smsg),
+                                            "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
+                                            ai + 1, sname, mfn, param_t->name, arg_t->name);
+                                        diag_error_msg(tc->diag, "E3001", strdup(smsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -3446,6 +3642,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected enum '%s', got enum '%s'",
+                                ai + 1, fn_name, param_t->name, arg_t->name);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                        if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected struct '%s', got struct '%s'",
                                 ai + 1, fn_name, param_t->name, arg_t->name);
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
@@ -4081,6 +4289,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
                 break;
             }
+            if (strcmp(obj_name, "strconv") == 0) {
+                const char *mem = node->data.member.member;
+                if (strcmp(mem, "BASE_2") == 0 || strcmp(mem, "BASE_8") == 0 ||
+                    strcmp(mem, "BASE_10") == 0 || strcmp(mem, "BASE_16") == 0 ||
+                    strcmp(mem, "BASE_36") == 0) {
+                    result = &TYPE_INT;
+                    break;
+                }
+            }
 
             /* Check if it's an enum access: Color.RED */
             if (is_enum_name(tc, obj_name)) {
@@ -4489,7 +4706,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (!already) {
                     int n = sdecl->data.struct_decl.instantiation_count;
-                    sdecl->data.struct_decl.instantiations = realloc(
+                    sdecl->data.struct_decl.instantiations = xrealloc(
                         (void *)sdecl->data.struct_decl.instantiations,
                         sizeof(const char *) * (size_t)(n + 1));
                     sdecl->data.struct_decl.instantiations[n] = strdup(binding);
@@ -4630,7 +4847,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             AstNode *obj = node->data.func_ref.function->data.member.object;
             const char *member = node->data.func_ref.function->data.member.member;
             if (obj->kind == NODE_LABEL) {
-                char *prefixed = malloc(strlen(obj->data.label.value) + strlen(member) + 2);
+                char *prefixed = xmalloc(strlen(obj->data.label.value) + strlen(member) + 2);
                 sprintf(prefixed, "%s_%s", obj->data.label.value, member);
                 ref_name = prefixed;
             }
@@ -5644,7 +5861,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 }
                                 if (binding) {
                                     int rc = decl->data.func_decl.return_type_count;
-                                    EzType **subbed = malloc(sizeof(EzType *) * (size_t)rc);
+                                    EzType **subbed = xmalloc(sizeof(EzType *) * (size_t)rc);
                                     for (int ri = 0; ri < rc; ri++) {
                                         char *sub = substitute_wildcard(
                                             decl->data.func_decl.return_types[ri], binding);
@@ -5671,7 +5888,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym && primary) {
-                            EzType **rt = malloc(sizeof(EzType *) * 2);
+                            EzType **rt = xmalloc(sizeof(EzType *) * 2);
                             rt[0] = primary;
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
@@ -5710,7 +5927,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     rname = fref->data.label.value;
                 } else if (fref->kind == NODE_MEMBER_EXPR &&
                            fref->data.member.object->kind == NODE_LABEL) {
-                    char *prefixed = malloc(
+                    char *prefixed = xmalloc(
                         strlen(fref->data.member.object->data.label.value) +
                         strlen(fref->data.member.member) + 2);
                     sprintf(prefixed, "%s_%s",
@@ -5739,7 +5956,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 Symbol *sym = scope_lookup_local(tc->current_scope,
                     node->data.var_decl.name);
                 if (sym && n > 0) {
-                    sym->func_array_refs = calloc((size_t)n, sizeof(const char *));
+                    sym->func_array_refs = xcalloc((size_t)n, sizeof(const char *));
                     sym->func_array_ref_count = n;
                     for (int ei = 0; ei < n; ei++) {
                         AstNode *el = lit->data.array_value.elements[ei];
@@ -5752,7 +5969,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             size_t plen =
                                 strlen(fref->data.member.object->data.label.value) +
                                 strlen(fref->data.member.member) + 2;
-                            char *pref = malloc(plen);
+                            char *pref = xmalloc(plen);
                             snprintf(pref, plen, "%s_%s",
                                 fref->data.member.object->data.label.value,
                                 fref->data.member.member);
@@ -6219,7 +6436,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 } else {
                     if (tc->destroyed_arena_count >= tc->destroyed_arena_cap) {
                         tc->destroyed_arena_cap = tc->destroyed_arena_cap ? tc->destroyed_arena_cap * 2 : 8;
-                        tc->destroyed_arenas = realloc(tc->destroyed_arenas,
+                        tc->destroyed_arenas = xrealloc(tc->destroyed_arenas,
                             (size_t)tc->destroyed_arena_cap * sizeof(const char *));
                     }
                     tc->destroyed_arenas[tc->destroyed_arena_count++] = arena_name;
@@ -6252,7 +6469,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 } else {
                     if (tc->destroyed_arena_count >= tc->destroyed_arena_cap) {
                         tc->destroyed_arena_cap = tc->destroyed_arena_cap ? tc->destroyed_arena_cap * 2 : 8;
-                        tc->destroyed_arenas = realloc(tc->destroyed_arenas,
+                        tc->destroyed_arenas = xrealloc(tc->destroyed_arenas,
                             (size_t)tc->destroyed_arena_cap * sizeof(const char *));
                     }
                     tc->destroyed_arenas[tc->destroyed_arena_count++] = arena_name;
@@ -6613,8 +6830,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (node->data.func_decl.return_type_count > 0) {
-            tc->current_return_types = malloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
-            tc->current_return_type_names = malloc(sizeof(const char *) * node->data.func_decl.return_type_count);
+            tc->current_return_types = xmalloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
+            tc->current_return_type_names = xmalloc(sizeof(const char *) * node->data.func_decl.return_type_count);
             tc->current_return_count = node->data.func_decl.return_type_count;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 tc->current_return_types[i] = tc_type_from_name(tc, node->data.func_decl.return_types[i]);
@@ -6765,7 +6982,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         for (int j = 0; j < node->data.using_stmt.count; j++) {
             if (tc->using_module_count >= tc->using_module_cap) {
                 tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
-                tc->using_modules = realloc(tc->using_modules,
+                tc->using_modules = xrealloc(tc->using_modules,
                     sizeof(const char *) * (size_t)tc->using_module_cap);
             }
             tc->using_modules[tc->using_module_count++] = node->data.using_stmt.modules[j];
@@ -6788,12 +7005,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "struct", node->data.struct_decl.name);
         }
         /* Type-check struct-namespaced function bodies */
+        tc->current_struct_name = node->data.struct_decl.name;
         for (int i = 0; i < node->data.struct_decl.func_count; i++) {
             AstNode *fn = node->data.struct_decl.funcs[i].func_decl;
             if (fn && fn->kind == NODE_FUNC_DECL) {
                 check_statement(tc, fn);
             }
         }
+        tc->current_struct_name = NULL;
         break;
 
     case NODE_ENUM_DECL:
@@ -6933,7 +7152,8 @@ static bool is_valid_module(const char *name) {
         "math", "strings", "arrays", "maps", "io", "os", "time",
         "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
         "binary", "fmt", "http", "server", "regex", "net", "threads",
-        "sync", "atomic", "channels", "mem", "sqlite", "errors", "db", NULL
+        "sync", "atomic", "channels", "mem", "sqlite", "errors", "db",
+        "strconv", NULL
     };
     for (int i = 0; modules[i]; i++) {
         if (strcmp(name, modules[i]) == 0) return true;
@@ -7010,12 +7230,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (item->module || item->alias) {
                     if (tc->import_count >= tc->import_cap) {
                         tc->import_cap = tc->import_cap ? tc->import_cap * 2 : 16;
-                        tc->imported_modules = realloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
-                        tc->import_lines = realloc(tc->import_lines, sizeof(int) * tc->import_cap);
-                        tc->import_used = realloc(tc->import_used, sizeof(bool) * tc->import_cap);
-                        tc->import_is_stdlib = realloc(tc->import_is_stdlib, sizeof(bool) * tc->import_cap);
+                        tc->imported_modules = xrealloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
+                        tc->import_files = xrealloc(tc->import_files, sizeof(const char *) * tc->import_cap);
+                        tc->import_lines = xrealloc(tc->import_lines, sizeof(int) * tc->import_cap);
+                        tc->import_used = xrealloc(tc->import_used, sizeof(bool) * tc->import_cap);
+                        tc->import_is_stdlib = xrealloc(tc->import_is_stdlib, sizeof(bool) * tc->import_cap);
                     }
                     tc->imported_modules[tc->import_count] = item->alias ? item->alias : item->module;
+                    tc->import_files[tc->import_count] = stmt->token.file; /* NULL = main file */
                     tc->import_lines[tc->import_count] = stmt->token.line;
                     tc->import_used[tc->import_count] = item->is_c_import; /* C imports are always "used" */
                     tc->import_is_stdlib[tc->import_count] = item->is_stdlib;
@@ -7025,8 +7247,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
                     if (tc->alias_count >= tc->alias_cap) {
                         tc->alias_cap = tc->alias_cap ? tc->alias_cap * 2 : 8;
-                        tc->alias_names = realloc(tc->alias_names, sizeof(const char *) * tc->alias_cap);
-                        tc->alias_modules = realloc(tc->alias_modules, sizeof(const char *) * tc->alias_cap);
+                        tc->alias_names = xrealloc(tc->alias_names, sizeof(const char *) * tc->alias_cap);
+                        tc->alias_modules = xrealloc(tc->alias_modules, sizeof(const char *) * tc->alias_cap);
                     }
                     tc->alias_names[tc->alias_count] = item->alias;
                     tc->alias_modules[tc->alias_count] = item->module;
@@ -7109,7 +7331,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
         int vc = stmt->data.enum_decl.value_count;
-        const char **vnames = malloc(sizeof(const char *) * (vc ? vc : 1));
+        const char **vnames = xmalloc(sizeof(const char *) * (vc ? vc : 1));
         for (int j = 0; j < vc; j++) {
             vnames[j] = stmt->data.enum_decl.values[j].name;
         }
@@ -7126,9 +7348,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 diag_error_codef(tc->diag, "E2067", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, STRUCT_DISPLAY_NAME(stmt));
             }
             int fc = stmt->data.struct_decl.field_count;
-            const char **fnames = malloc(sizeof(const char *) * (fc ? fc : 1));
-            EzType **ftypes = malloc(sizeof(EzType *) * (fc ? fc : 1));
-            if (!fnames || !ftypes) { free(fnames); free(ftypes); continue; }
+            const char **fnames = xmalloc(sizeof(const char *) * (fc ? fc : 1));
+            EzType **ftypes = xmalloc(sizeof(EzType *) * (fc ? fc : 1));
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = tc_type_from_name(tc, stmt->data.struct_decl.fields[j].type_name);
@@ -7250,19 +7471,17 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                 }
                 int pc = fn->data.func_decl.param_count;
-                EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
-                if (!ptypes) continue;
+                EzType **ptypes = xmalloc(sizeof(EzType *) * (pc ? pc : 1));
                 for (int k = 0; k < pc; k++) {
                     ptypes[k] = tc_type_from_name(tc, fn->data.func_decl.params[k].type_name);
                 }
                 int rc = fn->data.func_decl.return_type_count;
-                EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
-                if (!rtypes) { free(ptypes); continue; }
+                EzType **rtypes = xmalloc(sizeof(EzType *) * (rc ? rc : 1));
                 for (int k = 0; k < rc; k++) {
                     rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
                 /* Register with prefixed name: StructName_funcName */
-                char *prefixed = malloc(strlen(stmt->data.struct_decl.name) +
+                char *prefixed = xmalloc(strlen(stmt->data.struct_decl.name) +
                     strlen(fn->data.func_decl.name) + 2);
                 sprintf(prefixed, "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
                 register_func(tc, prefixed, ptypes, pc, rtypes, rc);
@@ -7275,16 +7494,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 
         if (stmt->kind == NODE_FUNC_DECL) {
             int pc = stmt->data.func_decl.param_count;
-            EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
-            if (!ptypes) continue;
+            EzType **ptypes = xmalloc(sizeof(EzType *) * (pc ? pc : 1));
             for (int j = 0; j < pc; j++) {
                 ptypes[j] = tc_type_from_name(tc, stmt->data.func_decl.params[j].type_name);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
-            EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
-            if (!rtypes) { free(ptypes); continue; }
+            EzType **rtypes = xmalloc(sizeof(EzType *) * (rc ? rc : 1));
             for (int j = 0; j < rc; j++) {
                 rtypes[j] = tc_type_from_name(tc, stmt->data.func_decl.return_types[j]);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.return_types[j]);
@@ -7356,7 +7573,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 /* --- Public API --- */
 
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
-    TypeChecker *tc = calloc(1, sizeof(TypeChecker));
+    TypeChecker *tc = xcalloc(1, sizeof(TypeChecker));
     tc->diag = diag;
     tc->file = file;
     tc->current_scope = scope_create(NULL);
@@ -7414,7 +7631,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 }
                 if (tc->using_module_count >= tc->using_module_cap) {
                     tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
-                    tc->using_modules = realloc(tc->using_modules,
+                    tc->using_modules = xrealloc(tc->using_modules,
                         sizeof(const char *) * (size_t)tc->using_module_cap);
                 }
                 tc->using_modules[tc->using_module_count++] = stmt->data.using_stmt.modules[j];
@@ -7433,7 +7650,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 if (item->module) {
                     if (tc->using_module_count >= tc->using_module_cap) {
                         tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
-                        tc->using_modules = realloc(tc->using_modules,
+                        tc->using_modules = xrealloc(tc->using_modules,
                             sizeof(const char *) * (size_t)tc->using_module_cap);
                     }
                     tc->using_modules[tc->using_module_count++] = item->module;
@@ -7547,8 +7764,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             EzType **ret_types = NULL;
             const char **ret_names = NULL;
             if (rc > 0) {
-                ret_types = malloc(sizeof(EzType *) * (size_t)rc);
-                ret_names = malloc(sizeof(const char *) * (size_t)rc);
+                ret_types = xmalloc(sizeof(EzType *) * (size_t)rc);
+                ret_names = xmalloc(sizeof(const char *) * (size_t)rc);
                 for (int ri = 0; ri < rc; ri++) {
                     char *sub = substitute_wildcard(
                         decl->data.func_decl.return_types[ri], concrete);
@@ -7608,8 +7825,11 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             tc->file, err_line, 1, 0);
     }
 
-    /* Warn about unused imports */
+    /* Warn about unused imports (only for the main file; imports from
+     * sub-files are the sub-file author's responsibility). */
     for (int i = 0; i < tc->import_count; i++) {
+        if (tc->import_files[i] && tc->file &&
+            strcmp(tc->import_files[i], tc->file) != 0) continue; /* skip sub-file imports */
         if (!tc->import_used[i]) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),

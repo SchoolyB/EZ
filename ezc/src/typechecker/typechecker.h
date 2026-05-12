@@ -110,6 +110,7 @@ typedef struct {
 
     /* Import tracking for unused import warnings */
     const char **imported_modules;
+    const char **import_files;   /* source file each import came from (NULL = main) */
     int *import_lines;
     bool *import_used;
     bool *import_is_stdlib;
@@ -134,6 +135,10 @@ typedef struct {
 
     /*  true during register_declarations to allow forward references */
     bool registering;
+
+    /* Name of the struct whose function body is currently being checked.
+     * NULL when outside a struct function body. Used for private access. */
+    const char *current_struct_name;
 
 } TypeChecker;
 

@@ -43,7 +43,7 @@ void json_append_escaped(char *buf, int *pos, EzString s) {
 
 /* Helper: byte length of a map[string:string] value in JSON output. */
 static size_t json_map_val_len(EzString *val) {
-    if (val->len > 0 && (isdigit(val->data[0]) || val->data[0] == '-'))
+    if (val->len > 0 && (isdigit((unsigned char)val->data[0]) || val->data[0] == '-'))
         return (size_t)val->len;
     if (val->len == 4 && memcmp(val->data, "true", 4) == 0) return 4;
     if (val->len == 5 && memcmp(val->data, "false", 5) == 0) return 5;
@@ -75,7 +75,7 @@ EzString ez_json_encode_map(EzArena *arena, EzMap *m) {
         EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        if (val->len > 0 && (isdigit(val->data[0]) || val->data[0] == '-')) {
+        if (val->len > 0 && (isdigit((unsigned char)val->data[0]) || val->data[0] == '-')) {
             memcpy(buf + pos, val->data, (size_t)val->len);
             pos += val->len;
         } else if (val->len == 4 && memcmp(val->data, "true", 4) == 0) {
@@ -282,7 +282,7 @@ EzString ez_json_encode_map_bool(EzArena *arena, EzMap *m) {
 /* --- Decoder --- */
 
 static void skip_ws(const char **s, const char *end) {
-    while (*s < end && isspace(**s)) (*s)++;
+    while (*s < end && isspace((unsigned char)**s)) (*s)++;
 }
 
 static EzString parse_json_string(EzArena *arena, const char **s, const char *end) {
@@ -308,7 +308,7 @@ static EzString parse_json_value_as_string(EzArena *arena, const char **s, const
 
     /* Number, bool, null — read until delimiter */
     const char *start = *s;
-    while (*s < end && **s != ',' && **s != '}' && **s != ']' && !isspace(**s)) (*s)++;
+    while (*s < end && **s != ',' && **s != '}' && **s != ']' && !isspace((unsigned char)**s)) (*s)++;
     return ez_string_new(arena, start, (int32_t)(*s - start));
 }
 

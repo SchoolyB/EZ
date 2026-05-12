@@ -19,24 +19,89 @@ static uint64_t hash_bytes(const void *data, int32_t size) {
     return hash;
 }
 
-/* Hash for EzString keys — hash the string data, not the struct */
-static uint64_t hash_ez_string(const void *key, int32_t key_size) {
-    if (key_size == (int32_t)sizeof(EzString)) {
-        const EzString *s = (const EzString *)key;
-        return hash_bytes(s->data, s->len);
+/* Float key normalization: -0.0 hashes/compares as +0.0; all NaN
+ * payloads collide on a canonical quiet NaN. Matches EZ's `==` on
+ * floats (which says +0.0 == -0.0) and gives NaN keys a single bucket
+ * instead of one per source-of-NaN. */
+
+static uint64_t hash_f64(const void *key) {
+    double v;
+    memcpy(&v, key, sizeof(v));
+    uint64_t bits;
+    if (v == 0.0) {
+        bits = 0;                          /* +0.0 / -0.0 collapse */
+    } else if (v != v) {
+        bits = 0x7FF8000000000000ULL;      /* canonical quiet NaN */
+    } else {
+        memcpy(&bits, &v, sizeof(bits));
     }
-    return hash_bytes(key, key_size);
+    return hash_bytes(&bits, sizeof(bits));
 }
 
-/* Compare keys — special handling for EzString */
-static bool keys_equal(const void *a, const void *b, int32_t key_size) {
-    if (key_size == (int32_t)sizeof(EzString)) {
-        const EzString *sa = (const EzString *)a;
-        const EzString *sb = (const EzString *)b;
-        if (sa->len != sb->len) return false;
-        return memcmp(sa->data, sb->data, (size_t)sa->len) == 0;
+static uint64_t hash_f32(const void *key) {
+    float v;
+    memcpy(&v, key, sizeof(v));
+    uint32_t bits;
+    if (v == 0.0f) {
+        bits = 0;
+    } else if (v != v) {
+        bits = 0x7FC00000U;
+    } else {
+        memcpy(&bits, &v, sizeof(bits));
     }
-    return memcmp(a, b, (size_t)key_size) == 0;
+    return hash_bytes(&bits, sizeof(bits));
+}
+
+static bool floats_equal_f64(const void *a, const void *b) {
+    double da, db;
+    memcpy(&da, a, sizeof(da));
+    memcpy(&db, b, sizeof(db));
+    if (da == 0.0 && db == 0.0) return true;
+    if (da != da && db != db) return true;
+    return da == db;
+}
+
+static bool floats_equal_f32(const void *a, const void *b) {
+    float fa, fb;
+    memcpy(&fa, a, sizeof(fa));
+    memcpy(&fb, b, sizeof(fb));
+    if (fa == 0.0f && fb == 0.0f) return true;
+    if (fa != fa && fb != fb) return true;
+    return fa == fb;
+}
+
+/* Hash a key according to its kind. */
+static uint64_t hash_key(const void *key, int32_t key_size, int8_t key_kind) {
+    switch (key_kind) {
+        case EZ_MAP_KEY_STRING: {
+            const EzString *s = (const EzString *)key;
+            return hash_bytes(s->data, s->len);
+        }
+        case EZ_MAP_KEY_F64:
+            return hash_f64(key);
+        case EZ_MAP_KEY_F32:
+            return hash_f32(key);
+        default:
+            return hash_bytes(key, key_size);
+    }
+}
+
+/* Compare two keys according to their kind. */
+static bool keys_equal(const void *a, const void *b, int32_t key_size, int8_t key_kind) {
+    switch (key_kind) {
+        case EZ_MAP_KEY_STRING: {
+            const EzString *sa = (const EzString *)a;
+            const EzString *sb = (const EzString *)b;
+            if (sa->len != sb->len) return false;
+            return memcmp(sa->data, sb->data, (size_t)sa->len) == 0;
+        }
+        case EZ_MAP_KEY_F64:
+            return floats_equal_f64(a, b);
+        case EZ_MAP_KEY_F32:
+            return floats_equal_f32(a, b);
+        default:
+            return memcmp(a, b, (size_t)key_size) == 0;
+    }
 }
 
 static void *key_ptr(EzMap *m, int32_t idx) {
@@ -47,7 +112,7 @@ static void *val_ptr(EzMap *m, int32_t idx) {
     return (char *)m->values + (size_t)idx * (size_t)m->value_size;
 }
 
-EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap) {
+EzMap ez_map_new_kind(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap, int8_t key_kind) {
     if (initial_cap < EZ_MAP_MIN_CAP) initial_cap = EZ_MAP_MIN_CAP;
     EzMap m;
     m.key_size = key_size;
@@ -56,6 +121,7 @@ EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t i
     m.capacity = initial_cap;
     m.order_len = 0;
     m.iterating = 0;
+    m.key_kind = key_kind;
     m.keys = ez_arena_alloc(arena, (size_t)initial_cap * (size_t)key_size);
     m.values = ez_arena_alloc(arena, (size_t)initial_cap * (size_t)value_size);
     m.states = ez_arena_alloc(arena, (size_t)initial_cap);
@@ -64,13 +130,20 @@ EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t i
     return m;
 }
 
+EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap) {
+    int8_t kind = (key_size == (int32_t)sizeof(EzString))
+        ? EZ_MAP_KEY_STRING
+        : EZ_MAP_KEY_BYTES;
+    return ez_map_new_kind(arena, key_size, value_size, initial_cap, kind);
+}
+
 static int32_t find_slot(EzMap *m, const void *key) {
-    uint64_t h = hash_ez_string(key, m->key_size);
+    uint64_t h = hash_key(key, m->key_size, m->key_kind);
     int32_t idx = (int32_t)(h % (uint64_t)m->capacity);
     for (int32_t i = 0; i < m->capacity; i++) {
         int32_t probe = (idx + i) % m->capacity;
         if (m->states[probe] == 0) return -1; /* empty — not found */
-        if (m->states[probe] == 1 && keys_equal(key_ptr(m, probe), key, m->key_size)) {
+        if (m->states[probe] == 1 && keys_equal(key_ptr(m, probe), key, m->key_size, m->key_kind)) {
             return probe;
         }
     }
@@ -119,7 +192,7 @@ void ez_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
         rehash(arena, m);
     }
 
-    uint64_t h = hash_ez_string(key, m->key_size);
+    uint64_t h = hash_key(key, m->key_size, m->key_kind);
     int32_t idx = (int32_t)(h % (uint64_t)m->capacity);
     for (int32_t i = 0; i < m->capacity; i++) {
         int32_t probe = (idx + i) % m->capacity;
@@ -132,7 +205,7 @@ void ez_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
             m->count++;
             return;
         }
-        if (m->states[probe] == 1 && keys_equal(key_ptr(m, probe), key, m->key_size)) {
+        if (m->states[probe] == 1 && keys_equal(key_ptr(m, probe), key, m->key_size, m->key_kind)) {
             /* Update existing */
             memcpy(val_ptr(m, probe), value, (size_t)m->value_size);
             return;
@@ -195,6 +268,7 @@ EzMap ez_map_copy(EzArena *arena, const EzMap *src) {
     m.capacity = src->capacity;
     m.order_len = src->order_len;
     m.iterating = 0;
+    m.key_kind = src->key_kind;
 
     size_t keys_bytes = (size_t)src->capacity * (size_t)src->key_size;
     size_t vals_bytes = (size_t)src->capacity * (size_t)src->value_size;

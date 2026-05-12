@@ -25,6 +25,17 @@ var watchCmd = &cobra.Command{
 func runWatch(cmd *cobra.Command, args []string) {
 	target := args[0]
 
+	var compilerArgs []string
+	quiet, _ := cmd.Flags().GetString("quiet")
+	if quiet == "all" {
+		compilerArgs = append(compilerArgs, "--quiet")
+	} else if quiet != "" {
+		compilerArgs = append(compilerArgs, "--quiet", quiet)
+	}
+	if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
+		compilerArgs = append(compilerArgs, "--no-color")
+	}
+
 	// Resolve to absolute path
 	absTarget, err := filepath.Abs(target)
 	if err != nil {
@@ -40,18 +51,18 @@ func runWatch(cmd *cobra.Command, args []string) {
 	}
 
 	if info.IsDir() {
-		watchDirectory(absTarget)
+		watchDirectory(absTarget, compilerArgs)
 	} else {
 		if !strings.HasSuffix(absTarget, ".ez") {
 			fmt.Println("Error: file must have .ez extension")
 			os.Exit(1)
 		}
-		watchFile(absTarget)
+		watchFile(absTarget, compilerArgs)
 	}
 }
 
 // watchFile watches a single file and its imports for changes
-func watchFile(file string) {
+func watchFile(file string, compilerArgs []string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		fmt.Printf("Error creating watcher: %v\n", err)
@@ -78,7 +89,7 @@ func watchFile(file string) {
 	fmt.Println()
 
 	// Run initially
-	executeFile(file)
+	executeFile(file, compilerArgs)
 
 	var mu sync.Mutex
 	var timer *time.Timer
@@ -100,7 +111,7 @@ func watchFile(file string) {
 					for _, f := range newFilesToWatch {
 						watcher.Add(f)
 					}
-					executeFile(file)
+					executeFile(file, compilerArgs)
 				})
 				mu.Unlock()
 			}
@@ -114,7 +125,7 @@ func watchFile(file string) {
 }
 
 // watchDirectory watches all .ez files in a directory
-func watchDirectory(dirPath string) {
+func watchDirectory(dirPath string, compilerArgs []string) {
 	mainFile, err := findMainFile(dirPath)
 	if err != nil {
 		fmt.Println(err)
@@ -140,7 +151,7 @@ func watchDirectory(dirPath string) {
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println()
 
-	executeFile(mainFile)
+	executeFile(mainFile, compilerArgs)
 
 	var mu sync.Mutex
 	var timer *time.Timer
@@ -165,7 +176,7 @@ func watchDirectory(dirPath string) {
 					for _, f := range newFilesToWatch {
 						watcher.Add(f)
 					}
-					executeFile(mainFile)
+					executeFile(mainFile, compilerArgs)
 				})
 				mu.Unlock()
 			}
@@ -310,11 +321,11 @@ func hasMainFunction(filePath string) bool {
 }
 
 // executeFile runs the given file via ezc and prints output
-func executeFile(filename string) {
+func executeFile(filename string, compilerArgs []string) {
 	timestamp := time.Now().Format("15:04:05")
 	fmt.Printf("[%s] Running %s...\n", timestamp, shortPath(filename))
 
-	_, err := ezc.Run(filename, nil)
+	_, err := ezc.Run(filename, compilerArgs)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}

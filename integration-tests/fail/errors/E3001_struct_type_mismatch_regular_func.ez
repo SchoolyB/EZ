@@ -1,0 +1,23 @@
+/*
+ * Error Test: E3001 - passing wrong struct type to a regular function
+ * Expected: "expected struct 'Point', got struct 'Color'"
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+const Color struct {
+    r int
+    g int
+}
+
+do process(p Point) -> int {
+    return p.x
+}
+
+do main() {
+    mut c = Color{r: 255, g: 0}
+    mut n int = process(c)
+}

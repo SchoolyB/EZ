@@ -6,6 +6,7 @@
  */
 
 #include "ez_io.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -18,6 +19,7 @@
 #define EZ_IO_COPY_BUF          8192
 #define EZ_IO_MAX_SEGMENTS      256
 #define EZ_IO_DIR_MODE          0755
+#define EZ_IO_FILE_MODE         0644
 #define EZ_IO_WALK_INITIAL_CAP  32
 
 /* ---- Path manipulation (pure, no I/O) ---- */
@@ -155,15 +157,55 @@ EzString ez_io_normalize(EzArena *arena, EzString path) {
 EzString ez_io_read_file(EzArena *arena, EzString path) {
     FILE *f = fopen(path.data, "rb");
     if (!f) return ez_string_lit("");
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *buf = ez_arena_alloc(arena, (size_t)size + 1);
-    size_t read = fread(buf, 1, (size_t)size, f);
-    buf[read] = '\0';
+
+    /* Try to size the buffer from the file. Falls back to streaming
+     * when the file isn't seekable (pipes, FIFOs, /dev/stdin, /proc,
+     * sockets). On those, ftell returns -1, which used to wrap to
+     * (size_t)-1 + 1 = 0 and let fread write past the arena slot. */
+    long size = -1;
+    if (fseek(f, 0, SEEK_END) == 0) {
+        size = ftell(f);
+        if (size >= 0) (void)fseek(f, 0, SEEK_SET);
+    }
+
+    if (size >= 0 && size <= INT32_MAX) {
+        char *buf = ez_arena_alloc(arena, (size_t)size + 1);
+        size_t read = fread(buf, 1, (size_t)size, f);
+        buf[read] = '\0';
+        fclose(f);
+        return (EzString){ buf, (int32_t)read };
+    }
+
+    /* Streaming fallback for non-seekable inputs. */
+    clearerr(f);
+    size_t cap = 4096;
+    size_t len = 0;
+    char *buf = ez_arena_alloc(arena, cap);
+    for (;;) {
+        if (len == cap) {
+            if (cap > (size_t)INT32_MAX / 2) {
+                fclose(f);
+                ez_panic(__FILE__, __LINE__,
+                    "io.read_file: input exceeds maximum string length");
+            }
+            size_t new_cap = cap * 2;
+            char *new_buf = ez_arena_alloc(arena, new_cap);
+            memcpy(new_buf, buf, len);
+            buf = new_buf;
+            cap = new_cap;
+        }
+        size_t got = fread(buf + len, 1, cap - len, f);
+        if (got == 0) break;
+        len += got;
+    }
+    if (len == cap) {
+        char *grow = ez_arena_alloc(arena, len + 1);
+        memcpy(grow, buf, len);
+        buf = grow;
+    }
+    buf[len] = '\0';
     fclose(f);
-    EzString s = { buf, (int32_t)read };
-    return s;
+    return (EzString){ buf, (int32_t)len };
 }
 
 bool ez_io_file_exists(EzString path) {
@@ -223,8 +265,10 @@ bool ez_io_rename_file(EzString old_path, EzString new_path) {
 bool ez_io_copy_file(EzString src, EzString dst) {
     FILE *in = fopen(src.data, "rb");
     if (!in) return false;
-    FILE *out = fopen(dst.data, "wb");
-    if (!out) { fclose(in); return false; }
+    int out_fd = open(dst.data, O_WRONLY | O_CREAT | O_TRUNC, EZ_IO_FILE_MODE);
+    if (out_fd < 0) { fclose(in); return false; }
+    FILE *out = fdopen(out_fd, "wb");
+    if (!out) { close(out_fd); fclose(in); return false; }
     char buf[EZ_IO_COPY_BUF];
     size_t n;
     bool ok = true;

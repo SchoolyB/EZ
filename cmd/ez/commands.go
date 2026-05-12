@@ -152,6 +152,31 @@ to a different path (parent directories are created as needed).`,
 	},
 }
 
+var fmtCmd = &cobra.Command{
+	Use:   "fmt <path>",
+	Short: "Format .ez source files",
+	Long: `Normalize formatting of .ez source files (indentation, trailing
+whitespace, end-of-file newline, blank-line runs).
+
+Examples:
+  ez fmt .              Format .ez files in current directory (no recursion)
+  ez fmt ./...          Format recursively from current directory
+  ez fmt file.ez        Format a single file
+  ez fmt a.ez b.ez      Format multiple files
+  ez fmt --check ./...  Exit non-zero if any file would change (CI gate)
+
+By default files are rewritten in place. Use --check for a non-mutating CI gate.`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		check, _ := cmd.Flags().GetBool("check")
+		exit := runFmt(args, check)
+		if exit != 0 {
+			os.Exit(exit)
+		}
+		return nil
+	},
+}
+
 var reportCmd = &cobra.Command{
 	Use:   "report",
 	Short: "Print system info for bug reports",
@@ -462,7 +487,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(replCmd, updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
@@ -507,8 +532,11 @@ Use "ez [command] --help" for more information about a command.
 	rootCmd.Flags().Bool("no-color", false, "Disable colored output")
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+	watchCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 
 	docCmd.Flags().StringP("output", "o", defaultDocOutputPath, "Path to write generated markdown")
+
+	fmtCmd.Flags().Bool("check", false, "Exit non-zero if any file would change; don't modify files")
 
 	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
