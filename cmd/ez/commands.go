@@ -164,15 +164,12 @@ Examples:
   ez fmt file.ez        Format a single file
   ez fmt a.ez b.ez      Format multiple files
   ez fmt --check ./...  Exit non-zero if any file would change (CI gate)
-  ez fmt --diff file.ez Show the diff without modifying the file
 
-By default files are rewritten in place. Use --check for a non-mutating
-CI gate, or --diff to preview changes.`,
+By default files are rewritten in place. Use --check for a non-mutating CI gate.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		check, _ := cmd.Flags().GetBool("check")
-		diff, _ := cmd.Flags().GetBool("diff")
-		exit := runFmt(args, check, diff)
+		exit := runFmt(args, check)
 		if exit != 0 {
 			os.Exit(exit)
 		}
@@ -540,7 +537,6 @@ Use "ez [command] --help" for more information about a command.
 	docCmd.Flags().StringP("output", "o", defaultDocOutputPath, "Path to write generated markdown")
 
 	fmtCmd.Flags().Bool("check", false, "Exit non-zero if any file would change; don't modify files")
-	fmtCmd.Flags().BoolP("diff", "d", false, "Show diff of changes without modifying files")
 
 	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")

@@ -92,55 +92,6 @@ func formatEZSource(src []byte) []byte {
 	return []byte(strings.Join(out, "\n") + "\n")
 }
 
-// unifiedDiff renders a minimal three-context unified diff for two byte
-// slices. We avoid pulling in a diff library so `ez fmt --diff` doesn't
-// add a new transitive dependency.
-//
-// The output is line-based; for the small per-file diffs an in-place
-// formatter produces, the simple hunk model below is sufficient.
-func unifiedDiff(path string, a, b []byte) string {
-	if bytes.Equal(a, b) {
-		return ""
-	}
-	var buf strings.Builder
-	fmt.Fprintf(&buf, "--- a/%s\n", path)
-	fmt.Fprintf(&buf, "+++ b/%s\n", path)
-	la := strings.Split(string(a), "\n")
-	lb := strings.Split(string(b), "\n")
-	// Render the longer side, prefixing each line with - and + as
-	// appropriate. The output is intentionally simple: it shows every
-	// line, marked by which side it came from. For a 200-line file the
-	// noise is acceptable; a richer diff is a v2 follow-up.
-	n := len(la)
-	if len(lb) > n {
-		n = len(lb)
-	}
-	for i := 0; i < n; i++ {
-		var av, bv string
-		var aHas, bHas bool
-		if i < len(la) {
-			av = la[i]
-			aHas = true
-		}
-		if i < len(lb) {
-			bv = lb[i]
-			bHas = true
-		}
-		switch {
-		case aHas && bHas && av == bv:
-			fmt.Fprintf(&buf, " %s\n", av)
-		case aHas && bHas:
-			fmt.Fprintf(&buf, "-%s\n", av)
-			fmt.Fprintf(&buf, "+%s\n", bv)
-		case aHas:
-			fmt.Fprintf(&buf, "-%s\n", av)
-		case bHas:
-			fmt.Fprintf(&buf, "+%s\n", bv)
-		}
-	}
-	return buf.String()
-}
-
 // collectFmtFiles expands the user-supplied args into a deduplicated list
 // of .ez file paths, mirroring the arg shape used by `ez doc`:
 //
@@ -204,12 +155,7 @@ func collectFmtFiles(args []string) []string {
 // runFmt is the entry point invoked by the Cobra fmtCmd. It returns the
 // exit code the caller should propagate (0 success, 1 if --check found
 // unformatted files, 2 on file I/O error).
-//
-// The three modes are mutually exclusive in spirit but the function
-// handles them in order so a caller passing both --check and --diff
-// still gets sensible behavior (diffs printed; non-zero exit if any
-// file would change).
-func runFmt(args []string, checkMode, diffMode bool) int {
+func runFmt(args []string, checkMode bool) int {
 	files := collectFmtFiles(args)
 	if len(files) == 0 {
 		fmt.Println("ez fmt: no .ez files found")
@@ -228,19 +174,11 @@ func runFmt(args []string, checkMode, diffMode bool) int {
 		if bytes.Equal(src, out) {
 			continue
 		}
-		if diffMode {
-			fmt.Print(unifiedDiff(path, src, out))
-		}
 		if checkMode {
 			fmt.Printf("would format: %s\n", path)
 			if exit == 0 {
 				exit = 1
 			}
-			continue
-		}
-		if diffMode && !checkMode {
-			// --diff alone is a preview that doesn't touch disk; the
-			// user gets the proposed changes but the file stays put.
 			continue
 		}
 		if err := os.WriteFile(path, out, 0644); err != nil {

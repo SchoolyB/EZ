@@ -4,7 +4,6 @@ package main
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -72,22 +71,5 @@ func TestFormatEZSourceMixedTabsAndSpaces(t *testing.T) {
 	got := string(formatEZSource([]byte(in)))
 	if got != want {
 		t.Fatalf("mixed tab+space indent not normalized\ngot:  %q\nwant: %q", got, want)
-	}
-}
-
-func TestUnifiedDiffIdentical(t *testing.T) {
-	d := unifiedDiff("a.ez", []byte("x\n"), []byte("x\n"))
-	if d != "" {
-		t.Fatalf("expected empty diff for identical inputs, got %q", d)
-	}
-}
-
-func TestUnifiedDiffShowsBothSides(t *testing.T) {
-	d := unifiedDiff("file.ez", []byte("a\nb\n"), []byte("a\nB\n"))
-	if !strings.Contains(d, "-b") || !strings.Contains(d, "+B") {
-		t.Fatalf("diff missing change markers: %q", d)
-	}
-	if !strings.Contains(d, "file.ez") {
-		t.Fatalf("diff missing path header: %q", d)
 	}
 }
