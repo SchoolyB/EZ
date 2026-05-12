@@ -640,7 +640,7 @@ static AstNode *parse_string_literal(Parser *p) {
         for (int i = 0; raw[i]; i++) {
             if (raw[i] == '\\') { i++; continue; }
             if (raw[i] == '$' && raw[i + 1] != '{' && raw[i + 1] != '\0' &&
-                (isalpha(raw[i + 1]) || raw[i + 1] == '_')) {
+                (isalpha((unsigned char)raw[i + 1]) || raw[i + 1] == '_')) {
                 diag_error_code(p->diag, "E2057", p->file, p->cur_token.line, p->cur_token.column, 0);
                 break;
             }

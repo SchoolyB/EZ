@@ -782,17 +782,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         } else {
             while (*s) {
-                if (s[0] == '\\' && s[1] == 'x' && isxdigit(s[2])) {
+                if (s[0] == '\\' && s[1] == 'x' && isxdigit((unsigned char)s[2])) {
                     /* Emit \xNN then break the string if followed by a hex digit */
                     buf_append_char(&cg->output, s[0]); /* \ */
                     buf_append_char(&cg->output, s[1]); /* x */
                     buf_append_char(&cg->output, s[2]); /* first hex */
                     s += 3;
-                    if (isxdigit(*s)) {
+                    if (isxdigit((unsigned char)*s)) {
                         buf_append_char(&cg->output, *s); /* second hex */
                         s++;
                     }
-                    if (isxdigit(*s)) {
+                    if (isxdigit((unsigned char)*s)) {
                         /* Next char is also hex; break the string */
                         emit(cg, "\" \"");
                     }
