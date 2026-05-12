@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 183 codes** (168 errors, 15 warnings)
+**Total: 184 codes** (169 errors, 15 warnings)
 
 ---
 
@@ -70,6 +70,7 @@
 | `E2076` | syntax | postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline |
 | `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
 | `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
+| `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -227,4 +228,4 @@
 
 ---
 
-*Generated on 2026-05-04 16:42:32 UTC*
+*Generated on 2026-05-12 14:24:26 UTC*

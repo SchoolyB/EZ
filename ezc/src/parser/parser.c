@@ -1725,6 +1725,19 @@ static AstNode *parse_import_statement(Parser *p) {
             item->path = p->cur_token.literal;
             item->alias = "c";
             item->module = "c";
+            /* Validate path: only [A-Za-z0-9./_+-] permitted to prevent injection */
+            for (const char *q = item->path; *q; q++) {
+                unsigned char c = (unsigned char)*q;
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') ||
+                          c == '/' || c == '.' || c == '_' || c == '-' || c == '+';
+                if (!ok) {
+                    diag_error(p->diag, "E2080",
+                        arena_strdup(p->arena, "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted"),
+                        p->file, p->cur_token.line, p->cur_token.column, 0);
+                    break;
+                }
+            }
             goto import_item_done;
         }
 

@@ -7423,6 +7423,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         emit(cg, "\n/* C interop headers */\n");
         for (int i = 0; i < cg->c_header_count; i++) {
             const char *hdr = cg->c_headers[i];
+            /* Defense-in-depth: skip any path that slipped through with dangerous chars */
+            bool safe = true;
+            for (const char *q = hdr; *q; q++) {
+                unsigned char c = (unsigned char)*q;
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') ||
+                          c == '/' || c == '.' || c == '_' || c == '-' || c == '+';
+                if (!ok) { safe = false; break; }
+            }
+            if (!safe) continue;
             if (strncmp(hdr, "./", 2) == 0 || strncmp(hdr, "../", 3) == 0) {
                 emitf(cg, "#include \"%s\"\n", hdr);
             } else {
