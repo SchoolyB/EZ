@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.3.0](https://github.com/SchoolyB/EZ/compare/v3.2.2...v3.3.0) (2026-05-12)
+
+
+### Features
+
+* **cli:** add `ez fmt` command for code formatting ([#1638](https://github.com/SchoolyB/EZ/issues/1638)) ([8e9027b](https://github.com/SchoolyB/EZ/commit/8e9027ba8ca2a2503793aca217acb11bc1434a1e)), closes [#1564](https://github.com/SchoolyB/EZ/issues/1564)
+
+
+### Bug Fixes
+
+* **cli:** remove --diff flag from ez fmt ([#1564](https://github.com/SchoolyB/EZ/issues/1564)) ([a0f2180](https://github.com/SchoolyB/EZ/commit/a0f2180b3f10f38b06f4178ea21e9d8268f1216c))
+* **parser:** reject invalid characters in C header import paths ([#1618](https://github.com/SchoolyB/EZ/issues/1618)) ([6646d68](https://github.com/SchoolyB/EZ/commit/6646d68694d7b345bb8bdcdb8b7a0ece4ce3bbae))
+* runtime security bugs ([f0d1151](https://github.com/SchoolyB/EZ/commit/f0d11516795c9648cd68e5c6aa45797ca7bcbc3a))
+* **runtime:** cast to unsigned char at all ctype.h call sites ([#1616](https://github.com/SchoolyB/EZ/issues/1616)) ([d40683b](https://github.com/SchoolyB/EZ/commit/d40683b7c43397b15f5041acd74e76f2604ec087))
+* **stdlib:** compute exact buffer size in csv stringify to prevent heap overflow ([#1617](https://github.com/SchoolyB/EZ/issues/1617)) ([6f3ae23](https://github.com/SchoolyB/EZ/commit/6f3ae23ad0a55dfbc20b0bbe2c99662c8eabb696))
+* **stdlib:** use correct comparators for float and string array sorts ([#1632](https://github.com/SchoolyB/EZ/issues/1632)) ([24afcd8](https://github.com/SchoolyB/EZ/commit/24afcd8a1d6fa8ea6297410c0d28968ce282696f))
+* **typechecker:** reject dynamic format strings and validate directives in fmt.printf/sprintf/format ([#1633](https://github.com/SchoolyB/EZ/issues/1633)) ([35b31c1](https://github.com/SchoolyB/EZ/commit/35b31c1469d587d10a51cd8813c6307db4b24e3d))
+
 ## [3.2.2](https://github.com/SchoolyB/EZ/compare/v3.2.1...v3.2.2) (2026-05-10)
 
 
