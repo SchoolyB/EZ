@@ -2275,6 +2275,57 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
     emit(cg, ")");
 }
 
+/* Emit a fmt format string literal with %d/%i/%u upgraded to %lld/%llu for
+ * EZ int/uint arguments (which are int64_t/uint64_t) to avoid -Wformat. */
+static void emit_fmt_string_normalized(CodeGen *cg, const char *fmt_str, AstNode *call_node) {
+    const char *p = fmt_str;
+    int di = 1; /* which call arg corresponds to the next directive */
+    buf_append_char(&cg->output, '"');
+    while (*p) {
+        if (*p != '%') { buf_append_char(&cg->output, *p++); continue; }
+        /* Emit '%' and start scanning the directive */
+        buf_append_char(&cg->output, '%');
+        p++;
+        if (!*p) break;
+        if (*p == '%') { buf_append_char(&cg->output, '%'); p++; continue; }
+        /* Emit flags verbatim */
+        while (*p == '-' || *p == '+' || *p == ' ' || *p == '0' || *p == '#')
+            buf_append_char(&cg->output, *p++);
+        /* Emit width verbatim */
+        while (*p >= '0' && *p <= '9') buf_append_char(&cg->output, *p++);
+        /* Emit precision verbatim */
+        if (*p == '.') {
+            buf_append_char(&cg->output, *p++);
+            while (*p >= '0' && *p <= '9') buf_append_char(&cg->output, *p++);
+        }
+        /* Check for existing length modifier */
+        bool has_length = (*p == 'h' || *p == 'l' || *p == 'L');
+        if (has_length) {
+            buf_append_char(&cg->output, *p++);
+            if ((*(p-1) == 'h' && *p == 'h') || (*(p-1) == 'l' && *p == 'l'))
+                buf_append_char(&cg->output, *p++);
+        }
+        char spec = *p ? *p++ : 0;
+        if (!spec) break;
+        /* Upgrade bare %d/%i/%u to %lld/%llu when arg is EZ int/uint */
+        if (!has_length && (spec == 'd' || spec == 'i' || spec == 'u') &&
+            di < call_node->data.call.arg_count) {
+            EzType *dt = cg->type_table ?
+                typetable_get(cg->type_table, call_node->data.call.args[di]) : NULL;
+            if (dt && (spec == 'd' || spec == 'i') && dt->kind == TK_INT) {
+                buf_append_char(&cg->output, 'l');
+                buf_append_char(&cg->output, 'l');
+            } else if (dt && spec == 'u' && dt->kind == TK_UINT) {
+                buf_append_char(&cg->output, 'l');
+                buf_append_char(&cg->output, 'l');
+            }
+        }
+        buf_append_char(&cg->output, spec);
+        di++;
+    }
+    buf_append_char(&cg->output, '"');
+}
+
 static void emit_fmt_args(CodeGen *cg, AstNode *node, int start_idx) {
     for (int i = start_idx; i < node->data.call.arg_count; i++) {
         emit(cg, ", ");
@@ -4408,12 +4459,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
         emit(cg, "printf(");
         AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE) {
-            emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
-        } else {
-            emit_expression(cg, fmt_arg);
-            emit(cg, ".data");
-        }
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized(cg, fmt_arg->data.string_value.value, node);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
         emit_fmt_args(cg, node, 1);
         emit(cg, ")");
         return true;
@@ -4422,12 +4470,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 1) {
         emit(cg, "ez_string_format(ez_default_arena, ");
         AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE) {
-            emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
-        } else {
-            emit_expression(cg, fmt_arg);
-            emit(cg, ".data");
-        }
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized(cg, fmt_arg->data.string_value.value, node);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
         emit_fmt_args(cg, node, 1);
         emit(cg, ")");
         return true;
@@ -4436,12 +4481,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "format") == 0 && node->data.call.arg_count >= 1) {
         emit(cg, "ez_string_format(ez_default_arena, ");
         AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE) {
-            emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
-        } else {
-            emit_expression(cg, fmt_arg);
-            emit(cg, ".data");
-        }
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized(cg, fmt_arg->data.string_value.value, node);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
         emit_fmt_args(cg, node, 1);
         emit(cg, ")");
         return true;
