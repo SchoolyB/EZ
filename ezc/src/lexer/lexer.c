@@ -79,7 +79,7 @@ static void skip_whitespace_and_comments(Lexer *l) {
 
 static const char *read_identifier(Lexer *l) {
     int start = l->position;
-    while (isalpha(l->ch) || l->ch == '_' || isdigit(l->ch)) {
+    while (isalpha((unsigned char)l->ch) || l->ch == '_' || isdigit((unsigned char)l->ch)) {
         read_char(l);
     }
     return arena_strndup(l->arena, l->input + start, l->position - start);
@@ -95,7 +95,7 @@ static const char *read_number(Lexer *l, TokenType *type) {
         if (next == 'x' || next == 'X') {
             read_char(l); read_char(l);
             int dstart = l->position;
-            while (isxdigit(l->ch) || l->ch == '_') read_char(l);
+            while (isxdigit((unsigned char)l->ch) || l->ch == '_') read_char(l);
             if (l->position == dstart) {
                 l->error_code = "E1010";
                 l->error_msg = "invalid number format: '0x' must be followed by hex digits (0-9, a-f)";
@@ -124,19 +124,19 @@ static const char *read_number(Lexer *l, TokenType *type) {
         }
     }
 
-    while (isdigit(l->ch) || l->ch == '_') {
+    while (isdigit((unsigned char)l->ch) || l->ch == '_') {
         read_char(l);
     }
 
     if (l->ch == '.') {
         char next = peek_char(l);
-        if (isdigit(next) || next == '_' || next == 0 || next == '\n' ||
+        if (isdigit((unsigned char)next) || next == '_' || next == 0 || next == '\n' ||
             next == ' ' || next == ')' || next == '}' || next == ',' ||
             next == ';') {
             /* Consume decimal point; validation below will catch errors */
             *type = TOK_FLOAT;
             read_char(l);
-            while (isdigit(l->ch) || l->ch == '_') {
+            while (isdigit((unsigned char)l->ch) || l->ch == '_') {
                 read_char(l);
             }
         }
@@ -164,7 +164,7 @@ static const char *read_number(Lexer *l, TokenType *type) {
                     if (i > 0 && s[i-1] == '_') { l->error_code = "E1014"; l->error_msg = "underscore cannot appear before decimal point"; }
                     if (s[i+1] == '_') { l->error_code = "E1015"; l->error_msg = "underscore cannot appear after decimal point"; }
                     /* E1016: trailing decimal */
-                    if (!s[i+1] || (!isdigit(s[i+1]) && s[i+1] != '_')) { l->error_code = "E1016"; l->error_msg = "number cannot end with decimal point"; }
+                    if (!s[i+1] || (!isdigit((unsigned char)s[i+1]) && s[i+1] != '_')) { l->error_code = "E1016"; l->error_msg = "number cannot end with decimal point"; }
                     break;
                 }
             }
@@ -186,13 +186,13 @@ static const char *read_string(Lexer *l) {
             if (l->ch == 'x') {
                 /* Hex escape: \xNN; exactly two hex digits */
                 read_char(l);
-                if (!isxdigit(l->ch)) {
+                if (!isxdigit((unsigned char)l->ch)) {
                     l->error_code = "E1006";
                     l->error_msg = "invalid hex escape sequence; \\x must be followed by exactly two hex digits";
                     continue;
                 }
                 read_char(l);
-                if (!isxdigit(l->ch)) {
+                if (!isxdigit((unsigned char)l->ch)) {
                     l->error_code = "E1006";
                     l->error_msg = "invalid hex escape sequence; \\x must be followed by exactly two hex digits";
                     continue;
@@ -391,7 +391,7 @@ Token lexer_next_token(Lexer *l) {
         } else if (peek_char(l) == 'i' && l->read_position + 1 < l->input_len &&
                    l->input[l->read_position + 1] == 'n' &&
                    (l->read_position + 2 >= l->input_len ||
-                    !isalpha(l->input[l->read_position + 2]))) {
+                    !isalpha((unsigned char)l->input[l->read_position + 2]))) {
             /* !in → NOT_IN */
             read_char(l); /* skip i */
             read_char(l); /* skip n */
@@ -536,11 +536,11 @@ Token lexer_next_token(Lexer *l) {
         goto done;
 
     default:
-        if (isalpha(l->ch) || l->ch == '_') {
+        if (isalpha((unsigned char)l->ch) || l->ch == '_') {
             tok.literal = read_identifier(l);
             tok.type = token_lookup_ident(tok.literal);
             goto done;
-        } else if (isdigit(l->ch)) {
+        } else if (isdigit((unsigned char)l->ch)) {
             TokenType num_type;
             tok.literal = read_number(l, &num_type);
             if (l->error_code) {

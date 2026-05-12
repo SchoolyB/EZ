@@ -12,7 +12,7 @@
 
 EzString ez_strings_to_upper(EzArena *arena, EzString s) {
     char *buf = ez_arena_alloc(arena, (size_t)s.len + 1);
-    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)toupper(s.data[i]);
+    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)toupper((unsigned char)s.data[i]);
     buf[s.len] = '\0';
     EzString r = { buf, s.len };
     return r;
@@ -20,7 +20,7 @@ EzString ez_strings_to_upper(EzArena *arena, EzString s) {
 
 EzString ez_strings_to_lower(EzArena *arena, EzString s) {
     char *buf = ez_arena_alloc(arena, (size_t)s.len + 1);
-    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)tolower(s.data[i]);
+    for (int32_t i = 0; i < s.len; i++) buf[i] = (char)tolower((unsigned char)s.data[i]);
     buf[s.len] = '\0';
     EzString r = { buf, s.len };
     return r;
@@ -28,20 +28,20 @@ EzString ez_strings_to_lower(EzArena *arena, EzString s) {
 
 EzString ez_strings_trim(EzArena *arena, EzString s) {
     int32_t start = 0, end = s.len;
-    while (start < end && isspace(s.data[start])) start++;
-    while (end > start && isspace(s.data[end - 1])) end--;
+    while (start < end && isspace((unsigned char)s.data[start])) start++;
+    while (end > start && isspace((unsigned char)s.data[end - 1])) end--;
     return ez_string_new(arena, s.data + start, end - start);
 }
 
 EzString ez_strings_trim_left(EzArena *arena, EzString s) {
     int32_t start = 0;
-    while (start < s.len && isspace(s.data[start])) start++;
+    while (start < s.len && isspace((unsigned char)s.data[start])) start++;
     return ez_string_new(arena, s.data + start, s.len - start);
 }
 
 EzString ez_strings_trim_right(EzArena *arena, EzString s) {
     int32_t end = s.len;
-    while (end > 0 && isspace(s.data[end - 1])) end--;
+    while (end > 0 && isspace((unsigned char)s.data[end - 1])) end--;
     return ez_string_new(arena, s.data, end);
 }
 

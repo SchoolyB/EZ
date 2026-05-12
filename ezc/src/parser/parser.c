@@ -640,7 +640,7 @@ static AstNode *parse_string_literal(Parser *p) {
         for (int i = 0; raw[i]; i++) {
             if (raw[i] == '\\') { i++; continue; }
             if (raw[i] == '$' && raw[i + 1] != '{' && raw[i + 1] != '\0' &&
-                (isalpha(raw[i + 1]) || raw[i + 1] == '_')) {
+                (isalpha((unsigned char)raw[i + 1]) || raw[i + 1] == '_')) {
                 diag_error_code(p->diag, "E2057", p->file, p->cur_token.line, p->cur_token.column, 0);
                 break;
             }
@@ -1725,6 +1725,19 @@ static AstNode *parse_import_statement(Parser *p) {
             item->path = p->cur_token.literal;
             item->alias = "c";
             item->module = "c";
+            /* Validate path: only [A-Za-z0-9./_+-] permitted to prevent injection */
+            for (const char *q = item->path; *q; q++) {
+                unsigned char c = (unsigned char)*q;
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') ||
+                          c == '/' || c == '.' || c == '_' || c == '-' || c == '+';
+                if (!ok) {
+                    diag_error(p->diag, "E2080",
+                        arena_strdup(p->arena, "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted"),
+                        p->file, p->cur_token.line, p->cur_token.column, 0);
+                    break;
+                }
+            }
             goto import_item_done;
         }
 

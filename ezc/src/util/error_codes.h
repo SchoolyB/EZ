@@ -80,7 +80,8 @@
     EZ_ERROR("E2075", "syntax", "index expressions cannot have whitespace before the opening bracket; write 'arr[i]' with no space or newline") \
     EZ_ERROR("E2076", "syntax", "postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline") \
     EZ_ERROR("E2078", "syntax", "variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'?") \
-    EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause")
+    EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause") \
+    EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -156,7 +157,10 @@
     EZ_ERROR("E3082", "types", "wildcard type '?' cannot be used in named return positions; use an unnamed return instead") \
     EZ_ERROR("E3083", "types", "c_string() requires a raw C pointer; cannot convert a non-pointer type") \
     EZ_ERROR("E3084", "types", "type_of() expects a value, not a type name; use type_of(instance) instead") \
-    EZ_ERROR("E3085", "types", "'in' operator type mismatch: cannot check if '%s' is in '%s'")
+    EZ_ERROR("E3085", "types", "'in' operator type mismatch: cannot check if '%s' is in '%s'") \
+    EZ_ERROR("E3086", "types", "fmt.%s format string must be a string literal; use string interpolation for dynamic values") \
+    EZ_ERROR("E3087", "types", "%%n is not permitted in fmt format strings") \
+    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

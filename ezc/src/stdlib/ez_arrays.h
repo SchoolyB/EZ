@@ -55,6 +55,10 @@ int64_t ez_arrays_get_max(EzArray *arr);
 
 /* Sort */
 void ez_arrays_sort_asc(EzArray *arr);
+void ez_arrays_sort_asc_float(EzArray *arr);
+void ez_arrays_sort_asc_str(EzArray *arr);
 void ez_arrays_sort_desc(EzArray *arr);
+void ez_arrays_sort_desc_float(EzArray *arr);
+void ez_arrays_sort_desc_str(EzArray *arr);
 
 #endif

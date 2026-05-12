@@ -343,6 +343,31 @@ static int cmp_i64_desc(const void *a, const void *b) {
     return (vb > va) - (vb < va);
 }
 
+static int cmp_f64_asc(const void *a, const void *b) {
+    double va = *(const double *)a;
+    double vb = *(const double *)b;
+    return (va > vb) - (va < vb);
+}
+
+static int cmp_f64_desc(const void *a, const void *b) {
+    double va = *(const double *)a;
+    double vb = *(const double *)b;
+    return (vb > va) - (vb < va);
+}
+
+static int cmp_str_asc(const void *a, const void *b) {
+    const EzString *sa = (const EzString *)a;
+    const EzString *sb = (const EzString *)b;
+    int32_t min_len = sa->len < sb->len ? sa->len : sb->len;
+    int cmp = memcmp(sa->data, sb->data, (size_t)min_len);
+    if (cmp != 0) return cmp;
+    return (sa->len > sb->len) - (sa->len < sb->len);
+}
+
+static int cmp_str_desc(const void *a, const void *b) {
+    return cmp_str_asc(b, a);
+}
+
 void ez_arrays_sort_asc(EzArray *arr) {
     if (arr->iterating > 0)
         ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
@@ -350,9 +375,37 @@ void ez_arrays_sort_asc(EzArray *arr) {
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_asc);
 }
 
+void ez_arrays_sort_asc_float(EzArray *arr) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+    if (arr->len <= 1) return;
+    qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_f64_asc);
+}
+
+void ez_arrays_sort_asc_str(EzArray *arr) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+    if (arr->len <= 1) return;
+    qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_str_asc);
+}
+
 void ez_arrays_sort_desc(EzArray *arr) {
     if (arr->iterating > 0)
         ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_desc);
+}
+
+void ez_arrays_sort_desc_float(EzArray *arr) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+    if (arr->len <= 1) return;
+    qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_f64_desc);
+}
+
+void ez_arrays_sort_desc_str(EzArray *arr) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+    if (arr->len <= 1) return;
+    qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_str_desc);
 }

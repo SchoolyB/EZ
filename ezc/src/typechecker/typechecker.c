@@ -2736,6 +2736,90 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
+                /* Validate printf/sprintf/format: literal format string + directive types */
+                {
+                    bool is_fmt_fn = strcmp(mfn, "printf") == 0 ||
+                                     strcmp(mfn, "sprintf") == 0 ||
+                                     strcmp(mfn, "format") == 0;
+                    if (is_fmt_fn && node->data.call.arg_count >= 1) {
+                        AstNode *fmt_arg = node->data.call.args[0];
+                        if (fmt_arg->kind != NODE_STRING_VALUE) {
+                            diag_error_codef(tc->diag, "E3086",
+                                NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                fmt_arg->token.column, 0, mfn);
+                        } else {
+                            /* Walk format string, validate each directive against arg type */
+                            const char *fstr = fmt_arg->data.string_value.value;
+                            const char *p = fstr;
+                            int di = 1;
+                            while (*p) {
+                                if (*p != '%') { p++; continue; }
+                                p++;
+                                if (!*p) break;
+                                if (*p == '%') { p++; continue; }
+                                if (*p == 'n') {
+                                    diag_error_codef(tc->diag, "E3087",
+                                        NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                        fmt_arg->token.column, 0);
+                                    break;
+                                }
+                                /* Skip flags, width, precision, length modifier */
+                                while (*p == '-' || *p == '+' || *p == ' ' || *p == '0' || *p == '#') p++;
+                                while (*p >= '0' && *p <= '9') p++;
+                                if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+                                if (*p == 'h') { p++; if (*p == 'h') p++; }
+                                else if (*p == 'l') { p++; if (*p == 'l') p++; }
+                                else if (*p == 'L') p++;
+                                char spec = *p ? *p++ : 0;
+                                if (!spec) break;
+                                if (di >= node->data.call.arg_count) { di++; continue; }
+                                AstNode *darg = node->data.call.args[di];
+                                EzType *dt = resolve_expr(tc, darg);
+                                di++;
+                                if (!dt) continue;
+                                const char *expected = NULL;
+                                bool ok = false;
+                                switch (spec) {
+                                case 'd': case 'i':
+                                    expected = "int or char";
+                                    ok = dt->kind == TK_INT || dt->kind == TK_CHAR || dt->kind == TK_BYTE;
+                                    break;
+                                case 'u':
+                                    expected = "uint";
+                                    ok = dt->kind == TK_UINT || dt->kind == TK_BYTE;
+                                    break;
+                                case 'x': case 'X': case 'o':
+                                    expected = "int or uint";
+                                    ok = dt->kind == TK_INT || dt->kind == TK_UINT || dt->kind == TK_BYTE;
+                                    break;
+                                case 'f': case 'g': case 'e': case 'G': case 'E':
+                                    expected = "float";
+                                    ok = dt->kind == TK_FLOAT;
+                                    break;
+                                case 's':
+                                    expected = "string";
+                                    ok = dt->kind == TK_STRING;
+                                    break;
+                                case 'c':
+                                    expected = "char";
+                                    ok = dt->kind == TK_CHAR || dt->kind == TK_INT;
+                                    break;
+                                default:
+                                    ok = true;
+                                    break;
+                                }
+                                if (!ok && expected) {
+                                    char spec_str[2] = { spec, '\0' };
+                                    diag_error_codef(tc->diag, "E3088",
+                                        NODE_FILE(tc, darg), darg->token.line,
+                                        darg->token.column, 0,
+                                        mfn, spec_str, expected, di - 1,
+                                        type_name(dt));
+                                }
+                            }
+                        }
+                    }
+                }
                 /* Validate that non-format args are primitive types */
                 for (int ai = 1; ai < node->data.call.arg_count; ai++) {
                     EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);

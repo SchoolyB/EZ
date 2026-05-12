@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 183 codes** (168 errors, 15 warnings)
+**Total: 187 codes** (172 errors, 15 warnings)
 
 ---
 
@@ -70,6 +70,7 @@
 | `E2076` | syntax | postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline |
 | `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
 | `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
+| `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -143,6 +144,9 @@
 | `E3083` | types | c_string() requires a raw C pointer; cannot convert a non-pointer type |
 | `E3084` | types | type_of() expects a value, not a type name; use type_of(instance) instead |
 | `E3085` | types | 'in' operator type mismatch: cannot check if '%s' is in '%s' |
+| `E3086` | types | fmt.%s format string must be a string literal; use string interpolation for dynamic values |
+| `E3087` | types | %%n is not permitted in fmt format strings |
+| `E3088` | types | fmt.%s format directive '%%%s' expects %s but argument %d has type '%s' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -227,4 +231,4 @@
 
 ---
 
-*Generated on 2026-05-04 16:42:32 UTC*
+*Generated on 2026-05-12 14:42:19 UTC*
