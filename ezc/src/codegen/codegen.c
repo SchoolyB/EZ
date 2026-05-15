@@ -6457,9 +6457,42 @@ static void emit_ensure_cleanup(CodeGen *cg) {
     free(ensures);
 }
 
+/* Issue #1629: track nested scratch arenas so early-exit paths can
+ * unwind every live one innermost-first. Without this, `return` (and
+ * the desugared `or_return`) from inside a nested for_each/if/while/
+ * loop scope leaks the per-scope arenas the codegen had emitted. */
+static void scope_arena_push(CodeGen *cg, const char *arena_var, const char *saved_var) {
+    if (cg->scope_arena_count >= cg->scope_arena_cap) {
+        cg->scope_arena_cap = cg->scope_arena_cap ? cg->scope_arena_cap * 2 : 8;
+        cg->scope_arenas = xrealloc(cg->scope_arenas,
+            sizeof(ScopeArena) * (size_t)cg->scope_arena_cap);
+    }
+    ScopeArena *s = &cg->scope_arenas[cg->scope_arena_count++];
+    snprintf(s->arena_var, sizeof(s->arena_var), "%s", arena_var);
+    snprintf(s->saved_var, sizeof(s->saved_var), "%s", saved_var);
+}
+
+static void scope_arena_pop(CodeGen *cg) {
+    if (cg->scope_arena_count > 0) cg->scope_arena_count--;
+}
+
+/* Emit the cleanup sequence for every live nested scratch arena,
+ * innermost-first. Used in every early-exit return path before the
+ * function-arena (or scope_restore) unwind. */
+static void emit_scratch_arena_unwind(CodeGen *cg) {
+    for (int i = cg->scope_arena_count - 1; i >= 0; i--) {
+        ScopeArena *s = &cg->scope_arenas[i];
+        emitf(cg, "ez_default_arena = %s; ", s->saved_var);
+        emitf(cg, "ez_arena_destroy(%s, __FILE__, __LINE__); free(%s); ",
+              s->arena_var, s->arena_var);
+    }
+}
+
 /* : emit escape + cleanup for a non-void function return.
- * Escapes the return value (_ret) to _func_saved, then destroys
- * the function arena and returns. */
+ * Escapes the return value (_ret) to _func_saved, then unwinds any
+ * nested scratch arenas live at this exit point (issue #1629), then
+ * destroys the function arena. The escape must run first because it
+ * may read from memory still owned by a scratch arena. */
 static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
     if (!ret_type_name) return;
     EzType *rt = type_from_name(ret_type_name);
@@ -6470,6 +6503,7 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
         emit_value_deep_copy(cg, ret_type_name, "_ret");
         emit(cg, "; ez_default_arena = _esc; } ");
     }
+    emit_scratch_arena_unwind(cg);
     emit(cg, "ez_default_arena = _func_saved; ");
     emit(cg, "ez_arena_destroy(_func_arena, __FILE__, __LINE__); free(_func_arena); ");
 }
@@ -6481,7 +6515,9 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     /* Guard against malformed AST: count > 0 but NULL values array */
     if (node->data.return_stmt.count > 0 && !node->data.return_stmt.values) {
         emit_indent(cg);
-        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
+        emit(cg, "{ ");
+        emit_scratch_arena_unwind(cg);
+        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
         return;
     }
 
@@ -6494,7 +6530,9 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.return_stmt.values[i]);
         }
-        emit(cg, "}; ez_exit_func(); return _ret; }\n");
+        emit(cg, "}; ");
+        emit_scratch_arena_unwind(cg);
+        emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (node->data.return_stmt.count == 1 && cg->current_func &&
                cg->current_func->data.func_decl.return_type_count > 1) {
         /* Single value returned from multi-return function (or_return propagation) */
@@ -6506,12 +6544,16 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             emit(cg, "{0}, ");
         }
         emit_expression(cg, node->data.return_stmt.values[0]);
-        emit(cg, "}; ez_exit_func(); return _ret; }\n");
+        emit(cg, "}; ");
+        emit_scratch_arena_unwind(cg);
+        emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (cg->current_func &&
                cg->current_func->data.func_decl.return_type_count == 0) {
         /* Void function */
         emit_indent(cg);
-        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
+        emit(cg, "{ ");
+        emit_scratch_arena_unwind(cg);
+        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
     } else if (node->data.return_stmt.count == 1) {
         /* Single return value: evaluate into temp, then exit and return */
         emit_indent(cg);
@@ -6530,8 +6572,10 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         int rc = cg->current_func->data.func_decl.return_type_count;
         if (rc == 1 && cg->current_func->data.func_decl.return_names[0]) {
             emit_indent(cg);
-            emitf(cg, "{ __auto_type _ret = %s; ez_exit_func(); return _ret; }\n",
+            emitf(cg, "{ __auto_type _ret = %s; ",
                 safe_name(cg->current_func->data.func_decl.return_names[0]));
+            emit_scratch_arena_unwind(cg);
+            emit(cg, "ez_exit_func(); return _ret; }\n");
         } else {
             emit_indent(cg);
             const char *mbn3 = multi_ret_name(cg->current_func);
@@ -6544,12 +6588,16 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, "0");
                 }
             }
-            emit(cg, "}; ez_exit_func(); return _ret; }\n");
+            emit(cg, "}; ");
+            emit_scratch_arena_unwind(cg);
+            emit(cg, "ez_exit_func(); return _ret; }\n");
         }
     } else {
         /* Bare return (no value, non-void; shouldn't happen but handle gracefully) */
         emit_indent(cg);
-        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
+        emit(cg, "{ ");
+        emit_scratch_arena_unwind(cg);
+        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
     }
 }
 
@@ -6572,6 +6620,12 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
     emitf(cg, "EzArena *_if_saved_%d = ez_default_arena; ", isc);
     emitf(cg, "ez_default_arena = _if_arena_%d;\n", isc);
     cg->loop_scope_depth++;
+    {
+        char av[32], sv[32];
+        snprintf(av, sizeof(av), "_if_arena_%d", isc);
+        snprintf(sv, sizeof(sv), "_if_saved_%d", isc);
+        scope_arena_push(cg, av, sv);
+    }
 
     emit_indent(cg);
     emit(cg, "if (");
@@ -6628,6 +6682,7 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
     }
 
     cg->loop_scope_depth--;
+    scope_arena_pop(cg);
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _if_saved_%d; ", isc);
     emitf(cg, "ez_arena_destroy(_if_arena_%d, __FILE__, __LINE__); free(_if_arena_%d); }\n", isc, isc);
@@ -6692,8 +6747,15 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _iter_arena_%d;\n", f_depth);
     cg->loop_scope_depth++;
+    {
+        char av[32], sv[32];
+        snprintf(av, sizeof(av), "_iter_arena_%d", f_depth);
+        snprintf(sv, sizeof(sv), "_saved_arena_%d", f_depth);
+        scope_arena_push(cg, av, sv);
+    }
     emit_block(cg, node->data.for_stmt.body);
     cg->loop_scope_depth--;
+    scope_arena_pop(cg);
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _saved_arena_%d;\n", f_depth);
     emit_indent(cg);
@@ -6723,8 +6785,15 @@ static void emit_while_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _iter_arena_%d;\n", w_depth);
     cg->loop_scope_depth++;
+    {
+        char av[32], sv[32];
+        snprintf(av, sizeof(av), "_iter_arena_%d", w_depth);
+        snprintf(sv, sizeof(sv), "_saved_arena_%d", w_depth);
+        scope_arena_push(cg, av, sv);
+    }
     emit_block(cg, node->data.while_stmt.body);
     cg->loop_scope_depth--;
+    scope_arena_pop(cg);
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _saved_arena_%d;\n", w_depth);
     emit_indent(cg);
@@ -6752,8 +6821,15 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _iter_arena_%d;\n", l_depth);
     cg->loop_scope_depth++;
+    {
+        char av[32], sv[32];
+        snprintf(av, sizeof(av), "_iter_arena_%d", l_depth);
+        snprintf(sv, sizeof(sv), "_saved_arena_%d", l_depth);
+        scope_arena_push(cg, av, sv);
+    }
     emit_block(cg, node->data.loop_stmt.body);
     cg->loop_scope_depth--;
+    scope_arena_pop(cg);
     emit_indent(cg);
     emitf(cg, "ez_default_arena = _saved_arena_%d;\n", l_depth);
     emit_indent(cg);
@@ -7094,8 +7170,15 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emitf(cg, "ez_default_arena = _iter_arena_%d;\n", fe_depth);
         cg->loop_scope_depth++;
+        {
+            char av[32], sv[32];
+            snprintf(av, sizeof(av), "_iter_arena_%d", fe_depth);
+            snprintf(sv, sizeof(sv), "_saved_arena_%d", fe_depth);
+            scope_arena_push(cg, av, sv);
+        }
         emit_block(cg, node->data.for_each.body);
         cg->loop_scope_depth--;
+        scope_arena_pop(cg);
         emit_indent(cg);
         emitf(cg, "ez_default_arena = _saved_arena_%d;\n", fe_depth);
         emit_indent(cg);
@@ -7350,6 +7433,9 @@ CodeGen codegen_create(const char *file) {
     cg.has_c_imports = false;
     cg.wildcard_binding = NULL;
     cg.pending_call_typed_sig = NULL;
+    cg.scope_arenas = NULL;
+    cg.scope_arena_count = 0;
+    cg.scope_arena_cap = 0;
     return cg;
 }
 
@@ -7970,4 +8056,5 @@ void codegen_destroy(CodeGen *cg) {
     free(cg->alias_modules);
     free(cg->imported_modules);
     free(cg->c_headers);
+    free(cg->scope_arenas);
 }
