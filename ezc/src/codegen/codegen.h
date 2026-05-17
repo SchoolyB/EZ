@@ -11,6 +11,14 @@
 #include "../util/buf.h"
 #include "../typechecker/typechecker.h"
 
+/* Per-scope scratch arena identifier pair tracked by codegen so that
+ * early-exit paths can unwind every live scratch arena innermost-first.
+ * See issue #1629. */
+typedef struct {
+    char arena_var[32];
+    char saved_var[32];
+} ScopeArena;
+
 typedef struct {
     Buf output;
     Buf global_init;    /* Deferred initialization for file-scope arrays */
@@ -110,6 +118,16 @@ typedef struct {
      * even when target_func (the AST decl) is unknown. Reset to NULL
      * after each call. */
     void *pending_call_typed_sig;
+
+    /* Stack of open per-scope scratch arenas (if / for_each / while /
+     * loop). Each entry holds the exact C identifiers emitted at scope
+     * entry so any early-exit path (return, or_return-desugared return)
+     * can unwind every live scratch arena innermost-first before the
+     * function-arena cleanup. Without this, nested scratch arenas leak
+     * on early return — see issue #1629. */
+    ScopeArena *scope_arenas;
+    int scope_arena_count;
+    int scope_arena_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

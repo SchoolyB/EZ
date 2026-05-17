@@ -153,6 +153,12 @@ void diag_error_code(DiagnosticList *dl, const char *code,
         file, line, col_start, end_col, NULL);
 }
 
+void diag_error_code_help(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col_start, int end_col, const char *help) {
+    diag_add(dl, SEV_ERROR, code, lookup_or_placeholder(code),
+        file, line, col_start, end_col, help);
+}
+
 void diag_warning_code(DiagnosticList *dl, const char *code,
     const char *file, int line, int col_start, int end_col) {
     diag_add(dl, SEV_WARNING, code, lookup_or_placeholder(code),
