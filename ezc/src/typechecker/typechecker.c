@@ -1610,24 +1610,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
              strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
              strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
             left->kind == TK_ARRAY && right->kind == TK_ARRAY) {
-            diag_error_code(tc->diag, "E3074",
-                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3074",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "use arrays.is_equal(a, b) to compare arrays element-by-element");
             infix_errored = true;
         }
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
              strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
              strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
             left->kind == TK_MAP && right->kind == TK_MAP) {
-            diag_error_code(tc->diag, "E3076",
-                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3076",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "use maps.is_equal(a, b) to compare maps for equality");
             infix_errored = true;
         }
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
              strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
              strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
             left->kind == TK_STRUCT && right->kind == TK_STRUCT) {
-            diag_error_code(tc->diag, "E3077",
-                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3077",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "compare individual fields instead, e.g. a.x == b.x");
             infix_errored = true;
         }
 
@@ -3173,8 +3176,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                  * Assigning the intermediate result to a variable keeps
                  * each call site readable and avoids the AST-rewrite
                  * gymnastics that fluent-interface chaining would require. */
-                diag_error_code(tc->diag, "E3075",
-                    NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
+                diag_error_code_help(tc->diag, "E3075",
+                    NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0,
+                    "assign the intermediate result to a variable, then call the next struct function on it");
             }
             result = &TYPE_UNKNOWN;
             break;
@@ -6162,9 +6166,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * emits `ez_scope_restore(_, _scope_mark)` referencing a
          * variable that main never declares, and the C compile fails. */
         if (tc->current_func_is_main) {
-            diag_error_msg(tc->diag, "E3073",
-                "'return' is not allowed in main(); main exits when control reaches the closing brace",
-                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_help(tc->diag, "E3073",
+                strdup("'return' is not allowed in main(); main exits when control reaches the closing brace"),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "use exit(code) to terminate with a status code");
             break;
         }
         /* : reject addr() of local variable in return; the
