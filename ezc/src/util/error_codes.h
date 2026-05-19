@@ -186,6 +186,7 @@
     EZ_ERROR("E5008", "arguments", "wrong number of arguments; the function expects a different count than was provided") \
     EZ_ERROR("E5009", "arguments", "invalid base for integer conversion; base must be between 2 and 36") \
     EZ_ERROR("E5011", "usage", "return value of '%s' is not used; assign it to a variable or use '_' to discard") \
+    EZ_ERROR("E5012", "usage", "the throwaway '_' is only meaningful when discarding the result of a function call; the right-hand side has no return value to discard") \
     EZ_ERROR("E5013", "usage", "function calls are not allowed in file-scope initializers; move this declaration into a function body") \
     EZ_ERROR("E5015", "usage", "postfix ++ and -- require a variable, not a value or expression") \
     EZ_ERROR("E5023", "usage", "cannot use '%s' on type '%s'; only integer types support increment/decrement") \

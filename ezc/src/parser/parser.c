@@ -1207,6 +1207,18 @@ static AstNode *maybe_apply_or_return(Parser *p, AstNode *var_decl) {
  * Desugars to a var_decl(name="_", mutable=true), which the typechecker
  * and codegen already special-case to skip symbol creation and emit
  * `(void)(expr);`. or_return is supported via the shared helper. */
+/* E5012: the throwaway '_' is only meaningful when the RHS is a
+ * function call. Literal/identifier/arithmetic RHSes have no return
+ * value to discard and no side effect to run, so `_ = 32` etc. are
+ * dead code with a misleading name. Checked at parse time (before
+ * or_return desugaring) so the user-written RHS, not the rewritten
+ * member-access, is what gets validated. */
+static void check_throwaway_target(Parser *p, AstNode *value) {
+    if (!value || value->kind == NODE_CALL_EXPR) return;
+    diag_error_code(p->diag, "E5012",
+        p->file, value->token.line, value->token.column, 0);
+}
+
 static AstNode *parse_discard_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
     node->data.var_decl.mutable = true;
@@ -1218,6 +1230,8 @@ static AstNode *parse_discard_statement(Parser *p) {
     next_token(p); /* move to RHS */
     node->data.var_decl.value = parse_expression(p, PREC_LOWEST);
     if (!node->data.var_decl.value) return NULL;
+
+    check_throwaway_target(p, node->data.var_decl.value);
 
     AstNode *desugared = maybe_apply_or_return(p, node);
     if (desugared) return desugared;
@@ -1361,6 +1375,11 @@ static AstNode *parse_var_declaration(Parser *p) {
         next_token(p); /* skip = */
         next_token(p);
         node->data.var_decl.value = parse_expression(p, PREC_LOWEST);
+
+        if (node->data.var_decl.value &&
+            strcmp(node->data.var_decl.name, "_") == 0) {
+            check_throwaway_target(p, node->data.var_decl.value);
+        }
 
         AstNode *desugared = maybe_apply_or_return(p, node);
         if (desugared) return desugared;
