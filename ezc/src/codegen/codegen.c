@@ -194,6 +194,19 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
     if (strcmp(type_name, "HttpRequest") == 0) return "EzRequest";
     if (strcmp(type_name, "HttpResponse") == 0) return "EzResponse";
+    /* Stdlib opaque types: scalar path uses __auto_type and never reaches
+     * this resolver, but [T] / map[_:T] / struct fields write the type
+     * name explicitly and need it mapped here. Without this, the fallback
+     * below produces EzStruct_<Name>, which no header defines, and clang
+     * fails on the generated C. */
+    if (strcmp(type_name, "Thread") == 0)   return "EzThread";
+    if (strcmp(type_name, "Mutex") == 0)    return "EzMutex";
+    if (strcmp(type_name, "SpinLock") == 0) return "EzSpinLock";
+    if (strcmp(type_name, "Channel") == 0)  return "EzChannel";
+    if (strcmp(type_name, "Socket") == 0)   return "EzSocket";
+    if (strcmp(type_name, "Listener") == 0) return "EzSocket";
+    if (strcmp(type_name, "Database") == 0) return "EzSqlite";
+    if (strcmp(type_name, "Router") == 0)   return "EzRouter";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 

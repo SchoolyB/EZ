@@ -145,12 +145,12 @@ do main() {
     }
 
     // eprintln doesn't crash
-    fmt.eprintln("test stderr")
+    eprintln("test stderr")
     println("  [PASS] eprintln")
     passed += 1
 
     // eprint doesn't crash
-    fmt.eprint("test no newline\n")
+    eprint("test no newline\n")
     println("  [PASS] eprint")
     passed += 1
 

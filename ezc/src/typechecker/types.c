@@ -336,10 +336,10 @@ EzType *type_from_name(const char *name) {
         const char *colon = strchr(start, ':');
         if (colon) {
             size_t klen = (size_t)(colon - start);
-            char *key = xmalloc(klen + 1);
-            memcpy(key, start, klen);
-            key[klen] = '\0';
-            t->key_type = key;
+            char *key_str = xmalloc(klen + 1);
+            memcpy(key_str, start, klen);
+            key_str[klen] = '\0';
+            t->key_type = key_str;
 
             const char *vstart = colon + 1;
             size_t vlen = strlen(vstart);
