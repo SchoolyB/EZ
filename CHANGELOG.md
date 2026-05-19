@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.3.1](https://github.com/SchoolyB/EZ/compare/v3.3.0...v3.3.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* **codegen:** map stdlib opaque types to their C typedefs ([#1645](https://github.com/SchoolyB/EZ/issues/1645)) ([#1657](https://github.com/SchoolyB/EZ/issues/1657)) ([30564e9](https://github.com/SchoolyB/EZ/commit/30564e90c68a2d9c1f0c2faa95e2f3a2b2890481))
+* **parser:** accept bare '_ = expr' at statement position ([#1647](https://github.com/SchoolyB/EZ/issues/1647)) ([#1656](https://github.com/SchoolyB/EZ/issues/1656)) ([83877c5](https://github.com/SchoolyB/EZ/commit/83877c59aebe3a44f553dde1596235ae886b99d8))
+* **parser:** reject throwaway '_' with a non-call RHS (E5012) ([c676763](https://github.com/SchoolyB/EZ/commit/c67676320935c7e47455f01ac5b4aab115632796))
+* **typechecker:** reject file-scope initializers that call functions (E5013) ([92de338](https://github.com/SchoolyB/EZ/commit/92de338ae30b3f677b5744c09bcc67da891e6a74))
+
 ## [3.3.0](https://github.com/SchoolyB/EZ/compare/v3.2.2...v3.3.0) (2026-05-12)
 
 
