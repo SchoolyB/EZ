@@ -4959,6 +4959,60 @@ static void check_reserved_name(TypeChecker *tc, const char *name, const char *f
 
 static void check_statement(TypeChecker *tc, AstNode *node);
 
+/* Walk an expression tree looking for a function call anywhere inside.
+ * Used by the file-scope initializer guard (E5013): runtime calls in
+ * a top-level var_decl produce invalid C (free-standing init or
+ * non-constant initializer), so the EZ side must reject them with
+ * a real diagnostic before codegen runs. */
+static bool expr_contains_call(AstNode *node) {
+    if (!node) return false;
+    switch (node->kind) {
+    case NODE_CALL_EXPR:
+        return true;
+    case NODE_PREFIX_EXPR:
+        return expr_contains_call(node->data.prefix.right);
+    case NODE_INFIX_EXPR:
+        return expr_contains_call(node->data.infix.left) ||
+               expr_contains_call(node->data.infix.right);
+    case NODE_POSTFIX_EXPR:
+        return expr_contains_call(node->data.postfix.left);
+    case NODE_INDEX_EXPR:
+        return expr_contains_call(node->data.index_expr.left) ||
+               expr_contains_call(node->data.index_expr.index);
+    case NODE_MEMBER_EXPR:
+        return expr_contains_call(node->data.member.object);
+    case NODE_RANGE_EXPR:
+        return expr_contains_call(node->data.range_expr.start) ||
+               expr_contains_call(node->data.range_expr.end) ||
+               expr_contains_call(node->data.range_expr.step);
+    case NODE_CAST_EXPR:
+        return expr_contains_call(node->data.cast.value);
+    case NODE_ARRAY_VALUE:
+        for (int i = 0; i < node->data.array_value.count; i++) {
+            if (expr_contains_call(node->data.array_value.elements[i])) return true;
+        }
+        return false;
+    case NODE_MAP_VALUE:
+        for (int i = 0; i < node->data.map_value.count; i++) {
+            if (expr_contains_call(node->data.map_value.keys[i])) return true;
+            if (expr_contains_call(node->data.map_value.values[i])) return true;
+        }
+        return false;
+    case NODE_STRUCT_VALUE:
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            if (expr_contains_call(node->data.struct_value.field_values[i])) return true;
+        }
+        return false;
+    case NODE_INTERPOLATED_STRING:
+        for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
+            if (expr_contains_call(node->data.interpolated_string.parts[i])) return true;
+        }
+        return false;
+    default:
+        return false;
+    }
+}
+
 /* Check if ALL paths through a block end in a return statement */
 static bool block_has_return(AstNode *node); /* forward declaration */
 
@@ -5117,6 +5171,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     switch (node->kind) {
     case NODE_VAR_DECL: {
+        /* E5013: file-scope initializers cannot contain function calls.
+         * A runtime call as an initializer would either need a module-init
+         * function (which EZ does not generate) or produce invalid C
+         * (non-constant initializer / free-standing statement at file
+         * scope). Catch it on the EZ side so the user sees a real
+         * diagnostic instead of a clang error pointing at the generated C. */
+        if (tc->func_depth == 0 && node->data.var_decl.value &&
+            expr_contains_call(node->data.var_decl.value)) {
+            diag_error_code(tc->diag, "E5013",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* E3038: void cannot be used as variable type */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "void") == 0) {
             diag_error_msg(tc->diag, "E3038",

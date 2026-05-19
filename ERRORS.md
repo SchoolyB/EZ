@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 187 codes** (172 errors, 15 warnings)
+**Total: 188 codes** (173 errors, 15 warnings)
 
 ---
 
@@ -166,6 +166,7 @@
 | `E5008` | arguments | wrong number of arguments; the function expects a different count than was provided |
 | `E5009` | arguments | invalid base for integer conversion; base must be between 2 and 36 |
 | `E5011` | usage | return value of '%s' is not used; assign it to a variable or use '_' to discard |
+| `E5013` | usage | function calls are not allowed in file-scope initializers; move this declaration into a function body |
 | `E5015` | usage | postfix ++ and -- require a variable, not a value or expression |
 | `E5023` | usage | cannot use '%s' on type '%s'; only integer types support increment/decrement |
 | `E5024` | usage | return type mismatch: cannot return signed '%s' as unsigned '%s' |
@@ -231,4 +232,4 @@
 
 ---
 
-*Generated on 2026-05-12 14:42:19 UTC*
+*Generated on 2026-05-19 17:03:11 UTC*
