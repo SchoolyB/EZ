@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.4.0](https://github.com/SchoolyB/EZ/compare/v3.3.1...v3.4.0) (2026-05-20)
+
+
+### Features
+
+* **builtins:** add here() returning SourceLocation for source-position capture ([#1660](https://github.com/SchoolyB/EZ/issues/1660)) ([07fa474](https://github.com/SchoolyB/EZ/commit/07fa47455747830ae510305fc8eb261654706adc))
+* here() builtin returning SourceLocation ([#1660](https://github.com/SchoolyB/EZ/issues/1660)) ([efeb3a3](https://github.com/SchoolyB/EZ/commit/efeb3a352364a682976a898838dd864432ab564f))
+* threads detach, current, yield, sleep, is_alive, thread_count ([#1453](https://github.com/SchoolyB/EZ/issues/1453)) ([ec273dc](https://github.com/SchoolyB/EZ/commit/ec273dc70e08ee8c4f0675bb6162618ac8acf582))
+* **threads:** add detach, current, yield, sleep, is_alive, thread_count ([#1453](https://github.com/SchoolyB/EZ/issues/1453)) ([e78f57d](https://github.com/SchoolyB/EZ/commit/e78f57d26c93d8e1251b26f13b2a56ac359ae0be))
+* uuid parse, generate_random, generate_time_ordered, NIL_UUID ([#1452](https://github.com/SchoolyB/EZ/issues/1452)) ([7df9ae2](https://github.com/SchoolyB/EZ/commit/7df9ae22bda510f367934a2a628960a3326494ae))
+* **uuid:** add parse, generate_random, generate_time_ordered, NIL_UUID ([#1452](https://github.com/SchoolyB/EZ/issues/1452)) ([ed9e789](https://github.com/SchoolyB/EZ/commit/ed9e789f6e20c88486a3eb6bb76d1cf0c3db95bc))
+
+
+### Bug Fixes
+
+* **codegen:** multi-file struct codegen — three findings from Marlowe port ([d3e75d5](https://github.com/SchoolyB/EZ/commit/d3e75d5e66e997e2495110c217b50c921007e09b))
+* **codegen:** thread struct field type into empty array literal sizing ([#1664](https://github.com/SchoolyB/EZ/issues/1664)) ([deb12da](https://github.com/SchoolyB/EZ/commit/deb12dacd304d4903e5378d3bb4ece3c6fa18654))
+* **import:** rewrite composite type names in imported declarations ([#1665](https://github.com/SchoolyB/EZ/issues/1665)) ([b205a5e](https://github.com/SchoolyB/EZ/commit/b205a5e05cb5dd01eac361817099676a03d1193e))
+* **typechecker:** reject 'here' as user variable/function/type/param (E5016) ([3d66ec1](https://github.com/SchoolyB/EZ/commit/3d66ec191cb2aadf74390b0507bb0b6b82af181b))
+
 ## [3.3.1](https://github.com/SchoolyB/EZ/compare/v3.3.0...v3.3.1) (2026-05-19)
 
 
