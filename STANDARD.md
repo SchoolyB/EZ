@@ -2736,7 +2736,13 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `spawn` | `(()func) -> Thread` | Spawn a new thread running `func` |
 | `spawn` | `(()func, arg int) -> Thread` | Spawn a new thread running `func` with an int argument |
 | `join` | `(t Thread)` | Wait for a thread to finish |
+| `detach` | `(t Thread)` | Release ownership; the thread runs independently. After detach the handle must not be joined or queried |
+| `is_alive` | `(t Thread) -> bool` | True while the thread's body has not returned. Not valid after `detach` or `join` |
 | `get_id` | `() -> int` | Get the current thread's ID |
+| `current` | `() -> int` | Same as `get_id`; alternate spelling |
+| `yield` | `()` | Hint the scheduler to run another runnable thread |
+| `sleep` | `(ms int)` | Sleep the current thread for `ms` milliseconds |
+| `thread_count` | `() -> int` | Number of live threads spawned through this module (excludes main and non-EZ threads) |
 
 ### 9.23 Sync Module (`@sync`)
 

@@ -10,6 +10,11 @@ do worker() {
     // simple worker function
 }
 
+do slow_worker() {
+    // sleep long enough to remain counted while sibling spawns
+    threads.sleep(20)
+}
+
 do main() {
     println("=== Threads Module Test ===")
     mut passed int = 0
@@ -39,6 +44,60 @@ do main() {
         println("  [FAIL] channel: expected 42, got ${val}")
         failed += 1
     }
+
+    // current / get_id return the same value
+    if threads.current() == threads.get_id() {
+        println("  [PASS] current() == get_id()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] current() != get_id()")
+        failed += 1
+    }
+
+    // yield doesn't crash and runs cleanly
+    threads.yield()
+    println("  [PASS] yield")
+    passed += 1
+
+    // sleep with 0ms doesn't hang and returns
+    threads.sleep(0)
+    println("  [PASS] sleep(0)")
+    passed += 1
+
+    // is_alive is true immediately after spawn, false after join
+    mut t2 = threads.spawn(()worker)
+    if threads.is_alive(t2) {
+        println("  [PASS] is_alive true after spawn")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_alive false right after spawn")
+        failed += 1
+    }
+    threads.join(t2)
+
+    // thread_count tracks spawned/joined threads — use slow workers so
+    // both are still alive when we read the mid-count
+    mut count_before int = threads.thread_count()
+    mut t3 = threads.spawn(()slow_worker)
+    mut t4 = threads.spawn(()slow_worker)
+    mut count_with_two int = threads.thread_count()
+    threads.join(t3)
+    threads.join(t4)
+    mut count_after int = threads.thread_count()
+    if count_with_two == count_before + 2 && count_after == count_before {
+        println("  [PASS] thread_count: ${count_before} -> ${count_with_two} -> ${count_after}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] thread_count: ${count_before} -> ${count_with_two} -> ${count_after}")
+        failed += 1
+    }
+
+    // detach: spawn and detach; sleep enough for the worker to complete
+    mut t5 = threads.spawn(()worker)
+    threads.detach(t5)
+    threads.sleep(50)
+    println("  [PASS] detach")
+    passed += 1
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")

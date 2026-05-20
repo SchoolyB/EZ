@@ -2589,10 +2589,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                     result = type_struct("Thread"); /* EzThread; opaque */
-                } else if (strcmp(mfn, "get_id") == 0) {
+                } else if (strcmp(mfn, "get_id") == 0 ||
+                           strcmp(mfn, "current") == 0 ||
+                           strcmp(mfn, "thread_count") == 0) {
                     result = &TYPE_INT;
+                } else if (strcmp(mfn, "is_alive") == 0) {
+                    result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "join") == 0 || strcmp(mfn, "sleep_s") == 0 ||
-                           strcmp(mfn, "sleep_ms") == 0 || strcmp(mfn, "sleep_ns") == 0) {
+                           strcmp(mfn, "sleep_ms") == 0 || strcmp(mfn, "sleep_ns") == 0 ||
+                           strcmp(mfn, "detach") == 0 ||
+                           strcmp(mfn, "yield") == 0 ||
+                           strcmp(mfn, "sleep") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -4072,6 +4079,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* @threads */
                             {"spawn","threads",TK_UNKNOWN},{"join","threads",TK_VOID},
                             {"get_id","threads",TK_INT},
+                            {"detach","threads",TK_VOID},{"is_alive","threads",TK_BOOL},
+                            {"current","threads",TK_INT},{"yield","threads",TK_VOID},
+                            {"sleep","threads",TK_VOID},
+                            {"thread_count","threads",TK_INT},
                             /* @sync */
                             {"mutex","sync",TK_UNKNOWN},{"lock","sync",TK_VOID},
                             {"unlock","sync",TK_VOID},{"try_lock","sync",TK_VOID},
