@@ -606,6 +606,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     /* uuid */
     {"uuid", "generate", 0, 0}, {"uuid", "generate_hyphenated", 0, 0},
     {"uuid", "is_valid", 1, 1},
+    {"uuid", "generate_random", 0, 0}, {"uuid", "generate_time_ordered", 0, 0},
+    {"uuid", "parse", 1, 1},
     /* regex */
     {"regex", "is_valid", 1, 1}, {"regex", "is_match", 2, 2},
     {"regex", "find", 2, 2}, {"regex", "find_all", 2, 2},
@@ -952,6 +954,7 @@ static const UsingConst _using_consts[] = {
     {"READ_ONLY","io",TK_INT},{"WRITE_ONLY","io",TK_INT},{"READ_WRITE","io",TK_INT},
     {"BASE_2","strconv",TK_INT},{"BASE_8","strconv",TK_INT},{"BASE_10","strconv",TK_INT},
     {"BASE_16","strconv",TK_INT},{"BASE_36","strconv",TK_INT},
+    {"NIL_UUID","uuid",TK_STRING},
     {NULL,NULL,TK_UNKNOWN}
 };
 
@@ -2225,7 +2228,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "uuid") == 0) {
                 if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "generate") == 0 || strcmp(mfn, "generate_hyphenated") == 0) {
+                else if (strcmp(mfn, "generate") == 0 ||
+                         strcmp(mfn, "generate_hyphenated") == 0 ||
+                         strcmp(mfn, "generate_random") == 0 ||
+                         strcmp(mfn, "generate_time_ordered") == 0 ||
+                         strcmp(mfn, "parse") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -4018,6 +4025,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"date","time",TK_STRING},{"to_clock","time",TK_STRING},
                             /* @uuid */
                             {"generate_hyphenated","uuid",TK_STRING},{"generate","uuid",TK_STRING},
+                            {"generate_random","uuid",TK_STRING},
+                            {"generate_time_ordered","uuid",TK_STRING},
+                            {"parse","uuid",TK_STRING},
                             {"is_valid","uuid",TK_BOOL},
                             /* @bytes */
                             {"from_string","bytes",TK_ARRAY},{"from_hex","bytes",TK_ARRAY},
@@ -4314,6 +4324,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mem, "BASE_10") == 0 || strcmp(mem, "BASE_16") == 0 ||
                     strcmp(mem, "BASE_36") == 0) {
                     result = &TYPE_INT;
+                    break;
+                }
+            }
+            if (strcmp(obj_name, "uuid") == 0) {
+                const char *mem = node->data.member.member;
+                if (strcmp(mem, "NIL_UUID") == 0) {
+                    result = &TYPE_STRING;
                     break;
                 }
             }
