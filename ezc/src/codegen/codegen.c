@@ -688,6 +688,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             {"MAC_OS","os","0"},{"LINUX","os","1"},{"WINDOWS","os","2"},{"OTHER","os","3"},
             {"BASE_2","strconv","2"},{"BASE_8","strconv","8"},{"BASE_10","strconv","10"},
             {"BASE_16","strconv","16"},{"BASE_36","strconv","36"},
+            {"NIL_UUID","uuid","ez_string_lit(\"00000000-0000-0000-0000-000000000000\")"},
             {NULL,NULL,NULL}
         };
         bool emitted_const = false;
@@ -1732,6 +1733,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (strcmp(mem, "BASE_10") == 0) { emit(cg, "10"); break; }
                 if (strcmp(mem, "BASE_16") == 0) { emit(cg, "16"); break; }
                 if (strcmp(mem, "BASE_36") == 0) { emit(cg, "36"); break; }
+            }
+
+            /* @uuid constants */
+            if (strcmp(mod, "uuid") == 0) {
+                if (strcmp(mem, "NIL_UUID") == 0) {
+                    emit(cg, "ez_string_lit(\"00000000-0000-0000-0000-000000000000\")");
+                    break;
+                }
             }
 
             /* Check if this is an enum access: EnumName.VALUE or prefix_EnumName.VALUE */
@@ -3320,8 +3329,19 @@ static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "generate") == 0) {
         emit(cg, "ez_uuid_generate_compact(ez_default_arena)"); return true;
     }
+    if (strcmp(func, "generate_random") == 0) {
+        emit(cg, "ez_uuid_generate_random(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "generate_time_ordered") == 0) {
+        emit(cg, "ez_uuid_generate_time_ordered(ez_default_arena)"); return true;
+    }
     if (strcmp(func, "is_valid") == 0) {
         emit(cg, "ez_uuid_is_valid(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")"); return true;
+    }
+    if (strcmp(func, "parse") == 0) {
+        emit(cg, "ez_uuid_parse(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")"); return true;
     }
@@ -4909,6 +4929,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"format","time"},{"to_iso","time"},{"date","time"},{"to_clock","time"},
                 /* @uuid */
                 {"generate_hyphenated","uuid"},{"generate","uuid"},{"is_valid","uuid"},
+                {"generate_random","uuid"},{"generate_time_ordered","uuid"},{"parse","uuid"},
                 /* @bytes */
                 {"from_string","bytes"},{"from_hex","bytes"},{"from_base64","bytes"},
                 {"to_string","bytes"},{"to_hex","bytes"},{"to_base64","bytes"},

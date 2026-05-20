@@ -12,6 +12,9 @@
 
 EzString ez_uuid_generate(EzArena *arena);
 EzString ez_uuid_generate_compact(EzArena *arena);
+EzString ez_uuid_generate_random(EzArena *arena);
+EzString ez_uuid_generate_time_ordered(EzArena *arena);
 bool ez_uuid_is_valid(EzString s);
+EzString ez_uuid_parse(EzArena *arena, EzString s);
 
 #endif
