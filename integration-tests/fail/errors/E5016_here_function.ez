@@ -1,0 +1,15 @@
+/*
+ * Error Test: E5016 - 'here' redeclared as a user function
+ *
+ * The here() builtin cannot be redeclared. Previously the user
+ * function was silently ignored, leaving the builtin in place and
+ * the user's function flagged as unused.
+ */
+
+do here() -> int {
+    return 1
+}
+
+do main() {
+    println("nope")
+}

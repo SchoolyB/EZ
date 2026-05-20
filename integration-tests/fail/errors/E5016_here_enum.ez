@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5016 - 'here' used as an enum type name
+ *
+ * Enum variants named 'here' are fine (qualified as Place.here),
+ * but using 'here' as the enum's type name shadows the builtin and
+ * is rejected.
+ */
+
+const here enum {
+    a,
+    b
+}
+
+do main() {
+    println("nope")
+}

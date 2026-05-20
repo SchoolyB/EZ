@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 190 codes** (175 errors, 15 warnings)
+**Total: 191 codes** (176 errors, 15 warnings)
 
 ---
 
@@ -170,6 +170,7 @@
 | `E5013` | usage | function calls are not allowed in file-scope initializers; move this declaration into a function body |
 | `E5014` | usage | here() takes no arguments; the call site's file, line, and column are substituted at compile time |
 | `E5015` | usage | postfix ++ and -- require a variable, not a value or expression |
+| `E5016` | naming | this name is reserved by a builtin function and cannot be redeclared |
 | `E5023` | usage | cannot use '%s' on type '%s'; only integer types support increment/decrement |
 | `E5024` | usage | return type mismatch: cannot return signed '%s' as unsigned '%s' |
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
@@ -234,4 +235,4 @@
 
 ---
 
-*Generated on 2026-05-20 01:52:07 UTC*
+*Generated on 2026-05-20 02:08:49 UTC*
