@@ -1195,10 +1195,34 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         } else {
             emitf(cg, "(EzStruct_%s){", sname);
         }
+        /* Look up the struct decl so we can thread each field's declared
+         * type into emit_expression as current_var_type. Without it, an
+         * empty array literal in a field slot (e.g. `Bag{items: {}}`)
+         * has no type context and codegen falls back to sizeof(int64_t)
+         * as the element size — which subsequent arrays.append() then
+         * uses as the write stride, truncating struct elements. */
+        AstNode *sdecl_for_fields = find_struct_decl(cg, sname);
         for (int i = 0; i < node->data.struct_value.count; i++) {
             if (i > 0) emit(cg, ", ");
-            emitf(cg, ".%s = ", safe_name(node->data.struct_value.field_names[i]));
-            emit_expression(cg, node->data.struct_value.field_values[i]);
+            const char *fname = node->data.struct_value.field_names[i];
+            emitf(cg, ".%s = ", safe_name(fname));
+            const char *field_type = NULL;
+            if (sdecl_for_fields) {
+                for (int fi = 0; fi < sdecl_for_fields->data.struct_decl.field_count; fi++) {
+                    if (strcmp(sdecl_for_fields->data.struct_decl.fields[fi].name, fname) == 0) {
+                        field_type = sdecl_for_fields->data.struct_decl.fields[fi].type_name;
+                        break;
+                    }
+                }
+            }
+            if (field_type) {
+                const char *saved = cg->current_var_type;
+                cg->current_var_type = field_type;
+                emit_expression(cg, node->data.struct_value.field_values[i]);
+                cg->current_var_type = saved;
+            } else {
+                emit_expression(cg, node->data.struct_value.field_values[i]);
+            }
         }
         emit(cg, "}");
         break;
