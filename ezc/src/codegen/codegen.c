@@ -368,7 +368,18 @@ static void emit_array_deep_copy(CodeGen *cg, const char *ez_tn, const char *src
 
     /* Element needs its own deep copy. Allocate a fresh outer and walk
      * each slot, recursively deep-copying the element in place. */
-    const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+    /* Snapshot c_elem into a local buffer. ez_type_to_c_cg returns a
+     * pointer into a shared static buffer; the recursive
+     * emit_value_deep_copy call below also resolves type names (when
+     * the element is a struct with a nested struct field) and would
+     * clobber that buffer, leaving c_elem pointing at the inner field's
+     * C type by the time we emit the outer cast. */
+    char c_elem_buf[EZ_MSG_BUF_SIZE];
+    {
+        const char *c_elem_ptr = ez_type_to_c_cg(cg, elem_tn);
+        snprintf(c_elem_buf, sizeof(c_elem_buf), "%s", c_elem_ptr ? c_elem_ptr : "");
+    }
+    const char *c_elem = c_elem_buf;
     int t = next_dc_tag();
     emitf(cg,
         "({ EzArray _ds%d = %s; "
@@ -1057,6 +1068,29 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Also check var decl context for bigint element type */
         if (!bi_elem && cg->current_var_type && is_bigint_type(cg->current_var_type))
             bi_elem = cg->current_var_type;
+        /* Fall back to the declared array type when the typetable has no
+         * entry for the first element (happens for module-qualified struct
+         * function calls — the call's return type isn't always threaded
+         * into the table). Without this we default to int64_t and emit a
+         * `(int64_t[]){struct_value}` cast that clang rejects. */
+        if ((!elem_t || elem_t->kind == TK_UNKNOWN) &&
+            cg->current_var_type &&
+            cg->current_var_type[0] == '[' &&
+            strncmp(cg->current_var_type, "[func", 5) != 0) {
+            size_t cvt_len = strlen(cg->current_var_type);
+            if (cvt_len >= 3 && cg->current_var_type[cvt_len - 1] == ']') {
+                char inferred[EZ_MSG_BUF_SIZE];
+                size_t copy_len = cvt_len - 2;
+                if (copy_len >= sizeof(inferred)) copy_len = sizeof(inferred) - 1;
+                memcpy(inferred, cg->current_var_type + 1, copy_len);
+                inferred[copy_len] = '\0';
+                /* Strip fixed-size ",N" suffix if present */
+                char *comma = strchr(inferred, ',');
+                if (comma) *comma = '\0';
+                EzType *inferred_t = type_from_name(inferred);
+                if (inferred_t && inferred_t->kind != TK_UNKNOWN) elem_t = inferred_t;
+            }
+        }
         TypeKind tk = elem_t ? elem_t->kind : TK_INT;
 
         const char *c_type;
@@ -1782,8 +1816,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     break;
                 }
             }
-            /* Rewritten enum name from import: defs_Color.RED → EzEnum_defs_Color_RED */
-            if (codegen_is_enum(cg, mod) && mem[0] >= 'A' && mem[0] <= 'Z') {
+            /* Rewritten enum name from import: lib_Color.RED → EzEnum_lib_Color_RED.
+             * The module-prefixed name starts with the module name (lowercase),
+             * so the uppercase-mod guard above misses it. codegen_is_enum is
+             * authoritative — if the resolved identifier is a known enum, any
+             * member access on it is an enum member access, regardless of the
+             * member's first-letter casing (lowercase variants like
+             * `type_change` are valid). */
+            if (codegen_is_enum(cg, mod)) {
                 emitf(cg, "EzEnum_%s_%s", mod, mem);
                 break;
             }
@@ -1857,19 +1897,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED */
+        /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED.
+         * The first-letter casing heuristics aren't reliable — EZ permits
+         * lowercase enum members (e.g. `type_change`), and a confident
+         * `codegen_is_enum` lookup on the prefixed name is authoritative.
+         * Verify the type really is a known enum before rewriting. */
         if (node->data.member.object->kind == NODE_MEMBER_EXPR) {
             AstNode *inner = node->data.member.object;
             if (inner->data.member.object->kind == NODE_LABEL) {
                 const char *mod = inner->data.member.object->data.label.value;
                 const char *type_name = inner->data.member.member;
                 const char *value = node->data.member.member;
-                /* Check if it's a module.EnumName.VALUE pattern */
                 if (mod[0] >= 'a' && mod[0] <= 'z' &&
-                    type_name[0] >= 'A' && type_name[0] <= 'Z' &&
-                    value[0] >= 'A' && value[0] <= 'Z') {
-                    emitf(cg, "EzEnum_%s_%s_%s", mod, type_name, value);
-                    break;
+                    type_name[0] >= 'A' && type_name[0] <= 'Z') {
+                    char prefixed[EZ_MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_name);
+                    if (codegen_is_enum(cg, prefixed)) {
+                        emitf(cg, "EzEnum_%s_%s_%s", mod, type_name, value);
+                        break;
+                    }
                 }
             }
         }
@@ -5798,7 +5844,13 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                 ? src_t->element_type : NULL;
             emit_deep_array_copy(cg, node->data.var_decl.value, elem_tn);
         } else if (node->data.var_decl.value) {
+            /* Thread the declared array type so the array-literal codegen
+             * can infer the element type when the typetable misses the
+             * first element (e.g. module-qualified struct function calls). */
+            const char *saved_var_type = cg->current_var_type;
+            cg->current_var_type = type_name;
             emit_expression(cg, node->data.var_decl.value);
+            cg->current_var_type = saved_var_type;
         } else {
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         }
