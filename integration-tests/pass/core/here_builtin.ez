@@ -1,0 +1,52 @@
+/*
+ * here_builtin.ez - Test the here() builtin and SourceLocation type
+ *
+ * Verifies that here() returns a SourceLocation struct with the
+ * file, line, and column of the here() call itself, that the
+ * coordinates differ across separate call sites, and that names
+ * which do not conflict with the reserved type (variable named
+ * 'here', enum variants named 'here' / 'SourceLocation') still
+ * compile.
+ */
+
+do print_loc(label string, loc SourceLocation) {
+    println("[${label}] ${loc.file}:${loc.line}:${loc.column}")
+}
+
+const Place enum {
+    here,
+    there,
+    SourceLocation
+}
+
+do main() {
+    // 1. Basic call: returns a SourceLocation
+    mut loc SourceLocation = here()
+    assert(loc.line == 24, "loc.line should be 24")
+    assert(loc.column > 0, "loc.column should be set")
+    assert(len(loc.file) > 0, "loc.file should be set")
+
+    // 2. Two calls on different lines return different lines
+    mut a SourceLocation = here()
+    mut b SourceLocation = here()
+    assert(a.line == 30, "first call should be on line 30")
+    assert(b.line == 31, "second call should be on line 31")
+    assert(a.line != b.line, "different lines should differ")
+
+    // 3. here() composes inline as a function argument
+    print_loc("inline", here())
+
+    // 4. 'here' is shadowable as a regular variable name (the builtin
+    //    here() is a global symbol, not a reserved keyword)
+    mut here int = 99
+    assert(here == 99, "variable named 'here' works")
+
+    // 5. Enum variants named 'here' and 'SourceLocation' are fine because
+    //    enum members are accessed via a qualifier
+    mut p Place = Place.here
+    assert(p == Place.here, "enum variant 'here' works")
+    mut q Place = Place.SourceLocation
+    assert(q == Place.SourceLocation, "enum variant 'SourceLocation' works")
+
+    println("ALL PASS")
+}
