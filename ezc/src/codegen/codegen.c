@@ -2750,6 +2750,20 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    if (strcmp(func, "here") == 0 && node->data.call.arg_count == 0) {
+        /* Compile-time substitution: emit a SourceLocation literal with the
+         * source position of the 'here' identifier itself (not the '(' that
+         * follows it, which is what NODE_CALL_EXPR's own token points at). */
+        AstNode *fn = node->data.call.function;
+        Token tok = fn ? fn->token : node->token;
+        const char *file = tok.file ? tok.file : cg->file;
+        emitf(cg,
+            "(EzStruct_SourceLocation){.file = ez_string_lit(\"%s\"), "
+            ".line = %d, .column = %d}",
+            file ? file : "", tok.line, tok.column);
+        return true;
+    }
+
     if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_builtin_panic_msg(");
         emit_expression(cg, node->data.call.args[0]);

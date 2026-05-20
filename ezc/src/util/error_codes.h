@@ -188,6 +188,7 @@
     EZ_ERROR("E5011", "usage", "return value of '%s' is not used; assign it to a variable or use '_' to discard") \
     EZ_ERROR("E5012", "usage", "the throwaway '_' is only meaningful when discarding the result of a function call; the right-hand side has no return value to discard") \
     EZ_ERROR("E5013", "usage", "function calls are not allowed in file-scope initializers; move this declaration into a function body") \
+    EZ_ERROR("E5014", "usage", "here() takes no arguments; the call site's file, line, and column are substituted at compile time") \
     EZ_ERROR("E5015", "usage", "postfix ++ and -- require a variable, not a value or expression") \
     EZ_ERROR("E5023", "usage", "cannot use '%s' on type '%s'; only integer types support increment/decrement") \
     EZ_ERROR("E5024", "usage", "return type mismatch: cannot return signed '%s' as unsigned '%s'") \

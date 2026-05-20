@@ -111,7 +111,8 @@ static bool is_reserved_type_name(const char *name) {
            strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
            strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
            strcmp(name, "byte") == 0 || strcmp(name, "void") == 0 ||
-           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0;
+           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0 ||
+           strcmp(name, "SourceLocation") == 0;
 }
 
 /* True if expr is an lvalue (something with a stable address): a variable,
@@ -923,7 +924,7 @@ static bool tc_is_builtin(const char *name) {
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
         "sleep_s", "sleep_ms", "sleep_ns", "c_string",
-        "to_char", "char_count",
+        "to_char", "char_count", "here",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -3359,6 +3360,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
+            } else if (strcmp(fn_name, "here") == 0) {
+                if (node->data.call.arg_count != 0) {
+                    diag_error_code(tc->diag, "E5014",
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+                result = type_struct("SourceLocation");
             } else if (strcmp(fn_name, "error") == 0) {
                 result = type_from_name("Error");
             } else if (strcmp(fn_name, "println") == 0 || strcmp(fn_name, "eprintln") == 0) {
@@ -7658,6 +7665,17 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
+
+    /* SourceLocation is always registered: the here() builtin returns it
+     * and is available without any import. */
+    {
+        static const char *src_loc_fields[] = {"file", "line", "column"};
+        static EzType *src_loc_types[3];
+        src_loc_types[0] = &TYPE_STRING;
+        src_loc_types[1] = &TYPE_INT;
+        src_loc_types[2] = &TYPE_INT;
+        register_struct(tc, "SourceLocation", src_loc_fields, src_loc_types, 3);
+    }
 
     /* Register stdlib struct types scoped to their module imports */
     if (tc_is_imported_module(tc, "server") || tc_is_imported_module(tc, "http")) {

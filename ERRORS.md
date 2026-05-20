@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 189 codes** (174 errors, 15 warnings)
+**Total: 190 codes** (175 errors, 15 warnings)
 
 ---
 
@@ -168,6 +168,7 @@
 | `E5011` | usage | return value of '%s' is not used; assign it to a variable or use '_' to discard |
 | `E5012` | usage | the throwaway '_' is only meaningful when discarding the result of a function call; the right-hand side has no return value to discard |
 | `E5013` | usage | function calls are not allowed in file-scope initializers; move this declaration into a function body |
+| `E5014` | usage | here() takes no arguments; the call site's file, line, and column are substituted at compile time |
 | `E5015` | usage | postfix ++ and -- require a variable, not a value or expression |
 | `E5023` | usage | cannot use '%s' on type '%s'; only integer types support increment/decrement |
 | `E5024` | usage | return type mismatch: cannot return signed '%s' as unsigned '%s' |
@@ -233,4 +234,4 @@
 
 ---
 
-*Generated on 2026-05-19 17:37:16 UTC*
+*Generated on 2026-05-20 01:52:07 UTC*
