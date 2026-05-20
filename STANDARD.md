@@ -2523,9 +2523,18 @@ The `HttpResponse` struct is available when either `@http` or `@server` is impor
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `generate` | `() -> string` | Generate UUID v4 without hyphens |
-| `generate_hyphenated` | `() -> string` | Generate UUID v4 with hyphens |
+| `generate` | `() -> string` | Generate UUID v4 without hyphens (32 chars) |
+| `generate_hyphenated` | `() -> string` | Generate UUID v4 with hyphens (36 chars) |
+| `generate_random` | `() -> string` | RFC 4122 v4 (random), hyphenated, lowercase |
+| `generate_time_ordered` | `() -> string` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
+| `parse` | `(s string) -> string` | Validate and normalize a 36-char hyphenated UUID to lowercase. Panics on invalid input — gate with `is_valid()` for a non-panicking check |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
+
+| Constant | Type | Value |
+|----------|------|-------|
+| `NIL_UUID` | `string` | `"00000000-0000-0000-0000-000000000000"` |
+
+UUID randomness comes from `getentropy()` (macOS, BSDs, glibc 2.25+) with a fallback to `/dev/urandom` — suitable for security-sensitive identifiers.
 
 ### 9.15 Bytes Module (`@bytes`)
 
@@ -2727,7 +2736,13 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `spawn` | `(()func) -> Thread` | Spawn a new thread running `func` |
 | `spawn` | `(()func, arg int) -> Thread` | Spawn a new thread running `func` with an int argument |
 | `join` | `(t Thread)` | Wait for a thread to finish |
+| `detach` | `(t Thread)` | Release ownership; the thread runs independently. After detach the handle must not be joined or queried |
+| `is_alive` | `(t Thread) -> bool` | True while the thread's body has not returned. Not valid after `detach` or `join` |
 | `get_id` | `() -> int` | Get the current thread's ID |
+| `current` | `() -> int` | Same as `get_id`; alternate spelling |
+| `yield` | `()` | Hint the scheduler to run another runnable thread |
+| `sleep` | `(ms int)` | Sleep the current thread for `ms` milliseconds |
+| `thread_count` | `() -> int` | Number of live threads spawned through this module (excludes main and non-EZ threads) |
 
 ### 9.23 Sync Module (`@sync`)
 

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5014 - here() called with arguments
+ *
+ * The here() builtin substitutes the call site's file, line, and
+ * column at compile time and takes no arguments. Passing any
+ * argument should fire E5014.
+ */
+
+do main() {
+    mut loc SourceLocation = here(42)
+    println("${loc.line}")
+}

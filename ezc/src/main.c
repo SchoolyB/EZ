@@ -260,6 +260,98 @@ static const char *find_runtime_dir(const char *argv0) {
     return NULL;
 }
 
+/* Rewrite a type-name string from an imported module, replacing any
+ * occurrence of an `orig_names[i]` bare identifier with its prefixed
+ * equivalent. Handles composite type spellings:
+ *
+ *   - bare:        Node            → lib_Node
+ *   - array:       [Node]          → [lib_Node]
+ *   - fixed array: [Node,3]        → [lib_Node,3]
+ *   - pointer:     ^Node           → ^lib_Node
+ *   - map:         map[K:V]        → map[rewrite(K):rewrite(V)]
+ *   - nested:      [[Node]], ^[Node], map[string:[Node]], etc.
+ *
+ * Returns the input pointer unchanged when nothing matched. Returns a
+ * fresh arena-allocated string when a rewrite was needed. Function-ref
+ * spellings ("func(...)") are left alone — they don't reference user
+ * structs in the import paths this helper is called from. */
+static const char *rewrite_type_name(const char *t,
+                                     const char **orig_names,
+                                     const char **new_names,
+                                     int name_count,
+                                     Arena *arena) {
+    if (!t) return t;
+    size_t len = strlen(t);
+    if (len == 0) return t;
+
+    /* Array: [T] or [T,N] */
+    if (t[0] == '[' && t[len - 1] == ']') {
+        char *inner = arena_strndup(arena, t + 1, len - 2);
+        /* Split fixed-size suffix off the element type. We can use the
+         * first ',' at depth 0 because element types use brackets, not
+         * commas, internally — even nested arrays look like [[T]]. */
+        size_t inner_len = len - 2;
+        int depth = 0;
+        int comma_pos = -1;
+        for (size_t i = 0; i < inner_len; i++) {
+            if (inner[i] == '[') depth++;
+            else if (inner[i] == ']') depth--;
+            else if (inner[i] == ',' && depth == 0) { comma_pos = (int)i; break; }
+        }
+        const char *size_suffix = NULL;
+        if (comma_pos >= 0) {
+            inner[comma_pos] = '\0';
+            size_suffix = inner + comma_pos + 1;
+        }
+        const char *new_elem = rewrite_type_name(inner, orig_names, new_names, name_count, arena);
+        if (new_elem == inner && !comma_pos) return t;
+        char *buf = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+        if (size_suffix) snprintf(buf, EZ_MSG_BUF_SIZE, "[%s,%s]", new_elem, size_suffix);
+        else             snprintf(buf, EZ_MSG_BUF_SIZE, "[%s]", new_elem);
+        return buf;
+    }
+
+    /* Pointer: ^T */
+    if (t[0] == '^') {
+        const char *pointee = t + 1;
+        const char *new_pointee = rewrite_type_name(pointee, orig_names, new_names, name_count, arena);
+        if (new_pointee == pointee) return t;
+        char *buf = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+        snprintf(buf, EZ_MSG_BUF_SIZE, "^%s", new_pointee);
+        return buf;
+    }
+
+    /* Map: map[K:V] */
+    if (len > 5 && strncmp(t, "map[", 4) == 0 && t[len - 1] == ']') {
+        size_t inner_len = len - 5; /* between "map[" and "]" */
+        char *inner = arena_strndup(arena, t + 4, inner_len);
+        /* Find ':' at depth 0 — K may itself be a bracketed type. */
+        int depth = 0;
+        int colon_pos = -1;
+        for (size_t i = 0; i < inner_len; i++) {
+            if (inner[i] == '[') depth++;
+            else if (inner[i] == ']') depth--;
+            else if (inner[i] == ':' && depth == 0) { colon_pos = (int)i; break; }
+        }
+        if (colon_pos < 0) return t; /* malformed; leave alone */
+        inner[colon_pos] = '\0';
+        const char *k = inner;
+        const char *v = inner + colon_pos + 1;
+        const char *new_k = rewrite_type_name(k, orig_names, new_names, name_count, arena);
+        const char *new_v = rewrite_type_name(v, orig_names, new_names, name_count, arena);
+        if (new_k == k && new_v == v) return t;
+        char *buf = arena_alloc(arena, EZ_MSG_BUF_SIZE);
+        snprintf(buf, EZ_MSG_BUF_SIZE, "map[%s:%s]", new_k, new_v);
+        return buf;
+    }
+
+    /* Bare name: direct match against orig_names. */
+    for (int i = 0; i < name_count; i++) {
+        if (strcmp(t, orig_names[i]) == 0) return new_names[i];
+    }
+    return t;
+}
+
 /* Rewrite labels in an AST tree: replace unprefixed names with prefixed versions */
 static void rewrite_labels(AstNode *node, const char **orig, const char **prefixed, int count, Arena *arena) {
     if (!node) return;
@@ -1153,12 +1245,9 @@ int main(int argc, char **argv) {
                         snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         if (imp_stmt->data.var_decl.type_name) {
-                            for (int ni = 0; ni < name_count; ni++) {
-                                if (strcmp(imp_stmt->data.var_decl.type_name, orig_names[ni]) == 0) {
-                                    imp_stmt->data.var_decl.type_name = new_names[ni];
-                                    break;
-                                }
-                            }
+                            imp_stmt->data.var_decl.type_name = rewrite_type_name(
+                                imp_stmt->data.var_decl.type_name,
+                                orig_names, new_names, name_count, arena);
                         }
                     } else {
                         imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
@@ -1212,24 +1301,16 @@ int main(int argc, char **argv) {
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
                         /* Rewrite return type references */
                         for (int ri = 0; ri < imp_stmt->data.func_decl.return_type_count; ri++) {
-                            const char *rt = imp_stmt->data.func_decl.return_types[ri];
-                            for (int ni = 0; ni < name_count; ni++) {
-                                if (strcmp(rt, orig_names[ni]) == 0) {
-                                    imp_stmt->data.func_decl.return_types[ri] = new_names[ni];
-                                    break;
-                                }
-                            }
+                            imp_stmt->data.func_decl.return_types[ri] = rewrite_type_name(
+                                imp_stmt->data.func_decl.return_types[ri],
+                                orig_names, new_names, name_count, arena);
                         }
                         /* Rewrite parameter type references */
                         for (int pi = 0; pi < imp_stmt->data.func_decl.param_count; pi++) {
                             const char *pt = imp_stmt->data.func_decl.params[pi].type_name;
                             if (!pt) continue;
-                            for (int ni = 0; ni < name_count; ni++) {
-                                if (strcmp(pt, orig_names[ni]) == 0) {
-                                    imp_stmt->data.func_decl.params[pi].type_name = new_names[ni];
-                                    break;
-                                }
-                            }
+                            imp_stmt->data.func_decl.params[pi].type_name = rewrite_type_name(
+                                pt, orig_names, new_names, name_count, arena);
                         }
                     }
 
@@ -1243,12 +1324,8 @@ int main(int argc, char **argv) {
                         for (int fld = 0; fld < imp_stmt->data.struct_decl.field_count; fld++) {
                             const char *ft = imp_stmt->data.struct_decl.fields[fld].type_name;
                             if (!ft) continue;
-                            for (int ni = 0; ni < name_count; ni++) {
-                                if (strcmp(ft, orig_names[ni]) == 0) {
-                                    imp_stmt->data.struct_decl.fields[fld].type_name = new_names[ni];
-                                    break;
-                                }
-                            }
+                            imp_stmt->data.struct_decl.fields[fld].type_name = rewrite_type_name(
+                                ft, orig_names, new_names, name_count, arena);
                         }
                         /* Rewrite struct-namespaced function bodies, return types, and param types */
                         for (int si = 0; si < imp_stmt->data.struct_decl.func_count; si++) {
@@ -1258,24 +1335,16 @@ int main(int argc, char **argv) {
                             rewrite_labels(fn->data.func_decl.body, orig_names, new_names, name_count, arena);
                             /* Rewrite return types */
                             for (int ri = 0; ri < fn->data.func_decl.return_type_count; ri++) {
-                                const char *rt = fn->data.func_decl.return_types[ri];
-                                for (int ni = 0; ni < name_count; ni++) {
-                                    if (strcmp(rt, orig_names[ni]) == 0) {
-                                        fn->data.func_decl.return_types[ri] = new_names[ni];
-                                        break;
-                                    }
-                                }
+                                fn->data.func_decl.return_types[ri] = rewrite_type_name(
+                                    fn->data.func_decl.return_types[ri],
+                                    orig_names, new_names, name_count, arena);
                             }
                             /* Rewrite parameter types */
                             for (int pi = 0; pi < fn->data.func_decl.param_count; pi++) {
                                 const char *pt = fn->data.func_decl.params[pi].type_name;
                                 if (!pt) continue;
-                                for (int ni = 0; ni < name_count; ni++) {
-                                    if (strcmp(pt, orig_names[ni]) == 0) {
-                                        fn->data.func_decl.params[pi].type_name = new_names[ni];
-                                        break;
-                                    }
-                                }
+                                fn->data.func_decl.params[pi].type_name = rewrite_type_name(
+                                    pt, orig_names, new_names, name_count, arena);
                             }
                         }
                     }

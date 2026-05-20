@@ -368,7 +368,18 @@ static void emit_array_deep_copy(CodeGen *cg, const char *ez_tn, const char *src
 
     /* Element needs its own deep copy. Allocate a fresh outer and walk
      * each slot, recursively deep-copying the element in place. */
-    const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+    /* Snapshot c_elem into a local buffer. ez_type_to_c_cg returns a
+     * pointer into a shared static buffer; the recursive
+     * emit_value_deep_copy call below also resolves type names (when
+     * the element is a struct with a nested struct field) and would
+     * clobber that buffer, leaving c_elem pointing at the inner field's
+     * C type by the time we emit the outer cast. */
+    char c_elem_buf[EZ_MSG_BUF_SIZE];
+    {
+        const char *c_elem_ptr = ez_type_to_c_cg(cg, elem_tn);
+        snprintf(c_elem_buf, sizeof(c_elem_buf), "%s", c_elem_ptr ? c_elem_ptr : "");
+    }
+    const char *c_elem = c_elem_buf;
     int t = next_dc_tag();
     emitf(cg,
         "({ EzArray _ds%d = %s; "
@@ -688,6 +699,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             {"MAC_OS","os","0"},{"LINUX","os","1"},{"WINDOWS","os","2"},{"OTHER","os","3"},
             {"BASE_2","strconv","2"},{"BASE_8","strconv","8"},{"BASE_10","strconv","10"},
             {"BASE_16","strconv","16"},{"BASE_36","strconv","36"},
+            {"NIL_UUID","uuid","ez_string_lit(\"00000000-0000-0000-0000-000000000000\")"},
             {NULL,NULL,NULL}
         };
         bool emitted_const = false;
@@ -1056,6 +1068,29 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Also check var decl context for bigint element type */
         if (!bi_elem && cg->current_var_type && is_bigint_type(cg->current_var_type))
             bi_elem = cg->current_var_type;
+        /* Fall back to the declared array type when the typetable has no
+         * entry for the first element (happens for module-qualified struct
+         * function calls — the call's return type isn't always threaded
+         * into the table). Without this we default to int64_t and emit a
+         * `(int64_t[]){struct_value}` cast that clang rejects. */
+        if ((!elem_t || elem_t->kind == TK_UNKNOWN) &&
+            cg->current_var_type &&
+            cg->current_var_type[0] == '[' &&
+            strncmp(cg->current_var_type, "[func", 5) != 0) {
+            size_t cvt_len = strlen(cg->current_var_type);
+            if (cvt_len >= 3 && cg->current_var_type[cvt_len - 1] == ']') {
+                char inferred[EZ_MSG_BUF_SIZE];
+                size_t copy_len = cvt_len - 2;
+                if (copy_len >= sizeof(inferred)) copy_len = sizeof(inferred) - 1;
+                memcpy(inferred, cg->current_var_type + 1, copy_len);
+                inferred[copy_len] = '\0';
+                /* Strip fixed-size ",N" suffix if present */
+                char *comma = strchr(inferred, ',');
+                if (comma) *comma = '\0';
+                EzType *inferred_t = type_from_name(inferred);
+                if (inferred_t && inferred_t->kind != TK_UNKNOWN) elem_t = inferred_t;
+            }
+        }
         TypeKind tk = elem_t ? elem_t->kind : TK_INT;
 
         const char *c_type;
@@ -1194,10 +1229,34 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         } else {
             emitf(cg, "(EzStruct_%s){", sname);
         }
+        /* Look up the struct decl so we can thread each field's declared
+         * type into emit_expression as current_var_type. Without it, an
+         * empty array literal in a field slot (e.g. `Bag{items: {}}`)
+         * has no type context and codegen falls back to sizeof(int64_t)
+         * as the element size — which subsequent arrays.append() then
+         * uses as the write stride, truncating struct elements. */
+        AstNode *sdecl_for_fields = find_struct_decl(cg, sname);
         for (int i = 0; i < node->data.struct_value.count; i++) {
             if (i > 0) emit(cg, ", ");
-            emitf(cg, ".%s = ", safe_name(node->data.struct_value.field_names[i]));
-            emit_expression(cg, node->data.struct_value.field_values[i]);
+            const char *fname = node->data.struct_value.field_names[i];
+            emitf(cg, ".%s = ", safe_name(fname));
+            const char *field_type = NULL;
+            if (sdecl_for_fields) {
+                for (int fi = 0; fi < sdecl_for_fields->data.struct_decl.field_count; fi++) {
+                    if (strcmp(sdecl_for_fields->data.struct_decl.fields[fi].name, fname) == 0) {
+                        field_type = sdecl_for_fields->data.struct_decl.fields[fi].type_name;
+                        break;
+                    }
+                }
+            }
+            if (field_type) {
+                const char *saved = cg->current_var_type;
+                cg->current_var_type = field_type;
+                emit_expression(cg, node->data.struct_value.field_values[i]);
+                cg->current_var_type = saved;
+            } else {
+                emit_expression(cg, node->data.struct_value.field_values[i]);
+            }
         }
         emit(cg, "}");
         break;
@@ -1734,6 +1793,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (strcmp(mem, "BASE_36") == 0) { emit(cg, "36"); break; }
             }
 
+            /* @uuid constants */
+            if (strcmp(mod, "uuid") == 0) {
+                if (strcmp(mem, "NIL_UUID") == 0) {
+                    emit(cg, "ez_string_lit(\"00000000-0000-0000-0000-000000000000\")");
+                    break;
+                }
+            }
+
             /* Check if this is an enum access: EnumName.VALUE or prefix_EnumName.VALUE */
             if (mod[0] >= 'A' && mod[0] <= 'Z') {
                 /* Resolve unprefixed enum names from 'import and use' */
@@ -1749,8 +1816,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     break;
                 }
             }
-            /* Rewritten enum name from import: defs_Color.RED → EzEnum_defs_Color_RED */
-            if (codegen_is_enum(cg, mod) && mem[0] >= 'A' && mem[0] <= 'Z') {
+            /* Rewritten enum name from import: lib_Color.RED → EzEnum_lib_Color_RED.
+             * The module-prefixed name starts with the module name (lowercase),
+             * so the uppercase-mod guard above misses it. codegen_is_enum is
+             * authoritative — if the resolved identifier is a known enum, any
+             * member access on it is an enum member access, regardless of the
+             * member's first-letter casing (lowercase variants like
+             * `type_change` are valid). */
+            if (codegen_is_enum(cg, mod)) {
                 emitf(cg, "EzEnum_%s_%s", mod, mem);
                 break;
             }
@@ -1824,19 +1897,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED */
+        /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED.
+         * The first-letter casing heuristics aren't reliable — EZ permits
+         * lowercase enum members (e.g. `type_change`), and a confident
+         * `codegen_is_enum` lookup on the prefixed name is authoritative.
+         * Verify the type really is a known enum before rewriting. */
         if (node->data.member.object->kind == NODE_MEMBER_EXPR) {
             AstNode *inner = node->data.member.object;
             if (inner->data.member.object->kind == NODE_LABEL) {
                 const char *mod = inner->data.member.object->data.label.value;
                 const char *type_name = inner->data.member.member;
                 const char *value = node->data.member.member;
-                /* Check if it's a module.EnumName.VALUE pattern */
                 if (mod[0] >= 'a' && mod[0] <= 'z' &&
-                    type_name[0] >= 'A' && type_name[0] <= 'Z' &&
-                    value[0] >= 'A' && value[0] <= 'Z') {
-                    emitf(cg, "EzEnum_%s_%s_%s", mod, type_name, value);
-                    break;
+                    type_name[0] >= 'A' && type_name[0] <= 'Z') {
+                    char prefixed[EZ_MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_name);
+                    if (codegen_is_enum(cg, prefixed)) {
+                        emitf(cg, "EzEnum_%s_%s_%s", mod, type_name, value);
+                        break;
+                    }
                 }
             }
         }
@@ -2750,6 +2829,20 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    if (strcmp(func, "here") == 0 && node->data.call.arg_count == 0) {
+        /* Compile-time substitution: emit a SourceLocation literal with the
+         * source position of the 'here' identifier itself (not the '(' that
+         * follows it, which is what NODE_CALL_EXPR's own token points at). */
+        AstNode *fn = node->data.call.function;
+        Token tok = fn ? fn->token : node->token;
+        const char *file = tok.file ? tok.file : cg->file;
+        emitf(cg,
+            "(EzStruct_SourceLocation){.file = ez_string_lit(\"%s\"), "
+            ".line = %d, .column = %d}",
+            file ? file : "", tok.line, tok.column);
+        return true;
+    }
+
     if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_builtin_panic_msg(");
         emit_expression(cg, node->data.call.args[0]);
@@ -3306,8 +3399,19 @@ static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "generate") == 0) {
         emit(cg, "ez_uuid_generate_compact(ez_default_arena)"); return true;
     }
+    if (strcmp(func, "generate_random") == 0) {
+        emit(cg, "ez_uuid_generate_random(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "generate_time_ordered") == 0) {
+        emit(cg, "ez_uuid_generate_time_ordered(ez_default_arena)"); return true;
+    }
     if (strcmp(func, "is_valid") == 0) {
         emit(cg, "ez_uuid_is_valid(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")"); return true;
+    }
+    if (strcmp(func, "parse") == 0) {
+        emit(cg, "ez_uuid_parse(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")"); return true;
     }
@@ -4596,8 +4700,38 @@ static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "detach") == 0) {
+        emit(cg, "ez_threads_detach(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "is_alive") == 0) {
+        emit(cg, "ez_threads_is_alive(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "get_id") == 0) {
         emit(cg, "ez_threads_id()");
+        return true;
+    }
+    if (strcmp(func, "current") == 0) {
+        emit(cg, "ez_threads_current()");
+        return true;
+    }
+    if (strcmp(func, "yield") == 0) {
+        emit(cg, "ez_threads_yield()");
+        return true;
+    }
+    if (strcmp(func, "sleep") == 0) {
+        emit(cg, "ez_threads_sleep(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "thread_count") == 0) {
+        emit(cg, "ez_threads_thread_count()");
         return true;
     }
     return false;
@@ -4895,6 +5029,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"format","time"},{"to_iso","time"},{"date","time"},{"to_clock","time"},
                 /* @uuid */
                 {"generate_hyphenated","uuid"},{"generate","uuid"},{"is_valid","uuid"},
+                {"generate_random","uuid"},{"generate_time_ordered","uuid"},{"parse","uuid"},
                 /* @bytes */
                 {"from_string","bytes"},{"from_hex","bytes"},{"from_base64","bytes"},
                 {"to_string","bytes"},{"to_hex","bytes"},{"to_base64","bytes"},
@@ -4932,6 +5067,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"open","sqlite"},{"close","sqlite"},{"exec","sqlite"},{"query","sqlite"},
                 /* @threads */
                 {"spawn","threads"},{"join","threads"},{"get_id","threads"},
+                {"detach","threads"},{"is_alive","threads"},{"current","threads"},
+                {"yield","threads"},{"sleep","threads"},{"thread_count","threads"},
                 /* @sync */
                 {"mutex","sync"},{"lock","sync"},{"unlock","sync"},
                 {"try_lock","sync"},{"destroy","sync"},
@@ -5707,7 +5844,13 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                 ? src_t->element_type : NULL;
             emit_deep_array_copy(cg, node->data.var_decl.value, elem_tn);
         } else if (node->data.var_decl.value) {
+            /* Thread the declared array type so the array-literal codegen
+             * can infer the element type when the typetable misses the
+             * first element (e.g. module-qualified struct function calls). */
+            const char *saved_var_type = cg->current_var_type;
+            cg->current_var_type = type_name;
             emit_expression(cg, node->data.var_decl.value);
+            cg->current_var_type = saved_var_type;
         } else {
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         }

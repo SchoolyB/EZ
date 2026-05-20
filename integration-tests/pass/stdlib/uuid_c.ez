@@ -66,6 +66,77 @@ do main() {
         failed += 1
     }
 
+    // generate_random is a 36-char valid v4 UUID
+    mut v4 string = uuid.generate_random()
+    if len(v4) == 36 && uuid.is_valid(v4) {
+        println("  [PASS] generate_random returns valid 36-char UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_random returns valid 36-char UUID")
+        failed += 1
+    }
+    // v4 version nibble lives at character index 14
+    if to_char(v4, 14) == '4' {
+        println("  [PASS] generate_random has version 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_random has version 4: got '${to_char(v4, 14)}'")
+        failed += 1
+    }
+
+    // generate_time_ordered is a 36-char valid v7 UUID
+    mut v7 string = uuid.generate_time_ordered()
+    if len(v7) == 36 && uuid.is_valid(v7) {
+        println("  [PASS] generate_time_ordered returns valid 36-char UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_time_ordered returns valid 36-char UUID")
+        failed += 1
+    }
+    if to_char(v7, 14) == '7' {
+        println("  [PASS] generate_time_ordered has version 7")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_time_ordered has version 7: got '${to_char(v7, 14)}'")
+        failed += 1
+    }
+
+    // parse normalizes uppercase hex to lowercase
+    mut parsed_upper string = uuid.parse("550E8400-E29B-41D4-A716-446655440000")
+    if parsed_upper == "550e8400-e29b-41d4-a716-446655440000" {
+        println("  [PASS] parse normalizes uppercase to lowercase")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse normalizes uppercase to lowercase: got '${parsed_upper}'")
+        failed += 1
+    }
+
+    // parse preserves already-canonical input
+    mut parsed_lower string = uuid.parse("550e8400-e29b-41d4-a716-446655440000")
+    if parsed_lower == "550e8400-e29b-41d4-a716-446655440000" {
+        println("  [PASS] parse preserves canonical input")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse preserves canonical input: got '${parsed_lower}'")
+        failed += 1
+    }
+
+    // NIL_UUID is the all-zero UUID
+    if uuid.NIL_UUID == "00000000-0000-0000-0000-000000000000" {
+        println("  [PASS] NIL_UUID is all zeros")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NIL_UUID is all zeros: got '${uuid.NIL_UUID}'")
+        failed += 1
+    }
+    if uuid.is_valid(uuid.NIL_UUID) {
+        println("  [PASS] NIL_UUID is a valid UUID string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NIL_UUID is a valid UUID string")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

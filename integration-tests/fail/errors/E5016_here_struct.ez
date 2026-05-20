@@ -1,0 +1,15 @@
+/*
+ * Error Test: E5016 - 'here' used as a struct type name
+ *
+ * Struct fields named 'here' are fine (qualified as t.here), but
+ * using 'here' as the struct's type name shadows the builtin and
+ * is rejected.
+ */
+
+const here struct {
+    x int
+}
+
+do main() {
+    println("nope")
+}

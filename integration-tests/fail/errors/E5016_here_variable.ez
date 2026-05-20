@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5016 - 'here' used as a variable name
+ *
+ * The here() builtin cannot be shadowed by a user variable. Without
+ * this check the user binding was silently ignored and the builtin
+ * still won, producing confusing downstream errors.
+ */
+
+do main() {
+    mut here int = 99
+    println("${here}")
+}
