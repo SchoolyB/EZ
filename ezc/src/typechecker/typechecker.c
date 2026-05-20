@@ -111,7 +111,16 @@ static bool is_reserved_type_name(const char *name) {
            strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
            strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
            strcmp(name, "byte") == 0 || strcmp(name, "void") == 0 ||
-           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0;
+           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0 ||
+           strcmp(name, "SourceLocation") == 0;
+}
+
+/* Builtin function names that user code may not redeclare. Today this is
+ * scoped narrowly to `here` so that `do here() { ... }`, `mut here = ...`,
+ * etc. are rejected loudly rather than silently shadowed. The broader
+ * builtin set still allows shadowing — that's a separate change. */
+static bool is_reserved_builtin_func_name(const char *name) {
+    return strcmp(name, "here") == 0;
 }
 
 /* True if expr is an lvalue (something with a stable address): a variable,
@@ -923,7 +932,7 @@ static bool tc_is_builtin(const char *name) {
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
         "sleep_s", "sleep_ms", "sleep_ns", "c_string",
-        "to_char", "char_count",
+        "to_char", "char_count", "here",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -3359,6 +3368,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
+            } else if (strcmp(fn_name, "here") == 0) {
+                if (node->data.call.arg_count != 0) {
+                    diag_error_code(tc->diag, "E5014",
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+                result = type_struct("SourceLocation");
             } else if (strcmp(fn_name, "error") == 0) {
                 result = type_from_name("Error");
             } else if (strcmp(fn_name, "println") == 0 || strcmp(fn_name, "eprintln") == 0) {
@@ -5215,6 +5230,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E2038", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E5016: builtin function name as variable name */
+        if (node->data.var_decl.name[0] != '_' &&
+            is_reserved_builtin_func_name(node->data.var_decl.name)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a builtin function and cannot be used as a variable name",
+                VAR_DISPLAY_NAME(node));
+            diag_error_msg(tc->diag, "E5016", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* E3045: or_return on non-error-returning function */
         if (strncmp(node->data.var_decl.name, "_ez_or", 6) == 0 &&
             node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
@@ -6731,6 +6756,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E2038", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E5016: builtin function name redeclared */
+        if (is_reserved_builtin_func_name(node->data.func_decl.name)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a builtin function and cannot be redeclared",
+                FUNC_DISPLAY_NAME(node));
+            diag_error_msg(tc->diag, "E5016", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* Check for nested function declarations */
         if (tc->func_depth > 0) {
             diag_error_codef(tc->diag, "E2051", NODE_FILE(tc, node), node->token.line, node->token.column, 0, FUNC_DISPLAY_NAME(node));
@@ -6752,6 +6786,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "'%s' is a reserved type name and cannot be used as a parameter name",
                     p->name);
                 diag_error_msg(tc->diag, "E2038", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* E5016: builtin function name as parameter name */
+            if (is_reserved_builtin_func_name(p->name)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a builtin function and cannot be used as a parameter name",
+                    p->name);
+                diag_error_msg(tc->diag, "E5016", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for duplicate parameter name */
@@ -7344,6 +7387,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
             diag_error_msg(tc->diag, "E2038", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
+        /* E5016: builtin function name as enum name */
+        if (is_reserved_builtin_func_name(stmt->data.enum_decl.name)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg), "'%s' is a builtin function and cannot be used as an enum name", en);
+            diag_error_msg(tc->diag, "E5016", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
         /* E2016: empty enum */
         if (stmt->data.enum_decl.value_count == 0) {
             diag_error_codef(tc->diag, "E2016", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, en);
@@ -7489,6 +7538,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as a struct name", sn);
                 diag_error_msg(tc->diag, "E2037", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+            }
+            /* E5016: builtin function name as struct name */
+            if (is_reserved_builtin_func_name(stmt->data.struct_decl.name)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg), "'%s' is a builtin function and cannot be used as a struct name", sn);
+                diag_error_msg(tc->diag, "E5016", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E4007: duplicate struct name */
             if (is_struct_name(tc, stmt->data.struct_decl.name) ||
@@ -7658,6 +7713,17 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
+
+    /* SourceLocation is always registered: the here() builtin returns it
+     * and is available without any import. */
+    {
+        static const char *src_loc_fields[] = {"file", "line", "column"};
+        static EzType *src_loc_types[3];
+        src_loc_types[0] = &TYPE_STRING;
+        src_loc_types[1] = &TYPE_INT;
+        src_loc_types[2] = &TYPE_INT;
+        register_struct(tc, "SourceLocation", src_loc_fields, src_loc_types, 3);
+    }
 
     /* Register stdlib struct types scoped to their module imports */
     if (tc_is_imported_module(tc, "server") || tc_is_imported_module(tc, "http")) {

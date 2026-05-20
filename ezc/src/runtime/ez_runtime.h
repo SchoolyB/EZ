@@ -63,6 +63,14 @@ typedef struct {
 /* Create an error on the default arena */
 EzError *ez_error_new(EzArena *arena, EzString message);
 
+/* --- SourceLocation: compile-time substituted by the here() builtin --- */
+
+typedef struct {
+    EzString file;
+    int64_t line;
+    int64_t column;
+} EzStruct_SourceLocation;
+
 /* Create a string from a C string literal (no copy, points to static data) */
 static inline EzString ez_string_lit(const char *s) {
     EzString str;
