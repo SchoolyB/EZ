@@ -4630,8 +4630,38 @@ static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "detach") == 0) {
+        emit(cg, "ez_threads_detach(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "is_alive") == 0) {
+        emit(cg, "ez_threads_is_alive(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "get_id") == 0) {
         emit(cg, "ez_threads_id()");
+        return true;
+    }
+    if (strcmp(func, "current") == 0) {
+        emit(cg, "ez_threads_current()");
+        return true;
+    }
+    if (strcmp(func, "yield") == 0) {
+        emit(cg, "ez_threads_yield()");
+        return true;
+    }
+    if (strcmp(func, "sleep") == 0) {
+        emit(cg, "ez_threads_sleep(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "thread_count") == 0) {
+        emit(cg, "ez_threads_thread_count()");
         return true;
     }
     return false;
@@ -4967,6 +4997,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"open","sqlite"},{"close","sqlite"},{"exec","sqlite"},{"query","sqlite"},
                 /* @threads */
                 {"spawn","threads"},{"join","threads"},{"get_id","threads"},
+                {"detach","threads"},{"is_alive","threads"},{"current","threads"},
+                {"yield","threads"},{"sleep","threads"},{"thread_count","threads"},
                 /* @sync */
                 {"mutex","sync"},{"lock","sync"},{"unlock","sync"},
                 {"try_lock","sync"},{"destroy","sync"},
