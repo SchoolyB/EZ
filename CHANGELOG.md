@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.1](https://github.com/SchoolyB/EZ/compare/v3.4.0...v3.4.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* codegen and typechecker bugs in module-aware compilation ([#1671](https://github.com/SchoolyB/EZ/issues/1671)) ([b9c658d](https://github.com/SchoolyB/EZ/commit/b9c658d6a27152278b38032559b9c77977e2c164))
+
 ## [3.4.0](https://github.com/SchoolyB/EZ/compare/v3.3.1...v3.4.0) (2026-05-20)
 
 
