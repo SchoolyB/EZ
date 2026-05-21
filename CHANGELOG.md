@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.2](https://github.com/SchoolyB/EZ/compare/v3.4.1...v3.4.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **typechecker:** reject ref()/addr() on map index access path ([#1673](https://github.com/SchoolyB/EZ/issues/1673)) ([5f8f0ee](https://github.com/SchoolyB/EZ/commit/5f8f0ee75758c88c4dbf620eccc88f0dfb6003d0)), closes [#1654](https://github.com/SchoolyB/EZ/issues/1654)
+
 ## [3.4.1](https://github.com/SchoolyB/EZ/compare/v3.4.0...v3.4.1) (2026-05-21)
 
 
