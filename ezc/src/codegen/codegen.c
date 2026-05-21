@@ -625,6 +625,22 @@ static bool is_mutable_param(CodeGen *cg, const char *name) {
     return false;
 }
 
+/* True if the function takes any & (mutable reference) parameter.
+ * Such a function can write freshly-allocated data — appended array
+ * elements, assigned string/struct fields — into caller-owned memory
+ * through that parameter, and that data must outlive the call. A private
+ * _func_arena or scope_restore watermark would reclaim it on return,
+ * leaving the caller with dangling pointers. So these functions run
+ * directly in the caller's arena: no private arena, no scope-restore,
+ * no return-value escape (the result is already in the caller's arena). */
+static bool func_uses_caller_arena(AstNode *fn) {
+    if (!fn || fn->kind != NODE_FUNC_DECL) return false;
+    for (int i = 0; i < fn->data.func_decl.param_count; i++) {
+        if (fn->data.func_decl.params[i].mutable) return true;
+    }
+    return false;
+}
+
 static int func_name_cmp(const void *a, const void *b) {
     const AstNode *fa = *(const AstNode *const *)a;
     const AstNode *fb = *(const AstNode *const *)b;
@@ -1848,21 +1864,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Check functions, variables via find_func */
                 if (find_func(cg, check_name)) is_module = true;
                 free(check_name);
-                /* Check if any function starts with mod_ prefix */
-                if (!is_module) {
-                    size_t pfx_len = mod_len + 2;
-                    char *prefix = malloc(pfx_len);
-                    if (!prefix) break;
-                    snprintf(prefix, pfx_len, "%s_", mod);
-                    size_t plen = pfx_len - 1;
-                    for (int fi = 0; fi < cg->func_count; fi++) {
-                        if (strncmp(cg->all_funcs[fi]->data.func_decl.name, prefix, plen) == 0) {
-                            is_module = true;
-                            break;
-                        }
-                    }
-                    free(prefix);
-                }
+                /* Note: a "is `mod` a module?" prefix scan over all declared
+                 * functions used to live here. It produced false positives
+                 * whenever a local variable or parameter shared its name with
+                 * any function's prefix (e.g. `item.priority` got mangled to
+                 * `item_priority` whenever `do item_is_alive(...)` was in
+                 * scope). Module membership must come from an explicit
+                 * registration (find_func above, using_modules, aliases, or
+                 * imported_modules below), never from a name-prefix guess. */
                 /* Check using_modules list */
                 if (!is_module) {
                     for (int ui = 0; ui < cg->using_module_count; ui++) {
@@ -5868,6 +5877,37 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
         if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
 
+        if (cg->indent == 0) {
+            /* File scope: emit zero-init global, defer initializer to
+             * ez_init_globals — map literals expand to GCC statement
+             * expressions which are not legal at file scope. */
+            emitf(cg, "EzMap %s;\n", safe_name(node->data.var_decl.name));
+            Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
+            emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
+            if (node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_LABEL) {
+                int t = next_dc_tag();
+                char src_var[CG_VAR_NAME_BUF];
+                snprintf(src_var, sizeof(src_var), "_ms%d", t);
+                emitf(cg, "({ EzMap %s = ", src_var);
+                emit_expression(cg, node->data.var_decl.value);
+                emit(cg, "; ");
+                emit_value_deep_copy(cg, type_name, src_var);
+                emit(cg, "; })");
+            } else if (node->data.var_decl.value) {
+                const char *saved_var_type = cg->current_var_type;
+                cg->current_var_type = type_name;
+                emit_expression(cg, node->data.var_decl.value);
+                cg->current_var_type = saved_var_type;
+            } else {
+                emitf(cg, "ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s)",
+                    c_kt, c_vt, ez_map_key_kind_macro(c_kt));
+            }
+            emit(cg, ";\n");
+            cg->global_init = cg->output; cg->output = saved; cg->indent = 0;
+            return;
+        }
+
         emitf(cg, "EzMap %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_LABEL) {
@@ -6651,6 +6691,13 @@ static void emit_scratch_arena_unwind(CodeGen *cg) {
  * may read from memory still owned by a scratch arena. */
 static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
     if (!ret_type_name) return;
+    /* Caller-arena functions have no private _func_arena: the return value
+     * is already allocated in the caller's arena, so there is nothing to
+     * escape and nothing to destroy — just unwind any nested scratch. */
+    if (func_uses_caller_arena(cg->current_func)) {
+        emit_scratch_arena_unwind(cg);
+        return;
+    }
     EzType *rt = type_from_name(ret_type_name);
     if (rt->kind == TK_STRING) {
         emit(cg, "_ret = ez_string_new(_func_saved, _ret.data, _ret.len); ");
@@ -6668,12 +6715,20 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     /* Emit ensure cleanup before return */
     emit_ensure_cleanup(cg);
 
+    /* Caller-arena functions have no _scope_mark to restore. */
+    bool caller_arena = cg->current_func &&
+                        func_uses_caller_arena(cg->current_func);
+
     /* Guard against malformed AST: count > 0 but NULL values array */
     if (node->data.return_stmt.count > 0 && !node->data.return_stmt.values) {
         emit_indent(cg);
         emit(cg, "{ ");
         emit_scratch_arena_unwind(cg);
-        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
+        if (caller_arena) {
+            emit(cg, "ez_exit_func(); return; }\n");
+        } else {
+            emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
+        }
         return;
     }
 
@@ -6709,7 +6764,11 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emit(cg, "{ ");
         emit_scratch_arena_unwind(cg);
-        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
+        if (caller_arena) {
+            emit(cg, "ez_exit_func(); return; }\n");
+        } else {
+            emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
+        }
     } else if (node->data.return_stmt.count == 1) {
         /* Single return value: evaluate into temp, then exit and return */
         emit_indent(cg);
@@ -6753,7 +6812,11 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emit(cg, "{ ");
         emit_scratch_arena_unwind(cg);
-        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
+        if (caller_arena) {
+            emit(cg, "ez_exit_func(); return; }\n");
+        } else {
+            emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return; }\n");
+        }
     }
 }
 
@@ -7109,7 +7172,8 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
      * Non-void functions: create a per-function arena so temporaries
      * are freed, and escape the return value to the caller's arena. */
     bool is_void_fn = (node->data.func_decl.return_type_count == 0);
-    if (!is_main) {
+    bool caller_arena = func_uses_caller_arena(node);
+    if (!is_main && !caller_arena) {
         if (is_void_fn) {
             emit_indent(cg);
             emit(cg, "EzScopeMark _scope_mark = ez_scope_save(ez_default_arena);\n");
@@ -7146,7 +7210,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         /* Emit ensure cleanup at end of function (for implicit returns) */
         emit_ensure_cleanup(cg);
         /* : cleanup function-scoped memory */
-        if (!is_main) {
+        if (!is_main && !caller_arena) {
             if (is_void_fn) {
                 emit_indent(cg);
                 emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark);\n");
