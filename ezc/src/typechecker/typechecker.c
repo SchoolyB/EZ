@@ -123,6 +123,10 @@ static bool is_reserved_builtin_func_name(const char *name) {
     return strcmp(name, "here") == 0;
 }
 
+/* Forward declaration — resolve_expr is defined later but needed by helper
+ * routines and stdlib arg-type validation. */
+static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
+
 /* True if expr is an lvalue (something with a stable address): a variable,
  * a field of an lvalue, an index into an lvalue, or a pointer dereference.
  * Used by addr() and ref() to reject literals, call results, arithmetic
@@ -138,6 +142,26 @@ static bool is_lvalue_expr(AstNode *e) {
         return e->data.postfix.op &&
                strcmp(e->data.postfix.op, "^") == 0;
     default:                return false;
+    }
+}
+
+/* True if the access path contains a map index, e.g. ref(m["k"]) or
+ * ref(m["k"].field) or ref(rows[i].cells["k"]). Map values relocate on
+ * rehash so a pointer to one is unsafe. */
+static bool path_contains_map_index(TypeChecker *tc, AstNode *e) {
+    if (!e) return false;
+    switch (e->kind) {
+    case NODE_MEMBER_EXPR:
+        return path_contains_map_index(tc, e->data.member.object);
+    case NODE_INDEX_EXPR: {
+        EzType *left_t = resolve_expr(tc, e->data.index_expr.left);
+        if (left_t && left_t->kind == TK_MAP) return true;
+        return path_contains_map_index(tc, e->data.index_expr.left);
+    }
+    case NODE_POSTFIX_EXPR:
+        return path_contains_map_index(tc, e->data.postfix.left);
+    default:
+        return false;
     }
 }
 
@@ -596,10 +620,6 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
     }
     return NULL;
 }
-
-/* Forward declaration — resolve_expr is defined later but needed by
- * stdlib arg-type validation. */
-static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
 
 /* Stdlib argument count validation table.
  * Each entry maps a (module, function) pair to the expected min/max arg count.
@@ -3290,6 +3310,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                  * member/index chains so 'addr(some_call().field)' is
                  * rejected at typecheck instead of leaking an
                  * '&(rvalue)' to clang. */
+                if (path_contains_map_index(tc, arg)) {
+                    diag_error_msg(tc->diag, "E3013",
+                        "addr() cannot take the address of a map index expression; map values may relocate on rehash",
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
                 if (!is_lvalue_expr(arg)) {
                     diag_error_msg(tc->diag, "E3012",
                         "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
@@ -3315,6 +3340,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                      * without a stable address. Without this, ref(42) and
                      * ref(some_call()) leaked '&42' / '&(rvalue)' to clang
                      * and produced opaque generated-C errors. */
+                    if (path_contains_map_index(tc, arg)) {
+                        diag_error_msg(tc->diag, "E3013",
+                            "ref() cannot take a reference to a map index expression; map values may relocate on rehash",
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     if (!is_lvalue_expr(arg)) {
                         diag_error_msg(tc->diag, "E3012",
                             "ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression",

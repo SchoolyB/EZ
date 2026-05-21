@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3013 - ref() rejects map index expressions
+ * Expected: "map index expression"
+ */
+
+do main() {
+    mut m map[string:int] = {"a": 1}
+    mut p ^int = ref(m["a"])
+}
