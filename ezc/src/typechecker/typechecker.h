@@ -25,7 +25,8 @@ typedef struct {
 
 typedef struct {
     /* Struct field info for field type lookup */
-    const char *struct_name;
+    const char *struct_name;   /* flattened lookup key (may be module-prefixed) */
+    const char *display_name;  /* user-facing name — for diagnostics, never the prefixed key */
     const char **field_names;
     EzType **field_types;
     int field_count;
@@ -77,6 +78,7 @@ typedef struct {
 
     /* Registered enum names */
     const char **enum_names;
+    const char **enum_display_names; /* parallel array: user-facing name (never prefixed) */
     bool *enum_is_string; /* parallel array: true if string enum */
     const char ***enum_values; /* parallel array: variant name arrays */
     int *enum_value_counts; /* parallel array: variant counts */
