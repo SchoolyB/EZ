@@ -2880,7 +2880,8 @@ String-to-type and type-to-string conversion functions with proper error handlin
 
 **`to_float` rules:**
 - Accepts standard decimal notation (e.g. `"3.14"`, `"-0.5"`, `"100"`).
-- Does **not** accept hex floats, infinity, or NaN strings.
+- Accepts `"inf"`, `"infinity"`, and `"nan"` (case-insensitive), returning `±Inf` / `NaN` respectively. This matches the underlying `strtod` semantics used by the implementation.
+- Does **not** accept hex floats.
 
 **`to_bool` rules:**
 - Accepts `"true"` and `"false"` (case-insensitive: `"TRUE"`, `"True"`, `"FALSE"`, etc. are valid).
