@@ -1379,6 +1379,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
+        /* bit_not → ~ */
+        if (strcmp(node->data.prefix.op, "bit_not") == 0) {
+            emit(cg, "(~(");
+            emit_expression(cg, node->data.prefix.right);
+            emit(cg, "))");
+            break;
+        }
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
         if (strcmp(node->data.prefix.op, "-") == 0 &&
@@ -1430,6 +1437,23 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "!ez_string_eq(");
             emit_expression(cg, node->data.infix.left);
             emit(cg, ", ");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, ")");
+            break;
+        }
+
+        /* Bitwise keyword operators → C bitwise operators */
+        if (strcmp(op, "bit_and") == 0 || strcmp(op, "bit_or") == 0 ||
+            strcmp(op, "bit_xor") == 0 || strcmp(op, "bit_shift_left") == 0 ||
+            strcmp(op, "bit_shift_right") == 0) {
+            const char *c_op =
+                strcmp(op, "bit_and")         == 0 ? "&"  :
+                strcmp(op, "bit_or")          == 0 ? "|"  :
+                strcmp(op, "bit_xor")         == 0 ? "^"  :
+                strcmp(op, "bit_shift_left")  == 0 ? "<<" : ">>";
+            emit(cg, "(");
+            emit_expression(cg, node->data.infix.left);
+            emitf(cg, " %s ", c_op);
             emit_expression(cg, node->data.infix.right);
             emit(cg, ")");
             break;

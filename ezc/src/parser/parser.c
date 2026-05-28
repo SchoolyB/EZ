@@ -24,11 +24,13 @@ typedef enum {
     PREC_OR,            /* || */
     PREC_AND,           /* && */
     PREC_EQUALS,        /* == != */
+    PREC_BITWISE,       /* bit_and, bit_or, bit_xor — above == so a bit_and b == c → (a bit_and b) == c */
     PREC_LESSGREATER,   /* > < >= <= */
     PREC_MEMBERSHIP,    /* in, not_in */
+    PREC_SHIFT,         /* bit_shift_left, bit_shift_right */
     PREC_SUM,           /* + - */
     PREC_PRODUCT,       /* * / % */
-    PREC_PREFIX,        /* -x !x &x */
+    PREC_PREFIX,        /* -x !x bit_not x */
     PREC_CALL,          /* f(x) */
     PREC_INDEX,         /* a[i] a.b */
     PREC_POSTFIX,       /* x++ x-- */
@@ -186,28 +188,33 @@ static void synchronize(Parser *p) {
 
 static Precedence token_precedence(TokenType t) {
     switch (t) {
-    case TOK_OR:             return PREC_OR;
-    case TOK_AND:            return PREC_AND;
+    case TOK_OR:              return PREC_OR;
+    case TOK_AND:             return PREC_AND;
     case TOK_EQ:
-    case TOK_NOT_EQ:         return PREC_EQUALS;
+    case TOK_NOT_EQ:          return PREC_EQUALS;
+    case TOK_BIT_AND:
+    case TOK_BIT_OR:
+    case TOK_BIT_XOR:         return PREC_BITWISE;
     case TOK_LT:
     case TOK_GT:
     case TOK_LT_EQ:
-    case TOK_GT_EQ:          return PREC_LESSGREATER;
+    case TOK_GT_EQ:           return PREC_LESSGREATER;
     case TOK_IN:
-    case TOK_NOT_IN:         return PREC_MEMBERSHIP;
+    case TOK_NOT_IN:          return PREC_MEMBERSHIP;
+    case TOK_BIT_SHIFT_LEFT:
+    case TOK_BIT_SHIFT_RIGHT: return PREC_SHIFT;
     case TOK_PLUS:
-    case TOK_MINUS:          return PREC_SUM;
+    case TOK_MINUS:           return PREC_SUM;
     case TOK_ASTERISK:
     case TOK_SLASH:
-    case TOK_PERCENT:        return PREC_PRODUCT;
-    case TOK_LPAREN:         return PREC_CALL;
-    case TOK_LBRACKET:       return PREC_INDEX;
-    case TOK_DOT:            return PREC_INDEX;
+    case TOK_PERCENT:         return PREC_PRODUCT;
+    case TOK_LPAREN:          return PREC_CALL;
+    case TOK_LBRACKET:        return PREC_INDEX;
+    case TOK_DOT:             return PREC_INDEX;
     case TOK_INCREMENT:
     case TOK_DECREMENT:
-    case TOK_CARET:          return PREC_POSTFIX;
-    default:                 return PREC_LOWEST;
+    case TOK_CARET:           return PREC_POSTFIX;
+    default:                  return PREC_LOWEST;
     }
 }
 
@@ -783,7 +790,8 @@ static AstNode *parse_prefix(Parser *p) {
         return node;
     }
     case TOK_MINUS:
-    case TOK_BANG: return parse_prefix_expression(p);
+    case TOK_BANG:
+    case TOK_BIT_NOT: return parse_prefix_expression(p);
     case TOK_AMPERSAND: {
         diag_error_code(p->diag, "E2072",
             p->file, p->cur_token.line, p->cur_token.column, 0);
@@ -1081,6 +1089,8 @@ static AstNode *parse_infix(Parser *p, AstNode *left) {
     case TOK_LT_EQ: case TOK_GT_EQ:
     case TOK_AND: case TOK_OR:
     case TOK_IN: case TOK_NOT_IN:
+    case TOK_BIT_AND: case TOK_BIT_OR: case TOK_BIT_XOR:
+    case TOK_BIT_SHIFT_LEFT: case TOK_BIT_SHIFT_RIGHT:
         return parse_infix_expression(p, left);
     case TOK_LPAREN:
         return parse_call_expression(p, left);

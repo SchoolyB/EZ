@@ -1525,6 +1525,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error_codef(tc->diag, "E3007", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
             }
             result = right;
+        } else if (strcmp(node->data.prefix.op, "bit_not") == 0) {
+            /* E3090: bit_not requires an integer operand */
+            if (right->kind != TK_UNKNOWN && !is_int_kind(right->kind) && right->kind != TK_CHAR) {
+                diag_error_codef(tc->diag, "E3090", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
+            }
+            result = right;
         } else {
             result = right;
         }
@@ -1789,6 +1795,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3085", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 infix_errored = true;
+            }
+        }
+
+        /* E3089: binary bitwise operators require integer operands */
+        if ((strcmp(op, "bit_and") == 0 || strcmp(op, "bit_or") == 0 ||
+             strcmp(op, "bit_xor") == 0 || strcmp(op, "bit_shift_left") == 0 ||
+             strcmp(op, "bit_shift_right") == 0) &&
+            !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+            bool left_ok  = is_int_kind(left->kind)  || left->kind  == TK_CHAR;
+            bool right_ok = is_int_kind(right->kind) || right->kind == TK_CHAR;
+            if (!left_ok || !right_ok) {
+                diag_error_codef(tc->diag, "E3089",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    op, type_display_name(tc, left), type_display_name(tc, right));
+                infix_errored = true;
+            } else {
+                result = left;
             }
         }
 
