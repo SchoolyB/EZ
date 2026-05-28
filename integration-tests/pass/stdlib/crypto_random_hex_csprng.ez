@@ -1,0 +1,66 @@
+/*
+ * Test: crypto.random_hex CSPRNG replacement (#1648)
+ * - length=0 returns empty string
+ * - odd and even lengths produce correct character counts
+ * - output contains only valid hex characters
+ * - repeated calls produce different values (CSPRNG quality)
+ */
+
+import @crypto
+import @strconv
+
+do main() {
+    mut pass int = 0
+    mut fail int = 0
+
+    // length=0 -> empty string
+    mut r0 string = crypto.random_hex(0)
+    if len(r0) == 0 { pass += 1 } otherwise { fail += 1 }
+
+    // even length
+    mut r8 string = crypto.random_hex(8)
+    if len(r8) == 8 { pass += 1 } otherwise { fail += 1 }
+
+    // odd length
+    mut r7 string = crypto.random_hex(7)
+    if len(r7) == 7 { pass += 1 } otherwise { fail += 1 }
+
+    // longer length
+    mut r64 string = crypto.random_hex(64)
+    if len(r64) == 64 { pass += 1 } otherwise { fail += 1 }
+
+    // output must be all hex characters
+    mut r16 string = crypto.random_hex(16)
+    mut all_hex bool = true
+    mut i int = 0
+    for i < len(r16) {
+        mut c string = r16[i]
+        mut ok bool = false
+        if c == "0" { ok = true }
+        if c == "1" { ok = true }
+        if c == "2" { ok = true }
+        if c == "3" { ok = true }
+        if c == "4" { ok = true }
+        if c == "5" { ok = true }
+        if c == "6" { ok = true }
+        if c == "7" { ok = true }
+        if c == "8" { ok = true }
+        if c == "9" { ok = true }
+        if c == "a" { ok = true }
+        if c == "b" { ok = true }
+        if c == "c" { ok = true }
+        if c == "d" { ok = true }
+        if c == "e" { ok = true }
+        if c == "f" { ok = true }
+        if !ok { all_hex = false }
+        i += 1
+    }
+    if all_hex { pass += 1 } otherwise { fail += 1 }
+
+    // two calls of same length should differ (fails only if CSPRNG is broken)
+    mut r16b string = crypto.random_hex(16)
+    if r16 != r16b { pass += 1 } otherwise { fail += 1 }
+
+    println("crypto_random_hex_csprng: ${pass} passed, ${fail} failed")
+    if fail > 0 { exit(1) }
+}
