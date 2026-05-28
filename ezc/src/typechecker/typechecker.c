@@ -877,6 +877,8 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"bytes", "to_hex", 0, ARG_ARRAY}, {"bytes", "to_base64", 0, ARG_ARRAY},
     /* sqlite */
     {"sqlite", "open", 0, ARG_STRING},
+    /* server: listen(router, port int) — catch non-int port before it reaches C */
+    {"server", "listen", 1, ARG_INT},
 };
 
 static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
@@ -922,7 +924,7 @@ static void tc_check_stdlib_arg_types(TypeChecker *tc, const char *mod,
                         "%s.%s() expects %s as argument %d, got '%s'",
                         mod, fn, expected_kind_name(stdlib_arg_type_table[i].kind),
                         idx + 1, type_name(arg_t));
-                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    diag_error_msg(tc->diag, "E5026", strdup(msg),
                         NODE_FILE(tc, node->data.call.args[idx]),
                         node->data.call.args[idx]->token.line,
                         node->data.call.args[idx]->token.column, 0);

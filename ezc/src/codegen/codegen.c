@@ -3555,10 +3555,11 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
+        /* EZ: server.listen(router, port)  →  C: ez_server_listen(port, &router) */
         emit(cg, "ez_server_listen(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
