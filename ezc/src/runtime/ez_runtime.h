@@ -43,8 +43,8 @@ void ez_arena_reset(EzArena *arena);
 void ez_arena_destroy(EzArena *arena, const char *file, int line);
 size_t ez_arena_usage(EzArena *arena);
 
-/* Global default arena */
-extern EzArena *ez_default_arena;
+/* Per-thread default arena — each thread (including spawned threads) gets its own. */
+extern _Thread_local EzArena *ez_default_arena;
 
 /* --- String --- */
 

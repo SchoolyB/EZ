@@ -8,9 +8,9 @@
 #include "ez_runtime.h"
 #include <stdarg.h>
 
-/* --- Global default arena --- */
+/* --- Per-thread default arena --- */
 
-EzArena *ez_default_arena = NULL;
+_Thread_local EzArena *ez_default_arena = NULL;
 
 /* --- Arena Allocator --- */
 
