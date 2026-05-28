@@ -290,6 +290,14 @@ double ez_builtin_string_to_float(EzString s) {
 
 /* --- composite to_string --- */
 
+/* Encode Unicode codepoint to UTF-8; returns byte count (1-4). */
+static int cp_to_utf8(int32_t cp, char *out) {
+    if (cp < 0x80)   { out[0] = (char)cp; return 1; }
+    if (cp < 0x800)  { out[0] = (char)(0xC0|(cp>>6)); out[1] = (char)(0x80|(cp&0x3F)); return 2; }
+    if (cp < 0x10000){ out[0] = (char)(0xE0|(cp>>12)); out[1] = (char)(0x80|((cp>>6)&0x3F)); out[2] = (char)(0x80|(cp&0x3F)); return 3; }
+    out[0]=(char)(0xF0|(cp>>18)); out[1]=(char)(0x80|((cp>>12)&0x3F)); out[2]=(char)(0x80|((cp>>6)&0x3F)); out[3]=(char)(0x80|(cp&0x3F)); return 4;
+}
+
 EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {
     char buf[EZ_TOSTRING_BUF_SIZE];
     int pos = 0;
@@ -317,6 +325,24 @@ EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind)
             pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
                 EZ_ARRAY_GET(*arr, bool, i) ? "true" : "false");
             break;
+        case 4:
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRIu64,
+                EZ_ARRAY_GET(*arr, uint64_t, i));
+            break;
+        case 5:
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%u",
+                (unsigned)EZ_ARRAY_GET(*arr, uint8_t, i));
+            break;
+        case 6: {
+            int32_t cp = EZ_ARRAY_GET(*arr, int32_t, i);
+            char utf8[4]; int ulen = cp_to_utf8(cp, utf8);
+            if (pos + 2 + ulen < (int)sizeof(buf)) {
+                buf[pos++] = '\'';
+                memcpy(buf + pos, utf8, (size_t)ulen); pos += ulen;
+                buf[pos++] = '\'';
+            }
+            break;
+        }
         }
     }
     buf[pos++] = '}';
@@ -442,6 +468,18 @@ EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
         }
         case 3: pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
             *(bool *)vp ? "true" : "false"); break;
+        case 4: pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRIu64, *(uint64_t *)vp); break;
+        case 5: pos += snprintf(buf + pos, sizeof(buf) - pos, "%u", (unsigned)*(uint8_t *)vp); break;
+        case 6: {
+            int32_t cp = *(int32_t *)vp;
+            char utf8[4]; int ulen = cp_to_utf8(cp, utf8);
+            if (pos + 2 + ulen < (int)sizeof(buf)) {
+                buf[pos++] = '\'';
+                memcpy(buf + pos, utf8, (size_t)ulen); pos += ulen;
+                buf[pos++] = '\'';
+            }
+            break;
+        }
         }
     }
     if (m->order_len == 0) { buf[pos++] = ':'; }

@@ -1015,13 +1015,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ").data");
                 break;
             case TK_ARRAY: {
-                /* Determine element kind: 0=int, 1=float, 2=string, 3=bool */
+                /* Determine element kind: 0=int, 1=float, 2=string, 3=bool, 4=uint, 5=byte, 6=char */
                 int ek = 0;
                 if (t && t->element_type) {
                     EzType *et = type_from_name(t->element_type);
                     if (et->kind == TK_FLOAT) ek = 1;
                     else if (et->kind == TK_STRING) ek = 2;
                     else if (et->kind == TK_BOOL) ek = 3;
+                    else if (et->kind == TK_UINT) ek = 4;
+                    else if (et->kind == TK_BYTE) ek = 5;
+                    else if (et->kind == TK_CHAR) ek = 6;
                 }
                 emitf(cg, "ez_builtin_array_to_string(ez_default_arena, &");
                 emit_expression(cg, part);
@@ -1029,13 +1032,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
             case TK_MAP: {
-                /* Determine value kind: 0=int, 1=float, 2=string, 3=bool */
+                /* Determine value kind: 0=int, 1=float, 2=string, 3=bool, 4=uint, 5=byte, 6=char */
                 int vk = 0;
                 if (t && t->value_type) {
                     EzType *vt = type_from_name(t->value_type);
                     if (vt->kind == TK_FLOAT) vk = 1;
                     else if (vt->kind == TK_STRING) vk = 2;
                     else if (vt->kind == TK_BOOL) vk = 3;
+                    else if (vt->kind == TK_UINT) vk = 4;
+                    else if (vt->kind == TK_BYTE) vk = 5;
+                    else if (vt->kind == TK_CHAR) vk = 6;
                 }
                 emitf(cg, "ez_builtin_map_to_string(ez_default_arena, &");
                 emit_expression(cg, part);
