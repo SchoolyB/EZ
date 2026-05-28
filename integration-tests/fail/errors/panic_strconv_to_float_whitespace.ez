@@ -1,0 +1,10 @@
+/*
+ * Error Test: strconv.to_float panics on leading whitespace (#1649)
+ * Expected: runtime panic
+ */
+
+import @strconv
+
+do main() {
+    mut x float = strconv.to_float("  3.14")
+}

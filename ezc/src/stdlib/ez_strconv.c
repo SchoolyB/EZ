@@ -25,6 +25,11 @@ int64_t ez_strconv_to_int(EzString s, int base) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
+    if (len > 0 && isspace((unsigned char)buf[0])) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strconv.to_int: cannot convert \"%s\" to int (base %d)\n", buf, base);
+        exit(1);
+    }
     char *end = NULL;
     errno = 0;
     int64_t result = strtoll(buf, &end, base);
@@ -46,6 +51,11 @@ uint64_t ez_strconv_to_uint(EzString s, int base) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
+    if (len > 0 && isspace((unsigned char)buf[0])) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strconv.to_uint: cannot convert \"%s\" to uint (base %d)\n", buf, base);
+        exit(1);
+    }
     /* Reject negative numbers */
     for (int i = 0; i < len; i++) {
         if (buf[i] == '-') {
@@ -71,6 +81,11 @@ double ez_strconv_to_float(EzString s) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
+    if (len > 0 && isspace((unsigned char)buf[0])) {
+        fflush(stdout);
+        fprintf(stderr, "panic: strconv.to_float: cannot convert \"%s\" to float\n", buf);
+        exit(1);
+    }
     char *end = NULL;
     errno = 0;
     double result = strtod(buf, &end);
@@ -110,6 +125,11 @@ EzResult_int ez_strconv_to_int_result(EzString s, int base) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
+    if (len > 0 && isspace((unsigned char)buf[0])) {
+        EzString msg = ez_string_lit("cannot convert string to int");
+        EzError *err = ez_error_new(ez_default_arena, msg);
+        return (EzResult_int){0, err};
+    }
     char *end = NULL;
     errno = 0;
     int64_t result = strtoll(buf, &end, base);
@@ -131,6 +151,11 @@ EzResult_uint ez_strconv_to_uint_result(EzString s, int base) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
+    if (len > 0 && isspace((unsigned char)buf[0])) {
+        EzString msg = ez_string_lit("cannot convert string to uint");
+        EzError *err = ez_error_new(ez_default_arena, msg);
+        return (EzResult_uint){0, err};
+    }
     /* Reject negative numbers */
     for (int i = 0; i < len; i++) {
         if (buf[i] == '-') {
@@ -156,6 +181,11 @@ EzResult_float ez_strconv_to_float_result(EzString s) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
+    if (len > 0 && isspace((unsigned char)buf[0])) {
+        EzString msg = ez_string_lit("cannot convert string to float");
+        EzError *err = ez_error_new(ez_default_arena, msg);
+        return (EzResult_float){0.0, err};
+    }
     char *end = NULL;
     errno = 0;
     double result = strtod(buf, &end);
@@ -220,15 +250,18 @@ bool ez_strconv_is_numeric(EzString s) {
         if (s.len == 1) return false;
     }
     bool has_dot = false;
+    bool has_digit = false;
     for (int i = start; i < s.len; i++) {
         if (s.data[i] == '.') {
             if (has_dot) return false;
             has_dot = true;
-        } else if (!isdigit((unsigned char)s.data[i])) {
+        } else if (isdigit((unsigned char)s.data[i])) {
+            has_digit = true;
+        } else {
             return false;
         }
     }
-    return true;
+    return has_digit;
 }
 
 bool ez_strconv_is_integer(EzString s) {
