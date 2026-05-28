@@ -110,6 +110,36 @@ void ez_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t cou
 
 /* === Access === */
 
+void *ez_arrays_first_ptr(EzArray *arr) {
+    if (arr->len == 0)
+        ez_panic(__FILE__, __LINE__, "arrays.get_first called on an empty array");
+    return arr->data;
+}
+
+void *ez_arrays_last_ptr(EzArray *arr) {
+    if (arr->len == 0)
+        ez_panic(__FILE__, __LINE__, "arrays.get_last called on an empty array");
+    return (char *)arr->data + (arr->len - 1) * arr->elem_size;
+}
+
+void ez_arrays_remove_first_raw(EzArray *arr, void *out) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+    if (arr->len == 0)
+        ez_panic(__FILE__, __LINE__, "arrays.remove_first called on an empty array");
+    memcpy(out, arr->data, arr->elem_size);
+    ez_arrays_remove_at(arr, 0);
+}
+
+void ez_arrays_remove_last_raw(EzArray *arr, void *out) {
+    if (arr->iterating > 0)
+        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+    if (arr->len == 0)
+        ez_panic(__FILE__, __LINE__, "arrays.remove_last called on an empty array");
+    memcpy(out, (char *)arr->data + (arr->len - 1) * arr->elem_size, arr->elem_size);
+    arr->len--;
+}
+
 int64_t ez_arrays_get_first(EzArray *arr) {
     if (arr->len == 0) {
         fflush(stdout);

@@ -4391,6 +4391,29 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "); }");
         return true;
     }
+    if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
+         strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
+        node->data.call.arg_count == 1) {
+        EzType *af_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *af_elem = (af_t && af_t->kind == TK_ARRAY) ? af_t->element_type : NULL;
+        const char *af_ctype = af_elem ? ez_type_to_c_cg(cg, af_elem) : "int64_t";
+        bool af_is_get = (strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0);
+        const char *af_ptr_fn = (strcmp(func, "get_first") == 0 || strcmp(func, "remove_first") == 0)
+                                ? "ez_arrays_first_ptr" : "ez_arrays_last_ptr";
+        const char *af_raw_fn = (strcmp(func, "remove_first") == 0)
+                                ? "ez_arrays_remove_first_raw" : "ez_arrays_remove_last_raw";
+        if (af_is_get) {
+            emitf(cg, "(*(%s *)%s(", af_ctype, af_ptr_fn);
+            emit_array_arg_addr(cg, node->data.call.args[0]);
+            emit(cg, "))");
+        } else {
+            emitf(cg, "({ %s _rafv; %s(", af_ctype, af_raw_fn);
+            emit_array_arg_addr(cg, node->data.call.args[0]);
+            emit(cg, ", &_rafv); _rafv; })");
+        }
+        return true;
+    }
+
     /* Generic: arrays.func(&arr, ...) or arrays.func(arena, &arr, ...) */
     bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
         strcmp(func, "concat") == 0 || strcmp(func, "deduplicate") == 0 ||
@@ -4435,14 +4458,6 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ")");
-        return true;
-    }
-    if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
-         strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
-        node->data.call.arg_count == 1) {
-        emitf(cg, "ez_arrays_%s(", func);
-        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
