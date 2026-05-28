@@ -6732,6 +6732,34 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
     emit(cg, "ez_arena_destroy(_func_arena, __FILE__, __LINE__); free(_func_arena); ");
 }
 
+/* Escape every heap field of the live EzMulti_* _ret struct from _func_arena
+ * to _func_saved, then unwind scratch arenas and destroy _func_arena.
+ * Mirrors emit_func_return_escape but covers all fields of a multi-return. */
+static void emit_multi_func_return_escape(CodeGen *cg) {
+    if (func_uses_caller_arena(cg->current_func)) {
+        emit_scratch_arena_unwind(cg);
+        return;
+    }
+    int rc = cg->current_func->data.func_decl.return_type_count;
+    for (int i = 0; i < rc; i++) {
+        const char *tn = cg->current_func->data.func_decl.return_types[i];
+        if (!tn) continue;
+        EzType *rt = type_from_name(tn);
+        if (rt->kind == TK_STRING) {
+            emitf(cg, "_ret.v%d = ez_string_new(_func_saved, _ret.v%d.data, _ret.v%d.len); ", i, i, i);
+        } else if (type_needs_deep_copy(cg, tn)) {
+            char field[32];
+            snprintf(field, sizeof(field), "_ret.v%d", i);
+            emitf(cg, "{ EzArena *_esc = ez_default_arena; ez_default_arena = _func_saved; _ret.v%d = ", i);
+            emit_value_deep_copy(cg, tn, field);
+            emit(cg, "; ez_default_arena = _esc; } ");
+        }
+    }
+    emit_scratch_arena_unwind(cg);
+    emit(cg, "ez_default_arena = _func_saved; ");
+    emit(cg, "ez_arena_destroy(_func_arena, __FILE__, __LINE__); free(_func_arena); ");
+}
+
 static void emit_return_statement(CodeGen *cg, AstNode *node) {
     /* Emit ensure cleanup before return */
     emit_ensure_cleanup(cg);
@@ -6763,7 +6791,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.return_stmt.values[i]);
         }
         emit(cg, "}; ");
-        emit_scratch_arena_unwind(cg);
+        emit_multi_func_return_escape(cg);
         emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (node->data.return_stmt.count == 1 && cg->current_func &&
                cg->current_func->data.func_decl.return_type_count > 1) {
@@ -6777,7 +6805,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         }
         emit_expression(cg, node->data.return_stmt.values[0]);
         emit(cg, "}; ");
-        emit_scratch_arena_unwind(cg);
+        emit_multi_func_return_escape(cg);
         emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (cg->current_func &&
                cg->current_func->data.func_decl.return_type_count == 0) {
@@ -6810,7 +6838,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             emit_indent(cg);
             emitf(cg, "{ __auto_type _ret = %s; ",
                 safe_name(cg->current_func->data.func_decl.return_names[0]));
-            emit_scratch_arena_unwind(cg);
+            emit_func_return_escape(cg, cg->current_func->data.func_decl.return_types[0]);
             emit(cg, "ez_exit_func(); return _ret; }\n");
         } else {
             emit_indent(cg);
@@ -6825,7 +6853,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
                 }
             }
             emit(cg, "}; ");
-            emit_scratch_arena_unwind(cg);
+            emit_multi_func_return_escape(cg);
             emit(cg, "ez_exit_func(); return _ret; }\n");
         }
     } else {
