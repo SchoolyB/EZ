@@ -6812,36 +6812,42 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_scope = loop_scope;
         scope_define(loop_scope, node->data.for_stmt.var_name, &TYPE_INT, false);
         resolve_expr(tc, node->data.for_stmt.iterable);
-        /* E9005: check range bounds when both are literals */
+        /* E9005: check range bounds when both bounds and step direction are compile-time known */
         if (node->data.for_stmt.iterable &&
             node->data.for_stmt.iterable->kind == NODE_RANGE_EXPR) {
             AstNode *r = node->data.for_stmt.iterable;
             if (r->data.range_expr.start && r->data.range_expr.end &&
                 r->data.range_expr.start->kind == NODE_INT_VALUE &&
                 r->data.range_expr.end->kind == NODE_INT_VALUE) {
-                int64_t start_val = r->data.range_expr.start->data.int_value.value;
-                int64_t end_val = r->data.range_expr.end->data.int_value.value;
+                /* Skip bounds check when step is a runtime variable — direction is unknown. */
                 bool has_neg_step = r->data.range_expr.step &&
                     r->data.range_expr.step->kind == NODE_INT_VALUE &&
                     r->data.range_expr.step->data.int_value.value < 0;
                 bool has_neg_prefix = r->data.range_expr.step &&
                     r->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
                     strcmp(r->data.range_expr.step->data.prefix.op, "-") == 0;
-                bool negative_step = has_neg_step || has_neg_prefix;
-                bool invalid = negative_step ? (start_val < end_val) : (start_val >= end_val);
-                if (invalid) {
-                    char msg[EZ_MSG_BUF_SIZE];
-                    if (negative_step) {
-                        snprintf(msg, sizeof(msg),
-                            "invalid range: start (%lld) must be greater than or equal to end (%lld) for negative step",
-                            (long long)start_val, (long long)end_val);
-                    } else {
-                        snprintf(msg, sizeof(msg),
-                            "invalid range: start (%lld) must be less than end (%lld)",
-                            (long long)start_val, (long long)end_val);
+                bool step_direction_known = !r->data.range_expr.step ||
+                    (r->data.range_expr.step->kind == NODE_INT_VALUE) ||
+                    has_neg_prefix;
+                if (step_direction_known) {
+                    int64_t start_val = r->data.range_expr.start->data.int_value.value;
+                    int64_t end_val = r->data.range_expr.end->data.int_value.value;
+                    bool negative_step = has_neg_step || has_neg_prefix;
+                    bool invalid = negative_step ? (start_val < end_val) : (start_val >= end_val);
+                    if (invalid) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        if (negative_step) {
+                            snprintf(msg, sizeof(msg),
+                                "invalid range: start (%lld) must be greater than or equal to end (%lld) for negative step",
+                                (long long)start_val, (long long)end_val);
+                        } else {
+                            snprintf(msg, sizeof(msg),
+                                "invalid range: start (%lld) must be less than end (%lld)",
+                                (long long)start_val, (long long)end_val);
+                        }
+                        diag_error_msg(tc->diag, "E9005", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
-                    diag_error_msg(tc->diag, "E9005", strdup(msg),
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
