@@ -7506,10 +7506,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     case NODE_BREAK_STMT:
         emit_indent(cg);
+        emit_scratch_arena_unwind(cg);
         emit(cg, "break;\n");
         break;
     case NODE_CONTINUE_STMT:
         emit_indent(cg);
+        emit_scratch_arena_unwind(cg);
         emit(cg, "continue;\n");
         break;
     case NODE_WHEN_STMT: {
