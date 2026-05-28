@@ -194,22 +194,37 @@ void ez_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
 
     uint64_t h = hash_key(key, m->key_size, m->key_kind);
     int32_t idx = (int32_t)(h % (uint64_t)m->capacity);
+    int32_t first_tombstone = -1;
     for (int32_t i = 0; i < m->capacity; i++) {
         int32_t probe = (idx + i) % m->capacity;
-        if (m->states[probe] == 0 || m->states[probe] == 2) {
-            /* Empty or tombstone — insert here */
-            memcpy(key_ptr(m, probe), key, (size_t)m->key_size);
-            memcpy(val_ptr(m, probe), value, (size_t)m->value_size);
-            m->states[probe] = 1;
-            if (m->order) m->order[m->order_len++] = probe;
+        if (m->states[probe] == 2) {
+            /* Tombstone — record it and keep scanning for an existing key */
+            if (first_tombstone < 0) first_tombstone = probe;
+            continue;
+        }
+        if (m->states[probe] == 0) {
+            /* Empty — key definitely not in map; insert at tombstone if seen, else here */
+            int32_t slot = (first_tombstone >= 0) ? first_tombstone : probe;
+            memcpy(key_ptr(m, slot), key, (size_t)m->key_size);
+            memcpy(val_ptr(m, slot), value, (size_t)m->value_size);
+            m->states[slot] = 1;
+            if (m->order) m->order[m->order_len++] = slot;
             m->count++;
             return;
         }
-        if (m->states[probe] == 1 && keys_equal(key_ptr(m, probe), key, m->key_size, m->key_kind)) {
-            /* Update existing */
+        if (keys_equal(key_ptr(m, probe), key, m->key_size, m->key_kind)) {
+            /* Update existing — never creates a duplicate */
             memcpy(val_ptr(m, probe), value, (size_t)m->value_size);
             return;
         }
+    }
+    /* Probe chain full of tombstones and the key was not found — use first tombstone */
+    if (first_tombstone >= 0) {
+        memcpy(key_ptr(m, first_tombstone), key, (size_t)m->key_size);
+        memcpy(val_ptr(m, first_tombstone), value, (size_t)m->value_size);
+        m->states[first_tombstone] = 1;
+        if (m->order) m->order[m->order_len++] = first_tombstone;
+        m->count++;
     }
 }
 
