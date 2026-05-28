@@ -57,7 +57,10 @@ void ez_arrays_prepend(EzArena *arena, EzArray *arr, const void *value) {
 void ez_arrays_remove_at(EzArray *arr, int32_t index) {
     if (arr->iterating > 0)
         ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
-    if (index < 0 || index >= arr->len) return;
+    if (index < 0 || index >= arr->len)
+        ez_panic(__FILE__, __LINE__,
+            "arrays.remove_at: index %d is out of bounds for an array of length %d",
+            index, arr->len);
     char *data = (char *)arr->data;
     size_t es = (size_t)arr->elem_size;
     memmove(data + index * es, data + (index + 1) * es, (arr->len - 1 - index) * es);
