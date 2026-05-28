@@ -1,0 +1,37 @@
+/*
+ * Test: crypto.random_hex CSPRNG replacement (#1648)
+ * - length=0 returns empty string
+ * - odd and even lengths produce correct character counts
+ * - repeated calls produce different values (CSPRNG quality)
+ */
+
+import @crypto
+
+do main() {
+    mut pass int = 0
+    mut fail int = 0
+
+    // length=0 -> empty string
+    mut r0 string = crypto.random_hex(0)
+    if len(r0) == 0 { pass += 1 } otherwise { fail += 1 }
+
+    // even length
+    mut r8 string = crypto.random_hex(8)
+    if len(r8) == 8 { pass += 1 } otherwise { fail += 1 }
+
+    // odd length
+    mut r7 string = crypto.random_hex(7)
+    if len(r7) == 7 { pass += 1 } otherwise { fail += 1 }
+
+    // longer length
+    mut r64 string = crypto.random_hex(64)
+    if len(r64) == 64 { pass += 1 } otherwise { fail += 1 }
+
+    // two calls of same length should differ (fails only if CSPRNG is broken)
+    mut r16a string = crypto.random_hex(16)
+    mut r16b string = crypto.random_hex(16)
+    if r16a != r16b { pass += 1 } otherwise { fail += 1 }
+
+    println("crypto_random_hex_csprng: ${pass} passed, ${fail} failed")
+    if fail > 0 { exit(1) }
+}

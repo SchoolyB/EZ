@@ -1,0 +1,10 @@
+/*
+ * Error Test: strconv.to_int panics on leading whitespace (#1649)
+ * Expected: runtime panic
+ */
+
+import @strconv
+
+do main() {
+    mut x int = strconv.to_int("  42")
+}

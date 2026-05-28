@@ -149,9 +149,15 @@ EzString ez_encoding_url_decode(EzArena *arena, EzString s) {
     int j = 0;
     for (int i = 0; i < s.len; i++) {
         if (s.data[i] == '%' && i + 2 < s.len) {
-            unsigned int byte;
-            sscanf(s.data + i + 1, "%02x", &byte);
-            out[j++] = (char)byte;
+            unsigned char hi = (unsigned char)s.data[i + 1];
+            unsigned char lo = (unsigned char)s.data[i + 2];
+            if (!isxdigit(hi) || !isxdigit(lo)) {
+                ez_panic(__FILE__, __LINE__,
+                    "encoding.url_decode: invalid percent-escape at position %d", i);
+            }
+            int hi_v = (hi <= '9') ? hi - '0' : (hi <= 'F') ? hi - 'A' + 10 : hi - 'a' + 10;
+            int lo_v = (lo <= '9') ? lo - '0' : (lo <= 'F') ? lo - 'A' + 10 : lo - 'a' + 10;
+            out[j++] = (char)((hi_v << 4) | lo_v);
             i += 2;
         } else if (s.data[i] == '+') {
             out[j++] = ' ';

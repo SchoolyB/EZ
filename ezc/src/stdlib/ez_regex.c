@@ -92,10 +92,11 @@ EzArray ez_regex_find_all(EzArena *arena, EzString pattern, EzString text) {
         EzString s = ez_string_new(arena, cursor + match.rm_so, mlen);
         ez_array_push(arena, &arr, &s);
 
-        /* Advance past this match (at least 1 char to avoid infinite loop) */
         cursor += match.rm_eo;
-        if (match.rm_eo == 0) cursor++;
-        if (*cursor == '\0') break;
+        if (match.rm_eo == 0) {
+            if (cursor >= txt_buf + (size_t)text.len) break;
+            cursor++;
+        }
     }
 
     regfree(&re);

@@ -155,6 +155,52 @@ static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
     return out;
 }
 
+/* Recursively derive what '?' binds to given a param type pattern (ptn)
+ * containing '?' and a concrete argument type name (atn).
+ * Returns malloc'd binding string (caller must free) or NULL on mismatch. */
+static char *cg_bind_wildcard(const char *ptn, const char *atn) {
+    if (!ptn || !atn || !strchr(ptn, '?')) return NULL;
+    if (strcmp(ptn, "?") == 0) return strdup(atn);
+    size_t plen = strlen(ptn);
+    size_t alen = strlen(atn);
+    /* Array layer: strip matching outer [...] brackets */
+    if (plen >= 3 && ptn[0] == '[' && ptn[plen - 1] == ']') {
+        if (alen < 3 || atn[0] != '[' || atn[alen - 1] != ']') return NULL;
+        char *ip = strndup(ptn + 1, plen - 2);
+        char *ia = strndup(atn + 1, alen - 2);
+        char *r = cg_bind_wildcard(ip, ia);
+        free(ip); free(ia);
+        return r;
+    }
+    /* Map layer: find top-level ':' in both sides and recurse into wildcard slot */
+    if (plen > 4 && strncmp(ptn, "map[", 4) == 0 && ptn[plen - 1] == ']') {
+        if (alen <= 4 || strncmp(atn, "map[", 4) != 0 || atn[alen - 1] != ']') return NULL;
+        const char *pi = ptn + 4; size_t pil = plen - 5;
+        const char *ai = atn + 4; size_t ail = alen - 5;
+        int depth = 0; const char *pc = NULL, *ac = NULL;
+        for (size_t i = 0; i < pil; i++) {
+            if (pi[i] == '[') depth++; else if (pi[i] == ']') depth--;
+            else if (pi[i] == ':' && depth == 0) { pc = pi + i; break; }
+        }
+        depth = 0;
+        for (size_t i = 0; i < ail; i++) {
+            if (ai[i] == '[') depth++; else if (ai[i] == ']') depth--;
+            else if (ai[i] == ':' && depth == 0) { ac = ai + i; break; }
+        }
+        if (!pc || !ac) return NULL;
+        char *pk = strndup(pi, (size_t)(pc - pi));
+        char *pv = strndup(pc + 1, pil - (size_t)(pc - pi) - 1);
+        char *ak = strndup(ai, (size_t)(ac - ai));
+        char *av = strndup(ac + 1, ail - (size_t)(ac - ai) - 1);
+        char *r = NULL;
+        if (strchr(pk, '?')) r = cg_bind_wildcard(pk, ak);
+        if (!r && strchr(pv, '?')) r = cg_bind_wildcard(pv, av);
+        free(pk); free(pv); free(ak); free(av);
+        return r;
+    }
+    return NULL;
+}
+
 static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (!type_name) return "int64_t";
 
@@ -5350,6 +5396,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             /* Derive the concrete binding by scanning params for the
              * first '?' slot and reading the matching arg's type. */
             const char *binding = NULL;
+            char *dynamic_binding = NULL;
             int pc = target_func->data.func_decl.param_count;
             int ac = node->data.call.arg_count;
             int cc = pc < ac ? pc : ac;
@@ -5360,11 +5407,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
                 if (!at) continue;
                 if (strcmp(ptn, "?") == 0) {
-                    /* : inside a generic body, the arg's typetable
-                     * entry is still TK_UNKNOWN ("unknown") from the
-                     * main-pass walk. If the outer wildcard_binding is
-                     * active, use it as the binding; that's the
-                     * concrete type this instantiation was stamped with. */
+                    /* Inside a generic body the arg's typetable entry is still
+                     * TK_UNKNOWN from the main-pass walk; use the outer binding. */
                     const char *tn = type_name(at);
                     if ((at->kind == TK_UNKNOWN || strcmp(tn, "unknown") == 0) &&
                         cg->wildcard_binding) {
@@ -5372,38 +5416,14 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     } else {
                         binding = tn;
                     }
-                } else if (ptn[0] == '[' && strncmp(ptn + 1, "?]", 2) == 0 &&
-                           at->kind == TK_ARRAY && at->element_type) {
-                    binding = at->element_type;
-                } else if (strncmp(ptn, "map[", 4) == 0 && at->kind == TK_MAP &&
-                           at->key_type && at->value_type) {
-                    /* map[K:V] with '?' in the key, value, or both slots
-                     * ). Mirror bind_wildcard() in the typechecker:
-                     * the concrete side (if any) must match the arg's
-                     * corresponding slot; the wildcard side binds to the
-                     * arg's slot. */
-                    const char *start = ptn + 4;
-                    const char *colon = strchr(start, ':');
-                    if (!colon) continue;
-                    size_t klen = (size_t)(colon - start);
-                    const char *vstart = colon + 1;
-                    size_t vlen = strlen(vstart);
-                    if (vlen == 0 || vstart[vlen - 1] != ']') continue;
-                    vlen--;
-                    bool k_wild = (klen == 1 && start[0] == '?');
-                    bool v_wild = (vlen == 1 && vstart[0] == '?');
-                    if (!k_wild && (strlen(at->key_type) != klen ||
-                                    memcmp(at->key_type, start, klen) != 0)) continue;
-                    if (!v_wild && (strlen(at->value_type) != vlen ||
-                                    memcmp(at->value_type, vstart, vlen) != 0)) continue;
-                    if (k_wild && v_wild) {
-                        if (strcmp(at->key_type, at->value_type) == 0) {
-                            binding = at->key_type;
-                        }
-                    } else if (k_wild) {
-                        binding = at->key_type;
-                    } else {
-                        binding = at->value_type;
+                } else {
+                    /* Composite param type (e.g. [[?]], [map[K:?]], map[K:[?]]).
+                     * Use the recursive helper to peel layers until '?' is reached. */
+                    char *derived = cg_bind_wildcard(ptn, type_name(at));
+                    if (derived) {
+                        free(dynamic_binding);
+                        dynamic_binding = derived;
+                        binding = dynamic_binding;
                     }
                 }
             }
@@ -5422,6 +5442,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             mangled[pos] = '\0';
             emit(cg, mangled);
             free(mangled);
+            free(dynamic_binding);
         } else {
             emit(cg, "ez_fn_");
             emit(cg, resolved_fn_name);

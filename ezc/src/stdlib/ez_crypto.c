@@ -11,7 +11,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+
+/* arc4random_buf is hidden by _POSIX_C_SOURCE on Apple/BSD — declare explicitly */
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+void arc4random_buf(void *buf, size_t nbytes);
+#endif
 
 /* ===== SHA-256 ===== */
 
@@ -138,13 +142,36 @@ EzString ez_crypto_md5(EzArena *arena, EzString data) {
 }
 
 EzString ez_crypto_random_hex(EzArena *arena, int64_t length) {
-    static bool seeded = false;
-    if (!seeded) { srand((unsigned)time(NULL)); seeded = true; }
+    if (length < 0) {
+        ez_panic(__FILE__, __LINE__,
+            "crypto.random_hex: length must be non-negative (got %lld)", (long long)length);
+    }
+    if (length == 0) {
+        char *empty = ez_arena_alloc(arena, 1);
+        empty[0] = '\0';
+        return (EzString){empty, 0};
+    }
+
+    int64_t nbytes = (length + 1) / 2;
+    uint8_t *raw = (uint8_t *)ez_arena_alloc(arena, (size_t)nbytes);
+
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    arc4random_buf(raw, (size_t)nbytes);
+#else
+    FILE *uf = fopen("/dev/urandom", "rb");
+    if (!uf || (int64_t)fread(raw, 1, (size_t)nbytes, uf) != nbytes) {
+        if (uf) fclose(uf);
+        ez_panic(__FILE__, __LINE__, "crypto.random_hex: failed to read from /dev/urandom");
+    }
+    fclose(uf);
+#endif
+
+    static const char hex_chars[] = "0123456789abcdef";
     char *hex = ez_arena_alloc(arena, (size_t)length + 1);
     for (int64_t i = 0; i < length; i++) {
-        snprintf(hex + i, 2, "%x", rand() % 16);
+        int nibble = (i % 2 == 0) ? ((raw[i / 2] >> 4) & 0x0f) : (raw[i / 2] & 0x0f);
+        hex[i] = hex_chars[nibble];
     }
     hex[length] = '\0';
-    EzString r = { hex, (int32_t)length };
-    return r;
+    return (EzString){hex, (int32_t)length};
 }
