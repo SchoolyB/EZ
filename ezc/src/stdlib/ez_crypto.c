@@ -12,6 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* arc4random_buf is hidden by _POSIX_C_SOURCE on Apple/BSD — declare explicitly */
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+void arc4random_buf(void *buf, size_t nbytes);
+#endif
+
 /* ===== SHA-256 ===== */
 
 static uint32_t sha256_k[64] = {
