@@ -1,0 +1,69 @@
+/*
+ * Test: field assignment through a pointer parameter auto-derefs correctly (#1653)
+ *
+ * b.v = x where b is ^Struct was mis-identified as modifying the pointer b
+ * itself (E3005). It should be equivalent to b^.v = x — mutating the field
+ * on the pointee, not the pointer.
+ */
+
+const Box struct {
+    v int
+}
+
+const Pair struct {
+    x int
+    y int
+}
+
+/* auto-deref assign via pointer param — was E3005 before the fix */
+do bump(b ^Box) {
+    b.v = b.v + 1
+}
+
+/* compound assign via pointer param */
+do add_to(b ^Box, n int) {
+    b.v += n
+}
+
+/* multiple fields via pointer param */
+do set_pair(p ^Pair, x int, y int) {
+    p.x = x
+    p.y = y
+}
+
+/* verify explicit-deref form still works (regression guard) */
+do bump_explicit(b ^Box) {
+    b^.v = b^.v + 1
+}
+
+do main() {
+    mut pass int = 0
+    mut fail int = 0
+
+    /* basic auto-deref field write */
+    mut b1 Box = Box{v: 10}
+    bump(addr(b1))
+    if b1.v == 11 { pass += 1 } otherwise { fail += 1 }
+
+    /* second call — confirm no aliasing issues */
+    bump(addr(b1))
+    if b1.v == 12 { pass += 1 } otherwise { fail += 1 }
+
+    /* compound assign via pointer param */
+    mut b2 Box = Box{v: 5}
+    add_to(addr(b2), 7)
+    if b2.v == 12 { pass += 1 } otherwise { fail += 1 }
+
+    /* multiple fields */
+    mut p1 Pair = Pair{x: 0, y: 0}
+    set_pair(addr(p1), 3, 4)
+    if p1.x == 3 && p1.y == 4 { pass += 1 } otherwise { fail += 1 }
+
+    /* explicit-deref form still works */
+    mut b3 Box = Box{v: 100}
+    bump_explicit(addr(b3))
+    if b3.v == 101 { pass += 1 } otherwise { fail += 1 }
+
+    println("pointer_param_auto_deref_assign: ${pass} passed, ${fail} failed")
+    if fail > 0 { exit(1) }
+}

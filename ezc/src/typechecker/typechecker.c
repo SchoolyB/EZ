@@ -6301,7 +6301,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (sym && !sym->mutable) const_name = target->data.index_expr.left->data.label.value;
         } else if (target->kind == NODE_MEMBER_EXPR && target->data.member.object->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
-            if (sym && !sym->mutable) const_name = target->data.member.object->data.label.value;
+            /* p.field on a pointer parameter auto-derefs to p^.field — the
+             * pointer itself is not being modified, so don't flag it as const. */
+            if (sym && !sym->mutable && !(sym->type && sym->type->kind == TK_POINTER))
+                const_name = target->data.member.object->data.label.value;
         }
         if (const_name) {
             diag_error_codef(tc->diag, "E3005", NODE_FILE(tc, node), node->token.line, node->token.column, 0, const_name);
