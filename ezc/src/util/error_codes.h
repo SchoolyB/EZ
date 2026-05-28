@@ -160,9 +160,7 @@
     EZ_ERROR("E3085", "types", "'in' operator type mismatch: cannot check if '%s' is in '%s'") \
     EZ_ERROR("E3086", "types", "fmt.%s format string must be a string literal; use string interpolation for dynamic values") \
     EZ_ERROR("E3087", "types", "%%n is not permitted in fmt format strings") \
-    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'") \
-    EZ_ERROR("E3089", "types", "binary bitwise operator '%s' requires integer operands; got '%s' and '%s'") \
-    EZ_ERROR("E3090", "types", "'bit_not' requires an integer operand; got '%s'")
+    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -215,6 +213,11 @@
     EZ_ERROR("E9005", "stdlib", "invalid range: start (%lld) must be less than end (%lld)") \
     EZ_ERROR("E12001", "stdlib", "maps.%s() requires a map argument, got an array") \
     EZ_ERROR("E12006", "stdlib", "duplicate key in map literal")
+
+/* --- E8xxx: Bitwise Operators --- */
+#define EZ_BITWISE_ERRORS \
+    EZ_ERROR("E8001", "bitwise", "'%s' can only be used with integers; got '%s' and '%s'") \
+    EZ_ERROR("E8002", "bitwise", "'bit_not' can only be used with integers; got '%s'")
 
 /* --- Warnings --- */
 #define EZ_WARNINGS \

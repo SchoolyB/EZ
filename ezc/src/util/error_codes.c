@@ -26,6 +26,7 @@ static ErrorEntry entries[] = {
     EZ_USAGE_ERRORS
     EZ_IMPORT_ERRORS
     EZ_STDLIB_ERRORS
+    EZ_BITWISE_ERRORS
     EZ_WARNINGS
 #undef EZ_ERROR
 #undef EZ_WARNING
