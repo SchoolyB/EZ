@@ -179,9 +179,14 @@ EzString ez_builtin_input(EzArena *arena) {
 /* --- assert --- */
 
 void ez_builtin_assert(bool condition, EzString message, const char *file, int line) {
+    (void)file; (void)line;
     if (!condition) {
-        fprintf(stderr, "assertion failed at %s:%d: ", file, line);
-        fwrite(message.data, 1, (size_t)message.len, stderr);
+        fflush(stdout);
+        fprintf(stderr, "panic[P0075]: assertion failed");
+        if (message.len > 0) {
+            fprintf(stderr, ": ");
+            fwrite(message.data, 1, (size_t)message.len, stderr);
+        }
         fputc('\n', stderr);
         exit(1);
     }
@@ -190,7 +195,8 @@ void ez_builtin_assert(bool condition, EzString message, const char *file, int l
 /* --- panic --- */
 
 void ez_builtin_panic_msg(EzString message) {
-    fprintf(stderr, "panic: ");
+    fflush(stdout);
+    fprintf(stderr, "panic[P0076]: ");
     fwrite(message.data, 1, (size_t)message.len, stderr);
     fputc('\n', stderr);
     exit(1);
@@ -354,7 +360,7 @@ EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind)
 
 int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line) {
     if (index < 0) {
-        ez_panic(file, line, "to_char() index out of bounds — index %lld is negative", (long long)index);
+        ez_panic_code("P0049", "to_char() index out of bounds; index %lld is negative", (long long)index);
     }
     const uint8_t *p = (const uint8_t *)s.data;
     const uint8_t *end = p + s.len;
@@ -390,7 +396,7 @@ int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line
         p += bytes;
         cp_idx++;
     }
-    ez_panic(file, line, "to_char() index out of bounds — index %lld but string has %lld characters",
+    ez_panic_code("P0050", "to_char() index out of bounds; index %lld but string has %lld characters",
         (long long)index, (long long)cp_idx);
     return 0; /* unreachable */
 }

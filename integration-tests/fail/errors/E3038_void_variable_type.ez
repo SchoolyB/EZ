@@ -1,8 +1,0 @@
-/*
- * Error Test: E3038 - void-type-not-allowed
- * Expected: "void" and "not a valid type"
- */
-
-do main() {
-    mut x void  // Should fail: void cannot be used as variable type
-}

@@ -138,14 +138,18 @@ void ez_scope_restore(EzArena *arena, EzScopeMark mark);
 void ez_panic(const char *file, int line, const char *fmt, ...)
     __attribute__((format(printf, 3, 4), noreturn));
 
+void ez_panic_code(const char *code, const char *fmt, ...)
+    __attribute__((format(printf, 2, 3), noreturn));
+
 /* --- Stack depth guard --- */
 
 #define EZ_MAX_CALL_DEPTH 10000
 extern int ez_call_depth;
 
 static inline void ez_enter_func(const char *file, int line) {
+    (void)file; (void)line;
     if (++ez_call_depth > EZ_MAX_CALL_DEPTH) {
-        ez_panic(file, line, "maximum recursion depth exceeded (%d calls deep) — your function is calling itself too many times",
+        ez_panic_code("P0003", "maximum recursion depth exceeded (%d calls deep); your function is calling itself too many times",
             EZ_MAX_CALL_DEPTH);
     }
 }
@@ -156,30 +160,34 @@ static inline void ez_exit_func(void) {
 
 /* Overflow-checked integer arithmetic */
 static inline int64_t ez_add_check(int64_t a, int64_t b, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result;
     if (__builtin_add_overflow(a, b, &result))
-        ez_panic(file, line, "addition result is too large — value exceeds the range of this type");
+        ez_panic_code("P0004", "addition result is too large; value exceeds the range of int");
     return result;
 }
 
 static inline int64_t ez_sub_check(int64_t a, int64_t b, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result;
     if (__builtin_sub_overflow(a, b, &result))
-        ez_panic(file, line, "subtraction result is too large — value exceeds the range of this type");
+        ez_panic_code("P0005", "subtraction result is too large; value exceeds the range of int");
     return result;
 }
 
 static inline int64_t ez_mul_check(int64_t a, int64_t b, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result;
     if (__builtin_mul_overflow(a, b, &result))
-        ez_panic(file, line, "multiplication result is too large — value exceeds the range of this type");
+        ez_panic_code("P0006", "multiplication result is too large; value exceeds the range of int");
     return result;
 }
 
 static inline int64_t ez_neg_check(int64_t a, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result;
     if (__builtin_sub_overflow((int64_t)0, a, &result))
-        ez_panic(file, line, "negation result is too large — value exceeds the range of this type");
+        ez_panic_code("P0007", "negation result is too large; value exceeds the range of int");
     return result;
 }
 
@@ -193,104 +201,117 @@ static inline int64_t ez_dec_check(int64_t a, const char *file, int line) {
 
 /* Overflow-checked unsigned integer arithmetic */
 static inline uint64_t ez_uadd_check(uint64_t a, uint64_t b, const char *file, int line) {
+    (void)file; (void)line;
     uint64_t result;
     if (__builtin_add_overflow(a, b, &result))
-        ez_panic(file, line, "unsigned addition result is too large — value exceeds the range of this type");
+        ez_panic_code("P0008", "addition result is too large; value exceeds the range of uint");
     return result;
 }
 
 static inline uint64_t ez_usub_check(uint64_t a, uint64_t b, const char *file, int line) {
+    (void)file; (void)line;
     if (b > a)
-        ez_panic(file, line, "subtraction result is negative, but uint cannot hold negative values");
+        ez_panic_code("P0009", "subtraction result is negative, but uint cannot hold negative values");
     return a - b;
 }
 
 static inline uint64_t ez_umul_check(uint64_t a, uint64_t b, const char *file, int line) {
+    (void)file; (void)line;
     uint64_t result;
     if (__builtin_mul_overflow(a, b, &result))
-        ez_panic(file, line, "unsigned multiplication result is too large — value exceeds the range of this type");
+        ez_panic_code("P0010", "multiplication result is too large; value exceeds the range of uint");
     return result;
 }
 
 /* Sized signed integer overflow checks (i8, i16, i32) */
 static inline int64_t ez_sized_add_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result = a + b;
     if (result < min_val || result > max_val)
-        ez_panic(file, line, "%s addition result is too large — value exceeds the range of this type", type_name);
+        ez_panic_code("P0011", "%s addition result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 static inline int64_t ez_sized_sub_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result = a - b;
     if (result < min_val || result > max_val)
-        ez_panic(file, line, "%s subtraction result is too large — value exceeds the range of this type", type_name);
+        ez_panic_code("P0012", "%s subtraction result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 static inline int64_t ez_sized_mul_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result = a * b;
     if (result < min_val || result > max_val)
-        ez_panic(file, line, "%s multiplication result is too large — value exceeds the range of this type", type_name);
+        ez_panic_code("P0013", "%s multiplication result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 static inline int64_t ez_sized_neg_check(int64_t a, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     int64_t result = -a;
     if (result < min_val || result > max_val)
-        ez_panic(file, line, "%s negation result is too large — value exceeds the range of this type", type_name);
+        ez_panic_code("P0014", "%s negation result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 /* Sized unsigned integer overflow checks (u8, u16, u32, byte) */
 static inline uint64_t ez_usized_add_check(uint64_t a, uint64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     uint64_t result = a + b;
     if (result > max_val)
-        ez_panic(file, line, "%s addition result is too large — value exceeds the range of this type", type_name);
+        ez_panic_code("P0015", "%s addition result is too large; value exceeds the range of this unsigned type", type_name);
     return result;
 }
 
 static inline uint64_t ez_usized_sub_check(uint64_t a, uint64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line; (void)max_val;
     if (b > a)
-        ez_panic(file, line, "%s subtraction result is negative, but this unsigned type cannot hold negative values", type_name);
+        ez_panic_code("P0016", "%s subtraction result is negative, but this unsigned type cannot hold negative values", type_name);
     return a - b;
 }
 
 static inline uint64_t ez_usized_mul_check(uint64_t a, uint64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     uint64_t result = a * b;
     if (result > max_val)
-        ez_panic(file, line, "%s multiplication result is too large — value exceeds the range of this type", type_name);
+        ez_panic_code("P0017", "%s multiplication result is too large; value exceeds the range of this unsigned type", type_name);
     return result;
 }
 
 /* Safe narrowing cast with overflow check */
 static inline int64_t ez_cast_check(int64_t v, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     if (v < min_val || v > max_val)
-        ez_panic(file, line, "cast to %s failed — value %lld is outside the valid range (%lld to %lld)",
+        ez_panic_code("P0018", "cast to %s failed; value %lld is outside the valid range (%lld to %lld)",
             type_name, (long long)v, (long long)min_val, (long long)max_val);
     return v;
 }
 
 static inline uint64_t ez_ucast_check(int64_t v, uint64_t max_val,
     const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
     if (v < 0 || (uint64_t)v > max_val)
-        ez_panic(file, line, "cast to %s failed — value %lld is outside the valid range (0 to %llu)",
+        ez_panic_code("P0019", "cast to %s failed; value %lld is outside the valid range (0 to %llu)",
             type_name, (long long)v, (unsigned long long)max_val);
     return (uint64_t)v;
 }
 
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t ez_float_to_int(double v, const char *file, int line) {
+    (void)file; (void)line;
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||
         v != v /* NaN */)
-        ez_panic(file, line, "cannot convert float to int — the value is too large, too small, or NaN");
+        ez_panic_code("P0020", "cannot convert float to int; the value is too large, too small, or NaN");
     return (int64_t)v;
 }
 

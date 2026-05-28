@@ -43,7 +43,7 @@ EzArena *ez_arena_create(size_t initial_size) {
 
 void *ez_arena_alloc(EzArena *arena, size_t size) {
     if (arena->destroyed)
-        ez_panic(__FILE__, __LINE__, "cannot allocate from a destroyed arena — mem.destroy() was already called on this arena");
+        ez_panic_code("P0001", "cannot allocate from a destroyed arena; mem.destroy() was already called on this arena");
     size = ALIGN_UP(size, 8);
     if (arena->current->used + size > arena->current->size) {
         size_t block_size = arena->default_block_size;
@@ -71,7 +71,7 @@ void ez_arena_reset(EzArena *arena) {
 void ez_arena_destroy(EzArena *arena, const char *file, int line) {
     if (!arena) return;
     if (arena->destroyed)
-        ez_panic(file, line, "mem.destroy() called on an arena that was already destroyed — each arena can only be destroyed once");
+        ez_panic_code("P0002", "mem.destroy() called on an arena that was already destroyed; each arena can only be destroyed once");
     EzArenaBlock *block = arena->first;
     while (block) {
         EzArenaBlock *next = block->next;
@@ -208,6 +208,17 @@ void ez_runtime_shutdown(void) {
 void ez_panic(const char *file, int line, const char *fmt, ...) {
     fflush(stdout);
     fprintf(stderr, "panic at %s:%d: ", file, line);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
+void ez_panic_code(const char *code, const char *fmt, ...) {
+    fflush(stdout);
+    fprintf(stderr, "panic[%s]: ", code);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);

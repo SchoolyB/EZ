@@ -43,7 +43,7 @@ static int b64_val(char c) {
 EzString ez_encoding_base64_decode(EzArena *arena, EzString s) {
     if (s.len == 0) return ez_string_lit("");
     if (s.len % 4 != 0) {
-        ez_panic(__FILE__, __LINE__,
+        ez_panic_code("P0036",
             "encoding.base64_decode: input length %d is not a multiple of 4",
             s.len);
     }
@@ -65,12 +65,11 @@ EzString ez_encoding_base64_decode(EzArena *arena, EzString s) {
         int d_pad = (d_ch == '=');
 
         if ((c_pad || d_pad) && !last_quad) {
-            ez_panic(__FILE__, __LINE__,
+            ez_panic_code("P0037",
                 "encoding.base64_decode: padding character '=' before end of input");
         }
         if (c_pad && !d_pad) {
-            ez_panic(__FILE__, __LINE__,
-                "encoding.base64_decode: invalid padding");
+            ez_panic_code("P0038", "encoding.base64_decode: invalid padding");
         }
 
         int a = b64_val(s.data[i]);
@@ -78,8 +77,7 @@ EzString ez_encoding_base64_decode(EzArena *arena, EzString s) {
         int c = c_pad ? 0 : b64_val(c_ch);
         int d = d_pad ? 0 : b64_val(d_ch);
         if (a < 0 || b < 0 || c < 0 || d < 0) {
-            ez_panic(__FILE__, __LINE__,
-                "encoding.base64_decode: invalid character in input");
+            ez_panic_code("P0039", "encoding.base64_decode: invalid character in input");
         }
 
         uint32_t triple = ((uint32_t)a << 18) | ((uint32_t)b << 12) |
@@ -106,8 +104,7 @@ EzString ez_encoding_hex_encode(EzArena *arena, EzString s) {
 
 EzString ez_encoding_hex_decode(EzArena *arena, EzString s) {
     if (s.len % 2 != 0) {
-        ez_panic(__FILE__, __LINE__,
-            "encoding.hex_decode: input length %d is not even", s.len);
+        ez_panic_code("P0040", "encoding.hex_decode: input length %d is not even", s.len);
     }
     int32_t out_len = s.len / 2;
     char *out = ez_arena_alloc(arena, (size_t)out_len + 1);
@@ -115,8 +112,7 @@ EzString ez_encoding_hex_decode(EzArena *arena, EzString s) {
         unsigned char hi = (unsigned char)s.data[i * 2];
         unsigned char lo = (unsigned char)s.data[i * 2 + 1];
         if (!isxdigit(hi) || !isxdigit(lo)) {
-            ez_panic(__FILE__, __LINE__,
-                "encoding.hex_decode: invalid hex character at position %d", i * 2);
+            ez_panic_code("P0041", "encoding.hex_decode: invalid hex character at position %d", i * 2);
         }
         int hi_v = (hi <= '9') ? hi - '0' : (hi <= 'F') ? hi - 'A' + 10 : hi - 'a' + 10;
         int lo_v = (lo <= '9') ? lo - '0' : (lo <= 'F') ? lo - 'A' + 10 : lo - 'a' + 10;
@@ -152,8 +148,7 @@ EzString ez_encoding_url_decode(EzArena *arena, EzString s) {
             unsigned char hi = (unsigned char)s.data[i + 1];
             unsigned char lo = (unsigned char)s.data[i + 2];
             if (!isxdigit(hi) || !isxdigit(lo)) {
-                ez_panic(__FILE__, __LINE__,
-                    "encoding.url_decode: invalid percent-escape at position %d", i);
+                ez_panic_code("P0042", "encoding.url_decode: invalid percent-escape at position %d", i);
             }
             int hi_v = (hi <= '9') ? hi - '0' : (hi <= 'F') ? hi - 'A' + 10 : hi - 'a' + 10;
             int lo_v = (lo <= '9') ? lo - '0' : (lo <= 'F') ? lo - 'A' + 10 : lo - 'a' + 10;

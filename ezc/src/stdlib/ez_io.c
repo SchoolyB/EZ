@@ -185,8 +185,7 @@ EzString ez_io_read_file(EzArena *arena, EzString path) {
         if (len == cap) {
             if (cap > (size_t)INT32_MAX / 2) {
                 fclose(f);
-                ez_panic(__FILE__, __LINE__,
-                    "io.read_file: input exceeds maximum string length");
+                ez_panic_code("P0053", "io.read_file: input exceeds maximum string length");
             }
             size_t new_cap = cap * 2;
             char *new_buf = ez_arena_alloc(arena, new_cap);
@@ -248,11 +247,8 @@ bool ez_io_append_file(EzString path, EzString content) {
 
 bool ez_io_delete_file(EzString path) {
     struct stat st;
-    if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode)) {
-        fflush(stdout);
-        fprintf(stderr, "panic: io.delete_file() cannot delete a directory — use io.delete_dir() for directories\n");
-        exit(1);
-    }
+    if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode))
+        ez_panic_code("P0077", "io.delete_file() cannot delete a directory; use io.delete_dir() for directories");
     return unlink(path.data) == 0;
 }
 
@@ -441,11 +437,8 @@ EzResult_bool ez_io_write_file_result(EzArena *arena, EzString path, EzString co
 EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path) {
     EzResult_bool r;
     struct stat st;
-    if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode)) {
-        fflush(stdout);
-        fprintf(stderr, "panic: io.delete_file() cannot delete a directory — use io.delete_dir() for directories\n");
-        exit(1);
-    }
+    if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode))
+        ez_panic_code("P0077", "io.delete_file() cannot delete a directory; use io.delete_dir() for directories");
     if (unlink(path.data) == 0) {
         r.v0 = true;
         r.v1 = NULL;
