@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.4.3](https://github.com/SchoolyB/EZ/compare/v3.4.2...v3.4.3) (2026-05-28)
+
+
+### Bug Fixes
+
+* **codegen:** recursive wildcard binding at call sites for nested composite types ([d62ccbe](https://github.com/SchoolyB/EZ/commit/d62ccbebfb6bc9fa586852d602699077e8922744))
+* **stdlib:** forward-declare arc4random_buf to fix macOS build ([835fde6](https://github.com/SchoolyB/EZ/commit/835fde68228a6ca639063a0055493c27631ee570))
+* **stdlib:** reject leading whitespace in strconv, fix url_decode invalid %, fix regex find_all OOB ([f521496](https://github.com/SchoolyB/EZ/commit/f521496393302ff91b47663cf2b8dd65fccb0b0e))
+* **stdlib:** replace rand()/srand() in crypto.random_hex with platform CSPRNG ([8e47bb0](https://github.com/SchoolyB/EZ/commit/8e47bb030e795caeea50c66250539727f5e7f74b)), closes [#1648](https://github.com/SchoolyB/EZ/issues/1648)
+* **typechecker:** allow auto-deref field assignment on pointer parameters ([daa819f](https://github.com/SchoolyB/EZ/commit/daa819ff0c49bfd4480d25bf9c2850d4272dc85a)), closes [#1653](https://github.com/SchoolyB/EZ/issues/1653)
+* **typechecker:** wildcard unifier recurses into nested composite types ([cfef697](https://github.com/SchoolyB/EZ/commit/cfef697019fe1463c2299b61f3e8c0e6db0f3ce3)), closes [#1652](https://github.com/SchoolyB/EZ/issues/1652)
+
 ## [3.4.2](https://github.com/SchoolyB/EZ/compare/v3.4.1...v3.4.2) (2026-05-21)
 
 
