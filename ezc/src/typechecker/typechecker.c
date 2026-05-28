@@ -351,77 +351,112 @@ static char *substitute_wildcard(const char *src, const char *concrete) {
     return out;
 }
 
-/* Derive the "concrete type that a wildcard parameter binds to", given
- * the parameter's source type string (containing '?') and the argument's
- * resolved EzType. Examples:
- *   param "?"             + arg int                -> "int"
- *   param "[?]"            + arg [string]           -> "string"
- *   param "map[string:?]"  + arg map[string:int]    -> "int"
- *   param "map[?:int]"     + arg map[string:int]    -> "string"
- * Returns NULL if the shape doesn't match (e.g. param "[?]" with a
- * non-array arg, or param "map[int:?]" with a map whose key type is
- * not int). Caller owns the returned string. */
+/* Find the top-level ':' inside a "map[K:V]" type string, skipping nested
+ * brackets. Sets key_out/key_len and val_out/val_len on success. */
+static bool parse_map_keyval(const char *tn,
+                              const char **key_out, size_t *key_len,
+                              const char **val_out, size_t *val_len) {
+    if (strncmp(tn, "map[", 4) != 0) return false;
+    const char *start = tn + 4;
+    int depth = 0;
+    const char *colon = NULL;
+    for (const char *c = start; *c && !(depth == 0 && *c == ']'); c++) {
+        if      (*c == '[')                   depth++;
+        else if (*c == ']')                   depth--;
+        else if (*c == ':' && depth == 0) { colon = c; break; }
+    }
+    if (!colon) return false;
+    *key_out = start;
+    *key_len = (size_t)(colon - start);
+    *val_out = colon + 1;
+    const char *end = tn + strlen(tn) - 1;
+    if (*end != ']') return false;
+    *val_len = (size_t)(end - *val_out);
+    return true;
+}
+
+/* Recursive string-based wildcard unifier.
+ * Matches param_tn (containing '?') against the concrete type string
+ * arg_tn and returns a heap-allocated string for the type '?' binds to,
+ * or NULL on shape mismatch. Recurses into arrays and maps so nested
+ * composites like [[?]], [map[string:?]], and map[string:[?]] are handled.
+ *
+ * Examples:
+ *   "?"               vs "int"            -> "int"
+ *   "[?]"             vs "[string]"       -> "string"
+ *   "[[?]]"           vs "[[int]]"        -> "int"
+ *   "[map[string:?]]" vs "[map[string:int]]" -> "int"
+ *   "map[string:[?]]" vs "map[string:[int]]" -> "int"
+ *   "map[?:?]"        vs "map[int:int]"   -> "int"    (K==V required)
+ */
+static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
+    if (!param_tn || !arg_tn) return NULL;
+
+    if (strcmp(param_tn, "?") == 0) return strdup(arg_tn);
+
+    size_t plen = strlen(param_tn);
+    size_t alen = strlen(arg_tn);
+
+    /* Array: both must start/end with brackets; recurse into element types */
+    if (param_tn[0] == '[' && arg_tn[0] == '[') {
+        if (plen < 3 || alen < 3) return NULL;
+        if (param_tn[plen - 1] != ']' || arg_tn[alen - 1] != ']') return NULL;
+        char *p_inner = strndup(param_tn + 1, plen - 2);
+        char *a_inner = strndup(arg_tn + 1, alen - 2);
+        char *result = bind_wildcard_str(p_inner, a_inner);
+        free(p_inner);
+        free(a_inner);
+        return result;
+    }
+
+    /* Map: both must be map types; recurse into whichever slot carries '?' */
+    if (strncmp(param_tn, "map[", 4) == 0 && strncmp(arg_tn, "map[", 4) == 0) {
+        const char *pk, *pv, *ak, *av;
+        size_t pkl, pvl, akl, avl;
+        if (!parse_map_keyval(param_tn, &pk, &pkl, &pv, &pvl)) return NULL;
+        if (!parse_map_keyval(arg_tn,   &ak, &akl, &av, &avl)) return NULL;
+
+        bool pk_wild = false;
+        for (size_t i = 0; i < pkl; i++) if (pk[i] == '?') { pk_wild = true; break; }
+        bool pv_wild = false;
+        for (size_t i = 0; i < pvl; i++) if (pv[i] == '?') { pv_wild = true; break; }
+
+        if (!pk_wild && !pv_wild) return NULL;
+
+        /* Concrete slots must match the argument's corresponding slot exactly */
+        if (!pk_wild && (akl != pkl || memcmp(ak, pk, pkl) != 0)) return NULL;
+        if (!pv_wild && (avl != pvl || memcmp(av, pv, pvl) != 0)) return NULL;
+
+        if (pk_wild && pv_wild) {
+            /* A single '?' binding must satisfy both slots: require arg K == V */
+            if (akl != avl || memcmp(ak, av, akl) != 0) return NULL;
+        }
+
+        char *result;
+        if (pk_wild) {
+            char *p = strndup(pk, pkl);
+            char *a = strndup(ak, akl);
+            result = bind_wildcard_str(p, a);
+            free(p); free(a);
+        } else {
+            char *p = strndup(pv, pvl);
+            char *a = strndup(av, avl);
+            result = bind_wildcard_str(p, a);
+            free(p); free(a);
+        }
+        return result;
+    }
+
+    return NULL;
+}
+
+/* Derive the concrete type that '?' binds to given the parameter's type
+ * string and the resolved argument EzType. Delegates to bind_wildcard_str
+ * so composite nesting (arrays-of-arrays, maps-of-arrays, etc.) is handled
+ * recursively. Caller owns the returned string. */
 static char *bind_wildcard(const char *param_tn, EzType *arg_t) {
     if (!param_tn || !arg_t) return NULL;
-    if (strcmp(param_tn, "?") == 0) {
-        return strdup(type_name(arg_t));
-    }
-    if (param_tn[0] == '[' && arg_t->kind == TK_ARRAY && arg_t->element_type) {
-        /* [?] vs concrete array; bind to the element type */
-        const char *inside = param_tn + 1;
-        /* Only handle the simple "[?]" case for this slice. Nested or
-         * sized forms (`[[?]]`, `[?,3]`) fall through to a literal
-         * match below. */
-        if (strncmp(inside, "?]", 2) == 0) {
-            return strdup(arg_t->element_type);
-        }
-    }
-    /* map[K:V] with '?' in either slot (). The array path above
-     * only handles "[?]"; the equivalent TK_MAP path here was missing,
-     * so every generic map helper silently fell through to NULL. */
-    if (strncmp(param_tn, "map[", 4) == 0 && arg_t->kind == TK_MAP &&
-        arg_t->key_type && arg_t->value_type) {
-        /* Split the param's key/value slots at the top-level ':'. */
-        const char *start = param_tn + 4;
-        const char *colon = strchr(start, ':');
-        if (!colon) return NULL;
-        size_t klen = (size_t)(colon - start);
-        const char *vstart = colon + 1;
-        size_t vlen = strlen(vstart);
-        if (vlen == 0 || vstart[vlen - 1] != ']') return NULL;
-        vlen--; /* drop trailing ']' */
-
-        bool k_wild = (klen == 1 && start[0] == '?');
-        bool v_wild = (vlen == 1 && vstart[0] == '?');
-
-        /* If the key slot is concrete, it must match the argument's key
-         * type exactly; otherwise the map types genuinely disagree and
-         * unification should fail. Same for the value slot. */
-        if (!k_wild) {
-            if (strlen(arg_t->key_type) != klen ||
-                memcmp(arg_t->key_type, start, klen) != 0) {
-                return NULL;
-            }
-        }
-        if (!v_wild) {
-            if (strlen(arg_t->value_type) != vlen ||
-                memcmp(arg_t->value_type, vstart, vlen) != 0) {
-                return NULL;
-            }
-        }
-
-        if (k_wild && v_wild) {
-            /* Both slots are '?'. The generic sig carries a single
-             * wildcard binding, so we can only accept this when the
-             * argument's key and value types agree (the one binding
-             * satisfies both slots). */
-            if (strcmp(arg_t->key_type, arg_t->value_type) != 0) return NULL;
-            return strdup(arg_t->key_type);
-        }
-        if (k_wild) return strdup(arg_t->key_type);
-        if (v_wild) return strdup(arg_t->value_type);
-    }
-    return NULL;
+    return bind_wildcard_str(param_tn, type_name(arg_t));
 }
 
 /* Mark a just-registered FuncSig as generic if any of the declared
