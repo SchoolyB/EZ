@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 279 codes** (180 errors, 14 warnings, 85 panics)
+**Total: 283 codes** (180 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -297,7 +297,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0074` | uuid | uuid.parse: invalid UUID string |
 | `P0075` | runtime | assertion failed |
 | `P0076` | runtime | panic |
-| `P0077` | io | io.delete_file() cannot delete a directory; use io.delete_dir() for directories |
+| `P0077` | io | io.delete_file() cannot delete a directory; use io.remove_dir() for directories |
 | `P0078` | arithmetic | division by zero |
 | `P0079` | arithmetic | %s result is too large; value exceeds the range of this type |
 | `P0080` | runtime | nil pointer dereference |
@@ -306,6 +306,10 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0083` | runtime | sleep duration cannot be negative (%lld) |
 | `P0084` | runtime | cannot convert '%s' to int |
 | `P0085` | runtime | cannot convert '%s' to float |
+| `P0086` | io | io.read_file() cannot read a directory; use io.list_dir() or io.walk() to list directory contents |
+| `P0087` | io | io.write_file() cannot write to a directory |
+| `P0088` | io | io.append_file() cannot append to a directory |
+| `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
 
 ---
 
@@ -330,4 +334,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-05-29 03:43:08 UTC*
+*Generated on 2026-05-29 23:05:58 UTC*
