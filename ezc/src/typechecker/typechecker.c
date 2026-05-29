@@ -550,11 +550,12 @@ typedef struct {
 
 static const FallibleEntry fallible_stdlib[] = {
     /* io */
-    {"io", "read_file"}, {"io", "write_file"}, {"io", "delete_file"},
+    {"io", "read_file"}, {"io", "read_bytes"}, {"io", "read_lines"},
+    {"io", "file_size"}, {"io", "write_file"}, {"io", "delete_file"},
     {"io", "copy_file"}, {"io", "move_file"}, {"io", "list_dir"},
     {"io", "make_dir"}, {"io", "make_dir_all"}, {"io", "remove_dir"},
     {"io", "remove_dir_all"}, {"io", "walk"}, {"io", "append_file"},
-    {"io", "rename_file"},
+    {"io", "rename_file"}, {"io", "glob"},
     /* sqlite */
     {"sqlite", "open"}, {"sqlite", "exec"}, {"sqlite", "query"},
     /* net */
@@ -588,7 +589,7 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
  * doesn't depend on sym->type being resolved first. */
 typedef enum {
     FT_BOOL, FT_INT, FT_UINT, FT_FLOAT, FT_STRING,
-    FT_ARRAY_STRING, FT_ARRAY_MAP,
+    FT_ARRAY_STRING, FT_ARRAY_BYTE, FT_ARRAY_MAP,
     FT_STRUCT_DATABASE, FT_STRUCT_SOCKET, FT_STRUCT_LISTENER,
     FT_STRUCT_HTTP_RESPONSE, FT_STRUCT_MAP,
 } FallibleType;
@@ -602,6 +603,8 @@ typedef struct {
 static const FallibleTypeEntry fallible_type_table[] = {
     /* io */
     {"io", "read_file", FT_STRING},
+    {"io", "read_bytes", FT_ARRAY_BYTE}, {"io", "read_lines", FT_ARRAY_STRING},
+    {"io", "file_size", FT_INT}, {"io", "glob", FT_ARRAY_STRING},
     {"io", "list_dir", FT_ARRAY_STRING}, {"io", "walk", FT_ARRAY_STRING},
     {"io", "write_file", FT_BOOL}, {"io", "delete_file", FT_BOOL},
     {"io", "copy_file", FT_BOOL}, {"io", "move_file", FT_BOOL},
@@ -644,6 +647,7 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
             case FT_FLOAT:               return &TYPE_FLOAT;
             case FT_STRING:              return &TYPE_STRING;
             case FT_ARRAY_STRING:        return type_array("string");
+            case FT_ARRAY_BYTE:          return type_array("byte");
             case FT_ARRAY_MAP:           return type_array("map");
             case FT_STRUCT_DATABASE:     return type_struct("Database");
             case FT_STRUCT_SOCKET:       return type_struct("Socket");
@@ -668,7 +672,7 @@ typedef struct {
 
 static const StdlibArgEntry stdlib_arg_table[] = {
     /* io */
-    {"io", "read_file", 1, 1},
+    {"io", "read_file", 1, 1}, {"io", "read_bytes", 1, 1}, {"io", "read_lines", 1, 1},
     {"io", "write_file", 2, 2}, {"io", "append_file", 2, 2},
     {"io", "file_exists", 1, 1}, {"io", "is_file", 1, 1},
     {"io", "is_directory", 1, 1}, {"io", "file_size", 1, 1},
@@ -677,7 +681,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"io", "list_dir", 1, 1}, {"io", "walk", 1, 1}, {"io", "glob", 1, 1},
     {"io", "make_dir", 1, 1}, {"io", "make_dir_all", 1, 1},
     {"io", "remove_dir", 1, 1}, {"io", "remove_dir_all", 1, 1},
-    {"io", "path_join", 2, 2}, {"io", "dirname", 1, 1},
+    {"io", "path_join", 1, 1}, {"io", "dirname", 1, 1},
     {"io", "basename", 1, 1}, {"io", "extension", 1, 1},
     {"io", "is_absolute", 1, 1}, {"io", "normalize", 1, 1},
     /* strings */
@@ -835,7 +839,8 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "split", 0, ARG_STRING}, {"strings", "slice", 0, ARG_STRING},
     {"strings", "join", 0, ARG_ARRAY},
     /* io: path args are strings */
-    {"io", "read_file", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
+    {"io", "read_file", 0, ARG_STRING}, {"io", "read_bytes", 0, ARG_STRING},
+    {"io", "read_lines", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
     {"io", "append_file", 0, ARG_STRING}, {"io", "file_exists", 0, ARG_STRING},
     {"io", "is_file", 0, ARG_STRING}, {"io", "is_directory", 0, ARG_STRING},
     {"io", "file_size", 0, ARG_STRING}, {"io", "delete_file", 0, ARG_STRING},
@@ -844,7 +849,7 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"io", "walk", 0, ARG_STRING}, {"io", "glob", 0, ARG_STRING},
     {"io", "make_dir", 0, ARG_STRING}, {"io", "make_dir_all", 0, ARG_STRING},
     {"io", "remove_dir", 0, ARG_STRING}, {"io", "remove_dir_all", 0, ARG_STRING},
-    {"io", "path_join", 0, ARG_STRING}, {"io", "dirname", 0, ARG_STRING},
+    {"io", "path_join", 0, ARG_ARRAY}, {"io", "dirname", 0, ARG_STRING},
     {"io", "basename", 0, ARG_STRING}, {"io", "extension", 0, ARG_STRING},
     {"io", "is_absolute", 0, ARG_STRING}, {"io", "normalize", 0, ARG_STRING},
     /* maps: first arg is a map */
@@ -1070,7 +1075,7 @@ static const UsingConst _using_consts[] = {
     {"LN10","math",TK_FLOAT},{"INF","math",TK_FLOAT},{"NEG_INF","math",TK_FLOAT},
     {"EPSILON","math",TK_FLOAT},
     {"MAC_OS","os",TK_INT},{"LINUX","os",TK_INT},{"WINDOWS","os",TK_INT},{"OTHER","os",TK_INT},
-    {"READ_ONLY","io",TK_INT},{"WRITE_ONLY","io",TK_INT},{"READ_WRITE","io",TK_INT},
+    {"O_RDONLY","io",TK_INT},{"O_WRONLY","io",TK_INT},{"O_RDWR","io",TK_INT},
     {"BASE_2","strconv",TK_INT},{"BASE_8","strconv",TK_INT},{"BASE_10","strconv",TK_INT},
     {"BASE_16","strconv",TK_INT},{"BASE_36","strconv",TK_INT},
     {"NIL_UUID","uuid",TK_STRING},
@@ -2304,6 +2309,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_size") == 0) {
                     result = &TYPE_INT;
+                } else if (strcmp(mfn, "read_bytes") == 0) {
+                    result = type_array("byte");
+                } else if (strcmp(mfn, "read_lines") == 0) {
+                    result = type_array("string");
                 } else if (strcmp(mfn, "list_dir") == 0 || strcmp(mfn, "walk") == 0 ||
                            strcmp(mfn, "glob") == 0) {
                     result = type_array("string");
@@ -4548,6 +4557,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
                 break;
             }
+            if (strcmp(obj_name, "io") == 0) {
+                const char *mem = node->data.member.member;
+                if (strcmp(mem, "O_RDONLY") == 0 || strcmp(mem, "O_WRONLY") == 0 ||
+                    strcmp(mem, "O_RDWR") == 0) {
+                    result = &TYPE_INT;
+                    break;
+                }
+            }
             if (strcmp(obj_name, "strconv") == 0) {
                 const char *mem = node->data.member.member;
                 if (strcmp(mem, "BASE_2") == 0 || strcmp(mem, "BASE_8") == 0 ||
@@ -4664,6 +4681,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = struct_field_type(tc, sym->type->element_type, member);
                 if (result->kind == TK_UNKNOWN && member[0] != 'v') {
                     diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0, sym->type->element_type, member);
+                }
+            } else if (sym && sym->type->kind == TK_ERROR) {
+                /* Error type has .message and .code string fields */
+                if (strcmp(member, "message") == 0 || strcmp(member, "code") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "Error has no field '%s'; available fields: message, code",
+                        member);
+                    diag_error_msg(tc->diag, "E3010", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (sym && sym->type->kind != TK_UNKNOWN &&
                        sym->type->kind != TK_STRUCT && sym->type->kind != TK_ENUM &&

@@ -1,0 +1,171 @@
+/*
+ * Test: io module read_bytes, read_lines, file_size_result, glob_result,
+ *       and O_RDONLY/O_WRONLY/O_RDWR constants
+ */
+
+import @io
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut test_file string = "/tmp/ez_io_readtest.txt"
+    mut _ = io.write_file(test_file, "line1\nline2\nline3")
+
+    // Test 1: read_bytes returns correct byte count
+    mut bytes = io.read_bytes(test_file)
+    if len(bytes) == 17 {
+        println("  [PASS] read_bytes: correct byte count (17)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_bytes: expected 17 bytes, got ${len(bytes)}")
+        failed += 1
+    }
+
+    // Test 2: read_bytes_result success
+    mut bdata, berr = io.read_bytes(test_file)
+    if berr == nil {
+        println("  [PASS] read_bytes_result: no error on valid file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_bytes_result: unexpected error")
+        failed += 1
+    }
+
+    // Test 3: read_bytes_result error on nonexistent file
+    mut bdata2, berr2 = io.read_bytes("/tmp/ez_nonexistent_bytes.txt")
+    if berr2 != nil {
+        println("  [PASS] read_bytes_result: error on nonexistent file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_bytes_result: expected error on nonexistent file")
+        failed += 1
+    }
+
+    // Test 4: read_lines returns correct line count
+    mut lines = io.read_lines(test_file)
+    if len(lines) == 3 {
+        println("  [PASS] read_lines: 3 lines")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_lines: expected 3 lines, got ${len(lines)}")
+        failed += 1
+    }
+
+    // Test 5: read_lines line content is correct
+    if lines[0] == "line1" {
+        println("  [PASS] read_lines: first line correct")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_lines: first line expected \"line1\", got \"${lines[0]}\"")
+        failed += 1
+    }
+
+    // Test 6: read_lines_result success
+    mut ldata, lerr = io.read_lines(test_file)
+    if lerr == nil {
+        println("  [PASS] read_lines_result: no error on valid file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_lines_result: unexpected error")
+        failed += 1
+    }
+
+    // Test 7: read_lines_result error on nonexistent file
+    mut ldata2, lerr2 = io.read_lines("/tmp/ez_nonexistent_lines.txt")
+    if lerr2 != nil {
+        println("  [PASS] read_lines_result: error on nonexistent file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_lines_result: expected error on nonexistent file")
+        failed += 1
+    }
+
+    // Test 8: file_size_result success
+    mut sz, szerr = io.file_size(test_file)
+    if szerr == nil {
+        println("  [PASS] file_size_result: no error on valid file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] file_size_result: unexpected error")
+        failed += 1
+    }
+
+    // Test 9: file_size_result correct size
+    if sz == 17 {
+        println("  [PASS] file_size_result: correct size (17)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] file_size_result: expected 17, got ${sz}")
+        failed += 1
+    }
+
+    // Test 10: file_size_result error on nonexistent
+    mut sz2, szerr2 = io.file_size("/tmp/ez_nonexistent_size.txt")
+    if szerr2 != nil {
+        println("  [PASS] file_size_result: error on nonexistent file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] file_size_result: expected error on nonexistent file, got ${sz2}")
+        failed += 1
+    }
+
+    // Test 11: glob_result finds files
+    mut gfiles, gerr = io.glob("/tmp/ez_io_readtest*")
+    if gerr == nil {
+        println("  [PASS] glob_result: no error on valid pattern")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] glob_result: unexpected error")
+        failed += 1
+    }
+
+    // Test 12: glob_result returns matches
+    if len(gfiles) > 0 {
+        println("  [PASS] glob_result: found matches")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] glob_result: expected at least 1 match")
+        failed += 1
+    }
+
+    // Test 13: O_RDONLY is 0
+    mut rdonly int = io.O_RDONLY
+    if rdonly == 0 {
+        println("  [PASS] O_RDONLY == 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] O_RDONLY: expected 0, got ${rdonly}")
+        failed += 1
+    }
+
+    // Test 14: O_WRONLY is 1
+    mut wronly int = io.O_WRONLY
+    if wronly == 1 {
+        println("  [PASS] O_WRONLY == 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] O_WRONLY: expected 1, got ${wronly}")
+        failed += 1
+    }
+
+    // Test 15: O_RDWR is 2
+    mut rdwr int = io.O_RDWR
+    if rdwr == 2 {
+        println("  [PASS] O_RDWR == 2")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] O_RDWR: expected 2, got ${rdwr}")
+        failed += 1
+    }
+
+    // Cleanup
+    mut _ = io.delete_file(test_file)
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

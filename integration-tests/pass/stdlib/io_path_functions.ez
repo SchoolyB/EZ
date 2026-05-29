@@ -9,13 +9,33 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: path_join
-    mut joined string = io.path_join("/home", "user")
+    // Test 1: path_join two segments
+    mut joined string = io.path_join({"/home", "user"})
     if joined == "/home/user" {
-        println("  [PASS] path_join(\"/home\", \"user\") = \"/home/user\"")
+        println("  [PASS] path_join([\"/home\", \"user\"]) = \"/home/user\"")
         passed += 1
     } otherwise {
         println("  [FAIL] path_join: expected \"/home/user\", got \"${joined}\"")
+        failed += 1
+    }
+
+    // Test 1b: path_join three segments
+    mut joined3 string = io.path_join({"a", "b", "c"})
+    if joined3 == "a/b/c" {
+        println("  [PASS] path_join([\"a\", \"b\", \"c\"]) = \"a/b/c\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] path_join three: expected \"a/b/c\", got \"${joined3}\"")
+        failed += 1
+    }
+
+    // Test 1c: path_join absolute segment replaces
+    mut joined_abs string = io.path_join({"/base", "/abs"})
+    if joined_abs == "/abs" {
+        println("  [PASS] path_join([\"/base\", \"/abs\"]) = \"/abs\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] path_join absolute: expected \"/abs\", got \"${joined_abs}\"")
         failed += 1
     }
 

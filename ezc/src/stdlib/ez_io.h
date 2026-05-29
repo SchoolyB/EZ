@@ -13,6 +13,8 @@
 
 /* File reading */
 EzString ez_io_read_file(EzArena *arena, EzString path);
+EzArray  ez_io_read_bytes(EzArena *arena, EzString path);
+EzArray  ez_io_read_lines(EzArena *arena, EzString path);
 bool ez_io_file_exists(EzString path);
 bool ez_io_is_file(EzString path);
 bool ez_io_is_directory(EzString path);
@@ -38,7 +40,7 @@ EzArray ez_io_walk(EzArena *arena, EzString path);
 EzArray ez_io_glob(EzArena *arena, EzString pattern);
 
 /* Path manipulation */
-EzString ez_io_path_join(EzArena *arena, EzString a, EzString b);
+EzString ez_io_path_join(EzArena *arena, EzArray parts);
 EzString ez_io_dirname(EzArena *arena, EzString path);
 EzString ez_io_basename(EzArena *arena, EzString path);
 EzString ez_io_extension(EzArena *arena, EzString path);
@@ -54,12 +56,16 @@ typedef struct { bool v0; EzError *v1; } EzResult_bool;
 typedef struct { EzArray v0; EzError *v1; } EzResult_array;
 
 EzResult_string ez_io_read_file_result(EzArena *arena, EzString path);
+EzResult_array  ez_io_read_bytes_result(EzArena *arena, EzString path);
+EzResult_array  ez_io_read_lines_result(EzArena *arena, EzString path);
+EzResult_int    ez_io_file_size_result(EzArena *arena, EzString path);
 EzResult_bool ez_io_write_file_result(EzArena *arena, EzString path, EzString content);
 EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path);
 EzResult_bool ez_io_append_file_result(EzArena *arena, EzString path, EzString content);
 EzResult_bool ez_io_rename_file_result(EzArena *arena, EzString old_path, EzString new_path);
 EzResult_bool ez_io_copy_file_result(EzArena *arena, EzString src, EzString dst);
 EzResult_bool ez_io_move_file_result(EzArena *arena, EzString src, EzString dst);
+EzResult_array ez_io_glob_result(EzArena *arena, EzString pattern);
 EzResult_array ez_io_list_dir_result(EzArena *arena, EzString path);
 EzResult_bool ez_io_make_dir_result(EzArena *arena, EzString path);
 EzResult_bool ez_io_make_dir_all_result(EzArena *arena, EzString path);

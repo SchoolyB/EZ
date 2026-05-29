@@ -759,6 +759,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             {"LN10","math","2.30258509299404568402"},{"INF","math","(1.0/0.0)"},
             {"NEG_INF","math","(-1.0/0.0)"},{"EPSILON","math","2.2204460492503131e-16"},
             {"MAC_OS","os","0"},{"LINUX","os","1"},{"WINDOWS","os","2"},{"OTHER","os","3"},
+            {"O_RDONLY","io","0"},{"O_WRONLY","io","1"},{"O_RDWR","io","2"},
             {"BASE_2","strconv","2"},{"BASE_8","strconv","8"},{"BASE_10","strconv","10"},
             {"BASE_16","strconv","16"},{"BASE_36","strconv","36"},
             {"NIL_UUID","uuid","ez_string_lit(\"00000000-0000-0000-0000-000000000000\")"},
@@ -1863,6 +1864,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (strcmp(mem, "INF") == 0)     { emit(cg, "(1.0/0.0)"); break; }
                 if (strcmp(mem, "NEG_INF") == 0) { emit(cg, "(-1.0/0.0)"); break; }
                 if (strcmp(mem, "EPSILON") == 0) { emit(cg, "2.2204460492503131e-16"); break; }
+            }
+
+            /* @io constants */
+            if (strcmp(mod, "io") == 0) {
+                if (strcmp(mem, "O_RDONLY") == 0) { emit(cg, "0"); break; }
+                if (strcmp(mem, "O_WRONLY") == 0) { emit(cg, "1"); break; }
+                if (strcmp(mem, "O_RDWR") == 0)   { emit(cg, "2"); break; }
             }
 
             /* @os constants */
@@ -4577,6 +4585,9 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
 
 static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_fallible = (strcmp(func, "read_file") == 0 ||
+        strcmp(func, "read_bytes") == 0 ||
+        strcmp(func, "read_lines") == 0 ||
+        strcmp(func, "file_size") == 0 ||
         strcmp(func, "write_file") == 0 ||
         strcmp(func, "delete_file") == 0 ||
         strcmp(func, "append_file") == 0 ||
@@ -4588,8 +4599,11 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "make_dir_all") == 0 ||
         strcmp(func, "remove_dir") == 0 ||
         strcmp(func, "remove_dir_all") == 0 ||
-        strcmp(func, "walk") == 0);
+        strcmp(func, "walk") == 0 ||
+        strcmp(func, "glob") == 0);
     bool needs_arena = (strcmp(func, "read_file") == 0 ||
+        strcmp(func, "read_bytes") == 0 ||
+        strcmp(func, "read_lines") == 0 ||
         strcmp(func, "list_dir") == 0 ||
         strcmp(func, "walk") == 0 ||
         strcmp(func, "glob") == 0 ||
