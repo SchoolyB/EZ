@@ -1235,7 +1235,7 @@ static void test_error_E3061_recursive_struct(void) {
 
 static void test_valid_recursive_pointer_struct(void) {
     DiagnosticList *d = check_diag(
-        "const Node struct { value int\n next ^Node }\n"
+        "const Node struct {\n value int\n next ^Node\n}\n"
         "do main() { }");
     ASSERT(d->count == 0);
     diag_destroy(d);
