@@ -429,6 +429,84 @@ compiler integration tests, and CLI integration tests.`,
 	},
 }
 
+func printManUsage() {
+	fmt.Println("ez man — builtin and stdlib documentation")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  ez man builtins          list all builtin functions")
+	fmt.Println("  ez man <name>            docs for a specific builtin  (e.g. ez man println)")
+	fmt.Println("  ez man <name()>          same — trailing () is ignored")
+	fmt.Println()
+	fmt.Println("Coming soon:")
+	fmt.Println("  ez man <module>          list everything in a stdlib module")
+	fmt.Println("                           (e.g. ez man arrays, ez man fmt, ez man server)")
+	fmt.Println("  ez man <Type>            docs for a specific type")
+	fmt.Println("                           (e.g. ez man HttpResponse, ez man Database)")
+}
+
+func printBuiltinsIndex() {
+	fmt.Println("Builtin functions  (ez man <name> for details)")
+	fmt.Println(strings.Repeat("─", 50))
+	groups := []struct {
+		label string
+		names []string
+	}{
+		{"I/O        ", []string{"println", "print", "eprintln", "eprint", "input"}},
+		{"Control    ", []string{"exit", "panic", "assert"}},
+		{"Sleep      ", []string{"sleep_s", "sleep_ms", "sleep_ns"}},
+		{"Type casts ", []string{"int", "uint", "float", "string", "char", "byte", "bool", "cast"}},
+		{"Width casts", []string{"i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "i128", "i256", "u128", "u256"}},
+		{"Memory     ", []string{"new", "ref", "addr", "copy"}},
+		{"Introspect ", []string{"len", "type_of", "size_of"}},
+		{"Misc       ", []string{"error", "range", "c_string", "to_char", "char_count", "here"}},
+	}
+	for _, g := range groups {
+		fmt.Printf("  %s  %s\n", g.label, strings.Join(g.names, "  "))
+	}
+}
+
+var manCmd = &cobra.Command{
+	Use:   "man [name]",
+	Short: "Show documentation for a builtin function",
+	Args:  cobra.ArbitraryArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			printManUsage()
+			return
+		}
+
+		name := strings.TrimSuffix(args[0], "()")
+
+		if name == "builtins" || name == "builtin" {
+			printBuiltinsIndex()
+			return
+		}
+
+		entry, ok := builtinManDocs[name]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "ez: no documentation for '%s'\n", name)
+			fmt.Fprintf(os.Stderr, "    try: ez man builtins\n")
+			os.Exit(1)
+		}
+
+		label := name
+		if strings.Contains(entry.Sig, "(") {
+			label = name + "()"
+		}
+		fmt.Printf("builtin: %s\n", label)
+		fmt.Println(strings.Repeat("─", 44))
+		fmt.Printf("Module:     builtin\n")
+		fmt.Printf("Signature:  %s\n\n", entry.Sig)
+		fmt.Println(entry.Desc)
+		if entry.Example != "" {
+			fmt.Println("\nExample:")
+			for _, line := range strings.Split(entry.Example, "\n") {
+				fmt.Printf("  %s\n", line)
+			}
+		}
+	},
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "ez [file.ez]",
 	Short: "EZ Programming Language",
@@ -479,7 +557,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
