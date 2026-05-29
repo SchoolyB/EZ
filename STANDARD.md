@@ -2383,7 +2383,9 @@ Error-returning variant: `decode`
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `read_file` | `(path string) -> string` | Read file as string |
+| `read_file` | `(path string) -> string` | Read entire file as a string |
+| `read_bytes` | `(path string) -> [byte]` | Read entire file as a byte array |
+| `read_lines` | `(path string) -> [string]` | Read file and split into lines (strips `\r\n`) |
 
 #### File Writing
 
@@ -2397,9 +2399,9 @@ Error-returning variant: `decode`
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `file_exists` | `(path string) -> bool` | Check if file exists |
-| `is_file` | `(path string) -> bool` | Check if path is file |
-| `is_directory` | `(path string) -> bool` | Check if path is directory |
-| `file_size` | `(path string) -> int` | Get file size in bytes |
+| `is_file` | `(path string) -> bool` | Check if path is a regular file |
+| `is_directory` | `(path string) -> bool` | Check if path is a directory |
+| `file_size` | `(path string) -> int` | Get file size in bytes; returns `-1` on error |
 | `delete_file` | `(path string) -> bool` | Delete file |
 | `rename_file` | `(old_path string, new_path string) -> bool` | Rename file |
 | `copy_file` | `(src string, dst string) -> bool` | Copy file |
@@ -2415,20 +2417,73 @@ Error-returning variant: `decode`
 | `remove_dir` | `(path string) -> bool` | Remove empty directory |
 | `remove_dir_all` | `(path string) -> bool` | Remove directory and all contents |
 | `walk` | `(path string) -> [string]` | Recursively list all files |
-| `glob` | `(pattern string) -> [string]` | Match files by glob pattern |
+| `glob` | `(pattern string) -> [string]` | Match files by glob pattern; returns empty array on no match |
 
 #### Path Manipulation
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `path_join` | `(a string, b string) -> string` | Join two path components |
+| `path_join` | `(parts [string]) -> string` | Join path segments; an absolute segment replaces the accumulated path |
 | `dirname` | `(path string) -> string` | Parent directory of path |
 | `basename` | `(path string) -> string` | Filename component of path |
-| `extension` | `(path string) -> string` | File extension (including dot) |
+| `extension` | `(path string) -> string` | File extension including dot (e.g. `".txt"`); empty string if none |
 | `is_absolute` | `(path string) -> bool` | Check if path is absolute |
 | `normalize` | `(path string) -> string` | Clean and normalize path |
 
-Error-returning variants: `read_file`, `write_file`, `delete_file`, `append_file`, `rename_file`, `copy_file`, `move_file`, `list_dir`, `make_dir`, `make_dir_all`, `remove_dir`, `remove_dir_all`, `walk`
+```ez
+mut p string = io.path_join({"/home", "user", "docs"})  // "/home/user/docs"
+mut q string = io.path_join({"a/b", "/abs"})            // "/abs" — absolute replaces
+```
+
+#### Error-Returning Variants
+
+Most functions that can fail have an error-returning variant usable via multi-variable destructuring. The plain form panics on hard errors; the error form returns `(T, Error)`.
+
+| Function | Error-returning variant returns |
+|----------|---------------------------------|
+| `read_file` | `(string, Error)` |
+| `read_bytes` | `([byte], Error)` |
+| `read_lines` | `([string], Error)` |
+| `file_size` | `(int, Error)` |
+| `write_file` | `(bool, Error)` |
+| `append_file` | `(bool, Error)` |
+| `delete_file` | `(bool, Error)` |
+| `rename_file` | `(bool, Error)` |
+| `copy_file` | `(bool, Error)` |
+| `move_file` | `(bool, Error)` |
+| `list_dir` | `([string], Error)` |
+| `make_dir` | `(bool, Error)` |
+| `make_dir_all` | `(bool, Error)` |
+| `remove_dir` | `(bool, Error)` |
+| `remove_dir_all` | `(bool, Error)` |
+| `walk` | `([string], Error)` |
+| `glob` | `([string], Error)` |
+
+```ez
+// Plain form — panics if path is a directory or unreadable
+mut content string = io.read_file("data.txt")
+
+// Error form — caller handles failure
+mut content, err = io.read_file("data.txt")
+if err != nil {
+    println("read failed: ${err.message}")
+}
+
+mut lines, err = io.read_lines("data.txt")
+for_each line in lines {
+    println(line)
+}
+
+mut sz, err = io.file_size("data.txt")
+```
+
+#### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `O_RDONLY` | `0` | Open for reading only |
+| `O_WRONLY` | `1` | Open for writing only |
+| `O_RDWR` | `2` | Open for reading and writing |
 
 #### Path Resolution
 
