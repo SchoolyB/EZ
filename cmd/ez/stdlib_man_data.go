@@ -57,11 +57,29 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"is_prime":    {Module: "math", Group: "Statistical", Kind: "func", Sig: "is_prime(n int) -> bool", Fields: "", Desc: "Returns true if n is a prime number.", Example: ""},
 	"lerp":        {Module: "math", Group: "Utility", Kind: "func", Sig: "lerp(a float, b float, t float) -> float", Fields: "", Desc: "Linearly interpolates between a and b by factor t. t=0 returns a, t=1 returns b.", Example: ""},
 	"distance":    {Module: "math", Group: "Utility", Kind: "func", Sig: "distance(x1 float, y1 float, x2 float, y2 float) -> float", Fields: "", Desc: "Returns the Euclidean distance between two 2D points (x1, y1) and (x2, y2).", Example: ""},
+	"to_upper":    {Module: "strings", Group: "Case", Kind: "func", Sig: "to_upper(s string) -> string", Fields: "", Desc: "Returns a copy of s with all ASCII letters converted to uppercase.", Example: ""},
+	"to_lower":    {Module: "strings", Group: "Case", Kind: "func", Sig: "to_lower(s string) -> string", Fields: "", Desc: "Returns a copy of s with all ASCII letters converted to lowercase.", Example: ""},
+	"trim":        {Module: "strings", Group: "Trim", Kind: "func", Sig: "trim(s string) -> string", Fields: "", Desc: "Returns a copy of s with leading and trailing whitespace removed.", Example: ""},
+	"trim_left":   {Module: "strings", Group: "Trim", Kind: "func", Sig: "trim_left(s string) -> string", Fields: "", Desc: "Returns a copy of s with leading whitespace removed.", Example: ""},
+	"trim_right":  {Module: "strings", Group: "Trim", Kind: "func", Sig: "trim_right(s string) -> string", Fields: "", Desc: "Returns a copy of s with trailing whitespace removed.", Example: ""},
+	"contains":    {Module: "strings", Group: "Query", Kind: "func", Sig: "contains(s string, sub string) -> bool", Fields: "", Desc: "Returns true if s contains the substring sub.", Example: ""},
+	"starts_with": {Module: "strings", Group: "Query", Kind: "func", Sig: "starts_with(s string, prefix string) -> bool", Fields: "", Desc: "Returns true if s starts with prefix.", Example: ""},
+	"ends_with":   {Module: "strings", Group: "Query", Kind: "func", Sig: "ends_with(s string, suffix string) -> bool", Fields: "", Desc: "Returns true if s ends with suffix.", Example: ""},
+	"index_of":    {Module: "strings", Group: "Query", Kind: "func", Sig: "index_of(s string, sub string) -> int", Fields: "", Desc: "Returns the byte index of the first occurrence of sub in s, or -1 if not found.", Example: ""},
+	"count":       {Module: "strings", Group: "Query", Kind: "func", Sig: "count(s string, sub string) -> int", Fields: "", Desc: "Returns the number of non-overlapping occurrences of sub in s.", Example: ""},
+	"is_empty":    {Module: "strings", Group: "Query", Kind: "func", Sig: "is_empty(s string) -> bool", Fields: "", Desc: "Returns true if s has zero length. Does not trim whitespace first.", Example: ""},
+	"replace":     {Module: "strings", Group: "Transformation", Kind: "func", Sig: "replace(s string, old string, new string) -> string", Fields: "", Desc: "Returns a copy of s with all occurrences of old replaced by new.", Example: ""},
+	"repeat":      {Module: "strings", Group: "Transformation", Kind: "func", Sig: "repeat(s string, count int) -> string", Fields: "", Desc: "Returns a string consisting of count copies of s concatenated together.", Example: ""},
+	"reverse":     {Module: "strings", Group: "Transformation", Kind: "func", Sig: "reverse(s string) -> string", Fields: "", Desc: "Returns a copy of s with the bytes in reverse order.", Example: ""},
+	"slice":       {Module: "strings", Group: "Transformation", Kind: "func", Sig: "slice(s string, start int, end int) -> string", Fields: "", Desc: "Returns the substring of s from byte index start (inclusive) to end (exclusive).", Example: ""},
+	"split":       {Module: "strings", Group: "Split/Join", Kind: "func", Sig: "split(s string, sep string) -> [string]", Fields: "", Desc: "Splits s around each occurrence of sep and returns a string array.", Example: ""},
+	"join":        {Module: "strings", Group: "Split/Join", Kind: "func", Sig: "join(arr [string], sep string) -> string", Fields: "", Desc: "Joins the elements of arr into a single string with sep between each element.", Example: ""},
 }
 
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
-	"math": {"abs", "neg", "sign", "min", "max", "clamp", "floor", "ceil", "round", "trunc", "pow", "sqrt", "cbrt", "hypot", "exp", "exp2", "log", "log2", "log10", "log_base", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "deg_to_rad", "rad_to_deg", "is_even", "is_odd", "is_infinite", "is_nan", "is_finite", "factorial", "gcd", "lcm", "is_prime", "lerp", "distance"},
+	"math":    {"abs", "neg", "sign", "min", "max", "clamp", "floor", "ceil", "round", "trunc", "pow", "sqrt", "cbrt", "hypot", "exp", "exp2", "log", "log2", "log10", "log_base", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "deg_to_rad", "rad_to_deg", "is_even", "is_odd", "is_infinite", "is_nan", "is_finite", "factorial", "gcd", "lcm", "is_prime", "lerp", "distance"},
+	"strings": {"to_upper", "to_lower", "trim", "trim_left", "trim_right", "contains", "starts_with", "ends_with", "index_of", "count", "is_empty", "replace", "repeat", "reverse", "slice", "split", "join"},
 }
 
 // stdlibGroup is one labeled group of names within a module index.
@@ -82,5 +100,12 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Properties    ", Names: []string{"is_even", "is_odd", "is_infinite", "is_nan", "is_finite"}},
 		{Label: "Statistical   ", Names: []string{"factorial", "gcd", "lcm", "is_prime"}},
 		{Label: "Utility       ", Names: []string{"lerp", "distance"}},
+	},
+	"strings": {
+		{Label: "Case          ", Names: []string{"to_upper", "to_lower"}},
+		{Label: "Trim          ", Names: []string{"trim", "trim_left", "trim_right"}},
+		{Label: "Query         ", Names: []string{"contains", "starts_with", "ends_with", "index_of", "count", "is_empty"}},
+		{Label: "Transformation", Names: []string{"replace", "repeat", "reverse", "slice"}},
+		{Label: "Split/Join    ", Names: []string{"split", "join"}},
 	},
 }

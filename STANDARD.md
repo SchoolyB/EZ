@@ -2155,7 +2155,7 @@ The `==` and `!=` operators on arrays are not allowed (E3074); use `arrays.is_eq
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `is_empty` | `(s string) -> bool` | Check if empty (after trim) |
+| `is_empty` | `(s string) -> bool` | Check if string is empty (length zero; does not trim) |
 | `contains` | `(s string, sub string) -> bool` | Check if contains substring |
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
