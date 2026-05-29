@@ -299,7 +299,15 @@
     EZ_PANIC("P0074", "uuid",       "uuid.parse: invalid UUID string") \
     EZ_PANIC("P0075", "runtime",    "assertion failed") \
     EZ_PANIC("P0076", "runtime",    "panic") \
-    EZ_PANIC("P0077", "io",         "io.delete_file() cannot delete a directory; use io.delete_dir() for directories")
+    EZ_PANIC("P0077", "io",         "io.delete_file() cannot delete a directory; use io.delete_dir() for directories") \
+    EZ_PANIC("P0078", "arithmetic", "division by zero") \
+    EZ_PANIC("P0079", "arithmetic", "%s result is too large; value exceeds the range of this type") \
+    EZ_PANIC("P0080", "runtime",    "nil pointer dereference") \
+    EZ_PANIC("P0081", "runtime",    "key not found in map") \
+    EZ_PANIC("P0082", "bounds",     "string index %d out of bounds (length %d)") \
+    EZ_PANIC("P0083", "runtime",    "sleep duration cannot be negative (%lld)") \
+    EZ_PANIC("P0084", "runtime",    "cannot convert '%s' to int") \
+    EZ_PANIC("P0085", "runtime",    "cannot convert '%s' to float")
 
 /* --- Warnings --- */
 #define EZ_WARNINGS \

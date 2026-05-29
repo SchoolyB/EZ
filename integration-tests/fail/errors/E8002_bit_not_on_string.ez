@@ -1,0 +1,8 @@
+/*
+ * Error Test: E8002 - bit_not on string
+ * Expected: E8002 — 'bit_not' can only be used with integers
+ */
+do main() {
+    mut s string = "hello"
+    mut z = bit_not s
+}

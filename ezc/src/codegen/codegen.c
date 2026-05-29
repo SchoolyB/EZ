@@ -1625,8 +1625,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
                 emit(cg, "({ double _dv = (double)");
                 emit_expression(cg, node->data.infix.right);
-                emitf(cg, "; if (_dv == 0.0) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } (double)",
-                    node->token.line);
+                emit(cg, "; if (_dv == 0.0) { ez_panic_code(\"P0078\", \"division by zero\"); } (double)");
                 emit_expression(cg, node->data.infix.left);
                 emitf(cg, " %s _dv; })", op);
                 break;
@@ -1645,14 +1644,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
                 emit(cg, "({ __auto_type _dv = ");
                 emit_expression(cg, node->data.infix.right);
-                emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
-                    node->token.line);
+                emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (is_signed) {
                     const char *opname = (strcmp(op, "/") == 0) ? "division" : "modulo";
                     emit(cg, "__auto_type _dn = ");
                     emit_expression(cg, node->data.infix.left);
-                    emitf(cg, "; if (_dn == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
-                        signed_min, node->token.line, opname, op);
+                    emitf(cg, "; if (_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
+                        signed_min, opname, op);
                 } else {
                     emit_expression(cg, node->data.infix.left);
                     emitf(cg, " %s _dv; })", op);
@@ -1752,8 +1750,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* Pointer dereference: p^ → (*p) with nil check */
             emit(cg, "({ __auto_type _dp = ");
             emit_expression(cg, node->data.postfix.left);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } *_dp; })", node->token.line);
+            emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp; })");
         } else if (strcmp(node->data.postfix.op, "++") == 0) {
             /* Overflow-checked increment; sized types need bounds check */
             EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
@@ -2043,9 +2040,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Nil-guarded pointer field access */
                 emit(cg, "({ __auto_type _dp = ");
                 emit_expression(cg, node->data.member.object);
-                emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                    "\"nil pointer dereference\"); } _dp->%s; })",
-                    node->token.line, safe_name(node->data.member.member));
+                emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s; })",
+                    safe_name(node->data.member.member));
             } else if (!obj_is_ref && obj_t && obj_t->kind == TK_ERROR) {
                 emit_expression(cg, node->data.member.object);
                 emitf(cg, "->%s", safe_name(node->data.member.member));
@@ -2124,16 +2120,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; %s _mk = ", c_key);
                 emit_expression(cg, node->data.index_expr.index);
-                emitf(cg, "; void *_mv = ez_map_get(&_mt, &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                    node->token.line);
+                emit(cg, "; void *_mv = ez_map_get(&_mt, &_mk); if (!_mv) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
                 emitf(cg, "*(%s *)_mv; })", c_val);
             } else {
                 emitf(cg, "({ %s _mk = ", c_key);
                 emit_expression(cg, node->data.index_expr.index);
                 emitf(cg, "; void *_mv = ez_map_get(&");
                 emit_expression(cg, node->data.index_expr.left);
-                emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                    node->token.line);
+                emit(cg, ", &_mk); if (!_mv) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
                 emitf(cg, "*(%s *)_mv; })", c_val);
             }
         } else if (left_t && left_t->kind == TK_STRING) {
@@ -2142,9 +2136,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.index_expr.left);
             emitf(cg, "; int32_t _ei = (int32_t)(");
             emit_expression(cg, node->data.index_expr.index);
-            emitf(cg, "); if (_ei < 0 || _ei >= _es.len) { fflush(stdout); ez_panic(__FILE__, %d, ",
-                node->token.line);
-            emit(cg, "\"string index %d out of bounds (length %d)\", _ei, _es.len); } ");
+            emit(cg, "); if (_ei < 0 || _ei >= _es.len) { ez_panic_code(\"P0082\", \"string index %d out of bounds (length %d)\", _ei, _es.len); } ");
             emit(cg, "(int32_t)(unsigned char)_es.data[_ei]; })");
         } else {
             /* Fallback */
@@ -4157,9 +4149,8 @@ static void emit_array_arg_addr(CodeGen *cg, AstNode *arg) {
             /* Pointer field: nil-check then take address of the field */
             emit(cg, "({ __auto_type _dp = ");
             emit_expression(cg, arg->data.member.object);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } &_dp->%s; })",
-                arg->token.line, safe_name(arg->data.member.member));
+            emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } &_dp->%s; })",
+                safe_name(arg->data.member.member));
             return;
         }
     }
@@ -5742,8 +5733,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, idx_node->data.index_expr.index);
                     emit(cg, "; void *_mv = ez_map_get(&");
                     emit_expression(cg, idx_node->data.index_expr.left);
-                    emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                        idx_node->token.line);
+                    emit(cg, ", &_mk); if (!_mv) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
                     emit(cg, "(int64_t *)_mv; })");
                 } else {
                     /* Array: pass pointer to element */
@@ -6372,10 +6362,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 /* Nil-check the pointer, then use -> to yield an lvalue */
                 emitf(cg, "{ __auto_type _mp = ");
                 emit_expression(cg, left->data.member.object);
-                emitf(cg, "; if (!_mp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                    "\"nil pointer dereference\"); } "
+                emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
                     "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
-                    node->token.line, ms_arena, safe_name(left->data.member.member));
+                    ms_arena, safe_name(left->data.member.member));
             } else {
                 emitf(cg, "ez_map_set(%s, &", ms_arena);
                 emit_expression(cg, left);
@@ -6390,8 +6379,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         strcmp(node->data.assign.target->data.postfix.op, "^") == 0) {
         emit(cg, "{ __auto_type _dp = ");
         emit_expression(cg, node->data.assign.target->data.postfix.left);
-        emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-            "\"nil pointer dereference\"); } *_dp", node->token.line);
+        emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp");
         emitf(cg, " %s ", node->data.assign.op);
         emit_expression(cg, node->data.assign.value);
         emit(cg, "; }\n");
@@ -6405,8 +6393,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         const char *field = node->data.assign.target->data.member.member;
         emit(cg, "{ __auto_type _dp = ");
         emit_expression(cg, ptr);
-        emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-            "\"nil pointer dereference\"); } _dp->%s", node->token.line, field);
+        emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s", field);
         emitf(cg, " %s ", node->data.assign.op);
         emit_expression(cg, node->data.assign.value);
         emit(cg, "; }\n");
@@ -6433,8 +6420,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (ptr_root && depth > 1) {
             emit(cg, "{ __auto_type _dp = ");
             emit_expression(cg, ptr_root);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } _dp->", node->token.line);
+            emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->");
             /* Emit chain in reverse: chain[depth-1] is closest to root */
             for (int i = depth - 1; i >= 0; i--) {
                 emit(cg, safe_name(chain[i]));
@@ -6463,8 +6449,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     snprintf(tn, sizeof(tn), "[%s]", field_t->element_type ? field_t->element_type : "");
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
-                    emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                        "\"nil pointer dereference\"); } ", node->token.line);
+                    emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } ");
                     emitf(cg, "{ EzArray _esc_v = ");
                     emit_expression(cg, node->data.assign.value);
                     emit(cg, "; EzArena *_esc_a = ez_default_arena; ez_default_arena = _ez_outer_arena; ");
@@ -6476,8 +6461,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (field_t && field_t->kind == TK_STRING) {
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
-                    emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                        "\"nil pointer dereference\"); } ", node->token.line);
+                    emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } ");
                     emitf(cg, "{ EzString _esc_v = ");
                     emit_expression(cg, node->data.assign.value);
                     emitf(cg, "; _dp->%s = ez_string_new(_ez_outer_arena, _esc_v.data, _esc_v.len); } }\n",
@@ -6487,8 +6471,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             }
             emit(cg, "{ __auto_type _dp = ");
             emit_expression(cg, obj);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } _dp->%s", node->token.line, safe_name(field));
+            emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s", safe_name(field));
             emitf(cg, " %s ", node->data.assign.op);
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; }\n");
@@ -6582,11 +6565,10 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.assign.target);
                 emit(cg, "); __auto_type _dv = ");
                 emit_expression(cg, node->data.assign.value);
-                emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
-                    node->token.line);
+                emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (!unsigned_op) {
-                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large; value exceeds the range of this type\"); } ",
-                        signed_min, node->token.line, opname);
+                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } ",
+                        signed_min, opname);
                 }
                 emitf(cg, "*_tgt_ref %s= _dv; }\n", binop);
                 return;
@@ -6748,6 +6730,21 @@ static void emit_scratch_arena_unwind(CodeGen *cg) {
         emitf(cg, "ez_default_arena = %s; ", s->saved_var);
         emitf(cg, "ez_arena_destroy(%s, __FILE__, __LINE__); free(%s); ",
               s->arena_var, s->arena_var);
+    }
+}
+
+/* Unwind only up to and including the innermost loop iteration arena.
+ * Used by break/continue: we must clean up the current loop's arena and
+ * any if-block arenas nested inside it, but must NOT touch outer loop
+ * arenas which are still live. Loop arenas are named _iter_arena_N;
+ * if-block arenas are named _if_arena_N. */
+static void emit_loop_exit_unwind(CodeGen *cg) {
+    for (int i = cg->scope_arena_count - 1; i >= 0; i--) {
+        ScopeArena *s = &cg->scope_arenas[i];
+        emitf(cg, "ez_default_arena = %s; ", s->saved_var);
+        emitf(cg, "ez_arena_destroy(%s, __FILE__, __LINE__); free(%s); ",
+              s->arena_var, s->arena_var);
+        if (strncmp(s->arena_var, "_iter_arena_", 12) == 0) break;
     }
 }
 
@@ -7552,12 +7549,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     case NODE_BREAK_STMT:
         emit_indent(cg);
-        emit_scratch_arena_unwind(cg);
+        emit_loop_exit_unwind(cg);
         emit(cg, "break;\n");
         break;
     case NODE_CONTINUE_STMT:
         emit_indent(cg);
-        emit_scratch_arena_unwind(cg);
+        emit_loop_exit_unwind(cg);
         emit(cg, "continue;\n");
         break;
     case NODE_WHEN_STMT: {

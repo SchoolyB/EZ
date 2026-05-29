@@ -211,12 +211,12 @@ void ez_builtin_exit(int64_t code) {
 /* --- sleep --- */
 
 void ez_builtin_sleep_s(int64_t seconds) {
-    if (seconds < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld)\n", (long long)seconds); exit(1); }
+    if (seconds < 0) ez_panic_code("P0083", "sleep duration cannot be negative (%lld)", (long long)seconds);
     if (seconds > 0) sleep((unsigned int)seconds);
 }
 
 void ez_builtin_sleep_ms(int64_t ms) {
-    if (ms < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld ms)\n", (long long)ms); exit(1); }
+    if (ms < 0) ez_panic_code("P0083", "sleep duration cannot be negative (%lld)", (long long)ms);
     if (ms > 0) {
         struct timespec ts;
         ts.tv_sec = ms / MS_PER_SEC;
@@ -272,9 +272,7 @@ int64_t ez_builtin_string_to_int(EzString s) {
     char *end = NULL;
     int64_t result = strtoll(buf, &end, 10);
     if (end == buf || (*end != '\0' && *end != ' ')) {
-        fflush(stdout);
-        fprintf(stderr, "panic: cannot convert \"%s\" to int\n", buf);
-        exit(1);
+        ez_panic_code("P0084", "cannot convert '%s' to int", buf);
     }
     return result;
 }
@@ -287,9 +285,7 @@ double ez_builtin_string_to_float(EzString s) {
     char *end = NULL;
     double result = strtod(buf, &end);
     if (end == buf || (*end != '\0' && *end != ' ')) {
-        fflush(stdout);
-        fprintf(stderr, "panic: cannot convert \"%s\" to float\n", buf);
-        exit(1);
+        ez_panic_code("P0085", "cannot convert '%s' to float", buf);
     }
     return result;
 }

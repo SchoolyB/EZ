@@ -141,42 +141,26 @@ void ez_arrays_remove_last_raw(EzArray *arr, void *out) {
 }
 
 int64_t ez_arrays_get_first(EzArray *arr) {
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.get_first() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0045", "arrays.get_first called on an empty array");
     return *(int64_t *)arr->data;
 }
 
 int64_t ez_arrays_get_last(EzArray *arr) {
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.get_last() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0046", "arrays.get_last called on an empty array");
     return *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
 }
 
 int64_t ez_arrays_remove_last(EzArray *arr) {
     if (arr->iterating > 0)
         ez_panic_code("P0034", "cannot modify array during for_each iteration");
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.remove_last() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0048", "arrays.remove_last called on an empty array");
     int64_t val = *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
     arr->len--;
     return val;
 }
 
 int64_t ez_arrays_remove_first(EzArray *arr) {
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.remove_first() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0047", "arrays.remove_first called on an empty array");
     int64_t val = *(int64_t *)arr->data;
     ez_arrays_remove_at(arr, 0);
     return val;

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E8001 - bit_shift_left on bool
+ * Expected: E8001 — 'bit_shift_left' can only be used with integers
+ */
+do main() {
+    mut b bool = true
+    mut z = b bit_shift_left 1
+}
