@@ -201,7 +201,8 @@
     EZ_ERROR("E6001", "imports", "unknown module '@%s'") \
     EZ_ERROR("E6002", "imports", "cannot find file or directory '%s'") \
     EZ_ERROR("E6003", "imports", "directory '%s' contains no .ez files") \
-    EZ_ERROR("E6004", "imports", "cannot import own module directory")
+    EZ_ERROR("E6004", "imports", "cannot import own module directory") \
+    EZ_ERROR("E6008", "imports", "'%s.%s' is a module constant and cannot be assigned to")
 
 /* --- E7xxx+: Standard Library --- */
 #define EZ_STDLIB_ERRORS \

@@ -813,7 +813,7 @@ static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
  * expected types so we can catch type mismatches before they leak to C.
  * ARG_ANY means no validation (the function accepts mixed types). */
 typedef enum {
-    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY
+    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER
 } ExpectedArgKind;
 
 typedef struct {
@@ -879,6 +879,21 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"sqlite", "open", 0, ARG_STRING},
     /* server: listen(router, port int) — catch non-int port before it reaches C */
     {"server", "listen", 1, ARG_INT},
+    /* math: numeric argument required for all single-arg functions */
+    {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
+    {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
+    {"math", "log10", 0, ARG_NUMBER}, {"math", "exp", 0, ARG_NUMBER},
+    {"math", "exp2", 0, ARG_NUMBER}, {"math", "floor", 0, ARG_NUMBER},
+    {"math", "ceil", 0, ARG_NUMBER}, {"math", "round", 0, ARG_NUMBER},
+    {"math", "trunc", 0, ARG_NUMBER}, {"math", "asin", 0, ARG_NUMBER},
+    {"math", "acos", 0, ARG_NUMBER}, {"math", "atan", 0, ARG_NUMBER},
+    {"math", "sin", 0, ARG_NUMBER}, {"math", "cos", 0, ARG_NUMBER},
+    {"math", "tan", 0, ARG_NUMBER}, {"math", "abs", 0, ARG_NUMBER},
+    {"math", "sign", 0, ARG_NUMBER}, {"math", "factorial", 0, ARG_INT},
+    {"math", "is_prime", 0, ARG_INT}, {"math", "is_even", 0, ARG_INT},
+    {"math", "is_odd", 0, ARG_INT}, {"math", "is_infinite", 0, ARG_NUMBER},
+    {"math", "is_nan", 0, ARG_NUMBER}, {"math", "is_finite", 0, ARG_NUMBER},
+    {"math", "deg_to_rad", 0, ARG_NUMBER}, {"math", "rad_to_deg", 0, ARG_NUMBER},
 };
 
 static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
@@ -892,6 +907,8 @@ static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
     case ARG_ARRAY:  return actual->kind == TK_ARRAY;
     case ARG_MAP:    return actual->kind == TK_MAP;
     case ARG_ANY:    return true;
+    case ARG_NUMBER: return actual->kind == TK_INT || actual->kind == TK_UINT ||
+                            actual->kind == TK_BYTE || actual->kind == TK_FLOAT;
     }
     return true;
 }
@@ -905,6 +922,7 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     case ARG_ARRAY:  return "array";
     case ARG_MAP:    return "map";
     case ARG_ANY:    return "any";
+    case ARG_NUMBER: return "number";
     }
     return "unknown";
 }
@@ -3452,6 +3470,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "type_of") == 0) {
+                /* E5008: type_of() requires exactly 1 argument */
+                if (node->data.call.arg_count != 1) {
+                    diag_error_codef(tc->diag, "E5008", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_STRING;
+                    break;
+                }
                 /* E3084: type_of() with a type name instead of a value */
                 if (node->data.call.arg_count > 0) {
                     AstNode *arg = node->data.call.args[0];
@@ -3644,11 +3668,33 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
-            } else if (strcmp(fn_name, "char") == 0 && node->data.call.arg_count == 1) {
+            } else if (strcmp(fn_name, "char") == 0) {
+                /* E5008: char() requires exactly 1 argument */
+                if (node->data.call.arg_count != 1) {
+                    diag_error_codef(tc->diag, "E5008", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_CHAR;
+                    break;
+                }
                 /* E7014: char() with negative integer */
                 int64_t lit_val;
                 if (try_get_literal_int(node->data.call.args[0], &lit_val) && lit_val < 0) {
                     diag_error_codef(tc->diag, "E7014", NODE_FILE(tc, node), node->token.line, node->token.column, 0, (long long)lit_val);
+                }
+                /* E3001: char() with a string literal that is not exactly one character */
+                EzType *char_arg_t = resolve_expr(tc, node->data.call.args[0]);
+                if (char_arg_t->kind == TK_STRING) {
+                    AstNode *arg = node->data.call.args[0];
+                    if (arg->kind == NODE_STRING_VALUE) {
+                        int slen = (int)strlen(arg->data.string_value.value);
+                        if (slen != 1) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "char() requires a single-character string; got a string of length %d",
+                                slen);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                        }
+                    }
                 }
                 result = &TYPE_CHAR;
             } else if ((strcmp(fn_name, "int") == 0 ||
@@ -5682,10 +5728,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         * the reverse; int literals / variables can't be
                         * assigned to enum variables (). */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
-                       /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
-                       !(node->data.var_decl.value &&
-                         node->data.var_decl.value->kind == NODE_MEMBER_EXPR &&
-                         node->data.var_decl.value->data.member.member[0] == 'v') &&
+                       /* Note: multi-var expansion (.v0/.v1 access) is intentionally
+                        * NOT skipped here — type mismatch on reversed multi-return
+                        * types must be caught (see #1693). */
                        /* Skip mismatch when assigning ref var to ^T pointer */
                        !(declared->kind == TK_POINTER && node->data.var_decl.value &&
                          node->data.var_decl.value->kind == NODE_LABEL &&
@@ -6304,8 +6349,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
-        /* E5025: lvalue validation; reject assignment to non-lvalue targets */
+        /* E6008: reject assignment to stdlib module constants (math.PI = x, etc.) */
         AstNode *target = node->data.assign.target;
+        if (target->kind == NODE_MEMBER_EXPR &&
+            target->data.member.object->kind == NODE_LABEL) {
+            const char *obj = target->data.member.object->data.label.value;
+            bool is_module = false;
+            for (int mi = 0; mi < tc->import_count; mi++) {
+                if (strcmp(tc->imported_modules[mi], obj) == 0) { is_module = true; break; }
+            }
+            if (is_module) {
+                diag_error_codef(tc->diag, "E6008",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    obj, target->data.member.member);
+            }
+        }
+
+        /* E5025: lvalue validation; reject assignment to non-lvalue targets */
         if (target->kind != NODE_LABEL &&
             target->kind != NODE_MEMBER_EXPR &&
             target->kind != NODE_INDEX_EXPR &&
