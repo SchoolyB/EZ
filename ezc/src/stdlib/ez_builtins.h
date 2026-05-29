@@ -456,6 +456,29 @@ void ez_builtin_sleep_ns(int64_t ns);
  *@end
  */
 
+/*@man SourceLocation
+ *@kind type
+ *@field file string
+ *@field line int
+ *@field column int
+ *@desc Returned by here(). Contains the source file path, line number, and column at the call site, filled in at compile time.
+ *@example
+ *   mut loc = here()
+ *   println(loc.file)
+ *   println(loc.line)
+ *   println(loc.column)
+ *@end
+ */
+
+/*@man Error
+ *@kind type
+ *@desc Represents a runtime error. Opaque type with no accessible fields. Use string interpolation to get the message.
+ *@example
+ *   mut err Error = error("file not found")
+ *   println("${err}")
+ *@end
+ */
+
 /* to_string — internal runtime overloads, not user-callable by name */
 EzString ez_builtin_to_string_int(EzArena *arena, int64_t v);
 EzString ez_builtin_to_string_uint(EzArena *arena, uint64_t v);

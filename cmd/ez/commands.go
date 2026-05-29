@@ -469,10 +469,53 @@ func printBuiltinsIndex() {
 		{"Memory     ", []string{"new", "ref", "addr", "copy"}},
 		{"Introspect ", []string{"len", "type_of", "size_of"}},
 		{"Misc       ", []string{"error", "range", "c_string", "to_char", "char_count", "here"}},
+		{"Types      ", []string{"SourceLocation", "Error"}},
 	}
 	for _, g := range groups {
 		fmt.Printf("  %s  %s\n", g.label, strings.Join(g.names, "  "))
 	}
+}
+
+func printManEntry(module, name, kind, sig, fields, desc, example string) {
+	label := name
+	if kind == "type" {
+		// types don't get ()
+	} else if strings.Contains(sig, "(") {
+		label = name + "()"
+	}
+	fmt.Printf("%s: %s\n", module, label)
+	fmt.Println(strings.Repeat("─", 44))
+	fmt.Printf("Module:  %s\n", module)
+	if kind == "type" {
+		fmt.Printf("Kind:    type\n")
+		if fields != "" {
+			fmt.Println("\nFields:")
+			for _, f := range strings.Split(fields, "\n") {
+				parts := strings.Fields(f)
+				if len(parts) >= 2 {
+					fmt.Printf("  %-12s %s\n", parts[0], parts[1])
+				}
+			}
+		}
+		fmt.Printf("\n%s\n", desc)
+	} else {
+		fmt.Printf("Signature:  %s\n\n", sig)
+		fmt.Println(desc)
+	}
+	if example != "" {
+		fmt.Println("\nExample:")
+		for _, line := range strings.Split(example, "\n") {
+			fmt.Printf("  %s\n", line)
+		}
+	}
+}
+
+func printBuiltinEntry(name string, entry BuiltinManEntry) {
+	printManEntry("builtin", name, entry.Kind, entry.Sig, entry.Fields, entry.Desc, entry.Example)
+}
+
+func printStdlibEntry(name string, entry StdlibManEntry) {
+	printManEntry(entry.Module, name, entry.Kind, entry.Sig, entry.Fields, entry.Desc, entry.Example)
 }
 
 func printStdlibModuleIndex(module string) {
@@ -514,41 +557,13 @@ var manCmd = &cobra.Command{
 
 		// Builtin lookup
 		if entry, ok := builtinManDocs[name]; ok {
-			label := name
-			if strings.Contains(entry.Sig, "(") {
-				label = name + "()"
-			}
-			fmt.Printf("builtin: %s\n", label)
-			fmt.Println(strings.Repeat("─", 44))
-			fmt.Printf("Module:     builtin\n")
-			fmt.Printf("Signature:  %s\n\n", entry.Sig)
-			fmt.Println(entry.Desc)
-			if entry.Example != "" {
-				fmt.Println("\nExample:")
-				for _, line := range strings.Split(entry.Example, "\n") {
-					fmt.Printf("  %s\n", line)
-				}
-			}
+			printBuiltinEntry(name, entry)
 			return
 		}
 
-		// Stdlib function lookup
+		// Stdlib function/type lookup
 		if entry, ok := stdlibManDocs[name]; ok {
-			label := name
-			if strings.Contains(entry.Sig, "(") {
-				label = name + "()"
-			}
-			fmt.Printf("%s: %s\n", entry.Module, label)
-			fmt.Println(strings.Repeat("─", 44))
-			fmt.Printf("Module:     %s\n", entry.Module)
-			fmt.Printf("Signature:  %s\n\n", entry.Sig)
-			fmt.Println(entry.Desc)
-			if entry.Example != "" {
-				fmt.Println("\nExample:")
-				for _, line := range strings.Split(entry.Example, "\n") {
-					fmt.Printf("  %s\n", line)
-				}
-			}
+			printStdlibEntry(name, entry)
 			return
 		}
 
