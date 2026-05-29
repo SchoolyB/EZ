@@ -22,10 +22,11 @@ if [ ! -f "$CODES_FILE" ]; then
     exit 1
 fi
 
-# Count errors and warnings (only lines starting with whitespace + EZ_ERROR/EZ_WARNING)
+# Count errors, warnings, and panics
 ERROR_COUNT=$(grep -c '^ *EZ_ERROR("' "$CODES_FILE" || echo 0)
 WARNING_COUNT=$(grep -c '^ *EZ_WARNING("' "$CODES_FILE" || echo 0)
-TOTAL=$((ERROR_COUNT + WARNING_COUNT))
+PANIC_COUNT=$(grep -c '^ *EZ_PANIC("' "$CODES_FILE" || echo 0)
+TOTAL=$((ERROR_COUNT + WARNING_COUNT + PANIC_COUNT))
 
 # Generate markdown
 cat > "$OUTPUT" << HEADER
@@ -34,7 +35,7 @@ cat > "$OUTPUT" << HEADER
 > Auto-generated from \`ezc/src/util/error_codes.h\`. Do not edit manually.
 > Run \`./scripts/generate_errors.sh\` to regenerate.
 
-**Total: ${TOTAL} codes** (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings)
+**Total: ${TOTAL} codes** (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings, ${PANIC_COUNT} panics)
 
 ---
 
@@ -44,7 +45,7 @@ cat > "$OUTPUT" << HEADER
 |------|----------|-------------|
 HEADER
 
-# Extract errors (only actual definitions, not comments)
+# Extract errors
 grep '^ *EZ_ERROR("' "$CODES_FILE" | while IFS= read -r line; do
     code=$(echo "$line" | sed 's/.*EZ_ERROR("\([^"]*\)".*/\1/')
     category=$(echo "$line" | sed 's/.*EZ_ERROR("[^"]*", "\([^"]*\)".*/\1/')
@@ -62,7 +63,7 @@ cat >> "$OUTPUT" << WARN_HEADER
 |------|----------|-------------|
 WARN_HEADER
 
-# Extract warnings (only actual definitions, not comments)
+# Extract warnings
 grep '^ *EZ_WARNING("' "$CODES_FILE" | while IFS= read -r line; do
     code=$(echo "$line" | sed 's/.*EZ_WARNING("\([^"]*\)".*/\1/')
     category=$(echo "$line" | sed 's/.*EZ_WARNING("[^"]*", "\([^"]*\)".*/\1/')
@@ -70,34 +71,52 @@ grep '^ *EZ_WARNING("' "$CODES_FILE" | while IFS= read -r line; do
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 
+cat >> "$OUTPUT" << PANIC_HEADER
+
+---
+
+## Panics
+
+Runtime panics are fatal errors that terminate the program immediately. They are not compiler errors — they happen at runtime when the program encounters an unrecoverable condition.
+
+| Code | Category | Description |
+|------|----------|-------------|
+PANIC_HEADER
+
+# Extract panics
+grep '^ *EZ_PANIC("' "$CODES_FILE" | while IFS= read -r line; do
+    code=$(echo "$line" | sed 's/.*EZ_PANIC("\([^"]*\)".*/\1/')
+    category=$(echo "$line" | sed 's/.*EZ_PANIC("[^"]*", *"\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/.*EZ_PANIC("[^"]*", *"[^"]*", *"\([^"]*\)".*/\1/')
+    echo "| \`${code}\` | ${category} | ${desc} |"
+done >> "$OUTPUT"
+
 cat >> "$OUTPUT" << FOOTER
 
 ---
 
-## Error Code Ranges
+## Code Ranges
 
 | Range | What It Means |
 |-------|---------------|
-| E1xxx | Problems reading your code (invalid characters, numbers too large) |
+| E1xxx | Problems reading your code (invalid characters, malformed literals) |
 | E2xxx | Problems understanding your code (missing brackets, unexpected symbols) |
 | E3xxx | Type problems (wrong types, invalid operations) |
 | E4xxx | Name problems (undefined variables, duplicate names) |
-| E5xxx | Usage problems (wrong number of arguments) |
-| E6xxx | Import problems (unknown modules) |
+| E5xxx | Usage problems (wrong number of arguments, invalid assignment targets) |
+| E6xxx | Import problems (unknown modules, missing files) |
 | E7xxx | Standard library problems (wrong usage of built-in functions) |
-| E8xxx | Math errors (sqrt of negative, log of non-positive) |
+| E8xxx | Bitwise operator errors (non-integer operands) |
 | E9xxx | Array errors (empty array ops, invalid ranges) |
-| E10xxx | String errors (index out of bounds, repeat count) |
-| E11xxx | Time errors (parsing failures) |
-| E12xxx | Map errors (unhashable keys, immutable maps) |
-| E13xxx | JSON errors (syntax, unsupported types) |
+| E12xxx | Map errors (unhashable keys, duplicate keys) |
 | W1xxx | Cleanup suggestions (unused variables, functions) |
 | W2xxx | Safety warnings (shadowing, unused imports) |
-| W3xxx | Quality warnings (empty blocks) |
+| W3xxx | Quality warnings (uninitialized elements, pointer lifetime) |
+| P0xxx | Runtime panics (overflow, out-of-bounds, nil dereference) |
 
 ---
 
 *Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')*
 FOOTER
 
-echo "Generated $OUTPUT ($TOTAL codes: $ERROR_COUNT errors, $WARNING_COUNT warnings)"
+echo "Generated $OUTPUT ($TOTAL codes: $ERROR_COUNT errors, $WARNING_COUNT warnings, $PANIC_COUNT panics)"
