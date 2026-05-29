@@ -3755,6 +3755,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_FLOAT;
             } else if (strcmp(fn_name, "bool") == 0 && node->data.call.arg_count == 1) {
+                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+                    src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
+                    src_t->kind == TK_STRING) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "cannot convert %s to bool; only numeric types and bools can be converted",
+                        type_name(src_t));
+                    diag_error_msg(tc->diag, "E3043", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
                 result = &TYPE_BOOL;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);

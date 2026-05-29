@@ -3057,6 +3057,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         else if (strcmp(func, "float") == 0) cast_type = "double";
         else if (strcmp(func, "char") == 0) cast_type = "int32_t";
         else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
+        else if (strcmp(func, "bool") == 0) cast_type = "bool";
         if (cast_type) {
             AstNode *carg = node->data.call.args[0];
             /* Bigint→scalar: e.g., int(x128) → ez_i128_to_i64(x128) */
