@@ -1,5 +1,5 @@
 /*
- * Error Test: E10004 - string-empty-index
+ * Error Test: E4005 - string-empty-index
  * Expected: "empty string" or "cannot index"
  */
 

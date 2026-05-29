@@ -1,5 +1,5 @@
 /*
- * Error Test: E7035 - env-var-not-set
+ * Error Test: E3006 - env-var-not-set
  * Expected: "not set" or "environment variable"
  */
 

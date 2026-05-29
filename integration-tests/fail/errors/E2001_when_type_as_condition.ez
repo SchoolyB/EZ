@@ -1,4 +1,7 @@
-// E2047: when condition must be a value, not a type name
+/*
+ * Error Test: E2001 - when condition must be a value, not a type name
+ * Expected: compiler should reject this with E2001
+ */
 
 const COLOR enum {
     RED

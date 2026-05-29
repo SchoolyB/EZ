@@ -1,6 +1,6 @@
 /*
- * Error Test: E3018 - array-literal-required
- * Expected: "array" or "literal"
+ * Error Test: E3001 - array-literal-required
+ * Expected: type mismatch: cannot assign int to [int]
  */
 
 do main() {

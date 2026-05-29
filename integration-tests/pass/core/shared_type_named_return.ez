@@ -13,4 +13,5 @@ do main() {
     mut f string, l string = getNames()
     println(f)
     println(l)
+    println("ALL TESTS PASSED")
 }

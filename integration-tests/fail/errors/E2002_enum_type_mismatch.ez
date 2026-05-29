@@ -1,3 +1,7 @@
+/*
+ * Error Test: E2002 - comparing values from different enum types
+ * Expected: compiler should reject this with E2002
+ */
 
 const Status enum { ACTIVE, INACTIVE }
 const Other enum { A, B }

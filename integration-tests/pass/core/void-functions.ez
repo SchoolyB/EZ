@@ -42,7 +42,7 @@ do main() {
     deeplyNested(true)
     deeplyNested(false)
 
-    println("PASS: void-functions")
+    println("ALL TESTS PASSED")
 }
 
 do basicVoid() {

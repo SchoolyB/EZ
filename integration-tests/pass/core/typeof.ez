@@ -85,7 +85,7 @@ do main() {
     mut a = mem.arena(1024)
     assert(type_of(a) == "Arena", "mem.arena() should return 'Arena'")
 
-    println("PASS: type_of")
+    println("ALL TESTS PASSED")
 }
 
 do returnsInt() -> int { return 42 }

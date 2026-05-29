@@ -1,5 +1,5 @@
 /*
- * Error Test: E1008 - empty-char-literal
+ * Error Test: E1018 - empty-char-literal
  * Expected: "empty character literal"
  */
 

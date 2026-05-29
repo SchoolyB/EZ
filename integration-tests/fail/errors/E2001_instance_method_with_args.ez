@@ -1,6 +1,6 @@
 /*
- * Error Test: E3042 - struct function with args called on instance
- * Expected: "struct functions must be called on the type"
+ * Error Test: E2001 - struct function with args called on instance
+ * Expected: E2001 unexpected symbol (parser rejects instance.func() syntax)
  */
 
 const Point struct {

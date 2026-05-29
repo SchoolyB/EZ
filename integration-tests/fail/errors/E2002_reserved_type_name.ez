@@ -1,5 +1,5 @@
 /*
- * Error Test: E2022 - reserved-type-name
+ * Error Test: E2002 - reserved-type-name
  * Expected: "reserved" or "type name"
  */
 

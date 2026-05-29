@@ -1,6 +1,6 @@
 /*
- * Error Test: E3041 - array-size-overflow
- * Expected: "array literal has" or "declared size"
+ * Error Test: E3052 - array-size-overflow
+ * Expected: "too many elements in array initializer; declared size is 3, got 4"
  */
 
 

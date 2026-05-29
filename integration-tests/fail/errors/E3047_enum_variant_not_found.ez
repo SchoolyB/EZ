@@ -1,6 +1,6 @@
 /*
- * Error Test: E4004 - enum-variant-not-found
- * Expected: "not found" or "Yellow"
+ * Error Test: E3047 - enum-variant-not-found
+ * Expected: "enum 'Color' has no member 'Yellow'"
  */
 
 

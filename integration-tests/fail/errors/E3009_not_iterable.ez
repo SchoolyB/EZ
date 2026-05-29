@@ -1,6 +1,6 @@
 /*
- * Error Test: E3017 - not-iterable
- * Expected: "for_each requires array or string"
+ * Error Test: E3009 - not-iterable
+ * Expected: "cannot iterate over type 'int'; for_each requires an array, map, or string"
  */
 
 do main() {

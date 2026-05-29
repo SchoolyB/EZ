@@ -68,5 +68,5 @@ do main() {
     println("Test 6 PASS: Map value compound assignment works")
 
     println("")
-    println("=== All Tests PASSED ===")
+    println("ALL TESTS PASSED")
 }

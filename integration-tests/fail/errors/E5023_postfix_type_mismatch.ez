@@ -1,6 +1,6 @@
 /*
- * Error Test: E3001 - postfix-type-mismatch
- * Expected: "postfix" and "integer"
+ * Error Test: E5023 - postfix-type-mismatch
+ * Expected: "cannot use '++' on type 'string'; only integer types support increment/decrement"
  */
 
 

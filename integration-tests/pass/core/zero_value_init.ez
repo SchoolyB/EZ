@@ -28,4 +28,5 @@ do main() {
     println(getZeroString())
     println(getZeroBool())
     println(getZeroFloat())
+    println("ALL TESTS PASSED")
 }

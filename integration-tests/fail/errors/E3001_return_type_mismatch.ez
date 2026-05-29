@@ -1,5 +1,5 @@
 /*
- * Error Test: E3012 - return-type-mismatch
+ * Error Test: E3001 - return-type-mismatch
  * Expected: "return type mismatch"
  */
 

@@ -1,5 +1,5 @@
 /*
- * Error Test: E16001 - base64 input length not a multiple of 4
+ * Error Test: E3006 - base64 input length not a multiple of 4
  * Expected: "invalid base64"
  *
  * Pre-fix this caused a heap overread/overflow because the loop

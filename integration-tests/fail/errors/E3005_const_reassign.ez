@@ -1,5 +1,5 @@
 /*
- * Error Test: E5006 - immutable-variable
+ * Error Test: E3005 - immutable-variable
  * Expected: "cannot assign to immutable" or "const"
  */
 

@@ -1,5 +1,5 @@
 /*
- * Error Test: E1001 - illegal-character
+ * Error Test: E2072 - illegal-character
  * Expected: "illegal character" or "unexpected character '&'"
  */
 

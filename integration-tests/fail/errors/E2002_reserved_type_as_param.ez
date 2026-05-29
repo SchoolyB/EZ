@@ -1,6 +1,6 @@
 /*
- * Error Test: E2038 - reserved type name used as parameter name
- * Expected: "'bool' is a reserved type name" error
+ * Error Test: E2002 - reserved type name used as parameter name
+ * Expected: "'bool' is a built-in name and cannot be used as a parameter name"
  */
 
 do check(bool int) -> int {

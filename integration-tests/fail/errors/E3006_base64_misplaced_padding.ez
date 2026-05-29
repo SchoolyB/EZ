@@ -1,5 +1,5 @@
 /*
- * Error Test: E16001 - base64 input has '=' in non-padding position
+ * Error Test: E3006 - base64 input has '=' in non-padding position
  * Expected: "invalid base64"
  *
  * '=' is only valid at the end. Anywhere else means the encoder lost

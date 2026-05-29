@@ -1,5 +1,5 @@
 /*
- * Error Test: E13002 - json-unsupported-type
+ * Error Test: E3006 - json-unsupported-type
  * Expected: "unsupported value" or "failed to encode"
  */
 

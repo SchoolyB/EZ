@@ -1,5 +1,5 @@
 /*
- * Error Test: E2018 - trailing-comma-call
+ * Error Test: E2002 - trailing-comma-call
  * Expected: "trailing comma"
  */
 

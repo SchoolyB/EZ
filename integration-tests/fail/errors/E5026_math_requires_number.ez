@@ -1,5 +1,5 @@
 /*
- * Error Test: E7005 - requires-number
+ * Error Test: E5026 - requires-number
  * Expected: "must be a number" or "requires number"
  */
 

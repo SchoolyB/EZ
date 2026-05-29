@@ -1,5 +1,5 @@
 /*
- * Error Test: E5002 - modulo-by-zero (literal at check time)
+ * Error Test: E3002 - modulo-by-zero (literal at check time)
  * Expected: "modulo by zero"
  */
 

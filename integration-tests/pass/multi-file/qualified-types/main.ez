@@ -44,4 +44,5 @@ do main() {
     if failed > 0 {
         panic("SOME TESTS FAILED")
     }
+    println("ALL TESTS PASSED")
 }

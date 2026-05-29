@@ -1,5 +1,5 @@
 /*
- * Error Test: E2027 - integer-parse-error
+ * Error Test: E1010 - integer-parse-error
  * Expected: "cannot parse" or "parse" or "integer"
  */
 

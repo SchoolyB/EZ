@@ -1,5 +1,5 @@
 /*
- * Error Test: E2008 - invalid-assignment-target
+ * Error Test: E5025 - invalid-assignment-target
  * Expected: "cannot assign" or "invalid assignment"
  */
 

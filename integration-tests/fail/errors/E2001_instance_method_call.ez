@@ -1,6 +1,6 @@
 /*
- * Error Test: E3042 - struct function called on instance
- * Expected: "struct functions must be called on the type"
+ * Error Test: E2001 - struct function syntax parsed as instance call
+ * Expected: E2001 unexpected symbol (parser rejects instance.func() syntax)
  */
 
 const Foo struct {

@@ -1,5 +1,5 @@
 /*
- * Error Test: E2015 - missing-return-type
+ * Error Test: E2002 - missing-return-type
  * Expected: "expected return type after '->'"
  */
 

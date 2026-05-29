@@ -1,8 +1,6 @@
 /*
- * E5017: Cannot modify field of immutable struct created with new()
- * Expected: "cannot modify field of const struct"
- *
- * This tests that const structs created via new() are immutable.
+ * Error Test: E3001 - cannot modify field of immutable struct created with new()
+ * Expected: compiler should reject this with E3001
  */
 
 const Person struct {

@@ -1,5 +1,5 @@
 /*
- * Error Test: E13003 - json-invalid-map-key
+ * Error Test: E3006 - json-invalid-map-key
  * Expected: "JSON object keys must be strings"
  */
 

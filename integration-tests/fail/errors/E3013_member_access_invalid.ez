@@ -1,5 +1,5 @@
 /*
- * Error Test: E4011 - member-access-invalid-type
+ * Error Test: E3013 - member-access-invalid-type
  * Expected: "member access not supported"
  */
 

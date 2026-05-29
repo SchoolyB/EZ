@@ -1,7 +1,6 @@
 /*
- * Error Test: E4008 - ambiguous-function
- * Expected: "function found in multiple modules"
- * Note: This requires multiple modules with same function name
+ * Error Test: E6002 - import file not found
+ * Expected: "cannot find file or directory 'mymodule'"
  */
 
 import "mymodule"

@@ -1,5 +1,6 @@
-/* Test: Return parameter conflicts with input parameter
- * Expected: E2012 error - parameter name already used
+/*
+ * Error Test: E2063 - return parameter conflicts with input parameter
+ * Expected: compiler should reject this with E2063
  */
 
 

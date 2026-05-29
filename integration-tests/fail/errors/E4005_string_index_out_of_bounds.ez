@@ -1,5 +1,5 @@
 /*
- * Error Test: E10003 - string-index-out-of-bounds
+ * Error Test: E4005 - string-index-out-of-bounds
  * Expected: "string index" or "out of bounds"
  */
 

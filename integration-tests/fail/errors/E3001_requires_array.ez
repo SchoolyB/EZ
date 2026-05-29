@@ -1,5 +1,5 @@
 /*
- * Error Test: E7002 - requires-array
+ * Error Test: E3001 - requires-array
  * Expected: "must be an array" or "requires array"
  */
 

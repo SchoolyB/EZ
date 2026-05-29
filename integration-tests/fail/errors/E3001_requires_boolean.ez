@@ -1,5 +1,5 @@
 /*
- * Error Test: E7008 - requires-boolean
+ * Error Test: E3001 - requires-boolean
  * Expected: "must be a boolean" or "requires boolean"
  */
 

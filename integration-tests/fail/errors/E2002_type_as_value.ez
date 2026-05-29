@@ -1,3 +1,7 @@
+/*
+ * Error Test: E2002 - enum type cannot be used as a value
+ * Expected: compiler should reject this with E2002
+ */
 
 const Status enum { ACTIVE, INACTIVE }
 

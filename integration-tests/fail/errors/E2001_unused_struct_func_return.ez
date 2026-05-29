@@ -1,6 +1,6 @@
 /*
- * Error Test: E5011 - unused return value from struct function
- * Expected: "return value of" and "is not used"
+ * Error Test: E2001 - struct function call syntax
+ * Expected: E2001 unexpected symbol (parser rejects instance.func() syntax)
  */
 
 const Math struct {

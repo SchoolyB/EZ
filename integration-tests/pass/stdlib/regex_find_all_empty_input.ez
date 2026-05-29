@@ -23,4 +23,5 @@ do main() {
 
     println("regex_find_all_empty_input: ${pass} passed, ${fail} failed")
     if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
 }

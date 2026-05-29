@@ -1,3 +1,7 @@
+/*
+ * Error Test: E4013 - variable shadows function name
+ * Expected: compiler should reject this with E4013
+ */
 
 do helper() { println("hi") }
 

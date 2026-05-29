@@ -15,4 +15,5 @@ do main() {
     println(n)
     println(c)
     println(a)
+    println("ALL TESTS PASSED")
 }

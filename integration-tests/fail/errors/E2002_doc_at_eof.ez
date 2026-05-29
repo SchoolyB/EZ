@@ -1,4 +1,4 @@
-// Test: E2059 - #doc at end of file (orphaned)
+// Test: E2002 - #doc at end of file (orphaned)
 
 do main() {
     println("hello")

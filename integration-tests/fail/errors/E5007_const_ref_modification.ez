@@ -1,6 +1,6 @@
 /*
- * E5007_const_ref_modification.ez
- * Tests that modifying through a const ref fails with E5007
+ * Error Test: E5007 - modifying through a const ref
+ * Expected: compiler should reject this with E5007
  */
 
 import @arrays

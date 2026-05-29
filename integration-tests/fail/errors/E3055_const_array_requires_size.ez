@@ -1,5 +1,5 @@
 /*
- * Error Test: E2032 - const-array-requires-size
+ * Error Test: E3055 - const-array-requires-size
  * Expected: "const array" or "fixed size"
  */
 

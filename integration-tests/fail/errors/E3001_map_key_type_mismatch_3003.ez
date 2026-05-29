@@ -1,6 +1,6 @@
 /*
- * Error Test: E3003 - map-key-type-mismatch
- * Expected: "key" and "type"
+ * Error Test: E3001 - map-key-type-mismatch
+ * Expected: "map key type mismatch"
  */
 
 

@@ -1,6 +1,6 @@
 /*
- * Error Test: E6002 - module-not-found
- * Expected: "module file not found"
+ * Error Test: E6001 - module-not-found
+ * Expected: "unknown module '@nonexistent_module'"
  */
 
 import @nonexistent_module

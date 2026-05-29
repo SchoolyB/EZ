@@ -1,5 +1,5 @@
 /*
- * Error Test: E13001 - json-syntax-error
+ * Error Test: E5008 - json-syntax-error
  * Expected: "invalid JSON syntax"
  * Note: This error is returned in tuple, so we use panic to propagate it
  */

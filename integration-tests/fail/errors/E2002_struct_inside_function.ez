@@ -1,6 +1,6 @@
 /*
- * Error Test: E2053 - struct defined inside function
- * Expected: "must be defined at the file scope"
+ * Error Test: E2002 - struct defined inside function (uses old 'struct' syntax)
+ * Expected: E2002 unexpected symbol
  */
 
 do main() {

@@ -1,5 +1,5 @@
 /*
- * Error Test: E2007 - unclosed-interpolation
+ * Error Test: E1021 - unclosed-interpolation
  * Expected: "interpolation not closed" or "${"
  */
 

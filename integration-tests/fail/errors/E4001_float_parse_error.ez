@@ -1,5 +1,5 @@
 /*
- * Error Test: E2028 - float-parse-error
+ * Error Test: E4001 - float-parse-error
  * Expected: "cannot parse float" or "parse"
  */
 

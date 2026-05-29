@@ -1,5 +1,5 @@
 /*
- * Error Test: E2006 - unclosed-bracket
+ * Error Test: E2001 - unclosed-bracket
  * Expected: "missing closing bracket" or "]"
  */
 

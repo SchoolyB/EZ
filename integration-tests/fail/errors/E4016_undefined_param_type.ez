@@ -1,6 +1,6 @@
 /*
- * Error Test: E3010 - undefined-param-type
- * Expected: "undefined type"
+ * Error Test: E4016 - undefined-param-type
+ * Expected: "undefined type 'UnknownType'"
  */
 
 do process(data UnknownType) {  // Unknown parameter type

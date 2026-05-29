@@ -1,5 +1,5 @@
 /*
- * Error Test: E7007 - requires-map
+ * Error Test: E5026 - requires-map
  * Expected: "must be a map" or "requires map"
  */
 

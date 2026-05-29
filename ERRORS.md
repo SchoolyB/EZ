@@ -97,7 +97,7 @@
 | `E3034` | types | 'any' type is reserved for internal use and cannot be used in declarations |
 | `E3035` | types | not all code paths in '%s' return a value |
 | `E3036` | types | value %lld is out of range for type '%s' (valid range: %lld to %lld) |
-| `E3038` | types | 'void' cannot be used as a variable type or in expressions like typeof() |
+| `E3038` | types | 'void' cannot be used as a variable type or in expressions like type_of() |
 | `E3039` | types | ensure expects a function call; for example: ensure close(file) |
 | `E3040` | types | '%s' returns %d values; use mut a, b = %s() to capture all of them |
 | `E3041` | types | cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps |
@@ -330,4 +330,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-05-29 03:41:54 UTC*
+*Generated on 2026-05-29 03:43:08 UTC*

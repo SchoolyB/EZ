@@ -1,5 +1,5 @@
 /*
- * Error Test: E11001 - time-parse-failed
+ * Error Test: E4005 - time-parse-failed
  * Expected: "parse" or "time"
  */
 

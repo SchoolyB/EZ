@@ -1,5 +1,5 @@
 /*
- * Error Test: E5003 - negative array index
+ * Error Test: E3003 - negative array index
  * Expected: "negative"
  */
 

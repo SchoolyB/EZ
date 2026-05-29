@@ -1,5 +1,5 @@
 /*
- * Error Test: E16001 - invalid-base64
+ * Error Test: E3006 - invalid-base64
  * Expected: "invalid base64"
  */
 

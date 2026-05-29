@@ -34,4 +34,5 @@ do main() {
 
     println("regex: ${pass} passed, ${fail} failed")
     if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
 }

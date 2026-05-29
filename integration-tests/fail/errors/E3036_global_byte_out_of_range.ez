@@ -1,11 +1,11 @@
 /*
- * Error Test: E3025 - byte-value-out-of-range (global variable)
+ * Error Test: E3036 - byte-value-out-of-range (global variable)
  * Expected: "byte" or "0 and 255"
  * Tests that global byte declarations check value range
  */
 
 
-// Global byte with out of range value - should trigger E3025
+// Global byte with out of range value - should trigger E3036
 const badByte byte = 300
 
 do main() {

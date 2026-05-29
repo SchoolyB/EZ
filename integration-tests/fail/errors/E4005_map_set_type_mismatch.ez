@@ -1,6 +1,6 @@
 /*
- * Error Test: E3001 - map-set-type-mismatch
- * Expected: "type mismatch" or "value type"
+ * Error Test: E4005 - map-set-type-mismatch
+ * Expected: "module 'maps' has no function named 'set'"
  */
 
 import @maps

@@ -1,5 +1,5 @@
 /*
- * Error Test: E16003 - invalid-url-encoding
+ * Error Test: E3006 - invalid-url-encoding
  * Expected: "invalid URL encoding"
  */
 

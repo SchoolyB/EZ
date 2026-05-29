@@ -1,5 +1,5 @@
 /*
- * Error Test: E5003 - array index out of bounds for fixed-size array
+ * Error Test: E3054 - array index out of bounds for fixed-size array
  * Expected: "out of bounds"
  */
 

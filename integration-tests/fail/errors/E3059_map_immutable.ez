@@ -1,5 +1,5 @@
 /*
- * Error Test: E12002 - map-immutable
+ * Error Test: E3059 - map-immutable
  * Expected: "immutable" or "cannot modify"
  */
 

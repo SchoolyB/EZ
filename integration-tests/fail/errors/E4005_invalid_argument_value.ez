@@ -1,5 +1,5 @@
 /*
- * Error Test: E7010 - invalid-argument-value
+ * Error Test: E4005 - invalid-argument-value
  * Expected: "invalid" or "argument value"
  */
 

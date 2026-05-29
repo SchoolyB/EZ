@@ -1,3 +1,7 @@
+/*
+ * Error Test: E3033 - duplicate enum value
+ * Expected: compiler should reject this with E3033
+ */
 
 const Status enum {
     ACTIVE = 1

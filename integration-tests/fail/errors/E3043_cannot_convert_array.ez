@@ -1,6 +1,6 @@
 /*
- * Error Test: E3007 - cannot-convert-array
- * Expected: "cannot convert array"
+ * Error Test: E3043 - cannot-convert-array
+ * Expected: "cannot convert [int] to int; only numeric types, strings, and bools can be converted"
  */
 
 do main() {

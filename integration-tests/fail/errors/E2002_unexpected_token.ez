@@ -1,5 +1,5 @@
 /*
- * Error Test: E2001 - unexpected-token
+ * Error Test: E2002 - unexpected-token
  * Expected: "unexpected token"
  */
 

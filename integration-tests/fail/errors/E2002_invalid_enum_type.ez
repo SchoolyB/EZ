@@ -1,5 +1,5 @@
 /*
- * Error Test: E2026 - invalid-enum-type
+ * Error Test: E2002 - invalid-enum-type
  * Expected: "enum type" or "must be primitive"
  */
 

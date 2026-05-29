@@ -1,5 +1,5 @@
 /*
- * Error Test: E4009 - no-main-function
+ * Error Test: E4005 - no-main-function
  * Expected: "must define a main() function"
  */
 

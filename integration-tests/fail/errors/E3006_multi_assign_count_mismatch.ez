@@ -1,6 +1,6 @@
 /*
- * Error Test: E5012 - multi-assign-count-mismatch
- * Expected: "count mismatch" or "assignment"
+ * Error Test: E3006 - multi-assign-count-mismatch
+ * Expected: "too many variables; the function returns N value(s) but variable N was requested"
  */
 
 do getTwo() -> (int, int) {

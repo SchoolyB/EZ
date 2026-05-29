@@ -1,5 +1,5 @@
 /*
- * Error Test: E2020 - reserved-variable-name
+ * Error Test: E2002 - reserved-variable-name
  * Expected: "'if' is a reserved keyword and cannot be used as a variable name"
  */
 

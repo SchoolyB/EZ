@@ -1,5 +1,5 @@
 /*
- * Error Test: E16002 - invalid-hex
+ * Error Test: E3006 - invalid-hex
  * Expected: "invalid hex"
  */
 

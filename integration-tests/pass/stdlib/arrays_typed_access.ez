@@ -331,5 +331,5 @@ do main() {
     if failed > 0 {
         panic("arrays_typed_access: ${failed} test(s) failed")
     }
-    println("all pass")
+    println("ALL TESTS PASSED")
 }

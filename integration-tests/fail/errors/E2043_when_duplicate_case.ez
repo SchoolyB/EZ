@@ -1,4 +1,7 @@
-// E2043: duplicate case value in when statement
+/*
+ * Error Test: E2043 - duplicate case value in when statement
+ * Expected: compiler should reject this with E2043
+ */
 
 do main() {
     mut x = 1

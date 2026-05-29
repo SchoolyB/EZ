@@ -1,6 +1,6 @@
 /*
- * Error Test: E3042 - struct func called on instance instead of type
- * Expected: "struct functions must be called on the type"
+ * Error Test: E2002 - struct func called on instance instead of type (uses old 'struct' syntax)
+ * Expected: E2002 unexpected symbol
  */
 
 struct Vec2 {

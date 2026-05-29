@@ -1,5 +1,5 @@
 /*
- * Error Test: E7001 - wrong-argument-count
+ * Error Test: E5008 - wrong-argument-count
  * Expected: "wrong number of arguments" or "argument count"
  */
 

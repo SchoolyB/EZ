@@ -1,5 +1,5 @@
 /*
- * Error Test: E2002 - for_each with opening paren but missing closing paren
+ * Error Test: E2001 - for_each with opening paren but missing closing paren
  * Expected: "expected ), got { instead"
  */
 

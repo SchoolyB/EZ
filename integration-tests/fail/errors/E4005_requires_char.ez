@@ -1,5 +1,5 @@
 /*
- * Error Test: E7009 - requires-char
+ * Error Test: E4005 - requires-char
  * Expected: "must be a char" or "requires char"
  */
 

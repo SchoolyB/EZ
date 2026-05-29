@@ -1,5 +1,6 @@
-/* Test: Duplicate return parameter name
- * Expected: E2012 error - duplicate parameter name
+/*
+ * Error Test: E2063 - duplicate return parameter name
+ * Expected: compiler should reject this with E2063
  */
 
 

@@ -1,5 +1,5 @@
 /*
- * Error Test: E2003 - missing-expression
+ * Error Test: E2002 - missing-expression
  * Expected: "expected expression"
  */
 
