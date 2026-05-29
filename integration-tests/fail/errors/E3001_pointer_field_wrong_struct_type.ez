@@ -1,0 +1,19 @@
+/*
+ * Error Test: E3001 - assigning wrong struct pointer type to a pointer field
+ * Expected: type mismatch error — ^Other cannot be assigned to ^Node field
+ */
+
+const Node struct {
+    value int
+    next ^Node
+}
+
+const Other struct {
+    x int
+}
+
+do main() {
+    mut a = new(Node)
+    mut o = new(Other)
+    a.next = o
+}

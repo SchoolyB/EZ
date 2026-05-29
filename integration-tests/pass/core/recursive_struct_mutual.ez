@@ -1,0 +1,83 @@
+/*
+ * Pass Test: mutually recursive structs via pointer fields
+ * A has ^B and B has ^A — both names must be accepted as valid pointees
+ * even though each is declared after the other references it.
+ */
+
+const NodeA struct {
+    value int
+    partner ^NodeB
+}
+
+const NodeB struct {
+    label string
+    partner ^NodeA
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut a = new(NodeA)
+    a.value = 42
+    a.partner = nil
+
+    mut b = new(NodeB)
+    b.label = "hello"
+    b.partner = nil
+
+    a.partner = b
+    b.partner = a
+
+    // Test 1: a.value
+    if a.value == 42 {
+        println("  [PASS] NodeA value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NodeA value: expected 42")
+        failed += 1
+    }
+
+    // Test 2: b.label
+    if b.label == "hello" {
+        println("  [PASS] NodeB label")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NodeB label: expected 'hello'")
+        failed += 1
+    }
+
+    // Test 3: a.partner points to b (explicit deref of ^NodeB field)
+    if a.partner^.label == "hello" {
+        println("  [PASS] a.partner^.label")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] a.partner^.label: expected 'hello'")
+        failed += 1
+    }
+
+    // Test 4: b.partner points to a
+    if b.partner^.value == 42 {
+        println("  [PASS] b.partner^.value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] b.partner^.value: expected 42")
+        failed += 1
+    }
+
+    // Test 5: round-trip through both pointers
+    if a.partner^.partner^.value == 42 {
+        println("  [PASS] round-trip a->b->a value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] round-trip a->b->a value: expected 42")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

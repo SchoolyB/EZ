@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3061 - by-value self-reference still rejected even when a valid
+ * pointer field is present in the same struct.
+ * Expected: compiler error E3061 for the by-value 'self Node' field
+ */
+
+const Node struct {
+    next ^Node
+    self Node
+}
+
+do main() {
+}

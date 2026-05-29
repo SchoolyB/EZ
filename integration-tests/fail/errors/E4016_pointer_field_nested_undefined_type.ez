@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4016 - nested pointer field (^^T) references an undefined type
+ * Expected: compiler error E4016 for ^^Ghost where Ghost is never declared
+ */
+
+const Node struct {
+    value int
+    next ^^Ghost
+}
+
+do main() {
+}

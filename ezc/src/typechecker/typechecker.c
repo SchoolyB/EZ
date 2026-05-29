@@ -4908,7 +4908,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname, fname);
                 } else if (expected_t && val_t->kind != TK_UNKNOWN &&
                            expected_t->kind != TK_UNKNOWN &&
-                           expected_t->kind != val_t->kind &&
+                           /* kinds differ, OR both are pointers to different types */
+                           (expected_t->kind != val_t->kind ||
+                            (expected_t->kind == TK_POINTER &&
+                             expected_t->name && val_t->name &&
+                             strcmp(expected_t->name, val_t->name) != 0)) &&
                            !(is_int_kind(expected_t->kind) && val_t->kind == TK_ENUM) &&
                            !(expected_t->kind == TK_ENUM && is_int_kind(val_t->kind)) &&
                            !(expected_t->kind == TK_STRUCT && is_int_kind(val_t->kind)) &&
@@ -6496,13 +6500,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
-        /* Check type mismatch on struct field assignment */
+        /* Check type mismatch on struct field assignment.
+         * sym->type may be TK_STRUCT (by-value) or TK_POINTER (from new()),
+         * in both cases sym->type->name is the pointee/struct name. */
         if (target->kind == NODE_MEMBER_EXPR && target->data.member.object->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
-            if (sym && sym->type->kind == TK_STRUCT) {
+            if (sym && (sym->type->kind == TK_STRUCT || sym->type->kind == TK_POINTER)) {
                 EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
-                    field_t->kind != value_t->kind &&
+                    /* kinds differ, OR both are pointers to different types */
+                    (field_t->kind != value_t->kind ||
+                     (field_t->kind == TK_POINTER &&
+                      field_t->name && value_t->name &&
+                      strcmp(field_t->name, value_t->name) != 0)) &&
                     !(is_int_kind(field_t->kind) && is_int_kind(value_t->kind)) &&
                     !(is_int_kind(field_t->kind) && value_t->kind == TK_ENUM) &&
                     !(field_t->kind == TK_FLOAT && is_int_kind(value_t->kind)) &&
@@ -7577,6 +7587,20 @@ static bool is_valid_module(const char *name) {
     return false;
 }
 
+/* : returns true if any NODE_STRUCT_DECL in the program has the given
+ * name. Used by pointer-field pointee validation to accept forward
+ * references and self-recursion before the struct is registered. */
+static bool struct_name_declared(AstNode *program, const char *name) {
+    if (!program || !name) return false;
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *s = program->data.program.stmts[i];
+        if (s && s->kind == NODE_STRUCT_DECL && s->data.struct_decl.name &&
+            strcmp(s->data.struct_decl.name, name) == 0)
+            return true;
+    }
+    return false;
+}
+
 /* : look up a struct declaration in the program by name. Returns
  * NULL if no struct with the given name exists. Used by the by-value
  * recursion detector below. */
@@ -7824,6 +7848,29 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                                 display, ftn, ftn);
                         }
                         diag_error_msg(tc->diag, "E3061", strdup(msg),
+                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+                    }
+                }
+                /* Pointer field pointee validation: ^T where T must be a
+                 * known primitive, registered enum/struct, or a struct
+                 * declared anywhere in the program (handles self-recursion
+                 * and forward references where the struct isn't yet
+                 * registered). */
+                if (ftn && *ftn && ftn[0] == '^') {
+                    const char *pointee = ftn + 1;
+                    while (*pointee == '^') pointee++;
+                    bool known = false;
+                    EzType *pt = tc_type_from_name(tc, pointee);
+                    if (pt && pt->kind != TK_STRUCT) known = true;
+                    if (!known && is_enum_name(tc, pointee)) known = true;
+                    if (!known && is_struct_name(tc, pointee)) known = true;
+                    if (!known && struct_name_declared(program, pointee)) known = true;
+                    if (!known) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "pointer field '%s' references undefined type '%s'",
+                            fnames[j], pointee);
+                        diag_error_msg(tc->diag, "E4016", strdup(msg),
                             NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                     }
                 }

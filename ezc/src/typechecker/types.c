@@ -198,6 +198,9 @@ bool type_eq(EzType *a, EzType *b) {
     if (a->kind == TK_ARRAY) {
         return strcmp(a->element_type, b->element_type) == 0;
     }
+    if (a->kind == TK_POINTER) {
+        return a->name && b->name && strcmp(a->name, b->name) == 0;
+    }
     if (a->kind == TK_FUNCTION) {
         /* Canonical encoded form lives in name; signatures equal iff the
          * encoded strings match (parser writes a canonical form). */

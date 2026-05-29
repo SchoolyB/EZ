@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3001 - assigning a by-value struct to a pointer field
+ * Expected: type mismatch error — Node (by value) cannot be assigned to ^Node field
+ */
+
+const Node struct {
+    value int
+    next ^Node
+}
+
+do main() {
+    mut a = new(Node)
+    mut b Node = Node{value: 5, next: nil}
+    a.next = b
+}

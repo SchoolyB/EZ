@@ -1,0 +1,65 @@
+/*
+ * Pass Test: pointer field forward reference
+ * Struct A references ^B where B is declared *after* A in source order.
+ * The typechecker must accept this via the program-level pre-scan.
+ */
+
+const A struct {
+    value int
+    next ^B
+}
+
+const B struct {
+    value int
+    next ^A
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut a = new(A)
+    a.value = 1
+    a.next = nil
+
+    mut b = new(B)
+    b.value = 2
+    b.next = nil
+
+    a.next = b
+    b.next = a
+
+    // Test 1: a.value
+    if a.value == 1 {
+        println("  [PASS] a.value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] a.value: expected 1")
+        failed += 1
+    }
+
+    // Test 2: b.value via a.next (explicit deref of ^B field)
+    if a.next^.value == 2 {
+        println("  [PASS] a.next^.value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] a.next^.value: expected 2")
+        failed += 1
+    }
+
+    // Test 3: round-trip a -> b -> a
+    if a.next^.next^.value == 1 {
+        println("  [PASS] round-trip a->b->a")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] round-trip a->b->a: expected 1")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
