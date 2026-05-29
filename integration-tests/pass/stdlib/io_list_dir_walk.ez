@@ -10,10 +10,10 @@ do main() {
     mut failed int = 0
 
     // Setup: create a directory with some files
-    mut _ = io.make_dir_all("/tmp/ez_test_listdir/sub")
-    mut _ = io.write_file("/tmp/ez_test_listdir/a.txt", "a")
-    mut _ = io.write_file("/tmp/ez_test_listdir/b.txt", "b")
-    mut _ = io.write_file("/tmp/ez_test_listdir/sub/c.txt", "c")
+    mut _, _ = io.make_dir_all("/tmp/ez_test_listdir/sub")
+    mut _, _ = io.write_file("/tmp/ez_test_listdir/a.txt", "a")
+    mut _, _ = io.write_file("/tmp/ez_test_listdir/b.txt", "b")
+    mut _, _ = io.write_file("/tmp/ez_test_listdir/sub/c.txt", "c")
 
     // Test 1: list_dir returns entries in directory
     mut entries [string] = io.list_dir("/tmp/ez_test_listdir")
@@ -46,7 +46,7 @@ do main() {
     }
 
     // Cleanup
-    mut _ = io.remove_dir_all("/tmp/ez_test_listdir")
+    mut _, _ = io.remove_dir_all("/tmp/ez_test_listdir")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

@@ -20,7 +20,7 @@ do main() {
     }
 
     // Test 2: read_file success path
-    mut _ = io.write_file("/tmp/ez_result_test_1547.txt", "hello")
+    mut _, _ = io.write_file("/tmp/ez_result_test_1547.txt", "hello")
     mut content2, err2 = io.read_file("/tmp/ez_result_test_1547.txt")
     if err2 == nil {
         if content2 == "hello" {
@@ -204,8 +204,8 @@ do main() {
     }
 
     // Cleanup
-    mut _ = io.remove_dir("/tmp/ez_result_mkdir_1547")
-    mut _ = io.delete_file("/tmp/ez_result_test_1547.txt")
+    mut _, _ = io.remove_dir("/tmp/ez_result_mkdir_1547")
+    mut _, _ = io.delete_file("/tmp/ez_result_test_1547.txt")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

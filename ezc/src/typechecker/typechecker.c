@@ -584,6 +584,13 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
     return false;
 }
 
+static bool tc_is_fallible_stdlib_bare(const char *fn) {
+    for (int i = 0; i < (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0])); i++) {
+        if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
+    }
+    return false;
+}
+
 /* Return the primary (non-error) type for a fallible stdlib function.
  * This mirrors the type registration blocks so that multi-var synthesis
  * doesn't depend on sym->type being resolved first. */
@@ -4242,7 +4249,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"encode","json",TK_STRING},{"stringify","json",TK_STRING},
                             {"parse","json",TK_UNKNOWN},{"pretty","json",TK_STRING},
                             /* @io */
-                            {"read_file","io",TK_STRING},{"write_file","io",TK_BOOL},
+                            {"read_file","io",TK_STRING},{"read_bytes","io",TK_ARRAY},
+                            {"read_lines","io",TK_ARRAY},{"write_file","io",TK_BOOL},
                             {"append_file","io",TK_BOOL},{"delete_file","io",TK_BOOL},
                             {"rename_file","io",TK_BOOL},{"file_exists","io",TK_BOOL},
                             {"is_file","io",TK_BOOL},{"is_directory","io",TK_BOOL},
@@ -5685,6 +5693,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
                 AstNode *call_fn = node->data.var_decl.value->data.call.function;
                 const char *call_name = NULL;
+                const char *call_mod = NULL;
                 FuncSig *sig = NULL;
                 if (call_fn->kind == NODE_LABEL) {
                     call_name = call_fn->data.label.value;
@@ -5692,15 +5701,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 } else if (call_fn->kind == NODE_MEMBER_EXPR &&
                            call_fn->data.member.object->kind == NODE_LABEL) {
                     const char *mod_raw = call_fn->data.member.object->data.label.value;
-                    const char *mod = tc_resolve_alias(tc, mod_raw);
+                    call_mod = tc_resolve_alias(tc, mod_raw);
                     const char *mfn = call_fn->data.member.member;
                     char prefixed[EZ_MSG_BUF_SIZE];
-                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", call_mod, mfn);
                     sig = find_func(tc, prefixed);
                     call_name = mfn;
                 }
                 if (sig && sig->return_count > 1) {
                     diag_error_codef(tc->diag, "E3040", NODE_FILE(tc, node), node->token.line, node->token.column, 0, call_name, sig->return_count, call_name);
+                } else if (call_name && !sig) {
+                    bool is_fallible = call_mod
+                        ? tc_is_fallible_stdlib(call_mod, call_name)
+                        : tc_is_fallible_stdlib_bare(call_name);
+                    if (is_fallible) {
+                        diag_error_codef(tc->diag, "E3089", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0,
+                            call_name, call_name, call_name);
+                    }
                 }
             }
             /* Reject nil on non-nullable types */

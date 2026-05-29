@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3089 - fallible stdlib function result not fully handled
+ * Expected: error on single-var assignment of fallible stdlib function
+ */
+
+import @io
+
+do main() {
+    mut content = io.read_file("/tmp/test.txt")
+    println(content)
+}

@@ -170,7 +170,8 @@
     EZ_ERROR("E3085", "types", "'in' operator type mismatch: cannot check if '%s' is in '%s'") \
     EZ_ERROR("E3086", "types", "fmt.%s format string must be a string literal; use string interpolation for dynamic values") \
     EZ_ERROR("E3087", "types", "%%n is not permitted in fmt format strings") \
-    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'")
+    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'") \
+    EZ_ERROR("E3089", "usage", "'%s()' is fallible; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

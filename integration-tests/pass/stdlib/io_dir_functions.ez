@@ -49,7 +49,7 @@ do main() {
     }
 
     // Test 5: write a file then copy it
-    mut _ = io.write_file("/tmp/ez_test_1446/a/test.txt", "hello")
+    mut _, _ = io.write_file("/tmp/ez_test_1446/a/test.txt", "hello")
     mut cp bool = io.copy_file("/tmp/ez_test_1446/a/test.txt", "/tmp/ez_test_1446/a/b/test_copy.txt")
     if cp == true {
         println("  [PASS] copy_file succeeds")

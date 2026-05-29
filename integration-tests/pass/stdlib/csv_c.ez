@@ -64,7 +64,7 @@ do main() {
     // write_file + read_file round trip
     mut test_path string = "/tmp/ez_csv_test.csv"
     mut write_content string = "id,name,score\n1,Alice,95\n2,Bob,87\n3,Charlie,92"
-    mut _ = io.write_file(test_path, write_content)
+    mut _, _ = io.write_file(test_path, write_content)
 
     mut read_rows [[string]] = csv.read_file(test_path)
     if len(read_rows) == 4 {
@@ -115,8 +115,8 @@ do main() {
     }
 
     // cleanup
-    mut _ = io.delete_file(test_path)
-    mut _ = io.delete_file(out_path)
+    mut _, _ = io.delete_file(test_path)
+    mut _, _ = io.delete_file(out_path)
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")

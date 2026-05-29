@@ -35,7 +35,7 @@ do main() {
     }
 
     // exec insert another
-    mut _ = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (2, 'Bob')")
+    mut _, _ = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (2, 'Bob')")
 
     // query
     mut rows = sqlite.query(db, "SELECT * FROM test")

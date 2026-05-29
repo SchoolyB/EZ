@@ -10,7 +10,7 @@ do main() {
     mut failed int = 0
 
     mut test_file string = "/tmp/ez_io_readtest.txt"
-    mut _ = io.write_file(test_file, "line1\nline2\nline3")
+    mut _, _ = io.write_file(test_file, "line1\nline2\nline3")
 
     // Test 1: read_bytes returns correct byte count
     mut bytes = io.read_bytes(test_file)
@@ -160,7 +160,7 @@ do main() {
     }
 
     // Cleanup
-    mut _ = io.delete_file(test_file)
+    mut _, _ = io.delete_file(test_file)
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
