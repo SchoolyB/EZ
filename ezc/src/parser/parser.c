@@ -606,6 +606,26 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
                 diag_error_code(p->diag, "E2071", p->file, p->cur_token.line, p->cur_token.column, 0);
             } else {
                 Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
+                /* Offset the sub-lexer to the real source position of this
+                 * ${...} expression so diagnostics point at the right line
+                 * and column instead of always reporting 1:N. expr_start
+                 * points to the first char of the expression (past "${"),
+                 * so (expr_start - raw) is its byte offset from the opening
+                 * quote. Count any newlines in the string before this point
+                 * to handle multi-line strings correctly. */
+                {
+                    int line_off = 0;
+                    int col_from_nl = 0;
+                    for (const char *cp = raw; cp < expr_start; cp++) {
+                        if (*cp == '\n') { line_off++; col_from_nl = 0; }
+                        else col_from_nl++;
+                    }
+                    expr_lexer->line = p->cur_token.line + line_off;
+                    if (line_off > 0)
+                        expr_lexer->column = col_from_nl + 1;
+                    else
+                        expr_lexer->column = p->cur_token.column + 1 + (int)(expr_start - raw);
+                }
                 Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
                 /* Inherit struct names from parent so interpolated expressions
                  * can recognize struct literals. */
