@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 280 codes** (180 errors, 15 warnings, 85 panics)
+**Total: 279 codes** (180 errors, 14 warnings, 85 panics)
 
 ---
 
@@ -201,7 +201,6 @@
 | `W1001` | cleanup | variable is declared but never used; remove it or use it |
 | `W1003` | cleanup | function is declared but never called; remove it or call it |
 | `W1005` | cleanup | typed blank identifier; '_' doesn't need a type annotation, use 'mut _ = <expr>' instead |
-| `W2001` | cleanup | this module is imported but never used; remove the import or use the module |
 | `W1002` | cleanup | this import is never used; remove it or use a function from the module |
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
 | `W2003` | safety | unreachable code; this statement will never execute because it comes after a return |
@@ -331,4 +330,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-05-29 03:40:45 UTC*
+*Generated on 2026-05-29 03:41:54 UTC*
