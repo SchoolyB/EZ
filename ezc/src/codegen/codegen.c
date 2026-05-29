@@ -2274,7 +2274,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
         if (needs_init) {
-            emitf(cg, "({ %s *_np = (%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)); ",
+            emitf(cg, "({ %s *_np = (%s *)ez_arena_alloc(ez_heap_arena, sizeof(%s)); ",
                 c_type, c_type, c_type);
             for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
                 const char *fn = sdecl->data.struct_decl.fields[fi].name;
@@ -2285,7 +2285,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *c_vt = "int64_t";
                     if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
                     if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
-                    emitf(cg, "_np->%s = ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s); ",
+                    emitf(cg, "_np->%s = ez_map_new_kind(ez_heap_arena, sizeof(%s), sizeof(%s), 8, %s); ",
                         safe_name(fn), c_kt, c_vt, ez_map_key_kind_macro(c_kt));
                 } else if (ft && ft[0] == '[') {
                     /* Array field — determine element C type */
@@ -2293,13 +2293,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *c_elem = "int64_t";
                     if (at && at->element_type)
                         c_elem = ez_map_elem_c_type(cg, at->element_type);
-                    emitf(cg, "_np->%s = ez_array_new(ez_default_arena, sizeof(%s), 4); ",
+                    emitf(cg, "_np->%s = ez_array_new(ez_heap_arena, sizeof(%s), 4); ",
                         safe_name(fn), c_elem);
                 }
             }
             emit(cg, "_np; })");
         } else {
-            emitf(cg, "((%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)))", c_type, c_type);
+            emitf(cg, "((%s *)ez_arena_alloc(ez_heap_arena, sizeof(%s)))", c_type, c_type);
         }
         break;
     }

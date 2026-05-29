@@ -1,0 +1,60 @@
+/*
+ * Pass Test: for while-style loop
+ * Tests that `for condition { }` works as a while loop,
+ * including pointer-dereference conditions.
+ */
+
+const Node struct {
+    value int
+    next ^Node
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: for with simple numeric condition (counter loop)
+    mut i int = 0
+    for i < 5 {
+        i += 1
+    }
+    if i == 5 {
+        println("  [PASS] for condition loop counted to 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for condition loop: expected 5, got ${i}")
+        failed += 1
+    }
+
+    // Test 2: for with pointer != nil condition traversing a linked list
+    mut a = new(Node)
+    mut b = new(Node)
+    mut c = new(Node)
+    a.value = 1
+    b.value = 2
+    c.value = 3
+    a.next = b
+    b.next = c
+    c.next = nil
+
+    mut sum int = 0
+    mut cur ^Node = a
+    for cur != nil {
+        sum += cur.value
+        cur = cur.next
+    }
+    if sum == 6 {
+        println("  [PASS] for pointer condition traversal sum = 6")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for pointer condition traversal: expected 6, got ${sum}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

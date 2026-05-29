@@ -2225,31 +2225,39 @@ static AstNode *parse_ensure_statement(Parser *p) {
 }
 
 static AstNode *parse_for_statement(Parser *p) {
-    AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, p->cur_token);
+    Token for_tok = p->cur_token;
 
     /* Optional parentheses: for (i in range(...)) */
     bool has_parens = peek_token_is(p, TOK_LPAREN);
     if (has_parens) next_token(p);
 
-    if (!expect_peek(p, TOK_IDENT)) return NULL;
-    node->data.for_stmt.var_name = p->cur_token.literal;
-
-    /* Optional type annotation */
-    node->data.for_stmt.var_type = NULL;
-
-    if (!expect_peek(p, TOK_IN)) return NULL;
-
-    next_token(p);
-    node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
-
-    if (has_parens && peek_token_is(p, TOK_RPAREN)) {
-        next_token(p);
+    if (peek_token_is(p, TOK_IDENT)) {
+        next_token(p);  /* advance: cur_token = IDENT */
+        if (peek_token_is(p, TOK_IN)) {
+            /* --- iteration form: for x in collection { } --- */
+            AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, for_tok);
+            node->data.for_stmt.var_name = p->cur_token.literal;
+            node->data.for_stmt.var_type = NULL;
+            next_token(p);  /* consume IN */
+            next_token(p);  /* advance to iterable start */
+            node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
+            if (has_parens && peek_token_is(p, TOK_RPAREN)) next_token(p);
+            if (!expect_peek(p, TOK_LBRACE)) return NULL;
+            node->data.for_stmt.body = parse_block_statement(p);
+            return node;
+        }
+        /* else: cur_token = IDENT, fall through to while-style */
+    } else {
+        next_token(p);  /* advance to condition start token */
     }
 
+    /* --- while-style: for condition { } --- */
+    AstNode *wnode = ast_alloc(p->arena, NODE_WHILE_STMT, for_tok);
+    wnode->data.while_stmt.condition = parse_expression(p, PREC_LOWEST);
+    if (has_parens && peek_token_is(p, TOK_RPAREN)) next_token(p);
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
-    node->data.for_stmt.body = parse_block_statement(p);
-
-    return node;
+    wnode->data.while_stmt.body = parse_block_statement(p);
+    return wnode;
 }
 
 static AstNode *parse_for_each_statement(Parser *p) {

@@ -46,6 +46,10 @@ size_t ez_arena_usage(EzArena *arena);
 /* Per-thread default arena — each thread (including spawned threads) gets its own. */
 extern _Thread_local EzArena *ez_default_arena;
 
+/* Persistent heap arena — lives for the lifetime of the program.
+ * Used by new() so returned pointers are never dangling. */
+extern _Thread_local EzArena *ez_heap_arena;
+
 /* --- String --- */
 
 typedef struct {

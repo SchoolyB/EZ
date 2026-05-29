@@ -12,6 +12,10 @@
 
 _Thread_local EzArena *ez_default_arena = NULL;
 
+/* --- Persistent heap arena (used by new()) --- */
+
+_Thread_local EzArena *ez_heap_arena = NULL;
+
 /* --- Arena Allocator --- */
 
 #define ALIGN_UP(x, a) (((x) + (a) - 1) & ~((a) - 1))
@@ -194,12 +198,17 @@ int ez_call_depth = 0;
 
 void ez_runtime_init(void) {
     ez_default_arena = ez_arena_create(EZ_DEFAULT_ARENA_SIZE);
+    ez_heap_arena = ez_arena_create(EZ_DEFAULT_ARENA_SIZE);
 }
 
 void ez_runtime_shutdown(void) {
     if (ez_default_arena) {
         ez_arena_destroy(ez_default_arena, __FILE__, __LINE__);
         ez_default_arena = NULL;
+    }
+    if (ez_heap_arena) {
+        ez_arena_destroy(ez_heap_arena, __FILE__, __LINE__);
+        ez_heap_arena = NULL;
     }
 }
 

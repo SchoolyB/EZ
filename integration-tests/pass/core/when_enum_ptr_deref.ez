@@ -1,0 +1,60 @@
+/*
+ * Pass Test: when p^ on enum pointer
+ * Tests that dereferencing an enum pointer in a when statement
+ * does not produce a spurious E3018 type mismatch error.
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut c Color = Color.GREEN
+    mut p ^Color = addr(c)
+
+    // Test 1: when on dereferenced enum pointer
+    mut got string = "none"
+    when p^ {
+        is Color.RED   { got = "red" }
+        is Color.GREEN { got = "green" }
+        is Color.BLUE  { got = "blue" }
+    }
+
+    if got == "green" {
+        println("  [PASS] when p^ matched GREEN correctly")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when p^: expected green, got ${got}")
+        failed += 1
+    }
+
+    // Test 2: change pointer target and re-match
+    mut c2 Color = Color.BLUE
+    p = addr(c2)
+    mut got2 string = "none"
+    when p^ {
+        is Color.RED   { got2 = "red" }
+        is Color.GREEN { got2 = "green" }
+        is Color.BLUE  { got2 = "blue" }
+    }
+
+    if got2 == "blue" {
+        println("  [PASS] when p^ matched BLUE correctly")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when p^: expected blue, got ${got2}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

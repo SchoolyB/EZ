@@ -1859,7 +1859,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (strcmp(node->data.postfix.op, "^") == 0) {
             if (left_t->kind == TK_POINTER) {
                 /* Dereference: ^T^ → T */
-                result = type_from_name(left_t->element_type);
+                result = tc_type_from_name(tc, left_t->element_type);
             } else if (left_t->kind != TK_UNKNOWN) {
                 diag_error_codef(tc->diag, "E3016", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, left_t));
                 result = left_t;
