@@ -2224,10 +2224,10 @@ Unless noted otherwise, all math functions accept `int`, `float`, and sized nume
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `floor` | `(n T) -> int` | Round down to nearest integer |
-| `ceil` | `(n T) -> int` | Round up to nearest integer |
-| `round` | `(n T) -> int` | Round to nearest integer |
-| `trunc` | `(n T) -> int` | Truncate toward zero |
+| `floor` | `(n T) -> float` | Round down to nearest integer (returns float) |
+| `ceil` | `(n T) -> float` | Round up to nearest integer (returns float) |
+| `round` | `(n T) -> float` | Round to nearest integer (returns float) |
+| `trunc` | `(n T) -> float` | Truncate toward zero (returns float) |
 
 #### Powers and Roots
 

@@ -434,14 +434,24 @@ func printManUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  ez man builtins          list all builtin functions")
-	fmt.Println("  ez man <name>            docs for a specific builtin  (e.g. ez man println)")
+	fmt.Println("  ez man <module>          list all functions in a stdlib module")
+	fmt.Println("                           (e.g. ez man math)")
+	fmt.Println("  ez man <name>            docs for a specific builtin or stdlib function")
+	fmt.Println("                           (e.g. ez man println, ez man sqrt)")
 	fmt.Println("  ez man <name()>          same — trailing () is ignored")
 	fmt.Println()
-	fmt.Println("Coming soon:")
-	fmt.Println("  ez man <module>          list everything in a stdlib module")
-	fmt.Println("                           (e.g. ez man arrays, ez man fmt, ez man server)")
-	fmt.Println("  ez man <Type>            docs for a specific type")
-	fmt.Println("                           (e.g. ez man HttpResponse, ez man Database)")
+	fmt.Println("Stdlib modules:")
+	mods := make([]string, 0, len(stdlibModules))
+	for m := range stdlibModules {
+		mods = append(mods, m)
+	}
+	// simple insertion sort for stable output
+	for i := 1; i < len(mods); i++ {
+		for j := i; j > 0 && mods[j] < mods[j-1]; j-- {
+			mods[j], mods[j-1] = mods[j-1], mods[j]
+		}
+	}
+	fmt.Printf("  %s\n", strings.Join(mods, "  "))
 }
 
 func printBuiltinsIndex() {
@@ -465,9 +475,23 @@ func printBuiltinsIndex() {
 	}
 }
 
+func printStdlibModuleIndex(module string) {
+	groups, ok := stdlibModuleGroups[module]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "ez: no documentation for module '%s'\n", module)
+		fmt.Fprintf(os.Stderr, "    try: ez man\n")
+		os.Exit(1)
+	}
+	fmt.Printf("module: %s  (ez man <name> for details)\n", module)
+	fmt.Println(strings.Repeat("─", 50))
+	for _, g := range groups {
+		fmt.Printf("  %s  %s\n", g.Label, strings.Join(g.Names, "  "))
+	}
+}
+
 var manCmd = &cobra.Command{
 	Use:   "man [name]",
-	Short: "Show documentation for a builtin function",
+	Short: "Show documentation for a builtin or stdlib function",
 	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
@@ -482,28 +506,55 @@ var manCmd = &cobra.Command{
 			return
 		}
 
-		entry, ok := builtinManDocs[name]
-		if !ok {
-			fmt.Fprintf(os.Stderr, "ez: no documentation for '%s'\n", name)
-			fmt.Fprintf(os.Stderr, "    try: ez man builtins\n")
-			os.Exit(1)
+		// Module-level index (e.g. ez man math)
+		if _, isMod := stdlibModules[name]; isMod {
+			printStdlibModuleIndex(name)
+			return
 		}
 
-		label := name
-		if strings.Contains(entry.Sig, "(") {
-			label = name + "()"
-		}
-		fmt.Printf("builtin: %s\n", label)
-		fmt.Println(strings.Repeat("─", 44))
-		fmt.Printf("Module:     builtin\n")
-		fmt.Printf("Signature:  %s\n\n", entry.Sig)
-		fmt.Println(entry.Desc)
-		if entry.Example != "" {
-			fmt.Println("\nExample:")
-			for _, line := range strings.Split(entry.Example, "\n") {
-				fmt.Printf("  %s\n", line)
+		// Builtin lookup
+		if entry, ok := builtinManDocs[name]; ok {
+			label := name
+			if strings.Contains(entry.Sig, "(") {
+				label = name + "()"
 			}
+			fmt.Printf("builtin: %s\n", label)
+			fmt.Println(strings.Repeat("─", 44))
+			fmt.Printf("Module:     builtin\n")
+			fmt.Printf("Signature:  %s\n\n", entry.Sig)
+			fmt.Println(entry.Desc)
+			if entry.Example != "" {
+				fmt.Println("\nExample:")
+				for _, line := range strings.Split(entry.Example, "\n") {
+					fmt.Printf("  %s\n", line)
+				}
+			}
+			return
 		}
+
+		// Stdlib function lookup
+		if entry, ok := stdlibManDocs[name]; ok {
+			label := name
+			if strings.Contains(entry.Sig, "(") {
+				label = name + "()"
+			}
+			fmt.Printf("%s: %s\n", entry.Module, label)
+			fmt.Println(strings.Repeat("─", 44))
+			fmt.Printf("Module:     %s\n", entry.Module)
+			fmt.Printf("Signature:  %s\n\n", entry.Sig)
+			fmt.Println(entry.Desc)
+			if entry.Example != "" {
+				fmt.Println("\nExample:")
+				for _, line := range strings.Split(entry.Example, "\n") {
+					fmt.Printf("  %s\n", line)
+				}
+			}
+			return
+		}
+
+		fmt.Fprintf(os.Stderr, "ez: no documentation for '%s'\n", name)
+		fmt.Fprintf(os.Stderr, "    try: ez man builtins\n")
+		os.Exit(1)
 	},
 }
 
