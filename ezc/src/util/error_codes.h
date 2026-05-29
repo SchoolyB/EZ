@@ -17,7 +17,16 @@
 #ifndef EZC_ERROR_CODES_H
 #define EZC_ERROR_CODES_H
 
-/* --- E1xxx: Reading Your Code (Lexer) --- */
+/* --- E1xxx: Reading Your Code (Lexer) ---
+ *
+ * NOTE: Lexer errors are NOT emitted via diag_error() inside lexer.c.
+ * Instead, when the lexer encounters an invalid token it sets two fields
+ * on the Lexer struct — error_code (e.g. "E1010") and error_msg — and
+ * returns a TOK_ILLEGAL token. The parser's next_token() helper in
+ * parser.c detects TOK_ILLEGAL and surfaces the error via diag_error_msg()
+ * at that point. This keeps the lexer free of diagnostic dependencies.
+ * All E1xxx codes defined here are emitted through that single path.
+ */
 #define EZ_LEXER_ERRORS \
     EZ_ERROR("E1003", "syntax", "unclosed multi-line comment; add */") \
     EZ_ERROR("E1005", "syntax", "unclosed character; add a closing single quote") \
@@ -111,7 +120,7 @@
     EZ_ERROR("E3034", "types", "'any' type is reserved for internal use and cannot be used in declarations") \
     EZ_ERROR("E3035", "types", "not all code paths in '%s' return a value") \
     EZ_ERROR("E3036", "types", "value %lld is out of range for type '%s' (valid range: %lld to %lld)") \
-    EZ_ERROR("E3038", "types", "'void' cannot be used as a variable type or in expressions like typeof()") \
+    EZ_ERROR("E3038", "types", "'void' cannot be used as a variable type or in expressions like type_of()") \
     EZ_ERROR("E3039", "types", "ensure expects a function call; for example: ensure close(file)") \
     EZ_ERROR("E3040", "types", "'%s' returns %d values; use mut a, b = %s() to capture all of them") \
     EZ_ERROR("E3041", "types", "cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps") \

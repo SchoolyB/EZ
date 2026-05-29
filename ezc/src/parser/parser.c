@@ -112,7 +112,11 @@ static bool parser_is_struct_name(Parser *p, const char *name) {
 static void next_token(Parser *p) {
     p->cur_token = p->peek_token;
     p->peek_token = lexer_next_token(p->lexer);
-    /* Surface lexer errors immediately with their specific error code */
+    /* Surface lexer errors (E1xxx). The lexer does not call diag_error()
+     * directly — it sets error_code/error_msg on itself and returns
+     * TOK_ILLEGAL. We detect that here and emit the diagnostic so the
+     * lexer stays free of diagnostic dependencies. After emitting, clear
+     * error_code so the same error is not reported twice. */
     if (p->peek_token.type == TOK_ILLEGAL && p->lexer->error_code) {
         diag_error_msg(p->diag, p->lexer->error_code,
             arena_strdup(p->arena, p->lexer->error_msg),

@@ -3472,7 +3472,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(fn_name, "type_of") == 0) {
                 /* E5008: type_of() requires exactly 1 argument */
                 if (node->data.call.arg_count != 1) {
-                    diag_error_codef(tc->diag, "E5008", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "type_of() expects 1 argument, got %d",
+                        node->data.call.arg_count);
+                    diag_error_msg(tc->diag, "E5008", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_STRING;
                     break;
                 }
@@ -3671,7 +3676,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(fn_name, "char") == 0) {
                 /* E5008: char() requires exactly 1 argument */
                 if (node->data.call.arg_count != 1) {
-                    diag_error_codef(tc->diag, "E5008", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "char() expects 1 argument, got %d",
+                        node->data.call.arg_count);
+                    diag_error_msg(tc->diag, "E5008", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_CHAR;
                     break;
                 }
