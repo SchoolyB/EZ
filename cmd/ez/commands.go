@@ -81,14 +81,6 @@ var buildCmd = &cobra.Command{
 	},
 }
 
-var replCmd = &cobra.Command{
-	Use:   "repl",
-	Short: "Start interactive REPL mode",
-	Run: func(cmd *cobra.Command, args []string) {
-		startREPL()
-	},
-}
-
 var installCmd = &cobra.Command{
 	Use:   "install <version>",
 	Short: "Install a specific EZ version, replacing the current install",
@@ -358,7 +350,7 @@ compiler integration tests, and CLI integration tests.`,
 			dir   string
 			parse string // "go", "c", or "integration"
 		}{
-			{"Go tooling tests", "go", []string{"test", "-v", "./pkg/lineeditor/...", "./cmd/ez/...", "./internal/ezc/..."}, root, "go"},
+			{"Go tooling tests", "go", []string{"test", "-v", "./cmd/ez/...", "./internal/ezc/..."}, root, "go"},
 			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc"), "c"},
 			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc"), "c"},
 			{"Integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root, "integration"},
@@ -487,7 +479,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(replCmd, updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}

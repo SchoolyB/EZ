@@ -21,14 +21,7 @@
 
 ## What is EZ
 
-EZ is a statically typed, compiled programming language that produces native binaries. Source files (`.ez`) are compiled to C, then to machine code. The result is a single binary with no runtime dependencies.
-
-- Static type system with type inference
-- Structs with scoped functions
-- Multi-return values and error handling
-- String interpolation, enums, when/is expressions
-- 26 standard library modules (HTTP, JSON, crypto, SQLite, threads, and more)
-- Compiles in milliseconds
+EZ is a statically typed, compiled programming language that produces native binaries. Source files (`.ez`) are compiled to C, then to machine code.
 
 
 ```ez
