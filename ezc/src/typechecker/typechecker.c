@@ -2417,6 +2417,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
                 else if (strcmp(mfn, "generate") == 0 ||
                          strcmp(mfn, "generate_hyphenated") == 0 ||
+                         strcmp(mfn, "generate_compact") == 0 ||
                          strcmp(mfn, "generate_random") == 0 ||
                          strcmp(mfn, "generate_time_ordered") == 0 ||
                          strcmp(mfn, "parse") == 0) {
@@ -2762,7 +2763,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "threads") == 0) {
-                if (strcmp(mfn, "spawn") == 0) {
+                if (strcmp(mfn, "spawn") == 0 || strcmp(mfn, "spawn_arg") == 0) {
                     /* Validate first arg is a function reference */
                     if (node->data.call.arg_count >= 1) {
                         AstNode *arg0 = node->data.call.args[0];
@@ -4213,12 +4214,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* @arrays (arg-dependent get_first/get_last/etc handled by inline dispatch) */
                             {"append","arrays",TK_VOID},{"insert_at","arrays",TK_VOID},
                             {"prepend","arrays",TK_VOID},{"fill","arrays",TK_VOID},
-                            {"remove_at","arrays",TK_VOID},{"sort_asc","arrays",TK_VOID},
+                            {"remove_at","arrays",TK_VOID},{"remove","arrays",TK_VOID},
+                            {"remove_first","arrays",TK_VOID},{"remove_last","arrays",TK_VOID},
+                            {"sort_asc","arrays",TK_VOID},
                             {"sort_desc","arrays",TK_VOID},{"clear","arrays",TK_VOID},
                             {"concat","arrays",TK_ARRAY},{"deduplicate","arrays",TK_ARRAY},
                             {"flatten","arrays",TK_ARRAY},{"reverse","arrays",TK_ARRAY},
                             {"slice","arrays",TK_ARRAY},{"split_every","arrays",TK_ARRAY},
                             {"pair","arrays",TK_ARRAY},
+                            {"get_first","arrays",TK_UNKNOWN},{"get_last","arrays",TK_UNKNOWN},
                             {"get_sum","arrays",TK_INT},{"get_min","arrays",TK_INT},
                             {"get_max","arrays",TK_INT},{"count","arrays",TK_INT},
                             {"index_of","arrays",TK_INT},
@@ -4228,6 +4232,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
                             {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
                             {"clear","maps",TK_VOID},{"is_equal","maps",TK_BOOL},
+                            {"merge","maps",TK_MAP},{"get_or_default","maps",TK_UNKNOWN},
                             /* @random (arg-dependent choice/shuffle/sample handled by special case below) */
                             {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
                             {"rand_bool","random",TK_BOOL},{"rand_byte","random",TK_INT},
@@ -4277,8 +4282,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"weekday","time",TK_INT},
                             {"format","time",TK_STRING},{"to_iso","time",TK_STRING},
                             {"date","time",TK_STRING},{"to_clock","time",TK_STRING},
+                            /* @strconv */
+                            {"to_int","strconv",TK_INT},{"to_uint","strconv",TK_UINT},
+                            {"to_float","strconv",TK_FLOAT},{"to_bool","strconv",TK_BOOL},
+                            {"from_int","strconv",TK_STRING},{"from_uint","strconv",TK_STRING},
+                            {"from_float","strconv",TK_STRING},{"from_bool","strconv",TK_STRING},
+                            {"is_numeric","strconv",TK_BOOL},{"is_integer","strconv",TK_BOOL},
                             /* @uuid */
                             {"generate_hyphenated","uuid",TK_STRING},{"generate","uuid",TK_STRING},
+                            {"generate_compact","uuid",TK_STRING},
                             {"generate_random","uuid",TK_STRING},
                             {"generate_time_ordered","uuid",TK_STRING},
                             {"parse","uuid",TK_STRING},
@@ -4324,15 +4336,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"open","sqlite",TK_UNKNOWN},{"close","sqlite",TK_VOID},
                             {"exec","sqlite",TK_BOOL},{"query","sqlite",TK_ARRAY},
                             /* @threads */
-                            {"spawn","threads",TK_UNKNOWN},{"join","threads",TK_VOID},
+                            {"spawn","threads",TK_UNKNOWN},{"spawn_arg","threads",TK_UNKNOWN},
+                            {"join","threads",TK_VOID},
                             {"get_id","threads",TK_INT},
                             {"detach","threads",TK_VOID},{"is_alive","threads",TK_BOOL},
                             {"current","threads",TK_INT},{"yield","threads",TK_VOID},
-                            {"sleep","threads",TK_VOID},
+                            {"sleep","threads",TK_VOID},{"sleep_s","threads",TK_VOID},
+                            {"sleep_ms","threads",TK_VOID},{"sleep_ns","threads",TK_VOID},
                             {"thread_count","threads",TK_INT},
                             /* @sync */
                             {"mutex","sync",TK_UNKNOWN},{"lock","sync",TK_VOID},
-                            {"unlock","sync",TK_VOID},{"try_lock","sync",TK_VOID},
+                            {"unlock","sync",TK_VOID},{"try_lock","sync",TK_BOOL},
                             {"destroy","sync",TK_VOID},
                             /* @atomic */
                             {"load","atomic",TK_INT},{"store","atomic",TK_VOID},
@@ -4360,7 +4374,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"listen","net",TK_UNKNOWN},{"connect","net",TK_UNKNOWN},
                             {"accept","net",TK_UNKNOWN},{"send","net",TK_INT},
                             {"receive","net",TK_STRING},{"resolve","net",TK_STRING},
-                            {"close","net",TK_VOID},
+                            {"close","net",TK_VOID},{"set_timeout","net",TK_VOID},
                             /* @fmt */
                             {"sprintf","fmt",TK_STRING},{"format","fmt",TK_STRING},
                             {"pad_left","fmt",TK_STRING},{"pad_right","fmt",TK_STRING},
@@ -4372,6 +4386,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"arena","mem",TK_UNKNOWN},{"usage","mem",TK_INT},
                             {"free","mem",TK_VOID},{"reset","mem",TK_VOID},
                             {"destroy","mem",TK_VOID},
+                            {"init","mem",TK_UNKNOWN},{"alloc","mem",TK_UNKNOWN},
+                            {"make","mem",TK_UNKNOWN},
                             {NULL,NULL,TK_UNKNOWN}
                         };
                         /* Check for math functions whose return type depends on argument */
