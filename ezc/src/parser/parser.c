@@ -2088,6 +2088,9 @@ static AstNode *parse_struct_declaration(Parser *p) {
         }
         next_token(p);
 
+        /* Skip optional trailing comma after a field type */
+        if (cur_token_is(p, TOK_COMMA)) next_token(p);
+
         /* Reject semicolons */
         if (cur_token_is(p, TOK_SEMICOLON)) {
             diag_error_msg(p->diag, "E2069",
