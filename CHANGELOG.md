@@ -1,5 +1,49 @@
 # Changelog
 
+## [3.5.0](https://github.com/SchoolyB/EZ/compare/v3.4.3...v3.5.0) (2026-05-30)
+
+
+### Features
+
+* **cli:** add ez man command for builtin function documentation ([f812762](https://github.com/SchoolyB/EZ/commit/f812762f1b6a28a3219e87e7dd34634b49c70bcd))
+* **cli:** add ez man stdlib support, starting with math module ([536aa1a](https://github.com/SchoolyB/EZ/commit/536aa1a69ee16bda7b554042ab77fdca7f60e132))
+* **cli:** add strings module to ez man ([ef357dc](https://github.com/SchoolyB/EZ/commit/ef357dc4ede71ee9a16e8772fd73fe0a0d2dd7d8))
+* **cli:** add type documentation support to ez man ([479677a](https://github.com/SchoolyB/EZ/commit/479677a1852c8357f265a43dd9e02a72bc37bf26))
+* **lang:** add bitwise keyword operators (bit_and, bit_or, bit_xor, bit_not, bit_shift_left, bit_shift_right) ([466d4d6](https://github.com/SchoolyB/EZ/commit/466d4d687967d671b0b0127efb3e6d39c1230b33)), closes [#1686](https://github.com/SchoolyB/EZ/issues/1686)
+* **runtime:** structured P0001–P0077 panic codes with consistent formatting ([b9804cc](https://github.com/SchoolyB/EZ/commit/b9804cc02dc9626700a17b7bb9440b77d6bc8667)), closes [#1696](https://github.com/SchoolyB/EZ/issues/1696)
+* **stdlib:** improve io module with new functions and consistency fixes ([faf2364](https://github.com/SchoolyB/EZ/commit/faf236400b617403eb1546391c9c92d3e6052002))
+* **typechecker,codegen:** implement embed() compile-time file embedding builtin ([#1704](https://github.com/SchoolyB/EZ/issues/1704)) ([34064ff](https://github.com/SchoolyB/EZ/commit/34064ffacbe3d62c95a6f4d34f06daa600d4c44e))
+* **typechecker:** complete using_funcs[] whitelist for all stdlib modules ([53a4ff1](https://github.com/SchoolyB/EZ/commit/53a4ff12dfca495ffb1d67fe21b3ccb0359e4a5d))
+* **typechecker:** enforce error handling for fallible stdlib functions ([#1703](https://github.com/SchoolyB/EZ/issues/1703)) ([5a6f3c3](https://github.com/SchoolyB/EZ/commit/5a6f3c39410d89d770726414eb667d4036702943))
+* **typechecker:** recursive struct pointer fields with exhaustive validation ([#1687](https://github.com/SchoolyB/EZ/issues/1687)) ([9501e53](https://github.com/SchoolyB/EZ/commit/9501e53f78b8b4359f88091b7d1d2910e50e8191))
+
+
+### Bug Fixes
+
+* **cli:** suppress update prompt on dev and dirty builds ([751e526](https://github.com/SchoolyB/EZ/commit/751e5263bf533918d2306c71a9ccc2b434d6b083))
+* **codegen+typechecker:** server.listen arg order, E5026 for stdlib arg type mismatches ([f0d34fb](https://github.com/SchoolyB/EZ/commit/f0d34fbc1e80df70e48b549602d744f666466a07))
+* **codegen:** add missing io functions to E5011 void-call whitelist ([cc5e04a](https://github.com/SchoolyB/EZ/commit/cc5e04a6e766f402b4b692230596e7f0324fa650))
+* **codegen:** correct array/map interpolation for uint, byte, and char elements ([8c2c691](https://github.com/SchoolyB/EZ/commit/8c2c6912ed61092ccb61708c4f77604081d02b36)), closes [#1679](https://github.com/SchoolyB/EZ/issues/1679)
+* **codegen:** implement bool() builtin conversion ([#1702](https://github.com/SchoolyB/EZ/issues/1702)) ([d2c9e26](https://github.com/SchoolyB/EZ/commit/d2c9e26139c3945b2981615a91dbff15525ee71f))
+* **codegen:** multi-return functions now escape _func_arena and restore ez_default_arena ([#1688](https://github.com/SchoolyB/EZ/issues/1688)) ([a64af6b](https://github.com/SchoolyB/EZ/commit/a64af6b97578dc1f71da57a26da25b4a43862e09))
+* **codegen:** support variable negative step in for range loops ([230722c](https://github.com/SchoolyB/EZ/commit/230722cdc4fb40cb48addfc978c52d708a9fd799)), closes [#1683](https://github.com/SchoolyB/EZ/issues/1683)
+* **codegen:** unwind scratch arena before break and continue ([0b85251](https://github.com/SchoolyB/EZ/commit/0b85251438a383da58e6efa579d08eb116ab4e1e)), closes [#1684](https://github.com/SchoolyB/EZ/issues/1684)
+* complete panic[Pxxx] migration and fix nested-loop break/continue arena bug ([9b27408](https://github.com/SchoolyB/EZ/commit/9b274087b33e4f2c2fb1e6cfacd48402e8069978))
+* **errors:** introduce E8xxx series for bitwise operator errors ([f5cb33b](https://github.com/SchoolyB/EZ/commit/f5cb33bdfb1a493461fa5ba259cb5e94e0043d95))
+* **io:** register io panic codes in error_codes.h and fix P0077 message ([ca1dc2d](https://github.com/SchoolyB/EZ/commit/ca1dc2d193bdfa0140799cebf2a0f37be1c63d3b))
+* new() use-after-free, for while-style parsing, when enum ptr deref ([#1687](https://github.com/SchoolyB/EZ/issues/1687)) ([09ceac6](https://github.com/SchoolyB/EZ/commit/09ceac68abaeadf574a6778b83fd06cea4d2797f))
+* **parser:** consume optional trailing comma after struct field type ([f69d1a2](https://github.com/SchoolyB/EZ/commit/f69d1a2bd2d196d334c283f21d6d0012a5395a86))
+* **parser:** correct line/column offsets for diagnostics inside interpolated strings ([9fed78d](https://github.com/SchoolyB/EZ/commit/9fed78de157736e92d9e307ae2796addd290b5ed))
+* **runtime:** fix ez_map_set tombstone scan creating duplicate keys ([898dd41](https://github.com/SchoolyB/EZ/commit/898dd4151d8d8d5967dce78fe27cc052d1db3a41)), closes [#1680](https://github.com/SchoolyB/EZ/issues/1680)
+* **runtime:** make ez_default_arena thread-local to eliminate arena data races ([566f4f9](https://github.com/SchoolyB/EZ/commit/566f4f9ac448918ba7b1409f5dc4dbe0257e0207)), closes [#1689](https://github.com/SchoolyB/EZ/issues/1689)
+* **stdlib:** arrays.get_first/last/remove_first/last return correct value for all element types ([#1681](https://github.com/SchoolyB/EZ/issues/1681)) ([2c9e84a](https://github.com/SchoolyB/EZ/commit/2c9e84ac79cc086e18a3a58cf846162054268b6e))
+* **stdlib:** arrays.remove_at panics on out-of-bounds index ([#1682](https://github.com/SchoolyB/EZ/issues/1682)) ([541cf71](https://github.com/SchoolyB/EZ/commit/541cf71745e0e1decc5b1516de440fa05312867e))
+* **stdlib:** patch server stack buffer overflow and arena struct leak ([#1691](https://github.com/SchoolyB/EZ/issues/1691)) ([9dbd537](https://github.com/SchoolyB/EZ/commit/9dbd5375e424ef163117f180913c963b7ff9c9e3))
+* **tests:** correct inline struct syntax in test_valid_recursive_pointer_struct ([#1687](https://github.com/SchoolyB/EZ/issues/1687)) ([116ee4a](https://github.com/SchoolyB/EZ/commit/116ee4a4b4d47a92a4c422beb3300010aa09f47f))
+* **typechecker:** add E3004 check for string index assignment with wrong type ([9afe081](https://github.com/SchoolyB/EZ/commit/9afe081540ff819be568661c7890bbf4e885303a)), closes [#1694](https://github.com/SchoolyB/EZ/issues/1694)
+* **typechecker:** implement 6 missing compile-time checks ([6c5b5d6](https://github.com/SchoolyB/EZ/commit/6c5b5d6427e09a94f44f64edf2a63a02670dbd2f))
+* **typechecker:** replace 'fallible' with 'can fail' in E3089 message ([#1703](https://github.com/SchoolyB/EZ/issues/1703)) ([8043866](https://github.com/SchoolyB/EZ/commit/8043866e92c2553a36f99faaa0867b77e7b7bae6))
+
 ## [3.4.3](https://github.com/SchoolyB/EZ/compare/v3.4.2...v3.4.3) (2026-05-28)
 
 
