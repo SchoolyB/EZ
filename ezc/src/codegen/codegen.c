@@ -5122,9 +5122,15 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"parse","json"},{"stringify","json"},{"encode","json"},
                 {"decode","json"},{"is_valid","json"},{"pretty_print","json"},
                 /* @io */
-                {"read_file","io"},{"write_file","io"},{"append_file","io"},
+                {"read_file","io"},{"read_bytes","io"},{"read_lines","io"},
+                {"write_file","io"},{"append_file","io"},
                 {"delete_file","io"},{"rename_file","io"},{"file_exists","io"},
                 {"is_file","io"},{"is_directory","io"},{"file_size","io"},{"glob","io"},
+                {"list_dir","io"},{"make_dir","io"},{"make_dir_all","io"},
+                {"remove_dir","io"},{"remove_dir_all","io"},{"walk","io"},
+                {"copy_file","io"},{"move_file","io"},{"is_absolute","io"},
+                {"path_join","io"},{"dirname","io"},{"basename","io"},
+                {"extension","io"},{"normalize","io"},
                 /* @os */
                 {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
                 {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
