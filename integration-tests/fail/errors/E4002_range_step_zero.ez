@@ -1,5 +1,5 @@
 /*
- * Error Test: E9003 - range-step-zero
+ * Error Test: E4002 - range-step-zero
  * Expected: "step" or "zero"
  */
 

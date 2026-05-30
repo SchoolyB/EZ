@@ -1,0 +1,191 @@
+/*
+ * bitwise_operators.ez — Integration test for all six bitwise keyword operators.
+ *
+ * Covers: bit_and, bit_or, bit_xor, bit_not, bit_shift_left, bit_shift_right
+ * Types: int, uint, byte, char
+ * Also tests: operator precedence, chaining, flag manipulation pattern.
+ */
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // --- bit_and ---
+    if 0b1010 bit_and 0b1100 == 0b1000 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_and int")
+        failed += 1
+    }
+    mut ua uint = 18446744073709551615
+    mut ub uint = 0b1111
+    if ua bit_and ub == 15 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_and uint")
+        failed += 1
+    }
+    mut ba byte = 0b11110000
+    if ba bit_and 0b00001111 == 0 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_and byte")
+        failed += 1
+    }
+
+    // --- bit_or ---
+    if 0b1010 bit_or 0b0001 == 0b1011 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_or int")
+        failed += 1
+    }
+    if 0b0000 bit_or 0b1111 == 0b1111 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_or zero")
+        failed += 1
+    }
+
+    // --- bit_xor ---
+    mut xorA int = 0b1010
+    mut xorB int = 0b1111
+    if xorA bit_xor xorB == 0b0101 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_xor int")
+        failed += 1
+    }
+    if xorA bit_xor xorA == 0 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_xor self = 0")
+        failed += 1
+    }
+
+    // --- bit_not ---
+    mut flags int = 0b1010
+    mut comp int = bit_not flags
+    if comp == -11 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_not int, got ${comp}")
+        failed += 1
+    }
+    mut bb byte = 0b00001111
+    mut notb byte = bit_not bb
+    if notb == 0b11110000 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_not byte")
+        failed += 1
+    }
+
+    // --- bit_shift_left ---
+    if 0b0001 bit_shift_left 3 == 0b1000 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_left basic")
+        failed += 1
+    }
+    if 1 bit_shift_left 0 == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_left by 0")
+        failed += 1
+    }
+    if 1 bit_shift_left 1 == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_left by 1")
+        failed += 1
+    }
+
+    // --- bit_shift_right ---
+    if 0b1000 bit_shift_right 2 == 0b0010 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_right basic")
+        failed += 1
+    }
+    if 16 bit_shift_right 1 == 8 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_right by 1")
+        failed += 1
+    }
+    if 4 bit_shift_right 0 == 4 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_right by 0")
+        failed += 1
+    }
+
+    // --- chained expressions ---
+    mut a int = 0b1111
+    mut b int = 0b1010
+    mut c int = 0b0101
+    if a bit_and b bit_or c == 0b1111 {
+        passed += 1
+    } otherwise {
+        println("FAIL: chained bit_and bit_or")
+        failed += 1
+    }
+
+    // --- precedence: a bit_and b == c → (a bit_and b) == c ---
+    if 0b1100 bit_and 0b1010 == 0b1000 {
+        passed += 1
+    } otherwise {
+        println("FAIL: precedence bit_and vs ==")
+        failed += 1
+    }
+
+    // --- precedence: shift binds tighter than comparison ---
+    if 1 bit_shift_left 3 < 16 {
+        passed += 1
+    } otherwise {
+        println("FAIL: precedence shift vs <")
+        failed += 1
+    }
+
+    // --- flag manipulation (real-world pattern) ---
+    const READ  int = 0b001
+    const WRITE int = 0b010
+    const EXEC  int = 0b100
+
+    mut perms int = READ bit_or WRITE
+    if perms bit_and READ == READ {
+        passed += 1
+    } otherwise {
+        println("FAIL: flag READ set")
+        failed += 1
+    }
+    if perms bit_and EXEC == 0 {
+        passed += 1
+    } otherwise {
+        println("FAIL: flag EXEC not set")
+        failed += 1
+    }
+    perms = perms bit_xor WRITE
+    if perms bit_and WRITE == 0 {
+        passed += 1
+    } otherwise {
+        println("FAIL: flag WRITE cleared via xor")
+        failed += 1
+    }
+
+    // --- variable step with shift ---
+    mut shift int = 2
+    if 1 bit_shift_left shift == 4 {
+        passed += 1
+    } otherwise {
+        println("FAIL: bit_shift_left variable shift")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("bitwise_operators: ${failed} test(s) failed")
+    }
+    println("all pass")
+}

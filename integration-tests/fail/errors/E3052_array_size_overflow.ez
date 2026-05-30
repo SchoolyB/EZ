@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3052 - array-size-overflow
+ * Expected: "too many elements in array initializer; declared size is 3, got 4"
+ */
+
+
+do main() {
+    const arr [int, 3] = {1, 2, 3, 4}  // ERROR: 4 elements but declared size is 3
+    println(arr)
+}

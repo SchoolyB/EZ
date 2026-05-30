@@ -1,9 +1,0 @@
-
-const Status enum { ACTIVE, INACTIVE }
-const Other enum { A, B }
-
-do main() {
-    if Status.ACTIVE == Other.A {
-        println("Different enum members are equal")
-    }
-}

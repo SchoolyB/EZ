@@ -1,5 +1,5 @@
 /*
- * Error Test: E2005 - unclosed-paren
+ * Error Test: E2001 - unclosed-paren
  * Expected: "unclosed parenthesis" or "expected ')'"
  */
 

@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3047 - enum-variant-not-found
+ * Expected: "enum 'Color' has no member 'Yellow'"
+ */
+
+
+const Color enum {
+    Red
+    Green
+    Blue
+}
+
+do main() {
+    mut c = Color.Yellow  // Should fail: Yellow doesn't exist
+}

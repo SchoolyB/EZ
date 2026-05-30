@@ -1,5 +1,5 @@
 /*
- * Error Test: E3021 - type-change-not-allowed
+ * Error Test: E3001 - type-change-not-allowed
  * Expected: "cannot change type" or "after declaration"
  */
 

@@ -605,7 +605,29 @@ func formatChangelog(releases []GitHubRelease, currentVersion, latestVersion str
 // This is called at startup. It:
 // 1. If cache is fresh, use cached state to print notice
 // 2. If cache is stale/empty, do a synchronous check and print notice
+// isDevBuild returns true when the running binary was built from an
+// uncommitted or untagged source tree and should not be compared against
+// published releases.  Covers three cases:
+//   - Version == "dev"  (built without -ldflags, go run, etc.)
+//   - contains "-dirty" (uncommitted changes on top of a tag)
+//   - contains a git-describe trailer "-N-g<hash>" (commits ahead of a tag)
+func isDevBuild() bool {
+	if Version == "dev" || Version == "" {
+		return true
+	}
+	if strings.Contains(Version, "dirty") {
+		return true
+	}
+	// git-describe appends "-<commits>-g<hash>" after the base tag
+	gitDescribe := regexp.MustCompile(`-\d+-g[0-9a-f]+`)
+	return gitDescribe.MatchString(Version)
+}
+
 func CheckForUpdateAsync() {
+	if isDevBuild() {
+		return
+	}
+
 	state, _ := readUpdateState()
 
 	// If we have cached state and it's fresh (checked today), use it

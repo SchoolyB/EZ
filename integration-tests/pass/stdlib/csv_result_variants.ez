@@ -21,7 +21,7 @@ do main() {
     }
 
     // Test 2: csv.read_file success
-    mut _ = io.write_file("/tmp/ez_csv_test_1547.csv", "name,age\nAlice,30\nBob,25")
+    mut _, _ = io.write_file("/tmp/ez_csv_test_1547.csv", "name,age\nAlice,30\nBob,25")
     mut data2, err2 = csv.read_file("/tmp/ez_csv_test_1547.csv")
     if err2 == nil {
         println("  [PASS] csv.read_file success on valid CSV")
@@ -42,7 +42,7 @@ do main() {
     }
 
     // Cleanup
-    mut _ = io.delete_file("/tmp/ez_csv_test_1547.csv")
+    mut _, _ = io.delete_file("/tmp/ez_csv_test_1547.csv")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

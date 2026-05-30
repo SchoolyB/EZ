@@ -10,4 +10,5 @@ do getUserName() -> (name string) {
 
 do main() {
     println(getUserName())
+    println("ALL TESTS PASSED")
 }

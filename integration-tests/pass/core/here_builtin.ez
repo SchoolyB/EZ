@@ -53,5 +53,5 @@ do main() {
     mut t Container = Container{here: 42}
     assert(t.here == 42, "struct field 'here' works")
 
-    println("ALL PASS")
+    println("ALL TESTS PASSED")
 }

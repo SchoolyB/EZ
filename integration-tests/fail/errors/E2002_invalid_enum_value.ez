@@ -1,5 +1,5 @@
 /*
- * Error Test: E2035 - invalid-enum-value
+ * Error Test: E2002 - invalid-enum-value
  * Expected: "enum value" or "reserved"
  */
 

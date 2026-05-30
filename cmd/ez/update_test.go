@@ -4,9 +4,9 @@ import "testing"
 
 func TestParseSemver(t *testing.T) {
 	cases := []struct {
-		in                       string
-		maj, min, pat            int
-		pre                      string
+		in            string
+		maj, min, pat int
+		pre           string
 	}{
 		{"v3.0.0", 3, 0, 0, ""},
 		{"3.0.0", 3, 0, 0, ""},
@@ -93,8 +93,8 @@ func TestIsNewerVersion(t *testing.T) {
 		{"v3.0.0", "v3.0.1", true},
 		{"v3.0.1", "v3.0.0", false},
 		{"v3.0.0", "v3.0.0", false},
-		{"v3.0.0-beta.2", "v3.0.0", true},      // stable > pre-release
-		{"v3.0.0", "v3.0.0-beta.2", false},     // stable > pre-release
+		{"v3.0.0-beta.2", "v3.0.0", true},  // stable > pre-release
+		{"v3.0.0", "v3.0.0-beta.2", false}, // stable > pre-release
 		{"v3.0.0-beta.1", "v3.0.0-beta.2", true},
 		{"v3.0.0-beta.2", "v3.0.0-beta.1", false},
 		// A local dev build with a git-describe trailer should still be

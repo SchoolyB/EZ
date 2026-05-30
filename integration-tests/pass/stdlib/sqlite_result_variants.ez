@@ -51,7 +51,7 @@ do main() {
     }
 
     // Test 5: sqlite.query success
-    mut _ = sqlite.exec(db, "INSERT INTO test_t VALUES (1, 'alice')")
+    mut _, _ = sqlite.exec(db, "INSERT INTO test_t VALUES (1, 'alice')")
     mut rows2, err5 = sqlite.query(db, "SELECT * FROM test_t")
     if err5 == nil {
         println("  [PASS] sqlite.query success on valid table")
@@ -62,7 +62,7 @@ do main() {
     }
 
     // Cleanup
-    mut _ = io.delete_file("/tmp/ez_sqlite_result_1547.db")
+    mut _, _ = io.delete_file("/tmp/ez_sqlite_result_1547.db")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

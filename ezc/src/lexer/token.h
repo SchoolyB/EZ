@@ -134,6 +134,14 @@ typedef enum {
     /* Type conversion */
     TOK_CAST,
 
+    /* Bitwise keyword operators */
+    TOK_BIT_AND,
+    TOK_BIT_OR,
+    TOK_BIT_XOR,
+    TOK_BIT_NOT,
+    TOK_BIT_SHIFT_LEFT,
+    TOK_BIT_SHIFT_RIGHT,
+
     TOK_COUNT /* sentinel */
 } TokenType;
 

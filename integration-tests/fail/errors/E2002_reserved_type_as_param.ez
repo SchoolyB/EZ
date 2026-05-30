@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - reserved type name used as parameter name
+ * Expected: "'bool' is a built-in name and cannot be used as a parameter name"
+ */
+
+do check(bool int) -> int {
+    return bool
+}
+
+do main() {
+    mut x = check(1)
+}

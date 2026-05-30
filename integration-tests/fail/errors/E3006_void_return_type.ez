@@ -1,6 +1,6 @@
 /*
- * Error Test: E3038 - void-type-not-allowed
- * Expected: "void" and "omit return type"
+ * Error Test: E3006 - void return type
+ * Expected: "missing return value; function expects a return value"
  */
 
 do main() {

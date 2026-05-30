@@ -1,0 +1,10 @@
+/*
+ * Error Test: E4005 - time-parse-failed
+ * Expected: "parse" or "time"
+ */
+
+import @time
+
+do main() {
+    mut t = time.parse("not-a-valid-time", "2006-01-02")
+}

@@ -759,6 +759,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             {"LN10","math","2.30258509299404568402"},{"INF","math","(1.0/0.0)"},
             {"NEG_INF","math","(-1.0/0.0)"},{"EPSILON","math","2.2204460492503131e-16"},
             {"MAC_OS","os","0"},{"LINUX","os","1"},{"WINDOWS","os","2"},{"OTHER","os","3"},
+            {"O_RDONLY","io","0"},{"O_WRONLY","io","1"},{"O_RDWR","io","2"},
             {"BASE_2","strconv","2"},{"BASE_8","strconv","8"},{"BASE_10","strconv","10"},
             {"BASE_16","strconv","16"},{"BASE_36","strconv","36"},
             {"NIL_UUID","uuid","ez_string_lit(\"00000000-0000-0000-0000-000000000000\")"},
@@ -1015,13 +1016,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ").data");
                 break;
             case TK_ARRAY: {
-                /* Determine element kind: 0=int, 1=float, 2=string, 3=bool */
+                /* Determine element kind: 0=int, 1=float, 2=string, 3=bool, 4=uint, 5=byte, 6=char */
                 int ek = 0;
                 if (t && t->element_type) {
                     EzType *et = type_from_name(t->element_type);
                     if (et->kind == TK_FLOAT) ek = 1;
                     else if (et->kind == TK_STRING) ek = 2;
                     else if (et->kind == TK_BOOL) ek = 3;
+                    else if (et->kind == TK_UINT) ek = 4;
+                    else if (et->kind == TK_BYTE) ek = 5;
+                    else if (et->kind == TK_CHAR) ek = 6;
                 }
                 emitf(cg, "ez_builtin_array_to_string(ez_default_arena, &");
                 emit_expression(cg, part);
@@ -1029,13 +1033,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
             case TK_MAP: {
-                /* Determine value kind: 0=int, 1=float, 2=string, 3=bool */
+                /* Determine value kind: 0=int, 1=float, 2=string, 3=bool, 4=uint, 5=byte, 6=char */
                 int vk = 0;
                 if (t && t->value_type) {
                     EzType *vt = type_from_name(t->value_type);
                     if (vt->kind == TK_FLOAT) vk = 1;
                     else if (vt->kind == TK_STRING) vk = 2;
                     else if (vt->kind == TK_BOOL) vk = 3;
+                    else if (vt->kind == TK_UINT) vk = 4;
+                    else if (vt->kind == TK_BYTE) vk = 5;
+                    else if (vt->kind == TK_CHAR) vk = 6;
                 }
                 emitf(cg, "ez_builtin_map_to_string(ez_default_arena, &");
                 emit_expression(cg, part);
@@ -1373,6 +1380,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
+        /* bit_not → ~ */
+        if (strcmp(node->data.prefix.op, "bit_not") == 0) {
+            emit(cg, "(~(");
+            emit_expression(cg, node->data.prefix.right);
+            emit(cg, "))");
+            break;
+        }
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
         if (strcmp(node->data.prefix.op, "-") == 0 &&
@@ -1424,6 +1438,23 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "!ez_string_eq(");
             emit_expression(cg, node->data.infix.left);
             emit(cg, ", ");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, ")");
+            break;
+        }
+
+        /* Bitwise keyword operators → C bitwise operators */
+        if (strcmp(op, "bit_and") == 0 || strcmp(op, "bit_or") == 0 ||
+            strcmp(op, "bit_xor") == 0 || strcmp(op, "bit_shift_left") == 0 ||
+            strcmp(op, "bit_shift_right") == 0) {
+            const char *c_op =
+                strcmp(op, "bit_and")         == 0 ? "&"  :
+                strcmp(op, "bit_or")          == 0 ? "|"  :
+                strcmp(op, "bit_xor")         == 0 ? "^"  :
+                strcmp(op, "bit_shift_left")  == 0 ? "<<" : ">>";
+            emit(cg, "(");
+            emit_expression(cg, node->data.infix.left);
+            emitf(cg, " %s ", c_op);
             emit_expression(cg, node->data.infix.right);
             emit(cg, ")");
             break;
@@ -1595,8 +1626,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
                 emit(cg, "({ double _dv = (double)");
                 emit_expression(cg, node->data.infix.right);
-                emitf(cg, "; if (_dv == 0.0) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } (double)",
-                    node->token.line);
+                emit(cg, "; if (_dv == 0.0) { ez_panic_code(\"P0078\", \"division by zero\"); } (double)");
                 emit_expression(cg, node->data.infix.left);
                 emitf(cg, " %s _dv; })", op);
                 break;
@@ -1615,14 +1645,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
                 emit(cg, "({ __auto_type _dv = ");
                 emit_expression(cg, node->data.infix.right);
-                emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
-                    node->token.line);
+                emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (is_signed) {
                     const char *opname = (strcmp(op, "/") == 0) ? "division" : "modulo";
                     emit(cg, "__auto_type _dn = ");
                     emit_expression(cg, node->data.infix.left);
-                    emitf(cg, "; if (_dn == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
-                        signed_min, node->token.line, opname, op);
+                    emitf(cg, "; if (_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
+                        signed_min, opname, op);
                 } else {
                     emit_expression(cg, node->data.infix.left);
                     emitf(cg, " %s _dv; })", op);
@@ -1722,8 +1751,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* Pointer dereference: p^ → (*p) with nil check */
             emit(cg, "({ __auto_type _dp = ");
             emit_expression(cg, node->data.postfix.left);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } *_dp; })", node->token.line);
+            emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp; })");
         } else if (strcmp(node->data.postfix.op, "++") == 0) {
             /* Overflow-checked increment; sized types need bounds check */
             EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
@@ -1836,6 +1864,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (strcmp(mem, "INF") == 0)     { emit(cg, "(1.0/0.0)"); break; }
                 if (strcmp(mem, "NEG_INF") == 0) { emit(cg, "(-1.0/0.0)"); break; }
                 if (strcmp(mem, "EPSILON") == 0) { emit(cg, "2.2204460492503131e-16"); break; }
+            }
+
+            /* @io constants */
+            if (strcmp(mod, "io") == 0) {
+                if (strcmp(mem, "O_RDONLY") == 0) { emit(cg, "0"); break; }
+                if (strcmp(mem, "O_WRONLY") == 0) { emit(cg, "1"); break; }
+                if (strcmp(mem, "O_RDWR") == 0)   { emit(cg, "2"); break; }
             }
 
             /* @os constants */
@@ -2013,9 +2048,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Nil-guarded pointer field access */
                 emit(cg, "({ __auto_type _dp = ");
                 emit_expression(cg, node->data.member.object);
-                emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                    "\"nil pointer dereference\"); } _dp->%s; })",
-                    node->token.line, safe_name(node->data.member.member));
+                emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s; })",
+                    safe_name(node->data.member.member));
             } else if (!obj_is_ref && obj_t && obj_t->kind == TK_ERROR) {
                 emit_expression(cg, node->data.member.object);
                 emitf(cg, "->%s", safe_name(node->data.member.member));
@@ -2094,16 +2128,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; %s _mk = ", c_key);
                 emit_expression(cg, node->data.index_expr.index);
-                emitf(cg, "; void *_mv = ez_map_get(&_mt, &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                    node->token.line);
+                emit(cg, "; void *_mv = ez_map_get(&_mt, &_mk); if (!_mv) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
                 emitf(cg, "*(%s *)_mv; })", c_val);
             } else {
                 emitf(cg, "({ %s _mk = ", c_key);
                 emit_expression(cg, node->data.index_expr.index);
                 emitf(cg, "; void *_mv = ez_map_get(&");
                 emit_expression(cg, node->data.index_expr.left);
-                emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                    node->token.line);
+                emit(cg, ", &_mk); if (!_mv) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
                 emitf(cg, "*(%s *)_mv; })", c_val);
             }
         } else if (left_t && left_t->kind == TK_STRING) {
@@ -2112,9 +2144,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.index_expr.left);
             emitf(cg, "; int32_t _ei = (int32_t)(");
             emit_expression(cg, node->data.index_expr.index);
-            emitf(cg, "); if (_ei < 0 || _ei >= _es.len) { fflush(stdout); ez_panic(__FILE__, %d, ",
-                node->token.line);
-            emit(cg, "\"string index %d out of bounds (length %d)\", _ei, _es.len); } ");
+            emit(cg, "); if (_ei < 0 || _ei >= _es.len) { ez_panic_code(\"P0082\", \"string index %d out of bounds (length %d)\", _ei, _es.len); } ");
             emit(cg, "(int32_t)(unsigned char)_es.data[_ei]; })");
         } else {
             /* Fallback */
@@ -2252,7 +2282,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
         if (needs_init) {
-            emitf(cg, "({ %s *_np = (%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)); ",
+            emitf(cg, "({ %s *_np = (%s *)ez_arena_alloc(ez_heap_arena, sizeof(%s)); ",
                 c_type, c_type, c_type);
             for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
                 const char *fn = sdecl->data.struct_decl.fields[fi].name;
@@ -2263,7 +2293,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *c_vt = "int64_t";
                     if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
                     if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
-                    emitf(cg, "_np->%s = ez_map_new_kind(ez_default_arena, sizeof(%s), sizeof(%s), 8, %s); ",
+                    emitf(cg, "_np->%s = ez_map_new_kind(ez_heap_arena, sizeof(%s), sizeof(%s), 8, %s); ",
                         safe_name(fn), c_kt, c_vt, ez_map_key_kind_macro(c_kt));
                 } else if (ft && ft[0] == '[') {
                     /* Array field — determine element C type */
@@ -2271,13 +2301,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *c_elem = "int64_t";
                     if (at && at->element_type)
                         c_elem = ez_map_elem_c_type(cg, at->element_type);
-                    emitf(cg, "_np->%s = ez_array_new(ez_default_arena, sizeof(%s), 4); ",
+                    emitf(cg, "_np->%s = ez_array_new(ez_heap_arena, sizeof(%s), 4); ",
                         safe_name(fn), c_elem);
                 }
             }
             emit(cg, "_np; })");
         } else {
-            emitf(cg, "((%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)))", c_type, c_type);
+            emitf(cg, "((%s *)ez_arena_alloc(ez_heap_arena, sizeof(%s)))", c_type, c_type);
         }
         break;
     }
@@ -2898,6 +2928,58 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    if (strcmp(func, "embed") == 0 && node->data.call.arg_count == 1) {
+        /* Compile-time file embedding: read the file and emit its content as
+         * an EzString literal. Path is resolved relative to the source file. */
+        AstNode *arg = node->data.call.args[0];
+        const char *embed_path = arg->data.string_value.value;
+
+        char resolved[4096];
+        if (embed_path[0] != '/' && cg->file) {
+            const char *last_slash = strrchr(cg->file, '/');
+            if (last_slash) {
+                snprintf(resolved, sizeof(resolved), "%.*s%s",
+                    (int)(last_slash - cg->file + 1), cg->file, embed_path);
+            } else {
+                snprintf(resolved, sizeof(resolved), "%s", embed_path);
+            }
+        } else {
+            snprintf(resolved, sizeof(resolved), "%s", embed_path);
+        }
+
+        FILE *ef = fopen(resolved, "rb");
+        if (!ef) {
+            /* Typechecker validated this; reaching here is an ICE */
+            codegen_ice("embed(): file not readable after typechecker validation", __FILE__, __LINE__);
+            return true;
+        }
+        fseek(ef, 0, SEEK_END);
+        long file_size = ftell(ef);
+        fseek(ef, 0, SEEK_SET);
+
+        unsigned char *file_buf = malloc((size_t)(file_size > 0 ? file_size : 1));
+        size_t nread = fread(file_buf, 1, (size_t)file_size, ef);
+        fclose(ef);
+
+        /* Emit every byte as \xNN — safe because after 2 hex digits the next
+         * character is always \ or " so no hex-continuation ambiguity. */
+        char *esc = malloc((size_t)(nread * 4 + 16));
+        size_t esc_len = 0;
+        for (size_t i = 0; i < nread; i++) {
+            esc_len += (size_t)snprintf(esc + esc_len, 5, "\\x%02x", file_buf[i]);
+        }
+        esc[esc_len] = '\0';
+
+        /* EZ_STRING_LIT is a compile-time macro — valid at file scope */
+        emit(cg, "EZ_STRING_LIT(\"");
+        emit(cg, esc);
+        emit(cg, "\")");
+
+        free(file_buf);
+        free(esc);
+        return true;
+    }
+
     if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_builtin_panic_msg(");
         emit_expression(cg, node->data.call.args[0]);
@@ -3027,6 +3109,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         else if (strcmp(func, "float") == 0) cast_type = "double";
         else if (strcmp(func, "char") == 0) cast_type = "int32_t";
         else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
+        else if (strcmp(func, "bool") == 0) cast_type = "bool";
         if (cast_type) {
             AstNode *carg = node->data.call.args[0];
             /* Bigint→scalar: e.g., int(x128) → ez_i128_to_i64(x128) */
@@ -3555,10 +3638,11 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
+        /* EZ: server.listen(router, port)  →  C: ez_server_listen(port, &router) */
         emit(cg, "ez_server_listen(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
@@ -4126,9 +4210,8 @@ static void emit_array_arg_addr(CodeGen *cg, AstNode *arg) {
             /* Pointer field: nil-check then take address of the field */
             emit(cg, "({ __auto_type _dp = ");
             emit_expression(cg, arg->data.member.object);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } &_dp->%s; })",
-                arg->token.line, safe_name(arg->data.member.member));
+            emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } &_dp->%s; })",
+                safe_name(arg->data.member.member));
             return;
         }
     }
@@ -4390,6 +4473,29 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "); }");
         return true;
     }
+    if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
+         strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
+        node->data.call.arg_count == 1) {
+        EzType *af_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *af_elem = (af_t && af_t->kind == TK_ARRAY) ? af_t->element_type : NULL;
+        const char *af_ctype = af_elem ? ez_type_to_c_cg(cg, af_elem) : "int64_t";
+        bool af_is_get = (strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0);
+        const char *af_ptr_fn = (strcmp(func, "get_first") == 0 || strcmp(func, "remove_first") == 0)
+                                ? "ez_arrays_first_ptr" : "ez_arrays_last_ptr";
+        const char *af_raw_fn = (strcmp(func, "remove_first") == 0)
+                                ? "ez_arrays_remove_first_raw" : "ez_arrays_remove_last_raw";
+        if (af_is_get) {
+            emitf(cg, "(*(%s *)%s(", af_ctype, af_ptr_fn);
+            emit_array_arg_addr(cg, node->data.call.args[0]);
+            emit(cg, "))");
+        } else {
+            emitf(cg, "({ %s _rafv; %s(", af_ctype, af_raw_fn);
+            emit_array_arg_addr(cg, node->data.call.args[0]);
+            emit(cg, ", &_rafv); _rafv; })");
+        }
+        return true;
+    }
+
     /* Generic: arrays.func(&arr, ...) or arrays.func(arena, &arr, ...) */
     bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
         strcmp(func, "concat") == 0 || strcmp(func, "deduplicate") == 0 ||
@@ -4434,14 +4540,6 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ")");
-        return true;
-    }
-    if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
-         strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
-        node->data.call.arg_count == 1) {
-        emitf(cg, "ez_arrays_%s(", func);
-        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
@@ -4540,6 +4638,9 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
 
 static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_fallible = (strcmp(func, "read_file") == 0 ||
+        strcmp(func, "read_bytes") == 0 ||
+        strcmp(func, "read_lines") == 0 ||
+        strcmp(func, "file_size") == 0 ||
         strcmp(func, "write_file") == 0 ||
         strcmp(func, "delete_file") == 0 ||
         strcmp(func, "append_file") == 0 ||
@@ -4551,8 +4652,11 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "make_dir_all") == 0 ||
         strcmp(func, "remove_dir") == 0 ||
         strcmp(func, "remove_dir_all") == 0 ||
-        strcmp(func, "walk") == 0);
+        strcmp(func, "walk") == 0 ||
+        strcmp(func, "glob") == 0);
     bool needs_arena = (strcmp(func, "read_file") == 0 ||
+        strcmp(func, "read_bytes") == 0 ||
+        strcmp(func, "read_lines") == 0 ||
         strcmp(func, "list_dir") == 0 ||
         strcmp(func, "walk") == 0 ||
         strcmp(func, "glob") == 0 ||
@@ -5070,9 +5174,15 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"parse","json"},{"stringify","json"},{"encode","json"},
                 {"decode","json"},{"is_valid","json"},{"pretty_print","json"},
                 /* @io */
-                {"read_file","io"},{"write_file","io"},{"append_file","io"},
+                {"read_file","io"},{"read_bytes","io"},{"read_lines","io"},
+                {"write_file","io"},{"append_file","io"},
                 {"delete_file","io"},{"rename_file","io"},{"file_exists","io"},
                 {"is_file","io"},{"is_directory","io"},{"file_size","io"},{"glob","io"},
+                {"list_dir","io"},{"make_dir","io"},{"make_dir_all","io"},
+                {"remove_dir","io"},{"remove_dir_all","io"},{"walk","io"},
+                {"copy_file","io"},{"move_file","io"},{"is_absolute","io"},
+                {"path_join","io"},{"dirname","io"},{"basename","io"},
+                {"extension","io"},{"normalize","io"},
                 /* @os */
                 {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
                 {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
@@ -5696,8 +5806,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, idx_node->data.index_expr.index);
                     emit(cg, "; void *_mv = ez_map_get(&");
                     emit_expression(cg, idx_node->data.index_expr.left);
-                    emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                        idx_node->token.line);
+                    emit(cg, ", &_mk); if (!_mv) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
                     emit(cg, "(int64_t *)_mv; })");
                 } else {
                     /* Array: pass pointer to element */
@@ -6326,10 +6435,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 /* Nil-check the pointer, then use -> to yield an lvalue */
                 emitf(cg, "{ __auto_type _mp = ");
                 emit_expression(cg, left->data.member.object);
-                emitf(cg, "; if (!_mp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                    "\"nil pointer dereference\"); } "
+                emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
                     "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
-                    node->token.line, ms_arena, safe_name(left->data.member.member));
+                    ms_arena, safe_name(left->data.member.member));
             } else {
                 emitf(cg, "ez_map_set(%s, &", ms_arena);
                 emit_expression(cg, left);
@@ -6344,8 +6452,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         strcmp(node->data.assign.target->data.postfix.op, "^") == 0) {
         emit(cg, "{ __auto_type _dp = ");
         emit_expression(cg, node->data.assign.target->data.postfix.left);
-        emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-            "\"nil pointer dereference\"); } *_dp", node->token.line);
+        emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp");
         emitf(cg, " %s ", node->data.assign.op);
         emit_expression(cg, node->data.assign.value);
         emit(cg, "; }\n");
@@ -6359,8 +6466,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         const char *field = node->data.assign.target->data.member.member;
         emit(cg, "{ __auto_type _dp = ");
         emit_expression(cg, ptr);
-        emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-            "\"nil pointer dereference\"); } _dp->%s", node->token.line, field);
+        emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s", field);
         emitf(cg, " %s ", node->data.assign.op);
         emit_expression(cg, node->data.assign.value);
         emit(cg, "; }\n");
@@ -6387,8 +6493,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (ptr_root && depth > 1) {
             emit(cg, "{ __auto_type _dp = ");
             emit_expression(cg, ptr_root);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } _dp->", node->token.line);
+            emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->");
             /* Emit chain in reverse: chain[depth-1] is closest to root */
             for (int i = depth - 1; i >= 0; i--) {
                 emit(cg, safe_name(chain[i]));
@@ -6417,8 +6522,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     snprintf(tn, sizeof(tn), "[%s]", field_t->element_type ? field_t->element_type : "");
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
-                    emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                        "\"nil pointer dereference\"); } ", node->token.line);
+                    emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } ");
                     emitf(cg, "{ EzArray _esc_v = ");
                     emit_expression(cg, node->data.assign.value);
                     emit(cg, "; EzArena *_esc_a = ez_default_arena; ez_default_arena = _ez_outer_arena; ");
@@ -6430,8 +6534,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (field_t && field_t->kind == TK_STRING) {
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
-                    emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                        "\"nil pointer dereference\"); } ", node->token.line);
+                    emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } ");
                     emitf(cg, "{ EzString _esc_v = ");
                     emit_expression(cg, node->data.assign.value);
                     emitf(cg, "; _dp->%s = ez_string_new(_ez_outer_arena, _esc_v.data, _esc_v.len); } }\n",
@@ -6441,8 +6544,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             }
             emit(cg, "{ __auto_type _dp = ");
             emit_expression(cg, obj);
-            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
-                "\"nil pointer dereference\"); } _dp->%s", node->token.line, safe_name(field));
+            emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s", safe_name(field));
             emitf(cg, " %s ", node->data.assign.op);
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; }\n");
@@ -6536,11 +6638,10 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.assign.target);
                 emit(cg, "); __auto_type _dv = ");
                 emit_expression(cg, node->data.assign.value);
-                emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
-                    node->token.line);
+                emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (!unsigned_op) {
-                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large; value exceeds the range of this type\"); } ",
-                        signed_min, node->token.line, opname);
+                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } ",
+                        signed_min, opname);
                 }
                 emitf(cg, "*_tgt_ref %s= _dv; }\n", binop);
                 return;
@@ -6705,6 +6806,21 @@ static void emit_scratch_arena_unwind(CodeGen *cg) {
     }
 }
 
+/* Unwind only up to and including the innermost loop iteration arena.
+ * Used by break/continue: we must clean up the current loop's arena and
+ * any if-block arenas nested inside it, but must NOT touch outer loop
+ * arenas which are still live. Loop arenas are named _iter_arena_N;
+ * if-block arenas are named _if_arena_N. */
+static void emit_loop_exit_unwind(CodeGen *cg) {
+    for (int i = cg->scope_arena_count - 1; i >= 0; i--) {
+        ScopeArena *s = &cg->scope_arenas[i];
+        emitf(cg, "ez_default_arena = %s; ", s->saved_var);
+        emitf(cg, "ez_arena_destroy(%s, __FILE__, __LINE__); free(%s); ",
+              s->arena_var, s->arena_var);
+        if (strncmp(s->arena_var, "_iter_arena_", 12) == 0) break;
+    }
+}
+
 /* : emit escape + cleanup for a non-void function return.
  * Escapes the return value (_ret) to _func_saved, then unwinds any
  * nested scratch arenas live at this exit point (issue #1629), then
@@ -6726,6 +6842,34 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
         emit(cg, "{ EzArena *_esc = ez_default_arena; ez_default_arena = _func_saved; _ret = ");
         emit_value_deep_copy(cg, ret_type_name, "_ret");
         emit(cg, "; ez_default_arena = _esc; } ");
+    }
+    emit_scratch_arena_unwind(cg);
+    emit(cg, "ez_default_arena = _func_saved; ");
+    emit(cg, "ez_arena_destroy(_func_arena, __FILE__, __LINE__); free(_func_arena); ");
+}
+
+/* Escape every heap field of the live EzMulti_* _ret struct from _func_arena
+ * to _func_saved, then unwind scratch arenas and destroy _func_arena.
+ * Mirrors emit_func_return_escape but covers all fields of a multi-return. */
+static void emit_multi_func_return_escape(CodeGen *cg) {
+    if (func_uses_caller_arena(cg->current_func)) {
+        emit_scratch_arena_unwind(cg);
+        return;
+    }
+    int rc = cg->current_func->data.func_decl.return_type_count;
+    for (int i = 0; i < rc; i++) {
+        const char *tn = cg->current_func->data.func_decl.return_types[i];
+        if (!tn) continue;
+        EzType *rt = type_from_name(tn);
+        if (rt->kind == TK_STRING) {
+            emitf(cg, "_ret.v%d = ez_string_new(_func_saved, _ret.v%d.data, _ret.v%d.len); ", i, i, i);
+        } else if (type_needs_deep_copy(cg, tn)) {
+            char field[32];
+            snprintf(field, sizeof(field), "_ret.v%d", i);
+            emitf(cg, "{ EzArena *_esc = ez_default_arena; ez_default_arena = _func_saved; _ret.v%d = ", i);
+            emit_value_deep_copy(cg, tn, field);
+            emit(cg, "; ez_default_arena = _esc; } ");
+        }
     }
     emit_scratch_arena_unwind(cg);
     emit(cg, "ez_default_arena = _func_saved; ");
@@ -6763,7 +6907,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.return_stmt.values[i]);
         }
         emit(cg, "}; ");
-        emit_scratch_arena_unwind(cg);
+        emit_multi_func_return_escape(cg);
         emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (node->data.return_stmt.count == 1 && cg->current_func &&
                cg->current_func->data.func_decl.return_type_count > 1) {
@@ -6777,7 +6921,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         }
         emit_expression(cg, node->data.return_stmt.values[0]);
         emit(cg, "}; ");
-        emit_scratch_arena_unwind(cg);
+        emit_multi_func_return_escape(cg);
         emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (cg->current_func &&
                cg->current_func->data.func_decl.return_type_count == 0) {
@@ -6810,7 +6954,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             emit_indent(cg);
             emitf(cg, "{ __auto_type _ret = %s; ",
                 safe_name(cg->current_func->data.func_decl.return_names[0]));
-            emit_scratch_arena_unwind(cg);
+            emit_func_return_escape(cg, cg->current_func->data.func_decl.return_types[0]);
             emit(cg, "ez_exit_func(); return _ret; }\n");
         } else {
             emit_indent(cg);
@@ -6825,7 +6969,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
                 }
             }
             emit(cg, "}; ");
-            emit_scratch_arena_unwind(cg);
+            emit_multi_func_return_escape(cg);
             emit(cg, "ez_exit_func(); return _ret; }\n");
         }
     } else {
@@ -6938,25 +7082,47 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
 
         if (iter->data.range_expr.start) {
             /* range(start, end) or range(start, end, step) */
-            /* Determine comparison direction based on step sign */
+            /* Determine comparison direction: static for literal step, runtime ternary for variable. */
             bool neg_step = false;
+            bool known_direction = false;
             if (iter->data.range_expr.step) {
                 AstNode *s = iter->data.range_expr.step;
-                if (s->kind == NODE_INT_VALUE && s->data.int_value.value < 0)
+                if (s->kind == NODE_INT_VALUE) {
+                    known_direction = true;
+                    neg_step = s->data.int_value.value < 0;
+                } else if (s->kind == NODE_PREFIX_EXPR && strcmp(s->data.prefix.op, "-") == 0) {
+                    known_direction = true;
                     neg_step = true;
-                else if (s->kind == NODE_PREFIX_EXPR && strcmp(s->data.prefix.op, "-") == 0)
-                    neg_step = true;
+                }
             }
-            emitf(cg, "for (int64_t %s = ", var);
-            emit_expression(cg, iter->data.range_expr.start);
-            emitf(cg, "; %s %s ", var, neg_step ? ">" : "<");
-            emit_expression(cg, iter->data.range_expr.end);
-            emitf(cg, "; %s", var);
-            if (iter->data.range_expr.step) {
-                emit(cg, " += ");
+
+            if (iter->data.range_expr.step && !known_direction) {
+                /* Variable step: store step and end once, emit runtime direction ternary. */
+                static int step_var_counter = 0;
+                int svc = step_var_counter++;
+                /* emit_indent already called above — use it for the var declaration line */
+                emitf(cg, "int64_t _ez_step_%d = ", svc);
                 emit_expression(cg, iter->data.range_expr.step);
+                emitf(cg, ", _ez_end_%d = ", svc);
+                emit_expression(cg, iter->data.range_expr.end);
+                emit(cg, ";\n");
+                emit_indent(cg);
+                emitf(cg, "for (int64_t %s = ", var);
+                emit_expression(cg, iter->data.range_expr.start);
+                emitf(cg, "; _ez_step_%d > 0 ? %s < _ez_end_%d : %s > _ez_end_%d", svc, var, svc, var, svc);
+                emitf(cg, "; %s += _ez_step_%d", var, svc);
             } else {
-                emit(cg, "++");
+                emitf(cg, "for (int64_t %s = ", var);
+                emit_expression(cg, iter->data.range_expr.start);
+                emitf(cg, "; %s %s ", var, neg_step ? ">" : "<");
+                emit_expression(cg, iter->data.range_expr.end);
+                emitf(cg, "; %s", var);
+                if (iter->data.range_expr.step) {
+                    emit(cg, " += ");
+                    emit_expression(cg, iter->data.range_expr.step);
+                } else {
+                    emit(cg, "++");
+                }
             }
         } else {
             /* range(end) - start at 0 */
@@ -7456,10 +7622,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     case NODE_BREAK_STMT:
         emit_indent(cg);
+        emit_loop_exit_unwind(cg);
         emit(cg, "break;\n");
         break;
     case NODE_CONTINUE_STMT:
         emit_indent(cg);
+        emit_loop_exit_unwind(cg);
         emit(cg, "continue;\n");
         break;
     case NODE_WHEN_STMT: {

@@ -42,4 +42,5 @@ do main() {
     println("========================================")
     println("  All Tests PASSED!")
     println("========================================")
+    println("ALL TESTS PASSED")
 }

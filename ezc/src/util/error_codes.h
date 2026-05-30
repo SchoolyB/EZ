@@ -17,7 +17,16 @@
 #ifndef EZC_ERROR_CODES_H
 #define EZC_ERROR_CODES_H
 
-/* --- E1xxx: Reading Your Code (Lexer) --- */
+/* --- E1xxx: Reading Your Code (Lexer) ---
+ *
+ * NOTE: Lexer errors are NOT emitted via diag_error() inside lexer.c.
+ * Instead, when the lexer encounters an invalid token it sets two fields
+ * on the Lexer struct — error_code (e.g. "E1010") and error_msg — and
+ * returns a TOK_ILLEGAL token. The parser's next_token() helper in
+ * parser.c detects TOK_ILLEGAL and surfaces the error via diag_error_msg()
+ * at that point. This keeps the lexer free of diagnostic dependencies.
+ * All E1xxx codes defined here are emitted through that single path.
+ */
 #define EZ_LEXER_ERRORS \
     EZ_ERROR("E1003", "syntax", "unclosed multi-line comment; add */") \
     EZ_ERROR("E1005", "syntax", "unclosed character; add a closing single quote") \
@@ -88,6 +97,7 @@
     EZ_ERROR("E3001", "types", "type mismatch; a value of one type is used where a different type is expected") \
     EZ_ERROR("E3002", "types", "this operator does not work on this type; for example, strings cannot be subtracted") \
     EZ_ERROR("E3003", "types", "invalid array index type; array indices must be integers") \
+    EZ_ERROR("E3004", "types", "string index assignment requires a char value; got '%s'") \
     EZ_ERROR("E3005", "types", "cannot modify constant '%s'; declare with 'mut' to make it mutable") \
     EZ_ERROR("E3006", "types", "too many variables; the function returns %d value(s) but variable %d was requested") \
     EZ_ERROR("E3007", "types", "cannot negate type '%s'; only numeric types support negation") \
@@ -110,7 +120,7 @@
     EZ_ERROR("E3034", "types", "'any' type is reserved for internal use and cannot be used in declarations") \
     EZ_ERROR("E3035", "types", "not all code paths in '%s' return a value") \
     EZ_ERROR("E3036", "types", "value %lld is out of range for type '%s' (valid range: %lld to %lld)") \
-    EZ_ERROR("E3038", "types", "'void' cannot be used as a variable type or in expressions like typeof()") \
+    EZ_ERROR("E3038", "types", "'void' cannot be used as a variable type or in expressions like type_of()") \
     EZ_ERROR("E3039", "types", "ensure expects a function call; for example: ensure close(file)") \
     EZ_ERROR("E3040", "types", "'%s' returns %d values; use mut a, b = %s() to capture all of them") \
     EZ_ERROR("E3041", "types", "cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps") \
@@ -160,7 +170,8 @@
     EZ_ERROR("E3085", "types", "'in' operator type mismatch: cannot check if '%s' is in '%s'") \
     EZ_ERROR("E3086", "types", "fmt.%s format string must be a string literal; use string interpolation for dynamic values") \
     EZ_ERROR("E3087", "types", "%%n is not permitted in fmt format strings") \
-    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'")
+    EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'") \
+    EZ_ERROR("E3089", "usage", "'%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -191,6 +202,8 @@
     EZ_ERROR("E5014", "usage", "here() takes no arguments; the call site's file, line, and column are substituted at compile time") \
     EZ_ERROR("E5015", "usage", "postfix ++ and -- require a variable, not a value or expression") \
     EZ_ERROR("E5016", "naming", "this name is reserved by a builtin function and cannot be redeclared") \
+    EZ_ERROR("E5017", "usage", "embed() argument must be a string literal file path, not an expression") \
+    EZ_ERROR("E5018", "usage", "embed() cannot open '%s': file not found or unreadable") \
     EZ_ERROR("E5023", "usage", "cannot use '%s' on type '%s'; only integer types support increment/decrement") \
     EZ_ERROR("E5024", "usage", "return type mismatch: cannot return signed '%s' as unsigned '%s'") \
     EZ_ERROR("E5025", "usage", "invalid assignment target; left side of '=' must be a variable, field, or index expression") \
@@ -201,7 +214,8 @@
     EZ_ERROR("E6001", "imports", "unknown module '@%s'") \
     EZ_ERROR("E6002", "imports", "cannot find file or directory '%s'") \
     EZ_ERROR("E6003", "imports", "directory '%s' contains no .ez files") \
-    EZ_ERROR("E6004", "imports", "cannot import own module directory")
+    EZ_ERROR("E6004", "imports", "cannot import own module directory") \
+    EZ_ERROR("E6008", "imports", "'%s.%s' is a module constant and cannot be assigned to")
 
 /* --- E7xxx+: Standard Library --- */
 #define EZ_STDLIB_ERRORS \
@@ -214,12 +228,108 @@
     EZ_ERROR("E12001", "stdlib", "maps.%s() requires a map argument, got an array") \
     EZ_ERROR("E12006", "stdlib", "duplicate key in map literal")
 
+/* --- E8xxx: Bitwise Operators --- */
+#define EZ_BITWISE_ERRORS \
+    EZ_ERROR("E8001", "bitwise", "'%s' can only be used with integers; got '%s' and '%s'") \
+    EZ_ERROR("E8002", "bitwise", "'bit_not' can only be used with integers; got '%s'")
+
+/* --- P0xxx: Runtime Panics --- */
+#define EZ_PANIC_CODES \
+    EZ_PANIC("P0001", "memory",     "cannot allocate from a destroyed arena; mem.destroy() was already called on this arena") \
+    EZ_PANIC("P0002", "memory",     "mem.destroy() called on an arena that was already destroyed; each arena can only be destroyed once") \
+    EZ_PANIC("P0003", "runtime",    "maximum recursion depth exceeded (%d calls deep); your function is calling itself too many times") \
+    EZ_PANIC("P0004", "arithmetic", "addition result is too large; value exceeds the range of int") \
+    EZ_PANIC("P0005", "arithmetic", "subtraction result is too large; value exceeds the range of int") \
+    EZ_PANIC("P0006", "arithmetic", "multiplication result is too large; value exceeds the range of int") \
+    EZ_PANIC("P0007", "arithmetic", "negation result is too large; value exceeds the range of int") \
+    EZ_PANIC("P0008", "arithmetic", "addition result is too large; value exceeds the range of uint") \
+    EZ_PANIC("P0009", "arithmetic", "subtraction result is negative, but uint cannot hold negative values") \
+    EZ_PANIC("P0010", "arithmetic", "multiplication result is too large; value exceeds the range of uint") \
+    EZ_PANIC("P0011", "arithmetic", "%s addition result is too large; value exceeds the range of this type") \
+    EZ_PANIC("P0012", "arithmetic", "%s subtraction result is too large; value exceeds the range of this type") \
+    EZ_PANIC("P0013", "arithmetic", "%s multiplication result is too large; value exceeds the range of this type") \
+    EZ_PANIC("P0014", "arithmetic", "%s negation result is too large; value exceeds the range of this type") \
+    EZ_PANIC("P0015", "arithmetic", "%s addition result is too large; value exceeds the range of this unsigned type") \
+    EZ_PANIC("P0016", "arithmetic", "%s subtraction result is negative, but this unsigned type cannot hold negative values") \
+    EZ_PANIC("P0017", "arithmetic", "%s multiplication result is too large; value exceeds the range of this unsigned type") \
+    EZ_PANIC("P0018", "arithmetic", "cast to %s failed; value %lld is outside the valid range (%lld to %lld)") \
+    EZ_PANIC("P0019", "arithmetic", "cast to %s failed; value %lld is outside the valid range (0 to %llu)") \
+    EZ_PANIC("P0020", "arithmetic", "cannot convert float to int; the value is too large, too small, or NaN") \
+    EZ_PANIC("P0021", "arithmetic", "i128 addition result is too large; value exceeds the range of i128") \
+    EZ_PANIC("P0022", "arithmetic", "i128 subtraction result is too large; value exceeds the range of i128") \
+    EZ_PANIC("P0023", "arithmetic", "i128 multiplication result is too large; value exceeds the range of i128") \
+    EZ_PANIC("P0024", "arithmetic", "u128 addition result is too large; value exceeds the range of u128") \
+    EZ_PANIC("P0025", "arithmetic", "u128 subtraction result is negative, but u128 cannot hold negative values") \
+    EZ_PANIC("P0026", "arithmetic", "u128 multiplication result is too large; value exceeds the range of u128") \
+    EZ_PANIC("P0027", "arithmetic", "i256 addition result is too large; value exceeds the range of i256") \
+    EZ_PANIC("P0028", "arithmetic", "i256 subtraction result is too large; value exceeds the range of i256") \
+    EZ_PANIC("P0029", "arithmetic", "i256 multiplication result is too large; value exceeds the range of i256") \
+    EZ_PANIC("P0030", "arithmetic", "u256 addition result is too large; value exceeds the range of u256") \
+    EZ_PANIC("P0031", "arithmetic", "u256 subtraction result is negative, but u256 cannot hold negative values") \
+    EZ_PANIC("P0032", "arithmetic", "u256 multiplication result is too large; value exceeds the range of u256") \
+    EZ_PANIC("P0033", "bounds",     "index out of bounds; tried to access index %d but the length is %d") \
+    EZ_PANIC("P0034", "iteration",  "cannot modify array during for_each iteration") \
+    EZ_PANIC("P0035", "iteration",  "cannot modify map during for_each iteration") \
+    EZ_PANIC("P0036", "encoding",   "encoding.base64_decode: input length %d is not a multiple of 4") \
+    EZ_PANIC("P0037", "encoding",   "encoding.base64_decode: padding character '=' before end of input") \
+    EZ_PANIC("P0038", "encoding",   "encoding.base64_decode: invalid padding") \
+    EZ_PANIC("P0039", "encoding",   "encoding.base64_decode: invalid character in input") \
+    EZ_PANIC("P0040", "encoding",   "encoding.hex_decode: input length %d is not even") \
+    EZ_PANIC("P0041", "encoding",   "encoding.hex_decode: invalid hex character at position %d") \
+    EZ_PANIC("P0042", "encoding",   "encoding.url_decode: invalid percent-escape at position %d") \
+    EZ_PANIC("P0043", "bounds",     "arrays.insert_at: index %d is out of bounds for an array of length %d") \
+    EZ_PANIC("P0044", "bounds",     "arrays.remove_at: index %d is out of bounds for an array of length %d") \
+    EZ_PANIC("P0045", "bounds",     "arrays.get_first called on an empty array") \
+    EZ_PANIC("P0046", "bounds",     "arrays.get_last called on an empty array") \
+    EZ_PANIC("P0047", "bounds",     "arrays.remove_first called on an empty array") \
+    EZ_PANIC("P0048", "bounds",     "arrays.remove_last called on an empty array") \
+    EZ_PANIC("P0049", "bounds",     "to_char() index out of bounds; index %lld is negative") \
+    EZ_PANIC("P0050", "bounds",     "to_char() index out of bounds; index %lld but string has %lld characters") \
+    EZ_PANIC("P0051", "crypto",     "crypto.random_hex: length must be non-negative (got %lld)") \
+    EZ_PANIC("P0052", "crypto",     "crypto.random_hex: failed to read from /dev/urandom") \
+    EZ_PANIC("P0053", "io",         "io.read_file: input exceeds maximum string length") \
+    EZ_PANIC("P0054", "strconv",    "strconv.to_int: invalid base %d; must be between 2 and 36") \
+    EZ_PANIC("P0055", "strconv",    "strconv.to_int: cannot convert '%s' to int (base %d)") \
+    EZ_PANIC("P0056", "strconv",    "strconv.to_uint: invalid base %d; must be between 2 and 36") \
+    EZ_PANIC("P0057", "strconv",    "strconv.to_uint: cannot convert '%s' to uint (base %d)") \
+    EZ_PANIC("P0058", "strconv",    "strconv.to_uint: cannot convert '%s' to uint; value is negative") \
+    EZ_PANIC("P0059", "strconv",    "strconv.to_float: cannot convert '%s' to float") \
+    EZ_PANIC("P0060", "strconv",    "strconv.to_bool: cannot convert '%s' to bool") \
+    EZ_PANIC("P0061", "memory",     "mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB") \
+    EZ_PANIC("P0062", "random",     "random.sample() count %d exceeds array length %d") \
+    EZ_PANIC("P0063", "random",     "random.sample() count cannot be negative (%d)") \
+    EZ_PANIC("P0064", "math",       "math.sqrt() requires a non-negative number, got %g") \
+    EZ_PANIC("P0065", "math",       "math.log() requires a positive number, got %g") \
+    EZ_PANIC("P0066", "math",       "math.log2() requires a positive number, got %g") \
+    EZ_PANIC("P0067", "math",       "math.log10() requires a positive number, got %g") \
+    EZ_PANIC("P0068", "math",       "math.asin() requires value in [-1, 1], got %g") \
+    EZ_PANIC("P0069", "math",       "math.acos() requires value in [-1, 1], got %g") \
+    EZ_PANIC("P0070", "math",       "math.factorial() requires a non-negative integer, got %lld") \
+    EZ_PANIC("P0071", "strings",    "strings.replace() result exceeds maximum string length") \
+    EZ_PANIC("P0072", "strings",    "strings.repeat() count cannot be negative (%lld)") \
+    EZ_PANIC("P0073", "strings",    "strings.repeat() result exceeds maximum string length") \
+    EZ_PANIC("P0074", "uuid",       "uuid.parse: invalid UUID string") \
+    EZ_PANIC("P0075", "runtime",    "assertion failed") \
+    EZ_PANIC("P0076", "runtime",    "panic") \
+    EZ_PANIC("P0077", "io",         "io.delete_file() cannot delete a directory; use io.remove_dir() for directories") \
+    EZ_PANIC("P0078", "arithmetic", "division by zero") \
+    EZ_PANIC("P0079", "arithmetic", "%s result is too large; value exceeds the range of this type") \
+    EZ_PANIC("P0080", "runtime",    "nil pointer dereference") \
+    EZ_PANIC("P0081", "runtime",    "key not found in map") \
+    EZ_PANIC("P0082", "bounds",     "string index %d out of bounds (length %d)") \
+    EZ_PANIC("P0083", "runtime",    "sleep duration cannot be negative (%lld)") \
+    EZ_PANIC("P0084", "runtime",    "cannot convert '%s' to int") \
+    EZ_PANIC("P0085", "runtime",    "cannot convert '%s' to float") \
+    EZ_PANIC("P0086", "io",         "io.read_file() cannot read a directory; use io.list_dir() or io.walk() to list directory contents") \
+    EZ_PANIC("P0087", "io",         "io.write_file() cannot write to a directory") \
+    EZ_PANIC("P0088", "io",         "io.append_file() cannot append to a directory") \
+    EZ_PANIC("P0089", "io",         "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually")
+
 /* --- Warnings --- */
 #define EZ_WARNINGS \
     EZ_WARNING("W1001", "cleanup", "variable is declared but never used; remove it or use it") \
     EZ_WARNING("W1003", "cleanup", "function is declared but never called; remove it or call it") \
     EZ_WARNING("W1005", "cleanup", "typed blank identifier; '_' doesn't need a type annotation, use 'mut _ = <expr>' instead") \
-    EZ_WARNING("W2001", "cleanup", "this module is imported but never used; remove the import or use the module") \
     EZ_WARNING("W1002", "cleanup", "this import is never used; remove it or use a function from the module") \
     EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope") \
     EZ_WARNING("W2003", "safety", "unreachable code; this statement will never execute because it comes after a return") \

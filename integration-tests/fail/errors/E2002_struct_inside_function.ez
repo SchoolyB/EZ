@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - struct defined inside function (uses old 'struct' syntax)
+ * Expected: E2002 unexpected symbol
+ */
+
+do main() {
+    struct Inner {
+        x int,
+    }
+}

@@ -1,0 +1,53 @@
+const Node struct {
+    value int
+    next ^Node
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut a = new(Node)
+    a.value = 10
+    a.next = nil
+
+    mut b = new(Node)
+    b.value = 20
+    b.next = nil
+
+    a.next = b
+
+    // Test 1: head node value
+    if a.value == 10 {
+        println("  [PASS] head node value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] head node value: expected 10")
+        failed += 1
+    }
+
+    // Test 2: linked node value (explicit deref of ^Node field)
+    if a.next^.value == 20 {
+        println("  [PASS] linked node value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] linked node value: expected 20")
+        failed += 1
+    }
+
+    // Test 3: tail next is nil
+    if a.next^.next == nil {
+        println("  [PASS] tail next is nil")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] tail next should be nil")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

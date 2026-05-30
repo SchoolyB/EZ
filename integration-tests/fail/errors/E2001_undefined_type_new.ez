@@ -1,6 +1,6 @@
 /*
- * Error Test: E4006 - undefined-type-new
- * Expected: "type not found" or "undefined"
+ * Error Test: E2001 - undefined type in new expression
+ * Expected: E2001 unexpected symbol (parser expects new(Type) syntax)
  */
 
 do main() {

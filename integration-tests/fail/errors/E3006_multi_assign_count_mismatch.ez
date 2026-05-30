@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3006 - multi-assign-count-mismatch
+ * Expected: "too many variables; the function returns N value(s) but variable N was requested"
+ */
+
+do getTwo() -> (int, int) {
+    return 1, 2
+}
+
+do main() {
+    mut a int, b int, c int = getTwo()  // 3 vars, 2 values
+}

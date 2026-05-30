@@ -18,9 +18,9 @@ void ez_arrays_append(EzArena *arena, EzArray *arr, const void *value) {
 
 void ez_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const void *value) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (index < 0 || index > arr->len) {
-        ez_panic(__FILE__, __LINE__,
+        ez_panic_code("P0043",
             "arrays.insert_at: index %d is out of bounds for an array of length %d",
             index, arr->len);
     }
@@ -56,8 +56,11 @@ void ez_arrays_prepend(EzArena *arena, EzArray *arr, const void *value) {
 
 void ez_arrays_remove_at(EzArray *arr, int32_t index) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
-    if (index < 0 || index >= arr->len) return;
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
+    if (index < 0 || index >= arr->len)
+        ez_panic_code("P0044",
+            "arrays.remove_at: index %d is out of bounds for an array of length %d",
+            index, arr->len);
     char *data = (char *)arr->data;
     size_t es = (size_t)arr->elem_size;
     memmove(data + index * es, data + (index + 1) * es, (arr->len - 1 - index) * es);
@@ -94,7 +97,7 @@ void ez_arrays_remove_str(EzArray *arr, EzString value) {
 
 void ez_arrays_clear(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     arr->len = 0;
 }
 
@@ -107,43 +110,57 @@ void ez_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t cou
 
 /* === Access === */
 
+void *ez_arrays_first_ptr(EzArray *arr) {
+    if (arr->len == 0)
+        ez_panic_code("P0045", "arrays.get_first called on an empty array");
+    return arr->data;
+}
+
+void *ez_arrays_last_ptr(EzArray *arr) {
+    if (arr->len == 0)
+        ez_panic_code("P0046", "arrays.get_last called on an empty array");
+    return (char *)arr->data + (arr->len - 1) * arr->elem_size;
+}
+
+void ez_arrays_remove_first_raw(EzArray *arr, void *out) {
+    if (arr->iterating > 0)
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
+    if (arr->len == 0)
+        ez_panic_code("P0047", "arrays.remove_first called on an empty array");
+    memcpy(out, arr->data, arr->elem_size);
+    ez_arrays_remove_at(arr, 0);
+}
+
+void ez_arrays_remove_last_raw(EzArray *arr, void *out) {
+    if (arr->iterating > 0)
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
+    if (arr->len == 0)
+        ez_panic_code("P0048", "arrays.remove_last called on an empty array");
+    memcpy(out, (char *)arr->data + (arr->len - 1) * arr->elem_size, arr->elem_size);
+    arr->len--;
+}
+
 int64_t ez_arrays_get_first(EzArray *arr) {
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.get_first() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0045", "arrays.get_first called on an empty array");
     return *(int64_t *)arr->data;
 }
 
 int64_t ez_arrays_get_last(EzArray *arr) {
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.get_last() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0046", "arrays.get_last called on an empty array");
     return *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
 }
 
 int64_t ez_arrays_remove_last(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.remove_last() called on an empty array\n");
-        exit(1);
-    }
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
+    if (arr->len == 0) ez_panic_code("P0048", "arrays.remove_last called on an empty array");
     int64_t val = *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
     arr->len--;
     return val;
 }
 
 int64_t ez_arrays_remove_first(EzArray *arr) {
-    if (arr->len == 0) {
-        fflush(stdout);
-        fprintf(stderr, "panic: arrays.remove_first() called on an empty array\n");
-        exit(1);
-    }
+    if (arr->len == 0) ez_panic_code("P0047", "arrays.remove_first called on an empty array");
     int64_t val = *(int64_t *)arr->data;
     ez_arrays_remove_at(arr, 0);
     return val;
@@ -370,42 +387,42 @@ static int cmp_str_desc(const void *a, const void *b) {
 
 void ez_arrays_sort_asc(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_asc);
 }
 
 void ez_arrays_sort_asc_float(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_f64_asc);
 }
 
 void ez_arrays_sort_asc_str(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_str_asc);
 }
 
 void ez_arrays_sort_desc(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_desc);
 }
 
 void ez_arrays_sort_desc_float(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_f64_desc);
 }
 
 void ez_arrays_sort_desc_str(EzArray *arr) {
     if (arr->iterating > 0)
-        ez_panic(__FILE__, __LINE__, "cannot modify array during for_each iteration");
+        ez_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_str_desc);
 }

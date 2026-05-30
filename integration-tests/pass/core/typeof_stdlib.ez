@@ -65,5 +65,5 @@ do main() {
     mut values2 = maps.get_values(m2)
     assert(type_of(values2) == "[string]", "maps.get_values() should return '[string]' for string values")
 
-    println("PASS: type_of_stdlib")
+    println("ALL TESTS PASSED")
 }

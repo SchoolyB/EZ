@@ -1,5 +1,5 @@
 /*
- * Error Test: E3023 - undefined-enum-value
+ * Error Test: E2002 - undefined-enum-value
  * Expected: "enum value" or "not found"
  */
 

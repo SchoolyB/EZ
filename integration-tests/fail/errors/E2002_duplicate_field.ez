@@ -1,6 +1,6 @@
 /*
- * Error Test: E2013 - duplicate-field
- * Expected: "duplicate" or "already used"
+ * Error Test: E2002 - duplicate-field (uses old 'struct' syntax)
+ * Expected: E2002 unexpected symbol
  */
 
 struct Person {

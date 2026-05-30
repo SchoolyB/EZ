@@ -1,4 +1,7 @@
-// E2050: when condition cannot be an array or map
+/*
+ * Error Test: E3018 - when condition cannot be an array or map
+ * Expected: compiler should reject this with E3018
+ */
 
 do main() {
     mut arr [int] = {1, 2, 3}

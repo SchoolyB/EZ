@@ -1,5 +1,5 @@
 /*
- * Error Test: E2029 - expected-identifier
+ * Error Test: E2001 - expected-identifier
  * Expected: "expected identifier"
  */
 

@@ -1,6 +1,0 @@
-
-const Status enum { ACTIVE, INACTIVE }
-
-do main() {
-    mut Status = "shadowed"
-}

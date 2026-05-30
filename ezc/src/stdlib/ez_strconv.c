@@ -16,63 +16,42 @@
 /* --- Panicking conversions --- */
 
 int64_t ez_strconv_to_int(EzString s, int base) {
-    if (base < 2 || base > 36) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_int: invalid base %d (must be 2-36)\n", base);
-        exit(1);
-    }
+    if (base < 2 || base > 36)
+        ez_panic_code("P0054", "strconv.to_int: invalid base %d; must be between 2 and 36", base);
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
-    if (len > 0 && isspace((unsigned char)buf[0])) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_int: cannot convert \"%s\" to int (base %d)\n", buf, base);
-        exit(1);
-    }
+    if (len > 0 && isspace((unsigned char)buf[0]))
+        ez_panic_code("P0055", "strconv.to_int: cannot convert '%s' to int (base %d)", buf, base);
     char *end = NULL;
     errno = 0;
     int64_t result = strtoll(buf, &end, base);
-    if (end == buf || *end != '\0' || errno == ERANGE) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_int: cannot convert \"%s\" to int (base %d)\n", buf, base);
-        exit(1);
-    }
+    if (end == buf || *end != '\0' || errno == ERANGE)
+        ez_panic_code("P0055", "strconv.to_int: cannot convert '%s' to int (base %d)", buf, base);
     return result;
 }
 
 uint64_t ez_strconv_to_uint(EzString s, int base) {
-    if (base < 2 || base > 36) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_uint: invalid base %d (must be 2-36)\n", base);
-        exit(1);
-    }
+    if (base < 2 || base > 36)
+        ez_panic_code("P0056", "strconv.to_uint: invalid base %d; must be between 2 and 36", base);
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
-    if (len > 0 && isspace((unsigned char)buf[0])) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_uint: cannot convert \"%s\" to uint (base %d)\n", buf, base);
-        exit(1);
-    }
+    if (len > 0 && isspace((unsigned char)buf[0]))
+        ez_panic_code("P0057", "strconv.to_uint: cannot convert '%s' to uint (base %d)", buf, base);
     /* Reject negative numbers */
     for (int i = 0; i < len; i++) {
-        if (buf[i] == '-') {
-            fflush(stdout);
-            fprintf(stderr, "panic: strconv.to_uint: cannot convert \"%s\" to uint (negative)\n", buf);
-            exit(1);
-        }
+        if (buf[i] == '-')
+            ez_panic_code("P0058", "strconv.to_uint: cannot convert '%s' to uint; value is negative", buf);
         if (!isspace((unsigned char)buf[i])) break;
     }
     char *end = NULL;
     errno = 0;
     uint64_t result = strtoull(buf, &end, base);
-    if (end == buf || *end != '\0' || errno == ERANGE) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_uint: cannot convert \"%s\" to uint (base %d)\n", buf, base);
-        exit(1);
-    }
+    if (end == buf || *end != '\0' || errno == ERANGE)
+        ez_panic_code("P0057", "strconv.to_uint: cannot convert '%s' to uint (base %d)", buf, base);
     return result;
 }
 
@@ -81,36 +60,24 @@ double ez_strconv_to_float(EzString s) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
-    if (len > 0 && isspace((unsigned char)buf[0])) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_float: cannot convert \"%s\" to float\n", buf);
-        exit(1);
-    }
+    if (len > 0 && isspace((unsigned char)buf[0]))
+        ez_panic_code("P0059", "strconv.to_float: cannot convert '%s' to float", buf);
     char *end = NULL;
     errno = 0;
     double result = strtod(buf, &end);
-    if (end == buf || *end != '\0' || errno == ERANGE) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strconv.to_float: cannot convert \"%s\" to float\n", buf);
-        exit(1);
-    }
+    if (end == buf || *end != '\0' || errno == ERANGE)
+        ez_panic_code("P0059", "strconv.to_float: cannot convert '%s' to float", buf);
     return result;
 }
 
 bool ez_strconv_to_bool(EzString s) {
-    if (s.len == 4 && strncasecmp(s.data, "true", 4) == 0) {
-        return true;
-    }
-    if (s.len == 5 && strncasecmp(s.data, "false", 5) == 0) {
-        return false;
-    }
-    fflush(stdout);
+    if (s.len == 4 && strncasecmp(s.data, "true", 4) == 0) return true;
+    if (s.len == 5 && strncasecmp(s.data, "false", 5) == 0) return false;
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
-    fprintf(stderr, "panic: strconv.to_bool: cannot convert \"%s\" to bool\n", buf);
-    exit(1);
+    ez_panic_code("P0060", "strconv.to_bool: cannot convert '%s' to bool", buf);
 }
 
 /* --- Fallible conversions (result versions) --- */

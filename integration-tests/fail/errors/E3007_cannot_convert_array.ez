@@ -1,9 +1,0 @@
-/*
- * Error Test: E3007 - cannot-convert-array
- * Expected: "cannot convert array"
- */
-
-do main() {
-    mut arr [int] = {1, 2, 3}
-    mut x int = int(arr)  // cannot convert array to int
-}

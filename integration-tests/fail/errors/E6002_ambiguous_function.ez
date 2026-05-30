@@ -1,0 +1,14 @@
+/*
+ * Error Test: E6002 - import file not found
+ * Expected: "cannot find file or directory 'mymodule'"
+ */
+
+import "mymodule"
+import "othermodule"
+using mymodule
+using othermodule
+
+do main() {
+    // If both modules have 'helper' function, this would be ambiguous
+    helper()
+}

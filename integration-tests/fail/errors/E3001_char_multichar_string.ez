@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3001 - char() conversion from multi-char string
+ * Expected: "char() requires a single-character string"
+ */
+
+do main() {
+    mut c char = char("AB")  // Multi-character string cannot convert to char
+}

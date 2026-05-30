@@ -13,4 +13,5 @@ do main() {
     mut a int, n string = getPersonInfo()
     println(a)
     println(n)
+    println("ALL TESTS PASSED")
 }

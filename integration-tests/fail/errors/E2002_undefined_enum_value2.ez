@@ -1,6 +1,6 @@
 /*
- * Error Test: E4004 - undefined-enum-value
- * Expected: "enum value" or "does not exist"
+ * Error Test: E2002 - undefined enum value (uses old 'enum' syntax)
+ * Expected: E2002 unexpected symbol
  */
 
 enum Status {

@@ -1,6 +1,6 @@
 /*
- * Error Test: E5009 - break-outside-loop
- * Expected: "break" and "outside loop"
+ * Error Test: E2050 - break-outside-loop
+ * Expected: "break and continue can only be used inside a loop"
  */
 
 

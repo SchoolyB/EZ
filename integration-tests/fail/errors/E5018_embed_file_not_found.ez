@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5018 - embed() cannot open file
+ * Expected: error when the embedded file does not exist
+ */
+
+const Missing string = embed("this_file_does_not_exist.txt")
+
+do main() {
+    println(Missing)
+}

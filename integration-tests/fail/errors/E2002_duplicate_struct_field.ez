@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2002 - duplicate struct field name (uses old 'struct' syntax)
+ * Expected: E2002 unexpected symbol
+ */
+
+struct Point {
+    x int,
+    y int,
+    x int,
+}
+
+do main() {
+    mut p Point = Point{x: 1, y: 2}
+}

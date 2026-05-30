@@ -1,0 +1,19 @@
+/*
+ * Error Test: E3001 - struct literal sets pointer field to wrong struct pointer type
+ * Expected: type mismatch error — ^Other cannot initialize a ^Node field
+ */
+
+const Node struct {
+    value int
+    next ^Node
+}
+
+const Other struct {
+    x int
+}
+
+do main() {
+    mut o = new(Other)
+    mut a Node = Node{value: 1, next: o}
+    println(a.value)
+}

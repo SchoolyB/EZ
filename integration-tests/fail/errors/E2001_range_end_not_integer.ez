@@ -1,6 +1,6 @@
 /*
- * Error Test: E5014 - range-end-not-integer
- * Expected: "range" or "end" or "integer"
+ * Error Test: E2001 - range end not integer
+ * Expected: E2001 unexpected symbol (parser rejects float in range)
  */
 
 do main() {

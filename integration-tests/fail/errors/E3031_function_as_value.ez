@@ -1,3 +1,7 @@
+/*
+ * Error Test: E3031 - function cannot be used as a value
+ * Expected: compiler should reject this with E3031
+ */
 
 do helper() {
     println("hi")

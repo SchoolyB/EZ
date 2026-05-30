@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5025 - invalid-type-name
+ * Expected: "invalid type" or "expected valid type"
+ */
+
+do main() {
+    mut x 123 = 5  // number is not valid type name
+}

@@ -1,9 +1,6 @@
 /*
- * E7003: error() requires string argument
- * Expected: "error() argument must be a string"
- *
- * The error() constructor only accepts a string message.
- * Passing other types should produce this error.
+ * Error Test: E3013 - error() requires string argument
+ * Expected: compiler should reject this with E3013
  */
 
 

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E4005 - invalid-argument-value
+ * Expected: "invalid" or "argument value"
+ */
+
+import @time
+
+do main() {
+    mut t = time.parse("invalid-date-format", "not-a-format")
+}

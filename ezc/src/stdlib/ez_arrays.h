@@ -22,7 +22,13 @@ void ez_arrays_remove_str(EzArray *arr, EzString value);
 void ez_arrays_clear(EzArray *arr);
 void ez_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t count);
 
-/* Access */
+/* Access — typed via codegen cast */
+void *ez_arrays_first_ptr(EzArray *arr);
+void *ez_arrays_last_ptr(EzArray *arr);
+void  ez_arrays_remove_first_raw(EzArray *arr, void *out);
+void  ez_arrays_remove_last_raw(EzArray *arr, void *out);
+
+/* Access — legacy int64_t variants kept for internal use */
 int64_t ez_arrays_get_first(EzArray *arr);
 int64_t ez_arrays_get_last(EzArray *arr);
 int64_t ez_arrays_remove_last(EzArray *arr);

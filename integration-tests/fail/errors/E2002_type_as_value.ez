@@ -1,0 +1,11 @@
+/*
+ * Error Test: E2002 - enum type cannot be used as a value
+ * Expected: compiler should reject this with E2002
+ */
+
+const Status enum { ACTIVE, INACTIVE }
+
+do main() {
+    // Bug: enum type cannot be used as a value
+    mut x = copy(Status)
+}

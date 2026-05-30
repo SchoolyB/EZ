@@ -1,5 +1,5 @@
 /*
- * Error Test: E3029 - float-enum-map-key
+ * Error Test: E2002 - float-enum-map-key
  * Expected: "float-based enum cannot be used as map key"
  */
 

@@ -34,4 +34,5 @@ do main() {
 
     println("crypto_random_hex_csprng: ${pass} passed, ${fail} failed")
     if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
 }

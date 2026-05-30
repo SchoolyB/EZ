@@ -154,5 +154,5 @@ do main() {
     test_enum()
     test_strict_enum()
     test_nested_when()
-    println("when/is tests completed")
+    println("ALL TESTS PASSED")
 }

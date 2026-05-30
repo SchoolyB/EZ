@@ -1,5 +1,5 @@
 /*
- * Error Test: E2030 - expected-block
+ * Error Test: E2002 - expected-block
  * Expected: "expected '{'"
  */
 

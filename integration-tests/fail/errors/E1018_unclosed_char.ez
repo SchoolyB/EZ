@@ -1,6 +1,6 @@
 /*
- * Error Test: E1005 - unclosed-char
- * Expected: "character literal not closed"
+ * Error Test: E1018 - unclosed-char
+ * Expected: "a char holds exactly one character; use a string for multiple"
  */
 
 do main() {

@@ -1,8 +1,0 @@
-/*
- * Error Test: E3008 - undefined-type
- * Expected: "undefined type" or "not defined"
- */
-
-do main() {
-    mut x FooBar = 5  // FooBar is not defined
-}

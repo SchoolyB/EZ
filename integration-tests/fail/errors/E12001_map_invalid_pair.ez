@@ -1,5 +1,5 @@
 /*
- * Error Test: E12004 - map-invalid-pair
+ * Error Test: E12001 - map-invalid-pair
  * Expected: "pair" or "key, value"
  */
 

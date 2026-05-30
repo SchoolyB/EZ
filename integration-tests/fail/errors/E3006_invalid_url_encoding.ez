@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3006 - invalid-url-encoding
+ * Expected: "invalid URL encoding"
+ */
+
+import @encoding
+
+do main() {
+    // Invalid URL encoding (incomplete percent sequence)
+    mut result string, err Error = encoding.url_decode("%ZZ")
+    if err != nil {
+        panic("${err}")
+    }
+}

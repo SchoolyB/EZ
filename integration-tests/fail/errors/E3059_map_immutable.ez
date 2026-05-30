@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3059 - map-immutable
+ * Expected: "immutable" or "cannot modify"
+ */
+
+import @maps
+
+do main() {
+    const m map[string:string] = {"key": "value"}
+    maps.set(m, "new_key", "new_value")  // cannot modify const map
+}

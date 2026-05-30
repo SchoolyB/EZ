@@ -20,7 +20,7 @@ do main() {
     }
 
     // Test 2: read_file success path
-    mut _ = io.write_file("/tmp/ez_result_test_1547.txt", "hello")
+    mut _, _ = io.write_file("/tmp/ez_result_test_1547.txt", "hello")
     mut content2, err2 = io.read_file("/tmp/ez_result_test_1547.txt")
     if err2 == nil {
         if content2 == "hello" {
@@ -153,9 +153,59 @@ do main() {
         failed += 1
     }
 
+    // Test 15: read_file_result on a directory returns error (not panic)
+    mut dc, derr2 = io.read_file("/tmp")
+    if derr2 != nil {
+        println("  [PASS] read_file_result on directory returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_file_result on directory: expected error, got content")
+        failed += 1
+    }
+
+    // Test 16: write_file_result on a directory returns error (not panic)
+    mut wdok, wderr = io.write_file("/tmp", "data")
+    if wderr != nil {
+        println("  [PASS] write_file_result on directory returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] write_file_result on directory: expected error, ok=${wdok}")
+        failed += 1
+    }
+
+    // Test 17: delete_file_result on a directory returns error (not panic)
+    mut ddok, ddderr = io.delete_file("/tmp")
+    if ddderr != nil {
+        println("  [PASS] delete_file_result on directory returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] delete_file_result on directory: expected error, ok=${ddok}")
+        failed += 1
+    }
+
+    // Test 18: append_file_result on a directory returns error (not panic)
+    mut adok, adderr = io.append_file("/tmp", "data")
+    if adderr != nil {
+        println("  [PASS] append_file_result on directory returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] append_file_result on directory: expected error, ok=${adok}")
+        failed += 1
+    }
+
+    // Test 19: copy_file_result with directory src returns error (not panic)
+    mut cdok, cdderr = io.copy_file("/tmp", "/tmp/ez_dst_copy")
+    if cdderr != nil {
+        println("  [PASS] copy_file_result with directory src returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy_file_result directory src: expected error, ok=${cdok}")
+        failed += 1
+    }
+
     // Cleanup
-    mut _ = io.remove_dir("/tmp/ez_result_mkdir_1547")
-    mut _ = io.delete_file("/tmp/ez_result_test_1547.txt")
+    mut _, _ = io.remove_dir("/tmp/ez_result_mkdir_1547")
+    mut _, _ = io.delete_file("/tmp/ez_result_test_1547.txt")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

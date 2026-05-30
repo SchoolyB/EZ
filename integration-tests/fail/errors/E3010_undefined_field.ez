@@ -1,6 +1,6 @@
 /*
- * Error Test: E4003 - undefined-field
- * Expected: "field not found"
+ * Error Test: E3010 - undefined-field
+ * Expected: "struct 'Point' has no field 'z'"
  */
 
 const Point struct {

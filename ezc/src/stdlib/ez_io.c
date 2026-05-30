@@ -24,20 +24,25 @@
 
 /* ---- Path manipulation (pure, no I/O) ---- */
 
-EzString ez_io_path_join(EzArena *arena, EzString a, EzString b) {
-    if (a.len == 0) return b;
-    if (b.len == 0) return a;
-    /* Absolute second argument replaces the first (Python/Rust convention) */
-    if (b.data[0] == '/' || b.data[0] == '\\') return b;
-    bool a_has_sep = (a.data[a.len - 1] == '/' || a.data[a.len - 1] == '\\');
-    bool b_has_sep = (b.data[0] == '/' || b.data[0] == '\\');
-    if (a_has_sep && b_has_sep) {
-        return ez_string_format(arena, "%.*s%.*s", a.len, a.data, b.len - 1, b.data + 1);
-    } else if (!a_has_sep && !b_has_sep) {
-        return ez_string_format(arena, "%.*s/%.*s", a.len, a.data, b.len, b.data);
-    } else {
-        return ez_string_format(arena, "%.*s%.*s", a.len, a.data, b.len, b.data);
+EzString ez_io_path_join(EzArena *arena, EzArray parts) {
+    if (parts.len == 0) return ez_string_lit(".");
+    EzString result = EZ_ARRAY_GET(parts, EzString, 0);
+    for (int32_t i = 1; i < parts.len; i++) {
+        EzString seg = EZ_ARRAY_GET(parts, EzString, i);
+        if (seg.len == 0) continue;
+        /* Absolute segment replaces accumulated path */
+        if (seg.data[0] == '/' || seg.data[0] == '\\') {
+            result = seg;
+            continue;
+        }
+        bool a_sep = result.len > 0 &&
+            (result.data[result.len - 1] == '/' || result.data[result.len - 1] == '\\');
+        if (a_sep)
+            result = ez_string_format(arena, "%.*s%.*s", result.len, result.data, seg.len, seg.data);
+        else
+            result = ez_string_format(arena, "%.*s/%.*s", result.len, result.data, seg.len, seg.data);
     }
+    return result;
 }
 
 EzString ez_io_dirname(EzArena *arena, EzString path) {
@@ -155,6 +160,9 @@ EzString ez_io_normalize(EzArena *arena, EzString path) {
 /* ---- Existing file operations ---- */
 
 EzString ez_io_read_file(EzArena *arena, EzString path) {
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        ez_panic_code("P0086", "io.read_file() cannot read a directory; use io.list_dir() or io.walk() to list directory contents");
     FILE *f = fopen(path.data, "rb");
     if (!f) return ez_string_lit("");
 
@@ -185,8 +193,7 @@ EzString ez_io_read_file(EzArena *arena, EzString path) {
         if (len == cap) {
             if (cap > (size_t)INT32_MAX / 2) {
                 fclose(f);
-                ez_panic(__FILE__, __LINE__,
-                    "io.read_file: input exceeds maximum string length");
+                ez_panic_code("P0053", "io.read_file: input exceeds maximum string length");
             }
             size_t new_cap = cap * 2;
             char *new_buf = ez_arena_alloc(arena, new_cap);
@@ -206,6 +213,48 @@ EzString ez_io_read_file(EzArena *arena, EzString path) {
     buf[len] = '\0';
     fclose(f);
     return (EzString){ buf, (int32_t)len };
+}
+
+EzArray ez_io_read_bytes(EzArena *arena, EzString path) {
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        ez_panic_code("P0086", "io.read_bytes() cannot read a directory");
+    FILE *f = fopen(path.data, "rb");
+    EzArray arr = ez_array_new(arena, (int32_t)sizeof(uint8_t), 0);
+    if (!f) return arr;
+    uint8_t buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        for (size_t i = 0; i < n; i++)
+            ez_array_push(arena, &arr, &buf[i]);
+    }
+    fclose(f);
+    return arr;
+}
+
+EzArray ez_io_read_lines(EzArena *arena, EzString path) {
+    EzArray arr = ez_array_new(arena, (int32_t)sizeof(EzString), 16);
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        ez_panic_code("P0086", "io.read_lines() cannot read a directory");
+    EzString content = ez_io_read_file(arena, path);
+    if (content.len == 0) return arr;
+    const char *p = content.data;
+    const char *end = content.data + content.len;
+    while (p < end) {
+        const char *nl = p;
+        while (nl < end && *nl != '\n') nl++;
+        int32_t len = (int32_t)(nl - p);
+        /* Strip trailing \r for Windows line endings */
+        if (len > 0 && p[len - 1] == '\r') len--;
+        char *linebuf = ez_arena_alloc(arena, (size_t)len + 1);
+        memcpy(linebuf, p, (size_t)len);
+        linebuf[len] = '\0';
+        EzString line = { linebuf, len };
+        ez_array_push(arena, &arr, &line);
+        p = nl + 1;
+    }
+    return arr;
 }
 
 bool ez_io_file_exists(EzString path) {
@@ -230,7 +279,18 @@ int64_t ez_io_file_size(EzString path) {
     return (int64_t)st.st_size;
 }
 
+EzResult_int ez_io_file_size_result(EzArena *arena, EzString path) {
+    struct stat st;
+    if (stat(path.data, &st) != 0)
+        return (EzResult_int){-1, ez_error_new(arena,
+            ez_string_format(arena, "cannot stat '%s'", path.data))};
+    return (EzResult_int){(int64_t)st.st_size, NULL};
+}
+
 bool ez_io_write_file(EzString path, EzString content) {
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        ez_panic_code("P0087", "io.write_file() cannot write to a directory");
     FILE *f = fopen(path.data, "wb");
     if (!f) return false;
     size_t written = fwrite(content.data, 1, (size_t)content.len, f);
@@ -239,6 +299,9 @@ bool ez_io_write_file(EzString path, EzString content) {
 }
 
 bool ez_io_append_file(EzString path, EzString content) {
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        ez_panic_code("P0088", "io.append_file() cannot append to a directory");
     FILE *f = fopen(path.data, "ab");
     if (!f) return false;
     size_t written = fwrite(content.data, 1, (size_t)content.len, f);
@@ -248,11 +311,8 @@ bool ez_io_append_file(EzString path, EzString content) {
 
 bool ez_io_delete_file(EzString path) {
     struct stat st;
-    if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode)) {
-        fflush(stdout);
-        fprintf(stderr, "panic: io.delete_file() cannot delete a directory — use io.delete_dir() for directories\n");
-        exit(1);
-    }
+    if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode))
+        ez_panic_code("P0077", "io.delete_file() cannot delete a directory; use io.remove_dir() for directories");
     return unlink(path.data) == 0;
 }
 
@@ -263,6 +323,9 @@ bool ez_io_rename_file(EzString old_path, EzString new_path) {
 /* ---- New file operations ---- */
 
 bool ez_io_copy_file(EzString src, EzString dst) {
+    struct stat _st;
+    if (stat(src.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        ez_panic_code("P0089", "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually");
     FILE *in = fopen(src.data, "rb");
     if (!in) return false;
     int out_fd = open(dst.data, O_WRONLY | O_CREAT | O_TRUNC, EZ_IO_FILE_MODE);
@@ -405,26 +468,81 @@ EzArray ez_io_glob(EzArena *arena, EzString pattern) {
 
 EzResult_string ez_io_read_file_result(EzArena *arena, EzString path) {
     EzResult_string r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = ez_string_lit("");
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot read '%s': is a directory", path.data));
+        return r;
+    }
     FILE *f = fopen(path.data, "rb");
     if (!f) {
         r.v0 = ez_string_lit("");
         r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot read '%s'", path.data));
         return r;
     }
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *buf = ez_arena_alloc(arena, (size_t)size + 1);
-    size_t read = fread(buf, 1, (size_t)size, f);
-    buf[read] = '\0';
+    long size = -1;
+    if (fseek(f, 0, SEEK_END) == 0) {
+        size = ftell(f);
+        if (size >= 0) (void)fseek(f, 0, SEEK_SET);
+    }
+    if (size >= 0 && size <= INT32_MAX) {
+        char *buf = ez_arena_alloc(arena, (size_t)size + 1);
+        size_t bytes = fread(buf, 1, (size_t)size, f);
+        buf[bytes] = '\0';
+        fclose(f);
+        r.v0 = (EzString){ buf, (int32_t)bytes };
+        r.v1 = NULL;
+        return r;
+    }
+    if (size > INT32_MAX) {
+        fclose(f);
+        r.v0 = ez_string_lit("");
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot read '%s': file exceeds maximum string length", path.data));
+        return r;
+    }
+    /* Streaming fallback for non-seekable inputs (pipes, /dev/stdin, etc.) */
+    clearerr(f);
+    size_t cap = 4096;
+    size_t len = 0;
+    char *buf = ez_arena_alloc(arena, cap);
+    for (;;) {
+        if (len == cap) {
+            if (cap > (size_t)INT32_MAX / 2) {
+                fclose(f);
+                ez_panic_code("P0053", "io.read_file: input exceeds maximum string length");
+            }
+            size_t new_cap = cap * 2;
+            char *new_buf = ez_arena_alloc(arena, new_cap);
+            memcpy(new_buf, buf, len);
+            buf = new_buf;
+            cap = new_cap;
+        }
+        size_t got = fread(buf + len, 1, cap - len, f);
+        if (got == 0) break;
+        len += got;
+    }
+    if (len == cap) {
+        char *grow = ez_arena_alloc(arena, len + 1);
+        memcpy(grow, buf, len);
+        buf = grow;
+    }
+    buf[len] = '\0';
     fclose(f);
-    r.v0 = (EzString){ buf, (int32_t)read };
+    r.v0 = (EzString){ buf, (int32_t)len };
     r.v1 = NULL;
     return r;
 }
 
 EzResult_bool ez_io_write_file_result(EzArena *arena, EzString path, EzString content) {
     EzResult_bool r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot write '%s': is a directory", path.data));
+        return r;
+    }
     FILE *f = fopen(path.data, "wb");
     if (!f) {
         r.v0 = false;
@@ -442,9 +560,10 @@ EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path) {
     EzResult_bool r;
     struct stat st;
     if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode)) {
-        fflush(stdout);
-        fprintf(stderr, "panic: io.delete_file() cannot delete a directory — use io.delete_dir() for directories\n");
-        exit(1);
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot delete '%s': is a directory; use io.remove_dir() for directories", path.data));
+        return r;
     }
     if (unlink(path.data) == 0) {
         r.v0 = true;
@@ -458,6 +577,13 @@ EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path) {
 
 EzResult_bool ez_io_append_file_result(EzArena *arena, EzString path, EzString content) {
     EzResult_bool r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot append to '%s': is a directory", path.data));
+        return r;
+    }
     if (ez_io_append_file(path, content)) {
         r.v0 = true;
         r.v1 = NULL;
@@ -482,6 +608,13 @@ EzResult_bool ez_io_rename_file_result(EzArena *arena, EzString old_path, EzStri
 
 EzResult_bool ez_io_copy_file_result(EzArena *arena, EzString src, EzString dst) {
     EzResult_bool r;
+    struct stat _st;
+    if (stat(src.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot copy '%s': is a directory", src.data));
+        return r;
+    }
     if (ez_io_copy_file(src, dst)) {
         r.v0 = true;
         r.v1 = NULL;
@@ -576,6 +709,88 @@ EzResult_array ez_io_walk_result(EzArena *arena, EzString path) {
     }
     closedir(d);
     r.v0 = ez_io_walk(arena, path);
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_array ez_io_read_bytes_result(EzArena *arena, EzString path) {
+    EzResult_array r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = ez_array_new(arena, (int32_t)sizeof(uint8_t), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot read '%s': is a directory", path.data));
+        return r;
+    }
+    FILE *f = fopen(path.data, "rb");
+    if (!f) {
+        r.v0 = ez_array_new(arena, (int32_t)sizeof(uint8_t), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot read '%s'", path.data));
+        return r;
+    }
+    r.v0 = ez_array_new(arena, (int32_t)sizeof(uint8_t), 0);
+    uint8_t buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        for (size_t i = 0; i < n; i++)
+            ez_array_push(arena, &r.v0, &buf[i]);
+    }
+    fclose(f);
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_array ez_io_read_lines_result(EzArena *arena, EzString path) {
+    EzResult_array r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = ez_array_new(arena, (int32_t)sizeof(EzString), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "cannot read '%s': is a directory", path.data));
+        return r;
+    }
+    EzResult_string fr = ez_io_read_file_result(arena, path);
+    if (fr.v1 != NULL) {
+        r.v0 = ez_array_new(arena, (int32_t)sizeof(EzString), 0);
+        r.v1 = fr.v1;
+        return r;
+    }
+    r.v0 = ez_array_new(arena, (int32_t)sizeof(EzString), 16);
+    EzString content = fr.v0;
+    const char *p = content.data;
+    const char *end = content.data + content.len;
+    while (p < end) {
+        const char *nl = p;
+        while (nl < end && *nl != '\n') nl++;
+        int32_t len = (int32_t)(nl - p);
+        if (len > 0 && p[len - 1] == '\r') len--;
+        char *linebuf = ez_arena_alloc(arena, (size_t)len + 1);
+        memcpy(linebuf, p, (size_t)len);
+        linebuf[len] = '\0';
+        EzString line = { linebuf, len };
+        ez_array_push(arena, &r.v0, &line);
+        p = nl + 1;
+    }
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_array ez_io_glob_result(EzArena *arena, EzString pattern) {
+    EzResult_array r;
+    glob_t gl;
+    int rc = glob(pattern.data, GLOB_NOSORT, NULL, &gl);
+    if (rc != 0 && rc != GLOB_NOMATCH) {
+        r.v0 = ez_array_new(arena, (int32_t)sizeof(EzString), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena,
+            "glob pattern failed: '%s'", pattern.data));
+        return r;
+    }
+    r.v0 = ez_array_new(arena, (int32_t)sizeof(EzString), (int32_t)gl.gl_pathc);
+    for (size_t i = 0; i < gl.gl_pathc; i++) {
+        EzString s = ez_string_format(arena, "%s", gl.gl_pathv[i]);
+        ez_array_push(arena, &r.v0, &s);
+    }
+    globfree(&gl);
     r.v1 = NULL;
     return r;
 }

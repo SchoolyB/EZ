@@ -1,5 +1,5 @@
 /*
- * Error Test: E1009 - multi-char-literal
+ * Error Test: E1018 - multi-char-literal
  * Expected: "character literal must contain exactly one character"
  */
 

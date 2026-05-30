@@ -1,0 +1,17 @@
+/*
+ * Error Test: E3006 - base64 input length not a multiple of 4
+ * Expected: "invalid base64"
+ *
+ * Pre-fix this caused a heap overread/overflow because the loop
+ * iterated in 4-char chunks while the output buffer was sized for
+ * valid input only. Now rejected as malformed.
+ */
+
+import @encoding
+
+do main() {
+    mut result string, err Error = encoding.base64_decode("abcde")
+    if err != nil {
+        panic("${err}")
+    }
+}

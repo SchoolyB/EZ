@@ -60,4 +60,5 @@ do main() {
 
     println("wildcard_composite_unifier: ${pass} passed, ${fail} failed")
     if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
 }

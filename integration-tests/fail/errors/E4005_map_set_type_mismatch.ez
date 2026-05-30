@@ -1,0 +1,11 @@
+/*
+ * Error Test: E4005 - map-set-type-mismatch
+ * Expected: "module 'maps' has no function named 'set'"
+ */
+
+import @maps
+
+do main() {
+    mut m map[string:int] = {"a": 1, "b": 2}
+    maps.set(m, "c", "wrong")  // Should fail: string value into int map
+}

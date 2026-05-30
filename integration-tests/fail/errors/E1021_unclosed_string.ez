@@ -1,5 +1,5 @@
 /*
- * Error Test: E1004 - unclosed-string
+ * Error Test: E1021 - unclosed-string
  * Expected: "unclosed string literal"
  */
 

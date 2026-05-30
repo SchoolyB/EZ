@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5017 - embed() argument must be a string literal
+ * Expected: error when a variable is passed instead of a string literal
+ */
+
+do main() {
+    mut path string = "config.txt"
+    const content string = embed(path)
+    println(content)
+}

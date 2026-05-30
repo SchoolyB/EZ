@@ -143,8 +143,7 @@ EzString ez_crypto_md5(EzArena *arena, EzString data) {
 
 EzString ez_crypto_random_hex(EzArena *arena, int64_t length) {
     if (length < 0) {
-        ez_panic(__FILE__, __LINE__,
-            "crypto.random_hex: length must be non-negative (got %lld)", (long long)length);
+        ez_panic_code("P0051", "crypto.random_hex: length must be non-negative (got %lld)", (long long)length);
     }
     if (length == 0) {
         char *empty = ez_arena_alloc(arena, 1);
@@ -161,7 +160,7 @@ EzString ez_crypto_random_hex(EzArena *arena, int64_t length) {
     FILE *uf = fopen("/dev/urandom", "rb");
     if (!uf || (int64_t)fread(raw, 1, (size_t)nbytes, uf) != nbytes) {
         if (uf) fclose(uf);
-        ez_panic(__FILE__, __LINE__, "crypto.random_hex: failed to read from /dev/urandom");
+        ez_panic_code("P0052", "crypto.random_hex: failed to read from /dev/urandom");
     }
     fclose(uf);
 #endif

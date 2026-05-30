@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3055 - const array without fixed size
+ * Expected: "const arrays must have a fixed size"
+ */
+
+do main() {
+    const arr [int] = {1, 2, 3}
+    arr[0] = 10  // Trying to modify const array
+}

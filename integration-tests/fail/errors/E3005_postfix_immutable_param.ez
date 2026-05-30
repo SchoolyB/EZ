@@ -1,6 +1,6 @@
 /*
- * Error Test: E5016 - postfix on immutable parameter
- * Expected: "cannot modify"
+ * Error Test: E3005 - postfix on immutable parameter
+ * Expected: "cannot modify constant; declare with 'mut' to make it mutable"
  */
 
 do test_increment(x int) {

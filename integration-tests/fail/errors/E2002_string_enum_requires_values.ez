@@ -1,5 +1,5 @@
 /*
- * Error Test: E2031 - string-enum-requires-values
+ * Error Test: E2002 - string-enum-requires-values
  * Expected: "string enum requires explicit value"
  */
 

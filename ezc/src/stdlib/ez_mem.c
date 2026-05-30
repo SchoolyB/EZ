@@ -13,10 +13,8 @@
 EzArena *ez_mem_arena(int64_t size) {
     if (size <= 0) size = EZ_MIN_ARENA_SIZE;
     if (size > EZ_MAX_ARENA_SIZE) {
-        fflush(stdout);
-        fprintf(stderr, "panic: mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB\n",
+        ez_panic_code("P0061", "mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB",
             (long long)size);
-        exit(1);
     }
     return ez_arena_create((size_t)size);
 }

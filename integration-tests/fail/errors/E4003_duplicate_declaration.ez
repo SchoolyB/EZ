@@ -1,5 +1,5 @@
 /*
- * Error Test: E2023 - duplicate-declaration
+ * Error Test: E4003 - duplicate-declaration
  * Expected: "duplicate" or "already declared"
  */
 

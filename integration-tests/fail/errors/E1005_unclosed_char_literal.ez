@@ -1,8 +1,0 @@
-/*
- * Error Test: E1005 - unclosed character literal
- * Expected: "character literal was never closed"
- */
-
-do main() {
-    mut c char = 'a
-}

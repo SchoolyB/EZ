@@ -1233,6 +1233,14 @@ static void test_error_E3061_recursive_struct(void) {
     diag_destroy(d);
 }
 
+static void test_valid_recursive_pointer_struct(void) {
+    DiagnosticList *d = check_diag(
+        "const Node struct {\n value int\n next ^Node\n}\n"
+        "do main() { }");
+    ASSERT(d->count == 0);
+    diag_destroy(d);
+}
+
 static void test_error_E3063_return_addr_local(void) {
     DiagnosticList *d = check_diag(
         "do bad() -> ptr<int> {\n"
@@ -1601,6 +1609,7 @@ int main(void) {
     RUN_TEST(test_error_E3057_invalid_map_key);
     RUN_TEST(test_error_E3059_const_map);
     RUN_TEST(test_error_E3061_recursive_struct);
+    RUN_TEST(test_valid_recursive_pointer_struct);
     RUN_TEST(test_error_E3063_return_addr_local);
     RUN_TEST(test_error_E3072_return_nil_non_pointer);
     RUN_TEST(test_error_E3073_return_in_main);

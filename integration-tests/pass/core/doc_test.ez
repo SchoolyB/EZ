@@ -41,4 +41,5 @@ const Permissions enum {
 
 do main() {
     println("Doc test file")
+    println("ALL TESTS PASSED")
 }

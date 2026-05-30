@@ -40,5 +40,6 @@ do main() {
     assert(p^ == 99, "addr works")
 
     // exit last — confirms everything above ran
+    println("ALL TESTS PASSED")
     exit(0)
 }

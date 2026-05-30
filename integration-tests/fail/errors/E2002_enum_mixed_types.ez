@@ -1,5 +1,5 @@
 /*
- * Error Test: E3028 - enum-mixed-types
+ * Error Test: E2002 - enum-mixed-types
  * Expected: "mixed type" or "same type"
  */
 

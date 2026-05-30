@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2072 - illegal-character
+ * Expected: "illegal character" or "unexpected character '&'"
+ */
+
+do main() {
+    mut x int = 5 & 3  // Single & is illegal, should be &&
+}

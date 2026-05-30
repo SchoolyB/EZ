@@ -1,5 +1,5 @@
 /*
- * Error Test: E5010 - continue-outside-loop
+ * Error Test: E2050 - continue-outside-loop
  * Expected: "continue statement outside loop"
  */
 

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3001 - requires-boolean
+ * Expected: "must be a boolean" or "requires boolean"
+ */
+
+
+do main() {
+    mut s string = string(42)  // testing bool requirement - using assert
+    assert("not a bool")  // string instead of bool
+}

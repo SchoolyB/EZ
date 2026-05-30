@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2002 - reserved-variable-name
+ * Expected: "'if' is a reserved keyword and cannot be used as a variable name"
+ */
+
+do main() {
+    mut if = 5
+}

@@ -1,5 +1,5 @@
 /*
- * Error Test: E2034 - invalid-struct-field
+ * Error Test: E2002 - invalid-struct-field
  * Expected: "struct field" or "reserved"
  */
 

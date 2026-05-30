@@ -1,5 +1,5 @@
 /*
- * Error Test: E3022 - undefined-struct-field
+ * Error Test: E2002 - undefined-struct-field
  * Expected: "struct field" or "not found"
  */
 

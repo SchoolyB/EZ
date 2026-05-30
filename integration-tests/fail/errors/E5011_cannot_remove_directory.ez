@@ -1,5 +1,5 @@
 /*
- * Error Test: E7018 - cannot-remove-directory
+ * Error Test: E5011 - cannot-remove-directory
  * Expected: "cannot remove directories" or "io.remove"
  */
 

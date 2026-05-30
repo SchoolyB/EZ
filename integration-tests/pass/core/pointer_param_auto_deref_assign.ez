@@ -66,4 +66,5 @@ do main() {
 
     println("pointer_param_auto_deref_assign: ${pass} passed, ${fail} failed")
     if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
 }

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - variable shadows type name
+ * Expected: compiler should reject this with E2002
+ */
+
+const Status enum { ACTIVE, INACTIVE }
+
+do main() {
+    mut Status = "shadowed"
+}

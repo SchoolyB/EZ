@@ -1,5 +1,5 @@
 /*
- * Error Test: E4010 - nil-member-access
+ * Error Test: E2002 - nil-member-access
  * Expected: "cannot access member of nil"
  */
 

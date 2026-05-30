@@ -1,6 +1,6 @@
 /*
- * Error Test: E5016 - immutable-parameter
- * Expected: "cannot modify read-only parameter"
+ * Error Test: E3005 - immutable-parameter
+ * Expected: "cannot modify constant; declare with 'mut' to make it mutable"
  */
 
 const Person struct {

@@ -1,6 +1,6 @@
 /*
- * E5007_const_array_modification.ez
- * Tests that modifying a const array fails with E5007
+ * Error Test: E5007 - modifying a const array
+ * Expected: compiler should reject this with E5007
  */
 
 import @arrays

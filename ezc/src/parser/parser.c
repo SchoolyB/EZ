@@ -24,11 +24,13 @@ typedef enum {
     PREC_OR,            /* || */
     PREC_AND,           /* && */
     PREC_EQUALS,        /* == != */
+    PREC_BITWISE,       /* bit_and, bit_or, bit_xor — above == so a bit_and b == c → (a bit_and b) == c */
     PREC_LESSGREATER,   /* > < >= <= */
     PREC_MEMBERSHIP,    /* in, not_in */
+    PREC_SHIFT,         /* bit_shift_left, bit_shift_right */
     PREC_SUM,           /* + - */
     PREC_PRODUCT,       /* * / % */
-    PREC_PREFIX,        /* -x !x &x */
+    PREC_PREFIX,        /* -x !x bit_not x */
     PREC_CALL,          /* f(x) */
     PREC_INDEX,         /* a[i] a.b */
     PREC_POSTFIX,       /* x++ x-- */
@@ -110,7 +112,11 @@ static bool parser_is_struct_name(Parser *p, const char *name) {
 static void next_token(Parser *p) {
     p->cur_token = p->peek_token;
     p->peek_token = lexer_next_token(p->lexer);
-    /* Surface lexer errors immediately with their specific error code */
+    /* Surface lexer errors (E1xxx). The lexer does not call diag_error()
+     * directly — it sets error_code/error_msg on itself and returns
+     * TOK_ILLEGAL. We detect that here and emit the diagnostic so the
+     * lexer stays free of diagnostic dependencies. After emitting, clear
+     * error_code so the same error is not reported twice. */
     if (p->peek_token.type == TOK_ILLEGAL && p->lexer->error_code) {
         diag_error_msg(p->diag, p->lexer->error_code,
             arena_strdup(p->arena, p->lexer->error_msg),
@@ -186,28 +192,33 @@ static void synchronize(Parser *p) {
 
 static Precedence token_precedence(TokenType t) {
     switch (t) {
-    case TOK_OR:             return PREC_OR;
-    case TOK_AND:            return PREC_AND;
+    case TOK_OR:              return PREC_OR;
+    case TOK_AND:             return PREC_AND;
     case TOK_EQ:
-    case TOK_NOT_EQ:         return PREC_EQUALS;
+    case TOK_NOT_EQ:          return PREC_EQUALS;
+    case TOK_BIT_AND:
+    case TOK_BIT_OR:
+    case TOK_BIT_XOR:         return PREC_BITWISE;
     case TOK_LT:
     case TOK_GT:
     case TOK_LT_EQ:
-    case TOK_GT_EQ:          return PREC_LESSGREATER;
+    case TOK_GT_EQ:           return PREC_LESSGREATER;
     case TOK_IN:
-    case TOK_NOT_IN:         return PREC_MEMBERSHIP;
+    case TOK_NOT_IN:          return PREC_MEMBERSHIP;
+    case TOK_BIT_SHIFT_LEFT:
+    case TOK_BIT_SHIFT_RIGHT: return PREC_SHIFT;
     case TOK_PLUS:
-    case TOK_MINUS:          return PREC_SUM;
+    case TOK_MINUS:           return PREC_SUM;
     case TOK_ASTERISK:
     case TOK_SLASH:
-    case TOK_PERCENT:        return PREC_PRODUCT;
-    case TOK_LPAREN:         return PREC_CALL;
-    case TOK_LBRACKET:       return PREC_INDEX;
-    case TOK_DOT:            return PREC_INDEX;
+    case TOK_PERCENT:         return PREC_PRODUCT;
+    case TOK_LPAREN:          return PREC_CALL;
+    case TOK_LBRACKET:        return PREC_INDEX;
+    case TOK_DOT:             return PREC_INDEX;
     case TOK_INCREMENT:
     case TOK_DECREMENT:
-    case TOK_CARET:          return PREC_POSTFIX;
-    default:                 return PREC_LOWEST;
+    case TOK_CARET:           return PREC_POSTFIX;
+    default:                  return PREC_LOWEST;
     }
 }
 
@@ -595,6 +606,26 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
                 diag_error_code(p->diag, "E2071", p->file, p->cur_token.line, p->cur_token.column, 0);
             } else {
                 Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
+                /* Offset the sub-lexer to the real source position of this
+                 * ${...} expression so diagnostics point at the right line
+                 * and column instead of always reporting 1:N. expr_start
+                 * points to the first char of the expression (past "${"),
+                 * so (expr_start - raw) is its byte offset from the opening
+                 * quote. Count any newlines in the string before this point
+                 * to handle multi-line strings correctly. */
+                {
+                    int line_off = 0;
+                    int col_from_nl = 0;
+                    for (const char *cp = raw; cp < expr_start; cp++) {
+                        if (*cp == '\n') { line_off++; col_from_nl = 0; }
+                        else col_from_nl++;
+                    }
+                    expr_lexer->line = p->cur_token.line + line_off;
+                    if (line_off > 0)
+                        expr_lexer->column = col_from_nl + 1;
+                    else
+                        expr_lexer->column = p->cur_token.column + 1 + (int)(expr_start - raw);
+                }
                 Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
                 /* Inherit struct names from parent so interpolated expressions
                  * can recognize struct literals. */
@@ -783,7 +814,8 @@ static AstNode *parse_prefix(Parser *p) {
         return node;
     }
     case TOK_MINUS:
-    case TOK_BANG: return parse_prefix_expression(p);
+    case TOK_BANG:
+    case TOK_BIT_NOT: return parse_prefix_expression(p);
     case TOK_AMPERSAND: {
         diag_error_code(p->diag, "E2072",
             p->file, p->cur_token.line, p->cur_token.column, 0);
@@ -1081,6 +1113,8 @@ static AstNode *parse_infix(Parser *p, AstNode *left) {
     case TOK_LT_EQ: case TOK_GT_EQ:
     case TOK_AND: case TOK_OR:
     case TOK_IN: case TOK_NOT_IN:
+    case TOK_BIT_AND: case TOK_BIT_OR: case TOK_BIT_XOR:
+    case TOK_BIT_SHIFT_LEFT: case TOK_BIT_SHIFT_RIGHT:
         return parse_infix_expression(p, left);
     case TOK_LPAREN:
         return parse_call_expression(p, left);
@@ -2054,6 +2088,9 @@ static AstNode *parse_struct_declaration(Parser *p) {
         }
         next_token(p);
 
+        /* Skip optional trailing comma after a field type */
+        if (cur_token_is(p, TOK_COMMA)) next_token(p);
+
         /* Reject semicolons */
         if (cur_token_is(p, TOK_SEMICOLON)) {
             diag_error_msg(p->diag, "E2069",
@@ -2211,31 +2248,39 @@ static AstNode *parse_ensure_statement(Parser *p) {
 }
 
 static AstNode *parse_for_statement(Parser *p) {
-    AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, p->cur_token);
+    Token for_tok = p->cur_token;
 
     /* Optional parentheses: for (i in range(...)) */
     bool has_parens = peek_token_is(p, TOK_LPAREN);
     if (has_parens) next_token(p);
 
-    if (!expect_peek(p, TOK_IDENT)) return NULL;
-    node->data.for_stmt.var_name = p->cur_token.literal;
-
-    /* Optional type annotation */
-    node->data.for_stmt.var_type = NULL;
-
-    if (!expect_peek(p, TOK_IN)) return NULL;
-
-    next_token(p);
-    node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
-
-    if (has_parens && peek_token_is(p, TOK_RPAREN)) {
-        next_token(p);
+    if (peek_token_is(p, TOK_IDENT)) {
+        next_token(p);  /* advance: cur_token = IDENT */
+        if (peek_token_is(p, TOK_IN)) {
+            /* --- iteration form: for x in collection { } --- */
+            AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, for_tok);
+            node->data.for_stmt.var_name = p->cur_token.literal;
+            node->data.for_stmt.var_type = NULL;
+            next_token(p);  /* consume IN */
+            next_token(p);  /* advance to iterable start */
+            node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
+            if (has_parens && peek_token_is(p, TOK_RPAREN)) next_token(p);
+            if (!expect_peek(p, TOK_LBRACE)) return NULL;
+            node->data.for_stmt.body = parse_block_statement(p);
+            return node;
+        }
+        /* else: cur_token = IDENT, fall through to while-style */
+    } else {
+        next_token(p);  /* advance to condition start token */
     }
 
+    /* --- while-style: for condition { } --- */
+    AstNode *wnode = ast_alloc(p->arena, NODE_WHILE_STMT, for_tok);
+    wnode->data.while_stmt.condition = parse_expression(p, PREC_LOWEST);
+    if (has_parens && peek_token_is(p, TOK_RPAREN)) next_token(p);
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
-    node->data.for_stmt.body = parse_block_statement(p);
-
-    return node;
+    wnode->data.while_stmt.body = parse_block_statement(p);
+    return wnode;
 }
 
 static AstNode *parse_for_each_statement(Parser *p) {

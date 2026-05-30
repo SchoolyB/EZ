@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 191 codes** (176 errors, 15 warnings)
+**Total: 286 codes** (183 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -74,6 +74,7 @@
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
+| `E3004` | types | string index assignment requires a char value; got '%s' |
 | `E3005` | types | cannot modify constant '%s'; declare with 'mut' to make it mutable |
 | `E3006` | types | too many variables; the function returns %d value(s) but variable %d was requested |
 | `E3007` | types | cannot negate type '%s'; only numeric types support negation |
@@ -96,7 +97,7 @@
 | `E3034` | types | 'any' type is reserved for internal use and cannot be used in declarations |
 | `E3035` | types | not all code paths in '%s' return a value |
 | `E3036` | types | value %lld is out of range for type '%s' (valid range: %lld to %lld) |
-| `E3038` | types | 'void' cannot be used as a variable type or in expressions like typeof() |
+| `E3038` | types | 'void' cannot be used as a variable type or in expressions like type_of() |
 | `E3039` | types | ensure expects a function call; for example: ensure close(file) |
 | `E3040` | types | '%s' returns %d values; use mut a, b = %s() to capture all of them |
 | `E3041` | types | cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps |
@@ -147,6 +148,7 @@
 | `E3086` | types | fmt.%s format string must be a string literal; use string interpolation for dynamic values |
 | `E3087` | types | %%n is not permitted in fmt format strings |
 | `E3088` | types | fmt.%s format directive '%%%s' expects %s but argument %d has type '%s' |
+| `E3089` | usage | '%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -171,6 +173,8 @@
 | `E5014` | usage | here() takes no arguments; the call site's file, line, and column are substituted at compile time |
 | `E5015` | usage | postfix ++ and -- require a variable, not a value or expression |
 | `E5016` | naming | this name is reserved by a builtin function and cannot be redeclared |
+| `E5017` | usage | embed() argument must be a string literal file path, not an expression |
+| `E5018` | usage | embed() cannot open '%s': file not found or unreadable |
 | `E5023` | usage | cannot use '%s' on type '%s'; only integer types support increment/decrement |
 | `E5024` | usage | return type mismatch: cannot return signed '%s' as unsigned '%s' |
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
@@ -179,6 +183,7 @@
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
 | `E6004` | imports | cannot import own module directory |
+| `E6008` | imports | '%s.%s' is a module constant and cannot be assigned to |
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference; use ()function_name to pass a function |
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 or greater) |
@@ -187,6 +192,8 @@
 | `E9005` | stdlib | invalid range: start (%lld) must be less than end (%lld) |
 | `E12001` | stdlib | maps.%s() requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
+| `E8001` | bitwise | '%s' can only be used with integers; got '%s' and '%s' |
+| `E8002` | bitwise | 'bit_not' can only be used with integers; got '%s' |
 
 ---
 
@@ -197,7 +204,6 @@
 | `W1001` | cleanup | variable is declared but never used; remove it or use it |
 | `W1003` | cleanup | function is declared but never called; remove it or call it |
 | `W1005` | cleanup | typed blank identifier; '_' doesn't need a type annotation, use 'mut _ = <expr>' instead |
-| `W2001` | cleanup | this module is imported but never used; remove the import or use the module |
 | `W1002` | cleanup | this import is never used; remove it or use a function from the module |
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
 | `W2003` | safety | unreachable code; this statement will never execute because it comes after a return |
@@ -212,27 +218,123 @@
 
 ---
 
-## Error Code Ranges
+## Panics
 
-| Range | What It Means |
-|-------|---------------|
-| E1xxx | Problems reading your code (invalid characters, numbers too large) |
-| E2xxx | Problems understanding your code (missing brackets, unexpected symbols) |
-| E3xxx | Type problems (wrong types, invalid operations) |
-| E4xxx | Name problems (undefined variables, duplicate names) |
-| E5xxx | Usage problems (wrong number of arguments) |
-| E6xxx | Import problems (unknown modules) |
-| E7xxx | Standard library problems (wrong usage of built-in functions) |
-| E8xxx | Math errors (sqrt of negative, log of non-positive) |
-| E9xxx | Array errors (empty array ops, invalid ranges) |
-| E10xxx | String errors (index out of bounds, repeat count) |
-| E11xxx | Time errors (parsing failures) |
-| E12xxx | Map errors (unhashable keys, immutable maps) |
-| E13xxx | JSON errors (syntax, unsupported types) |
-| W1xxx | Cleanup suggestions (unused variables, functions) |
-| W2xxx | Safety warnings (shadowing, unused imports) |
-| W3xxx | Quality warnings (empty blocks) |
+Runtime panics are fatal errors that terminate the program immediately. They are not compiler errors — they happen at runtime when the program encounters an unrecoverable condition.
+
+| Code | Category | Description |
+|------|----------|-------------|
+| `P0001` | memory | cannot allocate from a destroyed arena; mem.destroy() was already called on this arena |
+| `P0002` | memory | mem.destroy() called on an arena that was already destroyed; each arena can only be destroyed once |
+| `P0003` | runtime | maximum recursion depth exceeded (%d calls deep); your function is calling itself too many times |
+| `P0004` | arithmetic | addition result is too large; value exceeds the range of int |
+| `P0005` | arithmetic | subtraction result is too large; value exceeds the range of int |
+| `P0006` | arithmetic | multiplication result is too large; value exceeds the range of int |
+| `P0007` | arithmetic | negation result is too large; value exceeds the range of int |
+| `P0008` | arithmetic | addition result is too large; value exceeds the range of uint |
+| `P0009` | arithmetic | subtraction result is negative, but uint cannot hold negative values |
+| `P0010` | arithmetic | multiplication result is too large; value exceeds the range of uint |
+| `P0011` | arithmetic | %s addition result is too large; value exceeds the range of this type |
+| `P0012` | arithmetic | %s subtraction result is too large; value exceeds the range of this type |
+| `P0013` | arithmetic | %s multiplication result is too large; value exceeds the range of this type |
+| `P0014` | arithmetic | %s negation result is too large; value exceeds the range of this type |
+| `P0015` | arithmetic | %s addition result is too large; value exceeds the range of this unsigned type |
+| `P0016` | arithmetic | %s subtraction result is negative, but this unsigned type cannot hold negative values |
+| `P0017` | arithmetic | %s multiplication result is too large; value exceeds the range of this unsigned type |
+| `P0018` | arithmetic | cast to %s failed; value %lld is outside the valid range (%lld to %lld) |
+| `P0019` | arithmetic | cast to %s failed; value %lld is outside the valid range (0 to %llu) |
+| `P0020` | arithmetic | cannot convert float to int; the value is too large, too small, or NaN |
+| `P0021` | arithmetic | i128 addition result is too large; value exceeds the range of i128 |
+| `P0022` | arithmetic | i128 subtraction result is too large; value exceeds the range of i128 |
+| `P0023` | arithmetic | i128 multiplication result is too large; value exceeds the range of i128 |
+| `P0024` | arithmetic | u128 addition result is too large; value exceeds the range of u128 |
+| `P0025` | arithmetic | u128 subtraction result is negative, but u128 cannot hold negative values |
+| `P0026` | arithmetic | u128 multiplication result is too large; value exceeds the range of u128 |
+| `P0027` | arithmetic | i256 addition result is too large; value exceeds the range of i256 |
+| `P0028` | arithmetic | i256 subtraction result is too large; value exceeds the range of i256 |
+| `P0029` | arithmetic | i256 multiplication result is too large; value exceeds the range of i256 |
+| `P0030` | arithmetic | u256 addition result is too large; value exceeds the range of u256 |
+| `P0031` | arithmetic | u256 subtraction result is negative, but u256 cannot hold negative values |
+| `P0032` | arithmetic | u256 multiplication result is too large; value exceeds the range of u256 |
+| `P0033` | bounds | index out of bounds; tried to access index %d but the length is %d |
+| `P0034` | iteration | cannot modify array during for_each iteration |
+| `P0035` | iteration | cannot modify map during for_each iteration |
+| `P0036` | encoding | encoding.base64_decode: input length %d is not a multiple of 4 |
+| `P0037` | encoding | encoding.base64_decode: padding character '=' before end of input |
+| `P0038` | encoding | encoding.base64_decode: invalid padding |
+| `P0039` | encoding | encoding.base64_decode: invalid character in input |
+| `P0040` | encoding | encoding.hex_decode: input length %d is not even |
+| `P0041` | encoding | encoding.hex_decode: invalid hex character at position %d |
+| `P0042` | encoding | encoding.url_decode: invalid percent-escape at position %d |
+| `P0043` | bounds | arrays.insert_at: index %d is out of bounds for an array of length %d |
+| `P0044` | bounds | arrays.remove_at: index %d is out of bounds for an array of length %d |
+| `P0045` | bounds | arrays.get_first called on an empty array |
+| `P0046` | bounds | arrays.get_last called on an empty array |
+| `P0047` | bounds | arrays.remove_first called on an empty array |
+| `P0048` | bounds | arrays.remove_last called on an empty array |
+| `P0049` | bounds | to_char() index out of bounds; index %lld is negative |
+| `P0050` | bounds | to_char() index out of bounds; index %lld but string has %lld characters |
+| `P0051` | crypto | crypto.random_hex: length must be non-negative (got %lld) |
+| `P0052` | crypto | crypto.random_hex: failed to read from /dev/urandom |
+| `P0053` | io | io.read_file: input exceeds maximum string length |
+| `P0054` | strconv | strconv.to_int: invalid base %d; must be between 2 and 36 |
+| `P0055` | strconv | strconv.to_int: cannot convert '%s' to int (base %d) |
+| `P0056` | strconv | strconv.to_uint: invalid base %d; must be between 2 and 36 |
+| `P0057` | strconv | strconv.to_uint: cannot convert '%s' to uint (base %d) |
+| `P0058` | strconv | strconv.to_uint: cannot convert '%s' to uint; value is negative |
+| `P0059` | strconv | strconv.to_float: cannot convert '%s' to float |
+| `P0060` | strconv | strconv.to_bool: cannot convert '%s' to bool |
+| `P0061` | memory | mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB |
+| `P0062` | random | random.sample() count %d exceeds array length %d |
+| `P0063` | random | random.sample() count cannot be negative (%d) |
+| `P0064` | math | math.sqrt() requires a non-negative number, got %g |
+| `P0065` | math | math.log() requires a positive number, got %g |
+| `P0066` | math | math.log2() requires a positive number, got %g |
+| `P0067` | math | math.log10() requires a positive number, got %g |
+| `P0068` | math | math.asin() requires value in [-1, 1], got %g |
+| `P0069` | math | math.acos() requires value in [-1, 1], got %g |
+| `P0070` | math | math.factorial() requires a non-negative integer, got %lld |
+| `P0071` | strings | strings.replace() result exceeds maximum string length |
+| `P0072` | strings | strings.repeat() count cannot be negative (%lld) |
+| `P0073` | strings | strings.repeat() result exceeds maximum string length |
+| `P0074` | uuid | uuid.parse: invalid UUID string |
+| `P0075` | runtime | assertion failed |
+| `P0076` | runtime | panic |
+| `P0077` | io | io.delete_file() cannot delete a directory; use io.remove_dir() for directories |
+| `P0078` | arithmetic | division by zero |
+| `P0079` | arithmetic | %s result is too large; value exceeds the range of this type |
+| `P0080` | runtime | nil pointer dereference |
+| `P0081` | runtime | key not found in map |
+| `P0082` | bounds | string index %d out of bounds (length %d) |
+| `P0083` | runtime | sleep duration cannot be negative (%lld) |
+| `P0084` | runtime | cannot convert '%s' to int |
+| `P0085` | runtime | cannot convert '%s' to float |
+| `P0086` | io | io.read_file() cannot read a directory; use io.list_dir() or io.walk() to list directory contents |
+| `P0087` | io | io.write_file() cannot write to a directory |
+| `P0088` | io | io.append_file() cannot append to a directory |
+| `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
 
 ---
 
-*Generated on 2026-05-20 21:24:12 UTC*
+## Code Ranges
+
+| Range | What It Means |
+|-------|---------------|
+| E1xxx | Problems reading your code (invalid characters, malformed literals) |
+| E2xxx | Problems understanding your code (missing brackets, unexpected symbols) |
+| E3xxx | Type problems (wrong types, invalid operations) |
+| E4xxx | Name problems (undefined variables, duplicate names) |
+| E5xxx | Usage problems (wrong number of arguments, invalid assignment targets) |
+| E6xxx | Import problems (unknown modules, missing files) |
+| E7xxx | Standard library problems (wrong usage of built-in functions) |
+| E8xxx | Bitwise operator errors (non-integer operands) |
+| E9xxx | Array errors (empty array ops, invalid ranges) |
+| E12xxx | Map errors (unhashable keys, duplicate keys) |
+| W1xxx | Cleanup suggestions (unused variables, functions) |
+| W2xxx | Safety warnings (shadowing, unused imports) |
+| W3xxx | Quality warnings (uninitialized elements, pointer lifetime) |
+| P0xxx | Runtime panics (overflow, out-of-bounds, nil dereference) |
+
+---
+
+*Generated on 2026-05-30 01:38:31 UTC*

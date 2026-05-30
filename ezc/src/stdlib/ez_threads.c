@@ -33,7 +33,11 @@ typedef struct {
 static void *thread_entry_0(void *arg) {
     ThreadArg0 *ta = (ThreadArg0 *)arg;
     EzThreadInternal *st = ta->state;
+    ez_default_arena = ez_arena_create(EZ_DEFAULT_ARENA_SIZE);
     ta->fn();
+    ez_arena_destroy(ez_default_arena, __FILE__, __LINE__);
+    free(ez_default_arena);
+    ez_default_arena = NULL;
     atomic_fetch_sub(&ez_threads_live_count, 1);
     atomic_store(&st->alive, 0);
     /* If detached, the state struct's lifetime ends here too. */
@@ -69,7 +73,11 @@ typedef struct {
 static void *thread_entry_1(void *arg) {
     ThreadArg1 *ta = (ThreadArg1 *)arg;
     EzThreadInternal *st = ta->state;
+    ez_default_arena = ez_arena_create(EZ_DEFAULT_ARENA_SIZE);
     ta->fn(ta->arg);
+    ez_arena_destroy(ez_default_arena, __FILE__, __LINE__);
+    free(ez_default_arena);
+    ez_default_arena = NULL;
     atomic_fetch_sub(&ez_threads_live_count, 1);
     atomic_store(&st->alive, 0);
     if (atomic_load(&st->detached)) free(st);

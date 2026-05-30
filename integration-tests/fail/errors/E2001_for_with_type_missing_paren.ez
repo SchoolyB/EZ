@@ -1,5 +1,5 @@
 /*
- * Error Test: E2002 - for loop with type annotation and missing closing paren
+ * Error Test: E2001 - for loop with type annotation and missing closing paren
  * Expected: "expected ), got { instead"
  */
 

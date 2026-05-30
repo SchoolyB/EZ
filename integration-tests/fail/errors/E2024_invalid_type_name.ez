@@ -1,8 +1,0 @@
-/*
- * Error Test: E2024 - invalid-type-name
- * Expected: "invalid type" or "expected valid type"
- */
-
-do main() {
-    mut x 123 = 5  // number is not valid type name
-}

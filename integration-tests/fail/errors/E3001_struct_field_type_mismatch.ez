@@ -1,3 +1,7 @@
+/*
+ * Error Test: E3001 - struct field type mismatch in literal
+ * Expected: compiler should reject this with E3001
+ */
 
 const Person struct {
     name string

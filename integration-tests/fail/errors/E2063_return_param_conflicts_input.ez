@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2063 - return parameter conflicts with input parameter
+ * Expected: compiler should reject this with E2063
+ */
+
+
+do process(name string) -> (name string) {
+    return name
+}
+
+do main() {
+    println(process("test"))
+}

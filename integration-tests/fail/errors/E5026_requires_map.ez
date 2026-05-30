@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5026 - requires-map
+ * Expected: "must be a map" or "requires map"
+ */
+
+import @maps
+
+do main() {
+    mut keys = maps.get_keys("not a map")
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4016 - undefined-type
+ * Expected: "undefined type 'FooBar'; check the spelling or import the module that defines it"
+ */
+
+do main() {
+    mut x FooBar = 5  // FooBar is not defined
+}

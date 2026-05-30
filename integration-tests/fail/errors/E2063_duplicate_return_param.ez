@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2063 - duplicate return parameter name
+ * Expected: compiler should reject this with E2063
+ */
+
+
+do getValues() -> (name string, name int) {
+    return "test", 42
+}
+
+do main() {
+    mut n string, i int = getValues()
+    println(n)
+}

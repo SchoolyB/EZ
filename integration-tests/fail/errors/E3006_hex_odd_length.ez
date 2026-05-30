@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3006 - hex input has odd length
+ * Expected: "invalid hex"
+ *
+ * hex_decode used to silently truncate odd-length input and trust
+ * sscanf for character validation. Now both are rejected up front.
+ */
+
+import @encoding
+
+do main() {
+    mut result string, err Error = encoding.hex_decode("abc")
+    if err != nil {
+        panic("${err}")
+    }
+}

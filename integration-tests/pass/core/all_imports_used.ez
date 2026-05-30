@@ -7,4 +7,5 @@ import @strings
 do main() {
     // Both std and strings modules are used
     println(strings.to_upper("hello"))
+    println("ALL TESTS PASSED")
 }

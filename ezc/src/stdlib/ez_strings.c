@@ -96,9 +96,7 @@ EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString
     if (cnt == 0) return s;
     int64_t new_len64 = (int64_t)s.len + cnt * ((int64_t)new_s.len - (int64_t)old_s.len);
     if (new_len64 < 0 || new_len64 > INT32_MAX) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strings.replace() result exceeds maximum string length\n");
-        exit(1);
+        ez_panic_code("P0071", "strings.replace() result exceeds maximum string length");
     }
     int32_t new_len = (int32_t)new_len64;
     char *buf = ez_arena_alloc(arena, (size_t)new_len + 1);
@@ -118,13 +116,11 @@ EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString
 }
 
 EzString ez_strings_repeat(EzArena *arena, EzString s, int64_t count) {
-    if (count < 0) { fflush(stdout); fprintf(stderr, "panic: strings.repeat() count cannot be negative (%lld)\n", (long long)count); exit(1); }
+    if (count < 0) ez_panic_code("P0072", "strings.repeat() count cannot be negative (%lld)", (long long)count);
     if (count == 0 || s.len == 0) return ez_string_lit("");
     int64_t new_len64 = (int64_t)s.len * count;
     if (new_len64 > INT32_MAX) {
-        fflush(stdout);
-        fprintf(stderr, "panic: strings.repeat() result exceeds maximum string length\n");
-        exit(1);
+        ez_panic_code("P0073", "strings.repeat() result exceeds maximum string length");
     }
     int32_t new_len = (int32_t)new_len64;
     char *buf = ez_arena_alloc(arena, (size_t)new_len + 1);

@@ -179,9 +179,14 @@ EzString ez_builtin_input(EzArena *arena) {
 /* --- assert --- */
 
 void ez_builtin_assert(bool condition, EzString message, const char *file, int line) {
+    (void)file; (void)line;
     if (!condition) {
-        fprintf(stderr, "assertion failed at %s:%d: ", file, line);
-        fwrite(message.data, 1, (size_t)message.len, stderr);
+        fflush(stdout);
+        fprintf(stderr, "panic[P0075]: assertion failed");
+        if (message.len > 0) {
+            fprintf(stderr, ": ");
+            fwrite(message.data, 1, (size_t)message.len, stderr);
+        }
         fputc('\n', stderr);
         exit(1);
     }
@@ -190,7 +195,8 @@ void ez_builtin_assert(bool condition, EzString message, const char *file, int l
 /* --- panic --- */
 
 void ez_builtin_panic_msg(EzString message) {
-    fprintf(stderr, "panic: ");
+    fflush(stdout);
+    fprintf(stderr, "panic[P0076]: ");
     fwrite(message.data, 1, (size_t)message.len, stderr);
     fputc('\n', stderr);
     exit(1);
@@ -205,12 +211,12 @@ void ez_builtin_exit(int64_t code) {
 /* --- sleep --- */
 
 void ez_builtin_sleep_s(int64_t seconds) {
-    if (seconds < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld)\n", (long long)seconds); exit(1); }
+    if (seconds < 0) ez_panic_code("P0083", "sleep duration cannot be negative (%lld)", (long long)seconds);
     if (seconds > 0) sleep((unsigned int)seconds);
 }
 
 void ez_builtin_sleep_ms(int64_t ms) {
-    if (ms < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld ms)\n", (long long)ms); exit(1); }
+    if (ms < 0) ez_panic_code("P0083", "sleep duration cannot be negative (%lld)", (long long)ms);
     if (ms > 0) {
         struct timespec ts;
         ts.tv_sec = ms / MS_PER_SEC;
@@ -266,9 +272,7 @@ int64_t ez_builtin_string_to_int(EzString s) {
     char *end = NULL;
     int64_t result = strtoll(buf, &end, 10);
     if (end == buf || (*end != '\0' && *end != ' ')) {
-        fflush(stdout);
-        fprintf(stderr, "panic: cannot convert \"%s\" to int\n", buf);
-        exit(1);
+        ez_panic_code("P0084", "cannot convert '%s' to int", buf);
     }
     return result;
 }
@@ -281,14 +285,20 @@ double ez_builtin_string_to_float(EzString s) {
     char *end = NULL;
     double result = strtod(buf, &end);
     if (end == buf || (*end != '\0' && *end != ' ')) {
-        fflush(stdout);
-        fprintf(stderr, "panic: cannot convert \"%s\" to float\n", buf);
-        exit(1);
+        ez_panic_code("P0085", "cannot convert '%s' to float", buf);
     }
     return result;
 }
 
 /* --- composite to_string --- */
+
+/* Encode Unicode codepoint to UTF-8; returns byte count (1-4). */
+static int cp_to_utf8(int32_t cp, char *out) {
+    if (cp < 0x80)   { out[0] = (char)cp; return 1; }
+    if (cp < 0x800)  { out[0] = (char)(0xC0|(cp>>6)); out[1] = (char)(0x80|(cp&0x3F)); return 2; }
+    if (cp < 0x10000){ out[0] = (char)(0xE0|(cp>>12)); out[1] = (char)(0x80|((cp>>6)&0x3F)); out[2] = (char)(0x80|(cp&0x3F)); return 3; }
+    out[0]=(char)(0xF0|(cp>>18)); out[1]=(char)(0x80|((cp>>12)&0x3F)); out[2]=(char)(0x80|((cp>>6)&0x3F)); out[3]=(char)(0x80|(cp&0x3F)); return 4;
+}
 
 EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {
     char buf[EZ_TOSTRING_BUF_SIZE];
@@ -317,6 +327,24 @@ EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind)
             pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
                 EZ_ARRAY_GET(*arr, bool, i) ? "true" : "false");
             break;
+        case 4:
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRIu64,
+                EZ_ARRAY_GET(*arr, uint64_t, i));
+            break;
+        case 5:
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%u",
+                (unsigned)EZ_ARRAY_GET(*arr, uint8_t, i));
+            break;
+        case 6: {
+            int32_t cp = EZ_ARRAY_GET(*arr, int32_t, i);
+            char utf8[4]; int ulen = cp_to_utf8(cp, utf8);
+            if (pos + 2 + ulen < (int)sizeof(buf)) {
+                buf[pos++] = '\'';
+                memcpy(buf + pos, utf8, (size_t)ulen); pos += ulen;
+                buf[pos++] = '\'';
+            }
+            break;
+        }
         }
     }
     buf[pos++] = '}';
@@ -328,7 +356,7 @@ EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind)
 
 int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line) {
     if (index < 0) {
-        ez_panic(file, line, "to_char() index out of bounds — index %lld is negative", (long long)index);
+        ez_panic_code("P0049", "to_char() index out of bounds; index %lld is negative", (long long)index);
     }
     const uint8_t *p = (const uint8_t *)s.data;
     const uint8_t *end = p + s.len;
@@ -364,7 +392,7 @@ int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line
         p += bytes;
         cp_idx++;
     }
-    ez_panic(file, line, "to_char() index out of bounds — index %lld but string has %lld characters",
+    ez_panic_code("P0050", "to_char() index out of bounds; index %lld but string has %lld characters",
         (long long)index, (long long)cp_idx);
     return 0; /* unreachable */
 }
@@ -442,6 +470,18 @@ EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
         }
         case 3: pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
             *(bool *)vp ? "true" : "false"); break;
+        case 4: pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRIu64, *(uint64_t *)vp); break;
+        case 5: pos += snprintf(buf + pos, sizeof(buf) - pos, "%u", (unsigned)*(uint8_t *)vp); break;
+        case 6: {
+            int32_t cp = *(int32_t *)vp;
+            char utf8[4]; int ulen = cp_to_utf8(cp, utf8);
+            if (pos + 2 + ulen < (int)sizeof(buf)) {
+                buf[pos++] = '\'';
+                memcpy(buf + pos, utf8, (size_t)ulen); pos += ulen;
+                buf[pos++] = '\'';
+            }
+            break;
+        }
         }
     }
     if (m->order_len == 0) { buf[pos++] = ':'; }

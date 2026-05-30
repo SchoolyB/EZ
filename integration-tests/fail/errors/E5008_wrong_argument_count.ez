@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5008 - wrong-argument-count
+ * Expected: "wrong number of arguments" or "argument count"
+ */
+
+import @strings
+
+do main() {
+    mut s string = strings.to_upper()  // missing required argument
+}

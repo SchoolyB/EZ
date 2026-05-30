@@ -211,6 +211,7 @@ static void *handle_connection(void *arg) {
         close(ctx->client_fd);
         free(ctx);
         ez_arena_destroy(arena, __FILE__, __LINE__);
+        free(arena);
         return NULL;
     }
     buf[n] = '\0';
@@ -228,6 +229,17 @@ static void *handle_connection(void *arg) {
     resp.content_type = ez_string_new(arena, "text/plain", sizeof("text/plain") - 1);
 
     if (parse_request(arena, buf, (int)n, &req)) {
+        /* Reject oversized method or path before copying into fixed stack buffers */
+        if (req.method.len >= EZ_HTTP_METHOD_BUF || req.path.len >= EZ_HTTP_PATH_BUF_SERVER) {
+            const char *err = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            send(ctx->client_fd, err, strlen(err), 0);
+            close(ctx->client_fd);
+            free(ctx);
+            ez_arena_destroy(arena, __FILE__, __LINE__);
+            free(arena);
+            return NULL;
+        }
+
         /* Find matching route */
         char method_buf[EZ_HTTP_METHOD_BUF], path_buf[EZ_HTTP_PATH_BUF_SERVER];
         memcpy(method_buf, req.method.data, req.method.len);
@@ -280,6 +292,7 @@ static void *handle_connection(void *arg) {
     close(ctx->client_fd);
     free(ctx);
     ez_arena_destroy(arena, __FILE__, __LINE__);
+    free(arena);
     return NULL;
 }
 

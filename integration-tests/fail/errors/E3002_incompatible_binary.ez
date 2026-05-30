@@ -1,5 +1,5 @@
 /*
- * Error Test: E3014 - incompatible-binary-types
+ * Error Test: E3002 - incompatible-binary-types
  * Expected: "unknown operator"
  */
 

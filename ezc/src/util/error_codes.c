@@ -19,6 +19,7 @@ typedef struct { const char *code; const char *msg; } ErrorEntry;
 static ErrorEntry entries[] = {
 #define EZ_ERROR(c, cat, msg) { c, msg },
 #define EZ_WARNING(c, cat, msg) { c, msg },
+#define EZ_PANIC(c, cat, msg) { c, msg },
     EZ_LEXER_ERRORS
     EZ_PARSER_ERRORS
     EZ_TYPE_ERRORS
@@ -26,9 +27,12 @@ static ErrorEntry entries[] = {
     EZ_USAGE_ERRORS
     EZ_IMPORT_ERRORS
     EZ_STDLIB_ERRORS
+    EZ_BITWISE_ERRORS
+    EZ_PANIC_CODES
     EZ_WARNINGS
 #undef EZ_ERROR
 #undef EZ_WARNING
+#undef EZ_PANIC
 };
 
 #define ENTRY_COUNT (sizeof(entries) / sizeof(entries[0]))

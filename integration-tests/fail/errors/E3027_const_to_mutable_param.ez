@@ -1,6 +1,6 @@
 /*
- * E3027_const_to_mutable_param.ez
- * Tests that passing const to & parameter fails with E3027
+ * Error Test: E3027 - passing const to mutable parameter
+ * Expected: compiler should reject this with E3027
  */
 
 do modify(&arr [int]) {
