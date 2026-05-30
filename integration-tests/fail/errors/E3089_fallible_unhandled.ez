@@ -1,6 +1,6 @@
 /*
- * Error Test: E3089 - fallible stdlib function result not fully handled
- * Expected: error on single-var assignment of fallible stdlib function
+ * Error Test: E3089 - can-fail stdlib function result not fully handled
+ * Expected: error on single-var assignment of can-fail stdlib function
  */
 
 import @io

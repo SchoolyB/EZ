@@ -148,7 +148,7 @@
 | `E3086` | types | fmt.%s format string must be a string literal; use string interpolation for dynamic values |
 | `E3087` | types | %%n is not permitted in fmt format strings |
 | `E3088` | types | fmt.%s format directive '%%%s' expects %s but argument %d has type '%s' |
-| `E3089` | usage | '%s()' is fallible; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it |
+| `E3089` | usage | '%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -335,4 +335,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-05-29 23:52:48 UTC*
+*Generated on 2026-05-30 00:22:35 UTC*
