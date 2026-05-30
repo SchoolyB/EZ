@@ -1065,7 +1065,7 @@ static bool tc_is_builtin(const char *name) {
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
         "sleep_s", "sleep_ms", "sleep_ns", "c_string",
-        "to_char", "char_count", "here",
+        "to_char", "char_count", "here", "embed",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -3597,6 +3597,49 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = type_struct("SourceLocation");
+            } else if (strcmp(fn_name, "embed") == 0) {
+                if (node->data.call.arg_count != 1) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "embed() takes exactly 1 argument, got %d",
+                        node->data.call.arg_count);
+                    diag_error_msg(tc->diag, "E5008", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else {
+                    AstNode *arg = node->data.call.args[0];
+                    if (arg->kind != NODE_STRING_VALUE) {
+                        diag_error_code(tc->diag, "E5017",
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    } else {
+                        /* Resolve file path relative to source file directory */
+                        const char *embed_path = arg->data.string_value.value;
+                        char resolved[4096];
+                        const char *src = NODE_FILE(tc, node);
+                        if (embed_path[0] != '/' && src) {
+                            const char *last_slash = strrchr(src, '/');
+                            if (last_slash) {
+                                snprintf(resolved, sizeof(resolved), "%.*s%s",
+                                    (int)(last_slash - src + 1), src, embed_path);
+                            } else {
+                                snprintf(resolved, sizeof(resolved), "%s", embed_path);
+                            }
+                        } else {
+                            snprintf(resolved, sizeof(resolved), "%s", embed_path);
+                        }
+                        FILE *ef = fopen(resolved, "r");
+                        if (!ef) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "embed() cannot open '%s': file not found or unreadable",
+                                embed_path);
+                            diag_error_msg(tc->diag, "E5018", strdup(msg),
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                        } else {
+                            fclose(ef);
+                        }
+                    }
+                }
+                result = &TYPE_STRING;
             } else if (strcmp(fn_name, "error") == 0) {
                 result = type_from_name("Error");
             } else if (strcmp(fn_name, "println") == 0 || strcmp(fn_name, "eprintln") == 0) {
@@ -5299,6 +5342,12 @@ static bool expr_contains_call(AstNode *node) {
     if (!node) return false;
     switch (node->kind) {
     case NODE_CALL_EXPR:
+        /* embed() is a compile-time builtin and is allowed at file scope */
+        if (node->data.call.function &&
+            node->data.call.function->kind == NODE_LABEL &&
+            strcmp(node->data.call.function->data.label.value, "embed") == 0) {
+            return false;
+        }
         return true;
     case NODE_PREFIX_EXPR:
         return expr_contains_call(node->data.prefix.right);

@@ -1,0 +1,45 @@
+/*
+ * Pass Test: embed() builtin — compile-time file embedding
+ */
+
+const FileScope string = embed("embed_fixture.txt")
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    /* Test 1: file-scope embed */
+    if len(FileScope) > 0 {
+        println("  [PASS] file-scope embed() returns non-empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] file-scope embed() returned empty string")
+        failed += 1
+    }
+
+    /* Test 2: function-scope embed */
+    const local string = embed("embed_fixture.txt")
+    if len(local) > 0 {
+        println("  [PASS] function-scope embed() returns non-empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] function-scope embed() returned empty string")
+        failed += 1
+    }
+
+    /* Test 3: content matches expected */
+    if local == "hello from embed\n" {
+        println("  [PASS] embed() content matches file content")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] embed() content does not match")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

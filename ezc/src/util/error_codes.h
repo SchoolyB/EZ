@@ -202,6 +202,8 @@
     EZ_ERROR("E5014", "usage", "here() takes no arguments; the call site's file, line, and column are substituted at compile time") \
     EZ_ERROR("E5015", "usage", "postfix ++ and -- require a variable, not a value or expression") \
     EZ_ERROR("E5016", "naming", "this name is reserved by a builtin function and cannot be redeclared") \
+    EZ_ERROR("E5017", "usage", "embed() argument must be a string literal file path, not an expression") \
+    EZ_ERROR("E5018", "usage", "embed() cannot open '%s': file not found or unreadable") \
     EZ_ERROR("E5023", "usage", "cannot use '%s' on type '%s'; only integer types support increment/decrement") \
     EZ_ERROR("E5024", "usage", "return type mismatch: cannot return signed '%s' as unsigned '%s'") \
     EZ_ERROR("E5025", "usage", "invalid assignment target; left side of '=' must be a variable, field, or index expression") \

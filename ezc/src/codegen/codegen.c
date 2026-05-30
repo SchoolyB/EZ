@@ -2928,6 +2928,58 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    if (strcmp(func, "embed") == 0 && node->data.call.arg_count == 1) {
+        /* Compile-time file embedding: read the file and emit its content as
+         * an EzString literal. Path is resolved relative to the source file. */
+        AstNode *arg = node->data.call.args[0];
+        const char *embed_path = arg->data.string_value.value;
+
+        char resolved[4096];
+        if (embed_path[0] != '/' && cg->file) {
+            const char *last_slash = strrchr(cg->file, '/');
+            if (last_slash) {
+                snprintf(resolved, sizeof(resolved), "%.*s%s",
+                    (int)(last_slash - cg->file + 1), cg->file, embed_path);
+            } else {
+                snprintf(resolved, sizeof(resolved), "%s", embed_path);
+            }
+        } else {
+            snprintf(resolved, sizeof(resolved), "%s", embed_path);
+        }
+
+        FILE *ef = fopen(resolved, "rb");
+        if (!ef) {
+            /* Typechecker validated this; reaching here is an ICE */
+            codegen_ice("embed(): file not readable after typechecker validation", __FILE__, __LINE__);
+            return true;
+        }
+        fseek(ef, 0, SEEK_END);
+        long file_size = ftell(ef);
+        fseek(ef, 0, SEEK_SET);
+
+        unsigned char *file_buf = malloc((size_t)(file_size > 0 ? file_size : 1));
+        size_t nread = fread(file_buf, 1, (size_t)file_size, ef);
+        fclose(ef);
+
+        /* Emit every byte as \xNN — safe because after 2 hex digits the next
+         * character is always \ or " so no hex-continuation ambiguity. */
+        char *esc = malloc((size_t)(nread * 4 + 16));
+        size_t esc_len = 0;
+        for (size_t i = 0; i < nread; i++) {
+            esc_len += (size_t)snprintf(esc + esc_len, 5, "\\x%02x", file_buf[i]);
+        }
+        esc[esc_len] = '\0';
+
+        /* EZ_STRING_LIT is a compile-time macro — valid at file scope */
+        emit(cg, "EZ_STRING_LIT(\"");
+        emit(cg, esc);
+        emit(cg, "\")");
+
+        free(file_buf);
+        free(esc);
+        return true;
+    }
+
     if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_builtin_panic_msg(");
         emit_expression(cg, node->data.call.args[0]);

@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 284 codes** (181 errors, 14 warnings, 89 panics)
+**Total: 286 codes** (183 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -173,6 +173,8 @@
 | `E5014` | usage | here() takes no arguments; the call site's file, line, and column are substituted at compile time |
 | `E5015` | usage | postfix ++ and -- require a variable, not a value or expression |
 | `E5016` | naming | this name is reserved by a builtin function and cannot be redeclared |
+| `E5017` | usage | embed() argument must be a string literal file path, not an expression |
+| `E5018` | usage | embed() cannot open '%s': file not found or unreadable |
 | `E5023` | usage | cannot use '%s' on type '%s'; only integer types support increment/decrement |
 | `E5024` | usage | return type mismatch: cannot return signed '%s' as unsigned '%s' |
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
@@ -335,4 +337,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-05-30 00:22:35 UTC*
+*Generated on 2026-05-30 01:17:15 UTC*
