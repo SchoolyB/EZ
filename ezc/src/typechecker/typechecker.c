@@ -4855,6 +4855,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!obj_t) obj_t = resolve_expr(tc, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(tc, obj_t->name, member);
+                bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
+                                      strcmp(result->name, "func") == 0);
+                if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
+                    diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        struct_display_name(tc, obj_t->name), member);
+                }
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
