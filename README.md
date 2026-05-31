@@ -21,7 +21,7 @@
 
 ## What is EZ
 
-EZ is a statically typed, compiled programming language that produces native binaries. Source files (`.ez`) are compiled to C, then to machine code.
+EZ is a statically typed, compiled programming language inspired by C, Odin, Rust, and Go.
 
 
 ```ez
@@ -133,7 +133,7 @@ ez update --pre             Update to the latest pre-release (alpha/beta/rc)
 ez install <version>        Install a specific version (e.g. 2.5.0, 3.0.0-beta.2)
 ez version                  Show version info
 ez man                      Show helpful information about using the ez man command
-ez man  <stdlib module>     Show information about the contents of the provided stdlib module
+ez man <stdlib module>      Show information about the contents of the provided stdlib module
 ez man <stdlib function>    Show information about the provide stdlib function
 ez man <stdlib struct type> Show information about the provied stdlib struct type
 ```
