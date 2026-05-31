@@ -1,0 +1,51 @@
+/* Pass Test: valid same-type array assignments, args, and returns work correctly */
+import @arrays
+
+do double_all(nums [int]) -> [int] {
+    mut result [int] = {}
+    for_each n in nums {
+        arrays.append(result, n * 2)
+    }
+    return result
+}
+
+do join_strings(strs [string]) -> [string] {
+    return strs
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut ints [int] = {1, 2, 3}
+    mut more_ints [int] = ints
+    if more_ints[0] == 1 && more_ints[2] == 3 {
+        println("  [PASS] same-type array assignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] same-type array assignment failed")
+        failed += 1
+    }
+
+    mut doubled [int] = double_all(ints)
+    if doubled[0] == 2 && doubled[1] == 4 && doubled[2] == 6 {
+        println("  [PASS] [int] passed to [int] parameter")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array arg pass failed")
+        failed += 1
+    }
+
+    mut strs [string] = {"a", "b", "c"}
+    mut returned [string] = join_strings(strs)
+    if returned[0] == "a" && returned[2] == "c" {
+        println("  [PASS] [string] passed and returned correctly")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array return failed")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

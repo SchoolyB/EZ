@@ -1,0 +1,11 @@
+/* Error Test: E3093 - arithmetic operator on struct */
+const Point struct {
+    x int
+    y int
+}
+do main() {
+    mut a = Point{x: 1, y: 2}
+    mut b = Point{x: 3, y: 4}
+    mut c = a + b
+    println(c)
+}

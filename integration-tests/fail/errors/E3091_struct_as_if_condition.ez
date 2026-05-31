@@ -1,0 +1,9 @@
+/* Error Test: E3091 - struct used as if condition */
+const Point struct {
+    x int
+    y int
+}
+do main() {
+    mut p = Point{x: 1, y: 2}
+    if p { println("truthy") }
+}

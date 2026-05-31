@@ -1,0 +1,36 @@
+/* Pass Test: valid chained struct field access works correctly */
+const Address struct {
+    city string
+    zip  string
+}
+
+const Person struct {
+    name    string
+    address Address
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut p = Person{name: "Alice", address: Address{city: "Portland", zip: "97201"}}
+
+    if p.address.city == "Portland" {
+        println("  [PASS] chained field access resolves correctly")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected Portland, got ${p.address.city}")
+        failed += 1
+    }
+
+    if p.address.zip == "97201" {
+        println("  [PASS] second chained field access resolves correctly")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 97201, got ${p.address.zip}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

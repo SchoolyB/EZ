@@ -1,0 +1,35 @@
+/* Pass Test: valid same-type map assignments and args work correctly */
+do count_items(m map[string:int]) -> int {
+    mut total int = 0
+    for_each k, v in m {
+        total += v
+    }
+    return total
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut scores map[string:int] = {"alice": 10, "bob": 20}
+    mut copy map[string:int] = scores
+    if copy["alice"] == 10 && copy["bob"] == 20 {
+        println("  [PASS] same-type map assignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] same-type map assignment failed")
+        failed += 1
+    }
+
+    mut total int = count_items(scores)
+    if total == 30 {
+        println("  [PASS] map[string:int] passed to matching parameter")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 30, got ${total}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

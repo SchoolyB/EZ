@@ -1,0 +1,5 @@
+/* Error Test: E3091 - map used as if condition */
+do main() {
+    mut m map[string:int] = {"a": 1}
+    if m { println("truthy") }
+}

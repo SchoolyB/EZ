@@ -1,0 +1,5 @@
+/* Error Test: E3091 - array used as if condition */
+do main() {
+    mut arr [int] = {1, 2, 3}
+    if arr { println("truthy") }
+}

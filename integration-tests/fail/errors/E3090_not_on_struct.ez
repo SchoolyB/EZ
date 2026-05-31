@@ -1,0 +1,10 @@
+/* Error Test: E3090 - '!' used on a struct type */
+const Point struct {
+    x int
+    y int
+}
+do main() {
+    mut p = Point{x: 1, y: 2}
+    mut r bool = !p
+    println(r)
+}
