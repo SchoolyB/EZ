@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.5.2](https://github.com/SchoolyB/EZ/compare/v3.5.1...v3.5.2) (2026-05-31)
+
+
+### Bug Fixes
+
+* **ci:** remove deleted lineeditor package from test-go target ([4bc65ab](https://github.com/SchoolyB/EZ/commit/4bc65abf5da5485e8ec2dc122f5466f4266dc36d))
+* **ezc:** handle realloc failure in read_file NUL-termination step ([9fee714](https://github.com/SchoolyB/EZ/commit/9fee714ad68317ffaffc51b0311db5e7f96db001))
+* typechecker bugfixes ([#1722](https://github.com/SchoolyB/EZ/issues/1722)) ([f1a9fa8](https://github.com/SchoolyB/EZ/commit/f1a9fa8c6543cf7cc6a4b18e5c06addeb3b84a91))
+* **typechecker:** catch array element type mismatches in assignment, args, and return ([1be4947](https://github.com/SchoolyB/EZ/commit/1be49479e890e5c04c1e24a231f8766833802349))
+* **typechecker:** catch map key/value type mismatches in assignment, args, and return ([466dcbd](https://github.com/SchoolyB/EZ/commit/466dcbd0fa9d6290b05ee65f4173656bdecd8fb6))
+* **typechecker:** catch struct returned from primitive-typed function ([dfec4c2](https://github.com/SchoolyB/EZ/commit/dfec4c2797d7a948d11a80bf1acdb027c76b1f74))
+* **typechecker:** emit E3010 for invalid field on chained struct access ([f23ee97](https://github.com/SchoolyB/EZ/commit/f23ee97f259224f4770542a5d2f44752162e9985))
+* **typechecker:** emit E3090 when '!' is used on a non-bool type ([c61f652](https://github.com/SchoolyB/EZ/commit/c61f6529385e2b23bc3319f8cf700e361cea39c0))
+* **typechecker:** emit E3091 when non-scalar type is used as if/for condition ([d844bf9](https://github.com/SchoolyB/EZ/commit/d844bf9110a6fa453ab2500699801e195a3b32df))
+* **typechecker:** emit E3092 when struct, map, or array is compared to nil ([d929ee2](https://github.com/SchoolyB/EZ/commit/d929ee297c6823957ce9f1fc51a0fb45f55f1f68))
+* **typechecker:** emit E3093 when arithmetic operators are used on map, array, or struct ([6a4c862](https://github.com/SchoolyB/EZ/commit/6a4c8629fbad30e6d84eb9343805edcaa4a69f0c))
+* **typechecker:** emit E3094 when wrong type is assigned to array element by index ([ad869e0](https://github.com/SchoolyB/EZ/commit/ad869e0cf42064dcd96788d27640f222b2dce78c))
+
 ## [3.5.1](https://github.com/SchoolyB/EZ/compare/v3.5.0...v3.5.1) (2026-05-31)
 
 
