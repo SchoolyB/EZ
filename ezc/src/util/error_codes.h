@@ -172,7 +172,8 @@
     EZ_ERROR("E3087", "types", "%%n is not permitted in fmt format strings") \
     EZ_ERROR("E3088", "types", "fmt.%s format directive '%%%s' expects %s but argument %d has type '%s'") \
     EZ_ERROR("E3089", "usage", "'%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it") \
-    EZ_ERROR("E3090", "types", "'!' only works on bool; got '%s'")
+    EZ_ERROR("E3090", "types", "'!' only works on bool; got '%s'") \
+    EZ_ERROR("E3091", "types", "'%s' cannot be used as a condition")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

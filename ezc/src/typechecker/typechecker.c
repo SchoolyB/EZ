@@ -7037,6 +7037,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E3038", strdup(msg),
                 NODE_FILE(tc, c), c->token.line, c->token.column, 0);
         }
+        if (cond_t && cond_t->kind != TK_UNKNOWN &&
+            (cond_t->kind == TK_STRING || cond_t->kind == TK_ARRAY ||
+             cond_t->kind == TK_MAP   || cond_t->kind == TK_STRUCT)) {
+            AstNode *c = node->data.if_stmt.condition;
+            diag_error_codef(tc->diag, "E3091", NODE_FILE(tc, c), c->token.line, c->token.column, 0,
+                type_display_name(tc, cond_t));
+        }
         Scope *if_outer = tc->current_scope;
         tc->current_scope = scope_create(if_outer);
         check_block(tc, node->data.if_stmt.consequence);
@@ -7165,6 +7172,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             diag_error_msg(tc->diag, "E3038", strdup(msg),
                 NODE_FILE(tc, c), c->token.line, c->token.column, 0);
+        }
+        if (wh_cond_t && wh_cond_t->kind != TK_UNKNOWN &&
+            (wh_cond_t->kind == TK_STRING || wh_cond_t->kind == TK_ARRAY ||
+             wh_cond_t->kind == TK_MAP   || wh_cond_t->kind == TK_STRUCT)) {
+            AstNode *c = node->data.while_stmt.condition;
+            diag_error_codef(tc->diag, "E3091", NODE_FILE(tc, c), c->token.line, c->token.column, 0,
+                type_display_name(tc, wh_cond_t));
         }
         tc->loop_depth++;
         check_block(tc, node->data.while_stmt.body);
