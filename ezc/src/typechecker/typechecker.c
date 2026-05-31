@@ -6750,6 +6750,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
+        /* Struct-to-struct name mismatch on direct variable assignment */
+        if (target->kind == NODE_LABEL &&
+            target_t->kind == TK_STRUCT && value_t->kind == TK_STRUCT &&
+            target_t->name && value_t->name &&
+            strcmp(target_t->name, value_t->name) != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "type mismatch: cannot assign '%s' to '%s' variable '%s'",
+                type_display_name(tc, value_t), type_display_name(tc, target_t),
+                target->data.label.value);
+            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* Check type mismatch on struct field assignment.
          * sym->type may be TK_STRUCT (by-value) or TK_POINTER (from new()),
          * in both cases sym->type->name is the pointee/struct name. */
