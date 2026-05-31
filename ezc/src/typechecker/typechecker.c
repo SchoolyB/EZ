@@ -6580,6 +6580,25 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3094: array index assignment type mismatch (arr[i] = wrong_type) */
+        if (target->kind == NODE_INDEX_EXPR && node->data.assign.value) {
+            EzType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
+            if (indexed_t && indexed_t->kind == TK_ARRAY && indexed_t->element_type) {
+                EzType *elem_t = type_from_name(indexed_t->element_type);
+                EzType *val_t = resolve_expr(tc, node->data.assign.value);
+                if (val_t && val_t->kind != TK_UNKNOWN && elem_t && elem_t->kind != TK_UNKNOWN &&
+                    val_t->kind != elem_t->kind &&
+                    !(is_int_kind(val_t->kind) && is_int_kind(elem_t->kind)) &&
+                    !(val_t->kind == TK_ENUM   && is_int_kind(elem_t->kind)) &&
+                    !(is_int_kind(val_t->kind) && elem_t->kind == TK_FLOAT)  &&
+                    !(val_t->kind == TK_FLOAT  && is_int_kind(elem_t->kind))) {
+                    diag_error_codef(tc->diag, "E3094",
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        type_display_name(tc, val_t), type_display_name(tc, indexed_t));
+                }
+            }
+        }
+
         /* E3036 (): range check on reassignment; the var_decl path
          * already catches out-of-range literals at declaration, but
          * reassignment (`x = 300` where x is u8) was unchecked. */
