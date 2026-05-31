@@ -1680,6 +1680,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3092: nil compared to a non-nullable type (struct, map, array) */
+        if (!infix_errored && (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0)) {
+            EzType *non_nil = NULL;
+            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN &&
+                (right->kind == TK_STRUCT || right->kind == TK_MAP || right->kind == TK_ARRAY))
+                non_nil = right;
+            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN &&
+                (left->kind == TK_STRUCT || left->kind == TK_MAP || left->kind == TK_ARRAY))
+                non_nil = left;
+            if (non_nil) {
+                diag_error_codef(tc->diag, "E3092", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    type_display_name(tc, non_nil));
+                infix_errored = true;
+            }
+        }
+
         /* String + string: reject with helpful message */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) && strcmp(op, "+") == 0) {
             diag_error_code(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
