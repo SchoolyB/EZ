@@ -1714,6 +1714,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3093: arithmetic on map, array, or struct */
+        if (!infix_errored &&
+            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0)) {
+            EzType *bad = NULL;
+            if (left->kind == TK_MAP || left->kind == TK_ARRAY || left->kind == TK_STRUCT)
+                bad = left;
+            else if (right->kind == TK_MAP || right->kind == TK_ARRAY || right->kind == TK_STRUCT)
+                bad = right;
+            if (bad && bad->kind != TK_UNKNOWN) {
+                diag_error_codef(tc->diag, "E3093", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    op, type_display_name(tc, bad));
+                infix_errored = true;
+            }
+        }
+
         /* E3078: pointer arithmetic is not supported. The spec disallows
          * it (no contiguous-buffer guarantee on '^T'), and without this
          * check 'p + 1' silently emitted C pointer math and produced

@@ -174,7 +174,8 @@
     EZ_ERROR("E3089", "usage", "'%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it") \
     EZ_ERROR("E3090", "types", "'!' only works on bool; got '%s'") \
     EZ_ERROR("E3091", "types", "'%s' cannot be used as a condition") \
-    EZ_ERROR("E3092", "types", "cannot compare '%s' to nil; only Error types and pointers can be nil")
+    EZ_ERROR("E3092", "types", "cannot compare '%s' to nil; only Error types and pointers can be nil") \
+    EZ_ERROR("E3093", "types", "cannot use '%s' on '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
