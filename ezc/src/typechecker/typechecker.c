@@ -6843,8 +6843,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                  * the reverse; returning an int from a function declared
                  * to return an enum is a type error (). */
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
-                !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
-                !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
                 !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
