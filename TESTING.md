@@ -2,13 +2,11 @@
 
 ## Quick Start
 
-If you've already run `make build && make install`, you can run the entire test suite with a single command:
+To run the full test suite, use:
 
 ```bash
-ez test
+make test
 ```
-
-This runs all Go tooling tests, compiler unit tests, compiler e2e tests, and integration tests in sequence.
 
 ---
 

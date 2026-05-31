@@ -2362,7 +2362,9 @@ static AstNode *parse_when_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_WHEN_STMT, p->cur_token);
 
     next_token(p);
+    p->no_struct_literal = true;
     node->data.when_stmt.value = parse_expression(p, PREC_LOWEST);
+    p->no_struct_literal = false;
     node->data.when_stmt.is_strict = false;
     node->data.when_stmt.default_body = NULL;
 

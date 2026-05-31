@@ -128,7 +128,6 @@ ez repl                   Interactive REPL
 ez watch <file.ez>        Watch for changes, re-run on save
 ez doc <file.ez>           Generate docs from #doc attributes
 ez pz <name>             Scaffold a new project
-ez test                   Run the full test suite
 ez report                 Print system info for bug reports
 ez update                 Update to the latest stable version
 ez update --pre           Update to the latest pre-release (alpha/beta/rc)

@@ -16,7 +16,7 @@ do main() {
     mut _, _ = io.write_file("/tmp/ez_test_listdir/sub/c.txt", "c")
 
     // Test 1: list_dir returns entries in directory
-    mut entries [string] = io.list_dir("/tmp/ez_test_listdir")
+    mut entries, _ = io.list_dir("/tmp/ez_test_listdir")
     if len(entries) >= 3 {
         println("  [PASS] list_dir returns >= 3 entries")
         passed += 1
@@ -26,7 +26,7 @@ do main() {
     }
 
     // Test 2: walk returns all files recursively
-    mut all [string] = io.walk("/tmp/ez_test_listdir")
+    mut all, _ = io.walk("/tmp/ez_test_listdir")
     if len(all) >= 4 {
         println("  [PASS] walk returns >= 4 entries recursively")
         passed += 1
@@ -36,7 +36,7 @@ do main() {
     }
 
     // Test 3: list_dir with inferred type
-    mut entries2 = io.list_dir("/tmp/ez_test_listdir")
+    mut entries2, _ = io.list_dir("/tmp/ez_test_listdir")
     if len(entries2) >= 3 {
         println("  [PASS] list_dir with inferred type works")
         passed += 1

@@ -9,11 +9,11 @@ do main() {
     mut fail int = 0
 
     // DNS resolve
-    mut ip = net.resolve("localhost")
+    mut ip, _ = net.resolve("localhost")
     if ip == "127.0.0.1" { pass += 1 } otherwise { fail += 1 }
 
     // TCP listen and close (port 0 = any available)
-    mut listener = net.listen(0)
+    mut listener, _ = net.listen(0)
     net.close(listener)
     pass += 1
 

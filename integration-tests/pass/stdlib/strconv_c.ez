@@ -10,7 +10,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: to_int (single-var, panicking)
-    mut n int = strconv.to_int("42")
+    mut n, _ = strconv.to_int("42")
     if n == 42 {
         println("  [PASS] to_int(\"42\") = 42")
         passed += 1
@@ -20,7 +20,7 @@ do main() {
     }
 
     // Test 2: to_int negative
-    mut neg int = strconv.to_int("-100")
+    mut neg, _ = strconv.to_int("-100")
     if neg == -100 {
         println("  [PASS] to_int(\"-100\") = -100")
         passed += 1
@@ -30,7 +30,7 @@ do main() {
     }
 
     // Test 3: to_uint
-    mut u uint = strconv.to_uint("999")
+    mut u, _ = strconv.to_uint("999")
     if u == 999 {
         println("  [PASS] to_uint(\"999\") = 999")
         passed += 1
@@ -40,7 +40,7 @@ do main() {
     }
 
     // Test 4: to_float
-    mut f float = strconv.to_float("3.14")
+    mut f, _ = strconv.to_float("3.14")
     if f > 3.13 {
         if f < 3.15 {
             println("  [PASS] to_float(\"3.14\") ~ 3.14")
@@ -55,7 +55,7 @@ do main() {
     }
 
     // Test 5: to_bool true
-    mut b bool = strconv.to_bool("true")
+    mut b, _ = strconv.to_bool("true")
     if b == true {
         println("  [PASS] to_bool(\"true\") = true")
         passed += 1
@@ -65,7 +65,7 @@ do main() {
     }
 
     // Test 6: to_bool false
-    mut b2 bool = strconv.to_bool("false")
+    mut b2, _ = strconv.to_bool("false")
     if b2 == false {
         println("  [PASS] to_bool(\"false\") = false")
         passed += 1
@@ -75,7 +75,7 @@ do main() {
     }
 
     // Test 7: to_bool case-insensitive
-    mut b3 bool = strconv.to_bool("TRUE")
+    mut b3, _ = strconv.to_bool("TRUE")
     if b3 == true {
         println("  [PASS] to_bool(\"TRUE\") = true")
         passed += 1

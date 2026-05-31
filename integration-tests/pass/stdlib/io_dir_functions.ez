@@ -10,7 +10,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: make_dir creates a directory
-    mut ok bool = io.make_dir("/tmp/ez_test_dir_1446")
+    mut ok, _ = io.make_dir("/tmp/ez_test_dir_1446")
     if ok == true {
         println("  [PASS] make_dir creates directory")
         passed += 1
@@ -29,7 +29,7 @@ do main() {
     }
 
     // Test 3: remove_dir removes it
-    mut rm bool = io.remove_dir("/tmp/ez_test_dir_1446")
+    mut rm, _ = io.remove_dir("/tmp/ez_test_dir_1446")
     if rm == true {
         println("  [PASS] remove_dir removes directory")
         passed += 1
@@ -39,7 +39,7 @@ do main() {
     }
 
     // Test 4: make_dir_all creates nested directories
-    mut ok2 bool = io.make_dir_all("/tmp/ez_test_1446/a/b/c")
+    mut ok2, _ = io.make_dir_all("/tmp/ez_test_1446/a/b/c")
     if ok2 == true {
         println("  [PASS] make_dir_all creates nested dirs")
         passed += 1
@@ -50,7 +50,7 @@ do main() {
 
     // Test 5: write a file then copy it
     mut _, _ = io.write_file("/tmp/ez_test_1446/a/test.txt", "hello")
-    mut cp bool = io.copy_file("/tmp/ez_test_1446/a/test.txt", "/tmp/ez_test_1446/a/b/test_copy.txt")
+    mut cp, _ = io.copy_file("/tmp/ez_test_1446/a/test.txt", "/tmp/ez_test_1446/a/b/test_copy.txt")
     if cp == true {
         println("  [PASS] copy_file succeeds")
         passed += 1
@@ -60,7 +60,7 @@ do main() {
     }
 
     // Test 6: verify copied file content
-    mut content string = io.read_file("/tmp/ez_test_1446/a/b/test_copy.txt")
+    mut content, _ = io.read_file("/tmp/ez_test_1446/a/b/test_copy.txt")
     if content == "hello" {
         println("  [PASS] copied file has correct content")
         passed += 1
@@ -70,7 +70,7 @@ do main() {
     }
 
     // Test 7: move_file
-    mut mv bool = io.move_file("/tmp/ez_test_1446/a/b/test_copy.txt", "/tmp/ez_test_1446/a/b/c/moved.txt")
+    mut mv, _ = io.move_file("/tmp/ez_test_1446/a/b/test_copy.txt", "/tmp/ez_test_1446/a/b/c/moved.txt")
     if mv == true {
         println("  [PASS] move_file succeeds")
         passed += 1
@@ -89,7 +89,7 @@ do main() {
     }
 
     // Test 9: remove_dir_all cleans up everything
-    mut rma bool = io.remove_dir_all("/tmp/ez_test_1446")
+    mut rma, _ = io.remove_dir_all("/tmp/ez_test_1446")
     if rma == true {
         println("  [PASS] remove_dir_all cleans up nested dirs")
         passed += 1

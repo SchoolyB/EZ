@@ -13,7 +13,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: io.read_file with explicit string type (the core bug case)
-    mut hosts string = io.read_file("/etc/hosts")
+    mut hosts, _ = io.read_file("/etc/hosts")
     if len(hosts) > 0 {
         println("  [PASS] io.read_file single-var string assignment")
         passed += 1
@@ -23,7 +23,7 @@ do main() {
     }
 
     // Test 2: read_file result used in len()
-    mut data string = io.read_file("/etc/hosts")
+    mut data, _ = io.read_file("/etc/hosts")
     if len(data) > 10 {
         println("  [PASS] len(io.read_file(...)) > 10")
         passed += 1
@@ -33,7 +33,7 @@ do main() {
     }
 
     // Test 3: read_file result used in interpolation
-    mut file_data string = io.read_file("/etc/hosts")
+    mut file_data, _ = io.read_file("/etc/hosts")
     mut msg string = "read ${len(file_data)} bytes"
     if len(msg) > 0 {
         println("  [PASS] io.read_file result in interpolation")
@@ -44,8 +44,8 @@ do main() {
     }
 
     // Test 4: multiple explicit typed reads in same function
-    mut read1 string = io.read_file("/etc/hosts")
-    mut read2 string = io.read_file("/etc/hosts")
+    mut read1, _ = io.read_file("/etc/hosts")
+    mut read2, _ = io.read_file("/etc/hosts")
     if read1 == read2 {
         println("  [PASS] multiple explicit typed reads consistent")
         passed += 1

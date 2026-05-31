@@ -12,14 +12,14 @@ do main() {
     mut test_path string = "/tmp/ez_stress_io_test.txt"
 
     // write_file
-    mut w_ok bool = io.write_file(test_path, "hello from EZ")
+    mut w_ok, _ = io.write_file(test_path, "hello from EZ")
     if w_ok {
         println("  [PASS] write_file")
         passed += 1
     } otherwise { println("  [FAIL] write_file") failed += 1 }
 
     // read_file
-    mut content string = io.read_file(test_path)
+    mut content, _ = io.read_file(test_path)
     if content == "hello from EZ" {
         println("  [PASS] read_file round-trip")
         passed += 1
@@ -44,7 +44,7 @@ do main() {
     } otherwise { println("  [FAIL] is_directory") failed += 1 }
 
     // delete_file
-    mut d_ok bool = io.delete_file(test_path)
+    mut d_ok, _ = io.delete_file(test_path)
     mut gone bool = io.file_exists(test_path)
     if !gone {
         println("  [PASS] delete_file")

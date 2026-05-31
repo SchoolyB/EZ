@@ -50,7 +50,7 @@ do main() {
     }
 
     // Test 5: path_join with absolute second arg replaces first
-    mut r5 string = io.path_join("/home", "/absolute/path")
+    mut r5 string = io.path_join({"/home", "/absolute/path"})
     if r5 == "/absolute/path" {
         println("  [PASS] path_join('/home', '/absolute/path') = '/absolute/path'")
         passed += 1
@@ -60,7 +60,7 @@ do main() {
     }
 
     // Test 6: path_join with relative second arg still joins
-    mut r6 string = io.path_join("/home", "user")
+    mut r6 string = io.path_join({"/home", "user"})
     if r6 == "/home/user" {
         println("  [PASS] path_join('/home', 'user') = '/home/user'")
         passed += 1
