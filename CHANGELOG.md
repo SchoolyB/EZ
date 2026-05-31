@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.1](https://github.com/SchoolyB/EZ/compare/v3.5.0...v3.5.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **parser:** suppress struct literal parsing in when subject expression ([ee74f85](https://github.com/SchoolyB/EZ/commit/ee74f85c94759e84325caa5e0b49a41ab80aaed1))
+
 ## [3.5.0](https://github.com/SchoolyB/EZ/compare/v3.4.3...v3.5.0) (2026-05-30)
 
 
