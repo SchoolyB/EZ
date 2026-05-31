@@ -3245,7 +3245,6 @@ The `ez` command-line tool provides the following commands:
 | `ez watch <file.ez>` | Watch for changes and re-run on save |
 | `ez doc <path>` | Generate documentation from `#doc` attributes |
 | `ez pz <name>` | Scaffold a new project |
-| `ez test` | Run the full test suite |
 | `ez report` | Print system info for bug reports |
 | `ez update` | Check for updates and upgrade to the latest stable |
 | `ez update --pre` | Upgrade to the latest pre-release (alpha/beta/rc) |
@@ -3264,18 +3263,6 @@ Commit:      abc1234
 OS:          darwin/arm64
 RAM:         16 GB
 ```
-
-### 13.2 `ez test`
-
-Runs all test suites in sequence:
-
-1. Compiler unit tests
-2. Compiler end-to-end tests
-3. Compiler integration tests
-4. CLI integration tests
-
-Exits with status 1 if any suite fails.
-
 
 ---
 

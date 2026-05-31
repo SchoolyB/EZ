@@ -1,15 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/marshallburns/ez/internal/ezc"
@@ -291,144 +286,6 @@ func reportCCompiler() (path, version, triple string) {
 	return
 }
 
-var testCmd = &cobra.Command{
-	Use:   "test",
-	Short: "Run the full EZ test suite",
-	Long: `Run all tests: Go tooling tests, compiler unit tests, compiler e2e tests,
-compiler integration tests, and CLI integration tests.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Find project root relative to the ez binary
-		exePath, err := os.Executable()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: cannot locate ez binary: %v\n", err)
-			os.Exit(1)
-		}
-		root := filepath.Dir(exePath)
-
-		// Verify we're in the project root by checking for scripts/
-		if _, err := os.Stat(filepath.Join(root, "scripts")); os.IsNotExist(err) {
-			// Fall back to current working directory
-			root, _ = os.Getwd()
-			if _, err := os.Stat(filepath.Join(root, "scripts")); os.IsNotExist(err) {
-				fmt.Fprintf(os.Stderr, "error: cannot find project root — run from the EZ project directory\n")
-				os.Exit(1)
-			}
-		}
-
-		const (
-			green = "\033[0;32m"
-			red   = "\033[0;31m"
-			bold  = "\033[1m"
-			reset = "\033[0m"
-			dim   = "\033[2m"
-		)
-
-		type suiteResult struct {
-			name   string
-			ok     bool
-			passed int
-			failed int
-		}
-
-		// Strip ANSI escape codes before parsing test counts
-		ansiRe := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-		// Regex patterns for parsing test counts from output
-		// C unit/e2e tests: "N passed, N failed (N total)"
-		cTestRe := regexp.MustCompile(`(\d+)\s+passed.*?(\d+)\s+failed`)
-		// Integration tests (run_tests.sh): "Passed:  N" and "Failed:  N"
-		intPassRe := regexp.MustCompile(`Passed:\s+(\d+)`)
-		intFailRe := regexp.MustCompile(`Failed:\s+(\d+)`)
-		// Go tests: "--- PASS:" and "--- FAIL:" lines
-		goPassRe := regexp.MustCompile(`--- PASS:`)
-		goFailRe := regexp.MustCompile(`--- FAIL:`)
-
-		steps := []struct {
-			name  string
-			cmd   string
-			args  []string
-			dir   string
-			parse string // "go", "c", or "integration"
-		}{
-			{"Go tooling tests", "go", []string{"test", "-v", "./cmd/ez/...", "./internal/ezc/..."}, root, "go"},
-			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc"), "c"},
-			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc"), "c"},
-			{"Integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root, "integration"},
-		}
-
-		results := make([]suiteResult, 0, len(steps))
-
-		for _, step := range steps {
-			fmt.Printf("\n%s=== %s ===%s\n", bold, step.name, reset)
-
-			var buf bytes.Buffer
-			tee := io.MultiWriter(os.Stdout, &buf)
-
-			c := exec.Command(step.cmd, step.args...)
-			c.Dir = step.dir
-			c.Stdout = tee
-			c.Stderr = tee
-
-			runErr := c.Run()
-			ok := runErr == nil
-			output := ansiRe.ReplaceAllString(buf.String(), "")
-
-			sr := suiteResult{name: step.name, ok: ok}
-
-			// Parse test counts from captured output
-			switch step.parse {
-			case "go":
-				sr.passed = len(goPassRe.FindAllString(output, -1))
-				sr.failed = len(goFailRe.FindAllString(output, -1))
-			case "c":
-				// May have multiple summary lines (one per test binary); sum them
-				for _, m := range cTestRe.FindAllStringSubmatch(output, -1) {
-					p, _ := strconv.Atoi(m[1])
-					f, _ := strconv.Atoi(m[2])
-					sr.passed += p
-					sr.failed += f
-				}
-			case "integration":
-				if m := intPassRe.FindStringSubmatch(output); len(m) > 1 {
-					sr.passed, _ = strconv.Atoi(m[1])
-				}
-				if m := intFailRe.FindStringSubmatch(output); len(m) > 1 {
-					sr.failed, _ = strconv.Atoi(m[1])
-				}
-			}
-
-			results = append(results, sr)
-		}
-
-		// Print unified summary
-		fmt.Printf("\n%s══════════════════════════════════════%s\n", dim, reset)
-		fmt.Printf("  %sEZ Test Results%s\n", bold, reset)
-		fmt.Printf("%s══════════════════════════════════════%s\n\n", dim, reset)
-
-		totalPassed := 0
-		totalFailed := 0
-		anyFailed := false
-
-		for _, sr := range results {
-			totalPassed += sr.passed
-			totalFailed += sr.failed
-			label := fmt.Sprintf("%s%sPASS%s", bold, green, reset)
-			if !sr.ok {
-				label = fmt.Sprintf("%s%sFAIL%s", bold, red, reset)
-				anyFailed = true
-			}
-			fmt.Printf("  %s  %-24s (%d passed, %d failed)\n", label, sr.name, sr.passed, sr.failed)
-		}
-
-		fmt.Printf("\n  %sTotal: %d passed, %d failed%s\n", bold, totalPassed, totalFailed, reset)
-		fmt.Printf("%s══════════════════════════════════════%s\n", dim, reset)
-
-		if anyFailed {
-			os.Exit(1)
-		}
-	},
-}
-
 func printManUsage() {
 	fmt.Println("ez man — builtin and stdlib documentation")
 	fmt.Println()
@@ -623,7 +480,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd)
+	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
