@@ -1851,6 +1851,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (!is_int_kind(left->kind)) {
                     mismatch = true;
                 }
+            } else {
+                /* RHS is not a valid target for 'in' */
+                diag_error_codef(tc->diag, "E3095", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    right_tn);
+                infix_errored = true;
             }
             if (mismatch) {
                 char msg[EZ_MSG_BUF_SIZE];

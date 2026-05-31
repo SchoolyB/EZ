@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 291 codes** (188 errors, 14 warnings, 89 panics)
+**Total: 292 codes** (189 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -154,6 +154,7 @@
 | `E3092` | types | cannot compare '%s' to nil; only Error types and pointers can be nil |
 | `E3093` | types | cannot use '%s' on '%s' |
 | `E3094` | types | cannot assign '%s' to element of '%s' |
+| `E3095` | types | 'in' only works with arrays, maps, and strings; got '%s' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -342,4 +343,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-05-31 06:52:59 UTC*
+*Generated on 2026-05-31 23:54:33 UTC*

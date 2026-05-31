@@ -176,7 +176,8 @@
     EZ_ERROR("E3091", "types", "'%s' cannot be used as a condition") \
     EZ_ERROR("E3092", "types", "cannot compare '%s' to nil; only Error types and pointers can be nil") \
     EZ_ERROR("E3093", "types", "cannot use '%s' on '%s'") \
-    EZ_ERROR("E3094", "types", "cannot assign '%s' to element of '%s'")
+    EZ_ERROR("E3094", "types", "cannot assign '%s' to element of '%s'") \
+    EZ_ERROR("E3095", "types", "'in' only works with arrays, maps, and strings; got '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
