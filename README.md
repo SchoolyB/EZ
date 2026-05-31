@@ -121,18 +121,21 @@ EZ compiles your code to a native binary, executes it, and cleans up.
 ## Commands
 
 ```
-ez <file.ez>              Compile and run
-ez build <file.ez> -o app Compile to a distributable binary
-ez check <file.ez>        Type check without compiling
-ez repl                   Interactive REPL
-ez watch <file.ez>        Watch for changes, re-run on save
-ez doc <file.ez>           Generate docs from #doc attributes
-ez pz <name>             Scaffold a new project
-ez report                 Print system info for bug reports
-ez update                 Update to the latest stable version
-ez update --pre           Update to the latest pre-release (alpha/beta/rc)
-ez install <version>      Install a specific version (e.g. 2.5.0, 3.0.0-beta.2)
-ez version                Show version info
+ez <file.ez>                Compile and run
+ez build <file.ez> -o app   Compile to a distributable binary
+ez check <file.ez>          Type check without compiling
+ez watch <file.ez>          Watch for changes, re-run on save
+ez doc <file.ez>            Generate docs from #doc attributes
+ez pz <name>                Scaffold a new project
+ez report                   Print system info for bug reports
+ez update                   Update to the latest stable version
+ez update --pre             Update to the latest pre-release (alpha/beta/rc)
+ez install <version>        Install a specific version (e.g. 2.5.0, 3.0.0-beta.2)
+ez version                  Show version info
+ez man                      Show helpful information about using the ez man command
+ez man  <stdlib module>     Show information about the contents of the provided stdlib module
+ez man <stdlib function>    Show information about the provide stdlib function
+ez man <stdlib struct type> Show information about the provied stdlib struct type
 ```
 
 ---
