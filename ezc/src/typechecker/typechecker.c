@@ -5955,8 +5955,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                          node->data.var_decl.value->kind == NODE_LABEL &&
                          scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value) &&
                          scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value)->is_ref) &&
-                       /* Skip mismatch when assigning pointer (addr) to uint */
-                       !(is_int_kind(declared->kind) && value_type->kind == TK_POINTER) &&
+                       /* Skip mismatch when assigning pointer (addr) to ^T */
                        /* Skip mismatch when assigning pointer (addr) to ^T */
                        !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
                        /* : implicit int→float coercion when target is float */
