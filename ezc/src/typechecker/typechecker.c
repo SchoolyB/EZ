@@ -4966,6 +4966,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
         } else if (left->kind == TK_STRING) {
+            if (idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind) && idx_t->kind != TK_BYTE) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "string index must be an integer, got %s", type_name(idx_t));
+                diag_error_msg(tc->diag, "E3003", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
             result = &TYPE_CHAR;
         } else if (left->kind != TK_UNKNOWN) {
             diag_error_codef(tc->diag, "E3008", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, left));
