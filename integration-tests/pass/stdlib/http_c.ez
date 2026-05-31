@@ -10,20 +10,20 @@ do main() {
     mut fail int = 0
 
     // GET
-    mut resp = http.get("http://httpbin.org/get")
+    mut resp, _ = http.get("http://httpbin.org/get")
     if resp.status == 200 { pass += 1 } otherwise { fail += 1 }
     if len(resp.body) > 0 { pass += 1 } otherwise { fail += 1 }
 
     // POST
-    mut post_resp = http.post("http://httpbin.org/post", "hello=world")
+    mut post_resp, _ = http.post("http://httpbin.org/post", "hello=world")
     if post_resp.status == 200 { pass += 1 } otherwise { fail += 1 }
 
     // PATCH
-    mut patch_resp = http.patch("http://httpbin.org/patch", "update=true")
+    mut patch_resp, _ = http.patch("http://httpbin.org/patch", "update=true")
     if patch_resp.status == 200 { pass += 1 } otherwise { fail += 1 }
 
     // 404
-    mut not_found = http.get("http://httpbin.org/status/404")
+    mut not_found, _ = http.get("http://httpbin.org/status/404")
     if not_found.status == 404 { pass += 1 } otherwise { fail += 1 }
 
     println("http: ${pass} passed, ${fail} failed")

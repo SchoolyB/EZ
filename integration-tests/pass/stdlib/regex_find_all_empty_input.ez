@@ -10,15 +10,15 @@ do main() {
     mut fail int = 0
 
     // empty input: zero-width pattern matches once
-    mut r1 [string] = regex.find_all("a*", "")
+    mut r1, _ = regex.find_all("a*", "")
     if len(r1) == 1 { pass += 1 } otherwise { fail += 1 }
 
     // normal multi-match still works
-    mut r2 [string] = regex.find_all("[0-9]+", "a1 b22 c333")
+    mut r2, _ = regex.find_all("[0-9]+", "a1 b22 c333")
     if len(r2) == 3 { pass += 1 } otherwise { fail += 1 }
 
     // zero-width pattern on non-empty input (a* matches before each char and at end)
-    mut r3 [string] = regex.find_all("[0-9]+", "abc")
+    mut r3, _ = regex.find_all("[0-9]+", "abc")
     if len(r3) == 0 { pass += 1 } otherwise { fail += 1 }
 
     println("regex_find_all_empty_input: ${pass} passed, ${fail} failed")

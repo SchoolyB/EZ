@@ -13,7 +13,7 @@ do main() {
     mut _, _ = io.write_file(test_file, "line1\nline2\nline3")
 
     // Test 1: read_bytes returns correct byte count
-    mut bytes = io.read_bytes(test_file)
+    mut bytes, _ = io.read_bytes(test_file)
     if len(bytes) == 17 {
         println("  [PASS] read_bytes: correct byte count (17)")
         passed += 1
@@ -43,7 +43,7 @@ do main() {
     }
 
     // Test 4: read_lines returns correct line count
-    mut lines = io.read_lines(test_file)
+    mut lines, _ = io.read_lines(test_file)
     if len(lines) == 3 {
         println("  [PASS] read_lines: 3 lines")
         passed += 1

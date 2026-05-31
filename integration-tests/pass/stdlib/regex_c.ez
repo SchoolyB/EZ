@@ -14,22 +14,22 @@ do main() {
     if regex.is_match("^hello$", "hello") { pass += 1 } otherwise { fail += 1 }
 
     // find
-    mut found = regex.find("[0-9]+", "abc 42 def")
+    mut found, _ = regex.find("[0-9]+", "abc 42 def")
     if found == "42" { pass += 1 } otherwise { fail += 1 }
 
-    mut empty = regex.find("[0-9]+", "no digits here")
+    mut empty, _ = regex.find("[0-9]+", "no digits here")
     if empty == "" { pass += 1 } otherwise { fail += 1 }
 
     // find_all
-    mut all = regex.find_all("[0-9]+", "a1 b22 c333")
+    mut all, _ = regex.find_all("[0-9]+", "a1 b22 c333")
     if len(all) == 3 { pass += 1 } otherwise { fail += 1 }
 
     // replace
-    mut replaced = regex.replace("[aeiou]", "hello world", "*")
+    mut replaced, _ = regex.replace("[aeiou]", "hello world", "*")
     if replaced == "h*ll* w*rld" { pass += 1 } otherwise { fail += 1 }
 
     // split
-    mut parts = regex.split("[,]+", "a,b,c,d")
+    mut parts, _ = regex.split("[,]+", "a,b,c,d")
     if len(parts) == 4 { pass += 1 } otherwise { fail += 1 }
 
     println("regex: ${pass} passed, ${fail} failed")

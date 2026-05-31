@@ -10,7 +10,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: base 16 with raw int
-    mut hex int = strconv.to_int("FF", 16)
+    mut hex, _ = strconv.to_int("FF", 16)
     if hex == 255 {
         println("  [PASS] to_int(\"FF\", 16) = 255")
         passed += 1
@@ -20,7 +20,7 @@ do main() {
     }
 
     // Test 2: base 2 with raw int
-    mut bin int = strconv.to_int("1010", 2)
+    mut bin, _ = strconv.to_int("1010", 2)
     if bin == 10 {
         println("  [PASS] to_int(\"1010\", 2) = 10")
         passed += 1
@@ -30,7 +30,7 @@ do main() {
     }
 
     // Test 3: base 8 with raw int
-    mut oct int = strconv.to_int("77", 8)
+    mut oct, _ = strconv.to_int("77", 8)
     if oct == 63 {
         println("  [PASS] to_int(\"77\", 8) = 63")
         passed += 1
@@ -40,7 +40,7 @@ do main() {
     }
 
     // Test 4: BASE_16 constant
-    mut h2 int = strconv.to_int("1A", strconv.BASE_16)
+    mut h2, _ = strconv.to_int("1A", strconv.BASE_16)
     if h2 == 26 {
         println("  [PASS] to_int(\"1A\", BASE_16) = 26")
         passed += 1
@@ -50,7 +50,7 @@ do main() {
     }
 
     // Test 5: BASE_2 constant
-    mut b2 int = strconv.to_int("1111", strconv.BASE_2)
+    mut b2, _ = strconv.to_int("1111", strconv.BASE_2)
     if b2 == 15 {
         println("  [PASS] to_int(\"1111\", BASE_2) = 15")
         passed += 1
@@ -60,7 +60,7 @@ do main() {
     }
 
     // Test 6: BASE_8 constant
-    mut b8 int = strconv.to_int("17", strconv.BASE_8)
+    mut b8, _ = strconv.to_int("17", strconv.BASE_8)
     if b8 == 15 {
         println("  [PASS] to_int(\"17\", BASE_8) = 15")
         passed += 1
@@ -70,7 +70,7 @@ do main() {
     }
 
     // Test 7: BASE_36 constant
-    mut b36 int = strconv.to_int("Z", strconv.BASE_36)
+    mut b36, _ = strconv.to_int("Z", strconv.BASE_36)
     if b36 == 35 {
         println("  [PASS] to_int(\"Z\", BASE_36) = 35")
         passed += 1
@@ -80,7 +80,7 @@ do main() {
     }
 
     // Test 8: to_uint with base 16
-    mut uhex uint = strconv.to_uint("FF", strconv.BASE_16)
+    mut uhex, _ = strconv.to_uint("FF", strconv.BASE_16)
     if uhex == 255 {
         println("  [PASS] to_uint(\"FF\", BASE_16) = 255")
         passed += 1
@@ -90,7 +90,7 @@ do main() {
     }
 
     // Test 9: default base (no second arg) = base 10
-    mut dec int = strconv.to_int("42")
+    mut dec, _ = strconv.to_int("42")
     if dec == 42 {
         println("  [PASS] to_int(\"42\") default = 42")
         passed += 1

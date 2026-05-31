@@ -10,12 +10,12 @@ do main() {
     mut failed int = 0
 
     // open in-memory database
-    mut db = sqlite.open(":memory:")
+    mut db, _ = sqlite.open(":memory:")
     println("  [PASS] open :memory:")
     passed += 1
 
     // exec create table
-    mut ok bool = sqlite.exec(db, "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+    mut ok, _ = sqlite.exec(db, "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
     if ok {
         println("  [PASS] exec CREATE TABLE")
         passed += 1
@@ -25,7 +25,7 @@ do main() {
     }
 
     // exec insert
-    mut ok2 bool = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (1, 'Alice')")
+    mut ok2, _ = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (1, 'Alice')")
     if ok2 {
         println("  [PASS] exec INSERT")
         passed += 1
@@ -38,7 +38,7 @@ do main() {
     mut _, _ = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (2, 'Bob')")
 
     // query
-    mut rows = sqlite.query(db, "SELECT * FROM test")
+    mut rows, _ = sqlite.query(db, "SELECT * FROM test")
     if len(rows) == 2 {
         println("  [PASS] query returns 2 rows")
         passed += 1
