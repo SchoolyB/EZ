@@ -4029,6 +4029,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* Map key/value type mismatch */
+                        if (arg_t->kind == TK_MAP && param_t->kind == TK_MAP) {
+                            bool key_mismatch = arg_t->key_type && param_t->key_type &&
+                                strcmp(arg_t->key_type, param_t->key_type) != 0;
+                            bool val_mismatch = arg_t->value_type && param_t->value_type &&
+                                strcmp(arg_t->value_type, param_t->value_type) != 0;
+                            if (key_mismatch || val_mismatch) {
+                                char msg[EZ_MSG_BUF_SIZE];
+                                snprintf(msg, sizeof(msg),
+                                    "argument %d of '%s': expected '%s', got '%s'",
+                                    ai + 1, fn_name, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                    NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                    node->data.call.args[ai]->token.column, 0);
+                            }
+                        }
                         /* E3066: typed-func signatures must match exactly */
                         if (arg_t->kind == TK_FUNCTION && param_t->kind == TK_FUNCTION &&
                             arg_t->name && param_t->name &&
@@ -5987,6 +6003,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Map key/value type mismatch (both TK_MAP but different key or value types) */
+            if (declared->kind == TK_MAP && value_type->kind == TK_MAP) {
+                bool key_mismatch = declared->key_type && value_type->key_type &&
+                    strcmp(declared->key_type, value_type->key_type) != 0;
+                bool val_mismatch = declared->value_type && value_type->value_type &&
+                    strcmp(declared->value_type, value_type->value_type) != 0;
+                if (key_mismatch || val_mismatch) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "type mismatch: cannot assign '%s' to '%s'",
+                        type_display_name(tc, value_type), type_display_name(tc, declared));
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
             /* E3046: literal that exceeds the destination type's range.
              *   overflow_u64 = true  : exceeds UINT64_MAX, never fits a non-bigint
              *   overflow     = true  : exceeds INT64_MAX but fits in UINT64_MAX,
@@ -6920,6 +6951,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_display_name(tc, expected), type_display_name(tc, ret_t));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Map key/value type mismatch in return */
+            if (ret_t->kind == TK_MAP && expected->kind == TK_MAP) {
+                bool key_mismatch = ret_t->key_type && expected->key_type &&
+                    strcmp(ret_t->key_type, expected->key_type) != 0;
+                bool val_mismatch = ret_t->value_type && expected->value_type &&
+                    strcmp(ret_t->value_type, expected->value_type) != 0;
+                if (key_mismatch || val_mismatch) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "return type mismatch: expected '%s', got '%s'",
+                        type_display_name(tc, expected), type_display_name(tc, ret_t));
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
             /* : pointer depth mismatch (e.g. returning ^^int
              * from a function declared -> ^int). Both sides are
