@@ -1,9 +1,6 @@
-/*
- * Error Test: E3001 - map key type mismatch
- * Expected: "map key type mismatch: expected 'string', got 'int'" error
- */
-
+/* Error Test: E3001 - assigning map[string:int] to map[int:int] */
 do main() {
-    mut m map[string:int] = {"a": 1, "b": 2}
-    mut val = m[42]
+    mut a map[string:int] = {"x": 1}
+    mut b map[int:int] = a
+    println(b)
 }

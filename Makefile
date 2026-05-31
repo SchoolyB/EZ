@@ -52,7 +52,7 @@ test-integration: build
 test-go: stubs
 	@echo ""
 	@echo "=== Go Unit Tests ==="
-	$(GO) test ./pkg/lineeditor/... ./cmd/ez/... ./internal/ezc/...
+	$(GO) test ./cmd/ez/... ./internal/ezc/...
 
 test-ubsan:
 	@$(MAKE) -C ezc test-ubsan

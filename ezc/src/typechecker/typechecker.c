@@ -1549,6 +1549,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_PREFIX_EXPR: {
         EzType *right = resolve_expr(tc, node->data.prefix.right);
         if (strcmp(node->data.prefix.op, "!") == 0) {
+            if (right->kind != TK_BOOL && right->kind != TK_UNKNOWN) {
+                diag_error_codef(tc->diag, "E3090", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
+            }
             result = &TYPE_BOOL;
         } else if (strcmp(node->data.prefix.op, "-") == 0) {
             if (right->kind != TK_UNKNOWN && !type_is_numeric(right)) {
@@ -1677,6 +1680,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3092: nil compared to a non-nullable type (struct, map, array) */
+        if (!infix_errored && (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0)) {
+            EzType *non_nil = NULL;
+            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN &&
+                (right->kind == TK_STRUCT || right->kind == TK_MAP || right->kind == TK_ARRAY))
+                non_nil = right;
+            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN &&
+                (left->kind == TK_STRUCT || left->kind == TK_MAP || left->kind == TK_ARRAY))
+                non_nil = left;
+            if (non_nil) {
+                diag_error_codef(tc->diag, "E3092", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    type_display_name(tc, non_nil));
+                infix_errored = true;
+            }
+        }
+
         /* String + string: reject with helpful message */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) && strcmp(op, "+") == 0) {
             diag_error_code(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -1693,6 +1712,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E3002", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
+        }
+
+        /* E3093: arithmetic on map, array, or struct */
+        if (!infix_errored &&
+            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0)) {
+            EzType *bad = NULL;
+            if (left->kind == TK_MAP || left->kind == TK_ARRAY || left->kind == TK_STRUCT)
+                bad = left;
+            else if (right->kind == TK_MAP || right->kind == TK_ARRAY || right->kind == TK_STRUCT)
+                bad = right;
+            if (bad && bad->kind != TK_UNKNOWN) {
+                diag_error_codef(tc->diag, "E3093", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    op, type_display_name(tc, bad));
+                infix_errored = true;
+            }
         }
 
         /* E3078: pointer arithmetic is not supported. The spec disallows
@@ -3982,6 +4017,34 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* Array element type mismatch */
+                        if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
+                            arg_t->element_type && param_t->element_type &&
+                            strcmp(arg_t->element_type, param_t->element_type) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected '%s', got '%s'",
+                                ai + 1, fn_name, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Map key/value type mismatch */
+                        if (arg_t->kind == TK_MAP && param_t->kind == TK_MAP) {
+                            bool key_mismatch = arg_t->key_type && param_t->key_type &&
+                                strcmp(arg_t->key_type, param_t->key_type) != 0;
+                            bool val_mismatch = arg_t->value_type && param_t->value_type &&
+                                strcmp(arg_t->value_type, param_t->value_type) != 0;
+                            if (key_mismatch || val_mismatch) {
+                                char msg[EZ_MSG_BUF_SIZE];
+                                snprintf(msg, sizeof(msg),
+                                    "argument %d of '%s': expected '%s', got '%s'",
+                                    ai + 1, fn_name, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                    NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                    node->data.call.args[ai]->token.column, 0);
+                            }
+                        }
                         /* E3066: typed-func signatures must match exactly */
                         if (arg_t->kind == TK_FUNCTION && param_t->kind == TK_FUNCTION &&
                             arg_t->name && param_t->name &&
@@ -4820,6 +4883,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!obj_t) obj_t = resolve_expr(tc, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(tc, obj_t->name, member);
+                bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
+                                      strcmp(result->name, "func") == 0);
+                if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
+                    diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        struct_display_name(tc, obj_t->name), member);
+                }
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
@@ -5923,6 +5992,32 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Array element type mismatch (both TK_ARRAY but different element types) */
+            if (declared->kind == TK_ARRAY && value_type->kind == TK_ARRAY &&
+                declared->element_type && value_type->element_type &&
+                strcmp(declared->element_type, value_type->element_type) != 0) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign '%s' to '%s'",
+                    type_display_name(tc, value_type), type_display_name(tc, declared));
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Map key/value type mismatch (both TK_MAP but different key or value types) */
+            if (declared->kind == TK_MAP && value_type->kind == TK_MAP) {
+                bool key_mismatch = declared->key_type && value_type->key_type &&
+                    strcmp(declared->key_type, value_type->key_type) != 0;
+                bool val_mismatch = declared->value_type && value_type->value_type &&
+                    strcmp(declared->value_type, value_type->value_type) != 0;
+                if (key_mismatch || val_mismatch) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "type mismatch: cannot assign '%s' to '%s'",
+                        type_display_name(tc, value_type), type_display_name(tc, declared));
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
             /* E3046: literal that exceeds the destination type's range.
              *   overflow_u64 = true  : exceeds UINT64_MAX, never fits a non-bigint
              *   overflow     = true  : exceeds INT64_MAX but fits in UINT64_MAX,
@@ -6545,6 +6640,25 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3094: array index assignment type mismatch (arr[i] = wrong_type) */
+        if (target->kind == NODE_INDEX_EXPR && node->data.assign.value) {
+            EzType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
+            if (indexed_t && indexed_t->kind == TK_ARRAY && indexed_t->element_type) {
+                EzType *elem_t = type_from_name(indexed_t->element_type);
+                EzType *val_t = resolve_expr(tc, node->data.assign.value);
+                if (val_t && val_t->kind != TK_UNKNOWN && elem_t && elem_t->kind != TK_UNKNOWN &&
+                    val_t->kind != elem_t->kind &&
+                    !(is_int_kind(val_t->kind) && is_int_kind(elem_t->kind)) &&
+                    !(val_t->kind == TK_ENUM   && is_int_kind(elem_t->kind)) &&
+                    !(is_int_kind(val_t->kind) && elem_t->kind == TK_FLOAT)  &&
+                    !(val_t->kind == TK_FLOAT  && is_int_kind(elem_t->kind))) {
+                    diag_error_codef(tc->diag, "E3094",
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        type_display_name(tc, val_t), type_display_name(tc, indexed_t));
+                }
+            }
+        }
+
         /* E3036 (): range check on reassignment; the var_decl path
          * already catches out-of-range literals at declaration, but
          * reassignment (`x = 300` where x is u8) was unchecked. */
@@ -6808,8 +6922,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                  * the reverse; returning an int from a function declared
                  * to return an enum is a type error (). */
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
-                !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
-                !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
                 !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
@@ -6828,6 +6940,32 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_display_name(tc, expected), type_display_name(tc, ret_t));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Array element type mismatch in return */
+            if (ret_t->kind == TK_ARRAY && expected->kind == TK_ARRAY &&
+                ret_t->element_type && expected->element_type &&
+                strcmp(ret_t->element_type, expected->element_type) != 0) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "return type mismatch: expected '%s', got '%s'",
+                    type_display_name(tc, expected), type_display_name(tc, ret_t));
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Map key/value type mismatch in return */
+            if (ret_t->kind == TK_MAP && expected->kind == TK_MAP) {
+                bool key_mismatch = ret_t->key_type && expected->key_type &&
+                    strcmp(ret_t->key_type, expected->key_type) != 0;
+                bool val_mismatch = ret_t->value_type && expected->value_type &&
+                    strcmp(ret_t->value_type, expected->value_type) != 0;
+                if (key_mismatch || val_mismatch) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "return type mismatch: expected '%s', got '%s'",
+                        type_display_name(tc, expected), type_display_name(tc, ret_t));
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
             /* : pointer depth mismatch (e.g. returning ^^int
              * from a function declared -> ^int). Both sides are
@@ -7034,6 +7172,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E3038", strdup(msg),
                 NODE_FILE(tc, c), c->token.line, c->token.column, 0);
         }
+        if (cond_t && cond_t->kind != TK_UNKNOWN &&
+            (cond_t->kind == TK_STRING || cond_t->kind == TK_ARRAY ||
+             cond_t->kind == TK_MAP   || cond_t->kind == TK_STRUCT)) {
+            AstNode *c = node->data.if_stmt.condition;
+            diag_error_codef(tc->diag, "E3091", NODE_FILE(tc, c), c->token.line, c->token.column, 0,
+                type_display_name(tc, cond_t));
+        }
         Scope *if_outer = tc->current_scope;
         tc->current_scope = scope_create(if_outer);
         check_block(tc, node->data.if_stmt.consequence);
@@ -7162,6 +7307,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             diag_error_msg(tc->diag, "E3038", strdup(msg),
                 NODE_FILE(tc, c), c->token.line, c->token.column, 0);
+        }
+        if (wh_cond_t && wh_cond_t->kind != TK_UNKNOWN &&
+            (wh_cond_t->kind == TK_STRING || wh_cond_t->kind == TK_ARRAY ||
+             wh_cond_t->kind == TK_MAP   || wh_cond_t->kind == TK_STRUCT)) {
+            AstNode *c = node->data.while_stmt.condition;
+            diag_error_codef(tc->diag, "E3091", NODE_FILE(tc, c), c->token.line, c->token.column, 0,
+                type_display_name(tc, wh_cond_t));
         }
         tc->loop_depth++;
         check_block(tc, node->data.while_stmt.body);

@@ -1,0 +1,9 @@
+/* Error Test: E3092 - struct compared to nil */
+const Point struct {
+    x int
+    y int
+}
+do main() {
+    mut p = Point{x: 1, y: 2}
+    if p == nil { println("nil") }
+}

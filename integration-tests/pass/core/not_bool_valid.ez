@@ -1,0 +1,35 @@
+/* Pass Test: '!' operator on bool values works correctly */
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut t bool = true
+    if !t == false {
+        println("  [PASS] !true == false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !true should be false")
+        failed += 1
+    }
+
+    mut f bool = false
+    if !f == true {
+        println("  [PASS] !false == true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !false should be true")
+        failed += 1
+    }
+
+    mut x int = 5
+    if !(x == 3) {
+        println("  [PASS] !(x == 3) when x is 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !(x == 3) should be true when x is 5")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

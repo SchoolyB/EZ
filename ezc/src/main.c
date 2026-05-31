@@ -114,7 +114,13 @@ static char *read_file(const char *path) {
     }
     if (len + 1 > cap) {
         char *grow = realloc(buf, len + 1);
-        if (grow) buf = grow;
+        if (!grow) {
+            free(buf);
+            fclose(f);
+            fprintf(stderr, "ez: out of memory\n");
+            return NULL;
+        }
+        buf = grow;
     }
     buf[len] = '\0';
     fclose(f);

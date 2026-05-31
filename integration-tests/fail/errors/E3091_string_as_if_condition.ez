@@ -1,0 +1,5 @@
+/* Error Test: E3091 - string used as if condition */
+do main() {
+    mut s string = "hello"
+    if s { println("truthy") }
+}
