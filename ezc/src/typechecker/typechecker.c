@@ -1549,6 +1549,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_PREFIX_EXPR: {
         EzType *right = resolve_expr(tc, node->data.prefix.right);
         if (strcmp(node->data.prefix.op, "!") == 0) {
+            if (right->kind != TK_BOOL && right->kind != TK_UNKNOWN) {
+                diag_error_codef(tc->diag, "E3090", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
+            }
             result = &TYPE_BOOL;
         } else if (strcmp(node->data.prefix.op, "-") == 0) {
             if (right->kind != TK_UNKNOWN && !type_is_numeric(right)) {
