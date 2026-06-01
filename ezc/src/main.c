@@ -1633,7 +1633,6 @@ int main(int argc, char **argv) {
 
     if (ret != 0) {
         fprintf(stderr, "ez: C compilation failed\n");
-        /* Check if this might be a C interop header issue */
         bool has_c_import = false;
         for (int si = 0; si < program->data.program.stmt_count; si++) {
             AstNode *s = program->data.program.stmts[si];

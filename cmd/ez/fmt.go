@@ -15,12 +15,9 @@ import (
 // normalizing indentation in formatEZSource.
 const defaultFmtIndentSpaces = 4
 
-// formatEZSource applies the conservative formatting rules described in
-// issue #1564 and returns the rewritten source.
-//
-// Rules (deliberately limited to the issue's "Scope for initial
-// implementation" so the first version of `ez fmt` cannot accidentally
-// alter the meaning of legal .ez code):
+// formatEZSource applies conservative formatting rules and returns the
+// rewritten source. Rules are intentionally limited so `ez fmt` cannot
+// accidentally alter the meaning of legal .ez code:
 //
 //  1. Strip trailing whitespace from every line.
 //  2. Convert leading tabs in each line to defaultFmtIndentSpaces spaces

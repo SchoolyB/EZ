@@ -6787,10 +6787,10 @@ static void emit_ensure_cleanup(CodeGen *cg) {
     free(ensures);
 }
 
-/* Issue #1629: track nested scratch arenas so early-exit paths can
- * unwind every live one innermost-first. Without this, `return` (and
- * the desugared `or_return`) from inside a nested for_each/if/while/
- * loop scope leaks the per-scope arenas the codegen had emitted. */
+/* Track nested scratch arenas so early-exit paths can unwind every live
+ * one innermost-first. Without this, `return` (and the desugared
+ * `or_return`) from inside a nested for_each/if/while/loop scope leaks
+ * the per-scope arenas the codegen had emitted. */
 static void scope_arena_push(CodeGen *cg, const char *arena_var, const char *saved_var) {
     if (cg->scope_arena_count >= cg->scope_arena_cap) {
         cg->scope_arena_cap = cg->scope_arena_cap ? cg->scope_arena_cap * 2 : 8;
@@ -6835,7 +6835,7 @@ static void emit_loop_exit_unwind(CodeGen *cg) {
 
 /* : emit escape + cleanup for a non-void function return.
  * Escapes the return value (_ret) to _func_saved, then unwinds any
- * nested scratch arenas live at this exit point (issue #1629), then
+ * nested scratch arenas live at this exit point, then
  * destroys the function arena. The escape must run first because it
  * may read from memory still owned by a scratch arena. */
 static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
