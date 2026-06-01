@@ -5302,6 +5302,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     snprintf(prefixed, pf_len, "%s_%s", real_mod, func);
                     AstNode *uf = find_func(cg, prefixed);
                     if (uf) {
+                        free(prefixed);
                         emitf(cg, "ez_fn_%s_%s(", real_mod, func);
                         for (int i = 0; i < node->data.call.arg_count; i++) {
                             if (i > 0) emit(cg, ", ");
@@ -5310,6 +5311,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                         emit(cg, ")");
                         return;
                     }
+                    free(prefixed);
                 }
             }
         }
