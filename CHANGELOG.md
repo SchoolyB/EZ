@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.4](https://github.com/SchoolyB/EZ/compare/v3.5.3...v3.5.4) (2026-06-01)
+
+
+### Bug Fixes
+
+* check fputs return value in write_file ([#1741](https://github.com/SchoolyB/EZ/issues/1741)) ([767da19](https://github.com/SchoolyB/EZ/commit/767da19ec71accb494892115e30f77d2b6cc1f42))
+
 ## [3.5.3](https://github.com/SchoolyB/EZ/compare/v3.5.2...v3.5.3) (2026-06-01)
 
 
