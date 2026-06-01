@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/marshallburns/ez/internal/ezc"
@@ -302,12 +303,7 @@ func printManUsage() {
 	for m := range stdlibModules {
 		mods = append(mods, m)
 	}
-	// simple insertion sort for stable output
-	for i := 1; i < len(mods); i++ {
-		for j := i; j > 0 && mods[j] < mods[j-1]; j-- {
-			mods[j], mods[j-1] = mods[j-1], mods[j]
-		}
-	}
+	sort.Strings(mods)
 	fmt.Printf("  %s\n", strings.Join(mods, "  "))
 }
 

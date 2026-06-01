@@ -424,9 +424,8 @@ func parseReleaseBody(body string) ParsedChangelog {
 		}
 
 		// Parse list items
-		if strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "- ") {
-			item := strings.TrimPrefix(trimmed, "* ")
-			item = strings.TrimPrefix(item, "- ")
+		if len(trimmed) > 1 && (trimmed[0] == '*' || trimmed[0] == '-') && trimmed[1] == ' ' {
+			item := trimmed[2:]
 
 			// Clean up the item - formats:
 			// **scope:** description ([#issue](url)) ([hash](url))

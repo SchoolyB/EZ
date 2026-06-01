@@ -194,7 +194,7 @@ func watchDirectory(dirPath string, compilerArgs []string) {
 func collectFilesToWatch(mainFile string) []string {
 	files := []string{mainFile}
 	dir := filepath.Dir(mainFile)
-	seen := map[string]bool{mainFile: true}
+	seen := map[string]struct{}{mainFile: {}}
 
 	imports := scanImports(mainFile)
 	for _, imp := range imports {
@@ -209,19 +209,19 @@ func collectFilesToWatch(mainFile string) []string {
 			if info, err := os.Stat(resolved); err == nil && info.IsDir() {
 				dirFiles := collectEzFilesInDir(resolved)
 				for _, f := range dirFiles {
-					if !seen[f] {
+					if _, ok := seen[f]; !ok {
 						files = append(files, f)
-						seen[f] = true
+						seen[f] = struct{}{}
 					}
 				}
 				continue
 			}
 			resolved += ".ez"
 		}
-		if !seen[resolved] {
+		if _, ok := seen[resolved]; !ok {
 			if _, err := os.Stat(resolved); err == nil {
 				files = append(files, resolved)
-				seen[resolved] = true
+				seen[resolved] = struct{}{}
 			}
 		}
 	}

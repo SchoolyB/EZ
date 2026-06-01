@@ -5297,12 +5297,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
                 /* 2) Try user-defined module: <module>_<func> */
                 if (!found) {
-                    size_t pf_len = strlen(real_mod) + 1 + strlen(func) + 1;
-                    char *prefixed = malloc(pf_len);
-                    snprintf(prefixed, pf_len, "%s_%s", real_mod, func);
+                    char prefixed[EZ_IDENT_BUF];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, func);
                     AstNode *uf = find_func(cg, prefixed);
                     if (uf) {
-                        free(prefixed);
                         emitf(cg, "ez_fn_%s_%s(", real_mod, func);
                         for (int i = 0; i < node->data.call.arg_count; i++) {
                             if (i > 0) emit(cg, ", ");
@@ -5311,7 +5309,6 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                         emit(cg, ")");
                         return;
                     }
-                    free(prefixed);
                 }
             }
         }
@@ -5375,12 +5372,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
             const char *resolved_name = resolve_alias(cg, raw_name);
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
-            size_t ns_len = strlen(resolved_name) + 1 + strlen(member) + 1;
-            char *ns_name = malloc(ns_len);
-            if (!ns_name) return;
-            snprintf(ns_name, ns_len, "%s_%s", resolved_name, member);
+            char ns_name[EZ_IDENT_BUF];
+            snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
-            free(ns_name);
             if (!ns_func) {
                 /* : check if `member` is a func-typed data field
                  * on the struct. If so, emit as a function-pointer call
@@ -5603,12 +5597,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                    fref->data.member.object->kind == NODE_LABEL) {
                             const char *rn_a = fref->data.member.object->data.label.value;
                             const char *rn_b = fref->data.member.member;
-                            size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
-                            char *rn = malloc(rn_len);
-                            if (!rn) continue;
-                            snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
+                            char rn[EZ_IDENT_BUF];
+                            snprintf(rn, sizeof(rn), "%s_%s", rn_a, rn_b);
                             ref_func = find_func(cg, rn);
-                            free(rn);
                         }
                     }
                 }

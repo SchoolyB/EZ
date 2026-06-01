@@ -247,7 +247,8 @@ static const char *read_type_name(Parser *p) {
     if (peek_token_is(p, TOK_DOT)) {
         next_token(p); /* skip . */
         next_token(p); /* qualified part */
-        size_t len = strlen(name) + strlen(p->cur_token.literal) + 2;
+        size_t nlen = strlen(name), qlen = strlen(p->cur_token.literal);
+        size_t len = nlen + qlen + 2;
         char *qualified = arena_alloc(p->arena, len);
         /* Use underscore for module-qualified types: mod.Type → mod_Type */
         snprintf(qualified, len, "%s_%s", name, p->cur_token.literal);
@@ -328,7 +329,8 @@ static const char *parse_complex_type(Parser *p) {
                 }
                 const char *sz = p->cur_token.literal;
                 if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-                size_t ts_len = strlen(elem) + strlen(sz) + 4;
+                size_t elen = strlen(elem), szlen = strlen(sz);
+                size_t ts_len = elen + szlen + 4;
                 char *type_str = arena_alloc(p->arena, ts_len);
                 snprintf(type_str, ts_len, "[%s,%s]", elem, sz);
                 return type_str;
@@ -362,7 +364,8 @@ static const char *parse_complex_type(Parser *p) {
         if (!val_type) return NULL;
         if (!expect_peek(p, TOK_RBRACKET)) return NULL;
         /* "map[" + key + ":" + val + "]" + '\0' = klen + vlen + 7 */
-        size_t ts_len = strlen(key_type) + strlen(val_type) + 7;
+        size_t klen = strlen(key_type), vlen = strlen(val_type);
+        size_t ts_len = klen + vlen + 7;
         char *type_str = arena_alloc(p->arena, ts_len);
         snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
         return type_str;
