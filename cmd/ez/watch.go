@@ -279,7 +279,7 @@ func collectEzFilesInDir(dir string) []string {
 func findMainFile(dir string) (string, error) {
 	ezFiles := collectEzFilesInDir(dir)
 	if len(ezFiles) == 0 {
-		return "", fmt.Errorf("Error: no .ez files found in %s", dir)
+		return "", fmt.Errorf("no .ez files found in %s", dir)
 	}
 
 	var mainFiles []string
@@ -290,14 +290,14 @@ func findMainFile(dir string) (string, error) {
 	}
 
 	if len(mainFiles) == 0 {
-		return "", fmt.Errorf("Error: no main() function found in %s\n  = help: create a file with a main() function", dir)
+		return "", fmt.Errorf("no main() function found in %s\n  = help: create a file with a main() function", dir)
 	}
 	if len(mainFiles) > 1 {
 		var fileList strings.Builder
 		for _, f := range mainFiles {
 			fileList.WriteString(fmt.Sprintf("\n    - %s", shortPath(f)))
 		}
-		return "", fmt.Errorf("Error: multiple main() functions found in %s:%s\n  = help: only one file should contain main()", dir, fileList.String())
+		return "", fmt.Errorf("multiple main() functions found in %s:%s\n  = help: only one file should contain main()", dir, fileList.String())
 	}
 	return mainFiles[0], nil
 }
