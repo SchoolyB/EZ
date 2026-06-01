@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.5.3](https://github.com/SchoolyB/EZ/compare/v3.5.2...v3.5.3) (2026-06-01)
+
+
+### Bug Fixes
+
+* **cli:** quote runtime_dir and output_file in shell command, reject single quotes ([8dfbe66](https://github.com/SchoolyB/EZ/commit/8dfbe66d71141f565796cbd848e011b82a32f256))
+* **codegen:** free prefixed string in emit_call after user-module lookup ([dffc51e](https://github.com/SchoolyB/EZ/commit/dffc51eabe3617aa2ac3bfcb770270655c82ff02))
+* **codegen:** route uint ++ and -- through overflow/underflow checks ([90aacad](https://github.com/SchoolyB/EZ/commit/90aacadc0b4231dd311f78f4ce529ca52773af77))
+* **runtime:** guard realloc return in main.c and ez_server.c ([f12298a](https://github.com/SchoolyB/EZ/commit/f12298a38987942b677a516e6b79548d7901ad02))
+* **stdlib:** add sys/random.h include for getentropy on Linux ([cf504d9](https://github.com/SchoolyB/EZ/commit/cf504d903e6053691469852bdbad23b84739c569))
+* **stdlib:** cap send() length at buffer size in HTTP server and client ([282ffcd](https://github.com/SchoolyB/EZ/commit/282ffcd179da8e08519eb73c6420778ec8663e8b))
+* **stdlib:** check malloc and pthread_create in server accept loop ([2a3a369](https://github.com/SchoolyB/EZ/commit/2a3a3697db2603ac8fe50fcec6e5fe3b68041d75))
+* typechecker, runtime, stdlib, and codegen bug fixes ([f301bbd](https://github.com/SchoolyB/EZ/commit/f301bbda9943d39ef9f43604f81a0c2aeec6761f))
+* **typechecker:** catch addr() of wrong struct type passed to pointer parameter ([41cae70](https://github.com/SchoolyB/EZ/commit/41cae700a3a21eab73095b37bd64acb1673c3429))
+* **typechecker:** catch pointer assigned to non-pointer variable ([1bcb0c2](https://github.com/SchoolyB/EZ/commit/1bcb0c298d02317a42ca3d1e7feb384a5a1e6ad1))
+* **typechecker:** catch struct-to-different-struct reassignment ([1f20af6](https://github.com/SchoolyB/EZ/commit/1f20af6c565aacd993c6a527d79b35ccfb23d4a5))
+* **typechecker:** emit E3003 when float is used as string index ([b2302e3](https://github.com/SchoolyB/EZ/commit/b2302e333493d515fa6920641df85ac0e28163a5))
+* **typechecker:** emit E3095 when 'in' is used on a non-array/map/string type ([6449e2d](https://github.com/SchoolyB/EZ/commit/6449e2d9e82048d7b67c20a8a4de0bfc2e34ba4a))
+* **typechecker:** tighten array/map element type coercion checks ([57b0041](https://github.com/SchoolyB/EZ/commit/57b0041e17289365618503a11124194e8ddce968))
+
+
+### Performance Improvements
+
+* minor optimizations across Go CLI and C compiler ([7311a50](https://github.com/SchoolyB/EZ/commit/7311a50bc12819d2df672e4208d16c2c740e8714))
+
 ## [3.5.2](https://github.com/SchoolyB/EZ/compare/v3.5.1...v3.5.2) (2026-05-31)
 
 
