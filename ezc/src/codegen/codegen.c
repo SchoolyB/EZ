@@ -1758,6 +1758,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
             bool su = false;
+            bool is_uint = pt && pt->kind == TK_UINT;
             if (sn) {
                 if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
                 else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
@@ -1778,8 +1779,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, node->data.postfix.left);
                     emitf(cg, ", 1, %s, %s, \"%s\", __FILE__, %d))", smin, smax, sn, node->token.line);
                 }
+            } else if (is_uint) {
+                emit(cg, " = ez_uadd_check(");
+                emit_expression(cg, node->data.postfix.left);
+                emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             } else {
-                emitf(cg, " = ez_add_check(");
+                emit(cg, " = ez_add_check(");
                 emit_expression(cg, node->data.postfix.left);
                 emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             }
@@ -1789,6 +1794,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
             bool su = false;
+            bool is_uint = pt && pt->kind == TK_UINT;
             if (sn) {
                 if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
                 else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
@@ -1809,8 +1815,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, node->data.postfix.left);
                     emitf(cg, ", 1, %s, %s, \"%s\", __FILE__, %d))", smin, smax, sn, node->token.line);
                 }
+            } else if (is_uint) {
+                emit(cg, " = ez_usub_check(");
+                emit_expression(cg, node->data.postfix.left);
+                emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             } else {
-                emitf(cg, " = ez_sub_check(");
+                emit(cg, " = ez_sub_check(");
                 emit_expression(cg, node->data.postfix.left);
                 emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             }
