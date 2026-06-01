@@ -12,8 +12,7 @@
 #include "../typechecker/typechecker.h"
 
 /* Per-scope scratch arena identifier pair tracked by codegen so that
- * early-exit paths can unwind every live scratch arena innermost-first.
- * See issue #1629. */
+ * early-exit paths can unwind every live scratch arena innermost-first. */
 typedef struct {
     char arena_var[32];
     char saved_var[32];
@@ -124,7 +123,7 @@ typedef struct {
      * entry so any early-exit path (return, or_return-desugared return)
      * can unwind every live scratch arena innermost-first before the
      * function-arena cleanup. Without this, nested scratch arenas leak
-     * on early return — see issue #1629. */
+     * on early return. */
     ScopeArena *scope_arenas;
     int scope_arena_count;
     int scope_arena_cap;

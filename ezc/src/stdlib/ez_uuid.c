@@ -14,7 +14,7 @@
 #if defined(__APPLE__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__linux__)
 #include <unistd.h>
 #endif
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
 #include <sys/random.h>
 #endif
 

@@ -1758,6 +1758,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
             bool su = false;
+            bool is_uint = pt && pt->kind == TK_UINT;
             if (sn) {
                 if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
                 else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
@@ -1778,8 +1779,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, node->data.postfix.left);
                     emitf(cg, ", 1, %s, %s, \"%s\", __FILE__, %d))", smin, smax, sn, node->token.line);
                 }
+            } else if (is_uint) {
+                emit(cg, " = ez_uadd_check(");
+                emit_expression(cg, node->data.postfix.left);
+                emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             } else {
-                emitf(cg, " = ez_add_check(");
+                emit(cg, " = ez_add_check(");
                 emit_expression(cg, node->data.postfix.left);
                 emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             }
@@ -1789,6 +1794,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
             bool su = false;
+            bool is_uint = pt && pt->kind == TK_UINT;
             if (sn) {
                 if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
                 else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
@@ -1809,8 +1815,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, node->data.postfix.left);
                     emitf(cg, ", 1, %s, %s, \"%s\", __FILE__, %d))", smin, smax, sn, node->token.line);
                 }
+            } else if (is_uint) {
+                emit(cg, " = ez_usub_check(");
+                emit_expression(cg, node->data.postfix.left);
+                emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             } else {
-                emitf(cg, " = ez_sub_check(");
+                emit(cg, " = ez_sub_check(");
                 emit_expression(cg, node->data.postfix.left);
                 emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             }
@@ -5287,9 +5297,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
                 /* 2) Try user-defined module: <module>_<func> */
                 if (!found) {
-                    size_t pf_len = strlen(real_mod) + 1 + strlen(func) + 1;
-                    char *prefixed = malloc(pf_len);
-                    snprintf(prefixed, pf_len, "%s_%s", real_mod, func);
+                    char prefixed[EZ_IDENT_BUF];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, func);
                     AstNode *uf = find_func(cg, prefixed);
                     if (uf) {
                         emitf(cg, "ez_fn_%s_%s(", real_mod, func);
@@ -5363,12 +5372,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
             const char *resolved_name = resolve_alias(cg, raw_name);
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
-            size_t ns_len = strlen(resolved_name) + 1 + strlen(member) + 1;
-            char *ns_name = malloc(ns_len);
-            if (!ns_name) return;
-            snprintf(ns_name, ns_len, "%s_%s", resolved_name, member);
+            char ns_name[EZ_IDENT_BUF];
+            snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
-            free(ns_name);
             if (!ns_func) {
                 /* : check if `member` is a func-typed data field
                  * on the struct. If so, emit as a function-pointer call
@@ -5591,12 +5597,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                    fref->data.member.object->kind == NODE_LABEL) {
                             const char *rn_a = fref->data.member.object->data.label.value;
                             const char *rn_b = fref->data.member.member;
-                            size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
-                            char *rn = malloc(rn_len);
-                            if (!rn) continue;
-                            snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
+                            char rn[EZ_IDENT_BUF];
+                            snprintf(rn, sizeof(rn), "%s_%s", rn_a, rn_b);
                             ref_func = find_func(cg, rn);
-                            free(rn);
                         }
                     }
                 }
@@ -6775,10 +6778,10 @@ static void emit_ensure_cleanup(CodeGen *cg) {
     free(ensures);
 }
 
-/* Issue #1629: track nested scratch arenas so early-exit paths can
- * unwind every live one innermost-first. Without this, `return` (and
- * the desugared `or_return`) from inside a nested for_each/if/while/
- * loop scope leaks the per-scope arenas the codegen had emitted. */
+/* Track nested scratch arenas so early-exit paths can unwind every live
+ * one innermost-first. Without this, `return` (and the desugared
+ * `or_return`) from inside a nested for_each/if/while/loop scope leaks
+ * the per-scope arenas the codegen had emitted. */
 static void scope_arena_push(CodeGen *cg, const char *arena_var, const char *saved_var) {
     if (cg->scope_arena_count >= cg->scope_arena_cap) {
         cg->scope_arena_cap = cg->scope_arena_cap ? cg->scope_arena_cap * 2 : 8;
@@ -6823,7 +6826,7 @@ static void emit_loop_exit_unwind(CodeGen *cg) {
 
 /* : emit escape + cleanup for a non-void function return.
  * Escapes the return value (_ret) to _func_saved, then unwinds any
- * nested scratch arenas live at this exit point (issue #1629), then
+ * nested scratch arenas live at this exit point, then
  * destroys the function arena. The escape must run first because it
  * may read from memory still owned by a scratch arena. */
 static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {

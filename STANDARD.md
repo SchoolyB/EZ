@@ -507,6 +507,8 @@ mut empty map[string:int] = {:}  // Empty map
 
 **Note:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array. The colon distinguishes the two:
 
+> 💡 **Flip's Tip:** `{}` is an empty array, `{:}` is an empty map. Easy to mix up, the colon is the tell!
+
 ```ez
 mut arr [int] = {}       // Empty array
 mut m map[string:int] = {:}  // Empty map
@@ -651,6 +653,8 @@ mut quotient, remainder = divide(10, 3)  // Both inferred: int
 
 Explicit type annotations are never required but can be used for clarity or documentation.
 
+> 💡 **Flip's Tip:** You don't need to write the type if the compiler can figure it out, but adding it never hurts for readability.
+
 ### 3.4 Type Conversions
 
 Explicit type conversions are performed using type constructors:
@@ -686,6 +690,8 @@ mut bytes [u8] = cast(ints, [u8])
 ```
 
 Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
+
+> 💡 **Flip's Tip:** `cast` truncates floats to integers, it does not round. `cast(3.9, int)` gives `3`, not `4`.
 
 ---
 
@@ -796,6 +802,8 @@ The blank identifier:
 - Cannot be read from (it discards the value)
 - Can be used multiple times in the same assignment
 - Works with both `mut` and `const` declarations
+
+> 💡 **Flip's Tip:** Use `_` to make it clear you are intentionally ignoring a value. It documents your intent right in the code.
 
 ---
 
@@ -1103,6 +1111,8 @@ for_each key in ages {
 
 Map iteration order is undefined (maps are unordered).
 
+> 💡 **Flip's Tip:** Never rely on map iteration order. It is different every run by design.
+
 **Mutation during iteration:**
 
 - **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe — new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
@@ -1115,6 +1125,8 @@ while_stmt = ( "as_long_as" | "while" ) expression block .
 ```
 
 `while` is an alias for `as_long_as`. Both are valid — user's choice.
+
+> 💡 **Flip's Tip:** `while` and `as_long_as` are identical. Pick whichever reads more naturally to you and stick with it.
 
 ```ez
 mut count int = 0

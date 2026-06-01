@@ -1,0 +1,18 @@
+const Point struct {
+    x int
+    y int
+}
+
+const Color struct {
+    r int
+    g int
+}
+
+do mutate(p ^Point) {
+    p.x = 99
+}
+
+do main() {
+    mut c Color = Color{r: 255, g: 0}
+    mutate(addr(c))
+}

@@ -16,6 +16,8 @@
 #define EZ_MSG_BUF_LARGE        512
 #define EZ_SOURCE_LINE_MAX      2048
 #define EZ_TYPE_NAME_MAX        128
+/* Buffer large enough for "name_name\0" (two max-length identifiers joined) */
+#define EZ_IDENT_BUF            (EZ_TYPE_NAME_MAX * 2 + 2)
 
 /* --- Time unit conversions --- */
 #define NS_PER_SEC              1000000000LL

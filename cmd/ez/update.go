@@ -424,9 +424,8 @@ func parseReleaseBody(body string) ParsedChangelog {
 		}
 
 		// Parse list items
-		if strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "- ") {
-			item := strings.TrimPrefix(trimmed, "* ")
-			item = strings.TrimPrefix(item, "- ")
+		if len(trimmed) > 1 && (trimmed[0] == '*' || trimmed[0] == '-') && trimmed[1] == ' ' {
+			item := trimmed[2:]
 
 			// Clean up the item - formats:
 			// **scope:** description ([#issue](url)) ([hash](url))
@@ -855,7 +854,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 		}
 	}
 	if downloadURL == "" {
-		fmt.Printf("Error: No binary available for %s/%s\n", runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("error: no binary available for %s/%s\n", runtime.GOOS, runtime.GOARCH)
 		fmt.Println("You may need to build from source: go install github.com/marshallburns/ez/cmd/ez@latest")
 		return
 	}
@@ -980,7 +979,7 @@ func runInstall(version string) {
 		}
 	}
 	if downloadURL == "" {
-		fmt.Printf("Error: No binary available for %s/%s at %s\n",
+		fmt.Printf("error: no binary available for %s/%s at %s\n",
 			runtime.GOOS, runtime.GOARCH, target.TagName)
 		fmt.Println("You may need to build from source: go install github.com/marshallburns/ez/cmd/ez@latest")
 		os.Exit(1)

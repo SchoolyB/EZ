@@ -49,7 +49,12 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
                      EzResponse (*handler)(EzRequest)) {
     if (r->count >= r->capacity) {
         r->capacity *= 2;
-        r->routes = realloc(r->routes, sizeof(EzRoute) * r->capacity);
+        void *tmp = realloc(r->routes, sizeof(EzRoute) * r->capacity);
+        if (!tmp) {
+            fprintf(stderr, "ez: out of memory\n");
+            exit(1);
+        }
+        r->routes = tmp;
     }
     EzRoute *route = &r->routes[r->count++];
 
@@ -288,7 +293,9 @@ static void *handle_connection(void *arg) {
         cors_hdrs,
         (int)resp.body.len, resp.body.data);
 
-    send(ctx->client_fd, resp_buf, resp_len, 0);
+    size_t send_len = (resp_len > 0 && (size_t)resp_len < sizeof(resp_buf))
+        ? (size_t)resp_len : sizeof(resp_buf) - 1;
+    send(ctx->client_fd, resp_buf, send_len, 0);
     close(ctx->client_fd);
     free(ctx);
     ez_arena_destroy(arena, __FILE__, __LINE__);
@@ -312,11 +319,17 @@ void ez_server_listen(int64_t port, EzRouter *r) {
         if (client.fd < 0) continue;
 
         ConnCtx *ctx = malloc(sizeof(ConnCtx));
+        if (!ctx) { close(client.fd); continue; }
         ctx->client_fd = client.fd;
         ctx->router = r;
 
         pthread_t thread;
-        pthread_create(&thread, NULL, handle_connection, ctx);
+        if (pthread_create(&thread, NULL, handle_connection, ctx) != 0) {
+            fprintf(stderr, "server: failed to create thread\n");
+            free(ctx);
+            close(client.fd);
+            continue;
+        }
         pthread_detach(thread);
     }
 }

@@ -551,13 +551,16 @@ static void test_e2e_ptr_struct(void) {
 static void test_e2e_ptr_addr(void) {
     char *out = compile_and_run(
         ""
+        "do set(p ^int, v int) {\n"
+        "    p^ = v\n"
+        "}\n"
         "do main() {\n"
-        "    mut x int = 42\n"
-        "    mut a uint = addr(x)\n"
-        "    if a > 0 { println(\"ok\") }\n"
+        "    mut x int = 0\n"
+        "    set(addr(x), 99)\n"
+        "    println(x)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "ok");
+    ASSERT_STR_EQ(out, "99");
 }
 
 static void test_e2e_ptr_nil(void) {
