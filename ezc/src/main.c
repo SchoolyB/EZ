@@ -722,7 +722,13 @@ int main(int argc, char **argv) {
             }
             if (diag->suppressed_count >= code_cap) {
                 code_cap *= 2;
-                diag->suppressed_codes = realloc(diag->suppressed_codes, sizeof(const char *) * code_cap);
+                void *tmp = realloc(diag->suppressed_codes, sizeof(const char *) * code_cap);
+                if (!tmp) {
+                    fprintf(stderr, "ez: out of memory\n");
+                    free(codes_buf);
+                    return 1;
+                }
+                diag->suppressed_codes = tmp;
             }
             diag->suppressed_codes[diag->suppressed_count++] = strdup(tok);
             tok = strtok(NULL, ",");

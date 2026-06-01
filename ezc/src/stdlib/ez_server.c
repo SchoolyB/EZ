@@ -49,7 +49,12 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
                      EzResponse (*handler)(EzRequest)) {
     if (r->count >= r->capacity) {
         r->capacity *= 2;
-        r->routes = realloc(r->routes, sizeof(EzRoute) * r->capacity);
+        void *tmp = realloc(r->routes, sizeof(EzRoute) * r->capacity);
+        if (!tmp) {
+            fprintf(stderr, "ez: out of memory\n");
+            exit(1);
+        }
+        r->routes = tmp;
     }
     EzRoute *route = &r->routes[r->count++];
 
