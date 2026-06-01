@@ -317,11 +317,17 @@ void ez_server_listen(int64_t port, EzRouter *r) {
         if (client.fd < 0) continue;
 
         ConnCtx *ctx = malloc(sizeof(ConnCtx));
+        if (!ctx) { close(client.fd); continue; }
         ctx->client_fd = client.fd;
         ctx->router = r;
 
         pthread_t thread;
-        pthread_create(&thread, NULL, handle_connection, ctx);
+        if (pthread_create(&thread, NULL, handle_connection, ctx) != 0) {
+            fprintf(stderr, "server: failed to create thread\n");
+            free(ctx);
+            close(client.fd);
+            continue;
+        }
         pthread_detach(thread);
     }
 }
