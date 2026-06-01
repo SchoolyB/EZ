@@ -293,7 +293,9 @@ static void *handle_connection(void *arg) {
         cors_hdrs,
         (int)resp.body.len, resp.body.data);
 
-    send(ctx->client_fd, resp_buf, resp_len, 0);
+    size_t send_len = (resp_len > 0 && (size_t)resp_len < sizeof(resp_buf))
+        ? (size_t)resp_len : sizeof(resp_buf) - 1;
+    send(ctx->client_fd, resp_buf, send_len, 0);
     close(ctx->client_fd);
     free(ctx);
     ez_arena_destroy(arena, __FILE__, __LINE__);

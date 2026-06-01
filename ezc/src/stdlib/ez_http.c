@@ -196,15 +196,21 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
             method, path, host);
     }
 
-    /* Send */
-    EzString req_str = {req, (int32_t)req_len};
+    /* Send — cap at actual buffer size to avoid OOB read on truncation */
+    int32_t send_len = (req_len > 0 && (size_t)req_len < sizeof(req))
+        ? (int32_t)req_len : (int32_t)(sizeof(req) - 1);
+    EzString req_str = {req, send_len};
     ez_net_send(sock, req_str);
 
-    /* Receive response (up to 1MB) */
-    char resp_buf[EZ_HTTP_RESP_BUF];
+    /* Receive response (up to 1MB) — heap-allocated to avoid stack overflow */
+    char *resp_buf = malloc(EZ_HTTP_RESP_BUF);
+    if (!resp_buf) {
+        ez_net_close(sock);
+        return err_resp;
+    }
     int total = 0;
-    while (total < (int)sizeof(resp_buf) - 1) {
-        EzString chunk = ez_net_recv(arena, sock, sizeof(resp_buf) - total);
+    while (total < EZ_HTTP_RESP_BUF - 1) {
+        EzString chunk = ez_net_recv(arena, sock, EZ_HTTP_RESP_BUF - total);
         if (chunk.len <= 0) break;
         memcpy(resp_buf + total, chunk.data, (size_t)chunk.len);
         total += chunk.len;
@@ -213,7 +219,9 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
 
     ez_net_close(sock);
 
-    return parse_response(arena, resp_buf, total);
+    EzHttpResponse result = parse_response(arena, resp_buf, total);
+    free(resp_buf);
+    return result;
 }
 
 EzHttpResponse ez_http_get(EzArena *arena, EzString url) {
