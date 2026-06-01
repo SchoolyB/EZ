@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A statically typed, compiled programming language.
+  A statically typed, compiled programming language inspired by by C, Odin, Rust, and Go.
 </p>
 
 <h3 align="center">Programming made EZ.</h3>
@@ -18,10 +18,6 @@
 </p>
 
 ---
-
-## What is EZ
-
-EZ is a statically typed, compiled programming language inspired by C, Odin, Rust, and Go.
 
 
 ```ez
