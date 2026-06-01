@@ -36,7 +36,14 @@ help:
 # ===== Test targets =====
 # Delegate compiler tests to ezc/Makefile; Go tests run from the root.
 
-test: build test-unit test-e2e test-integration test-go
+test: build
+	@echo ""
+	@echo "=== Go Unit Tests ==="
+	$(GO) test -v -count=1 ./cmd/ez/... ./internal/ezc/...
+	@echo ""
+	@$(MAKE) -C ezc test-unit
+	@$(MAKE) -C ezc test-e2e
+	@bash scripts/run_tests.sh
 	@echo ""
 	@echo "All test suites completed."
 
@@ -52,7 +59,7 @@ test-integration: build
 test-go: stubs
 	@echo ""
 	@echo "=== Go Unit Tests ==="
-	$(GO) test -count=1 ./cmd/ez/... ./internal/ezc/...
+	$(GO) test -v -count=1 ./cmd/ez/... ./internal/ezc/...
 
 test-ubsan:
 	@$(MAKE) -C ezc test-ubsan
