@@ -1513,6 +1513,22 @@ int main(int argc, char **argv) {
         free(default_output);
         return 1;
     }
+    if (strchr(runtime_dir, '\'')) {
+        fprintf(stderr, "ez: EZ_RUNTIME path must not contain single quotes\n");
+        codegen_destroy(&cg);
+        arena_destroy(arena);
+        free(source);
+        free(default_output);
+        return 1;
+    }
+    if (strchr(output_file, '\'')) {
+        fprintf(stderr, "ez: output path must not contain single quotes\n");
+        codegen_destroy(&cg);
+        arena_destroy(arena);
+        free(source);
+        free(default_output);
+        return 1;
+    }
 
     /* Compile the generated C code.
      * Try linking against pre-compiled libezrt.a first (fast path).
@@ -1551,8 +1567,8 @@ int main(int argc, char **argv) {
     if (has_archive) {
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
-            "-I%s/runtime -I%s/stdlib "
-            "-o %s %s %s "
+            "-I'%s'/runtime -I'%s'/stdlib "
+            "-o '%s' '%s' '%s' "
             "-lm -lpthread 2>&1",
             extra_flags,
             runtime_dir, runtime_dir,
@@ -1577,20 +1593,20 @@ int main(int argc, char **argv) {
         char srcs[CMD_BUF_SIZE];
         int off = 0;
         for (int i = 0; i < (int)(sizeof(runtime_srcs)/sizeof(runtime_srcs[0])); i++) {
-            int w = snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, runtime_srcs[i]);
+            int w = snprintf(srcs + off, sizeof(srcs) - (size_t)off, "'%s/%s' ", runtime_dir, runtime_srcs[i]);
             if (w > 0 && (size_t)w < sizeof(srcs) - (size_t)off) off += w;
             else { off = (int)sizeof(srcs); break; }
         }
         for (int i = 0; i < (int)(sizeof(stdlib_srcs)/sizeof(stdlib_srcs[0])); i++) {
-            int w = snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, stdlib_srcs[i]);
+            int w = snprintf(srcs + off, sizeof(srcs) - (size_t)off, "'%s/%s' ", runtime_dir, stdlib_srcs[i]);
             if (w > 0 && (size_t)w < sizeof(srcs) - (size_t)off) off += w;
             else { off = (int)sizeof(srcs); break; }
         }
 
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
-            "-I%s/runtime -I%s/stdlib "
-            "-o %s %s %s"
+            "-I'%s'/runtime -I'%s'/stdlib "
+            "-o '%s' '%s' %s"
             "-lm -lpthread 2>&1",
             extra_flags,
             runtime_dir, runtime_dir,
