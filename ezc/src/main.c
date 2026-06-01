@@ -134,7 +134,11 @@ static bool write_file(const char *path, const char *content) {
         perror("");
         return false;
     }
-    fputs(content, f);
+    if (fputs(content, f) == EOF) {
+        fprintf(stderr, "ez: failed to write '%s'\n", path);
+        fclose(f);
+        return false;
+    }
     fclose(f);
     return true;
 }
