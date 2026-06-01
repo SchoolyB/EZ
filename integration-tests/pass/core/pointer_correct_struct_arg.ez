@@ -1,0 +1,14 @@
+const Point struct {
+    x int
+    y int
+}
+
+do mutate(p ^Point) {
+    p.x = 99
+}
+
+do main() {
+    mut p Point = Point{x: 1, y: 2}
+    mutate(addr(p))
+    print(p.x)
+}

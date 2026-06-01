@@ -3167,6 +3167,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* Pointer-to-pointer: pointee types differ */
+                        if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s.%s': expected '%s', got '%s'",
+                                ai + 1, mod, mfn, type_name(param_t), type_name(arg_t));
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
                         /* E3027: non-lvalue or const passed to mutable (&) param.
                          * Struct functions live inside NODE_STRUCT_DECL, not as
                          * top-level stmts, so scan struct declarations. */
@@ -3388,6 +3400,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
                                             ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(smsg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                    /* Pointer-to-pointer: pointee types differ */
+                                    if (arg_t && param_t &&
+                                        arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
+                                        arg_t->name && param_t->name &&
+                                        strcmp(arg_t->name, param_t->name) != 0) {
+                                        char pmsg[EZ_MSG_BUF_SIZE];
+                                        snprintf(pmsg, sizeof(pmsg),
+                                            "argument %d of '%s.%s': expected '%s', got '%s'",
+                                            ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
+                                        diag_error_msg(tc->diag, "E3001", strdup(pmsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -4018,6 +4044,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected struct '%s', got struct '%s'",
                                 ai + 1, fn_name, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Pointer-to-pointer: pointee types differ (e.g., addr(Color) to ^Point) */
+                        if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected '%s', got '%s'",
+                                ai + 1, fn_name, type_name(param_t), type_name(arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
