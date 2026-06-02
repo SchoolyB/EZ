@@ -1,0 +1,5 @@
+do main() {
+    mut a byte = 5
+    mut b byte = -a
+    println(b)
+}

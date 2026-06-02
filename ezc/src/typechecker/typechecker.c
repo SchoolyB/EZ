@@ -1557,6 +1557,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else if (strcmp(node->data.prefix.op, "-") == 0) {
             if (right->kind != TK_UNKNOWN && !type_is_numeric(right)) {
                 diag_error_codef(tc->diag, "E3007", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
+            } else if (right->kind != TK_UNKNOWN && right->name && is_unsigned_type(right->name)) {
+                diag_error_codef(tc->diag, "E3096", NODE_FILE(tc, node), node->token.line, node->token.column, 0, right->name);
             }
             result = right;
         } else if (strcmp(node->data.prefix.op, "bit_not") == 0) {
