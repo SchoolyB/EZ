@@ -1,6 +1,6 @@
 <p align="center">
   <img src="Flip.png" alt="Flip - EZ Mascot" width="400">
-  <h1 align="center">EZ</h1>
+  <h1 align="center" width=200>EZ</h1>
 </p>
 
 <p align="center">
