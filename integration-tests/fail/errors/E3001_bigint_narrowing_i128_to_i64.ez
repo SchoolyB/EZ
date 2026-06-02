@@ -1,0 +1,5 @@
+do main() {
+    mut a i128 = 99999999999999999999
+    mut b i64 = a
+    println(b)
+}

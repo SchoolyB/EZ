@@ -1194,6 +1194,20 @@ static bool is_int_kind(TypeKind k) {
     return k == TK_INT || k == TK_UINT || k == TK_BYTE;
 }
 
+/* Rank for named integer types; 0 = not a named integer type.
+ * Used to detect narrowing (declared rank < value rank). */
+static int int_name_rank(const char *n) {
+    if (!n) return 0;
+    if (strcmp(n, "i8")   == 0 || strcmp(n, "u8")   == 0 || strcmp(n, "byte") == 0) return 1;
+    if (strcmp(n, "i16")  == 0 || strcmp(n, "u16")  == 0) return 2;
+    if (strcmp(n, "i32")  == 0 || strcmp(n, "u32")  == 0) return 3;
+    if (strcmp(n, "i64")  == 0 || strcmp(n, "u64")  == 0 ||
+        strcmp(n, "int")  == 0 || strcmp(n, "uint") == 0) return 4;
+    if (strcmp(n, "i128") == 0 || strcmp(n, "u128") == 0) return 5;
+    if (strcmp(n, "i256") == 0 || strcmp(n, "u256") == 0) return 6;
+    return 0;
+}
+
 static bool is_unsigned_type(const char *tn) {
     if (!tn) return false;
     return strcmp(tn, "uint") == 0 || strcmp(tn, "u8") == 0 ||
@@ -4086,6 +4100,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* Bigint narrowing in call argument: i128 arg to i64 param, etc. */
+                        if (arg_t->name && param_t->name) {
+                            int ar = int_name_rank(arg_t->name);
+                            int pr = int_name_rank(param_t->name);
+                            if (ar > 0 && pr > 0 && pr < ar) {
+                                char msg[EZ_MSG_BUF_SIZE];
+                                snprintf(msg, sizeof(msg),
+                                    "argument %d of '%s': cannot implicitly narrow %s to %s; use %s() to convert explicitly",
+                                    ai + 1, fn_name, arg_t->name, param_t->name, param_t->name);
+                                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                    NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                    node->data.call.args[ai]->token.column, 0);
+                            }
+                        }
                         /* Array element type mismatch */
                         if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
                             arg_t->element_type && param_t->element_type &&
@@ -6053,6 +6081,22 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Bigint narrowing: e.g. i128 → i64, u256 → int.  Both sides share
+             * TK_INT/TK_UINT so the kind-equality guard above silently passes
+             * them through.  Catch it here by comparing named ranks. */
+            if (declared && value_type &&
+                declared->name && value_type->name) {
+                int dr = int_name_rank(declared->name);
+                int vr = int_name_rank(value_type->name);
+                if (dr > 0 && vr > 0 && dr < vr) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "type mismatch: cannot implicitly narrow %s to %s; use %s() to convert explicitly",
+                        value_type->name, declared->name, declared->name);
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
             /* Struct-to-struct name mismatch (both TK_STRUCT but different names).
              * : skip when one name is a module-prefixed alias of the
              * other (e.g. "Point" vs "shapes_Point" via import and use). */
@@ -6908,6 +6952,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 type_name(value_t), type_name(target_t), target->data.label.value);
             diag_error_msg(tc->diag, "E3001", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
+        /* Bigint narrowing on reassignment: i128 → i64, u256 → int, etc. */
+        if (target->kind == NODE_LABEL &&
+            target_t && value_t &&
+            target_t->name && value_t->name) {
+            int dr = int_name_rank(target_t->name);
+            int vr = int_name_rank(value_t->name);
+            if (dr > 0 && vr > 0 && dr < vr) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot implicitly narrow %s to %s variable '%s'; use %s() to convert explicitly",
+                    value_t->name, target_t->name, target->data.label.value, target_t->name);
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
         }
         /* Check type mismatch on struct field assignment.
          * sym->type may be TK_STRUCT (by-value) or TK_POINTER (from new()),

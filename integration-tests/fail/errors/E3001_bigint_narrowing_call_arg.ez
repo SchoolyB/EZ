@@ -1,0 +1,8 @@
+do wants_int(v int) {
+    println(v)
+}
+
+do main() {
+    mut a i128 = 42
+    wants_int(a)
+}
