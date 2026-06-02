@@ -677,6 +677,76 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
     return NULL;
 }
 
+/* Emit a bigint operand, widening smaller integer or bigint operands so
+ * mixed-width expressions like i128+i64 or i256+i128 pass correctly typed
+ * values to the bigint arithmetic helpers. */
+static void emit_bigint_operand(CodeGen *cg, AstNode *operand,
+                                const char *pfx, const char *bi_type,
+                                EzType *operand_t) {
+    /* Integer literal */
+    if (operand->kind == NODE_INT_VALUE) {
+        if (operand->data.int_value.overflow) {
+            emitf(cg, "%s_from_decimal(\"%s\")", pfx, operand->data.int_value.literal);
+        } else {
+            const char *sfx = (strcmp(bi_type, "u128") == 0 || strcmp(bi_type, "u256") == 0) ? "u64" : "i64";
+            emitf(cg, "%s_from_%s(%lldLL)", pfx, sfx, (long long)operand->data.int_value.value);
+        }
+        return;
+    }
+    /* Negative integer literal */
+    if (operand->kind == NODE_PREFIX_EXPR &&
+        strcmp(operand->data.prefix.op, "-") == 0 &&
+        operand->data.prefix.right->kind == NODE_INT_VALUE) {
+        if (operand->data.prefix.right->data.int_value.overflow) {
+            emitf(cg, "%s_from_decimal(\"-%s\")", pfx,
+                  operand->data.prefix.right->data.int_value.literal);
+        } else {
+            emitf(cg, "%s_from_i64(%lldLL)", pfx,
+                  -(long long)operand->data.prefix.right->data.int_value.value);
+        }
+        return;
+    }
+    /* Check if operand is a bigint label and if it needs widening to a larger bigint */
+    if (operand->kind == NODE_LABEL) {
+        const char *src_bi = lookup_bigint_var(cg, operand->data.label.value);
+        if (src_bi) {
+            /* Operand is already a bigint — emit directly if same type,
+             * or wrap with a widening constructor for bigint→bigint promotion. */
+            if (strcmp(src_bi, bi_type) == 0) {
+                emit_expression(cg, operand);
+            } else if (strcmp(bi_type, "i256") == 0 && strcmp(src_bi, "i128") == 0) {
+                emitf(cg, "ez_i256_from_i128(");
+                emit_expression(cg, operand);
+                emit(cg, ")");
+            } else if (strcmp(bi_type, "u256") == 0 && strcmp(src_bi, "u128") == 0) {
+                emitf(cg, "ez_u256_from_u128(");
+                emit_expression(cg, operand);
+                emit(cg, ")");
+            } else {
+                /* Unknown bigint-to-bigint: emit directly and let C catch it */
+                emit_expression(cg, operand);
+            }
+            return;
+        }
+        /* Non-bigint label: widen to the target bigint type.
+         * Use operand_t kind when available; fall back to target signedness. */
+        bool target_unsigned = (strcmp(bi_type, "u128") == 0 || strcmp(bi_type, "u256") == 0);
+        bool src_unsigned = operand_t
+            ? (operand_t->kind == TK_UINT || operand_t->kind == TK_BYTE)
+            : target_unsigned;
+        if (src_unsigned) {
+            emitf(cg, "%s_from_u64((uint64_t)(", pfx);
+        } else {
+            emitf(cg, "%s_from_i64((int64_t)(", pfx);
+        }
+        emit_expression(cg, operand);
+        emit(cg, "))");
+        return;
+    }
+    /* Non-label expression — emit directly */
+    emit_expression(cg, operand);
+}
+
 static bool is_mutable_param(CodeGen *cg, const char *name) {
     if (!cg->current_func) return false;
     for (int i = 0; i < cg->current_func->data.func_decl.param_count; i++) {
@@ -1570,29 +1640,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* Helper: emit an operand in bigint context, wrapping int literals */
-        #define EMIT_BIGINT_OPERAND(cg, operand, pfx, bi_type) do { \
-            if ((operand)->kind == NODE_INT_VALUE) { \
-                if ((operand)->data.int_value.overflow) { \
-                    emitf((cg), "%s_from_decimal(\"%s\")", (pfx), (operand)->data.int_value.literal); \
-                } else { \
-                    const char *_sfx = (strcmp((bi_type), "u128") == 0 || strcmp((bi_type), "u256") == 0) ? "u64" : "i64"; \
-                    emitf((cg), "%s_from_%s(%lldLL)", (pfx), _sfx, (long long)(operand)->data.int_value.value); \
-                } \
-            } else if ((operand)->kind == NODE_PREFIX_EXPR && \
-                       strcmp((operand)->data.prefix.op, "-") == 0 && \
-                       (operand)->data.prefix.right->kind == NODE_INT_VALUE) { \
-                if ((operand)->data.prefix.right->data.int_value.overflow) { \
-                    emitf((cg), "%s_from_decimal(\"-%s\")", (pfx), \
-                        (operand)->data.prefix.right->data.int_value.literal); \
-                } else { \
-                    emitf((cg), "%s_from_i64(%lldLL)", (pfx), \
-                        -(long long)(operand)->data.prefix.right->data.int_value.value); \
-                } \
-            } else { \
-                emit_expression((cg), (operand)); \
-            } \
-        } while(0)
+        /* Helper: emit an operand in bigint context.
+         * Wraps integer literals and non-bigint variables with the appropriate
+         * from_i64/from_u64 constructor so mixed-width expressions like
+         * i128 + i64 pass correctly to the bigint arithmetic helpers. */
+        #define EMIT_BIGINT_OPERAND(cg, operand, pfx, bi_type, operand_type) \
+            emit_bigint_operand((cg), (operand), (pfx), (bi_type), (operand_type))
 
         /* Bigint infix; emit function calls instead of C operators.
          * Must come before overflow-check and div-by-zero handlers since
@@ -1621,9 +1674,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     } else {
                         emitf(cg, "%s_%s(", pfx, fn_op);
                     }
-                    EMIT_BIGINT_OPERAND(cg, node->data.infix.left, pfx, bi_type);
+                    EMIT_BIGINT_OPERAND(cg, node->data.infix.left, pfx, bi_type, lt);
                     emit(cg, ", ");
-                    EMIT_BIGINT_OPERAND(cg, node->data.infix.right, pfx, bi_type);
+                    EMIT_BIGINT_OPERAND(cg, node->data.infix.right, pfx, bi_type, rt);
                     if (is_checked) {
                         emitf(cg, ", __FILE__, %d)", node->token.line);
                     } else {
@@ -6261,9 +6314,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                     emitf(cg, "%s_%s_checked(", pfx, fn_op);
                 else
                     emitf(cg, "%s_%s(", pfx, fn_op);
-                EMIT_BIGINT_OPERAND(cg, infix->data.infix.left, pfx, type_name);
+                EMIT_BIGINT_OPERAND(cg, infix->data.infix.left, pfx, type_name, NULL);
                 emit(cg, ", ");
-                EMIT_BIGINT_OPERAND(cg, infix->data.infix.right, pfx, type_name);
+                EMIT_BIGINT_OPERAND(cg, infix->data.infix.right, pfx, type_name, NULL);
                 if (is_checked)
                     emitf(cg, ", __FILE__, %d)", node->token.line);
                 else

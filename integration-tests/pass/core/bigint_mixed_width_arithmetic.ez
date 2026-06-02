@@ -1,0 +1,96 @@
+do main() {
+    println("=== Big-Int Mixed-Width Arithmetic ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // i128 + i64
+    mut a i128 = 100
+    mut b i64 = 50
+    mut c i128 = a + b
+    if c == 150 {
+        println("  [PASS] i128(100) + i64(50) = 150")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 + i64")
+        failed += 1
+    }
+
+    // i128 - i32
+    mut d i128 = 200
+    mut e i32 = 75
+    mut f i128 = d - e
+    if f == 125 {
+        println("  [PASS] i128(200) - i32(75) = 125")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 - i32")
+        failed += 1
+    }
+
+    // i128 * i64
+    mut g i128 = 10
+    mut h i64 = 15
+    mut ii i128 = g * h
+    if ii == 150 {
+        println("  [PASS] i128(10) * i64(15) = 150")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 * i64")
+        failed += 1
+    }
+
+    // u128 + u64
+    mut j u128 = 100
+    mut k u64 = 50
+    mut l u128 = j + k
+    if l == 150 {
+        println("  [PASS] u128(100) + u64(50) = 150")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 + u64")
+        failed += 1
+    }
+
+    // i256 + i128
+    mut m i256 = 100
+    mut n i128 = 50
+    mut o i256 = m + n
+    if o == 150 {
+        println("  [PASS] i256(100) + i128(50) = 150")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 + i128")
+        failed += 1
+    }
+
+    // u256 + u128
+    mut p u256 = 100
+    mut q u128 = 50
+    mut r u256 = p + q
+    if r == 150 {
+        println("  [PASS] u256(100) + u128(50) = 150")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 + u128")
+        failed += 1
+    }
+
+    // i128 == i64 comparison
+    mut s i128 = 42
+    mut t i64 = 42
+    if s == t {
+        println("  [PASS] i128(42) == i64(42)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 == i64 comparison")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
