@@ -6016,11 +6016,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                          scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value) &&
                          scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value)->is_ref) &&
                        /* Skip mismatch when assigning pointer (addr) to ^T */
-                       /* Skip mismatch when assigning pointer (addr) to ^T */
                        !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
                        /* : implicit int→float coercion when target is float */
                        !(declared->kind == TK_FLOAT && is_int_kind(value_type->kind))) {
                 /* Type mismatch */
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign %s to %s",
+                    type_name(value_type), type_name(declared));
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Pointer-to-pointer: pointee types differ (e.g., ^int assigned from ^string).
+             * The outer kind-mismatch guard above short-circuits when both sides are TK_POINTER,
+             * so this separate check is required to catch it. Mirrors the call-site check. */
+            if (declared && value_type &&
+                declared->kind == TK_POINTER && value_type->kind == TK_POINTER &&
+                declared->name && value_type->name &&
+                strcmp(declared->name, value_type->name) != 0) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s",
