@@ -674,6 +674,14 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
         if (lt) return lt;
         return resolve_bigint_type(cg, node->data.infix.right);
     }
+    /* Pointer dereference p^ — check whether the pointee type is bigint */
+    if (node->kind == NODE_POSTFIX_EXPR && strcmp(node->data.postfix.op, "^") == 0) {
+        EzType *ptr_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
+        if (ptr_t && ptr_t->kind == TK_POINTER && ptr_t->element_type &&
+            is_bigint_type(ptr_t->element_type))
+            return ptr_t->element_type;
+    }
     return NULL;
 }
 
@@ -6525,11 +6533,21 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* Pointer dereference assignment: p^ = value → nil check + *p = value */
     if (node->data.assign.target->kind == NODE_POSTFIX_EXPR &&
         strcmp(node->data.assign.target->data.postfix.op, "^") == 0) {
+        AstNode *ptr_node = node->data.assign.target->data.postfix.left;
+        EzType *ptr_t = cg->type_table ? typetable_get(cg->type_table, ptr_node) : NULL;
+        const char *bi_elem = (ptr_t && ptr_t->kind == TK_POINTER && ptr_t->element_type &&
+                               is_bigint_type(ptr_t->element_type))
+                              ? ptr_t->element_type : NULL;
         emit(cg, "{ __auto_type _dp = ");
-        emit_expression(cg, node->data.assign.target->data.postfix.left);
+        emit_expression(cg, ptr_node);
         emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp");
         emitf(cg, " %s ", node->data.assign.op);
-        emit_expression(cg, node->data.assign.value);
+        if (bi_elem) {
+            emit_bigint_operand(cg, node->data.assign.value,
+                                bigint_prefix(bi_elem), bi_elem, NULL);
+        } else {
+            emit_expression(cg, node->data.assign.value);
+        }
         emit(cg, "; }\n");
         return;
     }
