@@ -7010,13 +7010,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             Symbol *addr_sym_local = scope_lookup_local(tc->current_scope, addr_var);
             if (!ptr_sym_local && scope_lookup(tc->current_scope, ptr_name) &&
                 addr_sym_local) {
-                char msg[EZ_MSG_BUF_SIZE];
-                snprintf(msg, sizeof(msg),
-                    "pointer '%s' may reference memory from a scope that has ended; "
-                    "'%s' is a local variable in an inner scope",
+                diag_error_codef(tc->diag, "E3097",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                     ptr_name, addr_var);
-                diag_warning_msg(tc->diag, "W3004", strdup(msg),
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         break;

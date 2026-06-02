@@ -4347,6 +4347,12 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             if (val_t->kind == TK_STRUCT) {
                 c_elem = ez_type_to_c_cg(cg, val_t->name);
             }
+            if (val_t->kind == TK_POINTER && val_t->name) {
+                /* val_t->name is the pointee (e.g. "int"); prepend ^ for ez_type_to_c_cg */
+                static char _ptr_tn[EZ_TYPE_NAME_MAX];
+                snprintf(_ptr_tn, sizeof(_ptr_tn), "^%s", val_t->name);
+                c_elem = ez_type_to_c_cg(cg, _ptr_tn);
+            }
         } else if (elem_is_string) {
             c_elem = "EzString";
         } else if (elem_tn) {
@@ -4355,6 +4361,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             else if (et->kind == TK_MAP) c_elem = "EzMap";
             else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
             else if (et->kind == TK_FUNCTION) c_elem = "void *";
+            else if (et->kind == TK_POINTER) c_elem = ez_type_to_c_cg(cg, elem_tn);
         }
         const char *alloc_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
         emitf(cg, "{ %s _av = ", c_elem);
@@ -4395,6 +4402,11 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             }
             if (val_t->kind == TK_STRUCT) {
                 c_elem = ez_type_to_c_cg(cg, val_t->name);
+            }
+            if (val_t->kind == TK_POINTER && val_t->name) {
+                static char _ia_ptr_tn[EZ_TYPE_NAME_MAX];
+                snprintf(_ia_ptr_tn, sizeof(_ia_ptr_tn), "^%s", val_t->name);
+                c_elem = ez_type_to_c_cg(cg, _ia_ptr_tn);
             }
         }
         const char *ia_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
