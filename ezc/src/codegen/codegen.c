@@ -30,6 +30,7 @@ static void emit_expression(CodeGen *cg, AstNode *node);
 static void emit_call_expression(CodeGen *cg, AstNode *node);
 static bool codegen_is_enum(CodeGen *cg, const char *name);
 static void emit_to_string(CodeGen *cg, AstNode *arg);
+static bool emit_narrowing_cast(CodeGen *cg, const char *target, AstNode *val, int line);
 
 /* Resolve an unprefixed type name (e.g. "Point") to its module-prefixed
  * form (e.g. "lib_Point") by searching struct declarations and enum names.
@@ -5838,7 +5839,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             const char *ptn = target_func->data.func_decl.params[i].type_name;
             const char *c_ty = ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t";
             emitf(cg, "%s %s = ", c_ty, pname ? pname : "_arg");
-            emit_expression(cg, node->data.call.args[i]);
+            if (!emit_narrowing_cast(cg, ptn, node->data.call.args[i], node->token.line))
+                emit_expression(cg, node->data.call.args[i]);
             emit(cg, "; ");
         }
         emit(cg, saved_fn);
@@ -5904,7 +5906,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "&");
                 emit_expression(cg, node->data.call.args[i]);
             } else {
-                emit_expression(cg, node->data.call.args[i]);
+                const char *param_tn = NULL;
+                if (target_func && i < target_func->data.func_decl.param_count)
+                    param_tn = target_func->data.func_decl.params[i].type_name;
+                else if (call_typed_sig && i < call_typed_sig->param_count)
+                    param_tn = call_typed_sig->param_types[i];
+                if (!emit_narrowing_cast(cg, param_tn, node->data.call.args[i], node->token.line))
+                    emit_expression(cg, node->data.call.args[i]);
             }
         } else if (target_func && i < param_count &&
                    target_func->data.func_decl.params[i].default_value) {
@@ -5956,6 +5964,37 @@ static int extract_array_size(const char *type_name) {
 /* Check if type is a nested array "[[...]]" */
 static bool is_nested_array_type(const char *type_name) {
     return type_name && type_name[0] == '[' && type_name[1] == '[';
+}
+
+/* Emit a runtime range-check cast for narrowing integer assignments.
+ * Wraps val in ez_cast_check/ez_ucast_check when target is a sized
+ * integer type (i8/i16/i32/u8/u16/u32/byte).  Returns true when a
+ * check was emitted; caller should emit val normally when false. */
+static bool emit_narrowing_cast(CodeGen *cg, const char *target,
+                                AstNode *val, int line) {
+    if (!target) return false;
+    const char *smin = NULL, *smax = NULL;
+    bool is_unsigned = false;
+    if      (strcmp(target, "i8")   == 0) { smin = "-128";          smax = "127"; }
+    else if (strcmp(target, "i16")  == 0) { smin = "-32768";        smax = "32767"; }
+    else if (strcmp(target, "i32")  == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+    else if (strcmp(target, "u8")   == 0 ||
+             strcmp(target, "byte") == 0) { is_unsigned = true; smax = "255"; }
+    else if (strcmp(target, "u16")  == 0) { is_unsigned = true; smax = "65535"; }
+    else if (strcmp(target, "u32")  == 0) { is_unsigned = true; smax = "4294967295ULL"; }
+    else return false;
+
+    const char *c_target = ez_type_to_c_cg(cg, target);
+    if (is_unsigned) {
+        emitf(cg, "(%s)ez_ucast_check(", c_target);
+        emit_expression(cg, val);
+        emitf(cg, ", %s, \"%s\", __FILE__, %d)", smax, target, line);
+    } else {
+        emitf(cg, "(%s)ez_cast_check(", c_target);
+        emit_expression(cg, val);
+        emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", smin, smax, target, line);
+    }
+    return true;
 }
 
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
@@ -6358,7 +6397,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit(cg, "; ");
             emit_value_deep_copy(cg, type_name, src_var);
             emit(cg, "; })");
-        } else {
+        } else if (!emit_narrowing_cast(cg, type_name, node->data.var_decl.value, node->token.line)) {
             emit_expression(cg, node->data.var_decl.value);
         }
         cg->current_var_name = NULL;
