@@ -4104,7 +4104,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         if (arg_t->name && param_t->name) {
                             int ar = int_name_rank(arg_t->name);
                             int pr = int_name_rank(param_t->name);
-                            if (ar > 0 && pr > 0 && pr < ar) {
+                            if (ar >= 5 && pr > 0 && pr < ar) {
                                 char msg[EZ_MSG_BUF_SIZE];
                                 snprintf(msg, sizeof(msg),
                                     "argument %d of '%s': cannot implicitly narrow %s to %s; use %s() to convert explicitly",
@@ -6088,7 +6088,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 declared->name && value_type->name) {
                 int dr = int_name_rank(declared->name);
                 int vr = int_name_rank(value_type->name);
-                if (dr > 0 && vr > 0 && dr < vr) {
+                if (dr > 0 && vr >= 5 && dr < vr) {
                     char msg[EZ_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                         "type mismatch: cannot implicitly narrow %s to %s; use %s() to convert explicitly",
@@ -6959,7 +6959,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             target_t->name && value_t->name) {
             int dr = int_name_rank(target_t->name);
             int vr = int_name_rank(value_t->name);
-            if (dr > 0 && vr > 0 && dr < vr) {
+            if (dr > 0 && vr >= 5 && dr < vr) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot implicitly narrow %s to %s variable '%s'; use %s() to convert explicitly",
