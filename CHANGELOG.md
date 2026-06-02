@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.5.5](https://github.com/SchoolyB/EZ/compare/v3.5.4...v3.5.5) (2026-06-02)
+
+
+### Bug Fixes
+
+* handle big-int pointer dereference in println and deref-assign ([9a06c7c](https://github.com/SchoolyB/EZ/commit/9a06c7c6a848b33e2eca3f49e95877243932b9e9)), closes [#1761](https://github.com/SchoolyB/EZ/issues/1761)
+* reject implicit byte/u8 assignment — they are distinct types ([7d6e55f](https://github.com/SchoolyB/EZ/commit/7d6e55f1fc80401a2299c26ab1bda32e2e95a75b)), closes [#1752](https://github.com/SchoolyB/EZ/issues/1752)
+* reject negation of unsigned integer types (E3096) ([f0eef54](https://github.com/SchoolyB/EZ/commit/f0eef5427c0585d9968f6abd66104b6526457f88)), closes [#1757](https://github.com/SchoolyB/EZ/issues/1757)
+* type safety and big-int bug fixes ([db5527a](https://github.com/SchoolyB/EZ/commit/db5527a7f7550b48f7be7092018565590e731498))
+* widen mixed-width integer arithmetic to larger operand type ([989abc2](https://github.com/SchoolyB/EZ/commit/989abc2edc4355d17e6c0bd40908bfa669cd03ad)), closes [#1756](https://github.com/SchoolyB/EZ/issues/1756)
+* widen smaller integer operands in big-int arithmetic expressions ([0fb52b9](https://github.com/SchoolyB/EZ/commit/0fb52b97e5e63093a312af9e890d5c07fc07c842)), closes [#1758](https://github.com/SchoolyB/EZ/issues/1758)
+
 ## [3.5.4](https://github.com/SchoolyB/EZ/compare/v3.5.3...v3.5.4) (2026-06-01)
 
 
