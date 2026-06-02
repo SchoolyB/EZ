@@ -3098,7 +3098,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, ", ");
             emit_expression(cg, node->data.call.args[1]);
         } else {
-            emit(cg, ", ez_string_lit(\"assertion failed\")");
+            emit(cg, ", ez_string_lit(\"\")");
         }
         emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
         return true;

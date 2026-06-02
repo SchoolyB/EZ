@@ -2016,6 +2016,44 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3097: addr() of inner-scope variable passed alongside an outer-scope
+         * argument — the classic escape pattern, e.g. arrays.append(outer, addr(x))
+         * where x is loop/if/while-local.  We fire only when another argument in
+         * the same call comes from an outer scope (scope_lookup_local returns null
+         * for it) — that indicates the address is being stored in something that
+         * outlives the inner variable's arena. */
+        for (int i = 0; i < node->data.call.arg_count; i++) {
+            AstNode *arg = node->data.call.args[i];
+            if (arg->kind == NODE_CALL_EXPR &&
+                arg->data.call.function &&
+                arg->data.call.function->kind == NODE_LABEL &&
+                strcmp(arg->data.call.function->data.label.value, "addr") == 0 &&
+                arg->data.call.arg_count == 1 &&
+                arg->data.call.args[0]->kind == NODE_LABEL) {
+                const char *addr_var = arg->data.call.args[0]->data.label.value;
+                if (!scope_lookup_local(tc->current_scope, addr_var)) continue;
+                /* Check if any other argument is an outer-scope variable */
+                bool has_outer_arg = false;
+                for (int j = 0; j < node->data.call.arg_count; j++) {
+                    if (j == i) continue;
+                    AstNode *other = node->data.call.args[j];
+                    if (other->kind == NODE_LABEL) {
+                        const char *oname = other->data.label.value;
+                        if (!scope_lookup_local(tc->current_scope, oname) &&
+                            scope_lookup(tc->current_scope, oname)) {
+                            has_outer_arg = true;
+                            break;
+                        }
+                    }
+                }
+                if (has_outer_arg) {
+                    diag_error_codef(tc->diag, "E3097",
+                        NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0,
+                        addr_var, addr_var);
+                }
+            }
+        }
+
         /* Resolve function return type */
         AstNode *fn = node->data.call.function;
         const char *fn_name = NULL;
