@@ -1557,6 +1557,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else if (strcmp(node->data.prefix.op, "-") == 0) {
             if (right->kind != TK_UNKNOWN && !type_is_numeric(right)) {
                 diag_error_codef(tc->diag, "E3007", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
+            } else if (right->kind != TK_UNKNOWN && right->name && is_unsigned_type(right->name)) {
+                diag_error_codef(tc->diag, "E3096", NODE_FILE(tc, node), node->token.line, node->token.column, 0, right->name);
             }
             result = right;
         } else if (strcmp(node->data.prefix.op, "bit_not") == 0) {
@@ -5995,8 +5997,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        value_type->kind != TK_VOID &&
                        declared->kind != value_type->kind &&
                        value_type->kind != TK_NIL &&
-                       /* Skip mismatch between int/uint (handled by E3019) */
-                       !(is_int_kind(declared->kind) && is_int_kind(value_type->kind)) &&
+                       /* Skip mismatch between compatible int kinds (handled by E3019),
+                        * but byte and u8/uint are distinct semantic types and must not
+                        * be implicitly assigned to each other. */
+                       !(is_int_kind(declared->kind) && is_int_kind(value_type->kind) &&
+                         !((declared->kind == TK_BYTE && value_type->kind == TK_UINT) ||
+                           (declared->kind == TK_UINT && value_type->kind == TK_BYTE))) &&
                        /* Allow enum → int (enums are int-backed) but not
                         * the reverse; int literals / variables can't be
                         * assigned to enum variables (). */
@@ -6817,7 +6823,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (sym && sym->type->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                 target_t->kind != TK_UNKNOWN &&
                 target_t->kind != value_t->kind &&
-                !(is_int_kind(target_t->kind) && is_int_kind(value_t->kind)) &&
+                !(is_int_kind(target_t->kind) && is_int_kind(value_t->kind) &&
+                  !((target_t->kind == TK_BYTE && value_t->kind == TK_UINT) ||
+                    (target_t->kind == TK_UINT && value_t->kind == TK_BYTE))) &&
                 !(target_t->kind == TK_ENUM && is_int_kind(value_t->kind)) &&
                 !(is_int_kind(target_t->kind) && value_t->kind == TK_ENUM) &&
                 !(target_t->kind == TK_STRUCT && is_int_kind(value_t->kind)) &&

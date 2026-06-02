@@ -1,0 +1,37 @@
+do main() {
+    mut a i8 = 10
+    mut b i8 = -a
+    println(b)
+
+    mut c i16 = 1000
+    mut d i16 = -c
+    println(d)
+
+    mut e i32 = 100000
+    mut f i32 = -e
+    println(f)
+
+    mut g i64 = 9999999
+    mut h i64 = -g
+    println(h)
+
+    mut ii int = 42
+    mut j int = -ii
+    println(j)
+
+    mut k i128 = 123456789
+    mut l i128 = -k
+    println(l)
+
+    mut m float = 3.14
+    mut n float = -m
+    println(n)
+
+    mut o f32 = 1.5
+    mut p f32 = -o
+    println(p)
+
+    mut q f64 = 2.71
+    mut r f64 = -q
+    println(r)
+}

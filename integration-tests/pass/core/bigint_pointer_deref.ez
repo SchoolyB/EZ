@@ -1,0 +1,98 @@
+do main() {
+    println("=== Big-Int Pointer Dereference ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // ^i128 read
+    mut a i128 = 42
+    mut pa ^i128 = addr(a)
+    if pa^ == 42 {
+        println("  [PASS] ^i128 dereference read")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^i128 dereference read")
+        failed += 1
+    }
+
+    // ^i128 write
+    pa^ = 999
+    if a == 999 {
+        println("  [PASS] ^i128 dereference write")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^i128 dereference write")
+        failed += 1
+    }
+
+    // ^u128 read
+    mut b u128 = 100
+    mut pb ^u128 = addr(b)
+    if pb^ == 100 {
+        println("  [PASS] ^u128 dereference read")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^u128 dereference read")
+        failed += 1
+    }
+
+    // ^u128 write
+    pb^ = 777
+    if b == 777 {
+        println("  [PASS] ^u128 dereference write")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^u128 dereference write")
+        failed += 1
+    }
+
+    // ^i256 read and write
+    mut c i256 = 200
+    mut pc ^i256 = addr(c)
+    if pc^ == 200 {
+        println("  [PASS] ^i256 dereference read")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^i256 dereference read")
+        failed += 1
+    }
+    pc^ = 555
+    if c == 555 {
+        println("  [PASS] ^i256 dereference write")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^i256 dereference write")
+        failed += 1
+    }
+
+    // ^u256 read and write
+    mut d u256 = 300
+    mut pd ^u256 = addr(d)
+    if pd^ == 300 {
+        println("  [PASS] ^u256 dereference read")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^u256 dereference read")
+        failed += 1
+    }
+    pd^ = 111
+    if d == 111 {
+        println("  [PASS] ^u256 dereference write")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^u256 dereference write")
+        failed += 1
+    }
+
+    // println of dereferenced bigint pointer
+    mut e i128 = 12345
+    mut pe ^i128 = addr(e)
+    println(pe^)
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

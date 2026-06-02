@@ -1,0 +1,5 @@
+do main() {
+    mut a u128 = 5
+    mut b u128 = -a
+    println(b)
+}

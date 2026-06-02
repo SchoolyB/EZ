@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 292 codes** (189 errors, 14 warnings, 89 panics)
+**Total: 293 codes** (190 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -155,6 +155,7 @@
 | `E3093` | types | cannot use '%s' on '%s' |
 | `E3094` | types | cannot assign '%s' to element of '%s' |
 | `E3095` | types | 'in' only works with arrays, maps, and strings; got '%s' |
+| `E3096` | types | cannot negate unsigned type '%s'; negation of unsigned types is not defined |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -343,4 +344,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-01 02:15:07 UTC*
+*Generated on 2026-06-02 01:30:47 UTC*

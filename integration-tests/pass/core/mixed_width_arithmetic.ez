@@ -1,0 +1,85 @@
+do main() {
+    println("=== Mixed-Width Integer Arithmetic ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // i8 + i16 — should widen to i16
+    mut a i8 = 100
+    mut b i16 = 100
+    mut c i16 = a + b
+    if c == 200 {
+        println("  [PASS] i8(100) + i16(100) = 200")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8(100) + i16(100)")
+        failed += 1
+    }
+
+    // i8 + i16 at i8 boundary — widens so no panic
+    mut d i8 = 127
+    mut e i16 = 1
+    mut f i16 = d + e
+    if f == 128 {
+        println("  [PASS] i8(127) + i16(1) = 128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8(127) + i16(1)")
+        failed += 1
+    }
+
+    // u8 + u16 — should widen to u16
+    mut g u8 = 200
+    mut h u16 = 200
+    mut ii u16 = g + h
+    if ii == 400 {
+        println("  [PASS] u8(200) + u16(200) = 400")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8(200) + u16(200)")
+        failed += 1
+    }
+
+    // i16 - i8 — should widen to i16
+    mut j i16 = 1000
+    mut k i8 = 100
+    mut l i16 = j - k
+    if l == 900 {
+        println("  [PASS] i16(1000) - i8(100) = 900")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i16(1000) - i8(100)")
+        failed += 1
+    }
+
+    // i8 * i16 — should widen to i16
+    mut m i8 = 10
+    mut n i16 = 200
+    mut o i16 = m * n
+    if o == 2000 {
+        println("  [PASS] i8(10) * i16(200) = 2000")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8(10) * i16(200)")
+        failed += 1
+    }
+
+    // i8 + i32 — should widen to i32
+    mut p i8 = 100
+    mut q i32 = 2000000
+    mut r i32 = p + q
+    if r == 2000100 {
+        println("  [PASS] i8(100) + i32(2000000) = 2000100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8(100) + i32(2000000)")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,7 @@
+// i8 + i16 where result overflows i16 — should panic at i16 boundary, not i8
+do main() {
+    mut a i8 = 100
+    mut b i16 = 32700
+    mut c i16 = a + b
+    println(c)
+}
