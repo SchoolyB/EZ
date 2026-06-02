@@ -114,6 +114,21 @@ static bool is_c_keyword(const char *name) {
     return false;
 }
 
+/* Returns the bit-width rank of a sized integer type name.
+ * Higher rank = wider type. Used to pick the wider operand in
+ * mixed-width arithmetic so bounds checks fire against the right range. */
+static int int_type_rank(const char *n) {
+    if (!n) return 0;
+    if (strcmp(n, "i8")  == 0 || strcmp(n, "u8")   == 0 || strcmp(n, "byte") == 0) return 1;
+    if (strcmp(n, "i16") == 0 || strcmp(n, "u16")  == 0) return 2;
+    if (strcmp(n, "i32") == 0 || strcmp(n, "u32")  == 0) return 3;
+    if (strcmp(n, "i64") == 0 || strcmp(n, "u64")  == 0 ||
+        strcmp(n, "int") == 0 || strcmp(n, "uint") == 0) return 4;
+    if (strcmp(n, "i128") == 0 || strcmp(n, "u128") == 0) return 5;
+    if (strcmp(n, "i256") == 0 || strcmp(n, "u256") == 0) return 6;
+    return 0;
+}
+
 static const char *safe_name(const char *name) {
     if (!name || !is_c_keyword(name)) return name;
     static char bufs[4][EZ_MSG_BUF_SIZE];
@@ -1669,8 +1684,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             bool is_arith = (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 || strcmp(op, "*") == 0);
 
             if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
-                /* Check for sized types that need bounds-checked arithmetic */
-                const char *sized_name = (lt && lt->name) ? lt->name : ((rt && rt->name) ? rt->name : NULL);
+                /* Check for sized types that need bounds-checked arithmetic.
+                 * Pick the wider operand type so mixed-width expressions like
+                 * i8 + i16 evaluate in i16 space, not i8 space. */
+                const char *ln = (lt && lt->name) ? lt->name : NULL;
+                const char *rn = (rt && rt->name) ? rt->name : NULL;
+                const char *sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : (ln ? ln : rn);
                 const char *sized_min = NULL, *sized_max = NULL;
                 bool sized_unsigned = false;
                 if (sized_name) {
