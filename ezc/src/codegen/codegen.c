@@ -1747,11 +1747,24 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
             if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
                 /* Check for sized types that need bounds-checked arithmetic.
-                 * Pick the wider operand type so mixed-width expressions like
-                 * i8 + i16 evaluate in i16 space, not i8 space. */
+                 * For two bounded types (rank 1-3) use the wider one so e.g.
+                 * i8 + i16 evaluates in i16 space.  When one side is bounded
+                 * and the other is a raw int/uint (rank 4), prefer the bounded
+                 * type — a negative int added to a byte must fire P0016, not
+                 * silently bypass the byte check. */
                 const char *ln = (lt && lt->name) ? lt->name : NULL;
                 const char *rn = (rt && rt->name) ? rt->name : NULL;
-                const char *sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : (ln ? ln : rn);
+                bool ln_bounded = (int_type_rank(ln) >= 1 && int_type_rank(ln) <= 3);
+                bool rn_bounded = (int_type_rank(rn) >= 1 && int_type_rank(rn) <= 3);
+                const char *sized_name;
+                if (ln_bounded && rn_bounded)
+                    sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : ln;
+                else if (ln_bounded)
+                    sized_name = ln;
+                else if (rn_bounded)
+                    sized_name = rn;
+                else
+                    sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : (ln ? ln : rn);
                 const char *sized_min = NULL, *sized_max = NULL;
                 bool sized_unsigned = false;
                 if (sized_name) {
