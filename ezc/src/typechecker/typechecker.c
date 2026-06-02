@@ -1792,6 +1792,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
+        /* Pointer-to-pointer: pointee types differ in == / != comparison */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind == TK_POINTER && right->kind == TK_POINTER &&
+            left->name && right->name &&
+            strcmp(left->name, right->name) != 0 &&
+            strcmp(left->name, "nil") != 0 && strcmp(right->name, "nil") != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "cannot compare %s with %s", type_name(left), type_name(right));
+            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* E3074: arrays cannot be compared with == / != directly. The C
          * backend has no structural-equality operator on aggregate types,
          * so this used to slip through to clang. Point users at
@@ -6357,6 +6369,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     diag_error_msg(tc->diag, "E3053", strdup(msg),
                                         NODE_FILE(tc, vn), vn->token.line, vn->token.column, 0);
                                 }
+                                /* Pointer-to-pointer: pointee types differ in map literal value */
+                                if (expected_v && vt &&
+                                    expected_v->kind == TK_POINTER && vt->kind == TK_POINTER &&
+                                    expected_v->name && vt->name &&
+                                    strcmp(expected_v->name, vt->name) != 0) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in map literal value; expected '%s', got '%s'",
+                                        type_display_name(tc, expected_v), type_display_name(tc, vt));
+                                    diag_error_msg(tc->diag, "E3053", strdup(msg),
+                                        NODE_FILE(tc, vn), vn->token.line, vn->token.column, 0);
+                                }
                             }
                         }
                     }
@@ -6868,6 +6892,20 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "type mismatch: cannot assign '%s' to '%s' variable '%s'",
                 type_display_name(tc, value_t), type_display_name(tc, target_t),
                 target->data.label.value);
+            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
+        /* Pointer-to-pointer: pointee types differ on reassignment (e.g., p = q where ^int ≠ ^string).
+         * The outer kind-equality guard short-circuits, so a dedicated check is required. */
+        if (target->kind == NODE_LABEL &&
+            target_t && value_t &&
+            target_t->kind == TK_POINTER && value_t->kind == TK_POINTER &&
+            target_t->name && value_t->name &&
+            strcmp(target_t->name, value_t->name) != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "type mismatch: cannot assign %s to %s variable '%s'",
+                type_name(value_t), type_name(target_t), target->data.label.value);
             diag_error_msg(tc->diag, "E3001", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }

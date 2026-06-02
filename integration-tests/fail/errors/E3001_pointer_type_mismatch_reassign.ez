@@ -1,0 +1,8 @@
+do main() {
+    mut x int = 1
+    mut s string = "hi"
+    mut p ^int = addr(x)
+    mut q ^string = addr(s)
+    p = q
+    println(p^)
+}

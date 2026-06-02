@@ -1,0 +1,14 @@
+const A struct {
+    val int
+}
+
+const B struct {
+    val int
+}
+
+do main() {
+    mut b B = B { val: 2 }
+    mut pb ^B = addr(b)
+    mut q ^A = pb
+    println(q^.val)
+}
