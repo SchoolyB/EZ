@@ -120,6 +120,22 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"strings.slice":       {Module: "strings", Group: "Transformation", Kind: "func", Sig: "slice(s string, start int, end int) -> string", Fields: "", Desc: "Returns the substring of s from byte index start (inclusive) to end (exclusive).", Example: ""},
 	"strings.split":       {Module: "strings", Group: "Split/Join", Kind: "func", Sig: "split(s string, sep string) -> [string]", Fields: "", Desc: "Splits s around each occurrence of sep and returns a string array.", Example: ""},
 	"strings.join":        {Module: "strings", Group: "Split/Join", Kind: "func", Sig: "join(arr [string], sep string) -> string", Fields: "", Desc: "Joins the elements of arr into a single string with sep between each element.", Example: ""},
+	"time.now":            {Module: "time", Group: "Current Time", Kind: "func", Sig: "now() -> int", Fields: "", Desc: "Returns the current Unix timestamp in seconds.", Example: ""},
+	"time.now_ms":         {Module: "time", Group: "Current Time", Kind: "func", Sig: "now_ms() -> int", Fields: "", Desc: "Returns the current Unix timestamp in milliseconds.", Example: ""},
+	"time.now_ns":         {Module: "time", Group: "Current Time", Kind: "func", Sig: "now_ns() -> int", Fields: "", Desc: "Returns the current Unix timestamp in nanoseconds.", Example: ""},
+	"time.year":           {Module: "time", Group: "Components", Kind: "func", Sig: "year(timestamp int) -> int", Fields: "", Desc: "Returns the year from a Unix timestamp.", Example: ""},
+	"time.month":          {Module: "time", Group: "Components", Kind: "func", Sig: "month(timestamp int) -> int", Fields: "", Desc: "Returns the month (1–12) from a Unix timestamp.", Example: ""},
+	"time.day":            {Module: "time", Group: "Components", Kind: "func", Sig: "day(timestamp int) -> int", Fields: "", Desc: "Returns the day of the month from a Unix timestamp.", Example: ""},
+	"time.hour":           {Module: "time", Group: "Components", Kind: "func", Sig: "hour(timestamp int) -> int", Fields: "", Desc: "Returns the hour (0–23) from a Unix timestamp.", Example: ""},
+	"time.minute":         {Module: "time", Group: "Components", Kind: "func", Sig: "minute(timestamp int) -> int", Fields: "", Desc: "Returns the minute (0–59) from a Unix timestamp.", Example: ""},
+	"time.second":         {Module: "time", Group: "Components", Kind: "func", Sig: "second(timestamp int) -> int", Fields: "", Desc: "Returns the second (0–59) from a Unix timestamp.", Example: ""},
+	"time.weekday":        {Module: "time", Group: "Components", Kind: "func", Sig: "weekday(timestamp int) -> int", Fields: "", Desc: "Returns the day of the week from a Unix timestamp. 0 = Sunday, 1 = Monday, ..., 6 = Saturday.", Example: ""},
+	"time.format":         {Module: "time", Group: "Formatting", Kind: "func", Sig: "format(fmt string, timestamp int) -> string", Fields: "", Desc: "Formats a Unix timestamp using a format string. Uses strftime-style directives: %Y (year), %m (month), %d (day), %H (hour), %M (minute), %S (second).", Example: ""},
+	"time.to_iso":         {Module: "time", Group: "Formatting", Kind: "func", Sig: "to_iso(timestamp int) -> string", Fields: "", Desc: "Returns the timestamp as an ISO 8601 string (e.g. \"2025-06-01T14:30:00Z\").", Example: ""},
+	"time.date":           {Module: "time", Group: "Formatting", Kind: "func", Sig: "date(timestamp int) -> string", Fields: "", Desc: "Returns the date portion of a Unix timestamp as \"YYYY-MM-DD\".", Example: ""},
+	"time.to_clock":       {Module: "time", Group: "Formatting", Kind: "func", Sig: "to_clock(timestamp int) -> string", Fields: "", Desc: "Returns the time portion of a Unix timestamp as \"HH:MM:SS\".", Example: ""},
+	"time.tick":           {Module: "time", Group: "Performance", Kind: "func", Sig: "tick() -> int", Fields: "", Desc: "Returns a high-resolution timestamp in nanoseconds for performance measurement. Use with elapsed_ms() to measure durations.", Example: ""},
+	"time.elapsed_ms":     {Module: "time", Group: "Performance", Kind: "func", Sig: "elapsed_ms(start_tick int) -> int", Fields: "", Desc: "Returns the number of milliseconds elapsed since the tick value returned by tick().", Example: ""},
 }
 
 // stdlibModules maps module names to their ordered function lists.
@@ -129,6 +145,7 @@ var stdlibModules = map[string][]string{
 	"math":    {"abs", "neg", "sign", "min", "max", "clamp", "floor", "ceil", "round", "trunc", "pow", "sqrt", "cbrt", "hypot", "exp", "exp2", "log", "log2", "log10", "log_base", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "deg_to_rad", "rad_to_deg", "is_even", "is_odd", "is_infinite", "is_nan", "is_finite", "factorial", "gcd", "lcm", "is_prime", "lerp", "distance"},
 	"os":      {"args", "get_env", "set_env", "current_dir", "hostname", "current_os", "arch", "pid"},
 	"strings": {"to_upper", "to_lower", "trim", "trim_left", "trim_right", "contains", "starts_with", "ends_with", "index_of", "count", "is_empty", "replace", "repeat", "reverse", "slice", "split", "join"},
+	"time":    {"now", "now_ms", "now_ns", "year", "month", "day", "hour", "minute", "second", "weekday", "format", "to_iso", "date", "to_clock", "tick", "elapsed_ms"},
 }
 
 // stdlibGroup is one labeled group of names within a module index.
@@ -172,5 +189,11 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Query         ", Names: []string{"contains", "starts_with", "ends_with", "index_of", "count", "is_empty"}},
 		{Label: "Transformation", Names: []string{"replace", "repeat", "reverse", "slice"}},
 		{Label: "Split/Join    ", Names: []string{"split", "join"}},
+	},
+	"time": {
+		{Label: "Current Time  ", Names: []string{"now", "now_ms", "now_ns"}},
+		{Label: "Components    ", Names: []string{"year", "month", "day", "hour", "minute", "second", "weekday"}},
+		{Label: "Formatting    ", Names: []string{"format", "to_iso", "date", "to_clock"}},
+		{Label: "Performance   ", Names: []string{"tick", "elapsed_ms"}},
 	},
 }
