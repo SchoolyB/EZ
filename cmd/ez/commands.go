@@ -291,11 +291,11 @@ func printManUsage() {
 	fmt.Println("ez man — builtin and stdlib documentation")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  ez man builtins          list all builtin functions")
-	fmt.Println("  ez man <module>          list all functions in a stdlib module")
+	fmt.Println("  ez man builtins          list all builtins")
+	fmt.Println("  ez man <module>          list all items in a stdlib module")
 	fmt.Println("                           (e.g. ez man math)")
-	fmt.Println("  ez man <name>            docs for a specific builtin or stdlib function")
-	fmt.Println("                           (e.g. ez man println, ez man sqrt)")
+	fmt.Println("  ez man <name>            docs for a specific function, type, or constant")
+	fmt.Println("                           (e.g. ez man println, ez man sqrt, ez man PI)")
 	fmt.Println("  ez man <name()>          same — trailing () is ignored")
 	fmt.Println()
 	fmt.Println("Stdlib modules:")
@@ -308,7 +308,7 @@ func printManUsage() {
 }
 
 func printBuiltinsIndex() {
-	fmt.Println("Builtin functions  (ez man <name> for details)")
+	fmt.Println("Builtins  (ez man <name> for details)")
 	fmt.Println(strings.Repeat("─", 50))
 	groups := []struct {
 		label string
@@ -325,15 +325,21 @@ func printBuiltinsIndex() {
 		{"Types      ", []string{"SourceLocation", "Error"}},
 	}
 	for _, g := range groups {
-		fmt.Printf("  %s  %s\n", g.label, strings.Join(g.names, "  "))
+		var labels []string
+		for _, n := range g.names {
+			if e, ok := builtinManDocs[n]; ok && e.Kind == "func" {
+				labels = append(labels, n+"()")
+			} else {
+				labels = append(labels, n)
+			}
+		}
+		fmt.Printf("  %s  %s\n", g.label, strings.Join(labels, "  "))
 	}
 }
 
 func printManEntry(module, name, kind, sig, fields, desc, example string) {
 	label := name
-	if kind == "type" {
-		// types don't get ()
-	} else if strings.Contains(sig, "(") {
+	if kind == "func" && strings.Contains(sig, "(") {
 		label = name + "()"
 	}
 	fmt.Printf("%s: %s\n", module, label)
@@ -351,7 +357,14 @@ func printManEntry(module, name, kind, sig, fields, desc, example string) {
 			}
 		}
 		fmt.Printf("\n%s\n", desc)
+	} else if kind == "const" {
+		fmt.Printf("Kind:    constant\n")
+		if sig != "" {
+			fmt.Printf("Value:   %s\n", sig)
+		}
+		fmt.Printf("\n%s\n", desc)
 	} else {
+		fmt.Printf("Kind:    function\n")
 		fmt.Printf("Signature:  %s\n\n", sig)
 		fmt.Println(desc)
 	}
@@ -381,7 +394,16 @@ func printStdlibModuleIndex(module string) {
 	fmt.Printf("module: %s  (ez man <name> for details)\n", module)
 	fmt.Println(strings.Repeat("─", 50))
 	for _, g := range groups {
-		fmt.Printf("  %s  %s\n", g.Label, strings.Join(g.Names, "  "))
+		var labels []string
+		for _, n := range g.Names {
+			key := module + "." + n
+			if e, ok := stdlibManDocs[key]; ok && e.Kind == "func" && strings.Contains(e.Sig, "(") {
+				labels = append(labels, n+"()")
+			} else {
+				labels = append(labels, n)
+			}
+		}
+		fmt.Printf("  %s  %s\n", g.Label, strings.Join(labels, "  "))
 	}
 }
 

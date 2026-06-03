@@ -124,4 +124,40 @@ int64_t ez_os_pid(void);
 /* Store argc/argv from main for os.args() */
 void ez_os_init(int argc, char **argv);
 
+/*@man MAC_OS
+ *@module os
+ *@group Constants
+ *@kind const
+ *@sig 0
+ *@desc Integer constant representing macOS. Returned by current_os().
+ *@end
+ */
+
+/*@man LINUX
+ *@module os
+ *@group Constants
+ *@kind const
+ *@sig 1
+ *@desc Integer constant representing Linux. Returned by current_os().
+ *@end
+ */
+
+/*@man WINDOWS
+ *@module os
+ *@group Constants
+ *@kind const
+ *@sig 2
+ *@desc Integer constant representing Windows. Returned by current_os().
+ *@end
+ */
+
+/*@man OTHER
+ *@module os
+ *@group Constants
+ *@kind const
+ *@sig 3
+ *@desc Integer constant representing an unrecognized operating system. Returned by current_os().
+ *@end
+ */
+
 #endif

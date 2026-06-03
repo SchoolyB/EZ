@@ -40,4 +40,49 @@ EzString ez_strconv_from_bool(bool b);
 bool ez_strconv_is_numeric(EzString s);
 bool ez_strconv_is_integer(EzString s);
 
+/*@man BASE_2
+ *@module strconv
+ *@group Constants
+ *@kind const
+ *@sig 2
+ *@desc Base constant for binary. Pass to to_int() or to_uint() as the base argument.
+ *@end
+ */
+
+/*@man BASE_8
+ *@module strconv
+ *@group Constants
+ *@kind const
+ *@sig 8
+ *@desc Base constant for octal. Pass to to_int() or to_uint() as the base argument.
+ *@end
+ */
+
+/*@man BASE_10
+ *@module strconv
+ *@group Constants
+ *@kind const
+ *@sig 10
+ *@desc Base constant for decimal (the default). Pass to to_int() or to_uint() as the base argument.
+ *@end
+ */
+
+/*@man BASE_16
+ *@module strconv
+ *@group Constants
+ *@kind const
+ *@sig 16
+ *@desc Base constant for hexadecimal. Pass to to_int() or to_uint() as the base argument.
+ *@end
+ */
+
+/*@man BASE_36
+ *@module strconv
+ *@group Constants
+ *@kind const
+ *@sig 36
+ *@desc Base constant for base-36 (digits 0-9 and letters A-Z). Pass to to_int() or to_uint() as the base argument.
+ *@end
+ */
+
 #endif
