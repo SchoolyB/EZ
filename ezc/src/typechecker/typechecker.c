@@ -3929,7 +3929,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3043", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
-                if (is_unsigned_type(fn_name))
+                if (strcmp(fn_name, "byte") == 0)
+                    result = &TYPE_BYTE;
+                else if (is_unsigned_type(fn_name))
                     result = &TYPE_UINT;
                 else
                     result = &TYPE_INT;

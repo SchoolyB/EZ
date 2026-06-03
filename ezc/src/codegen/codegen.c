@@ -1484,11 +1484,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
-        /* bit_not → ~ */
+        /* bit_not → ~ ; byte operands must be masked back to 8 bits because
+         * C promotes uint8_t to int before applying ~, yielding a negative
+         * value that fails the runtime byte range check. */
         if (strcmp(node->data.prefix.op, "bit_not") == 0) {
-            emit(cg, "(~(");
-            emit_expression(cg, node->data.prefix.right);
-            emit(cg, "))");
+            EzType *bn_t = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
+            if (bn_t && bn_t->kind == TK_BYTE) {
+                emit(cg, "((uint8_t)(~(");
+                emit_expression(cg, node->data.prefix.right);
+                emit(cg, ")))");
+            } else {
+                emit(cg, "(~(");
+                emit_expression(cg, node->data.prefix.right);
+                emit(cg, "))");
+            }
             break;
         }
         emit(cg, "(");

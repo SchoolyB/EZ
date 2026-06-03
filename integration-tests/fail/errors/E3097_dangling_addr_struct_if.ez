@@ -1,0 +1,12 @@
+const Node struct {
+    val int
+}
+
+do main() {
+    mut p ^Node = nil
+    if true {
+        mut n Node = Node{val: 42}
+        p = addr(n)
+    }
+    println("compiled with warning")
+}
