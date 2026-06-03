@@ -264,31 +264,41 @@ static inline int64_t ez_sized_neg_check(int64_t a, int64_t min_val, int64_t max
     return result;
 }
 
-/* Sized unsigned integer overflow checks (u8, u16, u32, byte) */
-static inline uint64_t ez_usized_add_check(uint64_t a, uint64_t b, uint64_t max_val,
+/* Sized unsigned integer overflow checks (u8, u16, u32, byte).
+ * Operands are int64_t so that signed operands (e.g. byte + int) are
+ * handled correctly: a negative right-hand side must fire P0016, not
+ * silently wrap to a large uint64 and trigger the wrong P0015 path. */
+static inline uint64_t ez_usized_add_check(int64_t a, int64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
     (void)file; (void)line;
-    uint64_t result = a + b;
-    if (result > max_val)
+    int64_t result = a + b;
+    if (result < 0)
+        ez_panic_code("P0016", "%s addition result is negative, but this unsigned type cannot hold negative values", type_name);
+    if ((uint64_t)result > max_val)
         ez_panic_code("P0015", "%s addition result is too large; value exceeds the range of this unsigned type", type_name);
-    return result;
+    return (uint64_t)result;
 }
 
-static inline uint64_t ez_usized_sub_check(uint64_t a, uint64_t b, uint64_t max_val,
-    const char *type_name, const char *file, int line) {
-    (void)file; (void)line; (void)max_val;
-    if (b > a)
-        ez_panic_code("P0016", "%s subtraction result is negative, but this unsigned type cannot hold negative values", type_name);
-    return a - b;
-}
-
-static inline uint64_t ez_usized_mul_check(uint64_t a, uint64_t b, uint64_t max_val,
+static inline uint64_t ez_usized_sub_check(int64_t a, int64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
     (void)file; (void)line;
-    uint64_t result = a * b;
-    if (result > max_val)
+    int64_t result = a - b;
+    if (result < 0)
+        ez_panic_code("P0016", "%s subtraction result is negative, but this unsigned type cannot hold negative values", type_name);
+    if ((uint64_t)result > max_val)
+        ez_panic_code("P0015", "%s subtraction result is too large; value exceeds the range of this unsigned type", type_name);
+    return (uint64_t)result;
+}
+
+static inline uint64_t ez_usized_mul_check(int64_t a, int64_t b, uint64_t max_val,
+    const char *type_name, const char *file, int line) {
+    (void)file; (void)line;
+    int64_t result = a * b;
+    if (result < 0)
+        ez_panic_code("P0016", "%s multiplication result is negative, but this unsigned type cannot hold negative values", type_name);
+    if ((uint64_t)result > max_val)
         ez_panic_code("P0017", "%s multiplication result is too large; value exceeds the range of this unsigned type", type_name);
-    return result;
+    return (uint64_t)result;
 }
 
 /* Safe narrowing cast with overflow check */

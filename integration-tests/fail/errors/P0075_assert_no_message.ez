@@ -1,0 +1,3 @@
+do main() {
+    assert(false)
+}

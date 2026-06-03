@@ -1194,6 +1194,20 @@ static bool is_int_kind(TypeKind k) {
     return k == TK_INT || k == TK_UINT || k == TK_BYTE;
 }
 
+/* Rank for named integer types; 0 = not a named integer type.
+ * Used to detect narrowing (declared rank < value rank). */
+static int int_name_rank(const char *n) {
+    if (!n) return 0;
+    if (strcmp(n, "i8")   == 0 || strcmp(n, "u8")   == 0 || strcmp(n, "byte") == 0) return 1;
+    if (strcmp(n, "i16")  == 0 || strcmp(n, "u16")  == 0) return 2;
+    if (strcmp(n, "i32")  == 0 || strcmp(n, "u32")  == 0) return 3;
+    if (strcmp(n, "i64")  == 0 || strcmp(n, "u64")  == 0 ||
+        strcmp(n, "int")  == 0 || strcmp(n, "uint") == 0) return 4;
+    if (strcmp(n, "i128") == 0 || strcmp(n, "u128") == 0) return 5;
+    if (strcmp(n, "i256") == 0 || strcmp(n, "u256") == 0) return 6;
+    return 0;
+}
+
 static bool is_unsigned_type(const char *tn) {
     if (!tn) return false;
     return strcmp(tn, "uint") == 0 || strcmp(tn, "u8") == 0 ||
@@ -1792,6 +1806,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
+        /* Pointer-to-pointer: pointee types differ in == / != comparison */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind == TK_POINTER && right->kind == TK_POINTER &&
+            left->name && right->name &&
+            strcmp(left->name, right->name) != 0 &&
+            strcmp(left->name, "nil") != 0 && strcmp(right->name, "nil") != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "cannot compare %s with %s", type_name(left), type_name(right));
+            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* E3074: arrays cannot be compared with == / != directly. The C
          * backend has no structural-equality operator on aggregate types,
          * so this used to slip through to clang. Point users at
@@ -1986,6 +2012,44 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E3040",
                         NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0,
                         aname, asig->return_count, aname);
+                }
+            }
+        }
+
+        /* E3097: addr() of inner-scope variable passed alongside an outer-scope
+         * argument — the classic escape pattern, e.g. arrays.append(outer, addr(x))
+         * where x is loop/if/while-local.  We fire only when another argument in
+         * the same call comes from an outer scope (scope_lookup_local returns null
+         * for it) — that indicates the address is being stored in something that
+         * outlives the inner variable's arena. */
+        for (int i = 0; i < node->data.call.arg_count; i++) {
+            AstNode *arg = node->data.call.args[i];
+            if (arg->kind == NODE_CALL_EXPR &&
+                arg->data.call.function &&
+                arg->data.call.function->kind == NODE_LABEL &&
+                strcmp(arg->data.call.function->data.label.value, "addr") == 0 &&
+                arg->data.call.arg_count == 1 &&
+                arg->data.call.args[0]->kind == NODE_LABEL) {
+                const char *addr_var = arg->data.call.args[0]->data.label.value;
+                if (!scope_lookup_local(tc->current_scope, addr_var)) continue;
+                /* Check if any other argument is an outer-scope variable */
+                bool has_outer_arg = false;
+                for (int j = 0; j < node->data.call.arg_count; j++) {
+                    if (j == i) continue;
+                    AstNode *other = node->data.call.args[j];
+                    if (other->kind == NODE_LABEL) {
+                        const char *oname = other->data.label.value;
+                        if (!scope_lookup_local(tc->current_scope, oname) &&
+                            scope_lookup(tc->current_scope, oname)) {
+                            has_outer_arg = true;
+                            break;
+                        }
+                    }
+                }
+                if (has_outer_arg) {
+                    diag_error_codef(tc->diag, "E3097",
+                        NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0,
+                        addr_var, addr_var);
                 }
             }
         }
@@ -3865,7 +3929,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3043", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
-                if (is_unsigned_type(fn_name))
+                if (strcmp(fn_name, "byte") == 0)
+                    result = &TYPE_BYTE;
+                else if (is_unsigned_type(fn_name))
                     result = &TYPE_UINT;
                 else
                     result = &TYPE_INT;
@@ -4073,6 +4139,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
+                        }
+                        /* Bigint narrowing in call argument: i128 arg to i64 param, etc. */
+                        if (arg_t->name && param_t->name) {
+                            int ar = int_name_rank(arg_t->name);
+                            int pr = int_name_rank(param_t->name);
+                            if (ar >= 5 && pr > 0 && pr < ar) {
+                                char msg[EZ_MSG_BUF_SIZE];
+                                snprintf(msg, sizeof(msg),
+                                    "argument %d of '%s': cannot implicitly narrow %s to %s; use %s() to convert explicitly",
+                                    ai + 1, fn_name, arg_t->name, param_t->name, param_t->name);
+                                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                    NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                    node->data.call.args[ai]->token.column, 0);
+                            }
                         }
                         /* Array element type mismatch */
                         if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
@@ -6016,7 +6096,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                          scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value) &&
                          scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value)->is_ref) &&
                        /* Skip mismatch when assigning pointer (addr) to ^T */
-                       /* Skip mismatch when assigning pointer (addr) to ^T */
                        !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
                        /* : implicit int→float coercion when target is float */
                        !(declared->kind == TK_FLOAT && is_int_kind(value_type->kind))) {
@@ -6027,6 +6106,36 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_name(value_type), type_name(declared));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Pointer-to-pointer: pointee types differ (e.g., ^int assigned from ^string).
+             * The outer kind-mismatch guard above short-circuits when both sides are TK_POINTER,
+             * so this separate check is required to catch it. Mirrors the call-site check. */
+            if (declared && value_type &&
+                declared->kind == TK_POINTER && value_type->kind == TK_POINTER &&
+                declared->name && value_type->name &&
+                strcmp(declared->name, value_type->name) != 0) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign %s to %s",
+                    type_name(value_type), type_name(declared));
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* Bigint narrowing: e.g. i128 → i64, u256 → int.  Both sides share
+             * TK_INT/TK_UINT so the kind-equality guard above silently passes
+             * them through.  Catch it here by comparing named ranks. */
+            if (declared && value_type &&
+                declared->name && value_type->name) {
+                int dr = int_name_rank(declared->name);
+                int vr = int_name_rank(value_type->name);
+                if (dr > 0 && vr >= 5 && dr < vr) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "type mismatch: cannot implicitly narrow %s to %s; use %s() to convert explicitly",
+                        value_type->name, declared->name, declared->name);
+                    diag_error_msg(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
             /* Struct-to-struct name mismatch (both TK_STRUCT but different names).
              * : skip when one name is a module-prefixed alias of the
@@ -6337,6 +6446,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     !(expected_v->kind == TK_ENUM && vt->kind == TK_ENUM) &&
                                     !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER) &&
                                     !(expected_v->kind == TK_FLOAT && is_int_kind(vt->kind))) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in map literal value; expected '%s', got '%s'",
+                                        type_display_name(tc, expected_v), type_display_name(tc, vt));
+                                    diag_error_msg(tc->diag, "E3053", strdup(msg),
+                                        NODE_FILE(tc, vn), vn->token.line, vn->token.column, 0);
+                                }
+                                /* Pointer-to-pointer: pointee types differ in map literal value */
+                                if (expected_v && vt &&
+                                    expected_v->kind == TK_POINTER && vt->kind == TK_POINTER &&
+                                    expected_v->name && vt->name &&
+                                    strcmp(expected_v->name, vt->name) != 0) {
                                     char msg[EZ_MSG_BUF_SIZE];
                                     snprintf(msg, sizeof(msg),
                                         "type mismatch in map literal value; expected '%s', got '%s'",
@@ -6858,6 +6979,35 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E3001", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* Pointer-to-pointer: pointee types differ on reassignment (e.g., p = q where ^int ≠ ^string).
+         * The outer kind-equality guard short-circuits, so a dedicated check is required. */
+        if (target->kind == NODE_LABEL &&
+            target_t && value_t &&
+            target_t->kind == TK_POINTER && value_t->kind == TK_POINTER &&
+            target_t->name && value_t->name &&
+            strcmp(target_t->name, value_t->name) != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "type mismatch: cannot assign %s to %s variable '%s'",
+                type_name(value_t), type_name(target_t), target->data.label.value);
+            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
+        /* Bigint narrowing on reassignment: i128 → i64, u256 → int, etc. */
+        if (target->kind == NODE_LABEL &&
+            target_t && value_t &&
+            target_t->name && value_t->name) {
+            int dr = int_name_rank(target_t->name);
+            int vr = int_name_rank(value_t->name);
+            if (dr > 0 && vr >= 5 && dr < vr) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot implicitly narrow %s to %s variable '%s'; use %s() to convert explicitly",
+                    value_t->name, target_t->name, target->data.label.value, target_t->name);
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
         /* Check type mismatch on struct field assignment.
          * sym->type may be TK_STRUCT (by-value) or TK_POINTER (from new()),
          * in both cases sym->type->name is the pointee/struct name. */
@@ -6900,13 +7050,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             Symbol *addr_sym_local = scope_lookup_local(tc->current_scope, addr_var);
             if (!ptr_sym_local && scope_lookup(tc->current_scope, ptr_name) &&
                 addr_sym_local) {
-                char msg[EZ_MSG_BUF_SIZE];
-                snprintf(msg, sizeof(msg),
-                    "pointer '%s' may reference memory from a scope that has ended; "
-                    "'%s' is a local variable in an inner scope",
+                diag_error_codef(tc->diag, "E3097",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                     ptr_name, addr_var);
-                diag_warning_msg(tc->diag, "W3004", strdup(msg),
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         break;

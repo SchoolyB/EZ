@@ -1,0 +1,8 @@
+do main() {
+    mut p ^int = nil
+    for i in range(3) {
+        mut x int = i
+        p = addr(x)
+    }
+    println(p^)
+}

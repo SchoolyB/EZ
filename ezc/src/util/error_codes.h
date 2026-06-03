@@ -178,7 +178,8 @@
     EZ_ERROR("E3093", "types", "cannot use '%s' on '%s'") \
     EZ_ERROR("E3094", "types", "cannot assign '%s' to element of '%s'") \
     EZ_ERROR("E3095", "types", "'in' only works with arrays, maps, and strings; got '%s'") \
-    EZ_ERROR("E3096", "types", "cannot negate unsigned type '%s'; negation of unsigned types is not defined")
+    EZ_ERROR("E3096", "types", "cannot negate unsigned type '%s'; negation of unsigned types is not defined") \
+    EZ_ERROR("E3097", "safety", "pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

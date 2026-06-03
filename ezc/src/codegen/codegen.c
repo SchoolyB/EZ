@@ -30,6 +30,7 @@ static void emit_expression(CodeGen *cg, AstNode *node);
 static void emit_call_expression(CodeGen *cg, AstNode *node);
 static bool codegen_is_enum(CodeGen *cg, const char *name);
 static void emit_to_string(CodeGen *cg, AstNode *arg);
+static bool emit_narrowing_cast(CodeGen *cg, const char *target, AstNode *val, int line);
 
 /* Resolve an unprefixed type name (e.g. "Point") to its module-prefixed
  * form (e.g. "lib_Point") by searching struct declarations and enum names.
@@ -494,8 +495,8 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     val_tn[vlen] = '\0';
 
     if (!type_needs_deep_copy(cg, val_tn)) {
-        /* Value type is flat; the existing runtime helper is correct.
-         * Keys never need deep copying in our model. */
+        /* Value type is flat; ez_map_copy handles string key deep-copy
+         * internally when key_kind == EZ_MAP_KEY_STRING. */
         emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
         return;
     }
@@ -526,10 +527,20 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", t);
     emit_value_deep_copy(cg, val_tn, src_val_var);
 
-    emitf(cg,
-        "; ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
-        "} _md%d; })",
-        t, t, t, t);
+    /* String keys store a pointer into the source arena — copy the data
+     * before inserting so the destination map owns its key strings. */
+    if (strcmp(key_tn, "string") == 0) {
+        emitf(cg,
+            "; _mk%d = ez_string_new(ez_default_arena, _mk%d.data, _mk%d.len); "
+            "ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
+            "} _md%d; })",
+            t, t, t, t, t, t, t);
+    } else {
+        emitf(cg,
+            "; ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
+            "} _md%d; })",
+            t, t, t, t);
+    }
 }
 
 static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char *src_var) {
@@ -1473,11 +1484,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
-        /* bit_not → ~ */
+        /* bit_not → ~ ; byte operands must be masked back to 8 bits because
+         * C promotes uint8_t to int before applying ~, yielding a negative
+         * value that fails the runtime byte range check. */
         if (strcmp(node->data.prefix.op, "bit_not") == 0) {
-            emit(cg, "(~(");
-            emit_expression(cg, node->data.prefix.right);
-            emit(cg, "))");
+            EzType *bn_t = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
+            if (bn_t && bn_t->kind == TK_BYTE) {
+                emit(cg, "((uint8_t)(~(");
+                emit_expression(cg, node->data.prefix.right);
+                emit(cg, ")))");
+            } else {
+                emit(cg, "(~(");
+                emit_expression(cg, node->data.prefix.right);
+                emit(cg, "))");
+            }
             break;
         }
         emit(cg, "(");
@@ -1746,11 +1766,24 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
             if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
                 /* Check for sized types that need bounds-checked arithmetic.
-                 * Pick the wider operand type so mixed-width expressions like
-                 * i8 + i16 evaluate in i16 space, not i8 space. */
+                 * For two bounded types (rank 1-3) use the wider one so e.g.
+                 * i8 + i16 evaluates in i16 space.  When one side is bounded
+                 * and the other is a raw int/uint (rank 4), prefer the bounded
+                 * type — a negative int added to a byte must fire P0016, not
+                 * silently bypass the byte check. */
                 const char *ln = (lt && lt->name) ? lt->name : NULL;
                 const char *rn = (rt && rt->name) ? rt->name : NULL;
-                const char *sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : (ln ? ln : rn);
+                bool ln_bounded = (int_type_rank(ln) >= 1 && int_type_rank(ln) <= 3);
+                bool rn_bounded = (int_type_rank(rn) >= 1 && int_type_rank(rn) <= 3);
+                const char *sized_name;
+                if (ln_bounded && rn_bounded)
+                    sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : ln;
+                else if (ln_bounded)
+                    sized_name = ln;
+                else if (rn_bounded)
+                    sized_name = rn;
+                else
+                    sized_name = (int_type_rank(rn) > int_type_rank(ln)) ? rn : (ln ? ln : rn);
                 const char *sized_min = NULL, *sized_max = NULL;
                 bool sized_unsigned = false;
                 if (sized_name) {
@@ -3084,7 +3117,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, ", ");
             emit_expression(cg, node->data.call.args[1]);
         } else {
-            emit(cg, ", ez_string_lit(\"assertion failed\")");
+            emit(cg, ", ez_string_lit(\"\")");
         }
         emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
         return true;
@@ -4333,6 +4366,12 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             if (val_t->kind == TK_STRUCT) {
                 c_elem = ez_type_to_c_cg(cg, val_t->name);
             }
+            if (val_t->kind == TK_POINTER && val_t->name) {
+                /* val_t->name is the pointee (e.g. "int"); prepend ^ for ez_type_to_c_cg */
+                static char _ptr_tn[EZ_TYPE_NAME_MAX];
+                snprintf(_ptr_tn, sizeof(_ptr_tn), "^%s", val_t->name);
+                c_elem = ez_type_to_c_cg(cg, _ptr_tn);
+            }
         } else if (elem_is_string) {
             c_elem = "EzString";
         } else if (elem_tn) {
@@ -4341,6 +4380,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             else if (et->kind == TK_MAP) c_elem = "EzMap";
             else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
             else if (et->kind == TK_FUNCTION) c_elem = "void *";
+            else if (et->kind == TK_POINTER) c_elem = ez_type_to_c_cg(cg, elem_tn);
         }
         const char *alloc_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
         emitf(cg, "{ %s _av = ", c_elem);
@@ -4381,6 +4421,11 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             }
             if (val_t->kind == TK_STRUCT) {
                 c_elem = ez_type_to_c_cg(cg, val_t->name);
+            }
+            if (val_t->kind == TK_POINTER && val_t->name) {
+                static char _ia_ptr_tn[EZ_TYPE_NAME_MAX];
+                snprintf(_ia_ptr_tn, sizeof(_ia_ptr_tn), "^%s", val_t->name);
+                c_elem = ez_type_to_c_cg(cg, _ia_ptr_tn);
             }
         }
         const char *ia_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
@@ -5838,7 +5883,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             const char *ptn = target_func->data.func_decl.params[i].type_name;
             const char *c_ty = ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t";
             emitf(cg, "%s %s = ", c_ty, pname ? pname : "_arg");
-            emit_expression(cg, node->data.call.args[i]);
+            if (!emit_narrowing_cast(cg, ptn, node->data.call.args[i], node->token.line))
+                emit_expression(cg, node->data.call.args[i]);
             emit(cg, "; ");
         }
         emit(cg, saved_fn);
@@ -5904,7 +5950,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "&");
                 emit_expression(cg, node->data.call.args[i]);
             } else {
-                emit_expression(cg, node->data.call.args[i]);
+                const char *param_tn = NULL;
+                if (target_func && i < target_func->data.func_decl.param_count)
+                    param_tn = target_func->data.func_decl.params[i].type_name;
+                else if (call_typed_sig && i < call_typed_sig->param_count)
+                    param_tn = call_typed_sig->param_types[i];
+                if (!emit_narrowing_cast(cg, param_tn, node->data.call.args[i], node->token.line))
+                    emit_expression(cg, node->data.call.args[i]);
             }
         } else if (target_func && i < param_count &&
                    target_func->data.func_decl.params[i].default_value) {
@@ -5956,6 +6008,37 @@ static int extract_array_size(const char *type_name) {
 /* Check if type is a nested array "[[...]]" */
 static bool is_nested_array_type(const char *type_name) {
     return type_name && type_name[0] == '[' && type_name[1] == '[';
+}
+
+/* Emit a runtime range-check cast for narrowing integer assignments.
+ * Wraps val in ez_cast_check/ez_ucast_check when target is a sized
+ * integer type (i8/i16/i32/u8/u16/u32/byte).  Returns true when a
+ * check was emitted; caller should emit val normally when false. */
+static bool emit_narrowing_cast(CodeGen *cg, const char *target,
+                                AstNode *val, int line) {
+    if (!target) return false;
+    const char *smin = NULL, *smax = NULL;
+    bool is_unsigned = false;
+    if      (strcmp(target, "i8")   == 0) { smin = "-128";          smax = "127"; }
+    else if (strcmp(target, "i16")  == 0) { smin = "-32768";        smax = "32767"; }
+    else if (strcmp(target, "i32")  == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+    else if (strcmp(target, "u8")   == 0 ||
+             strcmp(target, "byte") == 0) { is_unsigned = true; smax = "255"; }
+    else if (strcmp(target, "u16")  == 0) { is_unsigned = true; smax = "65535"; }
+    else if (strcmp(target, "u32")  == 0) { is_unsigned = true; smax = "4294967295ULL"; }
+    else return false;
+
+    const char *c_target = ez_type_to_c_cg(cg, target);
+    if (is_unsigned) {
+        emitf(cg, "(%s)ez_ucast_check(", c_target);
+        emit_expression(cg, val);
+        emitf(cg, ", %s, \"%s\", __FILE__, %d)", smax, target, line);
+    } else {
+        emitf(cg, "(%s)ez_cast_check(", c_target);
+        emit_expression(cg, val);
+        emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", smin, smax, target, line);
+    }
+    return true;
 }
 
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
@@ -6358,7 +6441,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit(cg, "; ");
             emit_value_deep_copy(cg, type_name, src_var);
             emit(cg, "; })");
-        } else {
+        } else if (!emit_narrowing_cast(cg, type_name, node->data.var_decl.value, node->token.line)) {
             emit_expression(cg, node->data.var_decl.value);
         }
         cg->current_var_name = NULL;

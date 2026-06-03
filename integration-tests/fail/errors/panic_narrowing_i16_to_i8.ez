@@ -1,0 +1,5 @@
+do main() {
+    mut b i16 = 300
+    mut a i8 = b
+    println(a)
+}

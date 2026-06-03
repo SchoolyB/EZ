@@ -1,0 +1,14 @@
+import @arrays
+
+do main() {
+    mut x int = 10
+    mut y int = 20
+    mut z int = 30
+    mut ptrs [^int] = {}
+    arrays.append(ptrs, addr(x))
+    arrays.append(ptrs, addr(y))
+    arrays.append(ptrs, addr(z))
+    println(ptrs[0]^)
+    println(ptrs[1]^)
+    println(ptrs[2]^)
+}
