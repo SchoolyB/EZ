@@ -42,6 +42,17 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"arrays.get_max":      {Module: "arrays", Group: "Computation", Kind: "func", Sig: "get_max(arr [T]) -> T", Fields: "", Desc: "Returns the largest element in arr.", Example: ""},
 	"arrays.sort_asc":     {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_asc(&arr [T])", Fields: "", Desc: "Sorts arr in ascending order in place. Works on int, float, and string arrays.", Example: ""},
 	"arrays.sort_desc":    {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_desc(&arr [T])", Fields: "", Desc: "Sorts arr in descending order in place. Works on int, float, and string arrays.", Example: ""},
+	"fmt.printf":          {Module: "fmt", Group: "Output", Kind: "func", Sig: "printf(format string, ...args T)", Fields: "", Desc: "Prints a formatted string to stdout. Uses C-style format directives: %d (int), %f (float), %s (string), %b (bool), %c (char). Accepts string, int, float, and bool arguments. Composite types are not supported.", Example: ""},
+	"fmt.sprintf":         {Module: "fmt", Group: "Output", Kind: "func", Sig: "sprintf(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string without printing it. Uses the same format directives as printf.", Example: ""},
+	"fmt.format":          {Module: "fmt", Group: "Output", Kind: "func", Sig: "format(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string. Alias for sprintf.", Example: ""},
+	"fmt.pad_left":        {Module: "fmt", Group: "Padding", Kind: "func", Sig: "pad_left(s string, width int, ch char) -> string", Fields: "", Desc: "Returns s padded on the left with ch until the total length reaches width. Returns s unchanged if it is already at least width characters long.", Example: ""},
+	"fmt.pad_right":       {Module: "fmt", Group: "Padding", Kind: "func", Sig: "pad_right(s string, width int, ch char) -> string", Fields: "", Desc: "Returns s padded on the right with ch until the total length reaches width. Returns s unchanged if it is already at least width characters long.", Example: ""},
+	"fmt.center":          {Module: "fmt", Group: "Padding", Kind: "func", Sig: "center(s string, width int, ch char) -> string", Fields: "", Desc: "Returns s centered within width, padded on both sides with ch. If padding is uneven, the extra character goes on the right.", Example: ""},
+	"fmt.int_to_hex":      {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "int_to_hex(n int) -> string", Fields: "", Desc: "Returns the integer n formatted as a lowercase hexadecimal string with no \"0x\" prefix.", Example: ""},
+	"fmt.int_to_binary":   {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "int_to_binary(n int) -> string", Fields: "", Desc: "Returns the integer n formatted as a binary string with no \"0b\" prefix.", Example: ""},
+	"fmt.int_to_octal":    {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "int_to_octal(n int) -> string", Fields: "", Desc: "Returns the integer n formatted as an octal string with no \"0o\" prefix.", Example: ""},
+	"fmt.float_fixed":     {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "float_fixed(f float, decimals int) -> string", Fields: "", Desc: "Returns f formatted with exactly decimals digits after the decimal point.", Example: ""},
+	"fmt.float_sci":       {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "float_sci(f float) -> string", Fields: "", Desc: "Returns f formatted in scientific notation (e.g. \"3.14e+00\").", Example: ""},
 	"maps.get_keys":       {Module: "maps", Group: "Query", Kind: "func", Sig: "get_keys(m map[K:V]) -> [K]", Fields: "", Desc: "Returns all keys in m as an array. Order reflects insertion order.", Example: ""},
 	"maps.get_values":     {Module: "maps", Group: "Query", Kind: "func", Sig: "get_values(m map[K:V]) -> [V]", Fields: "", Desc: "Returns all values in m as an array. Order reflects insertion order.", Example: ""},
 	"maps.has_key":        {Module: "maps", Group: "Query", Kind: "func", Sig: "has_key(m map[K:V], key K) -> bool", Fields: "", Desc: "Returns true if m contains an entry with the given key.", Example: ""},
@@ -169,6 +180,7 @@ var stdlibManDocs = map[string]StdlibManEntry{
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
 	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc"},
+	"fmt":     {"printf", "sprintf", "format", "pad_left", "pad_right", "center", "int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"},
 	"maps":    {"get_keys", "get_values", "has_key", "is_empty", "contains_value", "is_equal", "merge", "get_or_default", "remove_key", "clear"},
 	"math":    {"abs", "neg", "sign", "min", "max", "clamp", "floor", "ceil", "round", "trunc", "pow", "sqrt", "cbrt", "hypot", "exp", "exp2", "log", "log2", "log10", "log_base", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "deg_to_rad", "rad_to_deg", "is_even", "is_odd", "is_infinite", "is_nan", "is_finite", "factorial", "gcd", "lcm", "is_prime", "lerp", "distance", "PI", "E", "PHI", "SQRT2", "LN2", "LN10", "TAU", "INF", "NEG_INF"},
 	"os":      {"args", "get_env", "set_env", "current_dir", "hostname", "current_os", "arch", "pid", "MAC_OS", "LINUX", "WINDOWS", "OTHER"},
@@ -191,6 +203,11 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Query         ", Names: []string{"is_empty", "contains", "index_of", "count", "is_equal"}},
 		{Label: "Transformation", Names: []string{"reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair"}},
 		{Label: "Computation   ", Names: []string{"get_sum", "get_min", "get_max"}},
+	},
+	"fmt": {
+		{Label: "Output        ", Names: []string{"printf", "sprintf", "format"}},
+		{Label: "Padding       ", Names: []string{"pad_left", "pad_right", "center"}},
+		{Label: "Number Formatting", Names: []string{"int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"}},
 	},
 	"maps": {
 		{Label: "Query         ", Names: []string{"get_keys", "get_values", "has_key", "is_empty", "contains_value", "is_equal", "get_or_default"}},

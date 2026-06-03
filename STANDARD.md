@@ -2892,8 +2892,8 @@ Formatted output and string formatting functions.
 | `printf` | `(format string, ...args T)` | Print formatted string to stdout |
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
-| `eprintln` | `(value T)` | Print value followed by newline to stderr |
-| `eprint` | `(s string)` | Print string to stderr (no newline) |
+
+> **Note:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
 
 #### Padding
 

@@ -21,22 +21,138 @@
  * These helpers are for operations that need runtime support.
  */
 
-/* fmt.sprint(arena, values...) — concatenate values into a string */
-/* Handled by codegen via ez_string_format */
+/*@man printf
+ *@module fmt
+ *@group Output
+ *@sig printf(format string, ...args T)
+ *@desc Prints a formatted string to stdout. Uses C-style format directives: %d (int), %f (float), %s (string), %b (bool), %c (char). Accepts string, int, float, and bool arguments. Composite types are not supported.
+ *@example
+ *   import @fmt
+ *   fmt.printf("hello %s, you are %d years old\n", "alice", 30)
+ *@end
+ */
+/* fmt.printf — handled directly by codegen */
 
-/* fmt.format(template, ...) — like sprintf but without explicit arena */
-/* Handled by codegen via ez_string_format with ez_default_arena */
+/*@man sprintf
+ *@module fmt
+ *@group Output
+ *@sig sprintf(format string, ...args T) -> string
+ *@desc Returns a formatted string without printing it. Uses the same format directives as printf.
+ *@example
+ *   import @fmt
+ *   mut s string = fmt.sprintf("x = %d", 42)
+ *   println(s)
+ *@end
+ */
+/* fmt.sprintf — handled directly by codegen */
 
-/* fmt.pad_left / pad_right / center — string padding */
+/*@man format
+ *@module fmt
+ *@group Output
+ *@sig format(format string, ...args T) -> string
+ *@desc Returns a formatted string. Alias for sprintf.
+ *@example
+ *   import @fmt
+ *   mut s string = fmt.format("pi is %.2f", 3.14159)
+ *   println(s)
+ *@end
+ */
+/* fmt.format — handled via ez_string_format with ez_default_arena */
+
+/*@man pad_left
+ *@module fmt
+ *@group Padding
+ *@sig pad_left(s string, width int, ch char) -> string
+ *@desc Returns s padded on the left with ch until the total length reaches width. Returns s unchanged if it is already at least width characters long.
+ *@example
+ *   import @fmt
+ *   println(fmt.pad_left("42", 5, '0'))
+ *@end
+ */
 EzString ez_fmt_pad_left(EzArena *arena, EzString s, int64_t width, char ch);
+
+/*@man pad_right
+ *@module fmt
+ *@group Padding
+ *@sig pad_right(s string, width int, ch char) -> string
+ *@desc Returns s padded on the right with ch until the total length reaches width. Returns s unchanged if it is already at least width characters long.
+ *@example
+ *   import @fmt
+ *   println(fmt.pad_right("hi", 6, '.'))
+ *@end
+ */
 EzString ez_fmt_pad_right(EzArena *arena, EzString s, int64_t width, char ch);
+
+/*@man center
+ *@module fmt
+ *@group Padding
+ *@sig center(s string, width int, ch char) -> string
+ *@desc Returns s centered within width, padded on both sides with ch. If padding is uneven, the extra character goes on the right.
+ *@example
+ *   import @fmt
+ *   println(fmt.center("hi", 8, '-'))
+ *@end
+ */
 EzString ez_fmt_center(EzArena *arena, EzString s, int64_t width, char ch);
 
-/* Number formatting */
+/*@man int_to_hex
+ *@module fmt
+ *@group Number Formatting
+ *@sig int_to_hex(n int) -> string
+ *@desc Returns the integer n formatted as a lowercase hexadecimal string with no "0x" prefix.
+ *@example
+ *   import @fmt
+ *   println(fmt.int_to_hex(255))
+ *@end
+ */
 EzString ez_fmt_int_to_hex(EzArena *arena, int64_t n);
+
+/*@man int_to_binary
+ *@module fmt
+ *@group Number Formatting
+ *@sig int_to_binary(n int) -> string
+ *@desc Returns the integer n formatted as a binary string with no "0b" prefix.
+ *@example
+ *   import @fmt
+ *   println(fmt.int_to_binary(10))
+ *@end
+ */
 EzString ez_fmt_int_to_binary(EzArena *arena, int64_t n);
+
+/*@man int_to_octal
+ *@module fmt
+ *@group Number Formatting
+ *@sig int_to_octal(n int) -> string
+ *@desc Returns the integer n formatted as an octal string with no "0o" prefix.
+ *@example
+ *   import @fmt
+ *   println(fmt.int_to_octal(8))
+ *@end
+ */
 EzString ez_fmt_int_to_octal(EzArena *arena, int64_t n);
+
+/*@man float_fixed
+ *@module fmt
+ *@group Number Formatting
+ *@sig float_fixed(f float, decimals int) -> string
+ *@desc Returns f formatted with exactly decimals digits after the decimal point.
+ *@example
+ *   import @fmt
+ *   println(fmt.float_fixed(3.14159, 2))
+ *@end
+ */
 EzString ez_fmt_float_fixed(EzArena *arena, double f, int64_t decimals);
+
+/*@man float_sci
+ *@module fmt
+ *@group Number Formatting
+ *@sig float_sci(f float) -> string
+ *@desc Returns f formatted in scientific notation (e.g. "3.14e+00").
+ *@example
+ *   import @fmt
+ *   println(fmt.float_sci(0.000123))
+ *@end
+ */
 EzString ez_fmt_float_sci(EzArena *arena, double f);
 
 #endif
