@@ -7687,6 +7687,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E4016", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Type inference: if no explicit type annotation, infer from default
+             * value when it is an enum member access (e.g. t = Color.RED). */
+            if (!p->type_name && p->default_value) {
+                EzType *inferred = resolve_expr(tc, p->default_value);
+                if (inferred && inferred->kind == TK_ENUM) {
+                    ptype = inferred;
+                } else {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "parameter '%s' has no type annotation; omitting the type is only allowed when the default value is an enum member (e.g. %s = MyEnum.VALUE)",
+                        p->name, p->name);
+                    diag_error_msg(tc->diag, "E2002", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
             /* E3001: validate default value type matches parameter type */
             if (p->default_value && p->type_name) {
                 EzType *def_t = resolve_expr(tc, p->default_value);
