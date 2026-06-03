@@ -414,9 +414,34 @@ var manCmd = &cobra.Command{
 			return
 		}
 
-		// Stdlib function/type lookup
+		// Stdlib function/type lookup — supports "module.func" and plain "func"
 		if entry, ok := stdlibManDocs[name]; ok {
-			printStdlibEntry(name, entry)
+			displayName := name
+			if idx := strings.LastIndex(name, "."); idx >= 0 {
+				displayName = name[idx+1:]
+			}
+			printStdlibEntry(displayName, entry)
+			return
+		}
+		// Plain name: scan all module.func keys for a match
+		var matchEntries []StdlibManEntry
+		var matchKeys []string
+		for k, e := range stdlibManDocs {
+			if strings.HasSuffix(k, "."+name) {
+				matchEntries = append(matchEntries, e)
+				matchKeys = append(matchKeys, k)
+			}
+		}
+		if len(matchEntries) == 1 {
+			printStdlibEntry(name, matchEntries[0])
+			return
+		}
+		if len(matchEntries) > 1 {
+			fmt.Fprintf(os.Stderr, "ez: '%s' exists in multiple modules. Use a qualified name:\n", name)
+			for _, k := range matchKeys {
+				fmt.Fprintf(os.Stderr, "    ez man %s\n", k)
+			}
+			os.Exit(1)
 			return
 		}
 

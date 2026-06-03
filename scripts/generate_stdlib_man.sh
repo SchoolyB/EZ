@@ -68,7 +68,7 @@ done > "$TMPFILE"
   echo "// stdlibManDocs is the per-function lookup table used by ez man <name>."
   echo "var stdlibManDocs = map[string]StdlibManEntry{"
   awk -F'\t' '{
-    printf "\t\"%s\": {Module: \"%s\", Group: \"%s\", Kind: \"%s\", Sig: \"%s\", Fields: \"%s\", Desc: \"%s\", Example: \"%s\"},\n", $1, $2, $3, $4, $5, $6, $7, $8
+    printf "\t\"%s.%s\": {Module: \"%s\", Group: \"%s\", Kind: \"%s\", Sig: \"%s\", Fields: \"%s\", Desc: \"%s\", Example: \"%s\"},\n", $2, $1, $2, $3, $4, $5, $6, $7, $8
   }' "$TMPFILE"
   echo "}"
   echo ""
