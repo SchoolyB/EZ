@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.5.6](https://github.com/SchoolyB/EZ/compare/v3.5.5...v3.5.6) (2026-06-03)
+
+
+### Bug Fixes
+
+* **codegen,runtime:** byte + negative int fires P0016 instead of P0015 ([#1755](https://github.com/SchoolyB/EZ/issues/1755)) ([69f21d5](https://github.com/SchoolyB/EZ/commit/69f21d5326c521190b2bd1ebd81905c96d8600fb))
+* **codegen,typechecker:** arrays.append pointer C error + E3097 dangling addr ([c9926ee](https://github.com/SchoolyB/EZ/commit/c9926ee63108662d660e0d092a04b36f2ef97c22))
+* **codegen:** runtime panic on narrowing integer assignment and call args ([#1753](https://github.com/SchoolyB/EZ/issues/1753)) ([853f103](https://github.com/SchoolyB/EZ/commit/853f103457b09831dec2f3949d0afe7c4ff926c1))
+* compiler fixes ([b79b857](https://github.com/SchoolyB/EZ/commit/b79b85746ec47ca854787e1966e51eaff24b58ee))
+* **runtime,codegen:** deep-copy string key data in ez_map_copy and emit_map_deep_copy ([d860f39](https://github.com/SchoolyB/EZ/commit/d860f39e3bd599472610425ca96eb1b9c1ba0916))
+* **typechecker,codegen:** assert double message ([#1766](https://github.com/SchoolyB/EZ/issues/1766)) + E3097 for addr() in call args ([#1767](https://github.com/SchoolyB/EZ/issues/1767)) ([b3b0df8](https://github.com/SchoolyB/EZ/commit/b3b0df8282f6e4e7cb5b0cd65e2083e5a067b405))
+* **typechecker,codegen:** byte() returns byte type; bit_not byte masks to 8 bits; W3004→E3097 ([50c0057](https://github.com/SchoolyB/EZ/commit/50c00575cdf3b0578b41f47635069f30390d63da))
+* **typechecker:** catch pointer-pointee mismatches across all assignment and comparison paths ([#1746](https://github.com/SchoolyB/EZ/issues/1746)-[#1751](https://github.com/SchoolyB/EZ/issues/1751)) ([39ac98c](https://github.com/SchoolyB/EZ/commit/39ac98cd4c4c775d8d603f9975af880c72460fa4))
+* **typechecker:** catch pointer-to-pointer type mismatch in var decls ([#1745](https://github.com/SchoolyB/EZ/issues/1745)) ([1c5d00f](https://github.com/SchoolyB/EZ/commit/1c5d00f77a277269371664b50d4f8980ab6b264c))
+* **typechecker:** narrow bigint rank check to vr&gt;=5 to avoid false positives on int literals ([057ae83](https://github.com/SchoolyB/EZ/commit/057ae830ab9712be6bc710854095249e784348cc))
+* **typechecker:** raise E3001 on implicit bigint narrowing in var_decl, reassignment, and call args ([#1759](https://github.com/SchoolyB/EZ/issues/1759)) ([5978c49](https://github.com/SchoolyB/EZ/commit/5978c49016e8c3bea259cf27648a267f7d512bdc))
+
 ## [3.5.5](https://github.com/SchoolyB/EZ/compare/v3.5.4...v3.5.5) (2026-06-02)
 
 
