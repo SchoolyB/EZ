@@ -42,6 +42,16 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"arrays.get_max":      {Module: "arrays", Group: "Computation", Kind: "func", Sig: "get_max(arr [T]) -> T", Fields: "", Desc: "Returns the largest element in arr.", Example: ""},
 	"arrays.sort_asc":     {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_asc(&arr [T])", Fields: "", Desc: "Sorts arr in ascending order in place. Works on int, float, and string arrays.", Example: ""},
 	"arrays.sort_desc":    {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_desc(&arr [T])", Fields: "", Desc: "Sorts arr in descending order in place. Works on int, float, and string arrays.", Example: ""},
+	"maps.get_keys":       {Module: "maps", Group: "Query", Kind: "func", Sig: "get_keys(m map[K:V]) -> [K]", Fields: "", Desc: "Returns all keys in m as an array. Order reflects insertion order.", Example: ""},
+	"maps.get_values":     {Module: "maps", Group: "Query", Kind: "func", Sig: "get_values(m map[K:V]) -> [V]", Fields: "", Desc: "Returns all values in m as an array. Order reflects insertion order.", Example: ""},
+	"maps.has_key":        {Module: "maps", Group: "Query", Kind: "func", Sig: "has_key(m map[K:V], key K) -> bool", Fields: "", Desc: "Returns true if m contains an entry with the given key.", Example: ""},
+	"maps.is_empty":       {Module: "maps", Group: "Query", Kind: "func", Sig: "is_empty(m map[K:V]) -> bool", Fields: "", Desc: "Returns true if m has no entries.", Example: ""},
+	"maps.contains_value": {Module: "maps", Group: "Query", Kind: "func", Sig: "contains_value(m map[K:V], value V) -> bool", Fields: "", Desc: "Returns true if any entry in m has the given value.", Example: ""},
+	"maps.is_equal":       {Module: "maps", Group: "Query", Kind: "func", Sig: "is_equal(a map[K:V], b map[K:V]) -> bool", Fields: "", Desc: "Returns true if a and b have the same keys and values. K and V must be primitives or string. Use this instead of == which is not allowed on maps.", Example: ""},
+	"maps.merge":          {Module: "maps", Group: "Transformation", Kind: "func", Sig: "merge(m1 map[K:V], m2 map[K:V]) -> map[K:V]", Fields: "", Desc: "Returns a new map containing all entries from m1 and m2. When both maps share a key, m2's value wins.", Example: ""},
+	"maps.get_or_default": {Module: "maps", Group: "Query", Kind: "func", Sig: "get_or_default(m map[K:V], key K, default V) -> V", Fields: "", Desc: "Returns the value for key if it exists, otherwise returns default.", Example: ""},
+	"maps.remove_key":     {Module: "maps", Group: "Modification", Kind: "func", Sig: "remove_key(&m map[K:V], key K)", Fields: "", Desc: "Removes the entry with the given key from m. Does nothing if the key is not present. Modifies the map in place.", Example: ""},
+	"maps.clear":          {Module: "maps", Group: "Modification", Kind: "func", Sig: "clear(&m map[K:V])", Fields: "", Desc: "Removes all entries from m, leaving it empty. Modifies the map in place.", Example: ""},
 	"math.abs":            {Module: "math", Group: "Arithmetic", Kind: "func", Sig: "abs(n T) -> T", Fields: "", Desc: "Returns the absolute value of n. Works on int and float. Returns the same type as the input.", Example: ""},
 	"math.neg":            {Module: "math", Group: "Arithmetic", Kind: "func", Sig: "neg(n T) -> T", Fields: "", Desc: "Returns the negation of n. Works on int and float. Returns the same type as the input.", Example: ""},
 	"math.sign":           {Module: "math", Group: "Arithmetic", Kind: "func", Sig: "sign(n int) -> int", Fields: "", Desc: "Returns -1 if n is negative, 0 if zero, or 1 if positive.", Example: ""},
@@ -115,6 +125,7 @@ var stdlibManDocs = map[string]StdlibManEntry{
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
 	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc"},
+	"maps":    {"get_keys", "get_values", "has_key", "is_empty", "contains_value", "is_equal", "merge", "get_or_default", "remove_key", "clear"},
 	"math":    {"abs", "neg", "sign", "min", "max", "clamp", "floor", "ceil", "round", "trunc", "pow", "sqrt", "cbrt", "hypot", "exp", "exp2", "log", "log2", "log10", "log_base", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "deg_to_rad", "rad_to_deg", "is_even", "is_odd", "is_infinite", "is_nan", "is_finite", "factorial", "gcd", "lcm", "is_prime", "lerp", "distance"},
 	"os":      {"args", "get_env", "set_env", "current_dir", "hostname", "current_os", "arch", "pid"},
 	"strings": {"to_upper", "to_lower", "trim", "trim_left", "trim_right", "contains", "starts_with", "ends_with", "index_of", "count", "is_empty", "replace", "repeat", "reverse", "slice", "split", "join"},
@@ -134,6 +145,11 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Query         ", Names: []string{"is_empty", "contains", "index_of", "count", "is_equal"}},
 		{Label: "Transformation", Names: []string{"reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair"}},
 		{Label: "Computation   ", Names: []string{"get_sum", "get_min", "get_max"}},
+	},
+	"maps": {
+		{Label: "Query         ", Names: []string{"get_keys", "get_values", "has_key", "is_empty", "contains_value", "is_equal", "get_or_default"}},
+		{Label: "Transformation", Names: []string{"merge"}},
+		{Label: "Modification  ", Names: []string{"remove_key", "clear"}},
 	},
 	"math": {
 		{Label: "Arithmetic    ", Names: []string{"abs", "neg", "sign"}},
