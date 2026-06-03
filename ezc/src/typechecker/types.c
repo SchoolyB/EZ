@@ -24,7 +24,7 @@ EzType TYPE_STRING  = {TK_STRING, "string", NULL, NULL, NULL, NULL};
 EzType TYPE_NIL     = {TK_NIL,    "nil",    NULL, NULL, NULL, NULL};
 EzType TYPE_UNKNOWN = {TK_UNKNOWN,"unknown",NULL, NULL, NULL, NULL};
 
-#define TYPE_POOL_CAPACITY 1024
+#define TYPE_POOL_CAPACITY 4096
 
 /* Pool for dynamically created types (leak on exit, fine for a compiler) */
 static EzType type_pool[TYPE_POOL_CAPACITY];
@@ -38,7 +38,20 @@ EzType *type_alloc(void) {
     return &type_pool[type_pool_count++];
 }
 
+/* Return an existing pool entry matching kind+name, or NULL if not found. */
+static EzType *pool_find(TypeKind kind, const char *name) {
+    if (!name) return NULL;
+    for (int i = 0; i < type_pool_count; i++) {
+        EzType *t = &type_pool[i];
+        if (t->kind == kind && t->name && strcmp(t->name, name) == 0)
+            return t;
+    }
+    return NULL;
+}
+
 EzType *type_array(const char *elem_type) {
+    EzType *existing = pool_find(TK_ARRAY, elem_type);
+    if (existing) return existing;
     EzType *t = type_alloc();
     t->kind = TK_ARRAY;
     t->element_type = elem_type;
@@ -47,6 +60,8 @@ EzType *type_array(const char *elem_type) {
 }
 
 EzType *type_struct(const char *name) {
+    EzType *existing = pool_find(TK_STRUCT, name);
+    if (existing) return existing;
     EzType *t = type_alloc();
     t->kind = TK_STRUCT;
     t->name = strdup(name);
@@ -54,6 +69,8 @@ EzType *type_struct(const char *name) {
 }
 
 EzType *type_enum(const char *name) {
+    EzType *existing = pool_find(TK_ENUM, name);
+    if (existing) return existing;
     EzType *t = type_alloc();
     t->kind = TK_ENUM;
     t->name = strdup(name);
@@ -61,6 +78,8 @@ EzType *type_enum(const char *name) {
 }
 
 EzType *type_pointer(const char *pointee_type) {
+    EzType *existing = pool_find(TK_POINTER, pointee_type);
+    if (existing) return existing;
     EzType *t = type_alloc();
     t->kind = TK_POINTER;
     const char *dup = strdup(pointee_type);
@@ -292,6 +311,8 @@ EzType *type_from_name(const char *name) {
     /* Typed function reference: "func(p1,&p2)->R" — checked before bsearch
      * so "func(...)" doesn't get conflated with the bare "func" entry. */
     if (strncmp(name, "func(", 5) == 0) {
+        EzType *existing = pool_find(TK_FUNCTION, name);
+        if (existing) return existing;
         EzType *t = type_alloc();
         t->kind = TK_FUNCTION;
         t->name = strdup(name);
@@ -304,6 +325,9 @@ EzType *type_from_name(const char *name) {
                                     sizeof(BuiltinTypeEntry), builtin_type_cmp);
     if (hit) {
         if (hit->singleton) return hit->singleton;
+        const char *resolved_name = hit->alloc_name ? hit->alloc_name : name;
+        EzType *existing = pool_find(hit->alloc_kind, resolved_name);
+        if (existing) return existing;
         EzType *t = type_alloc();
         t->kind = hit->alloc_kind;
         t->name = hit->alloc_name ? hit->alloc_name : strdup(name);
@@ -331,9 +355,11 @@ EzType *type_from_name(const char *name) {
 
     /* Map type: map[K:V] */
     if (strncmp(name, "map[", 4) == 0) {
+        EzType *existing = pool_find(TK_MAP, name);
+        if (existing) return existing;
         EzType *t = type_alloc();
         t->kind = TK_MAP;
-        t->name = name;
+        t->name = strdup(name);
         /* Parse key:value types from "map[string:int]" */
         const char *start = name + 4;
         const char *colon = strchr(start, ':');
