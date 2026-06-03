@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.5.7](https://github.com/SchoolyB/EZ/compare/v3.5.6...v3.5.7) (2026-06-03)
+
+
+### Bug Fixes
+
+* type system improvements and struct field validation ([c954917](https://github.com/SchoolyB/EZ/commit/c954917955309e10b3369613b30588470b8708a0))
+* **typechecker,parser:** infer parameter type from enum member default value ([8e19118](https://github.com/SchoolyB/EZ/commit/8e19118a74450ba2413f916b78bbc1f09ef54e44))
+* **typechecker:** catch undefined types in struct fields for arrays, maps, and pointers recursively ([27d8466](https://github.com/SchoolyB/EZ/commit/27d84665e9a0334e401137f73ae06ea5d46edc38))
+* **typechecker:** intern dynamic types and raise pool cap to 4096 ([#1770](https://github.com/SchoolyB/EZ/issues/1770)) ([73cf194](https://github.com/SchoolyB/EZ/commit/73cf1947fae1c4f8c0d434f5fd33b47999a0c64b))
+
 ## [3.5.6](https://github.com/SchoolyB/EZ/compare/v3.5.5...v3.5.6) (2026-06-03)
 
 
