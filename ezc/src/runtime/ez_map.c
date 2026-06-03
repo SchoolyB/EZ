@@ -299,5 +299,16 @@ EzMap ez_map_copy(EzArena *arena, const EzMap *src) {
     memcpy(m.states, src->states, (size_t)src->capacity);
     if (order_bytes) memcpy(m.order,  src->order,  order_bytes);
 
+    /* String keys store a pointer into the source arena — deep-copy the
+     * character data so the returned map owns its key strings. */
+    if (src->key_kind == EZ_MAP_KEY_STRING) {
+        for (int32_t i = 0; i < src->capacity; i++) {
+            if (m.states[i] == 1) {
+                EzString *ks = (EzString *)((char *)m.keys + (size_t)i * (size_t)m.key_size);
+                *ks = ez_string_new(arena, ks->data, ks->len);
+            }
+        }
+    }
+
     return m;
 }

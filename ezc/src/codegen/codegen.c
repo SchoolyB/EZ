@@ -495,8 +495,8 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     val_tn[vlen] = '\0';
 
     if (!type_needs_deep_copy(cg, val_tn)) {
-        /* Value type is flat; the existing runtime helper is correct.
-         * Keys never need deep copying in our model. */
+        /* Value type is flat; ez_map_copy handles string key deep-copy
+         * internally when key_kind == EZ_MAP_KEY_STRING. */
         emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
         return;
     }
@@ -527,10 +527,20 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", t);
     emit_value_deep_copy(cg, val_tn, src_val_var);
 
-    emitf(cg,
-        "; ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
-        "} _md%d; })",
-        t, t, t, t);
+    /* String keys store a pointer into the source arena — copy the data
+     * before inserting so the destination map owns its key strings. */
+    if (strcmp(key_tn, "string") == 0) {
+        emitf(cg,
+            "; _mk%d = ez_string_new(ez_default_arena, _mk%d.data, _mk%d.len); "
+            "ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
+            "} _md%d; })",
+            t, t, t, t, t, t, t);
+    } else {
+        emitf(cg,
+            "; ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
+            "} _md%d; })",
+            t, t, t, t);
+    }
 }
 
 static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char *src_var) {
