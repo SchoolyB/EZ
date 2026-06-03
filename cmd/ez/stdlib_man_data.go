@@ -57,6 +57,14 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"is_prime":    {Module: "math", Group: "Statistical", Kind: "func", Sig: "is_prime(n int) -> bool", Fields: "", Desc: "Returns true if n is a prime number.", Example: ""},
 	"lerp":        {Module: "math", Group: "Utility", Kind: "func", Sig: "lerp(a float, b float, t float) -> float", Fields: "", Desc: "Linearly interpolates between a and b by factor t. t=0 returns a, t=1 returns b.", Example: ""},
 	"distance":    {Module: "math", Group: "Utility", Kind: "func", Sig: "distance(x1 float, y1 float, x2 float, y2 float) -> float", Fields: "", Desc: "Returns the Euclidean distance between two 2D points (x1, y1) and (x2, y2).", Example: ""},
+	"args":        {Module: "os", Group: "System", Kind: "func", Sig: "args() -> [string]", Fields: "", Desc: "Returns the command-line arguments passed to the program as an array of strings. The first element is the program name.", Example: ""},
+	"get_env":     {Module: "os", Group: "Environment", Kind: "func", Sig: "get_env(name string) -> string", Fields: "", Desc: "Returns the value of the environment variable name. Returns an empty string if the variable is not set.", Example: ""},
+	"set_env":     {Module: "os", Group: "Environment", Kind: "func", Sig: "set_env(name string, value string)", Fields: "", Desc: "Sets the environment variable name to value for the current process.", Example: ""},
+	"current_dir": {Module: "os", Group: "System", Kind: "func", Sig: "current_dir() -> string", Fields: "", Desc: "Returns the current working directory of the process.", Example: ""},
+	"hostname":    {Module: "os", Group: "System", Kind: "func", Sig: "hostname() -> string", Fields: "", Desc: "Returns the hostname of the machine.", Example: ""},
+	"current_os":  {Module: "os", Group: "System", Kind: "func", Sig: "current_os() -> int", Fields: "", Desc: "Returns an integer identifying the current operating system. Compare against the module constants: MAC_OS (0), LINUX (1), WINDOWS (2), OTHER (3).", Example: ""},
+	"arch":        {Module: "os", Group: "System", Kind: "func", Sig: "arch() -> string", Fields: "", Desc: "Returns the CPU architecture of the current machine, such as \"arm64\" or \"x86_64\".", Example: ""},
+	"pid":         {Module: "os", Group: "System", Kind: "func", Sig: "pid() -> int", Fields: "", Desc: "Returns the process ID of the current process.", Example: ""},
 	"to_upper":    {Module: "strings", Group: "Case", Kind: "func", Sig: "to_upper(s string) -> string", Fields: "", Desc: "Returns a copy of s with all ASCII letters converted to uppercase.", Example: ""},
 	"to_lower":    {Module: "strings", Group: "Case", Kind: "func", Sig: "to_lower(s string) -> string", Fields: "", Desc: "Returns a copy of s with all ASCII letters converted to lowercase.", Example: ""},
 	"trim":        {Module: "strings", Group: "Trim", Kind: "func", Sig: "trim(s string) -> string", Fields: "", Desc: "Returns a copy of s with leading and trailing whitespace removed.", Example: ""},
@@ -79,6 +87,7 @@ var stdlibManDocs = map[string]StdlibManEntry{
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
 	"math":    {"abs", "neg", "sign", "min", "max", "clamp", "floor", "ceil", "round", "trunc", "pow", "sqrt", "cbrt", "hypot", "exp", "exp2", "log", "log2", "log10", "log_base", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "deg_to_rad", "rad_to_deg", "is_even", "is_odd", "is_infinite", "is_nan", "is_finite", "factorial", "gcd", "lcm", "is_prime", "lerp", "distance"},
+	"os":      {"args", "get_env", "set_env", "current_dir", "hostname", "current_os", "arch", "pid"},
 	"strings": {"to_upper", "to_lower", "trim", "trim_left", "trim_right", "contains", "starts_with", "ends_with", "index_of", "count", "is_empty", "replace", "repeat", "reverse", "slice", "split", "join"},
 }
 
@@ -100,6 +109,10 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Properties    ", Names: []string{"is_even", "is_odd", "is_infinite", "is_nan", "is_finite"}},
 		{Label: "Statistical   ", Names: []string{"factorial", "gcd", "lcm", "is_prime"}},
 		{Label: "Utility       ", Names: []string{"lerp", "distance"}},
+	},
+	"os": {
+		{Label: "System        ", Names: []string{"args", "current_dir", "hostname", "current_os", "arch", "pid"}},
+		{Label: "Environment   ", Names: []string{"get_env", "set_env"}},
 	},
 	"strings": {
 		{Label: "Case          ", Names: []string{"to_upper", "to_lower"}},
