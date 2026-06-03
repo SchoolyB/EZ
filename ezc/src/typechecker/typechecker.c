@@ -7687,6 +7687,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E4016", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Type inference: if no explicit type annotation, infer from default
+             * value when it is an enum member access (e.g. t = Color.RED). */
+            if (!p->type_name && p->default_value) {
+                EzType *inferred = resolve_expr(tc, p->default_value);
+                if (inferred && inferred->kind == TK_ENUM) {
+                    ptype = inferred;
+                } else {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "parameter '%s' has no type annotation; omitting the type is only allowed when the default value is an enum member (e.g. %s = MyEnum.VALUE)",
+                        p->name, p->name);
+                    diag_error_msg(tc->diag, "E2002", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
             /* E3001: validate default value type matches parameter type */
             if (p->default_value && p->type_name) {
                 EzType *def_t = resolve_expr(tc, p->default_value);
@@ -8200,6 +8215,83 @@ static bool struct_contains_by_value(AstNode *program, AstNode *decl,
     return false;
 }
 
+/* Recursively validate that every named type inside a field's type string
+ * (including array element types, map key/value types, pointer pointees, and
+ * arbitrarily nested combinations) refers to a known type. Emits E4016 for
+ * every unknown leaf type found. */
+static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
+                                          const char *type_name,
+                                          const char *field_name,
+                                          AstNode *stmt) {
+    if (!type_name || !*type_name) return;
+
+    /* Pointer: ^T → recurse on T */
+    if (type_name[0] == '^') {
+        const char *pointee = type_name + 1;
+        while (*pointee == '^') pointee++;
+        validate_field_type_recursive(tc, program, pointee, field_name, stmt);
+        return;
+    }
+
+    /* Array: [T] or [T,N] → recurse on T */
+    if (type_name[0] == '[') {
+        size_t len = strlen(type_name);
+        if (len > 2 && type_name[len - 1] == ']') {
+            char elem[EZ_MSG_BUF_SIZE];
+            size_t elem_len = len - 2;
+            memcpy(elem, type_name + 1, elem_len);
+            elem[elem_len] = '\0';
+            char *comma = strchr(elem, ',');
+            if (comma) *comma = '\0';
+            validate_field_type_recursive(tc, program, elem, field_name, stmt);
+        }
+        return;
+    }
+
+    /* Map: map[K:V] → recurse on K and V separately */
+    if (strncmp(type_name, "map[", 4) == 0) {
+        size_t len = strlen(type_name);
+        if (len > 5 && type_name[len - 1] == ']') {
+            /* Extract inner "K:V" string */
+            char inner[EZ_MSG_BUF_SIZE];
+            size_t inner_len = len - 5; /* skip "map[" and "]" */
+            memcpy(inner, type_name + 4, inner_len);
+            inner[inner_len] = '\0';
+            /* Find colon at depth 0 (handles nested [T] keys) */
+            int depth = 0;
+            int colon_pos = -1;
+            for (int i = 0; inner[i]; i++) {
+                if (inner[i] == '[') depth++;
+                else if (inner[i] == ']') depth--;
+                else if (inner[i] == ':' && depth == 0) { colon_pos = i; break; }
+            }
+            if (colon_pos >= 0) {
+                char key_t[EZ_MSG_BUF_SIZE];
+                memcpy(key_t, inner, (size_t)colon_pos);
+                key_t[colon_pos] = '\0';
+                const char *val_t = inner + colon_pos + 1;
+                validate_field_type_recursive(tc, program, key_t, field_name, stmt);
+                validate_field_type_recursive(tc, program, val_t, field_name, stmt);
+            }
+        }
+        return;
+    }
+
+    /* Leaf: must be a known primitive, enum, or struct */
+    EzType *t = tc_type_from_name(tc, type_name);
+    if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
+    if (is_enum_name(tc, type_name)) return;
+    if (is_struct_name(tc, type_name)) return;
+    if (struct_name_declared(program, type_name)) return;
+
+    char msg[EZ_MSG_BUF_SIZE];
+    snprintf(msg, sizeof(msg),
+        "field '%s' references undefined type '%s'",
+        field_name, type_name);
+    diag_error_msg(tc->diag, "E4016", strdup(msg),
+        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+}
+
 static void register_declarations(TypeChecker *tc, AstNode *program) {
     tc->registering = true;
     /* Validate and record imports */
@@ -8397,29 +8489,10 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                     }
                 }
-                /* Pointer field pointee validation: ^T where T must be a
-                 * known primitive, registered enum/struct, or a struct
-                 * declared anywhere in the program (handles self-recursion
-                 * and forward references where the struct isn't yet
-                 * registered). */
-                if (ftn && *ftn && ftn[0] == '^') {
-                    const char *pointee = ftn + 1;
-                    while (*pointee == '^') pointee++;
-                    bool known = false;
-                    EzType *pt = tc_type_from_name(tc, pointee);
-                    if (pt && pt->kind != TK_STRUCT) known = true;
-                    if (!known && is_enum_name(tc, pointee)) known = true;
-                    if (!known && is_struct_name(tc, pointee)) known = true;
-                    if (!known && struct_name_declared(program, pointee)) known = true;
-                    if (!known) {
-                        char msg[EZ_MSG_BUF_SIZE];
-                        snprintf(msg, sizeof(msg),
-                            "pointer field '%s' references undefined type '%s'",
-                            fnames[j], pointee);
-                        diag_error_msg(tc->diag, "E4016", strdup(msg),
-                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-                    }
-                }
+                /* Validate all named types within the field type recursively.
+                 * Covers ^T, [T], map[K:V], and arbitrary nesting thereof. */
+                if (ftn && *ftn)
+                    validate_field_type_recursive(tc, program, ftn, fnames[j], stmt);
                 /* Check for duplicate field names */
                 for (int k = 0; k < j; k++) {
                     if (strcmp(fnames[k], fnames[j]) == 0) {

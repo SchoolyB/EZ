@@ -1615,7 +1615,7 @@ static AstNode *parse_func_declaration(Parser *p) {
         if (!p_i->type_name && i + 1 < node->data.func_decl.param_count) {
             p_i->type_name = node->data.func_decl.params[i + 1].type_name;
         }
-        if (!p_i->type_name) {
+        if (!p_i->type_name && !p_i->default_value) {
             char buf[EZ_MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf),
                 "parameter '%s' is missing a type; every parameter must have a type (e.g., %s int)",
