@@ -42,6 +42,12 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"arrays.get_max":      {Module: "arrays", Group: "Computation", Kind: "func", Sig: "get_max(arr [T]) -> T", Fields: "", Desc: "Returns the largest element in arr.", Example: ""},
 	"arrays.sort_asc":     {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_asc(&arr [T])", Fields: "", Desc: "Sorts arr in ascending order in place. Works on int, float, and string arrays.", Example: ""},
 	"arrays.sort_desc":    {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_desc(&arr [T])", Fields: "", Desc: "Sorts arr in descending order in place. Works on int, float, and string arrays.", Example: ""},
+	"bytes.from_string":   {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_string(s string) -> [byte]", Fields: "", Desc: "Converts a UTF-8 string into a byte array.", Example: ""},
+	"bytes.from_hex":      {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_hex(hex string) -> [byte]", Fields: "", Desc: "Decodes a hex-encoded string into a byte array.", Example: ""},
+	"bytes.from_base64":   {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_base64(b64 string) -> [byte]", Fields: "", Desc: "Decodes a base64-encoded string into a byte array.", Example: ""},
+	"bytes.to_string":     {Module: "bytes", Group: "Encoding", Kind: "func", Sig: "to_string(bytes [byte]) -> string", Fields: "", Desc: "Converts a byte array to a UTF-8 string.", Example: ""},
+	"bytes.to_hex":        {Module: "bytes", Group: "Encoding", Kind: "func", Sig: "to_hex(bytes [byte]) -> string", Fields: "", Desc: "Encodes a byte array as a lowercase hex string.", Example: ""},
+	"bytes.to_base64":     {Module: "bytes", Group: "Encoding", Kind: "func", Sig: "to_base64(bytes [byte]) -> string", Fields: "", Desc: "Encodes a byte array as a base64 string.", Example: ""},
 	"fmt.printf":          {Module: "fmt", Group: "Output", Kind: "func", Sig: "printf(format string, ...args T)", Fields: "", Desc: "Prints a formatted string to stdout. Uses C-style format directives: %d (int), %f (float), %s (string), %b (bool), %c (char). Accepts string, int, float, and bool arguments. Composite types are not supported.", Example: ""},
 	"fmt.sprintf":         {Module: "fmt", Group: "Output", Kind: "func", Sig: "sprintf(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string without printing it. Uses the same format directives as printf.", Example: ""},
 	"fmt.format":          {Module: "fmt", Group: "Output", Kind: "func", Sig: "format(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string. Alias for sprintf.", Example: ""},
@@ -245,6 +251,7 @@ var stdlibManDocs = map[string]StdlibManEntry{
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
 	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc"},
+	"bytes":   {"from_string", "from_hex", "from_base64", "to_string", "to_hex", "to_base64"},
 	"fmt":     {"printf", "sprintf", "format", "pad_left", "pad_right", "center", "int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"},
 	"http":    {"HttpResponse", "get", "post", "put", "patch", "delete", "head"},
 	"io":      {"read_file", "read_bytes", "read_lines", "file_exists", "is_file", "is_directory", "file_size", "write_file", "append_file", "delete_file", "rename_file", "copy_file", "move_file", "list_dir", "make_dir", "make_dir_all", "remove_dir", "remove_dir_all", "walk", "glob", "path_join", "dirname", "basename", "extension", "is_absolute", "normalize", "O_RDONLY", "O_WRONLY", "O_RDWR"},
@@ -273,6 +280,10 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Query         ", Names: []string{"is_empty", "contains", "index_of", "count", "is_equal"}},
 		{Label: "Transformation", Names: []string{"reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair"}},
 		{Label: "Computation   ", Names: []string{"get_sum", "get_min", "get_max"}},
+	},
+	"bytes": {
+		{Label: "Conversion    ", Names: []string{"from_string", "from_hex", "from_base64"}},
+		{Label: "Encoding      ", Names: []string{"to_string", "to_hex", "to_base64"}},
 	},
 	"fmt": {
 		{Label: "Output        ", Names: []string{"printf", "sprintf", "format"}},
