@@ -4616,7 +4616,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"get","http",TK_UNKNOWN},{"post","http",TK_UNKNOWN},
                             {"put","http",TK_UNKNOWN},{"delete","http",TK_UNKNOWN},
                             {"head","http",TK_UNKNOWN},{"patch","http",TK_UNKNOWN},
-                            {"request","http",TK_UNKNOWN},{"json_body","http",TK_STRING},
                             /* @net */
                             {"listen","net",TK_UNKNOWN},{"connect","net",TK_UNKNOWN},
                             {"accept","net",TK_UNKNOWN},{"send","net",TK_INT},
