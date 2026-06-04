@@ -661,7 +661,7 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
             case FT_STRUCT_SOCKET:       return type_struct("Socket");
             case FT_STRUCT_LISTENER:     return type_struct("Listener");
             case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
-            case FT_STRUCT_MAP:          return type_struct("Map");
+            case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
             }
         }
     }
