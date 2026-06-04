@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.5.8](https://github.com/SchoolyB/EZ/compare/v3.5.7...v3.5.8) (2026-06-04)
+
+
+### Bug Fixes
+
+* **codegen,typechecker:** remove unimplemented http module stubs request and json_body ([#1773](https://github.com/SchoolyB/EZ/issues/1773)) ([4fb7169](https://github.com/SchoolyB/EZ/commit/4fb7169a79c87fd799a4da717a1cdfd65f4c3b39))
+* **codegen,typechecker:** remove unimplemented server.parse_json stub ([#1701](https://github.com/SchoolyB/EZ/issues/1701)) ([87f3f2e](https://github.com/SchoolyB/EZ/commit/87f3f2e2c36a20ce960a7f043a216cf42205a623))
+* **typechecker:** correct json module tracking table entry from pretty to pretty_print ([#1773](https://github.com/SchoolyB/EZ/issues/1773)) ([2244d83](https://github.com/SchoolyB/EZ/commit/2244d8321ced74f9c3d6e4cf6ea7c91429a7811e))
+* **typechecker:** json.decode() now returns concrete map[string:string] type when destructured ([#1773](https://github.com/SchoolyB/EZ/issues/1773)) ([62fb26d](https://github.com/SchoolyB/EZ/commit/62fb26dd5d799a62e5dc4a6922cc3ba3d1714f07))
+
 ## [3.5.7](https://github.com/SchoolyB/EZ/compare/v3.5.6...v3.5.7) (2026-06-03)
 
 
