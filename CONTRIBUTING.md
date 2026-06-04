@@ -175,6 +175,26 @@ EZ_COMPILER_PATH=./ezc/ezc ./ez repl
 
 This is a great way to quickly validate your change while developing. When your feature is working, make sure to add proper tests before submitting your PR (see [Writing Tests](#writing-tests)).
 
+### Adding a Stdlib Function, Builtin, Constant, or Type
+
+Any time you add or modify a user-facing stdlib function, builtin, constant, or type, three things are **required** before your PR is ready:
+
+1. **Add `@man` documentation blocks** to the relevant header file (`ezc/src/stdlib/ez_<module>.h` for stdlib, or the builtins header for builtins). Follow the existing `@man` block format used throughout those files.
+
+2. **Update `STANDARD.md`** — add the new function, constant, or type to the appropriate module section in the language specification.
+
+3. **Run the generation script** to regenerate the man data file:
+   ```bash
+   # For stdlib modules:
+   ./scripts/generate_stdlib_man.sh
+
+   # For builtins:
+   ./scripts/generate_builtins_man.sh
+   ```
+   Commit the updated generated file (`cmd/ez/stdlib_man_data.go` or `cmd/ez/builtins_man_data.go`) along with your changes.
+
+PRs that add user-facing functionality without documentation and a regenerated data file will not be merged.
+
 ---
 
 ## Project Structure
@@ -217,6 +237,7 @@ EZ/
 | Add/modify error codes | `ezc/src/util/error_codes.h` |
 | Improve CLI tooling | `cmd/ez/*.go` |
 | Add a new language feature | Parser → Typechecker → Codegen (all in `ezc/src/`) |
+| Add stdlib/builtin docs | `@man` block in header + run generation script (see below) |
 
 ---
 
@@ -330,6 +351,7 @@ For more details, see `TESTING.md`.
 
 - Add comments only for non-obvious logic — don't explain what the code already says
 - When adding error codes, register them in `ezc/src/util/error_codes.h` (the canonical source). After adding or changing codes, run `scripts/generate_errors.sh` to regenerate `ERRORS.md` for the docs site.
+- When adding any user-facing stdlib function, builtin, constant, or type: add `@man` blocks to the header, update `STANDARD.md`, and run the appropriate generation script (`scripts/generate_stdlib_man.sh` or `scripts/generate_builtins_man.sh`). See [Adding a Stdlib Function, Builtin, Constant, or Type](#adding-a-stdlib-function-builtin-constant-or-type) for the full checklist.
 
 ---
 
