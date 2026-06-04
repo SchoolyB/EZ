@@ -297,6 +297,8 @@ func printManUsage() {
 	fmt.Println("  ez man <name>            docs for a specific function, type, or constant")
 	fmt.Println("                           (e.g. ez man println, ez man sqrt, ez man PI)")
 	fmt.Println("  ez man <name()>          same — trailing () is ignored")
+	fmt.Println("  ez man <module>.<name>   qualified lookup to avoid ambiguity")
+	fmt.Println("                           (e.g. ez man strings.contains, ez man math.PI)")
 	fmt.Println()
 	fmt.Println("Currently Supported Stdlib Modules:")
 	mods := make([]string, 0, len(stdlibModules))
