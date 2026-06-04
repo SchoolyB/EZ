@@ -2690,7 +2690,7 @@ An HTTP server module with dynamic handlers and path parameters.
 |----------|-----------|-------------|
 | `add_router` | `() -> Router` | Create a new router |
 | `add_route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
-| `listen` | `(port int, router Router)` | Start HTTP server on port (blocks until killed) |
+| `listen` | `(router Router, port int)` | Start HTTP server on port (blocks until killed) |
 | `cors` | `(router Router, origin string)` | Enable CORS with the given origin |
 | `use` | `(router Router, ()middleware)` | Register a middleware function |
 
@@ -2735,7 +2735,7 @@ do main() {
     server.cors(r, "*")
     server.add_route(r, "GET", "/", ()home)
     server.add_route(r, "GET", "/users/:id", ()get_user)
-    server.listen(8080, r)
+    server.listen(r, 8080)
 }
 ```
 
