@@ -4611,7 +4611,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"listen","server",TK_VOID},{"cors","server",TK_VOID},
                             {"use","server",TK_VOID},{"text","server",TK_UNKNOWN},
                             {"json","server",TK_UNKNOWN},{"html","server",TK_UNKNOWN},
-                            {"redirect","server",TK_UNKNOWN},{"parse_json","server",TK_UNKNOWN},
+                            {"redirect","server",TK_UNKNOWN},
                             /* @http */
                             {"get","http",TK_UNKNOWN},{"post","http",TK_UNKNOWN},
                             {"put","http",TK_UNKNOWN},{"delete","http",TK_UNKNOWN},
