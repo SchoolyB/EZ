@@ -53,6 +53,13 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"fmt.int_to_octal":    {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "int_to_octal(n int) -> string", Fields: "", Desc: "Returns the integer n formatted as an octal string with no \"0o\" prefix.", Example: ""},
 	"fmt.float_fixed":     {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "float_fixed(f float, decimals int) -> string", Fields: "", Desc: "Returns f formatted with exactly decimals digits after the decimal point.", Example: ""},
 	"fmt.float_sci":       {Module: "fmt", Group: "Number Formatting", Kind: "func", Sig: "float_sci(f float) -> string", Fields: "", Desc: "Returns f formatted in scientific notation (e.g. \"3.14e+00\").", Example: ""},
+	"http.HttpResponse":   {Module: "http", Group: "Types", Kind: "type", Sig: "", Fields: "status int\nbody string\nheaders map[string:string]", Desc: "The response object returned by all http request functions. Also available when the server module is imported.", Example: ""},
+	"http.get":            {Module: "http", Group: "Requests", Kind: "func", Sig: "get(url string) -> (HttpResponse, Error)", Fields: "", Desc: "Sends an HTTP GET request to url and returns the response. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
+	"http.post":           {Module: "http", Group: "Requests", Kind: "func", Sig: "post(url string, body string) -> (HttpResponse, Error)", Fields: "", Desc: "Sends an HTTP POST request to url with the given body. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
+	"http.put":            {Module: "http", Group: "Requests", Kind: "func", Sig: "put(url string, body string) -> (HttpResponse, Error)", Fields: "", Desc: "Sends an HTTP PUT request to url with the given body. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
+	"http.patch":          {Module: "http", Group: "Requests", Kind: "func", Sig: "patch(url string, body string) -> (HttpResponse, Error)", Fields: "", Desc: "Sends an HTTP PATCH request to url with the given body. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
+	"http.delete":         {Module: "http", Group: "Requests", Kind: "func", Sig: "delete(url string) -> (HttpResponse, Error)", Fields: "", Desc: "Sends an HTTP DELETE request to url. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
+	"http.head":           {Module: "http", Group: "Requests", Kind: "func", Sig: "head(url string) -> (HttpResponse, Error)", Fields: "", Desc: "Sends an HTTP HEAD request to url. Returns only headers with no body. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
 	"io.read_file":        {Module: "io", Group: "File Reading", Kind: "func", Sig: "read_file(path string) -> (string, Error)", Fields: "", Desc: "Reads the entire file at path and returns its contents as a string. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
 	"io.read_bytes":       {Module: "io", Group: "File Reading", Kind: "func", Sig: "read_bytes(path string) -> ([byte], Error)", Fields: "", Desc: "Reads the entire file at path and returns its contents as a byte array. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
 	"io.read_lines":       {Module: "io", Group: "File Reading", Kind: "func", Sig: "read_lines(path string) -> ([string], Error)", Fields: "", Desc: "Reads the file at path and returns its contents split into lines. CR/LF and LF line endings are stripped. Panics on single-var assignment; use destructuring to receive the Error instead.", Example: ""},
@@ -229,6 +236,7 @@ var stdlibManDocs = map[string]StdlibManEntry{
 var stdlibModules = map[string][]string{
 	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc"},
 	"fmt":     {"printf", "sprintf", "format", "pad_left", "pad_right", "center", "int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"},
+	"http":    {"HttpResponse", "get", "post", "put", "patch", "delete", "head"},
 	"io":      {"read_file", "read_bytes", "read_lines", "file_exists", "is_file", "is_directory", "file_size", "write_file", "append_file", "delete_file", "rename_file", "copy_file", "move_file", "list_dir", "make_dir", "make_dir_all", "remove_dir", "remove_dir_all", "walk", "glob", "path_join", "dirname", "basename", "extension", "is_absolute", "normalize", "O_RDONLY", "O_WRONLY", "O_RDWR"},
 	"json":    {"encode", "format", "stringify", "decode", "parse", "is_valid", "pretty_print"},
 	"maps":    {"get_keys", "get_values", "has_key", "is_empty", "contains_value", "is_equal", "merge", "get_or_default", "remove_key", "clear"},
@@ -259,6 +267,10 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Output        ", Names: []string{"printf", "sprintf", "format"}},
 		{Label: "Padding       ", Names: []string{"pad_left", "pad_right", "center"}},
 		{Label: "Number Formatting", Names: []string{"int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"}},
+	},
+	"http": {
+		{Label: "Types         ", Names: []string{"HttpResponse"}},
+		{Label: "Requests      ", Names: []string{"get", "post", "put", "patch", "delete", "head"}},
 	},
 	"io": {
 		{Label: "File Reading  ", Names: []string{"read_file", "read_bytes", "read_lines"}},
