@@ -537,6 +537,38 @@ const Person struct {
 
 **Note:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
 
+#### Recursive Structs
+
+A struct may reference itself through a **pointer field**. Value-type self-reference is rejected at compile time.
+
+```ez
+const Node struct {
+    val  int
+    next ^Node   // OK — pointer field
+}
+
+// Value-type self-reference is an error:
+const Bad struct {
+    val  int
+    next Bad     // error[E3061]: struct 'Bad' cannot contain itself by value
+}
+```
+
+To traverse a recursive struct, use explicit pointer dereference (`^`) when accessing fields through the pointer:
+
+```ez
+mut a = new(Node)
+mut b = new(Node)
+a.val  = 1
+b.val  = 2
+a.next = b
+
+println(a.val)        // 1
+println(a.next^.val)  // 2
+```
+
+Mutual recursion (two structs referencing each other) is not supported.
+
 Struct instantiation uses named field syntax:
 
 ```ez
