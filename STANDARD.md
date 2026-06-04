@@ -537,6 +537,38 @@ const Person struct {
 
 **Note:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
 
+#### Recursive Structs
+
+A struct may reference itself through a **pointer field**. Value-type self-reference is rejected at compile time.
+
+```ez
+const Node struct {
+    val  int
+    next ^Node   // OK — pointer field
+}
+
+// Value-type self-reference is an error:
+const Bad struct {
+    val  int
+    next Bad     // error[E3061]: struct 'Bad' cannot contain itself by value
+}
+```
+
+To traverse a recursive struct, use explicit pointer dereference (`^`) when accessing fields through the pointer:
+
+```ez
+mut a = new(Node)
+mut b = new(Node)
+a.val  = 1
+b.val  = 2
+a.next = b
+
+println(a.val)        // 1
+println(a.next^.val)  // 2
+```
+
+Mutual recursion (two structs referencing each other) is not supported.
+
 Struct instantiation uses named field syntax:
 
 ```ez
@@ -776,9 +808,31 @@ if true {
 // x is 10 here
 ```
 
-### 4.5 Blank Identifier
+### 4.5 Return Value Handling
 
-The blank identifier `_` can be used to discard values that are not needed. This is particularly useful with multiple return values:
+**All return values must be handled.** If a function returns a value, you must either assign it to a variable or explicitly discard it with the blank identifier `_`. Silently ignoring a return value is not permitted.
+
+#### Fallible Functions
+
+Some functions return a `(T, Error)` tuple — these are **fallible functions**. They require destructuring. Assigning the result to a single variable panics at runtime if the function fails; the compiler enforces destructuring to make the choice explicit:
+
+```ez
+// Correct — handle the error
+mut content, err = io.read_file("data.txt")
+if err != nil {
+    panic(err)
+}
+
+// Correct — explicitly discard the error when you know it won't fail
+mut content, _ = io.read_file("data.txt")
+
+// Wrong — single-var assignment from a fallible function panics
+mut content = io.read_file("data.txt")  // error[E3089]: use destructuring
+```
+
+#### Blank Identifier
+
+The blank identifier `_` discards a return value you don't need:
 
 ```ez
 // Discard the second return value
@@ -787,8 +841,8 @@ mut value, _ = get_pair()
 // Discard multiple values
 const _, middle, _ = get_triple()
 
-// Common pattern: ignore error when you know it won't fail
-mut data, _ = json.encode(simple_value)
+// Discard error intentionally
+mut data, _ = json.decode(raw)
 ```
 
 The blank identifier:
@@ -2690,7 +2744,7 @@ An HTTP server module with dynamic handlers and path parameters.
 |----------|-----------|-------------|
 | `add_router` | `() -> Router` | Create a new router |
 | `add_route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
-| `listen` | `(port int, router Router)` | Start HTTP server on port (blocks until killed) |
+| `listen` | `(router Router, port int)` | Start HTTP server on port (blocks until killed) |
 | `cors` | `(router Router, origin string)` | Enable CORS with the given origin |
 | `use` | `(router Router, ()middleware)` | Register a middleware function |
 
@@ -2735,7 +2789,7 @@ do main() {
     server.cors(r, "*")
     server.add_route(r, "GET", "/", ()home)
     server.add_route(r, "GET", "/users/:id", ()get_user)
-    server.listen(8080, r)
+    server.listen(r, 8080)
 }
 ```
 
@@ -2892,8 +2946,8 @@ Formatted output and string formatting functions.
 | `printf` | `(format string, ...args T)` | Print formatted string to stdout |
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
-| `eprintln` | `(value T)` | Print value followed by newline to stderr |
-| `eprint` | `(s string)` | Print string to stderr (no newline) |
+
+> **Note:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
 
 #### Padding
 
@@ -3000,6 +3054,8 @@ mut err Error = error("something went wrong")
 ```
 
 ### 10.2 Error Returns
+
+Functions that may fail return a `(T, Error)` tuple — these are fallible functions. Destructuring is required; single-var assignment from a fallible function causes a compile error (E3089). See [Section 4.5](#45-return-value-handling) for the full rules.
 
 Functions that may fail conventionally return a tuple with the result and an Error:
 

@@ -5382,10 +5382,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* @server */
                 {"add_router","server"},{"add_route","server"},{"listen","server"},
                 {"cors","server"},{"use","server"},{"text","server"},{"json","server"},
-                {"html","server"},{"redirect","server"},{"parse_json","server"},
+                {"html","server"},{"redirect","server"},
                 /* @http */
                 {"get","http"},{"post","http"},{"put","http"},{"delete","http"},
-                {"head","http"},{"patch","http"},{"request","http"},{"json_body","http"},
+                {"head","http"},{"patch","http"},
                 /* @net */
                 {"listen","net"},{"connect","net"},{"accept","net"},{"send","net"},
                 {"receive","net"},{"resolve","net"},{"close","net"},

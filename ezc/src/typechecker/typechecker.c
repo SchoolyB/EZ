@@ -661,7 +661,7 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
             case FT_STRUCT_SOCKET:       return type_struct("Socket");
             case FT_STRUCT_LISTENER:     return type_struct("Listener");
             case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
-            case FT_STRUCT_MAP:          return type_struct("Map");
+            case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
             }
         }
     }
@@ -4499,7 +4499,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* @json */
                             {"is_valid","json",TK_BOOL},{"decode","json",TK_MAP},
                             {"encode","json",TK_STRING},{"stringify","json",TK_STRING},
-                            {"parse","json",TK_UNKNOWN},{"pretty","json",TK_STRING},
+                            {"parse","json",TK_UNKNOWN},{"pretty_print","json",TK_STRING},
                             /* @io */
                             {"read_file","io",TK_STRING},{"read_bytes","io",TK_ARRAY},
                             {"read_lines","io",TK_ARRAY},{"write_file","io",TK_BOOL},
@@ -4611,12 +4611,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"listen","server",TK_VOID},{"cors","server",TK_VOID},
                             {"use","server",TK_VOID},{"text","server",TK_UNKNOWN},
                             {"json","server",TK_UNKNOWN},{"html","server",TK_UNKNOWN},
-                            {"redirect","server",TK_UNKNOWN},{"parse_json","server",TK_UNKNOWN},
+                            {"redirect","server",TK_UNKNOWN},
                             /* @http */
                             {"get","http",TK_UNKNOWN},{"post","http",TK_UNKNOWN},
                             {"put","http",TK_UNKNOWN},{"delete","http",TK_UNKNOWN},
                             {"head","http",TK_UNKNOWN},{"patch","http",TK_UNKNOWN},
-                            {"request","http",TK_UNKNOWN},{"json_body","http",TK_STRING},
                             /* @net */
                             {"listen","net",TK_UNKNOWN},{"connect","net",TK_UNKNOWN},
                             {"accept","net",TK_UNKNOWN},{"send","net",TK_INT},

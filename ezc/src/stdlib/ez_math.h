@@ -572,4 +572,85 @@ static inline double ez_math_distance(double x1, double y1, double x2, double y2
     return hypot(x2 - x1, y2 - y1);
 }
 
+/*@man PI
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 3.14159265358979323846
+ *@desc Pi — the ratio of a circle's circumference to its diameter.
+ *@end
+ */
+
+/*@man E
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 2.71828182845904523536
+ *@desc Euler's number — the base of the natural logarithm.
+ *@end
+ */
+
+/*@man PHI
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 1.61803398874989484820
+ *@desc The golden ratio.
+ *@end
+ */
+
+/*@man SQRT2
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 1.41421356237309504880
+ *@desc The square root of 2.
+ *@end
+ */
+
+/*@man LN2
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 0.69314718055994530942
+ *@desc The natural logarithm of 2.
+ *@end
+ */
+
+/*@man LN10
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 2.30258509299404568402
+ *@desc The natural logarithm of 10.
+ *@end
+ */
+
+/*@man TAU
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig 6.28318530717958647692
+ *@desc Tau — equal to 2 * PI.
+ *@end
+ */
+
+/*@man INF
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig +Inf
+ *@desc Positive infinity.
+ *@end
+ */
+
+/*@man NEG_INF
+ *@module math
+ *@group Constants
+ *@kind const
+ *@sig -Inf
+ *@desc Negative infinity.
+ *@end
+ */
+
 #endif
