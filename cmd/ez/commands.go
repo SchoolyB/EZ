@@ -298,7 +298,7 @@ func printManUsage() {
 	fmt.Println("                           (e.g. ez man println, ez man sqrt, ez man PI)")
 	fmt.Println("  ez man <name()>          same — trailing () is ignored")
 	fmt.Println()
-	fmt.Println("Stdlib modules:")
+	fmt.Println("Currently Supported Stdlib Modules:")
 	mods := make([]string, 0, len(stdlibModules))
 	for m := range stdlibModules {
 		mods = append(mods, m)
