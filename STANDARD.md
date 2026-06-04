@@ -776,9 +776,31 @@ if true {
 // x is 10 here
 ```
 
-### 4.5 Blank Identifier
+### 4.5 Return Value Handling
 
-The blank identifier `_` can be used to discard values that are not needed. This is particularly useful with multiple return values:
+**All return values must be handled.** If a function returns a value, you must either assign it to a variable or explicitly discard it with the blank identifier `_`. Silently ignoring a return value is not permitted.
+
+#### Fallible Functions
+
+Some functions return a `(T, Error)` tuple — these are **fallible functions**. They require destructuring. Assigning the result to a single variable panics at runtime if the function fails; the compiler enforces destructuring to make the choice explicit:
+
+```ez
+// Correct — handle the error
+mut content, err = io.read_file("data.txt")
+if err != nil {
+    panic(err)
+}
+
+// Correct — explicitly discard the error when you know it won't fail
+mut content, _ = io.read_file("data.txt")
+
+// Wrong — single-var assignment from a fallible function panics
+mut content = io.read_file("data.txt")  // error[E3089]: use destructuring
+```
+
+#### Blank Identifier
+
+The blank identifier `_` discards a return value you don't need:
 
 ```ez
 // Discard the second return value
@@ -787,8 +809,8 @@ mut value, _ = get_pair()
 // Discard multiple values
 const _, middle, _ = get_triple()
 
-// Common pattern: ignore error when you know it won't fail
-mut data, _ = json.encode(simple_value)
+// Discard error intentionally
+mut data, _ = json.decode(raw)
 ```
 
 The blank identifier:
@@ -3000,6 +3022,8 @@ mut err Error = error("something went wrong")
 ```
 
 ### 10.2 Error Returns
+
+Functions that may fail return a `(T, Error)` tuple — these are fallible functions. Destructuring is required; single-var assignment from a fallible function causes a compile error (E3089). See [Section 4.5](#45-return-value-handling) for the full rules.
 
 Functions that may fail conventionally return a tuple with the result and an Error:
 
