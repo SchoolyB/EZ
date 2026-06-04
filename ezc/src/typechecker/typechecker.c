@@ -4499,7 +4499,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* @json */
                             {"is_valid","json",TK_BOOL},{"decode","json",TK_MAP},
                             {"encode","json",TK_STRING},{"stringify","json",TK_STRING},
-                            {"parse","json",TK_UNKNOWN},{"pretty","json",TK_STRING},
+                            {"parse","json",TK_UNKNOWN},{"pretty_print","json",TK_STRING},
                             /* @io */
                             {"read_file","io",TK_STRING},{"read_bytes","io",TK_ARRAY},
                             {"read_lines","io",TK_ARRAY},{"write_file","io",TK_BOOL},
