@@ -75,6 +75,18 @@ typedef struct {
 /* Middleware function pointer */
 typedef void (*EzMiddleware)(EzRequest *req, EzResponse *resp);
 
+/*@man Router
+ *@module server
+ *@group Types
+ *@kind type
+ *@desc The router object returned by add_router(). Pass it to add_route(), cors(), use(), and listen(). Its internal fields are not user-accessible.
+ *@example
+ *   import @server
+ *   mut r = server.add_router()
+ *   server.add_route(r, "GET", "/", ()home)
+ *   server.listen(r, 8080)
+ *@end
+ */
 /* Router — holds registered routes */
 typedef struct {
     EzRoute *routes;
