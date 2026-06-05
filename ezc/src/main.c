@@ -1670,7 +1670,7 @@ int main(int argc, char **argv) {
     /* Run mode: execute the binary and clean up */
     if (ret == 0 && run_mode) {
         char run_cmd[CMD_BUF_SIZE];
-        snprintf(run_cmd, sizeof(run_cmd), "%s", output_file);
+        snprintf(run_cmd, sizeof(run_cmd), "'%s'", output_file);
         ret = system(run_cmd);
         unlink(output_file);
     }
