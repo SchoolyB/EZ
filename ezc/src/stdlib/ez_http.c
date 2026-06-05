@@ -45,10 +45,10 @@ static bool parse_url(const char *url, char *host, size_t host_sz,
         return false;
     }
 
-    /* Reject empty host or host containing whitespace */
+    /* Reject empty host or host containing characters that would break HTTP headers */
     if (*p == '\0' || *p == '/' || *p == ':') return false;
     for (const char *c = p; *c && *c != '/' && *c != ':'; c++) {
-        if (*c == ' ' || *c == '\t') return false;
+        if (*c == ' ' || *c == '\t' || *c == '\r' || *c == '\n') return false;
     }
 
     /* Extract host[:port] */
@@ -71,12 +71,15 @@ static bool parse_url(const char *url, char *host, size_t host_sz,
         *port = EZ_HTTP_DEFAULT_PORT;
     }
 
-    /* Path */
+    /* Path — reject CR/LF to prevent header injection via request line */
     if (slash) {
         size_t plen = strlen(slash);
         if (plen >= path_sz) plen = path_sz - 1;
         memcpy(path, slash, plen);
         path[plen] = '\0';
+        for (size_t i = 0; i < plen; i++) {
+            if (path[i] == '\r' || path[i] == '\n') return false;
+        }
     } else {
         path[0] = '/';
         path[1] = '\0';
