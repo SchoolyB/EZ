@@ -17,11 +17,12 @@
  *@module io
  *@group File Reading
  *@sig read_file(path string) -> (string, Error)
- *@desc Reads the entire file at path and returns its contents as a string. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Reads the entire file at path and returns its contents as a string. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
- *   mut content string = io.read_file("data.txt")
  *   mut content, err = io.read_file("data.txt")
+ *   if err != nil { println("failed: ${err}") }
+ *   mut content, _ = io.read_file("data.txt")
  *@end
  */
 EzString ez_io_read_file(EzArena *arena, EzString path);
@@ -30,7 +31,7 @@ EzString ez_io_read_file(EzArena *arena, EzString path);
  *@module io
  *@group File Reading
  *@sig read_bytes(path string) -> ([byte], Error)
- *@desc Reads the entire file at path and returns its contents as a byte array. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Reads the entire file at path and returns its contents as a byte array. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   mut data [byte] = io.read_bytes("image.png")
@@ -42,7 +43,7 @@ EzArray  ez_io_read_bytes(EzArena *arena, EzString path);
  *@module io
  *@group File Reading
  *@sig read_lines(path string) -> ([string], Error)
- *@desc Reads the file at path and returns its contents split into lines. CR/LF and LF line endings are stripped. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Reads the file at path and returns its contents split into lines. CR/LF and LF line endings are stripped. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   mut lines [string] = io.read_lines("data.txt")
@@ -57,7 +58,7 @@ EzArray  ez_io_read_lines(EzArena *arena, EzString path);
  *@module io
  *@group File Operations
  *@sig file_exists(path string) -> bool
- *@desc Returns true if a file or directory exists at path.
+ *@desc Returns true if a file or directory exists at path. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   if io.file_exists("config.txt") {
@@ -71,7 +72,7 @@ bool ez_io_file_exists(EzString path);
  *@module io
  *@group File Operations
  *@sig is_file(path string) -> bool
- *@desc Returns true if path exists and is a regular file (not a directory or special file).
+ *@desc Returns true if path exists and is a regular file (not a directory or special file). Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   println(io.is_file("data.txt"))
@@ -83,7 +84,7 @@ bool ez_io_is_file(EzString path);
  *@module io
  *@group File Operations
  *@sig is_directory(path string) -> bool
- *@desc Returns true if path exists and is a directory.
+ *@desc Returns true if path exists and is a directory. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   println(io.is_directory("/tmp"))
@@ -95,7 +96,7 @@ bool ez_io_is_directory(EzString path);
  *@module io
  *@group File Operations
  *@sig file_size(path string) -> (int, Error)
- *@desc Returns the size of the file at path in bytes. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Returns the size of the file at path in bytes. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   println(io.file_size("data.txt"))
@@ -109,7 +110,7 @@ int64_t ez_io_file_size(EzString path);
  *@module io
  *@group File Writing
  *@sig write_file(path string, content string) -> (bool, Error)
- *@desc Writes content to the file at path, creating it if it does not exist or overwriting it if it does. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Writes content to the file at path, creating it if it does not exist or overwriting it if it does. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.write_file("out.txt", "hello\n")
@@ -121,7 +122,7 @@ bool ez_io_write_file(EzString path, EzString content);
  *@module io
  *@group File Writing
  *@sig append_file(path string, content string) -> (bool, Error)
- *@desc Appends content to the end of the file at path. Creates the file if it does not exist. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Appends content to the end of the file at path. Creates the file if it does not exist. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.append_file("log.txt", "new entry\n")
@@ -135,7 +136,7 @@ bool ez_io_append_file(EzString path, EzString content);
  *@module io
  *@group File Operations
  *@sig delete_file(path string) -> (bool, Error)
- *@desc Deletes the file at path. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Deletes the file at path. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.delete_file("tmp.txt")
@@ -147,7 +148,7 @@ bool ez_io_delete_file(EzString path);
  *@module io
  *@group File Operations
  *@sig rename_file(old_path string, new_path string) -> (bool, Error)
- *@desc Renames (or moves) the file at old_path to new_path. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Renames (or moves) the file at old_path to new_path. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.rename_file("old.txt", "new.txt")
@@ -159,7 +160,7 @@ bool ez_io_rename_file(EzString old_path, EzString new_path);
  *@module io
  *@group File Operations
  *@sig copy_file(src string, dst string) -> (bool, Error)
- *@desc Copies the file at src to dst. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Copies the file at src to dst. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.copy_file("src.txt", "dst.txt")
@@ -171,7 +172,7 @@ bool ez_io_copy_file(EzString src, EzString dst);
  *@module io
  *@group File Operations
  *@sig move_file(src string, dst string) -> (bool, Error)
- *@desc Moves the file at src to dst. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Moves the file at src to dst. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.move_file("tmp/file.txt", "final/file.txt")
@@ -185,7 +186,7 @@ bool ez_io_move_file(EzString src, EzString dst);
  *@module io
  *@group Directory Operations
  *@sig list_dir(path string) -> ([string], Error)
- *@desc Returns the names of all entries in the directory at path. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Returns the names of all entries in the directory at path. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   mut entries [string] = io.list_dir(".")
@@ -200,7 +201,7 @@ EzArray ez_io_list_dir(EzArena *arena, EzString path);
  *@module io
  *@group Directory Operations
  *@sig make_dir(path string) -> (bool, Error)
- *@desc Creates the directory at path. Fails if the parent directory does not exist. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Creates the directory at path. Fails if the parent directory does not exist. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.make_dir("output")
@@ -212,7 +213,7 @@ bool ez_io_make_dir(EzString path);
  *@module io
  *@group Directory Operations
  *@sig make_dir_all(path string) -> (bool, Error)
- *@desc Creates the directory at path, including all missing parent directories. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Creates the directory at path, including all missing parent directories. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.make_dir_all("a/b/c")
@@ -224,7 +225,7 @@ bool ez_io_make_dir_all(EzString path);
  *@module io
  *@group Directory Operations
  *@sig remove_dir(path string) -> (bool, Error)
- *@desc Removes the empty directory at path. Fails if the directory is not empty. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Removes the empty directory at path. Fails if the directory is not empty. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.remove_dir("empty_dir")
@@ -236,7 +237,7 @@ bool ez_io_remove_dir(EzString path);
  *@module io
  *@group Directory Operations
  *@sig remove_dir_all(path string) -> (bool, Error)
- *@desc Removes the directory at path and all of its contents recursively. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Removes the directory at path and all of its contents recursively. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   io.remove_dir_all("build")
@@ -248,7 +249,7 @@ bool ez_io_remove_dir_all(EzString path);
  *@module io
  *@group Directory Operations
  *@sig walk(path string) -> ([string], Error)
- *@desc Recursively lists all files under path. Returns full paths relative to path. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Recursively lists all files under path. Returns full paths relative to path. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   mut files [string] = io.walk("src")
@@ -263,7 +264,7 @@ EzArray ez_io_walk(EzArena *arena, EzString path);
  *@module io
  *@group Directory Operations
  *@sig glob(pattern string) -> ([string], Error)
- *@desc Returns all file paths matching the glob pattern. Returns an empty array if there are no matches. Panics on single-var assignment; use destructuring to receive the Error instead.
+ *@desc Returns all file paths matching the glob pattern. Returns an empty array if there are no matches. Always use destructuring — single-variable assignment is a compile error. Glob patterns are matched relative to the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
  *   mut files [string] = io.glob("src/\*.ez")

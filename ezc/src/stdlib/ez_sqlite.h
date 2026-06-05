@@ -15,6 +15,60 @@
 #include "../runtime/ez_map.h"
 #include "ez_io.h" /* EzResult_bool, EzResult_array */
 
+/*@man open
+ *@module sqlite
+ *@group Connection
+ *@sig open(path string) -> (Database, Error)
+ *@desc Opens or creates a SQLite database file at path. Returns a database handle used for all subsequent operations. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
+ *@example
+ *   import @sqlite
+ *   mut db, err = sqlite.open("myapp.db")
+ *   if err != nil { println("failed: ${err}") }
+ *@end
+ */
+
+/*@man close
+ *@module sqlite
+ *@group Connection
+ *@sig close(db Database)
+ *@desc Closes the database connection. No return value.
+ *@example
+ *   import @sqlite
+ *   mut db, _ = sqlite.open("myapp.db")
+ *   sqlite.close(db)
+ *@end
+ */
+
+/*@man exec
+ *@module sqlite
+ *@group Queries
+ *@sig exec(db Database, sql string) -> (bool, Error)
+ *@desc Executes a SQL statement that does not return rows (CREATE, INSERT, UPDATE, DELETE, etc.). Returns true on success. Always use destructuring — single-variable assignment is a compile error. SQL strings are passed as-is; parameterized queries with placeholders are not supported.
+ *@example
+ *   import @sqlite
+ *   mut db, _ = sqlite.open("myapp.db")
+ *   mut ok, err = sqlite.exec(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)")
+ *   if err != nil { println("exec failed: ${err}") }
+ *   mut ok, _ = sqlite.exec(db, "INSERT INTO users (name) VALUES ('Alice')")
+ *@end
+ */
+
+/*@man query
+ *@module sqlite
+ *@group Queries
+ *@sig query(db Database, sql string) -> ([map[string:string]], Error)
+ *@desc Executes a SQL SELECT statement and returns the result rows. Each row is a map of column name to string value. Always use destructuring — single-variable assignment is a compile error. SQL strings are passed as-is; parameterized queries with placeholders are not supported.
+ *@example
+ *   import @sqlite
+ *   mut db, _ = sqlite.open("myapp.db")
+ *   mut rows, err = sqlite.query(db, "SELECT * FROM users")
+ *   if err != nil { println("query failed: ${err}") }
+ *   for_each row in rows {
+ *       println(row)
+ *   }
+ *@end
+ */
+
 typedef struct {
     void *handle; /* sqlite3* */
 } EzSqlite;

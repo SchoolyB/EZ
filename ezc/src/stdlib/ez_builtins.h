@@ -50,9 +50,12 @@ void ez_builtin_print_addr(uintptr_t v);
 
 /*@man eprintln
  *@sig eprintln([value])
- *@desc Prints any value to stderr followed by a newline. Called with no args prints a blank line.
+ *@desc Prints any value to stderr followed by a newline. Supports all types: string, int, uint, float, bool, char, and pointers. Called with no args prints a blank line.
  *@example
  *   eprintln("error: something went wrong")
+ *   eprintln(404)
+ *   eprintln(3.14)
+ *   eprintln(true)
  *   eprintln()
  *@end
  */
@@ -66,10 +69,12 @@ void ez_builtin_eprintln_addr(uintptr_t v);
 
 /*@man eprint
  *@sig eprint(value)
- *@desc Prints any value to stderr without a trailing newline.
+ *@desc Prints any value to stderr without a trailing newline. Supports all types: string, int, uint, float, bool, char, and pointers.
  *@example
  *   eprint("warning: ")
- *   eprint(code)
+ *   eprint(404)
+ *   eprint(3.14)
+ *   eprint(true)
  *@end
  */
 void ez_builtin_eprint_str(EzString s);
@@ -473,6 +478,18 @@ void ez_builtin_sleep_ns(int64_t ns);
  *   println(loc.file)
  *   println(loc.line)
  *   println(loc.column)
+ *@end
+ */
+
+/*@man embed
+ *@sig embed(path string) -> string
+ *@desc Reads a file at compile time and returns its contents as a string literal baked into the binary. The path is resolved relative to the source file containing the embed() call. The argument must be a string literal — variables and expressions are rejected (E5017). If the file cannot be read, the compiler emits E5018. Valid at file scope and inside function bodies.
+ *@example
+ *   const LICENSE string = embed("../../LICENSE")
+ *   const CONFIG string = embed("config/defaults.json")
+ *   do main() {
+ *       println(LICENSE)
+ *   }
  *@end
  */
 

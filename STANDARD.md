@@ -2103,6 +2103,7 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `to_char` | `(s string, index int) -> int` | Return the Unicode codepoint at character position `index` (not byte position). Panics if index is out of bounds. |
 | `char_count` | `(s string) -> int` | Return the number of Unicode characters (codepoints) in a string. Unlike `len()`, which returns byte count, `char_count()` counts decoded UTF-8 characters. |
 | `c_string` | `(ptr ^u8) -> string` | Convert a C `char*` return value to an EZ string (for C interop) |
+| `embed` | `(path string) -> string` | Read a file at compile time and return its contents as a string literal baked into the binary |
 
 **Reference behavior with `ref()`:**
 
@@ -2143,6 +2144,30 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `sleep_s` | `(seconds int)` | Sleep for seconds |
 | `sleep_ms` | `(ms int)` | Sleep for milliseconds |
 | `sleep_ns` | `(ns int)` | Sleep for nanoseconds |
+
+#### Compile-time Functions
+
+**`embed(path string) -> string`**
+
+`embed()` reads a file from disk at **compile time** and bakes its entire contents into the binary as a string literal. The resulting value is available as a `string` at runtime with no file I/O overhead.
+
+The path is resolved relative to the directory of the source file containing the `embed()` call. Absolute paths are also accepted. The argument must be a string literal — variables and expressions are rejected at compile time (error `E5017`). If the file does not exist or cannot be read when the compiler runs, error `E5018` is emitted.
+
+`embed()` is valid at file scope (as a `const` initializer) or inside a function body.
+
+```ez
+// Embed a file at file scope — baked into the binary at compile time
+const LICENSE string = embed("../../LICENSE")
+const DEFAULT_CONFIG string = embed("config/defaults.json")
+
+do main() {
+    // Also valid inside a function
+    const shader string = embed("shaders/vertex.glsl")
+    println(LICENSE)
+}
+```
+
+> **Flip's Tips:** The embedded file is read once during compilation. Changes to the file after compilation have no effect on the binary. The compiler resolves the path relative to the `.ez` source file, not the current working directory when running `ezc`.
 
 ### 9.2 Arrays Module (`@arrays`)
 
@@ -2519,14 +2544,14 @@ Most functions that can fail have an error-returning variant usable via multi-va
 | `glob` | `([string], Error)` |
 
 ```ez
-// Plain form — panics if path is a directory or unreadable
-mut content string = io.read_file("data.txt")
-
-// Error form — caller handles failure
+// Always use destructuring — single-variable assignment is a compile error
 mut content, err = io.read_file("data.txt")
 if err != nil {
     println("read failed: ${err.message}")
 }
+
+// Discard the error with _
+mut content, _ = io.read_file("data.txt")
 
 mut lines, err = io.read_lines("data.txt")
 for_each line in lines {
@@ -2720,18 +2745,31 @@ SQLite database access for persistent storage.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `open` | `(path string) -> Database` | Open or create a SQLite database |
+| `open` | `(path string) -> (Database, Error)` | Open or create a SQLite database |
 | `close` | `(db Database)` | Close database connection |
-| `exec` | `(db Database, sql string, ...params string)` | Execute a SQL statement with optional parameters |
-| `query` | `(db Database, sql string, ...params string) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
+| `exec` | `(db Database, sql string) -> (bool, Error)` | Execute a SQL statement (no rows returned) |
+| `query` | `(db Database, sql string) -> ([map[string:string]], Error)` | Execute a SELECT query, returns array of row maps |
 
-Error-returning variants: `open`, `exec`, `query`
+Error-returning variants: `open`, `exec`, `query` — always use destructuring.
 
-Parameterized queries use `?` placeholders to prevent SQL injection:
+> **Flip's Tips:** Parameterized queries (`?` placeholders) are not supported. Build your SQL strings directly. Always sanitize any user-supplied values before interpolating them into SQL.
 
 ```ez
-sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", name, age)
-mut rows = sqlite.query(db, "SELECT * FROM users WHERE age > ?", 18)
+import @sqlite
+
+mut db, err = sqlite.open("myapp.db")
+if err != nil { println("open failed: ${err}") }
+
+mut ok, _ = sqlite.exec(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)")
+mut ok, _ = sqlite.exec(db, "INSERT INTO users (name) VALUES ('Alice')")
+
+mut rows, err = sqlite.query(db, "SELECT * FROM users")
+if err != nil { println("query failed: ${err}") }
+for_each row in rows {
+    println(row)
+}
+
+sqlite.close(db)
 ```
 
 ### 9.18 Server Module (`@server`)
@@ -2818,11 +2856,9 @@ Reading and writing CSV (Comma-Separated Values) data.
 | `decode` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array (alias for parse) |
 | `encode` | `(data [[string]]) -> string` | Encode 2D array to CSV string |
 | `format` | `(data [[string]]) -> string` | Format 2D array as CSV string (alias for encode) |
-| `read_file` | `(path string) -> [[string]]` | Read and parse CSV file |
-| `write_file` | `(path string, data [[string]]) -> bool` | Write 2D array to CSV file |
+| `read_file` | `(path string) -> ([[string]], Error)` | Read and parse CSV file — always use destructuring |
+| `write_file` | `(path string, data [[string]]) -> (bool, Error)` | Write 2D array to CSV file — always use destructuring |
 | `headers` | `(data [[string]]) -> [string]` | Extract header row from parsed CSV data |
-
-Error-returning variants: `read_file`, `write_file`
 
 ### 9.21 Net Module (`@net`)
 
