@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.5.9](https://github.com/SchoolyB/EZ/compare/v3.5.8...v3.5.9) (2026-06-05)
+
+
+### Bug Fixes
+
+* codegen & typechecker bugs ([73aa742](https://github.com/SchoolyB/EZ/commit/73aa742b04f0db34d5f4c9b43e57fa3c8e6e08b2))
+* **codegen/typechecker:** monomorphize wildcard struct functions per call site ([591c330](https://github.com/SchoolyB/EZ/commit/591c330870808adb7b3182dd9a3f42cc281bf21c))
+* **codegen:** emit EzMulti typedef for struct-scoped multi-return functions ([3e62879](https://github.com/SchoolyB/EZ/commit/3e62879cf5e6214175beea5de78bb3319fbd57e8)), closes [#1776](https://github.com/SchoolyB/EZ/issues/1776)
+* **codegen:** resolve correct print variant for wildcard params ([1bca397](https://github.com/SchoolyB/EZ/commit/1bca39732126bdadfa0c40524af5f737166abd98)), closes [#1774](https://github.com/SchoolyB/EZ/issues/1774)
+* **stdlib/codegen:** add missing eprint builtin variants and fix dispatch ([a9a37cc](https://github.com/SchoolyB/EZ/commit/a9a37ccf8e08febce5a9d608a3bb6be94b07b4d6))
+* **stdlib:** add missing eprintln float and bool builtin variants ([b9652d5](https://github.com/SchoolyB/EZ/commit/b9652d5e02232e43c6cb1757a5badfa6ad058a0c))
+* **typechecker:** allow '?' as struct field type in field-type validation ([f986db8](https://github.com/SchoolyB/EZ/commit/f986db827f0b3805665956d1208f5749ce401ef7))
+* **typechecker:** auto-deref pointer fields in nested member access ([dc9f42e](https://github.com/SchoolyB/EZ/commit/dc9f42ec6354620541ed8277d430c9237bcd486d)), closes [#1777](https://github.com/SchoolyB/EZ/issues/1777)
+
 ## [3.5.8](https://github.com/SchoolyB/EZ/compare/v3.5.7...v3.5.8) (2026-06-04)
 
 
