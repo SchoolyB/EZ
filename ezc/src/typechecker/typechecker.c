@@ -8333,7 +8333,8 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
         return;
     }
 
-    /* Leaf: must be a known primitive, enum, or struct */
+    /* Leaf: must be a known primitive, enum, struct, or wildcard '?' */
+    if (type_name_has_wildcard(type_name)) return;
     EzType *t = tc_type_from_name(tc, type_name);
     if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
     if (is_enum_name(tc, type_name)) return;
