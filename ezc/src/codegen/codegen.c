@@ -5607,7 +5607,51 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
             }
             if (ns_func) {
-                emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
+                /* Generic struct function: mangle with concrete binding */
+                bool ns_generic = false;
+                for (int pi = 0; pi < ns_func->data.func_decl.param_count && !ns_generic; pi++) {
+                    if (ns_func->data.func_decl.params[pi].type_name &&
+                        strchr(ns_func->data.func_decl.params[pi].type_name, '?')) ns_generic = true;
+                }
+                for (int pi = 0; pi < ns_func->data.func_decl.return_type_count && !ns_generic; pi++) {
+                    if (ns_func->data.func_decl.return_types[pi] &&
+                        strchr(ns_func->data.func_decl.return_types[pi], '?')) ns_generic = true;
+                }
+                if (ns_generic) {
+                    const char *binding = NULL;
+                    char *dyn_binding = NULL;
+                    int cc = ns_func->data.func_decl.param_count < node->data.call.arg_count
+                        ? ns_func->data.func_decl.param_count : node->data.call.arg_count;
+                    for (int pi = 0; pi < cc && !binding; pi++) {
+                        const char *ptn = ns_func->data.func_decl.params[pi].type_name;
+                        if (!ptn || !strchr(ptn, '?')) continue;
+                        EzType *at = cg->type_table
+                            ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
+                        if (!at) continue;
+                        if (strcmp(ptn, "?") == 0) {
+                            const char *tn = type_name(at);
+                            binding = ((at->kind == TK_UNKNOWN || strcmp(tn, "unknown") == 0)
+                                && cg->wildcard_binding)
+                                ? cg->wildcard_binding : tn;
+                        } else {
+                            dyn_binding = cg_bind_wildcard(ptn, type_name(at));
+                            if (dyn_binding) binding = dyn_binding;
+                        }
+                    }
+                    char mangled[EZ_MSG_BUF_SIZE];
+                    size_t pos = (size_t)snprintf(mangled, sizeof(mangled),
+                        "ez_fn_%s_%s__", resolved_name, member);
+                    if (binding) {
+                        for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
+                            mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+                        }
+                    }
+                    mangled[pos] = '\0';
+                    emitf(cg, "%s(", mangled);
+                    free(dyn_binding);
+                } else {
+                    emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
+                }
                 for (int i = 0; i < node->data.call.arg_count; i++) {
                     if (i > 0) emit(cg, ", ");
                     bool mut_param = i < ns_func->data.func_decl.param_count &&
