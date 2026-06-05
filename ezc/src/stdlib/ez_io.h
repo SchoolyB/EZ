@@ -266,7 +266,7 @@ EzArray ez_io_walk(EzArena *arena, EzString path);
  *@desc Returns all file paths matching the glob pattern. Returns an empty array if there are no matches. Panics on single-var assignment; use destructuring to receive the Error instead.
  *@example
  *   import @io
- *   mut files [string] = io.glob("src/*.ez")
+ *   mut files [string] = io.glob("src/\*.ez")
  *@end
  */
 EzArray ez_io_glob(EzArena *arena, EzString pattern);
