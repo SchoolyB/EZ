@@ -1,0 +1,8 @@
+do main() {
+    eprintln(42)
+    eprintln(100)
+    eprintln(3.14)
+    eprintln(true)
+    eprintln(false)
+    eprintln("done")
+}
