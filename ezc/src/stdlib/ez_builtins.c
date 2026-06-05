@@ -166,6 +166,24 @@ void ez_builtin_eprint_str(EzString s) {
     fwrite(s.data, 1, (size_t)s.len, stderr);
 }
 
+void ez_builtin_eprint_int(int64_t v) {
+    fprintf(stderr, "%" PRId64, v);
+}
+
+void ez_builtin_eprint_uint(uint64_t v) {
+    fprintf(stderr, "%" PRIu64, v);
+}
+
+void ez_builtin_eprint_float(double v) {
+    char buf[EZ_FLOAT_STR_BUF];
+    fmt_shortest_float(buf, sizeof(buf), v);
+    fprintf(stderr, "%s", buf);
+}
+
+void ez_builtin_eprint_bool(bool v) {
+    fprintf(stderr, "%s", v ? "true" : "false");
+}
+
 void ez_builtin_eprint_char(int32_t c) {
     fput_utf8(c, stderr);
 }

@@ -3176,9 +3176,16 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit_expression(cg, arg);
             emit(cg, "->message : ez_string_lit(\"nil\"))");
         } else {
-            emit(cg, "ez_builtin_eprint_str(");
-            emit_expression(cg, arg);
-            emit(cg, ")");
+            const char *bi_type = resolve_bigint_type(cg, arg);
+            if (bi_type) {
+                emitf(cg, "ez_builtin_eprint_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emit_expression(cg, arg);
+                emit(cg, "))");
+            } else {
+                emitf(cg, "ez_builtin_eprint%s(", resolve_print_suffix(cg, arg));
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
         }
         return true;
     }

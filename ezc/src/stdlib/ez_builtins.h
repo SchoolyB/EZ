@@ -73,6 +73,10 @@ void ez_builtin_eprintln_addr(uintptr_t v);
  *@end
  */
 void ez_builtin_eprint_str(EzString s);
+void ez_builtin_eprint_int(int64_t v);
+void ez_builtin_eprint_uint(uint64_t v);
+void ez_builtin_eprint_float(double v);
+void ez_builtin_eprint_bool(bool v);
 void ez_builtin_eprint_char(int32_t c);
 void ez_builtin_eprint_addr(uintptr_t v);
 
