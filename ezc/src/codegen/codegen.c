@@ -8479,9 +8479,11 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
     /* Emit multi-return type definitions. Skip generic functions whose
      * return types contain '?'; those need per-instantiation typedefs
-     * emitted during monomorphisation ). */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
+     * emitted during monomorphisation ). Use cg->all_funcs so that
+     * struct-namespaced functions (already renamed to StructName_func)
+     * are included alongside top-level functions. */
+    for (int i = 0; i < cg->func_count; i++) {
+        AstNode *stmt = cg->all_funcs[i];
         if (stmt->kind == NODE_FUNC_DECL &&
             stmt->data.func_decl.return_type_count > 1) {
             bool has_wc = false;
