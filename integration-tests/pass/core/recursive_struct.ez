@@ -44,6 +44,29 @@ do main() {
         failed += 1
     }
 
+    // Test 4: auto-deref dot access on pointer field (no explicit ^)
+    if a.next.value == 20 {
+        println("  [PASS] auto-deref pointer field access")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] auto-deref pointer field access: expected 20")
+        failed += 1
+    }
+
+    // Test 5: chained auto-deref (a.next.next.value)
+    mut c = new(Node)
+    c.value = 30
+    c.next = nil
+    b.next = c
+
+    if a.next.next.value == 30 {
+        println("  [PASS] chained auto-deref pointer field access")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] chained auto-deref pointer field access: expected 30")
+        failed += 1
+    }
+
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
         println("SOME TESTS FAILED")

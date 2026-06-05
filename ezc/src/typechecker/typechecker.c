@@ -3190,7 +3190,35 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
                             node->token.line, node->token.column, 0, mod, mfn);
                     }
-                    result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+                    /* Wildcard (generic) struct function: record instantiation
+                     * and substitute the concrete return type. */
+                    if (sig->is_generic && sig->decl &&
+                        sig->decl->kind == NODE_FUNC_DECL) {
+                        char *binding = NULL;
+                        int cc = node->data.call.arg_count < sig->decl->data.func_decl.param_count
+                            ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
+                        for (int ai = 0; ai < cc && !binding; ai++) {
+                            const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
+                            EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                            if (!type_name_has_wildcard(ptn)) continue;
+                            binding = bind_wildcard(ptn, at);
+                        }
+                        if (binding) {
+                            record_instantiation(sig, binding, node);
+                            if (sig->decl->data.func_decl.return_type_count > 0) {
+                                char *rt = substitute_wildcard(
+                                    sig->decl->data.func_decl.return_types[0], binding);
+                                result = type_from_name(rt);
+                            } else {
+                                result = &TYPE_VOID;
+                            }
+                            free(binding);
+                        } else {
+                            result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+                        }
+                    } else {
+                        result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+                    }
                     /* E5008: check argument count */
                     if (node->data.call.arg_count != sig->param_count) {
                         char msg[EZ_MSG_BUF_SIZE];
@@ -3407,10 +3435,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* Mark the function used and resolve return type */
                             ssig->used = true;
                             sym->used = true;
-                            if (ssig->return_count > 0) {
-                                result = ssig->return_types[0];
+                            if (ssig->is_generic && ssig->decl &&
+                                ssig->decl->kind == NODE_FUNC_DECL) {
+                                char *binding = NULL;
+                                int cc = node->data.call.arg_count < ssig->decl->data.func_decl.param_count
+                                    ? node->data.call.arg_count : ssig->decl->data.func_decl.param_count;
+                                for (int ai = 0; ai < cc && !binding; ai++) {
+                                    const char *ptn = ssig->decl->data.func_decl.params[ai].type_name;
+                                    EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                                    if (!type_name_has_wildcard(ptn)) continue;
+                                    binding = bind_wildcard(ptn, at);
+                                }
+                                if (binding) {
+                                    record_instantiation(ssig, binding, node);
+                                    if (ssig->decl->data.func_decl.return_type_count > 0) {
+                                        char *rt = substitute_wildcard(
+                                            ssig->decl->data.func_decl.return_types[0], binding);
+                                        result = type_from_name(rt);
+                                    } else {
+                                        result = &TYPE_VOID;
+                                    }
+                                    free(binding);
+                                } else {
+                                    result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
+                                }
                             } else {
-                                result = &TYPE_VOID;
+                                result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
                             }
                             /* E5008: validate argument count (after AST rewrite
                              * which prepended self as arg[0]). Both arg_count
@@ -5028,6 +5078,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
                     diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                         struct_display_name(tc, obj_t->name), member);
+                }
+            } else if (obj_t && obj_t->kind == TK_POINTER) {
+                /* Auto-deref pointer field: a.next.val where a.next is ^Node */
+                result = struct_field_type(tc, obj_t->element_type, member);
+                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                    diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        obj_t->element_type, member);
                 }
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char msg[EZ_MSG_BUF_SIZE];
@@ -8276,7 +8333,8 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
         return;
     }
 
-    /* Leaf: must be a known primitive, enum, or struct */
+    /* Leaf: must be a known primitive, enum, struct, or wildcard '?' */
+    if (type_name_has_wildcard(type_name)) return;
     EzType *t = tc_type_from_name(tc, type_name);
     if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
     if (is_enum_name(tc, type_name)) return;

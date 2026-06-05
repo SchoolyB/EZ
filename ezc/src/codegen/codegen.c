@@ -2466,6 +2466,31 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     /* addr() calls always print in hex format */
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
         strcmp(arg->data.call.function->data.label.value, "addr") == 0) return "_addr";
+    /* During wildcard monomorphisation the type table retains the type from the
+     * first instantiation. If the arg is a label that names a '?'-typed parameter
+     * of the current function, use the active binding instead so each instantiation
+     * gets the correct print variant. */
+    if (cg->wildcard_binding && arg->kind == NODE_LABEL && cg->current_func) {
+        const char *label = arg->data.label.value;
+        for (int i = 0; i < cg->current_func->data.func_decl.param_count; i++) {
+            Param *p = &cg->current_func->data.func_decl.params[i];
+            if (p->type_name && strchr(p->type_name, '?') &&
+                strcmp(p->name, label) == 0) {
+                EzType *wt = type_from_name(cg->wildcard_binding);
+                if (wt) {
+                    switch (wt->kind) {
+                    case TK_STRING:  return "_str";
+                    case TK_FLOAT:   return "_float";
+                    case TK_BOOL:    return "_bool";
+                    case TK_CHAR:    return "_char";
+                    case TK_UINT:    return "_uint";
+                    case TK_POINTER: return "_addr";
+                    default:         return "_int";
+                    }
+                }
+            }
+        }
+    }
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (t && t->kind != TK_UNKNOWN) {
         switch (t->kind) {
@@ -3176,9 +3201,16 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit_expression(cg, arg);
             emit(cg, "->message : ez_string_lit(\"nil\"))");
         } else {
-            emit(cg, "ez_builtin_eprint_str(");
-            emit_expression(cg, arg);
-            emit(cg, ")");
+            const char *bi_type = resolve_bigint_type(cg, arg);
+            if (bi_type) {
+                emitf(cg, "ez_builtin_eprint_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emit_expression(cg, arg);
+                emit(cg, "))");
+            } else {
+                emitf(cg, "ez_builtin_eprint%s(", resolve_print_suffix(cg, arg));
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
         }
         return true;
     }
@@ -5575,7 +5607,51 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
             }
             if (ns_func) {
-                emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
+                /* Generic struct function: mangle with concrete binding */
+                bool ns_generic = false;
+                for (int pi = 0; pi < ns_func->data.func_decl.param_count && !ns_generic; pi++) {
+                    if (ns_func->data.func_decl.params[pi].type_name &&
+                        strchr(ns_func->data.func_decl.params[pi].type_name, '?')) ns_generic = true;
+                }
+                for (int pi = 0; pi < ns_func->data.func_decl.return_type_count && !ns_generic; pi++) {
+                    if (ns_func->data.func_decl.return_types[pi] &&
+                        strchr(ns_func->data.func_decl.return_types[pi], '?')) ns_generic = true;
+                }
+                if (ns_generic) {
+                    const char *binding = NULL;
+                    char *dyn_binding = NULL;
+                    int cc = ns_func->data.func_decl.param_count < node->data.call.arg_count
+                        ? ns_func->data.func_decl.param_count : node->data.call.arg_count;
+                    for (int pi = 0; pi < cc && !binding; pi++) {
+                        const char *ptn = ns_func->data.func_decl.params[pi].type_name;
+                        if (!ptn || !strchr(ptn, '?')) continue;
+                        EzType *at = cg->type_table
+                            ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
+                        if (!at) continue;
+                        if (strcmp(ptn, "?") == 0) {
+                            const char *tn = type_name(at);
+                            binding = ((at->kind == TK_UNKNOWN || strcmp(tn, "unknown") == 0)
+                                && cg->wildcard_binding)
+                                ? cg->wildcard_binding : tn;
+                        } else {
+                            dyn_binding = cg_bind_wildcard(ptn, type_name(at));
+                            if (dyn_binding) binding = dyn_binding;
+                        }
+                    }
+                    char mangled[EZ_MSG_BUF_SIZE];
+                    size_t pos = (size_t)snprintf(mangled, sizeof(mangled),
+                        "ez_fn_%s_%s__", resolved_name, member);
+                    if (binding) {
+                        for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
+                            mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+                        }
+                    }
+                    mangled[pos] = '\0';
+                    emitf(cg, "%s(", mangled);
+                    free(dyn_binding);
+                } else {
+                    emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
+                }
                 for (int i = 0; i < node->data.call.arg_count; i++) {
                     if (i > 0) emit(cg, ", ");
                     bool mut_param = i < ns_func->data.func_decl.param_count &&
@@ -8479,9 +8555,11 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
     /* Emit multi-return type definitions. Skip generic functions whose
      * return types contain '?'; those need per-instantiation typedefs
-     * emitted during monomorphisation ). */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
+     * emitted during monomorphisation ). Use cg->all_funcs so that
+     * struct-namespaced functions (already renamed to StructName_func)
+     * are included alongside top-level functions. */
+    for (int i = 0; i < cg->func_count; i++) {
+        AstNode *stmt = cg->all_funcs[i];
         if (stmt->kind == NODE_FUNC_DECL &&
             stmt->data.func_decl.return_type_count > 1) {
             bool has_wc = false;

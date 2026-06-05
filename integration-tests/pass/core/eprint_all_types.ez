@@ -1,0 +1,12 @@
+do main() {
+    eprint(42)
+    eprint(" ")
+    eprint(3.14)
+    eprint(" ")
+    eprint(true)
+    eprint(" ")
+    eprint(false)
+    eprint(" ")
+    eprint("done")
+    eprintln("")
+}
