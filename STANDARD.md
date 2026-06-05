@@ -2103,6 +2103,7 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `to_char` | `(s string, index int) -> int` | Return the Unicode codepoint at character position `index` (not byte position). Panics if index is out of bounds. |
 | `char_count` | `(s string) -> int` | Return the number of Unicode characters (codepoints) in a string. Unlike `len()`, which returns byte count, `char_count()` counts decoded UTF-8 characters. |
 | `c_string` | `(ptr ^u8) -> string` | Convert a C `char*` return value to an EZ string (for C interop) |
+| `embed` | `(path string) -> string` | Read a file at compile time and return its contents as a string literal baked into the binary |
 
 **Reference behavior with `ref()`:**
 
@@ -2143,6 +2144,30 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `sleep_s` | `(seconds int)` | Sleep for seconds |
 | `sleep_ms` | `(ms int)` | Sleep for milliseconds |
 | `sleep_ns` | `(ns int)` | Sleep for nanoseconds |
+
+#### Compile-time Functions
+
+**`embed(path string) -> string`**
+
+`embed()` reads a file from disk at **compile time** and bakes its entire contents into the binary as a string literal. The resulting value is available as a `string` at runtime with no file I/O overhead.
+
+The path is resolved relative to the directory of the source file containing the `embed()` call. Absolute paths are also accepted. The argument must be a string literal — variables and expressions are rejected at compile time (error `E5017`). If the file does not exist or cannot be read when the compiler runs, error `E5018` is emitted.
+
+`embed()` is valid at file scope (as a `const` initializer) or inside a function body.
+
+```ez
+// Embed a file at file scope — baked into the binary at compile time
+const LICENSE string = embed("../../LICENSE")
+const DEFAULT_CONFIG string = embed("config/defaults.json")
+
+do main() {
+    // Also valid inside a function
+    const shader string = embed("shaders/vertex.glsl")
+    println(LICENSE)
+}
+```
+
+> **Flip's Tips:** The embedded file is read once during compilation. Changes to the file after compilation have no effect on the binary. The compiler resolves the path relative to the `.ez` source file, not the current working directory when running `ezc`.
 
 ### 9.2 Arrays Module (`@arrays`)
 
