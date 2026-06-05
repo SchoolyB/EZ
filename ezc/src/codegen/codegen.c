@@ -2466,6 +2466,31 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     /* addr() calls always print in hex format */
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
         strcmp(arg->data.call.function->data.label.value, "addr") == 0) return "_addr";
+    /* During wildcard monomorphisation the type table retains the type from the
+     * first instantiation. If the arg is a label that names a '?'-typed parameter
+     * of the current function, use the active binding instead so each instantiation
+     * gets the correct print variant. */
+    if (cg->wildcard_binding && arg->kind == NODE_LABEL && cg->current_func) {
+        const char *label = arg->data.label.value;
+        for (int i = 0; i < cg->current_func->data.func_decl.param_count; i++) {
+            Param *p = &cg->current_func->data.func_decl.params[i];
+            if (p->type_name && strchr(p->type_name, '?') &&
+                strcmp(p->name, label) == 0) {
+                EzType *wt = type_from_name(cg->wildcard_binding);
+                if (wt) {
+                    switch (wt->kind) {
+                    case TK_STRING:  return "_str";
+                    case TK_FLOAT:   return "_float";
+                    case TK_BOOL:    return "_bool";
+                    case TK_CHAR:    return "_char";
+                    case TK_UINT:    return "_uint";
+                    case TK_POINTER: return "_addr";
+                    default:         return "_int";
+                    }
+                }
+            }
+        }
+    }
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (t && t->kind != TK_UNKNOWN) {
         switch (t->kind) {
