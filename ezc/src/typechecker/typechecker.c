@@ -5029,6 +5029,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                         struct_display_name(tc, obj_t->name), member);
                 }
+            } else if (obj_t && obj_t->kind == TK_POINTER) {
+                /* Auto-deref pointer field: a.next.val where a.next is ^Node */
+                result = struct_field_type(tc, obj_t->element_type, member);
+                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                    diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        obj_t->element_type, member);
+                }
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
