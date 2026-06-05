@@ -2544,14 +2544,14 @@ Most functions that can fail have an error-returning variant usable via multi-va
 | `glob` | `([string], Error)` |
 
 ```ez
-// Plain form — panics if path is a directory or unreadable
-mut content string = io.read_file("data.txt")
-
-// Error form — caller handles failure
+// Always use destructuring — single-variable assignment is a compile error
 mut content, err = io.read_file("data.txt")
 if err != nil {
     println("read failed: ${err.message}")
 }
+
+// Discard the error with _
+mut content, _ = io.read_file("data.txt")
 
 mut lines, err = io.read_lines("data.txt")
 for_each line in lines {
@@ -2745,18 +2745,31 @@ SQLite database access for persistent storage.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `open` | `(path string) -> Database` | Open or create a SQLite database |
+| `open` | `(path string) -> (Database, Error)` | Open or create a SQLite database |
 | `close` | `(db Database)` | Close database connection |
-| `exec` | `(db Database, sql string, ...params string)` | Execute a SQL statement with optional parameters |
-| `query` | `(db Database, sql string, ...params string) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
+| `exec` | `(db Database, sql string) -> (bool, Error)` | Execute a SQL statement (no rows returned) |
+| `query` | `(db Database, sql string) -> ([map[string:string]], Error)` | Execute a SELECT query, returns array of row maps |
 
-Error-returning variants: `open`, `exec`, `query`
+Error-returning variants: `open`, `exec`, `query` — always use destructuring.
 
-Parameterized queries use `?` placeholders to prevent SQL injection:
+> **Flip's Tips:** Parameterized queries (`?` placeholders) are not supported. Build your SQL strings directly. Always sanitize any user-supplied values before interpolating them into SQL.
 
 ```ez
-sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", name, age)
-mut rows = sqlite.query(db, "SELECT * FROM users WHERE age > ?", 18)
+import @sqlite
+
+mut db, err = sqlite.open("myapp.db")
+if err != nil { println("open failed: ${err}") }
+
+mut ok, _ = sqlite.exec(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)")
+mut ok, _ = sqlite.exec(db, "INSERT INTO users (name) VALUES ('Alice')")
+
+mut rows, err = sqlite.query(db, "SELECT * FROM users")
+if err != nil { println("query failed: ${err}") }
+for_each row in rows {
+    println(row)
+}
+
+sqlite.close(db)
 ```
 
 ### 9.18 Server Module (`@server`)
@@ -2843,11 +2856,9 @@ Reading and writing CSV (Comma-Separated Values) data.
 | `decode` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array (alias for parse) |
 | `encode` | `(data [[string]]) -> string` | Encode 2D array to CSV string |
 | `format` | `(data [[string]]) -> string` | Format 2D array as CSV string (alias for encode) |
-| `read_file` | `(path string) -> [[string]]` | Read and parse CSV file |
-| `write_file` | `(path string, data [[string]]) -> bool` | Write 2D array to CSV file |
+| `read_file` | `(path string) -> ([[string]], Error)` | Read and parse CSV file — always use destructuring |
+| `write_file` | `(path string, data [[string]]) -> (bool, Error)` | Write 2D array to CSV file — always use destructuring |
 | `headers` | `(data [[string]]) -> [string]` | Extract header row from parsed CSV data |
-
-Error-returning variants: `read_file`, `write_file`
 
 ### 9.21 Net Module (`@net`)
 
