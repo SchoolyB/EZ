@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.5.10](https://github.com/SchoolyB/EZ/compare/v3.5.9...v3.5.10) (2026-06-05)
+
+
+### Bug Fixes
+
+* **compiler:** quote output path in run-mode shell execution ([#1703](https://github.com/SchoolyB/EZ/issues/1703)) ([e340b2e](https://github.com/SchoolyB/EZ/commit/e340b2ea5a13de41745a6abf235788a75fc67aee))
+* **stdlib:** reject CR/LF in HTTP URL host and path components ([#1703](https://github.com/SchoolyB/EZ/issues/1703)) ([8b7a5ef](https://github.com/SchoolyB/EZ/commit/8b7a5ef7b8b6f8df1d6db38b8e189cb18539d3ea))
+* **typechecker:** validate embed() path stays within source directory ([#1703](https://github.com/SchoolyB/EZ/issues/1703)) ([cab23c0](https://github.com/SchoolyB/EZ/commit/cab23c016477c6dc2a5b3d1bfde87e23ddd857a8))
+
 ## [3.5.9](https://github.com/SchoolyB/EZ/compare/v3.5.8...v3.5.9) (2026-06-05)
 
 
