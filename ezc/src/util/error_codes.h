@@ -215,7 +215,8 @@
     EZ_ERROR("E5023", "usage", "cannot use '%s' on type '%s'; only integer types support increment/decrement") \
     EZ_ERROR("E5024", "usage", "return type mismatch: cannot return signed '%s' as unsigned '%s'") \
     EZ_ERROR("E5025", "usage", "invalid assignment target; left side of '=' must be a variable, field, or index expression") \
-    EZ_ERROR("E5026", "arguments", "argument type mismatch; the function expects a different type than what was provided")
+    EZ_ERROR("E5026", "arguments", "argument type mismatch; the function expects a different type than what was provided") \
+    EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \

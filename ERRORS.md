@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 294 codes** (191 errors, 14 warnings, 89 panics)
+**Total: 295 codes** (192 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -187,6 +187,7 @@
 | `E5024` | usage | return type mismatch: cannot return signed '%s' as unsigned '%s' |
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
 | `E5026` | arguments | argument type mismatch; the function expects a different type than what was provided |
+| `E5027` | usage | embed() path must not escape the source file's directory tree |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -345,4 +346,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-03 00:53:03 UTC*
+*Generated on 2026-06-05 20:52:08 UTC*

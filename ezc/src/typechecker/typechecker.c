@@ -3820,6 +3820,41 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         } else {
                             snprintf(resolved, sizeof(resolved), "%s", embed_path);
                         }
+                        /* Reject path traversal outside the source directory */
+                        char real_embed[4096];
+                        char real_src_dir[4096];
+                        if (realpath(resolved, real_embed)) {
+                            bool escaped = true;
+                            if (src) {
+                                const char *last_slash2 = strrchr(src, '/');
+                                if (last_slash2) {
+                                    char src_dir[4096];
+                                    snprintf(src_dir, sizeof(src_dir), "%.*s",
+                                        (int)(last_slash2 - src), src);
+                                    if (realpath(src_dir, real_src_dir)) {
+                                        size_t dir_len = strlen(real_src_dir);
+                                        if (strncmp(real_embed, real_src_dir, dir_len) == 0 &&
+                                            (real_embed[dir_len] == '/' || real_embed[dir_len] == '\0')) {
+                                            escaped = false;
+                                        }
+                                    }
+                                } else {
+                                    /* source file has no directory component — cwd is the root */
+                                    if (realpath(".", real_src_dir)) {
+                                        size_t dir_len = strlen(real_src_dir);
+                                        if (strncmp(real_embed, real_src_dir, dir_len) == 0 &&
+                                            (real_embed[dir_len] == '/' || real_embed[dir_len] == '\0')) {
+                                            escaped = false;
+                                        }
+                                    }
+                                }
+                            }
+                            if (escaped) {
+                                diag_error_code(tc->diag, "E5027",
+                                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                                goto embed_done;
+                            }
+                        }
                         FILE *ef = fopen(resolved, "r");
                         if (!ef) {
                             char msg[EZ_MSG_BUF_SIZE];
@@ -3831,6 +3866,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         } else {
                             fclose(ef);
                         }
+                        embed_done:;
                     }
                 }
                 result = &TYPE_STRING;
