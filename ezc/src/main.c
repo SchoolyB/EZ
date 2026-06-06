@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <dirent.h>
 #include <time.h>
 #ifdef __APPLE__
@@ -1667,11 +1668,24 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Run mode: execute the binary and clean up */
+    /* Run mode: execute the binary and clean up.
+     * Use fork+execv instead of system() to avoid shell injection — the
+     * output path comes from user-supplied CLI input. */
     if (ret == 0 && run_mode) {
-        char run_cmd[CMD_BUF_SIZE];
-        snprintf(run_cmd, sizeof(run_cmd), "'%s'", output_file);
-        ret = system(run_cmd);
+        pid_t pid = fork();
+        if (pid == 0) {
+            char *args[] = { output_file, NULL };
+            execv(output_file, args);
+            perror("ez: exec");
+            _exit(127);
+        } else if (pid > 0) {
+            int status = 0;
+            waitpid(pid, &status, 0);
+            ret = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+        } else {
+            perror("ez: fork");
+            ret = 1;
+        }
         unlink(output_file);
     }
 
