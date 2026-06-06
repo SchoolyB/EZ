@@ -6431,9 +6431,12 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                 c_type = "__auto_type";
             }
         } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
-                   val->kind == NODE_MEMBER_EXPR || val->kind == NODE_INDEX_EXPR) {
-            /* Use __auto_type for function calls, new(), member access, and index
-             * (needed for multi-var unpacking and nested array element extraction) */
+                   val->kind == NODE_MEMBER_EXPR || val->kind == NODE_INDEX_EXPR ||
+                   val->kind == NODE_POSTFIX_EXPR) {
+            /* Use __auto_type for function calls, new(), member access, index,
+             * and postfix expressions (e.g. ptr^ dereference — without this,
+             * `mut x = p^` where p is ^StructType would be emitted as int64_t
+             * instead of the correct struct type). */
             c_type = "__auto_type";
         } else if (val->kind == NODE_FUNC_REF) {
             /* Function reference; use __auto_type to capture the pointer type */
