@@ -384,6 +384,13 @@ static const char *ez_map_key_kind_macro(const char *c_key_type) {
 
 static AstNode *find_struct_decl(CodeGen *cg, const char *name);
 
+/* Cycle guard for type_needs_deep_copy: tracks struct names currently being
+ * visited so circular references (A -> [B] -> B -> A) don't cause infinite
+ * recursion and a stack-overflow crash. */
+#define TNDC_MAX_DEPTH 64
+static const char *tndc_visiting[TNDC_MAX_DEPTH];
+static int tndc_depth = 0;
+
 static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn || !*ez_tn) return false;
     if (ez_tn[0] == '[') return true;
@@ -392,10 +399,16 @@ static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
     if (ez_tn[0] == '^') return false; /* pointers alias; see header comment */
     AstNode *sdecl = find_struct_decl(cg, ez_tn);
     if (!sdecl) return false;
+    /* Cycle detection: if we're already visiting this struct, stop. */
+    for (int j = 0; j < tndc_depth; j++) {
+        if (strcmp(tndc_visiting[j], ez_tn) == 0) return false;
+    }
+    if (tndc_depth < TNDC_MAX_DEPTH) tndc_visiting[tndc_depth++] = ez_tn;
     for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
         const char *ft = sdecl->data.struct_decl.fields[i].type_name;
-        if (type_needs_deep_copy(cg, ft)) return true;
+        if (type_needs_deep_copy(cg, ft)) { tndc_depth--; return true; }
     }
+    tndc_depth--;
     return false;
 }
 
@@ -543,6 +556,12 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     }
 }
 
+/* Cycle guard for emit_struct_deep_copy: prevents infinite recursion when
+ * struct types reference each other in a cycle (e.g. A has [B], B has A). */
+#define ESDC_MAX_DEPTH 64
+static const char *esdc_visiting[ESDC_MAX_DEPTH];
+static int esdc_depth = 0;
+
 static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char *src_var) {
     AstNode *sdecl = find_struct_decl(cg, struct_tn);
     if (!sdecl) {
@@ -550,6 +569,15 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
         emitf(cg, "%s", src_var);
         return;
     }
+    /* Cycle detection: if already emitting a deep copy for this struct type,
+     * fall back to a shallow (bitwise) copy to break the cycle. */
+    for (int j = 0; j < esdc_depth; j++) {
+        if (strcmp(esdc_visiting[j], struct_tn) == 0) {
+            emitf(cg, "%s", src_var);
+            return;
+        }
+    }
+    if (esdc_depth < ESDC_MAX_DEPTH) esdc_visiting[esdc_depth++] = struct_tn;
     const char *c_struct = ez_type_to_c_cg(cg, struct_tn);
     int t = next_dc_tag();
     emitf(cg,
@@ -566,6 +594,7 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
         emit(cg, "; ");
     }
     emitf(cg, "_sd%d; })", t);
+    esdc_depth--;
 }
 
 static void emit_value_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var) {
@@ -2215,9 +2244,41 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (left_t->element_type && is_bigint_type(left_t->element_type)) {
                 c_elem = bigint_prefix(left_t->element_type);
             }
-            /* If left is an rvalue (function call), store in temp first —
-             * EZ_ARRAY_GET takes &arr which requires an lvalue */
-            if (node->data.index_expr.left->kind == NODE_CALL_EXPR) {
+            /* If left is an rvalue, EZ_ARRAY_GET's &(arr) would be invalid.
+             * Handles three rvalue sources:
+             *  1. function call result (NODE_CALL_EXPR)
+             *  2. array field through struct pointer: b.items[i] where b: ^Bag
+             *     (member emit wraps in GCC statement expr → rvalue)
+             *  3. explicit deref then member: b^.items[i] (same rvalue issue)
+             * For cases 2/3, inline the nil check and use _dp->field directly
+             * so EZ_ARRAY_GET receives an lvalue. */
+            AstNode *arr_ptr_obj = NULL;
+            const char *arr_ptr_field = NULL;
+            if (node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
+                AstNode *_mem = node->data.index_expr.left;
+                AstNode *_obj = _mem->data.member.object;
+                EzType *_obj_t = cg->type_table ? typetable_get(cg->type_table, _obj) : NULL;
+                if (_obj_t && _obj_t->kind == TK_POINTER) {
+                    arr_ptr_obj = _obj;
+                    arr_ptr_field = _mem->data.member.member;
+                } else if (_obj->kind == NODE_POSTFIX_EXPR &&
+                           strcmp(_obj->data.postfix.op, "^") == 0) {
+                    /* b^.field: strip the deref, use the underlying pointer */
+                    arr_ptr_obj = _obj->data.postfix.left;
+                    arr_ptr_field = _mem->data.member.member;
+                }
+            }
+            if (arr_ptr_obj) {
+                static int arr_dp_ctr = 0;
+                int my_dp = arr_dp_ctr++;
+                emitf(cg, "({ __auto_type _adp%d = ", my_dp);
+                emit_expression(cg, arr_ptr_obj);
+                emitf(cg, "; if (!_adp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                          "EZ_ARRAY_GET(_adp%d->%s, %s, ",
+                      my_dp, my_dp, safe_name(arr_ptr_field), c_elem);
+                emit_expression(cg, node->data.index_expr.index);
+                emit(cg, "); })");
+            } else if (node->data.index_expr.left->kind == NODE_CALL_EXPR) {
                 emitf(cg, "({ EzArray _ea = ");
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; EZ_ARRAY_GET(_ea, %s, ", c_elem);
@@ -2686,6 +2747,11 @@ static AstNode *find_struct_decl(CodeGen *cg, const char *name) {
 
 /* Emit C statements that print the value of c_expr (of type t) to stream.
  * stream is "stdout" or "stderr". Handles all types recursively. */
+/* Cycle guard for emit_value_print struct recursion. */
+#define EVP_MAX_DEPTH 64
+static const char *evp_visiting[EVP_MAX_DEPTH];
+static int evp_depth = 0;
+
 static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream, bool in_container) {
     if (!t || t->kind == TK_UNKNOWN) {
         emit_indent(cg);
@@ -2828,6 +2894,25 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         const char *struct_name = t->name;
         AstNode *sdecl = find_struct_decl(cg, struct_name);
 
+        /* Cycle detection: if already printing this struct type, emit a
+         * placeholder to avoid infinite recursion on circular references. */
+        for (int _j = 0; _j < evp_depth; _j++) {
+            if (evp_visiting[_j] && strcmp(evp_visiting[_j], struct_name) == 0) {
+                emit_indent(cg);
+                emitf(cg, "fprintf(%s, \"%s{...}\");\n", stream, struct_name);
+                break;
+            }
+        }
+        bool _already = false;
+        for (int _j = 0; _j < evp_depth; _j++) {
+            if (evp_visiting[_j] && strcmp(evp_visiting[_j], struct_name) == 0) {
+                _already = true; break;
+            }
+        }
+        if (_already) break;
+
+        if (evp_depth < EVP_MAX_DEPTH) evp_visiting[evp_depth++] = struct_name;
+
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"%s{\");\n", stream, struct_name);
 
@@ -2848,6 +2933,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
             }
         }
 
+        evp_depth--;
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"}\");\n", stream);
         break;
@@ -3032,9 +3118,44 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
-        /* addr() returns a pointer to the argument */
-        emit(cg, "&");
-        emit_expression(cg, node->data.call.args[0]);
+        AstNode *arg = node->data.call.args[0];
+        /* Special case: addr(p^.field) or addr(p.field) where p: ^T.
+         * Normal codegen wraps pointer deref member access in a GCC
+         * statement expression → rvalue; &(rvalue) is illegal in C.
+         * Detect these patterns and emit &(_dp->field) directly so
+         * EZ_ARRAY_GET / clang receive a proper lvalue. */
+        AstNode *addr_ptr_expr = NULL;
+        const char *addr_field = NULL;
+        if (arg->kind == NODE_MEMBER_EXPR) {
+            AstNode *obj = arg->data.member.object;
+            if (obj->kind == NODE_POSTFIX_EXPR &&
+                strcmp(obj->data.postfix.op, "^") == 0) {
+                /* addr(p^.field): p is the underlying pointer */
+                addr_ptr_expr = obj->data.postfix.left;
+                addr_field = arg->data.member.member;
+            } else {
+                /* addr(p.field) where p is a pointer type (auto-deref) */
+                EzType *obj_t = cg->type_table
+                    ? typetable_get(cg->type_table, obj) : NULL;
+                if (obj_t && obj_t->kind == TK_POINTER) {
+                    addr_ptr_expr = obj;
+                    addr_field = arg->data.member.member;
+                }
+            }
+        }
+        if (addr_ptr_expr && addr_field) {
+            static int addr_dp_ctr = 0;
+            int my_dp = addr_dp_ctr++;
+            emitf(cg, "({ __auto_type _aadp%d = ", my_dp);
+            emit_expression(cg, addr_ptr_expr);
+            emitf(cg, "; if (!_aadp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                      "&_aadp%d->%s; })",
+                  my_dp, my_dp, safe_name(addr_field));
+        } else {
+            /* addr() returns a pointer to the argument */
+            emit(cg, "&");
+            emit_expression(cg, arg);
+        }
         return true;
     }
 
@@ -6215,10 +6336,12 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Empty array literal with type annotation; use correct elem size */
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         } else if (node->data.var_decl.value &&
-                   node->data.var_decl.value->kind == NODE_LABEL) {
-            /* Copy-by-default: deep copy when assigning from another
-             * variable. Route through emit_deep_array_copy so nested
-             * array elements get independent backing storage ). */
+                   (node->data.var_decl.value->kind == NODE_LABEL ||
+                    node->data.var_decl.value->kind == NODE_MEMBER_EXPR)) {
+            /* Copy-by-default: deep copy when assigning from another variable
+             * or a struct field access (e.g. `mut copy [int] = s.field`).
+             * Without this, member-expr sources share backing storage with the
+             * originating struct field (#1789). */
             EzType *src_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
             const char *elem_tn = (src_t && src_t->kind == TK_ARRAY)
@@ -6377,9 +6500,12 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                 c_type = "__auto_type";
             }
         } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
-                   val->kind == NODE_MEMBER_EXPR || val->kind == NODE_INDEX_EXPR) {
-            /* Use __auto_type for function calls, new(), member access, and index
-             * (needed for multi-var unpacking and nested array element extraction) */
+                   val->kind == NODE_MEMBER_EXPR || val->kind == NODE_INDEX_EXPR ||
+                   val->kind == NODE_POSTFIX_EXPR) {
+            /* Use __auto_type for function calls, new(), member access, index,
+             * and postfix expressions (e.g. ptr^ dereference — without this,
+             * `mut x = p^` where p is ^StructType would be emitted as int64_t
+             * instead of the correct struct type). */
             c_type = "__auto_type";
         } else if (val->kind == NODE_FUNC_REF) {
             /* Function reference; use __auto_type to capture the pointer type */
@@ -6554,6 +6680,53 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     c_elem = "void *";
                 } else {
                     c_elem = ez_type_to_c_cg(cg, left_t->element_type);
+                }
+            }
+            /* Check for array field through struct pointer (rvalue lvalue issue).
+             * b.items[i] = val where b: ^Bag — the normal member emit produces a
+             * GCC statement expression (rvalue); EZ_ARRAY_SET's &(arr) would fail.
+             * Inline the nil check and use _dp->field directly as an lvalue. */
+            {
+                AstNode *_set_ptr_obj = NULL;
+                const char *_set_ptr_field = NULL;
+                if (left->kind == NODE_MEMBER_EXPR) {
+                    AstNode *_sobj = left->data.member.object;
+                    EzType *_sobj_t = cg->type_table ? typetable_get(cg->type_table, _sobj) : NULL;
+                    if (_sobj_t && _sobj_t->kind == TK_POINTER) {
+                        _set_ptr_obj = _sobj;
+                        _set_ptr_field = left->data.member.member;
+                    } else if (_sobj->kind == NODE_POSTFIX_EXPR &&
+                               strcmp(_sobj->data.postfix.op, "^") == 0) {
+                        _set_ptr_obj = _sobj->data.postfix.left;
+                        _set_ptr_field = left->data.member.member;
+                    }
+                }
+                if (_set_ptr_obj) {
+                    static int arr_set_dp_ctr = 0;
+                    int my_dp = arr_set_dp_ctr++;
+                    const char *aop2 = node->data.assign.op;
+                    bool is_compound2 = (strcmp(aop2, "+=") == 0 || strcmp(aop2, "-=") == 0 || strcmp(aop2, "*=") == 0);
+                    emitf(cg, "{ __auto_type _asdp%d = ", my_dp);
+                    emit_expression(cg, _set_ptr_obj);
+                    emitf(cg, "; if (!_asdp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                              "EZ_ARRAY_SET(_asdp%d->%s, %s, ",
+                          my_dp, my_dp, safe_name(_set_ptr_field), c_elem);
+                    emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                    emit(cg, ", ");
+                    if (is_compound2) {
+                        const char *binop = "+";
+                        if (strcmp(aop2, "-=") == 0) binop = "-";
+                        else if (strcmp(aop2, "*=") == 0) binop = "*";
+                        emitf(cg, "EZ_ARRAY_GET(_asdp%d->%s, %s, ", my_dp, safe_name(_set_ptr_field), c_elem);
+                        emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                        emitf(cg, ") %s (", binop);
+                        emit_expression(cg, node->data.assign.value);
+                        emit(cg, ")");
+                    } else {
+                        emit_expression(cg, node->data.assign.value);
+                    }
+                    emit(cg, "); }\n");
+                    return;
                 }
             }
             /* Compound assignment on array element with sized-type overflow check */

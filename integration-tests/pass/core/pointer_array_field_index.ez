@@ -1,0 +1,76 @@
+/*
+ * pointer_array_field_index.ez
+ * Regression test for #1787: indexing into an array field through a struct
+ * pointer (ptr.arrayField[i]) generated invalid C — EZ_ARRAY_GET received a
+ * GCC statement expression rvalue and could not take its address.
+ * Both auto-deref (b.items[i]) and explicit deref (b^.items[i]) are covered.
+ */
+
+import @arrays
+
+const Item struct {
+    value int
+    label string
+}
+
+const Bag struct {
+    items [Item]
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut b = new(Bag)
+    arrays.append(b.items, Item{value: 10, label: "first"})
+    arrays.append(b.items, Item{value: 20, label: "second"})
+    arrays.append(b.items, Item{value: 30, label: "third"})
+
+    // Test 1: read int field via auto-deref pointer
+    if b.items[0].value == 10 {
+        println("  [PASS] read int field [0] via auto-deref pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [0].value: ${b.items[0].value}")
+        failed += 1
+    }
+
+    // Test 2: read string field via auto-deref pointer
+    if b.items[1].label == "second" {
+        println("  [PASS] read string field [1] via auto-deref pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [1].label: ${b.items[1].label}")
+        failed += 1
+    }
+
+    // Test 3: read last element via auto-deref pointer
+    if b.items[2].value == 30 {
+        println("  [PASS] read int field [2] via auto-deref pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [2].value: ${b.items[2].value}")
+        failed += 1
+    }
+
+    // Test 4: read via explicit deref (b^.items[i])
+    if b^.items[0].value == 10 {
+        println("  [PASS] read int field [0] via explicit deref")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] explicit deref [0].value: ${b^.items[0].value}")
+        failed += 1
+    }
+
+    // Test 5: index isolation — different elements independent
+    if b.items[0].value != b.items[1].value && b.items[1].value != b.items[2].value {
+        println("  [PASS] array elements are independent")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] element isolation broken")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

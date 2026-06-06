@@ -1,0 +1,80 @@
+/*
+ * addr_pointer_deref_field.ez
+ * Regression test for #1785: addr(p^.field) and addr(p.field) where p is a
+ * pointer generated invalid C — the field access produced a GCC statement
+ * expression (rvalue) and &(rvalue) is illegal in C.
+ * Covers explicit deref form (p^.field) and auto-deref form (p.field).
+ */
+
+const Vec2 struct {
+    x int
+    y int
+}
+
+const Player struct {
+    pos Vec2
+    health int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut p = new(Player)
+    p.pos.x = 10
+    p.pos.y = 20
+    p.health = 100
+
+    // Test 1: addr(p^.field) — explicit deref then member
+    mut ptr ^Vec2 = addr(p^.pos)
+    if ptr.x == 10 && ptr.y == 20 {
+        println("  [PASS] addr(p^.field) returns pointer to correct field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] addr(p^.field): x=${ptr.x} y=${ptr.y}")
+        failed += 1
+    }
+
+    // Test 2: mutation through the pointer updates the original struct
+    ptr.x = 99
+    if p.pos.x == 99 {
+        println("  [PASS] mutation through addr(p^.field) pointer updates original")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] p.pos.x=${p.pos.x}, expected 99")
+        failed += 1
+    }
+
+    // Test 3: addr(p.field) — auto-deref form
+    mut ptr2 ^Vec2 = addr(p.pos)
+    if ptr2.x == 99 && ptr2.y == 20 {
+        println("  [PASS] addr(p.field) auto-deref returns pointer to correct field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] addr(p.field): x=${ptr2.x} y=${ptr2.y}")
+        failed += 1
+    }
+
+    // Test 4: mutation through auto-deref addr pointer updates original
+    ptr2.y = 77
+    if p.pos.y == 77 {
+        println("  [PASS] mutation through addr(p.field) pointer updates original")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] p.pos.y=${p.pos.y}, expected 77")
+        failed += 1
+    }
+
+    // Test 5: scalar field addr (non-struct field)
+    mut hp_ptr ^int = addr(p.health)
+    if hp_ptr^ == 100 {
+        println("  [PASS] addr(p.scalarField) returns correct pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hp_ptr^=${hp_ptr^}, expected 100")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

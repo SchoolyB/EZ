@@ -179,7 +179,9 @@
     EZ_ERROR("E3094", "types", "cannot assign '%s' to element of '%s'") \
     EZ_ERROR("E3095", "types", "'in' only works with arrays, maps, and strings; got '%s'") \
     EZ_ERROR("E3096", "types", "cannot negate unsigned type '%s'; negation of unsigned types is not defined") \
-    EZ_ERROR("E3097", "safety", "pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits")
+    EZ_ERROR("E3097", "safety", "pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits") \
+    EZ_ERROR("E3098", "types", "type mismatch: cannot assign '%s' to '%s' through pointer dereference") \
+    EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

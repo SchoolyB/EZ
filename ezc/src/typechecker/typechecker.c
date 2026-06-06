@@ -5325,9 +5325,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname, fname);
                 } else if (expected_t && val_t->kind != TK_UNKNOWN &&
                            expected_t->kind != TK_UNKNOWN &&
-                           /* kinds differ, OR both are pointers to different types */
+                           /* kinds differ, OR both are pointers to different types,
+                            * OR both are structs with different names (#1790) */
                            (expected_t->kind != val_t->kind ||
                             (expected_t->kind == TK_POINTER &&
+                             expected_t->name && val_t->name &&
+                             strcmp(expected_t->name, val_t->name) != 0) ||
+                            (expected_t->kind == TK_STRUCT && val_t->kind == TK_STRUCT &&
                              expected_t->name && val_t->name &&
                              strcmp(expected_t->name, val_t->name) != 0)) &&
                            !(is_int_kind(expected_t->kind) && val_t->kind == TK_ENUM) &&
@@ -7071,6 +7075,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E3001", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E3098: struct-to-struct name mismatch through pointer dereference: v3^ = v2^
+         * The NODE_LABEL check above is bypassed when the target is a postfix
+         * dereference. resolve_expr already strips the pointer layer, so
+         * target_t and value_t are both TK_STRUCT — just compare names. */
+        if (target->kind == NODE_POSTFIX_EXPR &&
+            strcmp(target->data.postfix.op, "^") == 0 &&
+            target_t && value_t &&
+            target_t->kind == TK_STRUCT && value_t->kind == TK_STRUCT &&
+            target_t->name && value_t->name &&
+            strcmp(target_t->name, value_t->name) != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "type mismatch: cannot assign '%s' to '%s' through pointer dereference",
+                type_display_name(tc, value_t), type_display_name(tc, target_t));
+            diag_error_msg(tc->diag, "E3098", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* Pointer-to-pointer: pointee types differ on reassignment (e.g., p = q where ^int ≠ ^string).
          * The outer kind-equality guard short-circuits, so a dedicated check is required. */
         if (target->kind == NODE_LABEL &&
@@ -7108,9 +7129,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (sym && (sym->type->kind == TK_STRUCT || sym->type->kind == TK_POINTER)) {
                 EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
-                    /* kinds differ, OR both are pointers to different types */
+                    /* kinds differ, OR both are pointers/structs to different types */
                     (field_t->kind != value_t->kind ||
                      (field_t->kind == TK_POINTER &&
+                      field_t->name && value_t->name &&
+                      strcmp(field_t->name, value_t->name) != 0) ||
+                     (field_t->kind == TK_STRUCT && value_t->kind == TK_STRUCT &&
                       field_t->name && value_t->name &&
                       strcmp(field_t->name, value_t->name) != 0)) &&
                     !(is_int_kind(field_t->kind) && is_int_kind(value_t->kind)) &&
@@ -8076,7 +8100,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         break;
 
-    case NODE_STRUCT_DECL:
+    case NODE_STRUCT_DECL: {
+        /* E3099: struct name collides with a stdlib opaque type reserved by codegen.
+         * These names map to internal C types (EzRouter, EzThread, etc.) before the
+         * user-struct path, so any user struct with these names silently generates
+         * invalid C with no EZ diagnostic. */
+        static const char *reserved_stdlib_struct_names[] = {
+            "Thread", "Mutex", "SpinLock", "Channel", "Socket",
+            "Listener", "Database", "Router", "HttpRequest", "HttpResponse", NULL
+        };
+        const char *sname = STRUCT_DISPLAY_NAME(node);
+        for (int ri = 0; reserved_stdlib_struct_names[ri]; ri++) {
+            if (strcmp(sname, reserved_stdlib_struct_names[ri]) == 0) {
+                diag_error_codef(tc->diag, "E3099",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname);
+                break;
+            }
+        }
         /* E2053: struct inside function */
         if (tc->func_depth > 0) {
             diag_error_codef(tc->diag, "E2053",
@@ -8093,6 +8133,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         tc->current_struct_name = NULL;
         break;
+    }
 
     case NODE_ENUM_DECL:
         /* E2053: enum inside function */
