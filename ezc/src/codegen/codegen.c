@@ -2244,9 +2244,41 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (left_t->element_type && is_bigint_type(left_t->element_type)) {
                 c_elem = bigint_prefix(left_t->element_type);
             }
-            /* If left is an rvalue (function call), store in temp first —
-             * EZ_ARRAY_GET takes &arr which requires an lvalue */
-            if (node->data.index_expr.left->kind == NODE_CALL_EXPR) {
+            /* If left is an rvalue, EZ_ARRAY_GET's &(arr) would be invalid.
+             * Handles three rvalue sources:
+             *  1. function call result (NODE_CALL_EXPR)
+             *  2. array field through struct pointer: b.items[i] where b: ^Bag
+             *     (member emit wraps in GCC statement expr → rvalue)
+             *  3. explicit deref then member: b^.items[i] (same rvalue issue)
+             * For cases 2/3, inline the nil check and use _dp->field directly
+             * so EZ_ARRAY_GET receives an lvalue. */
+            AstNode *arr_ptr_obj = NULL;
+            const char *arr_ptr_field = NULL;
+            if (node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
+                AstNode *_mem = node->data.index_expr.left;
+                AstNode *_obj = _mem->data.member.object;
+                EzType *_obj_t = cg->type_table ? typetable_get(cg->type_table, _obj) : NULL;
+                if (_obj_t && _obj_t->kind == TK_POINTER) {
+                    arr_ptr_obj = _obj;
+                    arr_ptr_field = _mem->data.member.member;
+                } else if (_obj->kind == NODE_POSTFIX_EXPR &&
+                           strcmp(_obj->data.postfix.op, "^") == 0) {
+                    /* b^.field: strip the deref, use the underlying pointer */
+                    arr_ptr_obj = _obj->data.postfix.left;
+                    arr_ptr_field = _mem->data.member.member;
+                }
+            }
+            if (arr_ptr_obj) {
+                static int arr_dp_ctr = 0;
+                int my_dp = arr_dp_ctr++;
+                emitf(cg, "({ __auto_type _adp%d = ", my_dp);
+                emit_expression(cg, arr_ptr_obj);
+                emitf(cg, "; if (!_adp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                          "EZ_ARRAY_GET(_adp%d->%s, %s, ",
+                      my_dp, my_dp, safe_name(arr_ptr_field), c_elem);
+                emit_expression(cg, node->data.index_expr.index);
+                emit(cg, "); })");
+            } else if (node->data.index_expr.left->kind == NODE_CALL_EXPR) {
                 emitf(cg, "({ EzArray _ea = ");
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; EZ_ARRAY_GET(_ea, %s, ", c_elem);
@@ -6611,6 +6643,53 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     c_elem = "void *";
                 } else {
                     c_elem = ez_type_to_c_cg(cg, left_t->element_type);
+                }
+            }
+            /* Check for array field through struct pointer (rvalue lvalue issue).
+             * b.items[i] = val where b: ^Bag — the normal member emit produces a
+             * GCC statement expression (rvalue); EZ_ARRAY_SET's &(arr) would fail.
+             * Inline the nil check and use _dp->field directly as an lvalue. */
+            {
+                AstNode *_set_ptr_obj = NULL;
+                const char *_set_ptr_field = NULL;
+                if (left->kind == NODE_MEMBER_EXPR) {
+                    AstNode *_sobj = left->data.member.object;
+                    EzType *_sobj_t = cg->type_table ? typetable_get(cg->type_table, _sobj) : NULL;
+                    if (_sobj_t && _sobj_t->kind == TK_POINTER) {
+                        _set_ptr_obj = _sobj;
+                        _set_ptr_field = left->data.member.member;
+                    } else if (_sobj->kind == NODE_POSTFIX_EXPR &&
+                               strcmp(_sobj->data.postfix.op, "^") == 0) {
+                        _set_ptr_obj = _sobj->data.postfix.left;
+                        _set_ptr_field = left->data.member.member;
+                    }
+                }
+                if (_set_ptr_obj) {
+                    static int arr_set_dp_ctr = 0;
+                    int my_dp = arr_set_dp_ctr++;
+                    const char *aop2 = node->data.assign.op;
+                    bool is_compound2 = (strcmp(aop2, "+=") == 0 || strcmp(aop2, "-=") == 0 || strcmp(aop2, "*=") == 0);
+                    emitf(cg, "{ __auto_type _asdp%d = ", my_dp);
+                    emit_expression(cg, _set_ptr_obj);
+                    emitf(cg, "; if (!_asdp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                              "EZ_ARRAY_SET(_asdp%d->%s, %s, ",
+                          my_dp, my_dp, safe_name(_set_ptr_field), c_elem);
+                    emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                    emit(cg, ", ");
+                    if (is_compound2) {
+                        const char *binop = "+";
+                        if (strcmp(aop2, "-=") == 0) binop = "-";
+                        else if (strcmp(aop2, "*=") == 0) binop = "*";
+                        emitf(cg, "EZ_ARRAY_GET(_asdp%d->%s, %s, ", my_dp, safe_name(_set_ptr_field), c_elem);
+                        emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                        emitf(cg, ") %s (", binop);
+                        emit_expression(cg, node->data.assign.value);
+                        emit(cg, ")");
+                    } else {
+                        emit_expression(cg, node->data.assign.value);
+                    }
+                    emit(cg, "); }\n");
+                    return;
                 }
             }
             /* Compound assignment on array element with sized-type overflow check */
