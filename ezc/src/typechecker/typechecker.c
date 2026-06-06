@@ -5325,9 +5325,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E3010", NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname, fname);
                 } else if (expected_t && val_t->kind != TK_UNKNOWN &&
                            expected_t->kind != TK_UNKNOWN &&
-                           /* kinds differ, OR both are pointers to different types */
+                           /* kinds differ, OR both are pointers to different types,
+                            * OR both are structs with different names (#1790) */
                            (expected_t->kind != val_t->kind ||
                             (expected_t->kind == TK_POINTER &&
+                             expected_t->name && val_t->name &&
+                             strcmp(expected_t->name, val_t->name) != 0) ||
+                            (expected_t->kind == TK_STRUCT && val_t->kind == TK_STRUCT &&
                              expected_t->name && val_t->name &&
                              strcmp(expected_t->name, val_t->name) != 0)) &&
                            !(is_int_kind(expected_t->kind) && val_t->kind == TK_ENUM) &&
@@ -7125,9 +7129,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (sym && (sym->type->kind == TK_STRUCT || sym->type->kind == TK_POINTER)) {
                 EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
-                    /* kinds differ, OR both are pointers to different types */
+                    /* kinds differ, OR both are pointers/structs to different types */
                     (field_t->kind != value_t->kind ||
                      (field_t->kind == TK_POINTER &&
+                      field_t->name && value_t->name &&
+                      strcmp(field_t->name, value_t->name) != 0) ||
+                     (field_t->kind == TK_STRUCT && value_t->kind == TK_STRUCT &&
                       field_t->name && value_t->name &&
                       strcmp(field_t->name, value_t->name) != 0)) &&
                     !(is_int_kind(field_t->kind) && is_int_kind(value_t->kind)) &&
