@@ -155,6 +155,30 @@ func Version() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// Fmt formats a single .ez file in place using the ezc --fmt flag.
+// Returns 0 on success, non-zero on failure.
+func Fmt(file string) (int, error) {
+	ezcPath, err := Find()
+	if err != nil {
+		return 1, err
+	}
+	return executeSilent(ezcPath, []string{"--fmt", file})
+}
+
+// executeSilent runs ezc without streaming I/O, for use by fmt/check internals.
+func executeSilent(ezcPath string, args []string) (int, error) {
+	cmd := exec.Command(ezcPath, args...)
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return exitErr.ExitCode(), nil
+		}
+		return 1, err
+	}
+	return 0, nil
+}
+
 // execute runs the ezc binary with the given args, streaming I/O.
 func execute(ezcPath string, args []string) (int, error) {
 	cmd := exec.Command(ezcPath, args...)
