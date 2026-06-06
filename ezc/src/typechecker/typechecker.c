@@ -7071,6 +7071,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E3001", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E3098: struct-to-struct name mismatch through pointer dereference: v3^ = v2^
+         * The NODE_LABEL check above is bypassed when the target is a postfix
+         * dereference. resolve_expr already strips the pointer layer, so
+         * target_t and value_t are both TK_STRUCT — just compare names. */
+        if (target->kind == NODE_POSTFIX_EXPR &&
+            strcmp(target->data.postfix.op, "^") == 0 &&
+            target_t && value_t &&
+            target_t->kind == TK_STRUCT && value_t->kind == TK_STRUCT &&
+            target_t->name && value_t->name &&
+            strcmp(target_t->name, value_t->name) != 0) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "type mismatch: cannot assign '%s' to '%s' through pointer dereference",
+                type_display_name(tc, value_t), type_display_name(tc, target_t));
+            diag_error_msg(tc->diag, "E3098", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* Pointer-to-pointer: pointee types differ on reassignment (e.g., p = q where ^int ≠ ^string).
          * The outer kind-equality guard short-circuits, so a dedicated check is required. */
         if (target->kind == NODE_LABEL &&
