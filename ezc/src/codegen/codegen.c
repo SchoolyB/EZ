@@ -3118,9 +3118,44 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
-        /* addr() returns a pointer to the argument */
-        emit(cg, "&");
-        emit_expression(cg, node->data.call.args[0]);
+        AstNode *arg = node->data.call.args[0];
+        /* Special case: addr(p^.field) or addr(p.field) where p: ^T.
+         * Normal codegen wraps pointer deref member access in a GCC
+         * statement expression → rvalue; &(rvalue) is illegal in C.
+         * Detect these patterns and emit &(_dp->field) directly so
+         * EZ_ARRAY_GET / clang receive a proper lvalue. */
+        AstNode *addr_ptr_expr = NULL;
+        const char *addr_field = NULL;
+        if (arg->kind == NODE_MEMBER_EXPR) {
+            AstNode *obj = arg->data.member.object;
+            if (obj->kind == NODE_POSTFIX_EXPR &&
+                strcmp(obj->data.postfix.op, "^") == 0) {
+                /* addr(p^.field): p is the underlying pointer */
+                addr_ptr_expr = obj->data.postfix.left;
+                addr_field = arg->data.member.member;
+            } else {
+                /* addr(p.field) where p is a pointer type (auto-deref) */
+                EzType *obj_t = cg->type_table
+                    ? typetable_get(cg->type_table, obj) : NULL;
+                if (obj_t && obj_t->kind == TK_POINTER) {
+                    addr_ptr_expr = obj;
+                    addr_field = arg->data.member.member;
+                }
+            }
+        }
+        if (addr_ptr_expr && addr_field) {
+            static int addr_dp_ctr = 0;
+            int my_dp = addr_dp_ctr++;
+            emitf(cg, "({ __auto_type _aadp%d = ", my_dp);
+            emit_expression(cg, addr_ptr_expr);
+            emitf(cg, "; if (!_aadp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                      "&_aadp%d->%s; })",
+                  my_dp, my_dp, safe_name(addr_field));
+        } else {
+            /* addr() returns a pointer to the argument */
+            emit(cg, "&");
+            emit_expression(cg, arg);
+        }
         return true;
     }
 
