@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.5.11](https://github.com/SchoolyB/EZ/compare/v3.5.10...v3.5.11) (2026-06-06)
+
+
+### Bug Fixes
+
+* **codegen:** add cycle guards to prevent segfault on circular struct references ([#1784](https://github.com/SchoolyB/EZ/issues/1784)) ([0fbc1ac](https://github.com/SchoolyB/EZ/commit/0fbc1ace2f17c915e427d4f19bf88b6d98175a38))
+* **codegen:** deep-copy array fields from struct member access on assignment ([#1789](https://github.com/SchoolyB/EZ/issues/1789)) ([e1d9314](https://github.com/SchoolyB/EZ/commit/e1d93149548ffb3a151fa74edcf49f78cd1e6c73))
+* **codegen:** fix addr() on pointer-deref field generating invalid C ([#1785](https://github.com/SchoolyB/EZ/issues/1785)) ([40a1010](https://github.com/SchoolyB/EZ/commit/40a1010d543748a324ed3bbdae1f0b66d6a54166))
+* **codegen:** fix array field indexing through struct pointer generating invalid C ([#1787](https://github.com/SchoolyB/EZ/issues/1787)) ([f1ad1b9](https://github.com/SchoolyB/EZ/commit/f1ad1b920c72f43398c53b0a9c9735dd78a7a0cb))
+* **codegen:** infer correct type for pointer dereference assignments ([#1786](https://github.com/SchoolyB/EZ/issues/1786)) ([a336d74](https://github.com/SchoolyB/EZ/commit/a336d74a548409c4fda8943c2db70b81586a610a))
+* **main:** use fork+execv instead of system() in run mode ([#1285](https://github.com/SchoolyB/EZ/issues/1285)) ([f36dab9](https://github.com/SchoolyB/EZ/commit/f36dab9251fcf4388b9f9aacc73833b62f16d4cb))
+* pointer/struct bug fixes ([4f72660](https://github.com/SchoolyB/EZ/commit/4f72660d844535c23966e842eda48fdc6bb1fdb6))
+* **typechecker:** catch struct type mismatch in pointer dereference assignment ([#1788](https://github.com/SchoolyB/EZ/issues/1788)) ([8019d7a](https://github.com/SchoolyB/EZ/commit/8019d7add8d0f84e387bcd5a8cf08b594338ef7b))
+* **typechecker:** catch struct type mismatch in struct field assignment and nested literals ([#1790](https://github.com/SchoolyB/EZ/issues/1790)) ([f5b015b](https://github.com/SchoolyB/EZ/commit/f5b015b393e0a127bf7f98bca9238ee2a974ba8a))
+* **typechecker:** reject reserved stdlib type names as struct names ([#1791](https://github.com/SchoolyB/EZ/issues/1791)) ([9f4c4ac](https://github.com/SchoolyB/EZ/commit/9f4c4ac7a8efe8a96cb404fd65bf5f68051aa99d))
+
 ## [3.5.10](https://github.com/SchoolyB/EZ/compare/v3.5.9...v3.5.10) (2026-06-05)
 
 
