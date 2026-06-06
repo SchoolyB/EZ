@@ -384,6 +384,13 @@ static const char *ez_map_key_kind_macro(const char *c_key_type) {
 
 static AstNode *find_struct_decl(CodeGen *cg, const char *name);
 
+/* Cycle guard for type_needs_deep_copy: tracks struct names currently being
+ * visited so circular references (A -> [B] -> B -> A) don't cause infinite
+ * recursion and a stack-overflow crash. */
+#define TNDC_MAX_DEPTH 64
+static const char *tndc_visiting[TNDC_MAX_DEPTH];
+static int tndc_depth = 0;
+
 static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn || !*ez_tn) return false;
     if (ez_tn[0] == '[') return true;
@@ -392,10 +399,16 @@ static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
     if (ez_tn[0] == '^') return false; /* pointers alias; see header comment */
     AstNode *sdecl = find_struct_decl(cg, ez_tn);
     if (!sdecl) return false;
+    /* Cycle detection: if we're already visiting this struct, stop. */
+    for (int j = 0; j < tndc_depth; j++) {
+        if (strcmp(tndc_visiting[j], ez_tn) == 0) return false;
+    }
+    if (tndc_depth < TNDC_MAX_DEPTH) tndc_visiting[tndc_depth++] = ez_tn;
     for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
         const char *ft = sdecl->data.struct_decl.fields[i].type_name;
-        if (type_needs_deep_copy(cg, ft)) return true;
+        if (type_needs_deep_copy(cg, ft)) { tndc_depth--; return true; }
     }
+    tndc_depth--;
     return false;
 }
 
@@ -543,6 +556,12 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     }
 }
 
+/* Cycle guard for emit_struct_deep_copy: prevents infinite recursion when
+ * struct types reference each other in a cycle (e.g. A has [B], B has A). */
+#define ESDC_MAX_DEPTH 64
+static const char *esdc_visiting[ESDC_MAX_DEPTH];
+static int esdc_depth = 0;
+
 static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char *src_var) {
     AstNode *sdecl = find_struct_decl(cg, struct_tn);
     if (!sdecl) {
@@ -550,6 +569,15 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
         emitf(cg, "%s", src_var);
         return;
     }
+    /* Cycle detection: if already emitting a deep copy for this struct type,
+     * fall back to a shallow (bitwise) copy to break the cycle. */
+    for (int j = 0; j < esdc_depth; j++) {
+        if (strcmp(esdc_visiting[j], struct_tn) == 0) {
+            emitf(cg, "%s", src_var);
+            return;
+        }
+    }
+    if (esdc_depth < ESDC_MAX_DEPTH) esdc_visiting[esdc_depth++] = struct_tn;
     const char *c_struct = ez_type_to_c_cg(cg, struct_tn);
     int t = next_dc_tag();
     emitf(cg,
@@ -566,6 +594,7 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
         emit(cg, "; ");
     }
     emitf(cg, "_sd%d; })", t);
+    esdc_depth--;
 }
 
 static void emit_value_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var) {
@@ -2686,6 +2715,11 @@ static AstNode *find_struct_decl(CodeGen *cg, const char *name) {
 
 /* Emit C statements that print the value of c_expr (of type t) to stream.
  * stream is "stdout" or "stderr". Handles all types recursively. */
+/* Cycle guard for emit_value_print struct recursion. */
+#define EVP_MAX_DEPTH 64
+static const char *evp_visiting[EVP_MAX_DEPTH];
+static int evp_depth = 0;
+
 static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream, bool in_container) {
     if (!t || t->kind == TK_UNKNOWN) {
         emit_indent(cg);
@@ -2828,6 +2862,25 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         const char *struct_name = t->name;
         AstNode *sdecl = find_struct_decl(cg, struct_name);
 
+        /* Cycle detection: if already printing this struct type, emit a
+         * placeholder to avoid infinite recursion on circular references. */
+        for (int _j = 0; _j < evp_depth; _j++) {
+            if (evp_visiting[_j] && strcmp(evp_visiting[_j], struct_name) == 0) {
+                emit_indent(cg);
+                emitf(cg, "fprintf(%s, \"%s{...}\");\n", stream, struct_name);
+                break;
+            }
+        }
+        bool _already = false;
+        for (int _j = 0; _j < evp_depth; _j++) {
+            if (evp_visiting[_j] && strcmp(evp_visiting[_j], struct_name) == 0) {
+                _already = true; break;
+            }
+        }
+        if (_already) break;
+
+        if (evp_depth < EVP_MAX_DEPTH) evp_visiting[evp_depth++] = struct_name;
+
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"%s{\");\n", stream, struct_name);
 
@@ -2848,6 +2901,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
             }
         }
 
+        evp_depth--;
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"}\");\n", stream);
         break;
