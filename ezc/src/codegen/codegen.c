@@ -6301,10 +6301,12 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Empty array literal with type annotation; use correct elem size */
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         } else if (node->data.var_decl.value &&
-                   node->data.var_decl.value->kind == NODE_LABEL) {
-            /* Copy-by-default: deep copy when assigning from another
-             * variable. Route through emit_deep_array_copy so nested
-             * array elements get independent backing storage ). */
+                   (node->data.var_decl.value->kind == NODE_LABEL ||
+                    node->data.var_decl.value->kind == NODE_MEMBER_EXPR)) {
+            /* Copy-by-default: deep copy when assigning from another variable
+             * or a struct field access (e.g. `mut copy [int] = s.field`).
+             * Without this, member-expr sources share backing storage with the
+             * originating struct field (#1789). */
             EzType *src_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
             const char *elem_tn = (src_t && src_t->kind == TK_ARRAY)
