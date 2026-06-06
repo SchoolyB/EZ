@@ -8093,7 +8093,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         break;
 
-    case NODE_STRUCT_DECL:
+    case NODE_STRUCT_DECL: {
+        /* E3099: struct name collides with a stdlib opaque type reserved by codegen.
+         * These names map to internal C types (EzRouter, EzThread, etc.) before the
+         * user-struct path, so any user struct with these names silently generates
+         * invalid C with no EZ diagnostic. */
+        static const char *reserved_stdlib_struct_names[] = {
+            "Thread", "Mutex", "SpinLock", "Channel", "Socket",
+            "Listener", "Database", "Router", "HttpRequest", "HttpResponse", NULL
+        };
+        const char *sname = STRUCT_DISPLAY_NAME(node);
+        for (int ri = 0; reserved_stdlib_struct_names[ri]; ri++) {
+            if (strcmp(sname, reserved_stdlib_struct_names[ri]) == 0) {
+                diag_error_codef(tc->diag, "E3099",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname);
+                break;
+            }
+        }
         /* E2053: struct inside function */
         if (tc->func_depth > 0) {
             diag_error_codef(tc->diag, "E2053",
@@ -8110,6 +8126,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         tc->current_struct_name = NULL;
         break;
+    }
 
     case NODE_ENUM_DECL:
         /* E2053: enum inside function */
