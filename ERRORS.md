@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 297 codes** (194 errors, 14 warnings, 89 panics)
+**Total: 298 codes** (195 errors, 14 warnings, 89 panics)
 
 ---
 
@@ -159,6 +159,7 @@
 | `E3097` | safety | pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits |
 | `E3098` | types | type mismatch: cannot assign '%s' to '%s' through pointer dereference |
 | `E3099` | types | '%s' is a reserved stdlib type name and cannot be used as a struct name |
+| `E3100` | types | type name '%s' cannot be used as a value |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -348,4 +349,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-06 19:25:18 UTC*
+*Generated on 2026-06-07 01:42:33 UTC*

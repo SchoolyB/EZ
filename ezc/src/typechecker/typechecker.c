@@ -392,7 +392,10 @@ static bool parse_map_keyval(const char *tn,
 static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
     if (!param_tn || !arg_tn) return NULL;
 
-    if (strcmp(param_tn, "?") == 0) return strdup(arg_tn);
+    if (strcmp(param_tn, "?") == 0) {
+        if (strcmp(arg_tn, "unknown") == 0) return NULL;
+        return strdup(arg_tn);
+    }
 
     size_t plen = strlen(param_tn);
     size_t alen = strlen(arg_tn);
@@ -4122,6 +4125,34 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
                             EzType *at = resolve_expr(tc, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
+                            /* E3100: struct/enum type name passed as a value argument */
+                            if (at->kind == TK_UNKNOWN &&
+                                node->data.call.args[ai]->kind == NODE_LABEL) {
+                                const char *arg_label = node->data.call.args[ai]->data.label.value;
+                                if (!scope_lookup(tc->current_scope, arg_label)) {
+                                    if (is_struct_name(tc, arg_label)) {
+                                        char msg[EZ_MSG_BUF_SIZE];
+                                        snprintf(msg, sizeof(msg),
+                                            "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
+                                            arg_label, arg_label, arg_label);
+                                        diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                        continue;
+                                    } else if (is_enum_name(tc, arg_label)) {
+                                        char msg[EZ_MSG_BUF_SIZE];
+                                        snprintf(msg, sizeof(msg),
+                                            "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
+                                            arg_label, arg_label);
+                                        diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                        continue;
+                                    }
+                                }
+                            }
                             char *bound = bind_wildcard(ptn, at);
                             if (!bound) {
                                 char msg[EZ_MSG_BUF_SIZE];
@@ -4174,6 +4205,35 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                              * suppress the scalar param/arg comparison which
                              * would compare against TK_UNKNOWN. */
                             continue;
+                        }
+                        /* E3100: struct/enum type name passed as a value argument */
+                        if (arg_t->kind == TK_UNKNOWN &&
+                            node->data.call.args[ai]->kind == NODE_LABEL &&
+                            fn_name && strcmp(fn_name, "size_of") != 0) {
+                            const char *arg_label = node->data.call.args[ai]->data.label.value;
+                            if (!scope_lookup(tc->current_scope, arg_label)) {
+                                if (is_struct_name(tc, arg_label)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
+                                        arg_label, arg_label, arg_label);
+                                    diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                } else if (is_enum_name(tc, arg_label)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
+                                        arg_label, arg_label);
+                                    diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                }
+                            }
                         }
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
