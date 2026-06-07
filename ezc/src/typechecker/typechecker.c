@@ -719,6 +719,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"encoding", "url_encode", 1, 1}, {"encoding", "url_decode", 1, 1},
     /* uuid */
     {"uuid", "generate", 0, 0}, {"uuid", "generate_hyphenated", 0, 0},
+    {"uuid", "generate_compact", 0, 0},
     {"uuid", "is_valid", 1, 1},
     {"uuid", "generate_random", 0, 0}, {"uuid", "generate_time_ordered", 0, 0},
     {"uuid", "parse", 1, 1},
