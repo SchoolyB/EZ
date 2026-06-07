@@ -393,7 +393,7 @@ Dereferencing a `nil` pointer causes a runtime panic.
 
 > 💡 **Flip's Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value — handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
 
-> **Note:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts — for example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
+> 💡 **Flip's Tip:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts — for example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
 
 ### 3.2 Composite Types
 
@@ -442,9 +442,7 @@ mut ages map[string:int] = {
 mut empty map[string:int] = {:}  // Empty map
 ```
 
-**Note:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array. The colon distinguishes the two:
-
-> 💡 **Flip's Tip:** `{}` is an empty array, `{:}` is an empty map. Easy to mix up, the colon is the tell!
+> 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array — the colon is the tell!
 
 ```ez
 mut arr [int] = {}       // Empty array
@@ -474,7 +472,7 @@ const Person struct {
 }
 ```
 
-**Note:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
+> 💡 **Flip's Tip:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
 
 #### Recursive Structs
 
@@ -538,7 +536,7 @@ const Direction enum {
 }
 ```
 
-**Note:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
+> 💡 **Flip's Tip:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -2824,7 +2822,7 @@ Formatted output and string formatting functions.
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
 
-> **Note:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
+> 💡 **Flip's Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
 
 #### Padding
 
