@@ -3810,7 +3810,7 @@ static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "generate_hyphenated") == 0) {
         emit(cg, "ez_uuid_generate(ez_default_arena)"); return true;
     }
-    if (strcmp(func, "generate") == 0) {
+    if (strcmp(func, "generate") == 0 || strcmp(func, "generate_compact") == 0) {
         emit(cg, "ez_uuid_generate_compact(ez_default_arena)"); return true;
     }
     if (strcmp(func, "generate_random") == 0) {
@@ -4831,94 +4831,6 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "prepend") == 0 && node->data.call.arg_count == 2) {
-        const char *pp2_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
-        EzType *pp2_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
-        const char *pp2_elem_tn = (pp2_arr_t && pp2_arr_t->kind == TK_ARRAY) ? pp2_arr_t->element_type : NULL;
-        bool pp2_str = pp2_elem_tn && strcmp(pp2_elem_tn, "string") == 0;
-        const char *pp2_c_elem = "int64_t";
-        if (pp2_elem_tn) {
-            EzType *pet2 = type_from_name(pp2_elem_tn);
-            if (pet2->kind == TK_FLOAT) pp2_c_elem = "double";
-            else if (pet2->kind == TK_BOOL) pp2_c_elem = "bool";
-            else if (pet2->kind == TK_STRING) pp2_c_elem = "EzString";
-            else if (pet2->kind == TK_ARRAY) pp2_c_elem = "EzArray";
-            else if (pet2->kind == TK_MAP) pp2_c_elem = "EzMap";
-            else if (pet2->kind == TK_STRUCT) pp2_c_elem = ez_type_to_c_cg(cg, pp2_elem_tn);
-        }
-        emitf(cg, "{ %s _pv = ", pp2_c_elem);
-        emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ");
-        if (cg->loop_scope_depth > 0) {
-            if (pp2_str) {
-                emitf(cg, "_pv = ez_string_new(%s, _pv.data, _pv.len); ", pp2_arena);
-            } else if (pp2_elem_tn && type_needs_deep_copy(cg, pp2_elem_tn)) {
-                emitf(cg, "{ EzArena *_esc = ez_default_arena; ez_default_arena = %s; _pv = ", pp2_arena);
-                emit_value_deep_copy(cg, pp2_elem_tn, "_pv");
-                emit(cg, "; ez_default_arena = _esc; } ");
-            }
-        }
-        emitf(cg, "ez_arrays_prepend(%s, ", pp2_arena);
-        emit_array_arg_addr(cg, node->data.call.args[0]);
-        emit(cg, ", &_pv); }");
-        return true;
-    }
-    if (strcmp(func, "fill") == 0 && node->data.call.arg_count == 3) {
-        EzType *fl_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
-        const char *fl_c_elem = "int64_t";
-        if (fl_arr_t && fl_arr_t->kind == TK_ARRAY && fl_arr_t->element_type) {
-            EzType *fet = type_from_name(fl_arr_t->element_type);
-            if (fet->kind == TK_FLOAT) fl_c_elem = "double";
-            else if (fet->kind == TK_BOOL) fl_c_elem = "bool";
-            else if (fet->kind == TK_STRING) fl_c_elem = "EzString";
-        }
-        emitf(cg, "{ %s _fv = ", fl_c_elem);
-        emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_arrays_fill(ez_default_arena, ");
-        emit_array_arg_addr(cg, node->data.call.args[0]);
-        emit(cg, ", &_fv, ");
-        emit_expression(cg, node->data.call.args[2]);
-        emit(cg, "); }");
-        return true;
-    }
-    if (strcmp(func, "count") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_arrays_count(");
-        emit_array_arg_addr(cg, node->data.call.args[0]);
-        emit(cg, ", ");
-        emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ")");
-        return true;
-    }
-    if ((strcmp(func, "deduplicate") == 0 || strcmp(func, "flatten") == 0) &&
-        node->data.call.arg_count == 1) {
-        emitf(cg, "ez_arrays_%s(ez_default_arena, &", func);
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
-    if (strcmp(func, "split_every") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_arrays_split_every(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", ");
-        emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ")");
-        return true;
-    }
-    if (strcmp(func, "pair") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_arrays_pair(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &");
-        emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ")");
-        return true;
-    }
-    if ((strcmp(func, "get_sum") == 0 || strcmp(func, "get_min") == 0 ||
-         strcmp(func, "get_max") == 0) && node->data.call.arg_count == 1) {
-        emitf(cg, "ez_arrays_%s(", func);
-        emit_array_arg_addr(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
     return false;
 }
 
@@ -5474,7 +5386,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* @os */
                 {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
                 {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
-                {"exec","os"},{"exit","os"},
+                {"exec","os"},
                 /* @time */
                 {"now","time"},{"now_ms","time"},{"now_ns","time"},{"tick","time"},
                 {"elapsed_ms","time"},{"year","time"},{"month","time"},{"day","time"},

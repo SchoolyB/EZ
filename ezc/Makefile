@@ -33,7 +33,8 @@ SRC = src/main.c \
       src/typechecker/types.c \
       src/typechecker/scope.c \
       src/typechecker/typechecker.c \
-      src/codegen/codegen.c
+      src/codegen/codegen.c \
+      src/fmt/fmt.c
 
 OBJ = $(SRC:.c=.o)
 BIN = ezc

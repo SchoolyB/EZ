@@ -90,7 +90,8 @@
     EZ_ERROR("E2076", "syntax", "postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline") \
     EZ_ERROR("E2078", "syntax", "variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'?") \
     EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause") \
-    EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted")
+    EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted") \
+    EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -181,7 +182,8 @@
     EZ_ERROR("E3096", "types", "cannot negate unsigned type '%s'; negation of unsigned types is not defined") \
     EZ_ERROR("E3097", "safety", "pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits") \
     EZ_ERROR("E3098", "types", "type mismatch: cannot assign '%s' to '%s' through pointer dereference") \
-    EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name")
+    EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name") \
+    EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -351,7 +353,9 @@
     EZ_WARNING("W2014", "imports", "intra-directory import already included by directory import") \
     EZ_WARNING("W2015", "imports", "file already imported as part of a directory import; redundant import") \
     EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized; remaining elements will be zero-valued") \
-    EZ_WARNING("W3004", "safety", "pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer")
+    EZ_WARNING("W3004", "safety", "pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer") \
+    EZ_WARNING("W3005", "safety", "when statement matches on enum values without #strict and no default; exhaustiveness is not checked") \
+    EZ_WARNING("W3006", "safety", "empty default branch in when statement; unmatched values are silently ignored")
 
 /* Look up the canonical message for a code like "E3050" or "W2001".
  * Returns NULL if the code is unknown. The returned pointer is a

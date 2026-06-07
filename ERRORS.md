@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 297 codes** (194 errors, 14 warnings, 89 panics)
+**Total: 301 codes** (196 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -71,6 +71,7 @@
 | `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
 | `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
 | `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
+| `E2081` | syntax | '^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^' |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -159,6 +160,7 @@
 | `E3097` | safety | pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits |
 | `E3098` | types | type mismatch: cannot assign '%s' to '%s' through pointer dereference |
 | `E3099` | types | '%s' is a reserved stdlib type name and cannot be used as a struct name |
+| `E3100` | types | type name '%s' cannot be used as a value |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -226,6 +228,8 @@
 | `W2015` | imports | file already imported as part of a directory import; redundant import |
 | `W3003` | safety | fixed-size array is not fully initialized; remaining elements will be zero-valued |
 | `W3004` | safety | pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer |
+| `W3005` | safety | when statement matches on enum values without #strict and no default; exhaustiveness is not checked |
+| `W3006` | safety | empty default branch in when statement; unmatched values are silently ignored |
 
 ---
 
@@ -348,4 +352,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-06 19:25:18 UTC*
+*Generated on 2026-06-07 07:01:36 UTC*

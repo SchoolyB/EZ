@@ -1770,6 +1770,26 @@ static AstNode *parse_func_declaration(Parser *p) {
             node->data.func_decl.return_types[0] = parse_complex_type(p);
             if (!node->data.func_decl.return_types[0]) return NULL;
             node->data.func_decl.return_type_count = 1;
+
+            /* E2081: catch `-> Foo^` — '^' after a type name is a dereference
+             * operator, not a type modifier; the correct form is `-> ^Foo`. */
+            if (peek_token_is(p, TOK_CARET)) {
+                const char *type_name = node->data.func_decl.return_types[0];
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "'^' is a dereference operator, not a type modifier; "
+                    "for a pointer return type write '^%s', not '%s^'",
+                    type_name, type_name);
+                next_token(p); /* consume the '^' so we can point at it */
+                diag_error_msg(p->diag, "E2081", arena_strdup(p->arena, msg),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                /* Recover: parse the body to avoid cascading errors. */
+                if (peek_token_is(p, TOK_LBRACE)) {
+                    next_token(p);
+                    node->data.func_decl.body = parse_block_statement(p);
+                }
+                return node;
+            }
         }
     }
 

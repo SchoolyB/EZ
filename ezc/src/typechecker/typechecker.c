@@ -392,7 +392,10 @@ static bool parse_map_keyval(const char *tn,
 static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
     if (!param_tn || !arg_tn) return NULL;
 
-    if (strcmp(param_tn, "?") == 0) return strdup(arg_tn);
+    if (strcmp(param_tn, "?") == 0) {
+        if (strcmp(arg_tn, "unknown") == 0) return NULL;
+        return strdup(arg_tn);
+    }
 
     size_t plen = strlen(param_tn);
     size_t alen = strlen(arg_tn);
@@ -716,6 +719,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"encoding", "url_encode", 1, 1}, {"encoding", "url_decode", 1, 1},
     /* uuid */
     {"uuid", "generate", 0, 0}, {"uuid", "generate_hyphenated", 0, 0},
+    {"uuid", "generate_compact", 0, 0},
     {"uuid", "is_valid", 1, 1},
     {"uuid", "generate_random", 0, 0}, {"uuid", "generate_time_ordered", 0, 0},
     {"uuid", "parse", 1, 1},
@@ -849,7 +853,9 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     /* io: path args are strings */
     {"io", "read_file", 0, ARG_STRING}, {"io", "read_bytes", 0, ARG_STRING},
     {"io", "read_lines", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
-    {"io", "append_file", 0, ARG_STRING}, {"io", "file_exists", 0, ARG_STRING},
+    {"io", "write_file", 1, ARG_STRING},
+    {"io", "append_file", 0, ARG_STRING}, {"io", "append_file", 1, ARG_STRING},
+    {"io", "file_exists", 0, ARG_STRING},
     {"io", "is_file", 0, ARG_STRING}, {"io", "is_directory", 0, ARG_STRING},
     {"io", "file_size", 0, ARG_STRING}, {"io", "delete_file", 0, ARG_STRING},
     {"io", "rename_file", 0, ARG_STRING}, {"io", "copy_file", 0, ARG_STRING},
@@ -2682,23 +2688,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_INT;
                     }
                 } else if (strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0 ||
-                           strcmp(mfn, "insert") == 0 || strcmp(mfn, "insert_at") == 0 ||
+                           strcmp(mfn, "insert_at") == 0 ||
                            strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
-                           strcmp(mfn, "fill") == 0 || strcmp(mfn, "set") == 0 ||
+                           strcmp(mfn, "fill") == 0 ||
                            strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
-                           strcmp(mfn, "clear") == 0 || strcmp(mfn, "sum") == 0) {
+                           strcmp(mfn, "clear") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* E5007: mutating array functions on const array */
-                if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert") == 0 ||
-                     strcmp(mfn, "insert_at") == 0 ||
+                if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert_at") == 0 ||
                      strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
                      strcmp(mfn, "remove_last") == 0 ||
                      strcmp(mfn, "remove_first") == 0 || strcmp(mfn, "prepend") == 0 ||
-                     strcmp(mfn, "fill") == 0 || strcmp(mfn, "set") == 0 ||
+                     strcmp(mfn, "fill") == 0 ||
                      strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
                      strcmp(mfn, "clear") == 0) &&
                     node->data.call.arg_count > 0) {
@@ -2831,8 +2836,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "set_env") == 0 ||
-                           strcmp(mfn, "exit") == 0) {
+                } else if (strcmp(mfn, "set_env") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -2872,9 +2876,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "round") == 0 || strcmp(mfn, "trunc") == 0 ||
                            strcmp(mfn, "cbrt") == 0 || strcmp(mfn, "hypot") == 0 ||
                            strcmp(mfn, "deg_to_rad") == 0 || strcmp(mfn, "rad_to_deg") == 0 ||
-                           strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0 ||
-                           strcmp(mfn, "mod") == 0 || strcmp(mfn, "pi") == 0 ||
-                           strcmp(mfn, "e") == 0 || strcmp(mfn, "tau") == 0) {
+                           strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0) {
                     result = &TYPE_FLOAT;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -2901,9 +2903,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "is_alive") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "join") == 0 || strcmp(mfn, "sleep_s") == 0 ||
-                           strcmp(mfn, "sleep_ms") == 0 || strcmp(mfn, "sleep_ns") == 0 ||
-                           strcmp(mfn, "detach") == 0 ||
+                } else if (strcmp(mfn, "join") == 0 || strcmp(mfn, "detach") == 0 ||
                            strcmp(mfn, "yield") == 0 ||
                            strcmp(mfn, "sleep") == 0) {
                     result = &TYPE_VOID;
@@ -4122,8 +4122,42 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
                             EzType *at = resolve_expr(tc, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
+                            /* E3100: struct/enum type name passed as a value argument */
+                            if (at->kind == TK_UNKNOWN &&
+                                node->data.call.args[ai]->kind == NODE_LABEL) {
+                                const char *arg_label = node->data.call.args[ai]->data.label.value;
+                                if (!scope_lookup(tc->current_scope, arg_label)) {
+                                    if (is_struct_name(tc, arg_label)) {
+                                        char msg[EZ_MSG_BUF_SIZE];
+                                        snprintf(msg, sizeof(msg),
+                                            "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
+                                            arg_label, arg_label, arg_label);
+                                        diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                        continue;
+                                    } else if (is_enum_name(tc, arg_label)) {
+                                        char msg[EZ_MSG_BUF_SIZE];
+                                        snprintf(msg, sizeof(msg),
+                                            "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
+                                            arg_label, arg_label);
+                                        diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                        continue;
+                                    }
+                                }
+                            }
                             char *bound = bind_wildcard(ptn, at);
                             if (!bound) {
+                                /* arg is TK_UNKNOWN: we are inside a generic
+                                 * function body during the main pass and the
+                                 * outer param hasn't been bound yet. The
+                                 * re-check pass will validate with concrete
+                                 * types — skip the false-positive here. */
+                                if (at->kind == TK_UNKNOWN) continue;
                                 char msg[EZ_MSG_BUF_SIZE];
                                 snprintf(msg, sizeof(msg),
                                     "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
@@ -4174,6 +4208,35 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                              * suppress the scalar param/arg comparison which
                              * would compare against TK_UNKNOWN. */
                             continue;
+                        }
+                        /* E3100: struct/enum type name passed as a value argument */
+                        if (arg_t->kind == TK_UNKNOWN &&
+                            node->data.call.args[ai]->kind == NODE_LABEL &&
+                            fn_name && strcmp(fn_name, "size_of") != 0) {
+                            const char *arg_label = node->data.call.args[ai]->data.label.value;
+                            if (!scope_lookup(tc->current_scope, arg_label)) {
+                                if (is_struct_name(tc, arg_label)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
+                                        arg_label, arg_label, arg_label);
+                                    diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                } else if (is_enum_name(tc, arg_label)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
+                                        arg_label, arg_label);
+                                    diag_error_msg(tc->diag, "E3100", strdup(msg),
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                }
+                            }
                         }
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
@@ -4606,7 +4669,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
                             {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
                             {"current_os","os",TK_INT},{"pid","os",TK_INT},
-                            {"exit","os",TK_VOID},
                             /* @time */
                             {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
                             {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
@@ -4674,8 +4736,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"get_id","threads",TK_INT},
                             {"detach","threads",TK_VOID},{"is_alive","threads",TK_BOOL},
                             {"current","threads",TK_INT},{"yield","threads",TK_VOID},
-                            {"sleep","threads",TK_VOID},{"sleep_s","threads",TK_VOID},
-                            {"sleep_ms","threads",TK_VOID},{"sleep_ns","threads",TK_VOID},
+                            {"sleep","threads",TK_VOID},
                             {"thread_count","threads",TK_INT},
                             /* @sync */
                             {"mutex","sync",TK_UNKNOWN},{"lock","sync",TK_VOID},
@@ -6607,7 +6668,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check for redeclaration in same scope */
             Symbol *existing = scope_lookup_local(tc->current_scope,
                 node->data.var_decl.name);
-            if (existing) {
+            if (existing && existing->def_line != 0) {
+                /* def_line == 0 means this was pre-registered in Pass 1.5
+                 * to allow forward references between global constants;
+                 * that is not a duplicate declaration. */
                 diag_error_codef(tc->diag, "E4003", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node), existing->def_line);
             }
             /* W2002/W2007: check if variable shadows outer scope */
@@ -8198,6 +8262,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             tc->current_scope = scope_create(def_outer);
             check_block(tc, node->data.when_stmt.default_body);
             tc->current_scope = def_outer;
+            /* W3006: empty default branch */
+            if (node->data.when_stmt.default_body->data.block.count == 0) {
+                diag_warning(tc->diag, "W3006",
+                    "empty default branch in when statement; unmatched values are silently ignored",
+                    NODE_FILE(tc, node->data.when_stmt.default_body),
+                    node->data.when_stmt.default_body->token.line,
+                    node->data.when_stmt.default_body->token.column, 0);
+            }
         }
         /* #strict exhaustiveness check for enum types */
         if (node->data.when_stmt.is_strict && !node->data.when_stmt.default_body) {
@@ -8253,6 +8325,34 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 /* #strict on non-enum: just warn that it has no effect without default */
                 diag_error_msg(tc->diag, "E3056",
                     "#strict when on a non-enum type requires a default branch to be exhaustive",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
+        /* W3005: when matches on enum values but has no #strict and no default */
+        if (!node->data.when_stmt.is_strict && !node->data.when_stmt.default_body) {
+            bool has_enum_case = false;
+            for (int ci = 0; ci < node->data.when_stmt.case_count && !has_enum_case; ci++) {
+                for (int cj = 0; cj < node->data.when_stmt.cases[ci].value_count && !has_enum_case; cj++) {
+                    AstNode *cv = node->data.when_stmt.cases[ci].values[cj];
+                    if (cv->kind == NODE_MEMBER_EXPR &&
+                        cv->data.member.object->kind == NODE_LABEL) {
+                        const char *name = cv->data.member.object->data.label.value;
+                        if (is_enum_name(tc, name)) {
+                            has_enum_case = true;
+                        } else {
+                            for (int ui = 0; ui < tc->using_module_count && !has_enum_case; ui++) {
+                                const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                                char prefixed[EZ_MSG_BUF_SIZE];
+                                snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
+                                if (is_enum_name(tc, prefixed)) has_enum_case = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if (has_enum_case) {
+                diag_warning(tc->diag, "W3005",
+                    "when statement matches on enum values without #strict and no default; exhaustiveness is not checked",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
@@ -8950,6 +9050,25 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 }
             }
         }
+    }
+
+    /* Pass 1.5: Pre-register all global constants and variables that have an
+     * explicit type annotation. This allows global initializers to reference
+     * any other global constant regardless of declaration order within the
+     * same file or across imported files. The def_line is intentionally left
+     * as 0 to mark these as pre-registered (not real duplicates); Pass 2
+     * overwrites each entry with the fully resolved type and real def_line. */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind != NODE_VAR_DECL) continue;
+        if (!stmt->data.var_decl.type_name) continue; /* inferred type — skip */
+        if (scope_lookup_local(tc->current_scope, stmt->data.var_decl.name)) continue;
+        EzType *pre_t = type_from_name(stmt->data.var_decl.type_name);
+        if (!pre_t) continue;
+        scope_define(tc->current_scope, stmt->data.var_decl.name,
+            pre_t, stmt->data.var_decl.mutable);
+        /* Leave def_line = 0: sentinel that lets the E4003 duplicate check
+         * in check_statement distinguish pre-registration from real duplicates. */
     }
 
     /* Pass 2: check all statements */

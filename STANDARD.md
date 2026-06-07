@@ -84,12 +84,6 @@ Multi-line comments do not nest. A `/*` inside a multi-line comment has no speci
 
 Identifiers name program entities such as variables, functions, types, and modules.
 
-```
-identifier = letter { letter | digit | "_" } .
-letter     = "A" ... "Z" | "a" ... "z" .
-digit      = "0" ... "9" .
-```
-
 Identifiers must:
 - Begin with an ASCII letter
 - Contain only ASCII letters, digits, and underscores
@@ -163,17 +157,6 @@ true
 
 Integer literals represent integer values.
 
-```
-int_literal    = decimal_lit | hex_lit | octal_lit | binary_lit .
-decimal_lit    = digit { [ "_" ] digit } .
-hex_lit        = "0" ( "x" | "X" ) hex_digit { [ "_" ] hex_digit } .
-hex_digit      = digit | "A" ... "F" | "a" ... "f" .
-octal_lit      = "0" ( "o" | "O" ) octal_digit { [ "_" ] octal_digit } .
-octal_digit    = "0" ... "7" .
-binary_lit     = "0" ( "b" | "B" ) bin_digit { [ "_" ] bin_digit } .
-bin_digit      = "0" | "1" .
-```
-
 Underscores may be used for readability but:
 - Must not appear at the beginning or end
 - Must not appear consecutively
@@ -185,22 +168,11 @@ Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`, `0o777`, `0o1_2_3`, `0b1010`
 
 Floating-point literals represent floating-point values.
 
-```
-float_literal = digit { digit } "." digit { digit } .
-```
-
 Examples: `3.14159`, `0.5`, `100.0`
 
 #### 2.7.3 String Literals
 
 String literals represent string values.
-
-```
-string_literal = '"' { string_char | escape_seq | interpolation } '"' .
-string_char    = /* any UTF-8 character except '"', '\', or newline */ .
-escape_seq     = "\" ( "n" | "r" | "t" | "\" | '"' ) .
-interpolation  = "${" expression "}" .
-```
 
 Escape sequences:
 - `\n` - line feed (U+000A)
@@ -221,11 +193,6 @@ mut greeting string = "Hello, ${name}!"  // "Hello, World!"
 
 Raw string literals are enclosed in backticks and do not process escape sequences or string interpolation:
 
-```
-raw_string_literal = "`" { raw_string_char } "`" .
-raw_string_char    = /* any UTF-8 character except "`" */ .
-```
-
 Raw strings:
 - Do not process escape sequences (`\n` is a literal backslash followed by `n`)
 - Do not process string interpolation (`${x}` is literal text)
@@ -244,26 +211,13 @@ line3`
 
 Character literals represent single character values.
 
-```
-char_literal = "'" ( char_char | escape_seq ) "'" .
-char_char    = /* any UTF-8 character except "'", '\', or newline */ .
-```
-
 Examples: `'A'`, `'\n'`, `'\t'`
 
 Character literals must contain exactly one character (or escape sequence).
 
 #### 2.7.6 Boolean Literals
 
-```
-bool_literal = "true" | "false" .
-```
-
 #### 2.7.7 Nil Literal
-
-```
-nil_literal = "nil" .
-```
 
 The literal `nil` represents the absence of a value.
 
@@ -437,6 +391,8 @@ Printing a pointer value (`println(p)`, `print(p)`, etc.) outputs the address in
 
 Dereferencing a `nil` pointer causes a runtime panic.
 
+> 💡 **Flip's Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value — handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
+
 > **Note:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts — for example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
 
 ### 3.2 Composite Types
@@ -447,20 +403,12 @@ Arrays are ordered collections of elements of the same type.
 
 **Dynamic arrays** have variable length:
 
-```
-array_type = "[" type "]" .
-```
-
 ```ez
 mut numbers [int] = {1, 2, 3, 4, 5}
 mut empty [string] = {}
 ```
 
 **Fixed-size arrays** have a length specified at declaration:
-
-```
-fixed_array_type = "[" type "," size "]" .
-```
 
 ```ez
 const fixed [int, 3] = {10, 20, 30}
@@ -485,10 +433,6 @@ Array indexing is zero-based. Accessing an index outside the valid range produce
 #### 3.2.2 Maps
 
 Maps are unordered collections of key-value pairs.
-
-```
-map_type = "map" "[" key_type ":" value_type "]" .
-```
 
 ```ez
 mut ages map[string:int] = {
@@ -516,11 +460,6 @@ Accessing a key that does not exist produces a runtime error.
 #### 3.2.3 Structs
 
 Structs are user-defined composite types with named fields.
-
-```
-struct_decl = "const" identifier "struct" "{" { field_decl } "}" .
-field_decl  = identifier type .
-```
 
 ```ez
 const Point struct {
@@ -610,17 +549,6 @@ const Permissions enum {
     EXECUTE   // 4
     DELETE    // 8
 }
-```
-
-**String enums** (explicit string values):
-
-```ez
-const Status enum {
-    TODO = "todo"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
-}
-```
 
 Enum values are accessed using dot notation:
 
@@ -697,10 +625,6 @@ Conversions that would lose information or are invalid produce check-time or run
 
 The `cast` keyword provides explicit type conversion for values and arrays:
 
-```
-cast_expr = "cast" "(" expression "," type ")" .
-```
-
 ```ez
 mut small u8 = cast(42, u8)
 mut truncated int = cast(3.7, int)     // 3
@@ -726,10 +650,6 @@ Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
 Variables are declared using the `mut` keyword:
 
-```
-var_decl = "mut" identifier type "=" expression .
-```
-
 ```ez
 mut count int = 0
 mut name string = "Alice"
@@ -745,31 +665,10 @@ Variables declared with `mut`:
 
 Constants are declared using the `const` keyword:
 
-```
-const_decl = "const" identifier [ type ] "=" expression .
-```
-
 ```ez
 const PI float = 3.14159
 const MAX_SIZE int = 100
 const origin = Point{x: 0, y: 0}
-```
-
-Constants declared with `const`:
-- Must be initialized at declaration
-- Cannot be reassigned
-- Cannot have their contents modified (for composite types)
-- Are scoped to their containing block (or module, if at top level)
-
-### 4.3 Mutability
-
-The `const` keyword indicates complete immutability:
-
-```ez
-const arr [int, 3] = {1, 2, 3}
-arr[0] = 10  // ERROR: Cannot modify const
-arr = {4, 5, 6}  // ERROR: Cannot reassign const
-```
 
 The `mut` keyword allows modification and **ensures the value itself is mutable**:
 
@@ -857,15 +756,6 @@ The blank identifier:
 ## 5. Expressions
 
 ### 5.1 Primary Expressions
-
-```
-primary_expr = identifier
-             | literal
-             | "(" expression ")"
-             | array_literal
-             | map_literal
-             | struct_literal .
-```
 
 #### 5.1.1 Array Literals
 
@@ -1028,10 +918,6 @@ println("Hello!")
 
 ### 5.7 Range Expressions
 
-```
-range_expr = "range" "(" start "," end [ "," step ] ")" .
-```
-
 ```ez
 range(0, 10)       // 0, 1, 2, ..., 9  (increment)
 range(0, 10, 2)    // 0, 2, 4, 6, 8    (increment)
@@ -1065,10 +951,6 @@ do_something()
 
 #### 6.2.1 If Statements
 
-```
-if_stmt = "if" expression block { "or" expression block } [ "otherwise" block ] .
-```
-
 ```ez
 if x < 0 {
     println("negative")
@@ -1087,10 +969,6 @@ The `otherwise` keyword introduces the default case (similar to `else`).
 
 #### 6.3.1 For Loops
 
-```
-for_stmt = "for" [ "(" ] identifier [ type ] "in" range_expr [ ")" ] block .
-```
-
 ```ez
 for i in range(0, 10) {
     println("${i}")
@@ -1106,10 +984,6 @@ for (i in range(0, 10)) {
 ```
 
 #### 6.3.2 For-Each Loops
-
-```
-for_each_stmt = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
-```
 
 ```ez
 mut items [string] = {"a", "b", "c"}
@@ -1167,10 +1041,6 @@ Map iteration order is undefined (maps are unordered).
 
 #### 6.3.3 While Loops
 
-```
-while_stmt = ( "as_long_as" | "while" ) expression block .
-```
-
 `while` is an alias for `as_long_as`. Both are valid — user's choice.
 
 > 💡 **Flip's Tip:** `while` and `as_long_as` are identical. Pick whichever reads more naturally to you and stick with it.
@@ -1188,10 +1058,6 @@ while count < 10 {
 ```
 
 #### 6.3.4 Infinite Loops
-
-```
-loop_stmt = "loop" block .
-```
 
 The `loop` statement creates an infinite loop that runs until explicitly terminated with `break` or `return`:
 
@@ -1249,13 +1115,6 @@ do greet() {
 
 ### 6.5 When Statements (Pattern Matching)
 
-```
-when_stmt = [ "#strict" ] "when" expression "{" { when_case } [ default_case ] "}" .
-when_case = "is" pattern { "," pattern } block .
-default_case = "default" block .
-pattern = expression | range_expr .
-```
-
 ```ez
 when x {
     is 1 { println("one") }
@@ -1279,6 +1138,10 @@ when direction {
 }
 ```
 
+When a `when` statement matches on enum values (i.e. one or more `is` branches use `EnumName.VARIANT` patterns) and has no `default` branch, the compiler emits **W3005** if `#strict` is not present. This warns that exhaustiveness is not being checked. The fix is to either add `#strict` to enforce exhaustive coverage or add a `default` branch. This applies at any nesting depth.
+
+An empty `default {}` branch emits **W3006**. Unmatched values are silently ignored, which is almost never intentional. Either handle the case or add a comment explaining the intent.
+
 ### 6.6 Ensure Statement
 
 The `ensure` statement specifies a function to call when the enclosing function exits (whether normally or via early return):
@@ -1297,10 +1160,6 @@ do process_file() {
 ### 6.7 Or-Return Statement
 
 The `or_return` keyword provides error propagation shorthand for functions that return `(T, Error)` tuples:
-
-```
-or_return_stmt = var_decl "or_return" [ expression { "," expression } ] .
-```
 
 ```ez
 do load() -> (string, Error) {
@@ -1321,15 +1180,6 @@ When the call returns a non-nil error, `or_return` immediately returns from the 
 ## 7. Functions
 
 ### 7.1 Function Declarations
-
-```
-func_decl = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
-param_list = param { "," param } .
-param = [ "&" ] identifier [ "," identifier ]... type [ "=" default_value ] .
-return_type = type | "(" type { "," type } ")"
-            | "(" named_return { "," named_return } ")" .
-named_return = identifier [ "," identifier ]... type .
-```
 
 ```ez
 do add(a int, b int) -> int {
@@ -1355,20 +1205,6 @@ By default, parameters are passed by value and cannot modify the caller's variab
 do double(x int) -> int {
     return x * 2
 }
-```
-
-#### 7.2.2 Mutable Parameters
-
-Parameters prefixed with `&` can modify the caller's variables:
-
-```ez
-do increment(&n int) {
-    n = n + 1
-}
-
-mut count int = 0
-increment(count)  // count is now 1
-```
 
 Mutable parameters work with:
 - Primitive types
@@ -1435,6 +1271,19 @@ do square(x int) -> int {
     return x * x
 }
 ```
+
+> 💡 **Flip's Tip:** If a function returns `^Type`, you can dereference at the call site with `^` to get the value directly without storing the pointer:
+> ```ez
+> do something() -> ^Foo {
+>     mut f = new(Foo)
+>     return f
+> }
+>
+> do main() {
+>     mut f = something()^   // dereference at call site — f is Foo, not ^Foo
+>     println(f)
+> }
+> ```
 
 #### 7.3.2 Multiple Return Values
 
@@ -1798,11 +1647,6 @@ All relative import paths are resolved relative to the **entry point file's dire
 
 ### 8.2 Imports
 
-```
-import_decl = "import" [ "and" "use" ] import_path { "," import_path } .
-import_path = [ alias ] ( "@" identifier | string_literal ) | "c" string_literal .
-```
-
 **Standard library imports** are prefixed with `@`:
 
 ```ez
@@ -1942,10 +1786,6 @@ sqrt(16.0)
 ### 8.6 C Interop
 
 EZ can import C headers and call C functions directly using the `c` prefix:
-
-```
-c_import = "import" "c" string_literal .
-```
 
 #### Importing C Headers
 
@@ -3158,29 +2998,6 @@ for_each line in lines {
 }
 // results lives until its scope ends
 // each iteration's other temporaries are freed
-```
-
-Three cases where EZ keeps values alive:
-
-1. **Returning a value** — the return value is copied to the caller's scope
-2. **Storing into an outer-scope container** — array append, map insert, struct field assignment
-3. **Assigning to a variable declared in an outer scope**
-
-Everything else is freed when the block ends.
-
-### 11.2 Allocation Strategy
-
-Primitive types (`int`, `uint`, `float`, `bool`, `char`, `byte`) are stack-allocated. Compound types (`string`, arrays, maps, structs created with `new()`) are allocated in the current scope's memory region and freed when that scope ends.
-
-### 11.3 Value Semantics
-
-Primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`, `byte`) have value semantics. Assignment creates a copy:
-
-```ez
-mut a int = 42
-mut b int = a  // b is a copy of a
-b = 100         // a is still 42
-```
 
 ### 11.4 Reference Semantics
 
