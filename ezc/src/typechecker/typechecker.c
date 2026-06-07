@@ -4152,6 +4152,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                             char *bound = bind_wildcard(ptn, at);
                             if (!bound) {
+                                /* arg is TK_UNKNOWN: we are inside a generic
+                                 * function body during the main pass and the
+                                 * outer param hasn't been bound yet. The
+                                 * re-check pass will validate with concrete
+                                 * types — skip the false-positive here. */
+                                if (at->kind == TK_UNKNOWN) continue;
                                 char msg[EZ_MSG_BUF_SIZE];
                                 snprintf(msg, sizeof(msg),
                                     "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
