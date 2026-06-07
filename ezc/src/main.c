@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -26,6 +27,7 @@
 #include "parser/parser.h"
 #include "typechecker/typechecker.h"
 #include "codegen/codegen.h"
+#include "fmt/fmt.h"
 
 #ifndef EZ_VERSION
 #define EZ_VERSION "unknown"
@@ -610,6 +612,7 @@ int main(int argc, char **argv) {
     bool emit_c_only = false;
     bool check_only = false;
     bool run_mode = false;
+    bool fmt_mode = false;
     bool verbose = false;
     bool show_time = false;
     bool no_color = false;
@@ -681,6 +684,10 @@ int main(int argc, char **argv) {
             run_mode = true;
             continue;
         }
+        if (strcmp(argv[i], "--fmt") == 0) {
+            fmt_mode = true;
+            continue;
+        }
         if (argv[i][0] == '-') {
             fprintf(stderr, "ez: unknown option '%s'\n", argv[i]);
             return 1;
@@ -696,6 +703,56 @@ int main(int argc, char **argv) {
     /* Read source file */
     char *source = read_file(input_file);
     if (!source) return 1;
+
+    /* fmt mode: reformat and write back, then exit */
+    if (fmt_mode) {
+        FILE *tmp = tmpfile();
+        if (!tmp) {
+            fprintf(stderr, "ez: fmt: could not create temp file\n");
+            free(source);
+            return 1;
+        }
+        int rc = ez_fmt_source(source, input_file, tmp);
+        if (rc != 0) {
+            fprintf(stderr, "ez: fmt: failed to format '%s'\n", input_file);
+            fclose(tmp);
+            free(source);
+            return 1;
+        }
+        /* Read formatted output back */
+        long fmt_len = ftell(tmp);
+        rewind(tmp);
+        char *fmt_buf = malloc(fmt_len + 1);
+        if (!fmt_buf || (long)fread(fmt_buf, 1, fmt_len, tmp) != fmt_len) {
+            fprintf(stderr, "ez: fmt: failed to read formatted output\n");
+            fclose(tmp);
+            free(source);
+            return 1;
+        }
+        fmt_buf[fmt_len] = '\0';
+        fclose(tmp);
+        /* Write back to the original file with explicit 0644 permissions */
+        int wfd = open(input_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (wfd < 0) {
+            fprintf(stderr, "ez: fmt: cannot write '%s'\n", input_file);
+            free(fmt_buf);
+            free(source);
+            return 1;
+        }
+        FILE *f = fdopen(wfd, "w");
+        if (!f) {
+            fprintf(stderr, "ez: fmt: cannot write '%s'\n", input_file);
+            close(wfd);
+            free(fmt_buf);
+            free(source);
+            return 1;
+        }
+        fwrite(fmt_buf, 1, fmt_len, f);
+        fclose(f);
+        free(fmt_buf);
+        free(source);
+        return 0;
+    }
 
     /* Create compiler arena and diagnostics */
     Arena *arena = arena_create(EZ_COMPILER_ARENA_SIZE);
