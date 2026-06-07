@@ -1442,6 +1442,19 @@ do square(x int) -> int {
 }
 ```
 
+> 💡 **Flip's Tip:** If a function returns `^Type`, you can dereference at the call site with `^` to get the value directly without storing the pointer:
+> ```ez
+> do something() -> ^Foo {
+>     mut f = new(Foo)
+>     return f
+> }
+>
+> do main() {
+>     mut f = something()^   // dereference at call site — f is Foo, not ^Foo
+>     println(f)
+> }
+> ```
+
 #### 7.3.2 Multiple Return Values
 
 ```ez
