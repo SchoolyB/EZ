@@ -5386,7 +5386,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* @os */
                 {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
                 {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
-                {"exec","os"},{"exit","os"},
+                {"exec","os"},
                 /* @time */
                 {"now","time"},{"now_ms","time"},{"now_ns","time"},{"tick","time"},
                 {"elapsed_ms","time"},{"year","time"},{"month","time"},{"day","time"},
