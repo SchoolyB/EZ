@@ -30,6 +30,12 @@
 
 ## 1. Introduction
 
+<p align="center">
+  <img src="images/Flip.png" alt="Flip - EZ Mascot" width="200">
+</p>
+
+> 💡 Throughout this document, tips and callouts are provided by **Flip** — the official mascot of EZ.
+
 ### 1.1 Purpose
 
 This document defines the EZ programming language. It serves as the authoritative reference for the language's syntax, semantics, and behavior. Implementations of EZ must conform to this specification.

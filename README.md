@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Flip.png" alt="Flip - EZ Mascot" width="275">
+  <img src="images/Flip.png" alt="Flip - EZ Mascot" width="275">
 </p>
 <h1 align="center">EZ</h1>
 
