@@ -30,6 +30,12 @@
 
 ## 1. Introduction
 
+<p align="center">
+  <img src="images/Flip.png" alt="Flip - EZ Mascot" width="200">
+</p>
+
+> 💡 Throughout this document, tips and callouts are provided by **Flip** — the official mascot of EZ.
+
 ### 1.1 Purpose
 
 This document defines the EZ programming language. It serves as the authoritative reference for the language's syntax, semantics, and behavior. Implementations of EZ must conform to this specification.
@@ -393,7 +399,7 @@ Dereferencing a `nil` pointer causes a runtime panic.
 
 > 💡 **Flip's Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value — handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
 
-> **Note:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts — for example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
+> 💡 **Flip's Tip:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts — for example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
 
 ### 3.2 Composite Types
 
@@ -442,9 +448,7 @@ mut ages map[string:int] = {
 mut empty map[string:int] = {:}  // Empty map
 ```
 
-**Note:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array. The colon distinguishes the two:
-
-> 💡 **Flip's Tip:** `{}` is an empty array, `{:}` is an empty map. Easy to mix up, the colon is the tell!
+> 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array — the colon is the tell!
 
 ```ez
 mut arr [int] = {}       // Empty array
@@ -474,7 +478,7 @@ const Person struct {
 }
 ```
 
-**Note:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
+> 💡 **Flip's Tip:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
 
 #### Recursive Structs
 
@@ -493,7 +497,7 @@ const Bad struct {
 }
 ```
 
-To traverse a recursive struct, use explicit pointer dereference (`^`) when accessing fields through the pointer:
+To traverse a recursive struct, dot notation automatically dereferences pointer fields — no explicit `^` required. The `^` suffix is also accepted if preferred:
 
 ```ez
 mut a = new(Node)
@@ -503,7 +507,8 @@ b.val  = 2
 a.next = b
 
 println(a.val)        // 1
-println(a.next^.val)  // 2
+println(a.next.val)   // 2  — implicit dereference
+println(a.next^.val)  // 2  — explicit dereference (also valid)
 ```
 
 Mutual recursion (two structs referencing each other) is not supported.
@@ -537,7 +542,7 @@ const Direction enum {
 }
 ```
 
-**Note:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
+> 💡 **Flip's Tip:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -2823,7 +2828,7 @@ Formatted output and string formatting functions.
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
 
-> **Note:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
+> 💡 **Flip's Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
 
 #### Padding
 
