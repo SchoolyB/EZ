@@ -533,6 +533,16 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         }
         rewrite_labels(node->data.func_decl.body, orig, prefixed, count, arena);
         break;
+    case NODE_ARRAY_VALUE:
+        for (int i = 0; i < node->data.array_value.count; i++)
+            rewrite_labels(node->data.array_value.elements[i], orig, prefixed, count, arena);
+        break;
+    case NODE_MAP_VALUE:
+        for (int i = 0; i < node->data.map_value.count; i++) {
+            rewrite_labels(node->data.map_value.keys[i], orig, prefixed, count, arena);
+            rewrite_labels(node->data.map_value.values[i], orig, prefixed, count, arena);
+        }
+        break;
     default: break;
     }
 }
@@ -1460,6 +1470,15 @@ int main(int argc, char **argv) {
                     program->data.program.stmt_count++;
                 }
                 } /* end for (pi: rewrite+merge pass) */
+
+                /* Rewrite label references in the main program's own statements.
+                 * Imported var/func/struct nodes are already rewritten above; this
+                 * pass fixes the main file's own initializers and function bodies
+                 * that reference imported names by their original (unqualified) name. */
+                for (int si = 0; si < program->data.program.stmt_count; si++) {
+                    rewrite_labels(program->data.program.stmts[si],
+                        orig_names, new_names, name_count, arena);
+                }
 
                 /* Mark this import item as fully processed so re-scanning
                  * the import list on the next while iteration doesn't
