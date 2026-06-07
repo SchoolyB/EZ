@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 300 codes** (195 errors, 16 warnings, 89 panics)
+**Total: 301 codes** (196 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -71,6 +71,7 @@
 | `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
 | `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
 | `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
+| `E2081` | syntax | '^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^' |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -351,4 +352,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-07 06:17:59 UTC*
+*Generated on 2026-06-07 06:31:28 UTC*
