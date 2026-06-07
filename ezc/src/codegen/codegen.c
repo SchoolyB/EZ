@@ -3807,10 +3807,10 @@ static bool emit_time_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @uuid module --- */
 
 static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "generate") == 0 || strcmp(func, "generate_hyphenated") == 0) {
+    if (strcmp(func, "generate_hyphenated") == 0) {
         emit(cg, "ez_uuid_generate(ez_default_arena)"); return true;
     }
-    if (strcmp(func, "generate_compact") == 0) {
+    if (strcmp(func, "generate") == 0 || strcmp(func, "generate_compact") == 0) {
         emit(cg, "ez_uuid_generate_compact(ez_default_arena)"); return true;
     }
     if (strcmp(func, "generate_random") == 0) {
