@@ -493,7 +493,7 @@ const Bad struct {
 }
 ```
 
-To traverse a recursive struct, use explicit pointer dereference (`^`) when accessing fields through the pointer:
+To traverse a recursive struct, dot notation automatically dereferences pointer fields — no explicit `^` required. The `^` suffix is also accepted if preferred:
 
 ```ez
 mut a = new(Node)
@@ -503,7 +503,8 @@ b.val  = 2
 a.next = b
 
 println(a.val)        // 1
-println(a.next^.val)  // 2
+println(a.next.val)   // 2  — implicit dereference
+println(a.next^.val)  // 2  — explicit dereference (also valid)
 ```
 
 Mutual recursion (two structs referencing each other) is not supported.
