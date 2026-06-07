@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -730,10 +731,18 @@ int main(int argc, char **argv) {
         }
         fmt_buf[fmt_len] = '\0';
         fclose(tmp);
-        /* Write back to the original file */
-        FILE *f = fopen(input_file, "w");
+        /* Write back to the original file with explicit 0644 permissions */
+        int wfd = open(input_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (wfd < 0) {
+            fprintf(stderr, "ez: fmt: cannot write '%s'\n", input_file);
+            free(fmt_buf);
+            free(source);
+            return 1;
+        }
+        FILE *f = fdopen(wfd, "w");
         if (!f) {
             fprintf(stderr, "ez: fmt: cannot write '%s'\n", input_file);
+            close(wfd);
             free(fmt_buf);
             free(source);
             return 1;

@@ -101,19 +101,21 @@ static bool line_is_in_raw_string(const char *src, int target_line) {
     int line = 1;
     bool in_raw = false;
     bool in_str = false;  /* regular double-quoted string */
-    for (const char *p = src; *p && line < target_line; p++) {
-        if (*p == '\n') { line++; continue; }
+    const char *p = src;
+    while (*p && line < target_line) {
+        if (*p == '\n') { line++; p++; continue; }
         if (in_raw) {
             if (*p == '`') in_raw = false;
-            continue;
+            p++; continue;
         }
         if (in_str) {
-            if (*p == '\\') { p++; continue; } /* skip escape */
+            if (*p == '\\' && *(p + 1)) { p += 2; continue; } /* skip escape */
             if (*p == '"')  { in_str = false; }
-            continue;
+            p++; continue;
         }
-        if (*p == '`') { in_raw = true; continue; }
-        if (*p == '"') { in_str = true; continue; }
+        if (*p == '`') { in_raw = true; p++; continue; }
+        if (*p == '"') { in_str = true; p++; continue; }
+        p++;
     }
     return in_raw;
 }
