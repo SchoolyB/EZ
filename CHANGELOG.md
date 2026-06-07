@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.5.12](https://github.com/SchoolyB/EZ/compare/v3.5.11...v3.5.12) (2026-06-07)
+
+
+### Bug Fixes
+
+* **cli:** restore formatEZSource for fmt unit tests ([24e28ff](https://github.com/SchoolyB/EZ/commit/24e28ffec5f5092940ce5f919cc6b9c5989eae9c))
+* **codegen:** correct uuid.generate() mapping and wire missing generate_compact ([aa28123](https://github.com/SchoolyB/EZ/commit/aa28123b6b01e514fc0769d83826437e66142381))
+* **codegen:** restore correct uuid.generate() → compact mapping ([67ddafc](https://github.com/SchoolyB/EZ/commit/67ddafcbd6f1ac492bce0aa53c7540dd8230eed0))
+* **fmt:** implement lexer-based indentation engine for ez fmt ([984425f](https://github.com/SchoolyB/EZ/commit/984425ff00308b5bc251f5e804897e5f27407455))
+* **fmt:** implement lexer-based indentation engine for ez fmt ([bdc0fe8](https://github.com/SchoolyB/EZ/commit/bdc0fe87c580a00e1d42d59f248d89ba7bda3303))
+* **parser:** reject postfix ^ in return type with E2081 ([223e3c7](https://github.com/SchoolyB/EZ/commit/223e3c763801305e51961f8f48f3182dc83cc906))
+* **tests:** replace httpbin.org with httpbun.com for reliable CI ([6989944](https://github.com/SchoolyB/EZ/commit/69899447a0a153e33e716e4386dea79ec3e0c1f1))
+* **typechecker:** add W3005 and W3006 warnings for unsafe when statement patterns ([55bcfe7](https://github.com/SchoolyB/EZ/commit/55bcfe7b6271291b3e5006fe87e2fa1f8b2693ff))
+* **typechecker:** catch struct/enum type names used as value arguments ([#1797](https://github.com/SchoolyB/EZ/issues/1797)) ([6f2ac19](https://github.com/SchoolyB/EZ/commit/6f2ac197809cd565ac92af3b7110926631dab727))
+* **typechecker:** remove phantom arrays.insert, set, and sum functions ([13f6214](https://github.com/SchoolyB/EZ/commit/13f621405839599ab9bcc34afa6660e4f69edb19))
+* **typechecker:** remove phantom math.mod/pi/e/tau function registrations ([b952bc0](https://github.com/SchoolyB/EZ/commit/b952bc0df01db20836f429962e11fdc9809a64fc))
+* **typechecker:** remove phantom threads.sleep_s/sleep_ms/sleep_ns — sleep() is the only threads sleep, _s/_ms/_ns are builtins ([ab8d7bd](https://github.com/SchoolyB/EZ/commit/ab8d7bde15a096159d983f756982db41be259b10))
+* **typechecker:** resolve imported constants in global array initializers ([611d3f2](https://github.com/SchoolyB/EZ/commit/611d3f246f2d0eceefe601106bc052cb9ec811ee))
+* **typechecker:** skip false-positive E3001 when wildcard arg is unresolved in main pass ([3b2d2fb](https://github.com/SchoolyB/EZ/commit/3b2d2fb7a751262520fe4e219cf80c15a53ef0fc))
+* **typechecker:** validate io.write_file and io.append_file content arg type ([dcf4b61](https://github.com/SchoolyB/EZ/commit/dcf4b61f015016f7c13a8b076c3815452604c264))
+
 ## [3.5.11](https://github.com/SchoolyB/EZ/compare/v3.5.10...v3.5.11) (2026-06-06)
 
 
