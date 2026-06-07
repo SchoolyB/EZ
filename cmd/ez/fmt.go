@@ -12,6 +12,53 @@ import (
 	"github.com/marshallburns/ez/internal/ezc"
 )
 
+// formatEZSource applies text-level normalizations to EZ source bytes:
+//   - trailing whitespace stripped from each line
+//   - leading tabs expanded to 4 spaces each
+//   - runs of more than 2 consecutive blank lines collapsed to 2
+//   - exactly one trailing newline at EOF
+func formatEZSource(src []byte) []byte {
+	lines := strings.Split(string(src), "\n")
+
+	// Expand leading tabs and strip trailing whitespace on each line.
+	for i, line := range lines {
+		// Expand leading tabs: count leading tab/space mix, replace tabs with 4 spaces.
+		j := 0
+		var prefix strings.Builder
+		for j < len(line) && (line[j] == '\t' || line[j] == ' ') {
+			if line[j] == '\t' {
+				prefix.WriteString("    ")
+			} else {
+				prefix.WriteByte(' ')
+			}
+			j++
+		}
+		rest := strings.TrimRight(line[j:], " \t")
+		lines[i] = prefix.String() + rest
+	}
+
+	// Collapse runs of more than 2 consecutive blank lines.
+	var out []string
+	blank := 0
+	for _, line := range lines {
+		if line == "" {
+			blank++
+			if blank <= 2 {
+				out = append(out, line)
+			}
+		} else {
+			blank = 0
+			out = append(out, line)
+		}
+	}
+
+	// Strip trailing blank lines, then add exactly one trailing newline.
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+	return []byte(strings.Join(out, "\n") + "\n")
+}
+
 // collectFmtFiles expands the user-supplied args into a deduplicated list
 // of .ez file paths. Supported forms:
 //
