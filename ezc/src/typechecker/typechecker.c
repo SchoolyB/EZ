@@ -2877,9 +2877,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "round") == 0 || strcmp(mfn, "trunc") == 0 ||
                            strcmp(mfn, "cbrt") == 0 || strcmp(mfn, "hypot") == 0 ||
                            strcmp(mfn, "deg_to_rad") == 0 || strcmp(mfn, "rad_to_deg") == 0 ||
-                           strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0 ||
-                           strcmp(mfn, "mod") == 0 || strcmp(mfn, "pi") == 0 ||
-                           strcmp(mfn, "e") == 0 || strcmp(mfn, "tau") == 0) {
+                           strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0) {
                     result = &TYPE_FLOAT;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
