@@ -852,7 +852,9 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     /* io: path args are strings */
     {"io", "read_file", 0, ARG_STRING}, {"io", "read_bytes", 0, ARG_STRING},
     {"io", "read_lines", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
-    {"io", "append_file", 0, ARG_STRING}, {"io", "file_exists", 0, ARG_STRING},
+    {"io", "write_file", 1, ARG_STRING},
+    {"io", "append_file", 0, ARG_STRING}, {"io", "append_file", 1, ARG_STRING},
+    {"io", "file_exists", 0, ARG_STRING},
     {"io", "is_file", 0, ARG_STRING}, {"io", "is_directory", 0, ARG_STRING},
     {"io", "file_size", 0, ARG_STRING}, {"io", "delete_file", 0, ARG_STRING},
     {"io", "rename_file", 0, ARG_STRING}, {"io", "copy_file", 0, ARG_STRING},
@@ -6667,7 +6669,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check for redeclaration in same scope */
             Symbol *existing = scope_lookup_local(tc->current_scope,
                 node->data.var_decl.name);
-            if (existing) {
+            if (existing && existing->def_line != 0) {
+                /* def_line == 0 means this was pre-registered in Pass 1.5
+                 * to allow forward references between global constants;
+                 * that is not a duplicate declaration. */
                 diag_error_codef(tc->diag, "E4003", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node), existing->def_line);
             }
             /* W2002/W2007: check if variable shadows outer scope */
@@ -9010,6 +9015,25 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 }
             }
         }
+    }
+
+    /* Pass 1.5: Pre-register all global constants and variables that have an
+     * explicit type annotation. This allows global initializers to reference
+     * any other global constant regardless of declaration order within the
+     * same file or across imported files. The def_line is intentionally left
+     * as 0 to mark these as pre-registered (not real duplicates); Pass 2
+     * overwrites each entry with the fully resolved type and real def_line. */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind != NODE_VAR_DECL) continue;
+        if (!stmt->data.var_decl.type_name) continue; /* inferred type — skip */
+        if (scope_lookup_local(tc->current_scope, stmt->data.var_decl.name)) continue;
+        EzType *pre_t = type_from_name(stmt->data.var_decl.type_name);
+        if (!pre_t) continue;
+        scope_define(tc->current_scope, stmt->data.var_decl.name,
+            pre_t, stmt->data.var_decl.mutable);
+        /* Leave def_line = 0: sentinel that lets the E4003 duplicate check
+         * in check_statement distinguish pre-registration from real duplicates. */
     }
 
     /* Pass 2: check all statements */
