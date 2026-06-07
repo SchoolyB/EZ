@@ -2688,23 +2688,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_INT;
                     }
                 } else if (strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0 ||
-                           strcmp(mfn, "insert") == 0 || strcmp(mfn, "insert_at") == 0 ||
+                           strcmp(mfn, "insert_at") == 0 ||
                            strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
-                           strcmp(mfn, "fill") == 0 || strcmp(mfn, "set") == 0 ||
+                           strcmp(mfn, "fill") == 0 ||
                            strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
-                           strcmp(mfn, "clear") == 0 || strcmp(mfn, "sum") == 0) {
+                           strcmp(mfn, "clear") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* E5007: mutating array functions on const array */
-                if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert") == 0 ||
-                     strcmp(mfn, "insert_at") == 0 ||
+                if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert_at") == 0 ||
                      strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
                      strcmp(mfn, "remove_last") == 0 ||
                      strcmp(mfn, "remove_first") == 0 || strcmp(mfn, "prepend") == 0 ||
-                     strcmp(mfn, "fill") == 0 || strcmp(mfn, "set") == 0 ||
+                     strcmp(mfn, "fill") == 0 ||
                      strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
                      strcmp(mfn, "clear") == 0) &&
                     node->data.call.arg_count > 0) {
