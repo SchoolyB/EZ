@@ -8256,6 +8256,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             tc->current_scope = scope_create(def_outer);
             check_block(tc, node->data.when_stmt.default_body);
             tc->current_scope = def_outer;
+            /* W3006: empty default branch */
+            if (node->data.when_stmt.default_body->data.block.count == 0) {
+                diag_warning(tc->diag, "W3006",
+                    "empty default branch in when statement; unmatched values are silently ignored",
+                    NODE_FILE(tc, node->data.when_stmt.default_body),
+                    node->data.when_stmt.default_body->token.line,
+                    node->data.when_stmt.default_body->token.column, 0);
+            }
         }
         /* #strict exhaustiveness check for enum types */
         if (node->data.when_stmt.is_strict && !node->data.when_stmt.default_body) {
@@ -8311,6 +8319,34 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 /* #strict on non-enum: just warn that it has no effect without default */
                 diag_error_msg(tc->diag, "E3056",
                     "#strict when on a non-enum type requires a default branch to be exhaustive",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
+        /* W3005: when matches on enum values but has no #strict and no default */
+        if (!node->data.when_stmt.is_strict && !node->data.when_stmt.default_body) {
+            bool has_enum_case = false;
+            for (int ci = 0; ci < node->data.when_stmt.case_count && !has_enum_case; ci++) {
+                for (int cj = 0; cj < node->data.when_stmt.cases[ci].value_count && !has_enum_case; cj++) {
+                    AstNode *cv = node->data.when_stmt.cases[ci].values[cj];
+                    if (cv->kind == NODE_MEMBER_EXPR &&
+                        cv->data.member.object->kind == NODE_LABEL) {
+                        const char *name = cv->data.member.object->data.label.value;
+                        if (is_enum_name(tc, name)) {
+                            has_enum_case = true;
+                        } else {
+                            for (int ui = 0; ui < tc->using_module_count && !has_enum_case; ui++) {
+                                const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                                char prefixed[EZ_MSG_BUF_SIZE];
+                                snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
+                                if (is_enum_name(tc, prefixed)) has_enum_case = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if (has_enum_case) {
+                diag_warning(tc->diag, "W3005",
+                    "when statement matches on enum values without #strict and no default; exhaustiveness is not checked",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }

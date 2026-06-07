@@ -1279,6 +1279,10 @@ when direction {
 }
 ```
 
+When a `when` statement matches on enum values (i.e. one or more `is` branches use `EnumName.VARIANT` patterns) and has no `default` branch, the compiler emits **W3005** if `#strict` is not present. This warns that exhaustiveness is not being checked. The fix is to either add `#strict` to enforce exhaustive coverage or add a `default` branch. This applies at any nesting depth.
+
+An empty `default {}` branch emits **W3006**. Unmatched values are silently ignored, which is almost never intentional. Either handle the case or add a comment explaining the intent.
+
 ### 6.6 Ensure Statement
 
 The `ensure` statement specifies a function to call when the enclosing function exits (whether normally or via early return):

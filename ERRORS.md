@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 298 codes** (195 errors, 14 warnings, 89 panics)
+**Total: 300 codes** (195 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -227,6 +227,8 @@
 | `W2015` | imports | file already imported as part of a directory import; redundant import |
 | `W3003` | safety | fixed-size array is not fully initialized; remaining elements will be zero-valued |
 | `W3004` | safety | pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer |
+| `W3005` | safety | when statement matches on enum values without #strict and no default; exhaustiveness is not checked |
+| `W3006` | safety | empty default branch in when statement; unmatched values are silently ignored |
 
 ---
 
@@ -349,4 +351,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-07 01:42:33 UTC*
+*Generated on 2026-06-07 06:17:59 UTC*
