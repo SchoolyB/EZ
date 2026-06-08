@@ -718,6 +718,9 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
         const char *fn = node->data.call.function->data.label.value;
         if (is_bigint_type(fn)) return fn;
     }
+    /* cast(expr, i128/u128/i256/u256) — the result is already the target bigint */
+    if (node->kind == NODE_CAST_EXPR && is_bigint_type(node->data.cast.target_type))
+        return node->data.cast.target_type;
     /* If this is an infix expression, check left operand */
     if (node->kind == NODE_INFIX_EXPR) {
         const char *lt = resolve_bigint_type(cg, node->data.infix.left);
