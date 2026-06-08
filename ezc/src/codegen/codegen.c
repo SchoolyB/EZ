@@ -2453,6 +2453,54 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         } else {
+            /* Wide integer (i128/u128/i256/u256) cast handling */
+            bool target_is_bi = is_bigint_type(target);
+            const char *src_bi = (val_t && val_t->name && is_bigint_type(val_t->name))
+                ? val_t->name : resolve_bigint_type(cg, val);
+            if (target_is_bi || src_bi) {
+                if (target_is_bi && !src_bi) {
+                    /* scalar → wide: use from_i64 / from_u64 */
+                    bool dst_unsigned = (target[0] == 'u');
+                    if (dst_unsigned) {
+                        emitf(cg, "%s_from_u64((uint64_t)(", bigint_prefix(target));
+                    } else {
+                        emitf(cg, "%s_from_i64((int64_t)(", bigint_prefix(target));
+                    }
+                    emit_expression(cg, val);
+                    emit(cg, "))");
+                } else if (!target_is_bi && src_bi) {
+                    /* wide → scalar: use to_i64 / to_u64 */
+                    bool dst_unsigned = (strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0 ||
+                        strcmp(target, "u8") == 0 || strcmp(target, "byte") == 0 ||
+                        strcmp(target, "u16") == 0 || strcmp(target, "u32") == 0);
+                    const char *bp = bigint_prefix(src_bi);
+                    if (dst_unsigned) {
+                        emitf(cg, "(%s)%s_to_u64(", ez_type_to_c_cg(cg, target), bp);
+                    } else {
+                        emitf(cg, "(%s)%s_to_i64(", ez_type_to_c_cg(cg, target), bp);
+                    }
+                    emit_expression(cg, val);
+                    emit(cg, ")");
+                } else {
+                    /* wide → wide: use cross-type constructors */
+                    if (strcmp(src_bi, "i128") == 0 && strcmp(target, "u128") == 0)
+                        { emit(cg, "ez_u128_from_i128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "u128") == 0 && strcmp(target, "i128") == 0)
+                        { emit(cg, "ez_i128_from_u128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "i128") == 0 && strcmp(target, "i256") == 0)
+                        { emit(cg, "ez_i256_from_i128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "u128") == 0 && strcmp(target, "u256") == 0)
+                        { emit(cg, "ez_u256_from_u128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "i256") == 0 && strcmp(target, "i128") == 0)
+                        { emit(cg, "ez_i128_from_i256("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "u256") == 0 && strcmp(target, "u128") == 0)
+                        { emit(cg, "ez_u128_from_u256("); emit_expression(cg, val); emit(cg, ")"); }
+                    else
+                        { emit_expression(cg, val); } /* same-type no-op */
+                }
+                break;
+            }
+
             /* Numeric casts: range-checked for narrowing, raw for widening */
             const char *smin = NULL, *smax = NULL;
             bool is_unsigned = false;
