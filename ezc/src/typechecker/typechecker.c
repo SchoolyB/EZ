@@ -4015,12 +4015,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3043", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
-                if (strcmp(fn_name, "byte") == 0)
-                    result = &TYPE_BYTE;
-                else if (is_unsigned_type(fn_name))
-                    result = &TYPE_UINT;
-                else
-                    result = &TYPE_INT;
+                result = type_from_name(fn_name);
             } else if (strcmp(fn_name, "string") == 0 && node->data.call.arg_count == 1) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
