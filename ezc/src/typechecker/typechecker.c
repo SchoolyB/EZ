@@ -202,6 +202,16 @@ static const char *enum_display_name(TypeChecker *tc, const char *name) {
     return name;
 }
 
+/* Returns true if the named enum is string-backed. */
+static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
+    if (!name) return false;
+    for (int i = 0; i < tc->enum_count; i++) {
+        if (strcmp(tc->enum_names[i], name) == 0)
+            return tc->enum_is_string[i];
+    }
+    return false;
+}
+
 /* A type name fit to print in a diagnostic — for struct/enum types this
  * is the user-facing name, never the module-prefixed lookup key. Composite
  * types fall through to type_name() unchanged. */
@@ -1804,7 +1814,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
             !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
             !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
-            !(left->kind == TK_BOOL && is_int_kind(right->kind))) {
+            !(left->kind == TK_BOOL && is_int_kind(right->kind)) &&
+            /* String enums can be compared with string literals */
+            !(left->kind == TK_ENUM && right->kind == TK_STRING && tc_enum_is_string(tc, left->name)) &&
+            !(left->kind == TK_STRING && right->kind == TK_ENUM && tc_enum_is_string(tc, right->name))) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "cannot compare %s with %s", type_name(left), type_name(right));
@@ -6243,6 +6256,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         * the reverse; int literals / variables can't be
                         * assigned to enum variables (). */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
+                       /* Allow string enum → string (string enums hold EzString values) */
+                       !(declared->kind == TK_STRING && value_type->kind == TK_ENUM &&
+                         tc_enum_is_string(tc, value_type->name)) &&
                        /* Note: multi-var expansion (.v0/.v1 access) is intentionally
                         * NOT skipped here — type mismatch on reversed multi-return
                         * types must be caught (see #1693). */

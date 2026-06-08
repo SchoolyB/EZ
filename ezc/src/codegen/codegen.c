@@ -668,6 +668,16 @@ static bool is_bigint_type(const char *tn) {
            strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0;
 }
 
+/* Returns true if the named enum is string-backed. */
+static bool cg_enum_is_string(CodeGen *cg, const char *name) {
+    if (!name) return false;
+    for (int i = 0; i < cg->enum_count; i++) {
+        if (strcmp(cg->enum_names[i], name) == 0)
+            return cg->enum_is_string[i];
+    }
+    return false;
+}
+
 /* Register a bigint variable's declared type name */
 static void register_bigint_var(CodeGen *cg, const char *name, const char *type_name) {
     if (cg->bigint_var_count >= cg->bigint_var_cap) {
@@ -1094,7 +1104,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_ARRAY:  emit(cg, "%s"); break;
                 case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ERROR:  emit(cg, "%s"); break;
-                case TK_ENUM:   emit(cg, "%lld"); break;
+                case TK_ENUM:
+                    if (t && t->name && cg_enum_is_string(cg, t->name))
+                        emit(cg, "%s");
+                    else
+                        emit(cg, "%lld");
+                    break;
                 case TK_UINT:   emit(cg, "%llu"); break;
                 default:        emit(cg, "%lld"); break;
                 }
@@ -1193,6 +1208,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "(unsigned long long)(");
                 emit_expression(cg, part);
                 emit(cg, ")");
+                break;
+            case TK_ENUM:
+                if (t && t->name && cg_enum_is_string(cg, t->name)) {
+                    emit_expression(cg, part);
+                    emit(cg, ".data");
+                } else {
+                    emit(cg, "(long long)(");
+                    emit_expression(cg, part);
+                    emit(cg, ")");
+                }
                 break;
             default:
                 emit(cg, "(long long)(");
