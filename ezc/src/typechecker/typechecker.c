@@ -5527,10 +5527,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if ((src_t->kind == TK_BOOL && type_is_numeric(dst_t)) ||
                 (type_is_numeric(src_t) && dst_t->kind == TK_BOOL))
                 allowed = true;
-            /* String -> int, uint, float (parsing) */
-            if (src_t->kind == TK_STRING &&
-                (dst_t->kind == TK_INT || dst_t->kind == TK_UINT || dst_t->kind == TK_FLOAT))
-                allowed = true;
+            /* String -> numeric: NOT allowed via cast(); use dedicated parsing
+             * functions (e.g. strings.parse_int()) instead. cast() is for
+             * type reinterpretation, not fallible string parsing. */
             /* Numeric/Bool -> String (stringification) */
             if ((type_is_numeric(src_t) || src_t->kind == TK_BOOL) && dst_t->kind == TK_STRING)
                 allowed = true;
