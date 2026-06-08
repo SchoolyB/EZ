@@ -7052,7 +7052,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     !(is_int_kind(val_t->kind) && is_int_kind(elem_t->kind)) &&
                     !(val_t->kind == TK_ENUM   && is_int_kind(elem_t->kind)) &&
                     !(is_int_kind(val_t->kind) && elem_t->kind == TK_FLOAT)  &&
-                    !(val_t->kind == TK_FLOAT  && is_int_kind(elem_t->kind))) {
+                    !(val_t->kind == TK_FLOAT  && is_int_kind(elem_t->kind)) &&
+                    /* enum array: type_from_name returns TK_STRUCT for enum names */
+                    !(val_t->kind == TK_ENUM && elem_t->kind == TK_STRUCT &&
+                      indexed_t->element_type && is_enum_name(tc, indexed_t->element_type))) {
                     diag_error_codef(tc->diag, "E3094",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                         type_display_name(tc, val_t), type_display_name(tc, indexed_t));
@@ -7383,7 +7386,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                  * the reverse; returning an int from a function declared
                  * to return an enum is a type error (). */
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
-                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
+                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind)) &&
+                /* Allow string enum → string return */
+                !(expected->kind == TK_STRING && ret_t->kind == TK_ENUM &&
+                  tc_enum_is_string(tc, ret_t->name))) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",
@@ -8247,7 +8253,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         (is_int_kind(when_t->kind) && case_t->kind == TK_ENUM) ||
                         (when_t->kind == TK_ENUM && is_int_kind(case_t->kind)) ||
                         (is_int_kind(when_t->kind) && case_t->kind == TK_BYTE) ||
-                        (when_t->kind == TK_BYTE && is_int_kind(case_t->kind));
+                        (when_t->kind == TK_BYTE && is_int_kind(case_t->kind)) ||
+                        /* string subject with string-enum arm, or vice versa */
+                        (when_t->kind == TK_STRING && case_t->kind == TK_ENUM &&
+                         tc_enum_is_string(tc, case_t->name)) ||
+                        (when_t->kind == TK_ENUM && case_t->kind == TK_STRING &&
+                         tc_enum_is_string(tc, when_t->name));
                     if (!compat) {
                         diag_error_codef(tc->diag, "E3018", NODE_FILE(tc, val_i), val_i->token.line, val_i->token.column, 0, type_display_name(tc, when_t), type_display_name(tc, case_t));
                     }
