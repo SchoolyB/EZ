@@ -6664,6 +6664,24 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit(cg, "; ");
             emit_value_deep_copy(cg, type_name, src_var);
             emit(cg, "; })");
+        } else if (type_name && is_bigint_type(type_name) &&
+                   !resolve_bigint_type(cg, node->data.var_decl.value)) {
+            /* Scalar variable/expression assigned to a wide integer type.
+             * Wrap with from_i64/from_u64 so the C assignment is valid.
+             * Covers: mut big i128 = some_int_var */
+            const char *pfx = bigint_prefix(type_name);
+            bool dst_unsigned = (type_name[0] == 'u');
+            EzType *val_t = cg->type_table
+                ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
+            bool src_unsigned = (val_t && val_t->kind == TK_UINT);
+            if (dst_unsigned) {
+                emitf(cg, "%s_from_u64((uint64_t)(", pfx);
+            } else {
+                emitf(cg, "%s_from_i64((int64_t)(", pfx);
+            }
+            (void)src_unsigned;
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, "))");
         } else if (!emit_narrowing_cast(cg, type_name, node->data.var_decl.value, node->token.line)) {
             emit_expression(cg, node->data.var_decl.value);
         }
@@ -7008,6 +7026,37 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (is_arith_compound || is_div_compound) {
             EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
             const char *sn = (tgt_t && tgt_t->name) ? tgt_t->name : NULL;
+            /* Wide integer compound assignment: emit bigint op functions */
+            const char *tgt_bi = sn && is_bigint_type(sn) ? sn
+                : resolve_bigint_type(cg, node->data.assign.target);
+            if (tgt_bi) {
+                const char *pfx = bigint_prefix(tgt_bi);
+                if (is_arith_compound) {
+                    const char *fn_op = NULL;
+                    if (strcmp(aop, "+=") == 0) fn_op = "add";
+                    else if (strcmp(aop, "-=") == 0) fn_op = "sub";
+                    else if (strcmp(aop, "*=") == 0) fn_op = "mul";
+                    if (fn_op) {
+                        emit_expression(cg, node->data.assign.target);
+                        emitf(cg, " = %s_%s_checked(", pfx, fn_op);
+                        emit_expression(cg, node->data.assign.target);
+                        emit(cg, ", ");
+                        EMIT_BIGINT_OPERAND(cg, node->data.assign.value, pfx, tgt_bi, NULL);
+                        emitf(cg, ", __FILE__, %d);\n", node->token.line);
+                        return;
+                    }
+                }
+                if (is_div_compound) {
+                    const char *fn_op = (strcmp(aop, "/=") == 0) ? "div" : "mod";
+                    emit_expression(cg, node->data.assign.target);
+                    emitf(cg, " = %s_%s(", pfx, fn_op);
+                    emit_expression(cg, node->data.assign.target);
+                    emit(cg, ", ");
+                    EMIT_BIGINT_OPERAND(cg, node->data.assign.value, pfx, tgt_bi, NULL);
+                    emit(cg, ");\n");
+                    return;
+                }
+            }
             bool tgt_is_int = (tgt_t && (tgt_t->kind == TK_INT || tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE));
             const char *smin = NULL, *smax = NULL;
             bool su = false;
