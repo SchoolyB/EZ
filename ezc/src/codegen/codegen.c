@@ -3194,7 +3194,29 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         if (type_arg->kind == NODE_LABEL) {
             emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
         } else {
-            emit(cg, "0");
+            /* Literal or expression: infer C type and emit sizeof() */
+            const char *c_type = NULL;
+            if (type_arg->kind == NODE_INT_VALUE) {
+                c_type = "int64_t";
+            } else if (type_arg->kind == NODE_FLOAT_VALUE) {
+                c_type = "double";
+            } else if (type_arg->kind == NODE_BOOL_VALUE) {
+                c_type = "bool";
+            } else if (type_arg->kind == NODE_STRING_VALUE ||
+                       type_arg->kind == NODE_INTERPOLATED_STRING) {
+                c_type = "EzString";
+            } else if (type_arg->kind == NODE_CHAR_VALUE) {
+                c_type = "int32_t";
+            } else {
+                /* Fallback: consult the type table */
+                EzType *t = cg->type_table ? typetable_get(cg->type_table, type_arg) : NULL;
+                if (t && t->name) c_type = ez_type_to_c_cg(cg, t->name);
+            }
+            if (c_type) {
+                emitf(cg, "(int64_t)sizeof(%s)", c_type);
+            } else {
+                emit(cg, "0");
+            }
         }
         return true;
     }
@@ -6434,12 +6456,17 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
          * so wide-integer types propagate through copy(), function calls,
          * member access, etc. Without this the var is silently treated as
          * int and downstream uses (println, arithmetic) emit the wrong
-         * runtime calls. */
+         * runtime calls. Also try resolve_bigint_type() so constructor
+         * calls like `mut a = i128(42)` register correctly when the
+         * typetable stores the base type name ("int") rather than the
+         * width-specific name ("i128"). */
         EzType *vt = cg->type_table
             ? typetable_get(cg->type_table, node->data.var_decl.value)
             : NULL;
-        if (vt && vt->name && is_bigint_type(vt->name)) {
-            register_bigint_var(cg, node->data.var_decl.name, vt->name);
+        const char *bi_name = (vt && vt->name && is_bigint_type(vt->name))
+            ? vt->name : resolve_bigint_type(cg, node->data.var_decl.value);
+        if (bi_name) {
+            register_bigint_var(cg, node->data.var_decl.name, bi_name);
         }
     }
 
