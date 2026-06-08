@@ -2671,6 +2671,8 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
         case TK_CHAR:    return "_char";
         case TK_UINT:    return "_uint";
         case TK_POINTER: return "_addr";
+        case TK_ENUM:
+            return (t->name && cg_enum_is_string(cg, t->name)) ? "_str" : "_int";
         default:         return "_int";
         }
     }
