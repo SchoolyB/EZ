@@ -5030,7 +5030,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (!member_found) {
                     diag_error_codef(tc->diag, "E3047", NODE_FILE(tc, node), node->token.line, node->token.column, 0, obj_name, member);
                 }
-                result = is_str_enum ? &TYPE_STRING : type_enum(obj_name);
+                result = type_enum(obj_name);
                 break;
             }
 
@@ -5236,7 +5236,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 node->data.index_expr.index->token.column, 0);
         }
         if (left->kind == TK_ARRAY && left->element_type) {
-            result = type_from_name(left->element_type);
+            result = tc_type_from_name(tc, left->element_type);
         } else if (left->kind == TK_MAP && left->value_type) {
             result = type_from_name(left->value_type);
             /* Check map key type matches. Enum keys are int-backed, so accept
@@ -6498,7 +6498,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                     /* E3053: element type mismatch in array initializer */
                     if (elem_type[0]) {
-                        EzType *expected_et = type_from_name(elem_type);
+                        EzType *expected_et = tc_type_from_name(tc, elem_type);
                         AstNode *arr = node->data.var_decl.value;
                         for (int ei = 0; ei < arr->data.array_value.count; ei++) {
                             EzType *actual_et = resolve_expr(tc, arr->data.array_value.elements[ei]);
@@ -7723,7 +7723,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Array/string iteration */
             EzType *elem_t = &TYPE_UNKNOWN;
             if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
-                elem_t = type_from_name(coll_t->element_type);
+                elem_t = tc_type_from_name(tc, coll_t->element_type);
             } else if (coll_t->kind == TK_STRING) {
                 elem_t = &TYPE_CHAR;
             }

@@ -1313,6 +1313,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         case TK_BOOL:   c_type = "bool"; break;
         case TK_STRING: c_type = "EzString"; break;
         case TK_STRUCT: c_type = ez_type_to_c_cg(cg, elem_t->name); break;
+        case TK_ENUM: {
+            bool is_str = false;
+            if (elem_t->name) {
+                for (int ei = 0; ei < cg->enum_count; ei++) {
+                    if (strcmp(cg->enum_names[ei], elem_t->name) == 0) {
+                        is_str = cg->enum_is_string[ei];
+                        break;
+                    }
+                }
+            }
+            static char enum_arr_buf[EZ_MSG_BUF_SIZE];
+            if (is_str) {
+                c_type = "EzString";
+            } else {
+                snprintf(enum_arr_buf, sizeof(enum_arr_buf), "EzEnum_%s", elem_t->name ? elem_t->name : "int");
+                c_type = enum_arr_buf;
+            }
+            break;
+        }
         case TK_POINTER: {
             const char *pointee = elem_t->element_type ? elem_t->element_type : "void";
             const char *c_pointee = ez_type_to_c_cg(cg, pointee);
@@ -1562,6 +1581,21 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         bool left_is_str = (lt && lt->kind == TK_STRING) || node->data.infix.left->kind == NODE_STRING_VALUE;
         bool right_is_str = (rt && rt->kind == TK_STRING) || node->data.infix.right->kind == NODE_STRING_VALUE;
+        /* Also treat string enum operands as strings for comparison purposes */
+        if (lt && lt->kind == TK_ENUM && lt->name) {
+            for (int ei = 0; ei < cg->enum_count; ei++) {
+                if (strcmp(cg->enum_names[ei], lt->name) == 0 && cg->enum_is_string[ei]) {
+                    left_is_str = true; break;
+                }
+            }
+        }
+        if (rt && rt->kind == TK_ENUM && rt->name) {
+            for (int ei = 0; ei < cg->enum_count; ei++) {
+                if (strcmp(cg->enum_names[ei], rt->name) == 0 && cg->enum_is_string[ei]) {
+                    right_is_str = true; break;
+                }
+            }
+        }
 
         if ((left_is_str || right_is_str) && strcmp(op, "+") == 0) {
             /* String concatenation is rejected by the typechecker (E3048).
@@ -7972,6 +8006,13 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         AstNode *val = node->data.when_stmt.value;
         EzType *when_val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
         bool when_is_string = (when_val_t && when_val_t->kind == TK_STRING);
+        if (!when_is_string && when_val_t && when_val_t->kind == TK_ENUM && when_val_t->name) {
+            for (int ei = 0; ei < cg->enum_count; ei++) {
+                if (strcmp(cg->enum_names[ei], when_val_t->name) == 0 && cg->enum_is_string[ei]) {
+                    when_is_string = true; break;
+                }
+            }
+        }
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             WhenCase *wc = &node->data.when_stmt.cases[i];
             emit_indent(cg);
@@ -8140,6 +8181,7 @@ CodeGen codegen_create(const char *file) {
     cg.has_fmt = false;
     cg.file = file;
     cg.enum_names = NULL;
+    cg.enum_is_string = NULL;
     cg.enum_count = 0;
     cg.enum_cap = 0;
     cg.current_func = NULL;
@@ -8334,13 +8376,6 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_ENUM_DECL) {
-            /* Register enum name */
-            if (cg->enum_count >= cg->enum_cap) {
-                cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
-                cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
-            }
-            cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
-
             /* Check if this is a string enum (auto-detect from values) */
             bool is_string_enum = false;
             for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
@@ -8350,6 +8385,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     break;
                 }
             }
+
+            /* Register enum name and string flag */
+            if (cg->enum_count >= cg->enum_cap) {
+                cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
+                cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
+                cg->enum_is_string = xrealloc(cg->enum_is_string, sizeof(bool) * cg->enum_cap);
+            }
+            cg->enum_names[cg->enum_count] = stmt->data.enum_decl.name;
+            cg->enum_is_string[cg->enum_count] = is_string_enum;
+            cg->enum_count++;
 
             if (is_string_enum) {
                 emitf(cg, "typedef EzString EzEnum_%s;\n", stmt->data.enum_decl.name);

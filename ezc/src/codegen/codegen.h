@@ -28,6 +28,7 @@ typedef struct {
 
     /* Track declared type names for codegen */
     const char **enum_names;
+    bool *enum_is_string;
     int enum_count;
     int enum_cap;
 
