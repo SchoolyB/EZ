@@ -8061,6 +8061,9 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 }
             }
         }
+        /* Detect wide integer type for the when value */
+        const char *when_bigint = (when_val_t && when_val_t->name && is_bigint_type(when_val_t->name))
+            ? when_val_t->name : resolve_bigint_type(cg, val);
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             WhenCase *wc = &node->data.when_stmt.cases[i];
             emit_indent(cg);
@@ -8097,6 +8100,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, ")");
                 } else if (when_is_string) {
                     emit(cg, "ez_string_eq(");
+                    emit_expression(cg, val);
+                    emit(cg, ", ");
+                    emit_expression(cg, wc->values[j]);
+                    emit(cg, ")");
+                } else if (when_bigint) {
+                    emitf(cg, "%s_eq(", bigint_prefix(when_bigint));
                     emit_expression(cg, val);
                     emit(cg, ", ");
                     emit_expression(cg, wc->values[j]);
