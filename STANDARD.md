@@ -1486,19 +1486,47 @@ mut check = ref(is_positive)
 
 // Call through the reference
 check(5)  // true
-
-// Pass as argument — func requires an explicit signature
-do filter(arr [int], test func(int) -> bool) -> [int] { ... }
-mut positives = filter(numbers, ()is_positive)
 ```
 
-Function references:
-- `()func_name` is the implicit form (shorter)
-- `ref(func_name)` is the explicit form (more readable)
-- Both produce identical results
-- No anonymous functions or lambdas — every reference points to a named function
-- The `func` type requires an explicit signature, e.g. `func(int) -> bool` or `func(string, int) -> string` — bare `func` is not valid
+#### Func as a Parameter Type
+
+When a function accepts another function as an argument, the parameter must declare a full `func` signature. Bare `func` is not valid:
+
+```ez
+// Single param
+do apply(x int, f func(int) -> int) -> int {
+    return f(x)
+}
+
+// Multiple params
+do combine(a int, b string, f func(int, string) -> bool) -> bool {
+    return f(a, b)
+}
+
+// No params
+do run(f func() -> int) -> int {
+    return f()
+}
+
+// No return value
+do each(arr [int, 3], f func(int)) {
+    for_each v in arr { f(v) }
+}
+
+do double(n int) -> int { return n * 2 }
+do main() {
+    println(apply(5, ()double))   // 10
+    println(apply(5, ref(double))) // 10, ref() is equivalent
+}
+```
+
+Rules:
+- No anonymous functions or lambdas; every reference points to a named function
+- The signature must match exactly; param types and return type must all agree
+- Each parameter in the `func` signature must be listed as its own type: `func(int, string) -> bool`. Grouped-type shorthand (`func(a, b int)`) is not supported
+- Default parameter values inside `func` signatures are not supported
 - References work with top-level and struct-namespaced functions
+- `func` types are valid as struct field types as well as parameter types
 
 ### 7.7 Struct-Namespaced Functions
 
