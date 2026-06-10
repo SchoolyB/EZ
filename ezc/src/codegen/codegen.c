@@ -721,6 +721,9 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
     /* cast(expr, i128/u128/i256/u256) — the result is already the target bigint */
     if (node->kind == NODE_CAST_EXPR && is_bigint_type(node->data.cast.target_type))
         return node->data.cast.target_type;
+    /* -bigint_var — the result is still the same bigint type */
+    if (node->kind == NODE_PREFIX_EXPR && strcmp(node->data.prefix.op, "-") == 0)
+        return resolve_bigint_type(cg, node->data.prefix.right);
     /* If this is an infix expression, check left operand */
     if (node->kind == NODE_INFIX_EXPR) {
         const char *lt = resolve_bigint_type(cg, node->data.infix.left);
