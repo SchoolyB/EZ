@@ -1487,8 +1487,8 @@ mut check = ref(is_positive)
 // Call through the reference
 check(5)  // true
 
-// Pass as argument
-do filter(arr [int], test func) -> [int] { ... }
+// Pass as argument — func requires an explicit signature
+do filter(arr [int], test func(int) -> bool) -> [int] { ... }
 mut positives = filter(numbers, ()is_positive)
 ```
 
@@ -1497,7 +1497,7 @@ Function references:
 - `ref(func_name)` is the explicit form (more readable)
 - Both produce identical results
 - No anonymous functions or lambdas — every reference points to a named function
-- The `func` type is used for parameters that accept function references
+- The `func` type requires an explicit signature, e.g. `func(int) -> bool` or `func(string, int) -> string` — bare `func` is not valid
 - References work with top-level and struct-namespaced functions
 
 ### 7.7 Struct-Namespaced Functions
