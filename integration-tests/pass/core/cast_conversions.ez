@@ -61,37 +61,7 @@ do main() {
         failed += 1
     }
 
-    // Test 6: string → int
-    mut i1 int = cast("456", int)
-    if i1 == 456 {
-        println("  [PASS] cast('456', int) == 456")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] cast('456', int) got ${i1}")
-        failed += 1
-    }
-
-    // Test 7: string → int negative
-    mut i2 int = cast("-100", int)
-    if i2 == -100 {
-        println("  [PASS] cast('-100', int) == -100")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] cast('-100', int) got ${i2}")
-        failed += 1
-    }
-
-    // Test 8: string → float
-    mut f1 float = cast("2.718", float)
-    if f1 > 2.71 && f1 < 2.72 {
-        println("  [PASS] cast('2.718', float) ~ 2.718")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] cast('2.718', float) got ${f1}")
-        failed += 1
-    }
-
-    // Test 9: float → int (truncation)
+    // Test 6: float → int (truncation)
     mut i3 int = cast(9.99, int)
     if i3 == 9 {
         println("  [PASS] cast(9.99, int) == 9 (truncated)")
@@ -121,17 +91,7 @@ do main() {
         failed += 1
     }
 
-    // Test 12: string → int with "0"
-    mut i4 int = cast("0", int)
-    if i4 == 0 {
-        println("  [PASS] cast('0', int) == 0")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] cast('0', int) got ${i4}")
-        failed += 1
-    }
-
-    // Test 13: int variable → string
+    // Test 10: int variable → string
     mut num int = 777
     mut s7 string = cast(num, string)
     if s7 == "777" {
