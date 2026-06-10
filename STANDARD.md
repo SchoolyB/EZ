@@ -1479,26 +1479,54 @@ Functions can be passed as values using the `()` prefix syntax or the `ref()` bu
 do is_positive(n int) -> bool { return n > 0 }
 
 // ()func_name — implicit syntax
-mut check = ()is_positive
+const check = ()is_positive
 
 // ref(func_name) — explicit syntax
-mut check = ref(is_positive)
+const check = ref(is_positive)
 
 // Call through the reference
 check(5)  // true
-
-// Pass as argument
-do filter(arr [int], test func) -> [int] { ... }
-mut positives = filter(numbers, ()is_positive)
 ```
 
-Function references:
-- `()func_name` is the implicit form (shorter)
-- `ref(func_name)` is the explicit form (more readable)
-- Both produce identical results
-- No anonymous functions or lambdas — every reference points to a named function
-- The `func` type is used for parameters that accept function references
+#### Func as a Parameter Type
+
+When a function accepts another function as an argument, the parameter must declare a full `func` signature. Bare `func` is not valid:
+
+```ez
+// Single param
+do apply(x int, f func(int) -> int) -> int {
+    return f(x)
+}
+
+// Multiple params
+do combine(a int, b string, f func(int, string) -> bool) -> bool {
+    return f(a, b)
+}
+
+// No params
+do run(f func() -> int) -> int {
+    return f()
+}
+
+// No return value
+do each(arr [int, 3], f func(int)) {
+    for_each v in arr { f(v) }
+}
+
+do double(n int) -> int { return n * 2 }
+do main() {
+    println(apply(5, ()double))   // 10
+    println(apply(5, ref(double))) // 10, ref() is equivalent
+}
+```
+
+Rules:
+- No anonymous functions or lambdas; every reference points to a named function
+- The signature must match exactly; param types and return type must all agree
+- Each parameter in the `func` signature must be listed as its own type: `func(int, string) -> bool`. Grouped-type shorthand (`func(a, b int)`) is not supported
+- Default parameter values inside `func` signatures are not supported
 - References work with top-level and struct-namespaced functions
+- `func` types are valid as struct field types as well as parameter types
 
 ### 7.7 Struct-Namespaced Functions
 
@@ -1569,6 +1597,17 @@ Chained struct function calls (`a.f().g()`) are not supported (E3075). Assign ea
 ### 7.8 Function Scope
 
 All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
+
+Storing a reference to an existing function in a local variable is not the same as declaring a function and is perfectly valid:
+
+```ez
+do double(n int) -> int { return n * 2 }
+
+do main() {
+    const f func(int) -> int = ()double  // valid: f is a variable, not a function declaration
+    println(f(5))                         // 10
+}
+```
 
 ### 7.9 Wildcard Types (`?`)
 

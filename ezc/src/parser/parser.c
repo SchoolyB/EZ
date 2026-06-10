@@ -1175,6 +1175,25 @@ static AstNode *maybe_apply_or_return(Parser *p, AstNode *var_decl) {
     if (!peek_token_is(p, TOK_OR_RETURN)) return NULL;
     next_token(p); /* consume or_return */
 
+    /* Check for custom fallback values on the same line as the or_return token.
+     * e.g. `mut val = risky(fail) or_return -99` → return -99, _tmp.v1
+     * The caller provides all non-error return slots; _tmp.v1 is appended. */
+    int or_return_line = p->cur_token.line;
+    AstNode *fallback_buf[16];
+    int fallback_count = 0;
+    if (p->peek_token.type != TOK_EOF &&
+        p->peek_token.type != TOK_SEMICOLON &&
+        p->peek_token.type != TOK_RBRACE &&
+        p->peek_token.line == or_return_line) {
+        next_token(p); /* advance to first fallback token */
+        while (fallback_count < 16) {
+            fallback_buf[fallback_count++] = parse_expression(p, PREC_LOWEST);
+            if (!peek_token_is(p, TOK_COMMA)) break;
+            next_token(p); /* skip comma */
+            next_token(p); /* advance to next fallback token */
+        }
+    }
+
     static int or_return_counter = 0;
     char *tmp_name = arena_alloc(p->arena, EZ_TMP_NAME_BUF);
     snprintf(tmp_name, EZ_TMP_NAME_BUF, "_ez_or%d", or_return_counter++);
@@ -1211,14 +1230,26 @@ static AstNode *maybe_apply_or_return(Parser *p, AstNode *var_decl) {
     ret_block->data.block.count = 0;
     ret_block->data.block.stmts = arena_alloc(p->arena, sizeof(AstNode *));
     AstNode *ret_stmt = ast_alloc(p->arena, NODE_RETURN_STMT, p->cur_token);
+    /* Build _tmp.v1 node (the propagated error value) */
     AstNode *err_access2 = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
     AstNode *tmp_label2 = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
     tmp_label2->data.label.value = tmp_name;
     err_access2->data.member.object = tmp_label2;
     err_access2->data.member.member = "v1";
-    ret_stmt->data.return_stmt.values = arena_alloc(p->arena, sizeof(AstNode *));
-    ret_stmt->data.return_stmt.values[0] = err_access2;
-    ret_stmt->data.return_stmt.count = 1;
+    if (fallback_count > 0) {
+        /* Custom fallback: return fallback_vals..., _tmp.v1 */
+        int total = fallback_count + 1;
+        ret_stmt->data.return_stmt.values = arena_alloc(p->arena, sizeof(AstNode *) * total);
+        for (int i = 0; i < fallback_count; i++)
+            ret_stmt->data.return_stmt.values[i] = fallback_buf[i];
+        ret_stmt->data.return_stmt.values[fallback_count] = err_access2;
+        ret_stmt->data.return_stmt.count = total;
+    } else {
+        /* Bare or_return: propagate just the error; codegen fills {0} for other slots */
+        ret_stmt->data.return_stmt.values = arena_alloc(p->arena, sizeof(AstNode *));
+        ret_stmt->data.return_stmt.values[0] = err_access2;
+        ret_stmt->data.return_stmt.count = 1;
+    }
     ret_block->data.block.stmts[ret_block->data.block.count++] = ret_stmt;
     if_stmt->data.if_stmt.consequence = ret_block;
     if_stmt->data.if_stmt.alternative = NULL;
@@ -1575,7 +1606,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 /* Common mistake: `name &type` instead of `&name type`.
                  * Without this, the loop has no token to consume and
                  * spins until killed externally (#bug-report). */
-                diag_error_codef(p->diag, "E3069", p->file, p->peek_token.line, p->peek_token.column, 0, param->name, "<type>");
+                diag_error_codef(p->diag, "E3069", p->file, p->peek_token.line, p->peek_token.column, 0, param->name, "type");
                 return NULL;
             }
 

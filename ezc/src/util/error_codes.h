@@ -148,7 +148,7 @@
     EZ_ERROR("E3062", "types", "%s cannot be declared const; use 'mut' (every operation on a %s mutates its state)") \
     EZ_ERROR("E3063", "types", "cannot return addr(%s); '%s' is a local variable whose memory is freed when this function returns") \
     EZ_ERROR("E3064", "types", "%s(%s) called again; '%s' was already destroyed") \
-    EZ_ERROR("E3065", "types", "bare 'func' is not a valid type; use func(<params>) -> <return> with an explicit signature") \
+    EZ_ERROR("E3065", "types", "bare 'func' is not a valid type; use an explicit signature, e.g. 'func(int) -> bool'") \
     EZ_ERROR("E3066", "types", "function reference signature mismatch; expected and actual function types differ") \
     EZ_ERROR("E3067", "types", "argument %d of '%s' is passed to a '&' parameter; pass a mutable variable, not a literal or expression") \
     EZ_ERROR("E3068", "types", "'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value") \

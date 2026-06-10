@@ -668,6 +668,16 @@ static bool is_bigint_type(const char *tn) {
            strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0;
 }
 
+/* Returns true if the named enum is string-backed. */
+static bool cg_enum_is_string(CodeGen *cg, const char *name) {
+    if (!name) return false;
+    for (int i = 0; i < cg->enum_count; i++) {
+        if (strcmp(cg->enum_names[i], name) == 0)
+            return cg->enum_is_string[i];
+    }
+    return false;
+}
+
 /* Register a bigint variable's declared type name */
 static void register_bigint_var(CodeGen *cg, const char *name, const char *type_name) {
     if (cg->bigint_var_count >= cg->bigint_var_cap) {
@@ -708,6 +718,12 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
         const char *fn = node->data.call.function->data.label.value;
         if (is_bigint_type(fn)) return fn;
     }
+    /* cast(expr, i128/u128/i256/u256) — the result is already the target bigint */
+    if (node->kind == NODE_CAST_EXPR && is_bigint_type(node->data.cast.target_type))
+        return node->data.cast.target_type;
+    /* -bigint_var — the result is still the same bigint type */
+    if (node->kind == NODE_PREFIX_EXPR && strcmp(node->data.prefix.op, "-") == 0)
+        return resolve_bigint_type(cg, node->data.prefix.right);
     /* If this is an infix expression, check left operand */
     if (node->kind == NODE_INFIX_EXPR) {
         const char *lt = resolve_bigint_type(cg, node->data.infix.left);
@@ -1094,7 +1110,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_ARRAY:  emit(cg, "%s"); break;
                 case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ERROR:  emit(cg, "%s"); break;
-                case TK_ENUM:   emit(cg, "%lld"); break;
+                case TK_ENUM:
+                    if (t && t->name && cg_enum_is_string(cg, t->name))
+                        emit(cg, "%s");
+                    else
+                        emit(cg, "%lld");
+                    break;
                 case TK_UINT:   emit(cg, "%llu"); break;
                 default:        emit(cg, "%lld"); break;
                 }
@@ -1193,6 +1214,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "(unsigned long long)(");
                 emit_expression(cg, part);
                 emit(cg, ")");
+                break;
+            case TK_ENUM:
+                if (t && t->name && cg_enum_is_string(cg, t->name)) {
+                    emit_expression(cg, part);
+                    emit(cg, ".data");
+                } else {
+                    emit(cg, "(long long)(");
+                    emit_expression(cg, part);
+                    emit(cg, ")");
+                }
                 break;
             default:
                 emit(cg, "(long long)(");
@@ -1313,6 +1344,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         case TK_BOOL:   c_type = "bool"; break;
         case TK_STRING: c_type = "EzString"; break;
         case TK_STRUCT: c_type = ez_type_to_c_cg(cg, elem_t->name); break;
+        case TK_ENUM: {
+            bool is_str = false;
+            if (elem_t->name) {
+                for (int ei = 0; ei < cg->enum_count; ei++) {
+                    if (strcmp(cg->enum_names[ei], elem_t->name) == 0) {
+                        is_str = cg->enum_is_string[ei];
+                        break;
+                    }
+                }
+            }
+            static char enum_arr_buf[EZ_MSG_BUF_SIZE];
+            if (is_str) {
+                c_type = "EzString";
+            } else {
+                snprintf(enum_arr_buf, sizeof(enum_arr_buf), "EzEnum_%s", elem_t->name ? elem_t->name : "int");
+                c_type = enum_arr_buf;
+            }
+            break;
+        }
         case TK_POINTER: {
             const char *pointee = elem_t->element_type ? elem_t->element_type : "void";
             const char *c_pointee = ez_type_to_c_cg(cg, pointee);
@@ -1562,6 +1612,21 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         bool left_is_str = (lt && lt->kind == TK_STRING) || node->data.infix.left->kind == NODE_STRING_VALUE;
         bool right_is_str = (rt && rt->kind == TK_STRING) || node->data.infix.right->kind == NODE_STRING_VALUE;
+        /* Also treat string enum operands as strings for comparison purposes */
+        if (lt && lt->kind == TK_ENUM && lt->name) {
+            for (int ei = 0; ei < cg->enum_count; ei++) {
+                if (strcmp(cg->enum_names[ei], lt->name) == 0 && cg->enum_is_string[ei]) {
+                    left_is_str = true; break;
+                }
+            }
+        }
+        if (rt && rt->kind == TK_ENUM && rt->name) {
+            for (int ei = 0; ei < cg->enum_count; ei++) {
+                if (strcmp(cg->enum_names[ei], rt->name) == 0 && cg->enum_is_string[ei]) {
+                    right_is_str = true; break;
+                }
+            }
+        }
 
         if ((left_is_str || right_is_str) && strcmp(op, "+") == 0) {
             /* String concatenation is rejected by the typechecker (E3048).
@@ -1594,7 +1659,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 strcmp(op, "bit_or")          == 0 ? "|"  :
                 strcmp(op, "bit_xor")         == 0 ? "^"  :
                 strcmp(op, "bit_shift_left")  == 0 ? "<<" : ">>";
+            bool is_shift = (strcmp(op, "bit_shift_left") == 0 ||
+                             strcmp(op, "bit_shift_right") == 0);
+            bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
             emit(cg, "(");
+            if (is_shift && left_is_literal) emit(cg, "(int64_t)");
             emit_expression(cg, node->data.infix.left);
             emitf(cg, " %s ", c_op);
             emit_expression(cg, node->data.infix.right);
@@ -2419,6 +2488,54 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         } else {
+            /* Wide integer (i128/u128/i256/u256) cast handling */
+            bool target_is_bi = is_bigint_type(target);
+            const char *src_bi = (val_t && val_t->name && is_bigint_type(val_t->name))
+                ? val_t->name : resolve_bigint_type(cg, val);
+            if (target_is_bi || src_bi) {
+                if (target_is_bi && !src_bi) {
+                    /* scalar → wide: use from_i64 / from_u64 */
+                    bool dst_unsigned = (target[0] == 'u');
+                    if (dst_unsigned) {
+                        emitf(cg, "%s_from_u64((uint64_t)(", bigint_prefix(target));
+                    } else {
+                        emitf(cg, "%s_from_i64((int64_t)(", bigint_prefix(target));
+                    }
+                    emit_expression(cg, val);
+                    emit(cg, "))");
+                } else if (!target_is_bi && src_bi) {
+                    /* wide → scalar: use to_i64 / to_u64 */
+                    bool dst_unsigned = (strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0 ||
+                        strcmp(target, "u8") == 0 || strcmp(target, "byte") == 0 ||
+                        strcmp(target, "u16") == 0 || strcmp(target, "u32") == 0);
+                    const char *bp = bigint_prefix(src_bi);
+                    if (dst_unsigned) {
+                        emitf(cg, "(%s)%s_to_u64(", ez_type_to_c_cg(cg, target), bp);
+                    } else {
+                        emitf(cg, "(%s)%s_to_i64(", ez_type_to_c_cg(cg, target), bp);
+                    }
+                    emit_expression(cg, val);
+                    emit(cg, ")");
+                } else {
+                    /* wide → wide: use cross-type constructors */
+                    if (strcmp(src_bi, "i128") == 0 && strcmp(target, "u128") == 0)
+                        { emit(cg, "ez_u128_from_i128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "u128") == 0 && strcmp(target, "i128") == 0)
+                        { emit(cg, "ez_i128_from_u128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "i128") == 0 && strcmp(target, "i256") == 0)
+                        { emit(cg, "ez_i256_from_i128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "u128") == 0 && strcmp(target, "u256") == 0)
+                        { emit(cg, "ez_u256_from_u128("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "i256") == 0 && strcmp(target, "i128") == 0)
+                        { emit(cg, "ez_i128_from_i256("); emit_expression(cg, val); emit(cg, ")"); }
+                    else if (strcmp(src_bi, "u256") == 0 && strcmp(target, "u128") == 0)
+                        { emit(cg, "ez_u128_from_u256("); emit_expression(cg, val); emit(cg, ")"); }
+                    else
+                        { emit_expression(cg, val); } /* same-type no-op */
+                }
+                break;
+            }
+
             /* Numeric casts: range-checked for narrowing, raw for widening */
             const char *smin = NULL, *smax = NULL;
             bool is_unsigned = false;
@@ -2561,6 +2678,8 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
         case TK_CHAR:    return "_char";
         case TK_UINT:    return "_uint";
         case TK_POINTER: return "_addr";
+        case TK_ENUM:
+            return (t->name && cg_enum_is_string(cg, t->name)) ? "_str" : "_int";
         default:         return "_int";
         }
     }
@@ -3112,7 +3231,29 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         if (type_arg->kind == NODE_LABEL) {
             emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
         } else {
-            emit(cg, "0");
+            /* Literal or expression: infer C type and emit sizeof() */
+            const char *c_type = NULL;
+            if (type_arg->kind == NODE_INT_VALUE) {
+                c_type = "int64_t";
+            } else if (type_arg->kind == NODE_FLOAT_VALUE) {
+                c_type = "double";
+            } else if (type_arg->kind == NODE_BOOL_VALUE) {
+                c_type = "bool";
+            } else if (type_arg->kind == NODE_STRING_VALUE ||
+                       type_arg->kind == NODE_INTERPOLATED_STRING) {
+                c_type = "EzString";
+            } else if (type_arg->kind == NODE_CHAR_VALUE) {
+                c_type = "int32_t";
+            } else {
+                /* Fallback: consult the type table */
+                EzType *t = cg->type_table ? typetable_get(cg->type_table, type_arg) : NULL;
+                if (t && t->name) c_type = ez_type_to_c_cg(cg, t->name);
+            }
+            if (c_type) {
+                emitf(cg, "(int64_t)sizeof(%s)", c_type);
+            } else {
+                emit(cg, "0");
+            }
         }
         return true;
     }
@@ -6352,12 +6493,17 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
          * so wide-integer types propagate through copy(), function calls,
          * member access, etc. Without this the var is silently treated as
          * int and downstream uses (println, arithmetic) emit the wrong
-         * runtime calls. */
+         * runtime calls. Also try resolve_bigint_type() so constructor
+         * calls like `mut a = i128(42)` register correctly when the
+         * typetable stores the base type name ("int") rather than the
+         * width-specific name ("i128"). */
         EzType *vt = cg->type_table
             ? typetable_get(cg->type_table, node->data.var_decl.value)
             : NULL;
-        if (vt && vt->name && is_bigint_type(vt->name)) {
-            register_bigint_var(cg, node->data.var_decl.name, vt->name);
+        const char *bi_name = (vt && vt->name && is_bigint_type(vt->name))
+            ? vt->name : resolve_bigint_type(cg, node->data.var_decl.value);
+        if (bi_name) {
+            register_bigint_var(cg, node->data.var_decl.name, bi_name);
         }
     }
 
@@ -6555,6 +6701,24 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit(cg, "; ");
             emit_value_deep_copy(cg, type_name, src_var);
             emit(cg, "; })");
+        } else if (type_name && is_bigint_type(type_name) &&
+                   !resolve_bigint_type(cg, node->data.var_decl.value)) {
+            /* Scalar variable/expression assigned to a wide integer type.
+             * Wrap with from_i64/from_u64 so the C assignment is valid.
+             * Covers: mut big i128 = some_int_var */
+            const char *pfx = bigint_prefix(type_name);
+            bool dst_unsigned = (type_name[0] == 'u');
+            EzType *val_t = cg->type_table
+                ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
+            bool src_unsigned = (val_t && val_t->kind == TK_UINT);
+            if (dst_unsigned) {
+                emitf(cg, "%s_from_u64((uint64_t)(", pfx);
+            } else {
+                emitf(cg, "%s_from_i64((int64_t)(", pfx);
+            }
+            (void)src_unsigned;
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, "))");
         } else if (!emit_narrowing_cast(cg, type_name, node->data.var_decl.value, node->token.line)) {
             emit_expression(cg, node->data.var_decl.value);
         }
@@ -6899,6 +7063,37 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (is_arith_compound || is_div_compound) {
             EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
             const char *sn = (tgt_t && tgt_t->name) ? tgt_t->name : NULL;
+            /* Wide integer compound assignment: emit bigint op functions */
+            const char *tgt_bi = sn && is_bigint_type(sn) ? sn
+                : resolve_bigint_type(cg, node->data.assign.target);
+            if (tgt_bi) {
+                const char *pfx = bigint_prefix(tgt_bi);
+                if (is_arith_compound) {
+                    const char *fn_op = NULL;
+                    if (strcmp(aop, "+=") == 0) fn_op = "add";
+                    else if (strcmp(aop, "-=") == 0) fn_op = "sub";
+                    else if (strcmp(aop, "*=") == 0) fn_op = "mul";
+                    if (fn_op) {
+                        emit_expression(cg, node->data.assign.target);
+                        emitf(cg, " = %s_%s_checked(", pfx, fn_op);
+                        emit_expression(cg, node->data.assign.target);
+                        emit(cg, ", ");
+                        EMIT_BIGINT_OPERAND(cg, node->data.assign.value, pfx, tgt_bi, NULL);
+                        emitf(cg, ", __FILE__, %d);\n", node->token.line);
+                        return;
+                    }
+                }
+                if (is_div_compound) {
+                    const char *fn_op = (strcmp(aop, "/=") == 0) ? "div" : "mod";
+                    emit_expression(cg, node->data.assign.target);
+                    emitf(cg, " = %s_%s(", pfx, fn_op);
+                    emit_expression(cg, node->data.assign.target);
+                    emit(cg, ", ");
+                    EMIT_BIGINT_OPERAND(cg, node->data.assign.value, pfx, tgt_bi, NULL);
+                    emit(cg, ");\n");
+                    return;
+                }
+            }
             bool tgt_is_int = (tgt_t && (tgt_t->kind == TK_INT || tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE));
             const char *smin = NULL, *smax = NULL;
             bool su = false;
@@ -7972,6 +8167,16 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         AstNode *val = node->data.when_stmt.value;
         EzType *when_val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
         bool when_is_string = (when_val_t && when_val_t->kind == TK_STRING);
+        if (!when_is_string && when_val_t && when_val_t->kind == TK_ENUM && when_val_t->name) {
+            for (int ei = 0; ei < cg->enum_count; ei++) {
+                if (strcmp(cg->enum_names[ei], when_val_t->name) == 0 && cg->enum_is_string[ei]) {
+                    when_is_string = true; break;
+                }
+            }
+        }
+        /* Detect wide integer type for the when value */
+        const char *when_bigint = (when_val_t && when_val_t->name && is_bigint_type(when_val_t->name))
+            ? when_val_t->name : resolve_bigint_type(cg, val);
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             WhenCase *wc = &node->data.when_stmt.cases[i];
             emit_indent(cg);
@@ -8008,6 +8213,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, ")");
                 } else if (when_is_string) {
                     emit(cg, "ez_string_eq(");
+                    emit_expression(cg, val);
+                    emit(cg, ", ");
+                    emit_expression(cg, wc->values[j]);
+                    emit(cg, ")");
+                } else if (when_bigint) {
+                    emitf(cg, "%s_eq(", bigint_prefix(when_bigint));
                     emit_expression(cg, val);
                     emit(cg, ", ");
                     emit_expression(cg, wc->values[j]);
@@ -8140,6 +8351,7 @@ CodeGen codegen_create(const char *file) {
     cg.has_fmt = false;
     cg.file = file;
     cg.enum_names = NULL;
+    cg.enum_is_string = NULL;
     cg.enum_count = 0;
     cg.enum_cap = 0;
     cg.current_func = NULL;
@@ -8334,13 +8546,6 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_ENUM_DECL) {
-            /* Register enum name */
-            if (cg->enum_count >= cg->enum_cap) {
-                cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
-                cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
-            }
-            cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
-
             /* Check if this is a string enum (auto-detect from values) */
             bool is_string_enum = false;
             for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
@@ -8350,6 +8555,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     break;
                 }
             }
+
+            /* Register enum name and string flag */
+            if (cg->enum_count >= cg->enum_cap) {
+                cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
+                cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
+                cg->enum_is_string = xrealloc(cg->enum_is_string, sizeof(bool) * cg->enum_cap);
+            }
+            cg->enum_names[cg->enum_count] = stmt->data.enum_decl.name;
+            cg->enum_is_string[cg->enum_count] = is_string_enum;
+            cg->enum_count++;
 
             if (is_string_enum) {
                 emitf(cg, "typedef EzString EzEnum_%s;\n", stmt->data.enum_decl.name);

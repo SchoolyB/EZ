@@ -202,6 +202,16 @@ static const char *enum_display_name(TypeChecker *tc, const char *name) {
     return name;
 }
 
+/* Returns true if the named enum is string-backed. */
+static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
+    if (!name) return false;
+    for (int i = 0; i < tc->enum_count; i++) {
+        if (strcmp(tc->enum_names[i], name) == 0)
+            return tc->enum_is_string[i];
+    }
+    return false;
+}
+
 /* A type name fit to print in a diagnostic — for struct/enum types this
  * is the user-facing name, never the module-prefixed lookup key. Composite
  * types fall through to type_name() unchanged. */
@@ -1804,7 +1814,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
             !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
             !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
-            !(left->kind == TK_BOOL && is_int_kind(right->kind))) {
+            !(left->kind == TK_BOOL && is_int_kind(right->kind)) &&
+            /* String enums can be compared with string literals */
+            !(left->kind == TK_ENUM && right->kind == TK_STRING && tc_enum_is_string(tc, left->name)) &&
+            !(left->kind == TK_STRING && right->kind == TK_ENUM && tc_enum_is_string(tc, right->name))) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "cannot compare %s with %s", type_name(left), type_name(right));
@@ -5030,7 +5043,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (!member_found) {
                     diag_error_codef(tc->diag, "E3047", NODE_FILE(tc, node), node->token.line, node->token.column, 0, obj_name, member);
                 }
-                result = is_str_enum ? &TYPE_STRING : type_enum(obj_name);
+                result = type_enum(obj_name);
                 break;
             }
 
@@ -5236,7 +5249,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 node->data.index_expr.index->token.column, 0);
         }
         if (left->kind == TK_ARRAY && left->element_type) {
-            result = type_from_name(left->element_type);
+            result = tc_type_from_name(tc, left->element_type);
         } else if (left->kind == TK_MAP && left->value_type) {
             result = type_from_name(left->value_type);
             /* Check map key type matches. Enum keys are int-backed, so accept
@@ -5527,10 +5540,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if ((src_t->kind == TK_BOOL && type_is_numeric(dst_t)) ||
                 (type_is_numeric(src_t) && dst_t->kind == TK_BOOL))
                 allowed = true;
-            /* String -> int, uint, float (parsing) */
-            if (src_t->kind == TK_STRING &&
-                (dst_t->kind == TK_INT || dst_t->kind == TK_UINT || dst_t->kind == TK_FLOAT))
-                allowed = true;
+            /* String -> numeric: NOT allowed via cast(); use dedicated parsing
+             * functions (e.g. strings.parse_int()) instead. cast() is for
+             * type reinterpretation, not fallible string parsing. */
             /* Numeric/Bool -> String (stringification) */
             if ((type_is_numeric(src_t) || src_t->kind == TK_BOOL) && dst_t->kind == TK_STRING)
                 allowed = true;
@@ -6244,6 +6256,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         * the reverse; int literals / variables can't be
                         * assigned to enum variables (). */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
+                       /* Allow string enum → string (string enums hold EzString values) */
+                       !(declared->kind == TK_STRING && value_type->kind == TK_ENUM &&
+                         tc_enum_is_string(tc, value_type->name)) &&
                        /* Note: multi-var expansion (.v0/.v1 access) is intentionally
                         * NOT skipped here — type mismatch on reversed multi-return
                         * types must be caught (see #1693). */
@@ -6498,7 +6513,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                     /* E3053: element type mismatch in array initializer */
                     if (elem_type[0]) {
-                        EzType *expected_et = type_from_name(elem_type);
+                        EzType *expected_et = tc_type_from_name(tc, elem_type);
                         AstNode *arr = node->data.var_decl.value;
                         for (int ei = 0; ei < arr->data.array_value.count; ei++) {
                             EzType *actual_et = resolve_expr(tc, arr->data.array_value.elements[ei]);
@@ -7037,7 +7052,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     !(is_int_kind(val_t->kind) && is_int_kind(elem_t->kind)) &&
                     !(val_t->kind == TK_ENUM   && is_int_kind(elem_t->kind)) &&
                     !(is_int_kind(val_t->kind) && elem_t->kind == TK_FLOAT)  &&
-                    !(val_t->kind == TK_FLOAT  && is_int_kind(elem_t->kind))) {
+                    !(val_t->kind == TK_FLOAT  && is_int_kind(elem_t->kind)) &&
+                    /* enum array: type_from_name returns TK_STRUCT for enum names */
+                    !(val_t->kind == TK_ENUM && elem_t->kind == TK_STRUCT &&
+                      indexed_t->element_type && is_enum_name(tc, indexed_t->element_type))) {
                     diag_error_codef(tc->diag, "E3094",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                         type_display_name(tc, val_t), type_display_name(tc, indexed_t));
@@ -7368,7 +7386,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                  * the reverse; returning an int from a function declared
                  * to return an enum is a type error (). */
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
-                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
+                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind)) &&
+                /* Allow string enum → string return */
+                !(expected->kind == TK_STRING && ret_t->kind == TK_ENUM &&
+                  tc_enum_is_string(tc, ret_t->name))) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",
@@ -7723,7 +7744,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Array/string iteration */
             EzType *elem_t = &TYPE_UNKNOWN;
             if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
-                elem_t = type_from_name(coll_t->element_type);
+                elem_t = tc_type_from_name(tc, coll_t->element_type);
             } else if (coll_t->kind == TK_STRING) {
                 elem_t = &TYPE_CHAR;
             }
@@ -8232,7 +8253,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         (is_int_kind(when_t->kind) && case_t->kind == TK_ENUM) ||
                         (when_t->kind == TK_ENUM && is_int_kind(case_t->kind)) ||
                         (is_int_kind(when_t->kind) && case_t->kind == TK_BYTE) ||
-                        (when_t->kind == TK_BYTE && is_int_kind(case_t->kind));
+                        (when_t->kind == TK_BYTE && is_int_kind(case_t->kind)) ||
+                        /* string subject with string-enum arm, or vice versa */
+                        (when_t->kind == TK_STRING && case_t->kind == TK_ENUM &&
+                         tc_enum_is_string(tc, case_t->name)) ||
+                        (when_t->kind == TK_ENUM && case_t->kind == TK_STRING &&
+                         tc_enum_is_string(tc, when_t->name));
                     if (!compat) {
                         diag_error_codef(tc->diag, "E3018", NODE_FILE(tc, val_i), val_i->token.line, val_i->token.column, 0, type_display_name(tc, when_t), type_display_name(tc, case_t));
                     }

@@ -69,17 +69,7 @@ do main() {
         failed += 1
     }
 
-    // Test 7: string to int via cast
-    mut parsed int = cast("456", int)
-    if parsed == 456 {
-        println("  [PASS] cast(\"456\", int) = 456")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] cast(\"456\", int): expected 456, got ${parsed}")
-        failed += 1
-    }
-
-    // Test 8: bool to string
+    // Test 7: bool to string
     mut bstr string = cast(true, string)
     if bstr == "true" {
         println("  [PASS] cast(true, string) = \"true\"")

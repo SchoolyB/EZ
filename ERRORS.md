@@ -125,7 +125,7 @@
 | `E3062` | types | %s cannot be declared const; use 'mut' (every operation on a %s mutates its state) |
 | `E3063` | types | cannot return addr(%s); '%s' is a local variable whose memory is freed when this function returns |
 | `E3064` | types | %s(%s) called again; '%s' was already destroyed |
-| `E3065` | types | bare 'func' is not a valid type; use func(<params>) -> <return> with an explicit signature |
+| `E3065` | types | bare 'func' is not a valid type; use an explicit signature, e.g. 'func(int) -> bool' |
 | `E3066` | types | function reference signature mismatch; expected and actual function types differ |
 | `E3067` | types | argument %d of '%s' is passed to a '&' parameter; pass a mutable variable, not a literal or expression |
 | `E3068` | types | 'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value |
@@ -352,4 +352,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-07 07:01:36 UTC*
+*Generated on 2026-06-10 04:02:40 UTC*
