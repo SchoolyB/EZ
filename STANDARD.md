@@ -1479,10 +1479,10 @@ Functions can be passed as values using the `()` prefix syntax or the `ref()` bu
 do is_positive(n int) -> bool { return n > 0 }
 
 // ()func_name — implicit syntax
-mut check = ()is_positive
+const check = ()is_positive
 
 // ref(func_name) — explicit syntax
-mut check = ref(is_positive)
+const check = ref(is_positive)
 
 // Call through the reference
 check(5)  // true
@@ -1597,6 +1597,17 @@ Chained struct function calls (`a.f().g()`) are not supported (E3075). Assign ea
 ### 7.8 Function Scope
 
 All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
+
+Storing a reference to an existing function in a local variable is not the same as declaring a function and is perfectly valid:
+
+```ez
+do double(n int) -> int { return n * 2 }
+
+do main() {
+    const f func(int) -> int = ()double  // valid: f is a variable, not a function declaration
+    println(f(5))                         // 10
+}
+```
 
 ### 7.9 Wildcard Types (`?`)
 
