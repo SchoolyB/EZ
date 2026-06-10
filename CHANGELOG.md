@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.5.13](https://github.com/SchoolyB/EZ/compare/v3.5.12...v3.5.13) (2026-06-10)
+
+
+### Bug Fixes
+
+* **codegen:** cast integer literals to int64_t in shift expressions to prevent UB for shifts &gt;= 32 ([62fd12e](https://github.com/SchoolyB/EZ/commit/62fd12e97805ae2cd555a741245dcb179fce5685))
+* **codegen:** emit bigint constructor/extractor functions for wide integer casts ([#1803](https://github.com/SchoolyB/EZ/issues/1803)) ([eea42c8](https://github.com/SchoolyB/EZ/commit/eea42c8a7c368e1b0acd750184f72bcb5b60a3dd))
+* **codegen:** implicit scalar-to-bigint assignment and compound operators on wide integer types ([#1805](https://github.com/SchoolyB/EZ/issues/1805), [#1806](https://github.com/SchoolyB/EZ/issues/1806)) ([27a3356](https://github.com/SchoolyB/EZ/commit/27a33563a75d16685e00cb439c56b43a8b46fc6d))
+* **codegen:** prevent double-wrap when assigning cast(expr, bigint) to bigint var ([#1803](https://github.com/SchoolyB/EZ/issues/1803)) ([e0d9ae9](https://github.com/SchoolyB/EZ/commit/e0d9ae93463685151720116a55a92fbac3d81554))
+* **codegen:** prevent double-wrap when negating bigint variable ([676999d](https://github.com/SchoolyB/EZ/commit/676999d5da1453bf2b56efd68a0ee01c4f95e3c8))
+* **codegen:** size_of on literals returns correct size, type_of on inferred wide ints returns specific type ([#1809](https://github.com/SchoolyB/EZ/issues/1809), [#1810](https://github.com/SchoolyB/EZ/issues/1810)) ([191dd5e](https://github.com/SchoolyB/EZ/commit/191dd5e2bb327e84583136f2c490f34424c6b9e8))
+* **codegen:** use bigint eq functions in when/is for wide integer types ([#1804](https://github.com/SchoolyB/EZ/issues/1804)) ([51089e7](https://github.com/SchoolyB/EZ/commit/51089e7ffc96a9d3d70b70fd65f33cddf7335e9e))
+* **codegen:** use println_str for string enum values in println/print/eprint ([#1801](https://github.com/SchoolyB/EZ/issues/1801)) ([ad90143](https://github.com/SchoolyB/EZ/commit/ad9014313032b00aca7eb908bba894d6065c141f))
+* **errors:** remove angle bracket placeholders from E3065 and E3069 error messages ([225eaef](https://github.com/SchoolyB/EZ/commit/225eaefced5fcba8128e97e33b47fb1bb3529ecb))
+* **parser:** support custom fallback values in or_return ([#1808](https://github.com/SchoolyB/EZ/issues/1808)) ([da9f01d](https://github.com/SchoolyB/EZ/commit/da9f01dd5a88a88725066fc89ac2875320f00434))
+* **tests:** remove cast(string, int) test case from cast_keyword (rejected by E3043) ([3639475](https://github.com/SchoolyB/EZ/commit/3639475e813c8813fa5ea20ad308ae32c40ee78b))
+* **tests:** remove cast(string, int/float) test cases from cast_conversions (rejected by E3043) ([780e9bb](https://github.com/SchoolyB/EZ/commit/780e9bb877b788c146429976dea5d8181a210e07))
+* **tests:** use typed enum array in stress_enums (correct element sizing) ([69341e3](https://github.com/SchoolyB/EZ/commit/69341e3724a65b4591a1404da4bfc0207553c1c9))
+* **typechecker,codegen:** restore string enum ↔ string interop ([#1801](https://github.com/SchoolyB/EZ/issues/1801)) ([f67c08d](https://github.com/SchoolyB/EZ/commit/f67c08d9006fb9147d4e18022a0e4af7e9e9943f))
+* **typechecker,codegen:** string enum type tracking and comparisons ([#1801](https://github.com/SchoolyB/EZ/issues/1801)) ([158a6c9](https://github.com/SchoolyB/EZ/commit/158a6c9f0901ca6beb859f9c93adc0498dea1a95))
+* **typechecker:** reject cast(string, int/float/uint) with E3043 ([#1807](https://github.com/SchoolyB/EZ/issues/1807)) ([c5294c3](https://github.com/SchoolyB/EZ/commit/c5294c35fe7cfdc854f5cda9326e154bf840c442))
+* **typechecker:** string enum interop with when/is, return types, and array element assignment ([#1801](https://github.com/SchoolyB/EZ/issues/1801)) ([1ccf16a](https://github.com/SchoolyB/EZ/commit/1ccf16a57312470f0d3446c9c186beeef0cca9cf))
+
 ## [3.5.12](https://github.com/SchoolyB/EZ/compare/v3.5.11...v3.5.12) (2026-06-07)
 
 
