@@ -1,0 +1,343 @@
+/*
+ * stress_bitwise.ez - Stress test for bitwise operators
+ *
+ * Covers: edge values, all types, large shifts, deep chains,
+ *         bitwise in function returns, bitwise in conditionals,
+ *         compound masking patterns, identity/annihilation properties
+ */
+
+do mask_low(v int, bits int) -> int {
+    return v bit_and (1 bit_shift_left bits) - 1
+}
+
+do toggle(v int, flag int) -> int {
+    return v bit_xor flag
+}
+
+do has_flag(v int, flag int) -> bool {
+    return v bit_and flag == flag
+}
+
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // --- identity properties ---
+    // x bit_and x == x
+    mut v int = 0b10101010
+    if v bit_and v == v {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_and x == x")
+        failed += 1
+    }
+
+    // x bit_or x == x
+    if v bit_or v == v {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_or x == x")
+        failed += 1
+    }
+
+    // x bit_xor x == 0
+    if v bit_xor v == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_xor x == 0")
+        failed += 1
+    }
+
+    // x bit_and 0 == 0
+    if v bit_and 0 == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_and 0 == 0")
+        failed += 1
+    }
+
+    // x bit_or 0 == x
+    if v bit_or 0 == v {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_or 0 == x")
+        failed += 1
+    }
+
+    // x bit_shift_left 0 == x
+    if v bit_shift_left 0 == v {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_shift_left 0 == x")
+        failed += 1
+    }
+
+    // x bit_shift_right 0 == x
+    if v bit_shift_right 0 == v {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] x bit_shift_right 0 == x")
+        failed += 1
+    }
+
+    // --- edge values: 0 ---
+    if bit_not 0 == -1 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not 0 == -1")
+        failed += 1
+    }
+
+    if 0 bit_and 0 == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0 bit_and 0 == 0")
+        failed += 1
+    }
+
+    if 0 bit_or 0 == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0 bit_or 0 == 0")
+        failed += 1
+    }
+
+    // --- edge values: -1 (all bits set for int) ---
+    mut all_ones int = -1
+    if all_ones bit_and 0xFF == 0xFF {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] -1 bit_and 0xFF == 0xFF")
+        failed += 1
+    }
+
+    if bit_not all_ones == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not -1 == 0")
+        failed += 1
+    }
+
+    if all_ones bit_xor all_ones == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] -1 bit_xor -1 == 0")
+        failed += 1
+    }
+
+    // --- large shift amounts ---
+    if 1 bit_shift_left 62 == 4611686018427387904 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 1 bit_shift_left 62")
+        failed += 1
+    }
+
+    if 4611686018427387904 bit_shift_right 62 == 1 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_shift_right 62")
+        failed += 1
+    }
+
+    if 1 bit_shift_left 1 bit_shift_left 1 == 4 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] chained shifts")
+        failed += 1
+    }
+
+    // --- uint edge values ---
+    mut u uint = 0
+    if bit_not u == 18446744073709551615 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not uint 0 == max uint")
+        failed += 1
+    }
+
+    mut umax uint = 18446744073709551615
+    if umax bit_and 0xFF == 255 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] umax bit_and 0xFF == 255")
+        failed += 1
+    }
+
+    if umax bit_shift_right 63 == 1 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] umax bit_shift_right 63 == 1")
+        failed += 1
+    }
+
+    // --- byte edge values ---
+    mut bmax byte = 0xFF
+    mut bzero byte = 0x00
+    if bmax bit_and bzero == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0xFF bit_and 0x00 == 0")
+        failed += 1
+    }
+
+    if bmax bit_or bzero == 0xFF {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0xFF bit_or 0x00 == 0xFF")
+        failed += 1
+    }
+
+    if bmax bit_xor bmax == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0xFF bit_xor 0xFF == 0")
+        failed += 1
+    }
+
+    mut bnotmax byte = bit_not bmax
+    if bnotmax == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not 0xFF byte == 0")
+        failed += 1
+    }
+
+    // --- deeply chained operations ---
+    mut x int = 0b11111111
+    mut result int = x bit_and 0b11001100 bit_or 0b00110011 bit_xor 0b01010101
+    if result == 0b10101010 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] deep chain bit_and bit_or bit_xor")
+        failed += 1
+    }
+
+    // --- bitwise in function return values ---
+    mut masked int = mask_low(0xFF, 4)
+    if masked == 0x0F {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mask_low(0xFF, 4) == 0x0F, got ${masked}")
+        failed += 1
+    }
+
+    mut toggled int = toggle(0b1010, 0b0011)
+    if toggled == 0b1001 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] toggle(0b1010, 0b0011) == 0b1001, got ${toggled}")
+        failed += 1
+    }
+
+    // --- bitwise in conditionals ---
+    mut flags int = 0b00000111
+    if has_flag(flags, 0b100) {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] has_flag bit 2 should be set")
+        failed += 1
+    }
+
+    if has_flag(flags, 0b1000) {
+        println("  [FAIL] has_flag bit 3 should NOT be set")
+        failed += 1
+    } otherwise {
+        passed += 1
+    }
+
+    // --- multi-flag masking pattern ---
+    const FLAG_A int = 1 bit_shift_left 0
+    const FLAG_B int = 1 bit_shift_left 1
+    const FLAG_C int = 1 bit_shift_left 2
+    const FLAG_D int = 1 bit_shift_left 3
+
+    mut state int = FLAG_A bit_or FLAG_C
+    if state bit_and FLAG_A == FLAG_A {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] FLAG_A set")
+        failed += 1
+    }
+    if state bit_and FLAG_B == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] FLAG_B not set")
+        failed += 1
+    }
+    if state bit_and FLAG_C == FLAG_C {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] FLAG_C set")
+        failed += 1
+    }
+    if state bit_and FLAG_D == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] FLAG_D not set")
+        failed += 1
+    }
+
+    // set FLAG_B, clear FLAG_C
+    state = state bit_or FLAG_B
+    state = state bit_xor FLAG_C
+    if state bit_and FLAG_B == FLAG_B {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] FLAG_B now set")
+        failed += 1
+    }
+    if state bit_and FLAG_C == 0 {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] FLAG_C now cleared")
+        failed += 1
+    }
+
+    // --- double bit_not cancels out ---
+    mut dbl int = 0b10110100
+    if bit_not (bit_not dbl) == dbl {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not bit_not x == x")
+        failed += 1
+    }
+
+    // --- shift then mask (common pattern) ---
+    mut packed int = 0xABCD
+    mut low_byte int = packed bit_and 0xFF
+    mut high_byte int = (packed bit_shift_right 8) bit_and 0xFF
+    if low_byte == 0xCD {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] low_byte extraction, got ${low_byte}")
+        failed += 1
+    }
+    if high_byte == 0xAB {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] high_byte extraction, got ${high_byte}")
+        failed += 1
+    }
+
+    // --- variable shift amounts in loop ---
+    mut shift_results int = 0
+    mut i int = 0
+    for i < 8 {
+        shift_results = shift_results bit_or (1 bit_shift_left i)
+        i++
+    }
+    if shift_results == 0xFF {
+        passed += 1
+    } otherwise {
+        println("  [FAIL] accumulate bits in loop, got ${shift_results}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("stress_bitwise: ${failed} test(s) failed")
+    }
+    println("ALL TESTS PASSED")
+}

@@ -1659,7 +1659,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 strcmp(op, "bit_or")          == 0 ? "|"  :
                 strcmp(op, "bit_xor")         == 0 ? "^"  :
                 strcmp(op, "bit_shift_left")  == 0 ? "<<" : ">>";
+            bool is_shift = (strcmp(op, "bit_shift_left") == 0 ||
+                             strcmp(op, "bit_shift_right") == 0);
+            bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
             emit(cg, "(");
+            if (is_shift && left_is_literal) emit(cg, "(int64_t)");
             emit_expression(cg, node->data.infix.left);
             emitf(cg, " %s ", c_op);
             emit_expression(cg, node->data.infix.right);
