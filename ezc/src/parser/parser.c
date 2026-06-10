@@ -1606,7 +1606,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 /* Common mistake: `name &type` instead of `&name type`.
                  * Without this, the loop has no token to consume and
                  * spins until killed externally (#bug-report). */
-                diag_error_codef(p->diag, "E3069", p->file, p->peek_token.line, p->peek_token.column, 0, param->name, "<type>");
+                diag_error_codef(p->diag, "E3069", p->file, p->peek_token.line, p->peek_token.column, 0, param->name, "type");
                 return NULL;
             }
 
