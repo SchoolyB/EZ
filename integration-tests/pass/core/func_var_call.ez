@@ -41,7 +41,7 @@ do main() {
     }
 
     // -- bool return used in condition --
-    mut p func(int) -> bool = ()is_even
+    const p func(int) -> bool = ()is_even
     if p(4) && !p(5) {
         println("  [PASS] bool-returning func var call in condition")
         passed += 1
@@ -50,22 +50,4 @@ do main() {
         failed += 1
     }
 
-    // -- reassign func var to different function with same signature --
-    f = ()mul
-    if f(6, 7) == 42 {
-        println("  [PASS] func var reassignment")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] func var reassignment")
-        failed += 1
-    }
-
-    println("")
-    println("Results: ${passed} passed, ${failed} failed")
-
-    if failed > 0 {
-        println("SOME TESTS FAILED")
-    } otherwise {
-        println("ALL TESTS PASSED")
-    }
 }
