@@ -2085,6 +2085,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             resolve_expr(tc, fn);
         }
 
+        /* E5030: chained call on a function-call result — e.g. get_fn()(5).
+         * A call result is never directly callable in EZ; func references
+         * must be created with ()func_name or ref(func_name) first. */
+        if (fn && fn->kind == NODE_CALL_EXPR) {
+            AstNode *inner_fn = fn->data.call.function;
+            const char *inner_name = NULL;
+            char inner_buf[EZ_MSG_BUF_SIZE];
+            if (inner_fn && inner_fn->kind == NODE_LABEL) {
+                inner_name = inner_fn->data.label.value;
+            } else if (inner_fn && inner_fn->kind == NODE_MEMBER_EXPR &&
+                       inner_fn->data.member.object->kind == NODE_LABEL) {
+                snprintf(inner_buf, sizeof(inner_buf), "%s.%s",
+                    inner_fn->data.member.object->data.label.value,
+                    inner_fn->data.member.member);
+                inner_name = inner_buf;
+            }
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling",
+                inner_name ? inner_name : "function");
+            diag_error_msg(tc->diag, "E5030", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            result = &TYPE_UNKNOWN;
+            break;
+        }
+
         /* [func] array + constant index + literal-of-func-refs origin:
          * recover the original referenced function's return type so it
          * survives the trip through void* storage (). */
@@ -6169,6 +6195,29 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (value_type->kind == TK_VOID) {
                 diag_error_msg(tc->diag, "E3038",
                     "cannot assign the result of a void function to a variable",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* E3102: cannot assign a func-type return value to a variable.
+             * Func references must be created with ()func_name or ref(func_name). */
+            if (value_type->kind == TK_FUNCTION &&
+                node->data.var_decl.value->kind == NODE_CALL_EXPR) {
+                AstNode *call_fn = node->data.var_decl.value->data.call.function;
+                const char *called = "function";
+                char called_buf[EZ_MSG_BUF_SIZE];
+                if (call_fn->kind == NODE_LABEL) {
+                    called = call_fn->data.label.value;
+                } else if (call_fn->kind == NODE_MEMBER_EXPR &&
+                           call_fn->data.member.object->kind == NODE_LABEL) {
+                    snprintf(called_buf, sizeof(called_buf), "%s.%s",
+                        call_fn->data.member.object->data.label.value,
+                        call_fn->data.member.member);
+                    called = called_buf;
+                }
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "function '%s' returns a func type; func references cannot be assigned from function return values — use '()func_name' or 'ref(func_name)' to create a func reference",
+                    called);
+                diag_error_msg(tc->diag, "E3102", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for multi-return to single variable

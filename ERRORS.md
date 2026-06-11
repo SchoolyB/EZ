@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 305 codes** (200 errors, 16 warnings, 89 panics)
+**Total: 307 codes** (202 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -163,6 +163,7 @@
 | `E3099` | types | '%s' is a reserved stdlib type name and cannot be used as a struct name |
 | `E3100` | types | type name '%s' cannot be used as a value |
 | `E3101` | types | func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases |
+| `E3102` | types | function '%s' returns a func type; func references cannot be assigned from function return values — use '()func_name' or 'ref(func_name)' to create a func reference |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -196,6 +197,7 @@
 | `E5027` | usage | embed() path must not escape the source file's directory tree |
 | `E5028` | usage | func references are not printable values; func references cannot be passed to print functions |
 | `E5029` | usage | copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values |
+| `E5030` | usage | cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -356,4 +358,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-11 02:49:48 UTC*
+*Generated on 2026-06-11 02:55:44 UTC*

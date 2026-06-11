@@ -185,7 +185,8 @@
     EZ_ERROR("E3098", "types", "type mismatch: cannot assign '%s' to '%s' through pointer dereference") \
     EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name") \
     EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value") \
-    EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases")
+    EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases") \
+    EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values — use '()func_name' or 'ref(func_name)' to create a func reference")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -224,7 +225,8 @@
     EZ_ERROR("E5026", "arguments", "argument type mismatch; the function expects a different type than what was provided") \
     EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree") \
     EZ_ERROR("E5028", "usage", "func references are not printable values; func references cannot be passed to print functions") \
-    EZ_ERROR("E5029", "usage", "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values")
+    EZ_ERROR("E5029", "usage", "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values") \
+    EZ_ERROR("E5030", "usage", "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
