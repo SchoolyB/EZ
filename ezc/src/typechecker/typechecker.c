@@ -3992,6 +3992,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
+                if (result->kind == TK_FUNCTION) {
+                    diag_error_msg(tc->diag, "E5029",
+                        strdup("copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(fn_name, "char") == 0) {
                 /* E5008: char() requires exactly 1 argument */
                 if (node->data.call.arg_count != 1) {

@@ -221,7 +221,8 @@
     EZ_ERROR("E5025", "usage", "invalid assignment target; left side of '=' must be a variable, field, or index expression") \
     EZ_ERROR("E5026", "arguments", "argument type mismatch; the function expects a different type than what was provided") \
     EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree") \
-    EZ_ERROR("E5028", "usage", "func references are not printable values; func references cannot be passed to print functions")
+    EZ_ERROR("E5028", "usage", "func references are not printable values; func references cannot be passed to print functions") \
+    EZ_ERROR("E5029", "usage", "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
