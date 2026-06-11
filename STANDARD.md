@@ -34,7 +34,7 @@
   <img src="images/Flip.png" alt="Flip - EZ Mascot" width="200">
 </p>
 
-> 💡 Throughout this document, tips and callouts are provided by **Flip** — the official mascot of EZ.
+> 💡 Throughout this document, tips and callouts are provided by **Flip**, the official mascot of EZ.
 
 ### 1.1 Purpose
 
@@ -237,7 +237,7 @@ EZ is statically typed. Every variable and expression has a type known at check 
 
 #### 3.1.1 Integer Type (`int`)
 
-The `int` type represents a 64-bit signed integer (`int64_t` in C). Arithmetic operations use checked arithmetic — overflow or underflow produces a runtime panic rather than silent wrapping.
+The `int` type represents a 64-bit signed integer. Arithmetic operations use checked arithmetic; overflow or underflow produces a runtime panic rather than silent wrapping.
 
 ```ez
 mut small int = 42
@@ -246,7 +246,7 @@ mut large int = 9223372036854775807  // Max 64-bit signed value
 
 #### 3.1.2 Unsigned Integer Type (`uint`)
 
-The `uint` type represents a 64-bit unsigned integer (`uint64_t` in C). Like `int`, arithmetic is overflow-checked with a runtime panic on overflow.
+The `uint` type represents a 64-bit unsigned integer. Like `int`, arithmetic is overflow-checked with a runtime panic on overflow.
 
 ```ez
 mut count uint = 100
@@ -259,7 +259,7 @@ Assigning a negative value to a `uint` produces a check-time error.
 
 The `float` type represents 64-bit IEEE 754 double-precision floating-point numbers.
 
-Division by zero with floating-point operands produces a runtime panic. However, special IEEE 754 values (`NaN`, `Infinity`, `-Infinity`) can appear through C interop or stdlib math functions (e.g., edge cases in trigonometric or logarithmic functions). Use `math.is_nan()`, `math.is_infinite()`, and `math.is_finite()` to check for these values.
+Division by zero with floating-point operands produces a runtime panic. However, special IEEE 754 values (`NaN`, `Infinity`, `-Infinity`) can appear through stdlib math functions (e.g., edge cases in trigonometric or logarithmic functions). Use `math.is_nan()`, `math.is_infinite()`, and `math.is_finite()` to check for these values.
 
 ```ez
 mut pi float = 3.14159
@@ -371,7 +371,7 @@ mut x int = int(c)           // cast back to int
 mut s string = string(c)     // convert to string
 ```
 
-Wide integers use the same overflow-checked arithmetic as `int` and `uint` — overflow produces a runtime panic.
+Wide integers use the same overflow-checked arithmetic as `int` and `uint`; overflow produces a runtime panic.
 
 #### 3.1.10 Pointer Type (`^Type`)
 
@@ -387,8 +387,8 @@ The pointer type `^Type` represents a memory address pointing to a value of `Typ
 ```ez
 mut x int = 42
 mut p ^int = addr(x)
-println(p)   // 0x16d1ab9f8 — prints the address as hex
-println(p^)  // 42 — explicit dereference reads the pointee
+println(p)   // 0x16d1ab9f8, prints the address as hex
+println(p^)  // 42, explicit dereference reads the pointee
 p^ = 100
 println(x)   // 100
 ```
@@ -397,9 +397,9 @@ Printing a pointer value (`println(p)`, `print(p)`, etc.) outputs the address in
 
 Dereferencing a `nil` pointer causes a runtime panic.
 
-> 💡 **Flip's Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value — handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
+> 💡 **Flip's Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value, handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
 
-> 💡 **Flip's Tip:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts — for example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
+> 💡 **Flip's Tip:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts. For example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
 
 ### 3.2 Composite Types
 
@@ -420,11 +420,11 @@ mut empty [string] = {}
 const fixed [int, 3] = {10, 20, 30}
 ```
 
-Fixed-size arrays must be declared with `const`. Providing fewer values than the declared size is permitted (a `W3003` warning is issued); providing more values than the declared size is an error.
+Fixed-size arrays must be declared with `const`. Providing fewer values than the declared size is permitted; providing more values than the declared size is an error.
 
 ```ez
-const a [int, 5] = {1, 2, 3}           // OK — warning W3003 (3 of 5 slots used)
-const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error — 6 values exceeds size of 5
+const a [int, 5] = {1, 2, 3}           // OK (3 of 5 slots used, remaining zero-initialized)
+const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error: 6 values exceeds size of 5
 ```
 
 **Multi-dimensional arrays**:
@@ -448,14 +448,14 @@ mut ages map[string:int] = {
 mut empty map[string:int] = {:}  // Empty map
 ```
 
-> 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array — the colon is the tell!
+> 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array; the colon is the tell!
 
 ```ez
 mut arr [int] = {}       // Empty array
 mut m map[string:int] = {:}  // Empty map
 ```
 
-Maps must be declared with `mut`. Declaring a map with `const` is a compile-time error — if the keys are known at compile time, use a struct instead.
+Maps must be declared with `mut`. Declaring a map with `const` is a compile-time error. If the keys are known at compile time, use a struct instead.
 
 Keys must be of a hashable type: `int`, `uint`, `float`, `string`, `bool`, `char`, or `byte`.
 
@@ -487,17 +487,17 @@ A struct may reference itself through a **pointer field**. Value-type self-refer
 ```ez
 const Node struct {
     val  int
-    next ^Node   // OK — pointer field
+    next ^Node   // OK: pointer field
 }
 
 // Value-type self-reference is an error:
 const Bad struct {
     val  int
-    next Bad     // error[E3061]: struct 'Bad' cannot contain itself by value
+    next Bad     // error: struct 'Bad' cannot contain itself by value; use ptr<Bad>
 }
 ```
 
-To traverse a recursive struct, dot notation automatically dereferences pointer fields — no explicit `^` required. The `^` suffix is also accepted if preferred:
+To traverse a recursive struct, dot notation automatically dereferences pointer fields with no explicit `^` required. The `^` suffix is also accepted if preferred:
 
 ```ez
 mut a = new(Node)
@@ -507,8 +507,8 @@ b.val  = 2
 a.next = b
 
 println(a.val)        // 1
-println(a.next.val)   // 2  — implicit dereference
-println(a.next^.val)  // 2  — explicit dereference (also valid)
+println(a.next.val)   // 2, implicit dereference
+println(a.next^.val)  // 2, explicit dereference (also valid)
 ```
 
 Mutual recursion (two structs referencing each other) is not supported.
@@ -718,20 +718,20 @@ if true {
 
 #### Fallible Functions
 
-Some functions return a `(T, Error)` tuple — these are **fallible functions**. They require destructuring. Assigning the result to a single variable panics at runtime if the function fails; the compiler enforces destructuring to make the choice explicit:
+Some functions return a `(T, Error)` tuple; these are **fallible functions**. They require destructuring. Assigning the result to a single variable panics at runtime if the function fails; the compiler enforces destructuring to make the choice explicit:
 
 ```ez
-// Correct — handle the error
+// Correct: handle the error
 mut content, err = io.read_file("data.txt")
 if err != nil {
     panic(err)
 }
 
-// Correct — explicitly discard the error when you know it won't fail
+// Correct: explicitly discard the error when you know it won't fail
 mut content, _ = io.read_file("data.txt")
 
-// Wrong — single-var assignment from a fallible function panics
-mut content = io.read_file("data.txt")  // error[E3089]: use destructuring
+// Wrong: single-var assignment from a fallible function panics
+mut content = io.read_file("data.txt")  // error: use destructuring for fallible functions
 ```
 
 #### Blank Identifier
@@ -770,10 +770,10 @@ The blank identifier:
 {}   // Empty array (not to be confused with {:} which is an empty map)
 ```
 
-All elements in an array literal must be the same type. Mixed-type literals are rejected at compile time (E3001):
+All elements in an array literal must be the same type. Mixed-type literals are rejected at compile time:
 
 ```ez
-{1, "two", 3}   // error[E3001]: mixed types in array literal
+{1, "two", 3}   // error: mixed types in array literal
 ```
 
 #### 5.1.2 Map Literals
@@ -821,10 +821,10 @@ Comparison operators return `bool`.
 
 Comparison operators only work on primitive types (numeric kinds, `bool`, `char`, `byte`, `string` for equality, enums) and pointer equality (`==` / `!=` against `nil` or another pointer of the same pointee type). They are not defined on aggregate types:
 
-- Arrays — use `arrays.is_equal(a, b)` for equality (E3074).
-- Maps — use `maps.is_equal(a, b)` for equality; ordering is not defined on maps (E3076).
-- Structs — compare individual fields (`a.x == b.x`); E3077.
-- Pointer arithmetic and ordering are not supported (E3078); equality (`==` / `!=`) on pointers is allowed.
+- Arrays — use `arrays.is_equal(a, b)` for equality.
+- Maps — use `maps.is_equal(a, b)` for equality; ordering is not defined on maps.
+- Structs — compare individual fields (`a.x == b.x`).
+- Pointer arithmetic and ordering are not supported; equality (`==` / `!=`) on pointers is allowed.
 
 #### 5.2.3 Logical Operators
 
@@ -936,7 +936,7 @@ Ranges are inclusive of the start value and exclusive of the end value.
 - Positive step (or omitted): start must be ≤ end
 - Negative step: start must be ≥ end (for backwards iteration)
 - Zero step: always produces a runtime panic
-- Mismatched direction (e.g., `range(0, 10, -1)`) produces an error (E9005)
+- Mismatched direction (e.g., `range(0, 10, -1)`) produces a runtime error
 
 ---
 
@@ -1041,12 +1041,12 @@ Map iteration order is undefined (maps are unordered).
 
 **Mutation during iteration:**
 
-- **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe — new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
+- **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe; new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
 - **Maps:** Modifying a map during `for_each` (inserting or deleting keys) is not allowed and will panic at runtime. Read the map freely, but do not mutate it until the loop completes.
 
 #### 6.3.3 While Loops
 
-`while` is an alias for `as_long_as`. Both are valid — user's choice.
+`while` is an alias for `as_long_as`. Both are valid, user's choice.
 
 > 💡 **Flip's Tip:** `while` and `as_long_as` are identical. Pick whichever reads more naturally to you and stick with it.
 
@@ -1129,7 +1129,7 @@ when x {
 }
 ```
 
-**Allowed condition types:** `int`, `uint`, `string`, `char`, `byte`, `bool`, `float`, and enum types. Float conditions emit a W2012 warning about imprecision. Collection types (arrays, maps) are not allowed.
+**Allowed condition types:** `int`, `uint`, `string`, `char`, `byte`, `bool`, `float`, and enum types. Float conditions emit a warning about imprecision. Collection types (arrays, maps) are not allowed.
 
 **Strict mode** requires all possible values to be handled:
 
@@ -1143,9 +1143,9 @@ when direction {
 }
 ```
 
-When a `when` statement matches on enum values (i.e. one or more `is` branches use `EnumName.VARIANT` patterns) and has no `default` branch, the compiler emits **W3005** if `#strict` is not present. This warns that exhaustiveness is not being checked. The fix is to either add `#strict` to enforce exhaustive coverage or add a `default` branch. This applies at any nesting depth.
+When a `when` statement matches on enum values (i.e. one or more `is` branches use `EnumName.VARIANT` patterns) and has no `default` branch, the compiler warns if `#strict` is not present. This warns that exhaustiveness is not being checked. The fix is to either add `#strict` to enforce exhaustive coverage or add a `default` branch. This applies at any nesting depth.
 
-An empty `default {}` branch emits **W3006**. Unmatched values are silently ignored, which is almost never intentional. Either handle the case or add a comment explaining the intent.
+An empty `default {}` branch emits a warning. Unmatched values are silently ignored, which is almost never intentional. Either handle the case or add a comment explaining the intent.
 
 ### 6.6 Ensure Statement
 
@@ -1263,7 +1263,7 @@ connect("localhost", 3000, true)  // port=3000, verbose=true
 Default parameters must appear after non-default parameters. A required parameter cannot follow a parameter with a default value:
 
 ```ez
-do foo(a int = 10, b int) {}   // Error E2039: required parameter after default
+do foo(a int = 10, b int) {}   // error: required parameter cannot follow a default parameter
 do bar(a int, b int = 10) {}   // OK: required first, then default
 ```
 
@@ -1285,7 +1285,7 @@ do square(x int) -> int {
 > }
 >
 > do main() {
->     mut f = something()^   // dereference at call site — f is Foo, not ^Foo
+>     mut f = something()^   // dereference at call site, f is Foo, not ^Foo
 >     println(f)
 > }
 > ```
@@ -1318,7 +1318,7 @@ if err != nil {
 
 #### 7.3.4 Named Return Values
 
-Return values can be given names to document what each position in the return tuple represents. Named return values are **labels only** — they do not implicitly declare variables in the function body. The programmer must explicitly declare any variables they use:
+Return values can be given names to document what each position in the return tuple represents. Named return values are **labels only**; they do not implicitly declare variables in the function body. The programmer must explicitly declare any variables they use:
 
 ```ez
 do divide(a, b int) -> (quotient int, remainder int) {
@@ -1343,7 +1343,7 @@ do get_info() -> (name, city string, age int) {
 
 Named return values must be enclosed in parentheses. The names serve as documentation for callers and tooling (e.g., `ez doc`) but have no effect on the function's scope or variable declarations.
 
-**Restriction:** Wildcard types (`?`) cannot be used in named return positions (E3082). Since `?` resolves to a different concrete type at each call site, the name adds no useful documentation. Use an unnamed return instead:
+**Restriction:** Wildcard types (`?`) cannot be used in named return positions. Since `?` resolves to a different concrete type at each call site, the name adds no useful documentation. Use an unnamed return instead:
 
 ```ez
 // Error: wildcard type '?' cannot be named
@@ -1388,8 +1388,8 @@ Private members cannot be accessed from other modules:
 ```ez
 import "./mathlib"
 mathlib.factorial(5)          // OK - public
-// mathlib.validate(5)        // ERROR E4006 - private function
-// mathlib.MAX_ITERATIONS     // ERROR E6009 - private constant
+// mathlib.validate(5)        // error: private function
+// mathlib.MAX_ITERATIONS     // error: private constant
 ```
 
 ### 7.5 Attributes
@@ -1411,7 +1411,7 @@ const Person struct {
 - Order is irrelevant. `#doc` then `#json` and `#json` then `#doc` produce identical results.
 - Blank lines between attributes and the declaration are allowed.
 - Each attribute applies to the immediately following declaration only. It does not skip ahead to find a compatible declaration further down the file.
-- Misapplied attributes are rejected. For example, `#json` on a function produces an error — `#json` can only be applied to struct declarations.
+- Misapplied attributes are rejected. For example, `#json` on a function produces an error; `#json` can only be applied to struct declarations.
 
 #### Available Attributes
 
@@ -1441,7 +1441,7 @@ const Point struct {
 
 #### 7.5.2 `#json` Attribute
 
-The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically — no field tags, no manual encoding/decoding calls, and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.stringify()`.
+The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically, with no field tags, no manual encoding/decoding calls, and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.stringify()`.
 
 ```ez
 import @json
@@ -1458,12 +1458,12 @@ do main() {
     mut u User = json.parse("{\"name\": \"Alice\", \"age\": 25, \"active\": true}")
     println(u.name)            // Alice
 
-    // Serialize back to JSON — fields are mapped automatically
+    // Serialize back to JSON, fields are mapped automatically
     println(json.stringify(u)) // {"name":"Alice","age":25,"active":true}
 }
 ```
 
-`json.parse()` returns a fully typed struct (or array of structs), and `json.stringify()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly — there is no reflection, no runtime schema lookup, and no intermediate map step.
+`json.parse()` returns a fully typed struct (or array of structs), and `json.stringify()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly with no reflection, no runtime schema lookup, and no intermediate map step.
 
 **Rules:**
 
@@ -1473,24 +1473,38 @@ do main() {
 
 ### 7.6 Function References
 
-Functions can be passed as values using the `()` prefix syntax or the `ref()` builtin:
+A function reference is a value that holds a pointer to a named function. Function references are created with `()` prefix syntax or `ref()` and must always be bound to a `const`:
 
 ```ez
-do is_positive(n int) -> bool { return n > 0 }
+do double(n int) -> int { return n * 2 }
 
-// ()func_name — implicit syntax
-const check = ()is_positive
+// ()func_name: implicit syntax (type is inferred)
+const f = ()double
 
-// ref(func_name) — explicit syntax
-const check = ref(is_positive)
+// ref(func_name): explicit syntax (identical result)
+const g = ref(double)
 
-// Call through the reference
-check(5)  // true
+// Optional explicit type annotation
+const h func(int) -> int = ()double
 ```
 
-#### Func as a Parameter Type
+`mut` is rejected for func reference variables; func references are compile-time aliases, not mutable state.
 
-When a function accepts another function as an argument, the parameter must declare a full `func` signature. Bare `func` is not valid:
+#### 7.6.1 Calling Through a Reference
+
+Call a func reference variable the same way you call a function:
+
+```ez
+const f = ()double
+f(5)          // 10, call through variable
+()double(5)   // 10, inline: create reference and call immediately
+```
+
+`()f` and `()f(5)` are always rejected. The `()` prefix means "create a reference to the named function declaration", not "dispatch through a variable `f`". Since `f` is a variable (not a function declaration), both forms are compile errors. `f(5)` is the only valid dispatch syntax for a func reference variable.
+
+#### 7.6.2 Func as a Parameter Type
+
+When a function accepts another function as an argument, declare the parameter with a full typed `func` signature. This enables the compiler to check argument and return types at call sites:
 
 ```ez
 // Single param
@@ -1515,18 +1529,102 @@ do each(arr [int, 3], f func(int)) {
 
 do double(n int) -> int { return n * 2 }
 do main() {
-    println(apply(5, ()double))   // 10
+    println(apply(5, ()double))    // 10
     println(apply(5, ref(double))) // 10, ref() is equivalent
+    const f = ()double
+    println(apply(5, f))           // 10, pass a variable
 }
 ```
 
+Inside the function body, call through the parameter the same way: `f(x)`.
+
+#### 7.6.3 Func References in Composite Types
+
+Bare `func` is a valid type in arrays, maps, and struct fields. Elements are untyped function pointers; the cast is reconstructed from context at each call site:
+
+```ez
+import @arrays
+
+do double(n int) -> int { return n * 2 }
+do triple(n int) -> int { return n * 3 }
+
+// Dynamic array of func refs
+mut arr [func] = {}
+arrays.append(arr, ()double)
+arr[0](5)   // 10
+
+// Fixed-size array of func refs
+const fns [func, 2] = {()double, ()triple}
+fns[0](5)   // 10
+fns[1](5)   // 15
+
+// Map with func values
+mut m map[string:func] = {:}
+m["dbl"]  = ()double
+m["trpl"] = ()triple
+m["dbl"](5)   // 10
+m["trpl"](5)  // 15
+```
+
+Typed func signatures as an array element type (e.g. `[func(int)->int]`) are not allowed. Use `[func]` or `[func, N]` instead.
+
+#### 7.6.4 Func Fields in Structs
+
+Struct fields can hold func references. Use a typed `func` signature for the field type to get compile-time argument checking:
+
+```ez
+const Wrapper struct {
+    f func(int) -> int
+}
+
+do double(n int) -> int { return n * 2 }
+do main() {
+    // Struct literal
+    const w = Wrapper{f: ()double}
+    w.f(5)   // 10
+
+    // Pointer instance (new())
+    mut w2 = new(Wrapper)
+    w2.f = ()double
+    w2.f(5)  // 10
+}
+```
+
+#### 7.6.5 Comparing Func References
+
+Func references compare by pointer equality. Two references to the same function are equal; references to different functions are not:
+
+```ez
+const f = ()double
+const g = ()double
+const h = ()triple
+if f == g { println("same") }       // same, both point to double
+if f != h { println("different") }  // different
+```
+
+#### 7.6.6 Restrictions
+
+> 💡 **Flip's Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own `do` function if you need to pass them as a callback.
+
+| Operation | Result |
+|-----------|--------|
+| `mut f = ()double` | ❌ must use `const` |
+| `println(f)` | ❌ func refs are not printable |
+| `copy(f)` | ❌ func refs cannot be copied |
+| `const f = get_fn()` | ❌ cannot assign func-type return value; use `()func_name` |
+| `get_fn()(5)` | ❌ cannot call a function's return value directly |
+| `[func(int)->int]` | ❌ typed func signature as array type; use `[func]` or `[func, N]` |
+| `()println` / `ref(println)` | ❌ builtin and stdlib functions cannot be referenced |
+| `()f` (f is a variable) | ❌ `()` only works with named function declarations, not variables |
+| `()f(5)` (f is a variable) | ❌ same restriction; `f(5)` is the only valid call syntax |
+
 Rules:
-- No anonymous functions or lambdas; every reference points to a named function
-- The signature must match exactly; param types and return type must all agree
-- Each parameter in the `func` signature must be listed as its own type: `func(int, string) -> bool`. Grouped-type shorthand (`func(a, b int)`) is not supported
+- No anonymous functions or lambdas; every reference points to a named function declaration
+- `const` only — func references cannot be declared `mut`
+- The typed signature (e.g. `func(int) -> int`) must match exactly; param types and return type must all agree
+- Each parameter in a `func` signature is listed as its own type: `func(int, string) -> bool`. Grouped-type shorthand is not supported inside `func` signatures
 - Default parameter values inside `func` signatures are not supported
 - References work with top-level and struct-namespaced functions
-- `func` types are valid as struct field types as well as parameter types
 
 ### 7.7 Struct-Namespaced Functions
 
@@ -1590,9 +1688,9 @@ a.bump()           // sugar for Vec.bump(a); '&v' makes it a mutable alias
 
 Both `do f(v Vec)` and `do f(&v Vec)` (mutable receiver) and `do f(v ^Vec)` (pointer receiver) participate in instance dispatch. The mutable-receiver form (`&v`) takes the instance by reference and may modify the caller's variable.
 
-Factory-style functions whose first parameter isn't the struct (e.g. `do make(x int) -> Vec`) keep requiring the type-namespaced form (`Vec.make(...)`) — there is no instance to bind.
+Factory-style functions whose first parameter isn't the struct (e.g. `do make(x int) -> Vec`) keep requiring the type-namespaced form (`Vec.make(...)`); there is no instance to bind.
 
-Chained struct function calls (`a.f().g()`) are not supported (E3075). Assign each intermediate result to a variable.
+Chained struct function calls (`a.f().g()`) are not supported. Assign each intermediate result to a variable.
 
 ### 7.8 Function Scope
 
@@ -1629,8 +1727,8 @@ do pick_first(a ?, b ?) -> ? {
     return a
 }
 
-pick_first(1, 2)          // OK — both args are int, ? binds to int
-pick_first(1, "hello")    // Error — conflicting bindings for ?
+pick_first(1, 2)          // OK, both args are int, ? binds to int
+pick_first(1, "hello")    // Error: conflicting bindings for ?
 ```
 
 Wildcard types also work with composite types in parameters and returns:
@@ -1652,12 +1750,12 @@ mut y = first({"a", "b"})     // ? binds to string
 |-------|--------|
 | Function parameter type | Allowed |
 | Function return type | Allowed (must have at least one `?` parameter) |
-| Variable declaration (`mut x ?`) | Rejected (E2002) |
-| Struct field type | Rejected (E2070) |
-| Array type in variable (`[?]`) | Rejected (E2070) |
-| Map type in variable (`map[string:?]`) | Rejected (E2070) |
+| Variable declaration (`mut x ?`) | Rejected |
+| Struct field type | Rejected |
+| Array type in variable (`[?]`) | Rejected |
+| Map type in variable (`map[string:?]`) | Rejected |
 | `new(?)` | Rejected |
-| Named return type (`-> (name ?)`) | Rejected (E3082) — use unnamed `-> (?)` instead |
+| Named return type (`-> (name ?)`) | Rejected; use unnamed `-> (?)` instead |
 
 #### Binding rules
 
@@ -1671,7 +1769,7 @@ mut y = first({"a", "b"})     // ? binds to string
 
 ### 8.1 Module Identity
 
-Module identity is determined by the filesystem — there are no `module` declarations. A file's module name is its filename minus the `.ez` extension. A directory's module name is its directory name.
+Module identity is determined by the filesystem; there are no `module` declarations. A file's module name is its filename minus the `.ez` extension. A directory's module name is its directory name.
 
 ```
 project/
@@ -1685,7 +1783,7 @@ project/
       cache.ez         ← separate module "internal"
 ```
 
-Directory imports merge all top-level `.ez` files in that directory into a single namespace under the directory's name. Subdirectories are **not** included — they are separate modules that must be imported independently. Hidden files (names starting with `.`) are excluded from directory scans.
+Directory imports merge all top-level `.ez` files in that directory into a single namespace under the directory's name. Subdirectories are **not** included; they are separate modules that must be imported independently. Hidden files (names starting with `.`) are excluded from directory scans.
 
 All relative import paths are resolved relative to the **entry point file's directory**, not the importing file's directory. This means a file inside `models/` that uses `import "./shared.ez"` resolves relative to the project root (where `main.ez` lives), not relative to `models/`.
 
@@ -1700,19 +1798,19 @@ import @arrays, @maps, @strings
 **Local imports** use relative string paths. The compiler resolves them in order:
 
 1. If the path ends in `.ez`, import that file directly.
-2. If the path has no extension, try appending `.ez` — if a file exists, import it.
+2. If the path has no extension, try appending `.ez`. If a file exists, import it.
 3. If the path (without extension) is a directory, scan it for all `.ez` files and merge them into one module.
-4. If none of the above match, emit E6002.
+4. If none of the above match, the import is rejected as unresolvable.
 
 ```ez
 import "./helpers.ez"      // explicit file import
 import "./helpers"          // resolves to helpers.ez (file) or helpers/ (directory)
-import "./models"           // models/ directory — all .ez files merge
+import "./models"           // models/ directory, all .ez files merge
 ```
 
 When both `helpers.ez` and a `helpers/` directory exist, the file takes priority.
 
-If a directory contains no `.ez` files, it is an error (E6003).
+If a directory contains no `.ez` files, it is an error.
 
 **Import aliasing:**
 
@@ -1727,7 +1825,7 @@ import mymod "./server"     // use mymod.handle() instead of server.handle()
 import @math, "./helpers", "./models"
 ```
 
-**Collision detection:** If two different imports resolve to the same module name, it is an error (E6001). The user must alias one to disambiguate:
+**Collision detection:** If two different imports resolve to the same module name, it is an error. The user must alias one to disambiguate:
 
 ```ez
 // Error: both resolve to module name "utils"
@@ -1741,11 +1839,11 @@ import "./utils", lib_utils "./lib/utils"
 
 When a directory is imported, all `.ez` files within it are merged into a single module namespace (the directory name). The following rules apply:
 
-- Files within the directory may import each other via relative paths (e.g., `import "./types.ez"`). These sibling cross-references are resolved internally and do not create separate namespaces — all symbols remain under the directory's namespace.
+- Files within the directory may import each other via relative paths (e.g., `import "./types.ez"`). These sibling cross-references are resolved internally and do not create separate namespaces; all symbols remain under the directory's namespace.
 - Transitive imports inside directory files resolve relative to the importing file's location, not the entry file.
-- If a file inside a directory imports its own parent directory (self-referential import), it is rejected with E6004.
-- If a directory import is followed by a direct import of a file already in that directory, the compiler emits W2015 indicating the import is redundant — the directory namespace should be used instead.
-- If two files in a directory declare the same symbol name, it is a collision error (E4004).
+- If a file inside a directory imports its own parent directory (self-referential import), it is rejected.
+- If a directory import is followed by a direct import of a file already in that directory, the compiler warns that the import is redundant; the directory namespace should be used instead.
+- If two files in a directory declare the same symbol name, it is a collision error.
 
 **Deduplication:** If the same file is imported multiple times (e.g., directly by main and transitively through another import), it is only processed once. No error is emitted.
 
@@ -1774,33 +1872,33 @@ import and use @arrays, @strings
 
 The `using` declaration brings module members into scope for unqualified access. It can be placed at file scope or function scope:
 
-**File scope** — all functions in the file can use unqualified access:
+**File scope:** all functions in the file can use unqualified access:
 
 ```ez
 import @strings
 using strings
 
 do main() {
-    println(to_upper("hello"))  // OK — strings is in file scope
+    println(to_upper("hello"))  // OK, strings is in file scope
 }
 
 do shout(s string) -> string {
-    return to_upper(s)          // OK — same file scope
+    return to_upper(s)          // OK, same file scope
 }
 ```
 
-**Function scope** — only that function can use unqualified access:
+**Function scope:** only that function can use unqualified access:
 
 ```ez
 import @strings
 
 do main() {
     using strings
-    println(to_upper("hello"))  // OK — strings is in scope here
+    println(to_upper("hello"))  // OK, strings is in scope here
 }
 
 do shout(s string) -> string {
-    return strings.to_upper(s)  // must qualify — using is not in scope here
+    return strings.to_upper(s)  // must qualify; using is not in scope here
 }
 ```
 
@@ -1929,8 +2027,8 @@ C structs returned from C functions can be passed back to other C functions via 
 The module name `c` is reserved for C interop. Files named `c.ez` must use an explicit alias:
 
 ```ez
-import myc "./c.ez"    // OK — aliased
-import "./c.ez"         // Error — 'c' is reserved
+import myc "./c.ez"    // OK, aliased
+import "./c.ez"         // Error: 'c' is reserved
 ```
 
 ---
@@ -2015,11 +2113,11 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Reference declaration | Source | Allowed? |
 |-----------------------|--------|----------|
 | `mut r = ref(x)`      | `mut`   | yes |
-| `const r = ref(x)`    | `mut`   | yes — read-only view of a mutable source |
+| `const r = ref(x)`    | `mut`   | yes, read-only view of a mutable source |
 | `const r = ref(x)`    | `const` | yes |
-| `mut r = ref(x)`      | `const` | **no** — E3079; you cannot get a mutable reference to a const source. Use `copy(x)` to obtain an independent mutable instance. |
+| `mut r = ref(x)`      | `const` | **no**; you cannot get a mutable reference to a const source. Use `copy(x)` to obtain an independent mutable instance. |
 
-**Argument requirement:** `ref()` requires a variable, struct field, array index, or pointer dereference — anything with a stable address. Literals, call results, and arithmetic expressions are rejected (E3012). The same rule applies to `addr()`, and the check recurses through member/index chains, so `ref(some_call().field)` and `addr(arr[0])` are validated end-to-end.
+**Argument requirement:** `ref()` requires a variable, struct field, array index, or pointer dereference; anything with a stable address. Literals, call results, and arithmetic expressions are rejected. The same rule applies to `addr()`, and the check recurses through member/index chains, so `ref(some_call().field)` and `addr(arr[0])` are validated end-to-end.
 
 #### Sleep Functions
 
@@ -2035,12 +2133,12 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 `embed()` reads a file from disk at **compile time** and bakes its entire contents into the binary as a string literal. The resulting value is available as a `string` at runtime with no file I/O overhead.
 
-The path is resolved relative to the directory of the source file containing the `embed()` call. Absolute paths are also accepted. The argument must be a string literal — variables and expressions are rejected at compile time (error `E5017`). If the file does not exist or cannot be read when the compiler runs, error `E5018` is emitted.
+The path is resolved relative to the directory of the source file containing the `embed()` call. Absolute paths are also accepted. The argument must be a string literal; variables and expressions are rejected at compile time. If the file does not exist or cannot be read when the compiler runs, it is a compile-time error.
 
 `embed()` is valid at file scope (as a `const` initializer) or inside a function body.
 
 ```ez
-// Embed a file at file scope — baked into the binary at compile time
+// Embed a file at file scope, baked into the binary at compile time
 const LICENSE string = embed("../../LICENSE")
 const DEFAULT_CONFIG string = embed("config/defaults.json")
 
@@ -2065,7 +2163,7 @@ do main() {
 | `count` | `(arr [T], value T) -> int` | Count occurrences of value |
 | `is_equal` | `(a [T], b [T]) -> bool` | Structural equality. Compares length first, then elements. `T` must be a primitive (`int`, `uint`, `float`, `bool`, `char`, `byte`, sized variants) or `string`; arrays of nested composites are rejected at compile time. |
 
-The `==` and `!=` operators on arrays are not allowed (E3074); use `arrays.is_equal(a, b)` for equality.
+The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b)` for equality.
 
 #### Access Functions
 
@@ -2164,7 +2262,7 @@ The `==` and `!=` operators on arrays are not allowed (E3074); use `arrays.is_eq
 | `merge` | `(m1 map[K:V], m2 map[K:V]) -> map[K:V]` | Combine two maps (m2 overwrites on conflict) |
 | `is_equal` | `(a map[K:V], b map[K:V]) -> bool` | Structural equality. Compares counts, then iterates the first map's entries in insertion order looking each key up in the second. `K` and `V` must each be a primitive (`int`, `uint`, `float`, `bool`, `char`, `byte`, sized variants) or `string`; maps with nested-composite values are rejected at compile time. |
 
-The `==` and `!=` operators on maps are not allowed (E3076); use `maps.is_equal(a, b)` for equality. Maps have no defined ordering, so `<` / `<=` / `>` / `>=` on maps is also rejected.
+The `==` and `!=` operators on maps are not allowed; use `maps.is_equal(a, b)` for equality. Maps have no defined ordering, so `<` / `<=` / `>` / `>=` on maps is also rejected.
 
 Use `len(m)` to get the number of entries (builtin, no import needed).
 
@@ -2313,7 +2411,7 @@ Unless noted otherwise, all math functions accept `int`, `float`, and sized nume
 
 ### 9.7 Random Module (`@random`)
 
-Some random functions accept a variable number of arguments (e.g., `rand_int` with 1 or 2 args). This is not general function overloading — it is special-case codegen dispatching within the stdlib only.
+Some random functions accept a variable number of arguments (e.g., `rand_int` with 1 or 2 args). This is not general function overloading; it is special-case codegen dispatching within the stdlib only.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2400,7 +2498,7 @@ Error-returning variant: `decode`
 
 ```ez
 mut p string = io.path_join({"/home", "user", "docs"})  // "/home/user/docs"
-mut q string = io.path_join({"a/b", "/abs"})            // "/abs" — absolute replaces
+mut q string = io.path_join({"a/b", "/abs"})            // "/abs", absolute replaces
 ```
 
 #### Error-Returning Variants
@@ -2428,7 +2526,7 @@ Most functions that can fail have an error-returning variant usable via multi-va
 | `glob` | `([string], Error)` |
 
 ```ez
-// Always use destructuring — single-variable assignment is a compile error
+// Always use destructuring; single-variable assignment is a compile error
 mut content, err = io.read_file("data.txt")
 if err != nil {
     println("read failed: ${err.message}")
@@ -2455,7 +2553,7 @@ mut sz, err = io.file_size("data.txt")
 
 #### Path Resolution
 
-All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `csv.read_file`, `csv.write_file`, and `sqlite.open`) are resolved relative to the **current working directory** of the process — the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
+All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `csv.read_file`, `csv.write_file`, and `sqlite.open`) are resolved relative to the **current working directory** of the process, the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
 
 ```ez
 // Given project layout:
@@ -2468,7 +2566,7 @@ All relative paths passed to `@io` functions (and any other stdlib function that
 // All of these resolve from project/, regardless of which .ez file calls them:
 io.read_file("data/config.json")      // project/data/config.json
 io.read_file("./data/config.json")    // same thing
-io.read_file("/etc/hosts")            // absolute path — unaffected by cwd
+io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 ```
 
 ### 9.10 OS Module (`@os`)
@@ -2557,7 +2655,7 @@ The `HttpResponse` struct is available when either `@http` or `@server` is impor
 |----------|------|-------|
 | `NIL_UUID` | `string` | `"00000000-0000-0000-0000-000000000000"` |
 
-UUID randomness comes from `getentropy()` (macOS, BSDs, glibc 2.25+) with a fallback to `/dev/urandom` — suitable for security-sensitive identifiers.
+UUID randomness comes from `getentropy()` (macOS, BSDs, glibc 2.25+) with a fallback to `/dev/urandom`, suitable for security-sensitive identifiers.
 
 ### 9.15 Bytes Module (`@bytes`)
 
@@ -2887,7 +2985,7 @@ Formatted output and string formatting functions.
 | `float_fixed` | `(f float, decimals int) -> string` | Format float with fixed decimal places |
 | `float_sci` | `(f float) -> string` | Format float in scientific notation |
 
-Accepts `string`, `int`, `float`, and `bool` arguments for formatted output functions. Composite types (structs, arrays, maps) are not supported and are rejected at compile time (E3017). Use `println` for printing composite types.
+Accepts `string`, `int`, `float`, and `bool` arguments for formatted output functions. Composite types (structs, arrays, maps) are not supported. Use `println` for printing composite types.
 
 ### 9.28 Strconv Module (`@strconv`)
 
@@ -2907,8 +3005,8 @@ String-to-type and type-to-string conversion functions with proper error handlin
 - When destructured (`mut n, err = strconv.to_int("42")`), returns an Error instead of panicking.
 
 **`to_int` / `to_uint` rules:**
-- The `base` parameter must be an integer between **2 and 36** (inclusive). Invalid bases produce compile-time error E5009 when passed as a literal, or a runtime panic/error when passed as a variable.
-- Leading/trailing whitespace is **not** tolerated — the entire string must be a valid representation.
+- The `base` parameter must be an integer between **2 and 36** (inclusive). Invalid bases produce a compile-time error when passed as a literal, or a runtime panic when passed as a variable.
+- Leading/trailing whitespace is **not** tolerated; the entire string must be a valid representation.
 - `to_uint` rejects strings containing a `-` sign (returns error or panics).
 - For bases > 10, letters `A`–`Z` (case-insensitive) represent digits 10–35.
 
@@ -2919,7 +3017,7 @@ String-to-type and type-to-string conversion functions with proper error handlin
 
 **`to_bool` rules:**
 - Accepts `"true"` and `"false"` (case-insensitive: `"TRUE"`, `"True"`, `"FALSE"`, etc. are valid).
-- All other strings produce an error or panic. There is no implicit truthiness — `"1"`, `"0"`, `"yes"`, `"no"` are **not** valid.
+- All other strings produce an error or panic. There is no implicit truthiness; `"1"`, `"0"`, `"yes"`, `"no"` are **not** valid.
 
 #### Type-to-String Conversions (type → string)
 
@@ -2975,7 +3073,7 @@ mut err Error = error("something went wrong")
 
 ### 10.2 Error Returns
 
-Functions that may fail return a `(T, Error)` tuple — these are fallible functions. Destructuring is required; single-var assignment from a fallible function causes a compile error (E3089). See [Section 4.5](#45-return-value-handling) for the full rules.
+Functions that may fail return a `(T, Error)` tuple; these are fallible functions. Destructuring is required; single-var assignment from a fallible function is a compile error. See [Section 4.5](#45-return-value-handling) for the full rules.
 
 Functions that may fail conventionally return a tuple with the result and an Error:
 
@@ -3018,7 +3116,7 @@ Runtime errors include location information (file, line, column).
 
 ### 11.1 Memory Management
 
-EZ uses **scope-based automatic memory management**. When a block of code ends — a function body, a loop iteration, or a conditional block — any memory it created is freed. If a value needs to survive because it escapes the scope, EZ handles it automatically.
+EZ uses **scope-based automatic memory management**. When a block of code ends, whether a function body, a loop iteration, or a conditional block, any memory it created is freed. If a value needs to survive because it escapes the scope, EZ handles it automatically.
 
 ```ez
 do process(name string) {
@@ -3076,11 +3174,11 @@ The `new()` function allocates a zero-initialized struct in the current scope an
 
 Three block types create memory scopes:
 
-- **Function bodies** — temporaries freed on return, return values survive by copying to the caller's scope
-- **Loop iterations** (`for`, `for_each`, `as_long_as`) — each iteration's temporaries freed, values that escape into outer-scope containers survive
-- **Conditional blocks** (`if`, `or`, `otherwise`) — temporaries freed on block exit, values assigned to outer-scope variables survive
+- **Function bodies:** temporaries freed on return, return values survive by copying to the caller's scope
+- **Loop iterations** (`for`, `for_each`, `as_long_as`): each iteration's temporaries freed, values that escape into outer-scope containers survive
+- **Conditional blocks** (`if`, `or`, `otherwise`): temporaries freed on block exit, values assigned to outer-scope variables survive
 
-Nested scopes work correctly — a loop inside an if inside a function creates three scope levels, each cleaning up independently.
+Nested scopes work correctly; a loop inside an if inside a function creates three scope levels, each cleaning up independently.
 
 ### 11.8 Manual Control
 
@@ -3100,15 +3198,15 @@ Most users never import the `@mem` module. The automatic scope model handles the
 
 ### 11.9 Memory Safety
 
-EZ compiles to C and is **not memory safe** in the way that Rust or similar languages are. However, the scope-based memory model prevents many common memory errors automatically, and the compiler catches several more at compile time.
+EZ is **not memory safe** in the way that Rust or similar languages are. However, the scope-based memory model prevents many common memory errors automatically, and the compiler catches several more at compile time.
 
 **Compile-time checked:**
 
 | Hazard | EZ Behavior |
 |--------|-------------|
-| Returning address of local variable | `E3063` — `addr()` of a local cannot appear in a return statement |
-| Cross-scope pointer assignment | `W3004` — warning when a pointer in an outer scope is assigned from `addr()` of a value in an inner scope |
-| Double-free on `@mem` arenas | `E3064` — straight-line double `mem.destroy()` on the same variable is rejected |
+| Returning address of local variable | `addr()` of a local cannot appear in a return statement |
+| Cross-scope pointer assignment | Warning when a pointer in an outer scope is assigned from `addr()` of a value in an inner scope |
+| Double-free on `@mem` arenas | Straight-line double `mem.destroy()` on the same variable is rejected |
 
 **Prevented by the scope model:**
 
@@ -3139,7 +3237,7 @@ EZ compiles to C and is **not memory safe** in the way that Rust or similar lang
 | Data races | Multiple threads accessing shared data without `sync.lock()` |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For most EZ programs — those that don't use the `@mem` module, raw pointers, or threading — the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
+For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
 
 ---
 
@@ -3165,7 +3263,7 @@ do main() {
 
 The `main` function is not called explicitly; it is invoked automatically when the program runs.
 
-`main()` exits when control reaches its closing brace. An explicit `return` statement inside `main()` is not allowed (E3073) — to terminate early, branch the remaining work behind an `if`/`otherwise`, or call `exit(code)` to end the program with a specific status.
+`main()` exits when control reaches its closing brace. An explicit `return` statement inside `main()` is not allowed. To terminate early, branch the remaining work behind an `if`/`otherwise`, or call `exit(code)` to end the program with a specific status.
 
 ### 12.3 Evaluation Order
 
