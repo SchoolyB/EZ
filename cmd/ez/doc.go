@@ -26,7 +26,7 @@ const defaultDocOutputPath = "DOCS.md"
 
 // generateDocs is the entry point for the ez doc command. outputPath is
 // the destination markdown file; an empty string falls back to
-// defaultDocOutputPath so the legacy `DOCS.md`-in-cwd behavior is
+// defaultDocOutputPath so the `DOCS.md`-in-cwd behavior is
 // unchanged for callers that do not pass --output.
 func generateDocs(args []string, outputPath string) {
 	if outputPath == "" {

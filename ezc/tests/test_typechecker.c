@@ -1452,7 +1452,7 @@ int main(void) {
     RUN_TEST(test_type_pointer_constructor);
     RUN_TEST(test_resolve_addr);
 
-    /* Error detection tests (legacy) */
+    /* Error detection tests */
     RUN_TEST(test_error_type_mismatch);
     RUN_TEST(test_error_wrong_arg_count);
     RUN_TEST(test_error_deref_non_pointer);

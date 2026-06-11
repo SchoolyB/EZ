@@ -269,7 +269,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "Listener") == 0) return "EzSocket";
     if (strcmp(type_name, "Database") == 0) return "EzSqlite";
     if (strcmp(type_name, "Router") == 0)   return "EzRouter";
-    if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func; cast at call site */
+    if (strcmp(type_name, "func") == 0)  return "void *"; /* bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
 
@@ -5976,7 +5976,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         /* Not a known function; variable holding a function pointer (void *).
          * Cast to appropriate function pointer type based on the variable's
          * typed-func signature, falling back to a brittle var_decl scan only
-         * when no signature is available (legacy bare-func paths). */
+         * when no signature is available (bare-func paths). */
         int nargs = node->data.call.arg_count;
         EzFuncSig *typed_sig = NULL;
         EzType *callee_t = cg->type_table
@@ -6135,7 +6135,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
     /* Mut params would need address aliasing rather than value-copy bindings;
-     * those edge cases keep the legacy inline-paste path. The wrap also
+     * those edge cases keep the inline-paste path. The wrap also
      * only works for the direct-call branch; call-through-variable paths
      * have a cast prefix (e.g. ((T (*)(...))g)) that this code can't safely
      * reconstruct. */

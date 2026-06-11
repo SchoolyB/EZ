@@ -6,7 +6,7 @@
 // everything into the final `ez` binary. Dev builds without `make build`
 // still compile because committed stub files keep the go:embed directives
 // satisfied; the extractor detects the stubs by their zero length and
-// returns ErrNoEmbed so Find() falls back to the legacy path search.
+// returns ErrNoEmbed so Find() falls back to the path search.
 package ezc
 
 import (

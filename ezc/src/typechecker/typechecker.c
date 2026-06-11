@@ -5735,7 +5735,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             char *encoded = strdup(buf);
             result = type_from_name(encoded);
         } else {
-            /* Unknown function: fall back to the legacy bare-func type
+            /* Unknown function: fall back to bare-func type
              * so downstream "is this callable" checks don't crash. */
             result = type_from_name("func");
         }

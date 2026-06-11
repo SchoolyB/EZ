@@ -69,7 +69,7 @@ test-asan:
 
 # Create zero-length embed stubs. go:embed directives in
 # internal/ezc/embedded.go require these files to exist at `go build`
-# time; the extractor detects empty stubs and falls back to the legacy
+# time; the extractor detects empty stubs and falls back to the
 # path search so dev builds still work. Both the runtime binaries
 # themselves are gitignored — `make build` overwrites the stubs with
 # real content before invoking `go build`.
@@ -123,7 +123,7 @@ install: build
 uninstall:
 	@echo "Uninstalling EZ..."
 	@rm -f $(INSTALL_PATH)/$(BINARY_NAME)
-	@# Remove any legacy standalone ezc from prior install layouts (#1461)
+	@# Remove standalone ezc from prior install layouts (#1461)
 	@rm -f $(INSTALL_PATH)/ezc
 	@echo "EZ uninstalled"
 

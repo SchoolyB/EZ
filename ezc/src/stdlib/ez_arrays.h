@@ -169,7 +169,7 @@ void  ez_arrays_remove_first_raw(EzArray *arr, void *out);
  */
 void  ez_arrays_remove_last_raw(EzArray *arr, void *out);
 
-/* Access — legacy int64_t variants kept for internal use */
+/* Access — int64_t variants for internal use */
 int64_t ez_arrays_get_first(EzArray *arr);
 int64_t ez_arrays_get_last(EzArray *arr);
 int64_t ez_arrays_remove_last(EzArray *arr);
