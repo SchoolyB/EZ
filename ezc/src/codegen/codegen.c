@@ -5725,6 +5725,25 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                  * has a struct type but neither <struct>_<member> nor
                  * bare <member> is a registered function. */
                 EzType *inst_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+                /* Save pointer flag before fallback may overwrite inst_t with TK_STRUCT */
+                bool obj_is_ptr = inst_t && inst_t->kind == TK_POINTER;
+                /* If type table missed, scan var decls for a new() initializer */
+                if (!obj_is_ptr && obj->kind == NODE_LABEL) {
+                    const char *vname = obj->data.label.value;
+                    for (int si = 0; si < cg->func_count && !obj_is_ptr; si++) {
+                        AstNode *fd = cg->all_funcs[si];
+                        if (!fd->data.func_decl.body) continue;
+                        for (int bi = 0; bi < fd->data.func_decl.body->data.block.count && !obj_is_ptr; bi++) {
+                            AstNode *st = fd->data.func_decl.body->data.block.stmts[bi];
+                            if (st->kind == NODE_VAR_DECL &&
+                                strcmp(st->data.var_decl.name, vname) == 0 &&
+                                st->data.var_decl.value &&
+                                st->data.var_decl.value->kind == NODE_NEW_EXPR) {
+                                obj_is_ptr = true;
+                            }
+                        }
+                    }
+                }
                 /* Fall back to scanning struct decls if the type_table
                  * doesn't have a hit for the label. */
                 if (!inst_t || inst_t->kind == TK_UNKNOWN) {
@@ -5759,7 +5778,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                 }
                                 emit(cg, "))");
                                 emit_expression(cg, obj);
-                                emitf(cg, ".%s)(", member);
+                                emitf(cg, "%s%s)(", obj_is_ptr ? "->" : ".", member);
                                 for (int ai = 0; ai < nargs; ai++) {
                                     if (ai > 0) emit(cg, ", ");
                                     emit_expression(cg, node->data.call.args[ai]);
