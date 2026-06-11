@@ -1556,7 +1556,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (is_named_return) {
                     char help[EZ_MSG_BUF_LARGE];
                     snprintf(help, sizeof(help),
-                        "'%s' is a named return value in the function signature — did you forget to declare 'mut %s %s' at function scope?",
+                        "'%s' is a named return value in the function signature. Did you forget to declare 'mut %s %s' at function scope?",
                         name, name, nr_type ? nr_type : "?");
                     diag_error_help(tc->diag, "E4001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
@@ -6215,7 +6215,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "function '%s' returns a func type; func references cannot be assigned from function return values — use '()func_name' or 'ref(func_name)' to create a func reference",
+                    "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference",
                     called);
                 diag_error_msg(tc->diag, "E3102", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);

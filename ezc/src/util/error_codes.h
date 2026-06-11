@@ -21,7 +21,7 @@
  *
  * NOTE: Lexer errors are NOT emitted via diag_error() inside lexer.c.
  * Instead, when the lexer encounters an invalid token it sets two fields
- * on the Lexer struct — error_code (e.g. "E1010") and error_msg — and
+ * on the Lexer struct: error_code (e.g. "E1010") and error_msg, and
  * returns a TOK_ILLEGAL token. The parser's next_token() helper in
  * parser.c detects TOK_ILLEGAL and surfaces the error via diag_error_msg()
  * at that point. This keeps the lexer free of diagnostic dependencies.
@@ -185,7 +185,7 @@
     EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name") \
     EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value") \
     EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases") \
-    EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values — use '()func_name' or 'ref(func_name)' to create a func reference")
+    EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
