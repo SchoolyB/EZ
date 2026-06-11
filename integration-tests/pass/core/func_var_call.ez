@@ -19,7 +19,7 @@ do main() {
     mut failed int = 0
 
     // -- int return --
-    mut f func(int, int) -> int = ()add
+    const f func(int, int) -> int = ()add
     mut result int = f(10, 20) + 1
     if result == 31 {
         println("  [PASS] int-returning func var call + arithmetic")
@@ -30,7 +30,7 @@ do main() {
     }
 
     // -- string return --
-    mut g func(string) -> string = ()greet
+    const g func(string) -> string = ()greet
     mut s string = g("hello")
     if s == "hello" {
         println("  [PASS] string-returning func var call")

@@ -28,7 +28,7 @@ do main() {
     mut failed int = 0
 
     // -- literal with inferred func element type, index + call --
-    mut ops [func(int, int) -> int] = {()add, ()sub, ()mul}
+    mut ops [func] = {()add, ()sub, ()mul}
     if ops[0](10, 3) == 13 && ops[1](10, 3) == 7 && ops[2](10, 3) == 30 {
         println("  [PASS] literal [func] index + call")
         passed += 1
@@ -38,7 +38,7 @@ do main() {
     }
 
     // -- empty literal, declared [func], append + index + call --
-    mut preds [func(int) -> bool] = {}
+    mut preds [func] = {}
     arrays.append(preds, ()is_pos)
     arrays.append(preds, ()is_neg)
     if len(preds) == 2 && preds[0](5) && preds[1](-5) && !preds[0](-5) && !preds[1](5) {

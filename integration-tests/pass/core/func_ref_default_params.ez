@@ -23,7 +23,7 @@ do main() {
     mut failed int = 0
 
     // -- call with default --
-    mut f func(int, int) -> int = ()add
+    const f func(int, int) -> int = ()add
     if f(5) == 15 {
         println("  [PASS] f(5) with default b=10 → 15")
         passed += 1
@@ -42,7 +42,7 @@ do main() {
     }
 
     // -- string default through func ref --
-    mut g func(string, string) -> string = ()greet
+    const g func(string, string) -> string = ()greet
     if g("World") == "Hello, World!" {
         println("  [PASS] g(\"World\") with default prefix")
         passed += 1

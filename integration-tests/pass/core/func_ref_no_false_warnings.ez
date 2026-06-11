@@ -49,7 +49,7 @@ do main() {
     }
 
     // Test 3: variable holding func ref that is only called — no W1001
-    mut fn = ()square
+    const fn = ()square
     mut result3 int = fn(7)
     if result3 == 49 {
         println("  [PASS] func ref variable called — no false unused warning")
