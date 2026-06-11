@@ -269,7 +269,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "Listener") == 0) return "EzSocket";
     if (strcmp(type_name, "Database") == 0) return "EzSqlite";
     if (strcmp(type_name, "Router") == 0)   return "EzRouter";
-    if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func; cast at call site */
+    if (strcmp(type_name, "func") == 0)  return "void *"; /* bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
 
@@ -338,6 +338,9 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
 static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn) return "int64_t";
     ez_tn = cg_effective_type_str(cg, ez_tn);
+    /* Func references (bare or typed) are stored as void * in maps, same as
+     * in arrays and all other composite types. */
+    if (strcmp(ez_tn, "func") == 0 || strncmp(ez_tn, "func(", 5) == 0) return "void *";
     EzType *t = type_from_name(ez_tn);
     if (!t) return "int64_t";
     switch (t->kind) {
@@ -2640,6 +2643,18 @@ static bool is_stdlib_call(AstNode *node, const char **module, const char **func
 
 /* --- Stdlib call emission helpers --- */
 
+/* If arg is a ref() call, return the inner argument so print functions
+ * use the underlying value's type and emit the value, not the address. */
+static AstNode *unwrap_ref_arg(AstNode *arg) {
+    if (arg->kind == NODE_CALL_EXPR &&
+        arg->data.call.function->kind == NODE_LABEL &&
+        strcmp(arg->data.call.function->data.label.value, "ref") == 0 &&
+        arg->data.call.arg_count == 1) {
+        return arg->data.call.args[0];
+    }
+    return arg;
+}
+
 static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     /* addr() calls always print in hex format */
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
@@ -3089,7 +3104,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
                                   const char *stream, bool newline) {
     if (node->data.call.arg_count < 1) return false;
 
-    AstNode *arg = node->data.call.args[0];
+    AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (!t) return false;
     if (t->kind != TK_STRUCT && t->kind != TK_ARRAY &&
@@ -3144,7 +3159,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "putchar('\\n')");
         } else {
             if (emit_composite_print(cg, node, "stdout", true)) return true;
-            AstNode *arg = node->data.call.args[0];
+            AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
             /* Error type: print message or "nil" */
             EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
             if (arg_t && arg_t->kind == TK_ERROR) {
@@ -3428,7 +3443,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "fputc('\\n', stderr)");
         } else {
             if (emit_composite_print(cg, node, "stderr", true)) return true;
-            AstNode *arg = node->data.call.args[0];
+            AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
             EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
             if (arg_t && arg_t->kind == TK_ERROR) {
                 emit(cg, "ez_builtin_eprintln_str(");
@@ -3454,7 +3469,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stderr", false)) return true;
-        AstNode *arg = node->data.call.args[0];
+        AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_ERROR) {
             emit(cg, "ez_builtin_eprint_str(");
@@ -3612,7 +3627,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stdout", false)) return true;
-        AstNode *arg = node->data.call.args[0];
+        AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_ERROR) {
             emit(cg, "ez_builtin_print_str(");
@@ -5713,6 +5728,25 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                  * has a struct type but neither <struct>_<member> nor
                  * bare <member> is a registered function. */
                 EzType *inst_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+                /* Save pointer flag before fallback may overwrite inst_t with TK_STRUCT */
+                bool obj_is_ptr = inst_t && inst_t->kind == TK_POINTER;
+                /* If type table missed, scan var decls for a new() initializer */
+                if (!obj_is_ptr && obj->kind == NODE_LABEL) {
+                    const char *vname = obj->data.label.value;
+                    for (int si = 0; si < cg->func_count && !obj_is_ptr; si++) {
+                        AstNode *fd = cg->all_funcs[si];
+                        if (!fd->data.func_decl.body) continue;
+                        for (int bi = 0; bi < fd->data.func_decl.body->data.block.count && !obj_is_ptr; bi++) {
+                            AstNode *st = fd->data.func_decl.body->data.block.stmts[bi];
+                            if (st->kind == NODE_VAR_DECL &&
+                                strcmp(st->data.var_decl.name, vname) == 0 &&
+                                st->data.var_decl.value &&
+                                st->data.var_decl.value->kind == NODE_NEW_EXPR) {
+                                obj_is_ptr = true;
+                            }
+                        }
+                    }
+                }
                 /* Fall back to scanning struct decls if the type_table
                  * doesn't have a hit for the label. */
                 if (!inst_t || inst_t->kind == TK_UNKNOWN) {
@@ -5747,7 +5781,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                 }
                                 emit(cg, "))");
                                 emit_expression(cg, obj);
-                                emitf(cg, ".%s)(", member);
+                                emitf(cg, "%s%s)(", obj_is_ptr ? "->" : ".", member);
                                 for (int ai = 0; ai < nargs; ai++) {
                                     if (ai > 0) emit(cg, ", ");
                                     emit_expression(cg, node->data.call.args[ai]);
@@ -5942,7 +5976,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         /* Not a known function; variable holding a function pointer (void *).
          * Cast to appropriate function pointer type based on the variable's
          * typed-func signature, falling back to a brittle var_decl scan only
-         * when no signature is available (legacy bare-func paths). */
+         * when no signature is available (bare-func paths). */
         int nargs = node->data.call.arg_count;
         EzFuncSig *typed_sig = NULL;
         EzType *callee_t = cg->type_table
@@ -6101,7 +6135,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
     /* Mut params would need address aliasing rather than value-copy bindings;
-     * those edge cases keep the legacy inline-paste path. The wrap also
+     * those edge cases keep the inline-paste path. The wrap also
      * only works for the direct-call branch; call-through-variable paths
      * have a cast prefix (e.g. ((T (*)(...))g)) that this code can't safely
      * reconstruct. */

@@ -21,7 +21,7 @@
  *
  * NOTE: Lexer errors are NOT emitted via diag_error() inside lexer.c.
  * Instead, when the lexer encounters an invalid token it sets two fields
- * on the Lexer struct — error_code (e.g. "E1010") and error_msg — and
+ * on the Lexer struct: error_code (e.g. "E1010") and error_msg, and
  * returns a TOK_ILLEGAL token. The parser's next_token() helper in
  * parser.c detects TOK_ILLEGAL and surfaces the error via diag_error_msg()
  * at that point. This keeps the lexer free of diagnostic dependencies.
@@ -91,7 +91,8 @@
     EZ_ERROR("E2078", "syntax", "variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'?") \
     EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause") \
     EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted") \
-    EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'")
+    EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'") \
+    EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -148,7 +149,6 @@
     EZ_ERROR("E3062", "types", "%s cannot be declared const; use 'mut' (every operation on a %s mutates its state)") \
     EZ_ERROR("E3063", "types", "cannot return addr(%s); '%s' is a local variable whose memory is freed when this function returns") \
     EZ_ERROR("E3064", "types", "%s(%s) called again; '%s' was already destroyed") \
-    EZ_ERROR("E3065", "types", "bare 'func' is not a valid type; use an explicit signature, e.g. 'func(int) -> bool'") \
     EZ_ERROR("E3066", "types", "function reference signature mismatch; expected and actual function types differ") \
     EZ_ERROR("E3067", "types", "argument %d of '%s' is passed to a '&' parameter; pass a mutable variable, not a literal or expression") \
     EZ_ERROR("E3068", "types", "'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value") \
@@ -183,7 +183,9 @@
     EZ_ERROR("E3097", "safety", "pointer '%s' assigned address of inner-scope variable '%s'; the variable's memory is freed when the scope exits") \
     EZ_ERROR("E3098", "types", "type mismatch: cannot assign '%s' to '%s' through pointer dereference") \
     EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name") \
-    EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value")
+    EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value") \
+    EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases") \
+    EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -220,7 +222,10 @@
     EZ_ERROR("E5024", "usage", "return type mismatch: cannot return signed '%s' as unsigned '%s'") \
     EZ_ERROR("E5025", "usage", "invalid assignment target; left side of '=' must be a variable, field, or index expression") \
     EZ_ERROR("E5026", "arguments", "argument type mismatch; the function expects a different type than what was provided") \
-    EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree")
+    EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree") \
+    EZ_ERROR("E5028", "usage", "func references are not printable values; func references cannot be passed to print functions") \
+    EZ_ERROR("E5029", "usage", "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values") \
+    EZ_ERROR("E5030", "usage", "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \

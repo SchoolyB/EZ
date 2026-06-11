@@ -1,0 +1,6 @@
+do double(n int) -> int { return n * 2 }
+do get_fn() -> func(int) -> int { return ()double }
+do main() {
+    const f = get_fn()
+    println(f(5))
+}

@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 301 codes** (196 errors, 16 warnings, 89 panics)
+**Total: 306 codes** (201 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -72,6 +72,7 @@
 | `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
 | `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
 | `E2081` | syntax | '^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^' |
+| `E2082` | syntax | arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -125,7 +126,6 @@
 | `E3062` | types | %s cannot be declared const; use 'mut' (every operation on a %s mutates its state) |
 | `E3063` | types | cannot return addr(%s); '%s' is a local variable whose memory is freed when this function returns |
 | `E3064` | types | %s(%s) called again; '%s' was already destroyed |
-| `E3065` | types | bare 'func' is not a valid type; use an explicit signature, e.g. 'func(int) -> bool' |
 | `E3066` | types | function reference signature mismatch; expected and actual function types differ |
 | `E3067` | types | argument %d of '%s' is passed to a '&' parameter; pass a mutable variable, not a literal or expression |
 | `E3068` | types | 'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value |
@@ -161,6 +161,8 @@
 | `E3098` | types | type mismatch: cannot assign '%s' to '%s' through pointer dereference |
 | `E3099` | types | '%s' is a reserved stdlib type name and cannot be used as a struct name |
 | `E3100` | types | type name '%s' cannot be used as a value |
+| `E3101` | types | func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases |
+| `E3102` | types | function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -192,6 +194,9 @@
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
 | `E5026` | arguments | argument type mismatch; the function expects a different type than what was provided |
 | `E5027` | usage | embed() path must not escape the source file's directory tree |
+| `E5028` | usage | func references are not printable values; func references cannot be passed to print functions |
+| `E5029` | usage | copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values |
+| `E5030` | usage | cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -352,4 +357,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-10 04:02:40 UTC*
+*Generated on 2026-06-11 05:28:53 UTC*

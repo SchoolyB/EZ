@@ -1,0 +1,39 @@
+do double(n int) -> int { return n * 2 }
+do triple(n int) -> int { return n * 3 }
+
+const Wrapper struct {
+    f func(int) -> int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut w = new(Wrapper)
+    w.f = ()double
+    mut r int = w.f(5)
+    if r == 10 {
+        println("  [PASS] new() struct func field call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new() struct func field call: expected 10, got ${r}")
+        failed += 1
+    }
+
+    const w2 = Wrapper{f: ()triple}
+    mut r2 int = w2.f(5)
+    if r2 == 15 {
+        println("  [PASS] struct literal func field call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct literal func field call: expected 15, got ${r2}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

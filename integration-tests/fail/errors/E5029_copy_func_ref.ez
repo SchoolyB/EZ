@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5029 - copy() on a func reference
+ * Expected: compile-time error
+ */
+
+do double(n int) -> int { return n * 2 }
+
+do main() {
+    const f = ()double
+    const g = copy(f)
+}

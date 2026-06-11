@@ -46,7 +46,7 @@ do main() {
     }
 
     // -- read func field into a local, then call --
-    mut f func(int, int) -> int = op.callback
+    const f func(int, int) -> int = op.callback
     if f(20, 5) == 15 {
         println("  [PASS] mut f = op.callback; f(20, 5) = 15")
         passed += 1

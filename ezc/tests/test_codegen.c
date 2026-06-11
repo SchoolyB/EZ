@@ -811,7 +811,7 @@ static void test_e2e_func_ref_basic(void) {
         ""
         "do double(n int) -> int { return n * 2 }\n"
         "do main() {\n"
-        "  mut fn = ()double\n"
+        "  const fn = ()double\n"
         "  println(fn(21))\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -830,20 +830,6 @@ static void test_e2e_func_ref_ref(void) {
     ASSERT_STR_EQ(out, "-5");
 }
 
-static void test_e2e_func_ref_reassign(void) {
-    char *out = compile_and_run(
-        ""
-        "do add1(n int) -> int { return n + 1 }\n"
-        "do add10(n int) -> int { return n + 10 }\n"
-        "do main() {\n"
-        "  mut fn = ()add1\n"
-        "  println(fn(5))\n"
-        "  fn = ()add10\n"
-        "  println(fn(5))\n"
-        "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "6\n15");
-}
 
 /* ===== Struct-Namespaced Functions ===== */
 
@@ -1678,7 +1664,6 @@ int main(void) {
     /* Function references */
     RUN_TEST(test_e2e_func_ref_basic);
     RUN_TEST(test_e2e_func_ref_ref);
-    RUN_TEST(test_e2e_func_ref_reassign);
 
     /* Struct-namespaced functions */
     RUN_TEST(test_e2e_struct_func);

@@ -1028,7 +1028,7 @@ int main(int argc, char **argv) {
                         /* Different file, same module name — genuine collision */
                         char msg[EZ_MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
-                            "module name '%s' is already imported — use an alias to distinguish them",
+                            "module name '%s' is already imported; use an alias to distinguish them",
                             mod_name);
                         diag_error(diag, "E6001", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -1514,7 +1514,7 @@ int main(int argc, char **argv) {
             double ms = (double)(t_end - t_start) / CLOCKS_PER_SEC * 1000.0;
             fprintf(stderr, "ez: check completed in %.1fms\n", ms);
         }
-        fprintf(stderr, "ez: %s — no errors\n", input_file);
+        fprintf(stderr, "ez: %s: no errors\n", input_file);
         diag_destroy(diag);
         arena_destroy(arena);
         free(source);

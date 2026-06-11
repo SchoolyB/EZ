@@ -12,11 +12,11 @@ import (
 // Find locates the ezc binary using priority-ordered lookup:
 // 1. EZ_COMPILER_PATH environment variable (explicit override, always wins)
 // 2. Embedded runtime extracted to ~/.ez/runtime/<hash>/ (release builds)
-// 3. Same directory as the running ez binary (legacy side-by-side install)
-// 4. PATH lookup (legacy)
-// 5. Known install locations (legacy)
+// 3. Same directory as the running ez binary (side-by-side install)
+// 4. PATH lookup
+// 5. Known install locations
 //
-// Release builds should always hit path 2; the legacy search paths are
+// Release builds should always hit path 2; the fallback search paths are
 // retained so a dev `go build ./cmd/ez` without running `make build`
 // first (which leaves the embedded assets as empty stubs) still works.
 func Find() (string, error) {

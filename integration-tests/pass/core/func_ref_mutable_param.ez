@@ -17,7 +17,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: basic func ref mutation
-    mut fn_ref func(&int) = ()modify
+    const fn_ref func(&int) = ()modify
     mut a int = 10
     fn_ref(a)
     if a == 99 {
@@ -29,7 +29,7 @@ do main() {
     }
 
     // Test 2: different func ref mutation
-    mut fn_ref2 func(&int) = ()triple
+    const fn_ref2 func(&int) = ()triple
     mut b int = 7
     fn_ref2(b)
     if b == 21 {
@@ -37,18 +37,6 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] fn_ref(triple): expected 21, got ${b}")
-        failed += 1
-    }
-
-    // Test 3: reassign func ref and mutate again
-    fn_ref = ()triple
-    mut c int = 4
-    fn_ref(c)
-    if c == 12 {
-        println("  [PASS] reassigned fn_ref(triple) mutated c to 12")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] reassigned fn_ref(triple): expected 12, got ${c}")
         failed += 1
     }
 

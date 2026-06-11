@@ -1556,7 +1556,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (is_named_return) {
                     char help[EZ_MSG_BUF_LARGE];
                     snprintf(help, sizeof(help),
-                        "'%s' is a named return value in the function signature — did you forget to declare 'mut %s %s' at function scope?",
+                        "'%s' is a named return value in the function signature. Did you forget to declare 'mut %s %s' at function scope?",
                         name, name, nr_type ? nr_type : "?");
                     diag_error_help(tc->diag, "E4001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
@@ -2083,6 +2083,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * typetable lookups. Resolve it here so those subtrees get populated. */
         if (fn && fn->kind != NODE_LABEL && fn->kind != NODE_MEMBER_EXPR) {
             resolve_expr(tc, fn);
+        }
+
+        /* E5030: chained call on a function-call result — e.g. get_fn()(5).
+         * A call result is never directly callable in EZ; func references
+         * must be created with ()func_name or ref(func_name) first. */
+        if (fn && fn->kind == NODE_CALL_EXPR) {
+            AstNode *inner_fn = fn->data.call.function;
+            const char *inner_name = NULL;
+            char inner_buf[EZ_MSG_BUF_SIZE];
+            if (inner_fn && inner_fn->kind == NODE_LABEL) {
+                inner_name = inner_fn->data.label.value;
+            } else if (inner_fn && inner_fn->kind == NODE_MEMBER_EXPR &&
+                       inner_fn->data.member.object->kind == NODE_LABEL) {
+                snprintf(inner_buf, sizeof(inner_buf), "%s.%s",
+                    inner_fn->data.member.object->data.label.value,
+                    inner_fn->data.member.member);
+                inner_name = inner_buf;
+            }
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling",
+                inner_name ? inner_name : "function");
+            diag_error_msg(tc->diag, "E5030", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            result = &TYPE_UNKNOWN;
+            break;
         }
 
         /* [func] array + constant index + literal-of-func-refs origin:
@@ -3075,7 +3101,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "float_fixed") == 0 ||
                     strcmp(mfn, "float_sci") == 0) {
                     result = &TYPE_STRING;
-                } else if (strcmp(mfn, "printf") == 0 || strcmp(mfn, "println") == 0) {
+                } else if (strcmp(mfn, "printf") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -3897,6 +3923,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (node->data.call.arg_count >= 1) {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind == TK_FUNCTION) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass a func reference to %s(); func references are not printable values",
+                            fn_name);
+                        diag_error_msg(tc->diag, "E5028", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
@@ -3914,6 +3948,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (node->data.call.arg_count >= 1) {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind == TK_FUNCTION) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass a func reference to %s(); func references are not printable values",
+                            fn_name);
+                        diag_error_msg(tc->diag, "E5028", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
@@ -3976,6 +4018,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
+                if (result->kind == TK_FUNCTION) {
+                    diag_error_msg(tc->diag, "E5029",
+                        strdup("copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(fn_name, "char") == 0) {
                 /* E5008: char() requires exactly 1 argument */
                 if (node->data.call.arg_count != 1) {
@@ -5687,7 +5735,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             char *encoded = strdup(buf);
             result = type_from_name(encoded);
         } else {
-            /* Unknown function: fall back to the legacy bare-func type
+            /* Unknown function: fall back to bare-func type
              * so downstream "is this callable" checks don't crash. */
             result = type_from_name("func");
         }
@@ -5967,6 +6015,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
+        /* E3101: func reference variables must use 'const', not 'mut' */
+        if (node->data.var_decl.mutable) {
+            bool is_func_ref_value = node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_FUNC_REF;
+            bool is_func_type = node->data.var_decl.type_name &&
+                strncmp(node->data.var_decl.type_name, "func(", 5) == 0;
+            if (is_func_ref_value || is_func_type) {
+                diag_error_msg(tc->diag, "E3101",
+                    "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
         /* E3034: 'any' type is reserved */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "any") == 0) {
             diag_error_code(tc->diag, "E3034", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -6135,6 +6195,29 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (value_type->kind == TK_VOID) {
                 diag_error_msg(tc->diag, "E3038",
                     "cannot assign the result of a void function to a variable",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* E3102: cannot assign a func-type return value to a variable.
+             * Func references must be created with ()func_name or ref(func_name). */
+            if (value_type->kind == TK_FUNCTION &&
+                node->data.var_decl.value->kind == NODE_CALL_EXPR) {
+                AstNode *call_fn = node->data.var_decl.value->data.call.function;
+                const char *called = "function";
+                char called_buf[EZ_MSG_BUF_SIZE];
+                if (call_fn->kind == NODE_LABEL) {
+                    called = call_fn->data.label.value;
+                } else if (call_fn->kind == NODE_MEMBER_EXPR &&
+                           call_fn->data.member.object->kind == NODE_LABEL) {
+                    snprintf(called_buf, sizeof(called_buf), "%s.%s",
+                        call_fn->data.member.object->data.label.value,
+                        call_fn->data.member.member);
+                    called = called_buf;
+                }
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference",
+                    called);
+                diag_error_msg(tc->diag, "E3102", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for multi-return to single variable
@@ -7232,6 +7315,20 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
+                /* E3066: func signature mismatch on struct field assignment */
+                if (field_t->kind == TK_FUNCTION && value_t->kind == TK_FUNCTION &&
+                    field_t->name && value_t->name &&
+                    strcmp(field_t->name, value_t->name) != 0) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "cannot assign %s to field '%s' of type %s",
+                        type_display_name(tc, value_t), target->data.member.member,
+                        type_display_name(tc, field_t));
+                    diag_error_msg(tc->diag, "E3066", strdup(msg),
+                        NODE_FILE(tc, node->data.assign.value),
+                        node->data.assign.value->token.line,
+                        node->data.assign.value->token.column, 0);
+                }
             }
         }
         /* : reject addr() of local assigned to outer-scope variable,
@@ -7407,6 +7504,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_display_name(tc, expected), type_display_name(tc, ret_t));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* E3066: func signature mismatch in return */
+            if (ret_t->kind == TK_FUNCTION && expected->kind == TK_FUNCTION &&
+                ret_t->name && expected->name &&
+                strcmp(ret_t->name, expected->name) != 0) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot return %s from function declared to return %s",
+                    type_display_name(tc, ret_t), type_display_name(tc, expected));
+                diag_error_msg(tc->diag, "E3066", strdup(msg),
+                    NODE_FILE(tc, node->data.return_stmt.values[0]),
+                    node->data.return_stmt.values[0]->token.line,
+                    node->data.return_stmt.values[0]->token.column, 0);
             }
             /* Array element type mismatch in return */
             if (ret_t->kind == TK_ARRAY && expected->kind == TK_ARRAY &&

@@ -79,7 +79,7 @@ do main() {
     }
 
     // Test 6: function reference lookup via member
-    mut ref_fn = ()add
+    const ref_fn = ()add
     mut r6 int = ref_fn(10, 20)
     if r6 == 30 {
         println("  [PASS] func ref call")

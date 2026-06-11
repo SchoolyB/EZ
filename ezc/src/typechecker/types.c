@@ -32,7 +32,7 @@ static int type_pool_count = 0;
 
 EzType *type_alloc(void) {
     if (type_pool_count >= TYPE_POOL_CAPACITY) {
-        fprintf(stderr, "error: type pool exhausted (%d types) — please report this bug\n", TYPE_POOL_CAPACITY);
+        fprintf(stderr, "error: type pool exhausted (%d types); please report this bug\n", TYPE_POOL_CAPACITY);
         exit(1);
     }
     return &type_pool[type_pool_count++];

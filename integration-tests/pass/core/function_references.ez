@@ -51,7 +51,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: Store and call
-    mut check = ()is_positive
+    const check = ()is_positive
     if check(5) && !check(-3) {
         println("  [PASS] store and call ()is_positive")
         passed++
@@ -101,18 +101,6 @@ do main() {
         failed++
     }
 
-    // Test 6: Reassign function reference
-    mut fn = ()double
-    mut r1 = fn(5)
-    fn = ()add_one
-    mut r2 = fn(5)
-    if r1 == 10 && r2 == 6 {
-        println("  [PASS] reassign function reference")
-        passed++
-    } otherwise {
-        println("  [FAIL] reassign: r1=${r1}, r2=${r2}")
-        failed++
-    }
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")
