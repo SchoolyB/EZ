@@ -310,14 +310,9 @@ static const char *parse_complex_type(Parser *p) {
             return type_str;
         } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "func") == 0 &&
                    peek_token_is(p, TOK_LPAREN)) {
-            /* Array of typed funcs: [func(...)->R] */
-            const char *elem = parse_complex_type(p);
-            if (!elem) return NULL;
-            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-            size_t ts_len = strlen(elem) + 3;
-            char *type_str = arena_alloc(p->arena, ts_len);
-            snprintf(type_str, ts_len, "[%s]", elem);
-            return type_str;
+            /* Arrays of typed func signatures are not supported. */
+            diag_error_code(p->diag, "E2082", p->file, p->cur_token.line, p->cur_token.column, 0);
+            return NULL;
         } else {
             const char *elem = read_type_name(p);
             if (peek_token_is(p, TOK_COMMA)) {
