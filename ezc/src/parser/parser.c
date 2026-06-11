@@ -369,8 +369,9 @@ static const char *parse_complex_type(Parser *p) {
          * Encoded as a flat string: "func(p1,p2,...)->ret" so the existing
          * type-string plumbing can carry it. `&` on a param is preserved. */
         if (!peek_token_is(p, TOK_LPAREN)) {
-            diag_error_code(p->diag, "E3065", p->file, p->cur_token.line, p->cur_token.column, 0);
-            return NULL;
+            /* Bare 'func' without a signature — valid as an untyped func reference
+             * (e.g. map[string:func], [func], struct fields).  Just return "func". */
+            return "func";
         }
         next_token(p); /* consume ( */
         /* Build params buffer */

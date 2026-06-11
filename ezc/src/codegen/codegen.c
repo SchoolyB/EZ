@@ -338,6 +338,9 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
 static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn) return "int64_t";
     ez_tn = cg_effective_type_str(cg, ez_tn);
+    /* Func references (bare or typed) are stored as void * in maps, same as
+     * in arrays and all other composite types. */
+    if (strcmp(ez_tn, "func") == 0 || strncmp(ez_tn, "func(", 5) == 0) return "void *";
     EzType *t = type_from_name(ez_tn);
     if (!t) return "int64_t";
     switch (t->kind) {
