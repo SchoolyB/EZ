@@ -7266,6 +7266,20 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
+                /* E3066: func signature mismatch on struct field assignment */
+                if (field_t->kind == TK_FUNCTION && value_t->kind == TK_FUNCTION &&
+                    field_t->name && value_t->name &&
+                    strcmp(field_t->name, value_t->name) != 0) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "cannot assign %s to field '%s' of type %s",
+                        type_display_name(tc, value_t), target->data.member.member,
+                        type_display_name(tc, field_t));
+                    diag_error_msg(tc->diag, "E3066", strdup(msg),
+                        NODE_FILE(tc, node->data.assign.value),
+                        node->data.assign.value->token.line,
+                        node->data.assign.value->token.column, 0);
+                }
             }
         }
         /* : reject addr() of local assigned to outer-scope variable,
