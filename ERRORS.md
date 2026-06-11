@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 301 codes** (196 errors, 16 warnings, 89 panics)
+**Total: 302 codes** (197 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -192,6 +192,7 @@
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
 | `E5026` | arguments | argument type mismatch; the function expects a different type than what was provided |
 | `E5027` | usage | embed() path must not escape the source file's directory tree |
+| `E5028` | usage | func references are not printable values; func references cannot be passed to print functions |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -352,4 +353,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-10 04:02:40 UTC*
+*Generated on 2026-06-11 00:54:10 UTC*

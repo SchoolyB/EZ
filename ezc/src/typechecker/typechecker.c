@@ -3897,6 +3897,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (node->data.call.arg_count >= 1) {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind == TK_FUNCTION) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass a func reference to %s(); func references are not printable values",
+                            fn_name);
+                        diag_error_msg(tc->diag, "E5028", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
@@ -3914,6 +3922,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (node->data.call.arg_count >= 1) {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    if (at->kind == TK_FUNCTION) {
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass a func reference to %s(); func references are not printable values",
+                            fn_name);
+                        diag_error_msg(tc->diag, "E5028", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
