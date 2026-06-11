@@ -7442,6 +7442,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* E3066: func signature mismatch in return */
+            if (ret_t->kind == TK_FUNCTION && expected->kind == TK_FUNCTION &&
+                ret_t->name && expected->name &&
+                strcmp(ret_t->name, expected->name) != 0) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot return %s from function declared to return %s",
+                    type_display_name(tc, ret_t), type_display_name(tc, expected));
+                diag_error_msg(tc->diag, "E3066", strdup(msg),
+                    NODE_FILE(tc, node->data.return_stmt.values[0]),
+                    node->data.return_stmt.values[0]->token.line,
+                    node->data.return_stmt.values[0]->token.column, 0);
+            }
             /* Array element type mismatch in return */
             if (ret_t->kind == TK_ARRAY && expected->kind == TK_ARRAY &&
                 ret_t->element_type && expected->element_type &&

@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3066 - returning a func ref with mismatched signature
+ * Expected: compile-time error on the return statement
+ */
+
+do takes_float(n float) -> int { return 0 }
+
+do get_fn() -> func(int) -> int {
+    return ()takes_float
+}
+
+do main() {
+    const f = get_fn()
+    println(f(5))
+}
