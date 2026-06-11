@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.5.14](https://github.com/SchoolyB/EZ/compare/v3.5.13...v3.5.14) (2026-06-11)
+
+
+### Bug Fixes
+
+* **codegen:** println(ref(x)) now prints value instead of address ([#1819](https://github.com/SchoolyB/EZ/issues/1819)) ([7764562](https://github.com/SchoolyB/EZ/commit/7764562915b6dea71ad8ecc4b9e4fe6d94f855e8))
+* **codegen:** use -&gt; instead of . when calling func reference in struct field via pointer ([#1830](https://github.com/SchoolyB/EZ/issues/1830)) ([6fcee13](https://github.com/SchoolyB/EZ/commit/6fcee1338e7b454302928c9848b900d5c4a68d81))
+* **parser,codegen:** allow bare func as map value type ([#1831](https://github.com/SchoolyB/EZ/issues/1831)) ([0b6163f](https://github.com/SchoolyB/EZ/commit/0b6163fb065a85038798ba9f5400e3db777694a7))
+* **parser:** reject typed func signature as array element type with E2082 ([e6882a8](https://github.com/SchoolyB/EZ/commit/e6882a800460b9a5744ec290bef5ef2a2a145ed6))
+* **tests:** update func ref tests to use const and remove invalid reassign test ([4558676](https://github.com/SchoolyB/EZ/commit/45586765cdceab92b50bb6787e5344f24aebe3f5))
+* **typechecker:** reject copy() on func references ([#1820](https://github.com/SchoolyB/EZ/issues/1820)) ([77cca61](https://github.com/SchoolyB/EZ/commit/77cca61161c8d21fe24fda38433dfd783b016341))
+* **typechecker:** reject fmt.println as unknown fmt function ([b964d64](https://github.com/SchoolyB/EZ/commit/b964d641a35410cc696d9de776367122a2b4e833))
+* **typechecker:** reject func references passed to print functions ([#1821](https://github.com/SchoolyB/EZ/issues/1821)) ([f49a271](https://github.com/SchoolyB/EZ/commit/f49a27126d7617b3f9e7dc99ec4e87a37fc121a0))
+* **typechecker:** reject func-type return values assigned to variables and chained calls ([#1829](https://github.com/SchoolyB/EZ/issues/1829)) ([1e70edf](https://github.com/SchoolyB/EZ/commit/1e70edf790e4582137acf0b35d860be987c0b166))
+* **typechecker:** reject mismatched func ref assigned to struct field ([#1822](https://github.com/SchoolyB/EZ/issues/1822)) ([c675fee](https://github.com/SchoolyB/EZ/commit/c675fee42ec225c3270743c8b34f2ffdc72afa40))
+* **typechecker:** reject mismatched func ref in typed return statement ([#1817](https://github.com/SchoolyB/EZ/issues/1817)) ([2459c5b](https://github.com/SchoolyB/EZ/commit/2459c5b0e989f4891f4f4c9572a6cf10b431da0d))
+* **typechecker:** reject mut on func reference variable declarations ([#1818](https://github.com/SchoolyB/EZ/issues/1818)) ([2271ba4](https://github.com/SchoolyB/EZ/commit/2271ba41077c11aefa9b3bbf2bfb0dc4277b4b10))
+
 ## [3.5.13](https://github.com/SchoolyB/EZ/compare/v3.5.12...v3.5.13) (2026-06-10)
 
 
