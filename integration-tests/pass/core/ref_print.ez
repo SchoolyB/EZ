@@ -1,0 +1,53 @@
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut x int = 42
+    mut s string = "hello"
+    mut f float = 3.14
+    mut b bool = true
+
+    mut rx = ref(x)
+    mut rs = ref(s)
+    mut rf = ref(f)
+    mut rb = ref(b)
+
+    if rx == 42 {
+        println("  [PASS] println(ref(int)) prints value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] println(ref(int)): expected 42")
+        failed += 1
+    }
+
+    if rs == "hello" {
+        println("  [PASS] println(ref(string)) prints value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] println(ref(string)): expected hello")
+        failed += 1
+    }
+
+    if rf == 3.14 {
+        println("  [PASS] println(ref(float)) prints value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] println(ref(float)): expected 3.14")
+        failed += 1
+    }
+
+    if rb == true {
+        println("  [PASS] println(ref(bool)) prints value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] println(ref(bool)): expected true")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

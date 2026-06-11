@@ -2640,6 +2640,18 @@ static bool is_stdlib_call(AstNode *node, const char **module, const char **func
 
 /* --- Stdlib call emission helpers --- */
 
+/* If arg is a ref() call, return the inner argument so print functions
+ * use the underlying value's type and emit the value, not the address. */
+static AstNode *unwrap_ref_arg(AstNode *arg) {
+    if (arg->kind == NODE_CALL_EXPR &&
+        arg->data.call.function->kind == NODE_LABEL &&
+        strcmp(arg->data.call.function->data.label.value, "ref") == 0 &&
+        arg->data.call.arg_count == 1) {
+        return arg->data.call.args[0];
+    }
+    return arg;
+}
+
 static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     /* addr() calls always print in hex format */
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
@@ -3089,7 +3101,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
                                   const char *stream, bool newline) {
     if (node->data.call.arg_count < 1) return false;
 
-    AstNode *arg = node->data.call.args[0];
+    AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (!t) return false;
     if (t->kind != TK_STRUCT && t->kind != TK_ARRAY &&
@@ -3144,7 +3156,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "putchar('\\n')");
         } else {
             if (emit_composite_print(cg, node, "stdout", true)) return true;
-            AstNode *arg = node->data.call.args[0];
+            AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
             /* Error type: print message or "nil" */
             EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
             if (arg_t && arg_t->kind == TK_ERROR) {
@@ -3428,7 +3440,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "fputc('\\n', stderr)");
         } else {
             if (emit_composite_print(cg, node, "stderr", true)) return true;
-            AstNode *arg = node->data.call.args[0];
+            AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
             EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
             if (arg_t && arg_t->kind == TK_ERROR) {
                 emit(cg, "ez_builtin_eprintln_str(");
@@ -3454,7 +3466,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stderr", false)) return true;
-        AstNode *arg = node->data.call.args[0];
+        AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_ERROR) {
             emit(cg, "ez_builtin_eprint_str(");
@@ -3612,7 +3624,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stdout", false)) return true;
-        AstNode *arg = node->data.call.args[0];
+        AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_ERROR) {
             emit(cg, "ez_builtin_print_str(");
