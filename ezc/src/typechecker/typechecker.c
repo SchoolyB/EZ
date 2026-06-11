@@ -3075,7 +3075,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "float_fixed") == 0 ||
                     strcmp(mfn, "float_sci") == 0) {
                     result = &TYPE_STRING;
-                } else if (strcmp(mfn, "printf") == 0 || strcmp(mfn, "println") == 0) {
+                } else if (strcmp(mfn, "printf") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
