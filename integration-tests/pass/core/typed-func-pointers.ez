@@ -18,7 +18,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: Function pointer with int arg and int return
-    mut fn_dbl = ()double_it
+    const fn_dbl = ()double_it
     mut result int = fn_dbl(21)
     if result == 42 {
         println("  [PASS] func ptr with int arg and return")
@@ -29,7 +29,7 @@ do main() {
     }
 
     // Test 2: Function pointer with multiple args
-    mut fn_add = ()add
+    const fn_add = ()add
     mut sum int = fn_add(17, 25)
     if sum == 42 {
         println("  [PASS] func ptr with multiple int args")
@@ -40,7 +40,7 @@ do main() {
     }
 
     // Test 3: Call function pointer stored in variable
-    mut fn_ref = ()add
+    const fn_ref = ()add
     mut val int = fn_ref(3, 7)
     if val == 10 {
         println("  [PASS] func ptr call from variable")
