@@ -5989,6 +5989,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
+        /* E3101: func reference variables must use 'const', not 'mut' */
+        if (node->data.var_decl.mutable) {
+            bool is_func_ref_value = node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_FUNC_REF;
+            bool is_func_type = node->data.var_decl.type_name &&
+                strncmp(node->data.var_decl.type_name, "func(", 5) == 0;
+            if (is_func_ref_value || is_func_type) {
+                diag_error_msg(tc->diag, "E3101",
+                    "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
         /* E3034: 'any' type is reserved */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "any") == 0) {
             diag_error_code(tc->diag, "E3034", NODE_FILE(tc, node), node->token.line, node->token.column, 0);

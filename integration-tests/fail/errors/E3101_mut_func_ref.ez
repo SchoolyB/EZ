@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3101 - mut on a func reference declaration
+ * Expected: compile-time error on both explicit and inferred type
+ */
+
+do double(n int) -> int { return n * 2 }
+
+do main() {
+    mut f func(int) -> int = ()double
+    mut g = ()double
+}
