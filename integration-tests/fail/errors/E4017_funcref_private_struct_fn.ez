@@ -1,0 +1,17 @@
+/*
+ * Error Test: E4017 - func reference to private struct function from outside
+ * Expected: E4017 error, compilation fails
+ */
+
+const Calc struct {
+    value int
+
+    private do secret(n int) -> int {
+        return n * 99
+    }
+}
+
+do main() {
+    const f = ()Calc.secret
+    println(f(2))
+}

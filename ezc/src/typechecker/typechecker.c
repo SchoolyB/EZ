@@ -5669,6 +5669,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         /* Validate that the referenced function exists.
          * Builtin and stdlib functions cannot be used as function references. */
         const char *ref_name = NULL;
+        const char *ref_struct_name = NULL;  /* struct name for privacy check */
+        const char *ref_member_name = NULL;  /* member name for privacy check */
         if (node->data.func_ref.function->kind == NODE_LABEL) {
             const char *lname = node->data.func_ref.function->data.label.value;
             /* Surface 1: ()builtin_name — builtins are not first-class values */
@@ -5696,6 +5698,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else {
                     /* Struct.func → lookup as Struct_func */
+                    ref_struct_name = obj->data.label.value;
+                    ref_member_name = member;
                     char *prefixed = xmalloc(strlen(obj->data.label.value) + strlen(member) + 2);
                     sprintf(prefixed, "%s_%s", obj->data.label.value, member);
                     ref_name = prefixed;
@@ -5705,6 +5709,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         FuncSig *ref_sig = ref_name ? find_func(tc, ref_name) : NULL;
         if (ref_sig) {
             ref_sig->used = true;
+            /* E4017: private struct function referenced from outside the struct */
+            if (ref_sig->is_private && ref_struct_name &&
+                !(tc->current_struct_name &&
+                  strcmp(tc->current_struct_name, ref_struct_name) == 0)) {
+                diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0,
+                    ref_struct_name, ref_member_name);
+            }
         } else if (ref_name) {
             /* Surface 3: using module; ()stdlib_func — check if ref_name is in an active using module */
             bool found_in_using = false;
