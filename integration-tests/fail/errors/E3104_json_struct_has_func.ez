@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3104 - #json struct declares a function
+ * Expected: E3104 error, compilation fails
+ */
+
+#json
+const User struct {
+    name string
+    age  int
+
+    do greet() {
+        println("hi")
+    }
+}
+
+do main() {}

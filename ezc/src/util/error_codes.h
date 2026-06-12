@@ -186,7 +186,8 @@
     EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value") \
     EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases") \
     EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference") \
-    EZ_ERROR("E3103", "types", "#json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation")
+    EZ_ERROR("E3103", "types", "#json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation") \
+    EZ_ERROR("E3104", "types", "#json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

@@ -8390,7 +8390,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                 "struct", STRUCT_DISPLAY_NAME(node));
         }
-        /* E3103: #json structs cannot have func-typed fields */
+        /* E3103/E3104: #json structs are data-only */
         if (node->data.struct_decl.is_json) {
             for (int fi = 0; fi < node->data.struct_decl.field_count; fi++) {
                 const char *ftype = node->data.struct_decl.fields[fi].type_name;
@@ -8402,6 +8402,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         node->data.struct_decl.fields[fi].name);
                     diag_error_msg(tc->diag, "E3103", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
+            for (int fi = 0; fi < node->data.struct_decl.func_count; fi++) {
+                AstNode *fn = node->data.struct_decl.funcs[fi].func_decl;
+                if (fn && fn->kind == NODE_FUNC_DECL) {
+                    const char *fname = FUNC_DISPLAY_NAME(fn);
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "#json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function",
+                        STRUCT_DISPLAY_NAME(node), fname);
+                    diag_error_msg(tc->diag, "E3104", strdup(msg),
+                        NODE_FILE(tc, node), fn->token.line, fn->token.column, 0);
                 }
             }
         }
