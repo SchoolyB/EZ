@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 306 codes** (201 errors, 16 warnings, 89 panics)
+**Total: 307 codes** (202 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -178,6 +178,7 @@
 | `E4016` | names | undefined type '%s'; check the spelling or import the module that defines it |
 | `E4017` | names | function '%s.%s' is private and cannot be called from outside the struct |
 | `E4018` | names | struct '%s' has no function named '%s' |
+| `E4019` | names | cannot take a function reference to '%s'; builtin and stdlib functions are not first-class values |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | wrong number of arguments; the function expects a different count than was provided |
 | `E5009` | arguments | invalid base for integer conversion; base must be between 2 and 36 |
@@ -357,4 +358,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-11 05:28:53 UTC*
+*Generated on 2026-06-12 03:02:20 UTC*

@@ -1091,6 +1091,227 @@ static bool tc_is_builtin(const char *name) {
     return false;
 }
 
+static bool tc_is_stdlib_module(const char *name) {
+    static const char *stdlib_mods[] = {
+        "strings", "math", "arrays", "maps", "random", "encoding", "crypto",
+        "regex", "json", "io", "os", "time", "strconv", "uuid", "bytes",
+        "binary", "csv", "sqlite", "threads", "sync", "atomic_mod", "atomic",
+        "channels", "net", "http", "server", "bigint", "fmt", "mem",
+        NULL
+    };
+    for (int i = 0; stdlib_mods[i]; i++) {
+        if (strcmp(name, stdlib_mods[i]) == 0) return true;
+    }
+    return false;
+}
+
+/* stdlib functions reachable via `import and use` / `using`. */
+typedef struct { const char *func; const char *mod; TypeKind ret; } UsingFunc;
+static const UsingFunc _using_funcs[] = {
+    /* strings */
+    {"to_upper","strings",TK_STRING},{"to_lower","strings",TK_STRING},
+    {"trim","strings",TK_STRING},{"trim_left","strings",TK_STRING},
+    {"trim_right","strings",TK_STRING},{"replace","strings",TK_STRING},
+    {"repeat","strings",TK_STRING},{"reverse","strings",TK_STRING},
+    {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
+    {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
+    {"ends_with","strings",TK_BOOL},{"is_empty","strings",TK_BOOL},
+    {"index_of","strings",TK_INT},{"count","strings",TK_INT},
+    {"split","strings",TK_ARRAY},
+    /* math (arg-dependent abs/neg/min/max/clamp handled by special case) */
+    {"sign","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
+    {"lcm","math",TK_INT},
+    {"floor","math",TK_FLOAT},{"ceil","math",TK_FLOAT},{"round","math",TK_FLOAT},
+    {"trunc","math",TK_FLOAT},
+    {"pow","math",TK_FLOAT},{"sqrt","math",TK_FLOAT},{"cbrt","math",TK_FLOAT},
+    {"hypot","math",TK_FLOAT},{"exp","math",TK_FLOAT},{"exp2","math",TK_FLOAT},
+    {"log","math",TK_FLOAT},{"log2","math",TK_FLOAT},{"log10","math",TK_FLOAT},
+    {"log_base","math",TK_FLOAT},{"sin","math",TK_FLOAT},{"cos","math",TK_FLOAT},
+    {"tan","math",TK_FLOAT},{"asin","math",TK_FLOAT},{"acos","math",TK_FLOAT},
+    {"atan","math",TK_FLOAT},{"atan2","math",TK_FLOAT},
+    {"sinh","math",TK_FLOAT},{"cosh","math",TK_FLOAT},{"tanh","math",TK_FLOAT},
+    {"deg_to_rad","math",TK_FLOAT},{"rad_to_deg","math",TK_FLOAT},
+    {"lerp","math",TK_FLOAT},{"distance","math",TK_FLOAT},
+    {"is_prime","math",TK_BOOL},{"is_even","math",TK_BOOL},
+    {"is_odd","math",TK_BOOL},{"is_infinite","math",TK_BOOL},
+    {"is_nan","math",TK_BOOL},{"is_finite","math",TK_BOOL},
+    /* arrays (arg-dependent get_first/get_last/etc handled by inline dispatch) */
+    {"append","arrays",TK_VOID},{"insert_at","arrays",TK_VOID},
+    {"prepend","arrays",TK_VOID},{"fill","arrays",TK_VOID},
+    {"remove_at","arrays",TK_VOID},{"remove","arrays",TK_VOID},
+    {"remove_first","arrays",TK_VOID},{"remove_last","arrays",TK_VOID},
+    {"sort_asc","arrays",TK_VOID},
+    {"sort_desc","arrays",TK_VOID},{"clear","arrays",TK_VOID},
+    {"concat","arrays",TK_ARRAY},{"deduplicate","arrays",TK_ARRAY},
+    {"flatten","arrays",TK_ARRAY},{"reverse","arrays",TK_ARRAY},
+    {"slice","arrays",TK_ARRAY},{"split_every","arrays",TK_ARRAY},
+    {"pair","arrays",TK_ARRAY},
+    {"get_first","arrays",TK_UNKNOWN},{"get_last","arrays",TK_UNKNOWN},
+    {"get_sum","arrays",TK_INT},{"get_min","arrays",TK_INT},
+    {"get_max","arrays",TK_INT},{"count","arrays",TK_INT},
+    {"index_of","arrays",TK_INT},
+    {"is_empty","arrays",TK_BOOL},{"contains","arrays",TK_BOOL},
+    {"is_equal","arrays",TK_BOOL},
+    /* maps (arg-dependent get_keys/get_values handled by special case) */
+    {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
+    {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
+    {"clear","maps",TK_VOID},{"is_equal","maps",TK_BOOL},
+    {"merge","maps",TK_MAP},{"get_or_default","maps",TK_UNKNOWN},
+    /* random (arg-dependent choice/shuffle/sample handled by special case) */
+    {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
+    {"rand_bool","random",TK_BOOL},{"rand_byte","random",TK_INT},
+    {"rand_char","random",TK_INT},{"random_hex","random",TK_STRING},
+    {"seed","random",TK_VOID},
+    /* encoding */
+    {"base64_encode","encoding",TK_STRING},{"base64_decode","encoding",TK_STRING},
+    {"hex_encode","encoding",TK_STRING},{"hex_decode","encoding",TK_STRING},
+    {"url_encode","encoding",TK_STRING},{"url_decode","encoding",TK_STRING},
+    /* crypto */
+    {"sha256","crypto",TK_STRING},{"md5","crypto",TK_STRING},
+    {"random_hex","crypto",TK_STRING},
+    /* regex */
+    {"is_match","regex",TK_BOOL},{"is_valid","regex",TK_BOOL},
+    {"find","regex",TK_STRING},{"replace","regex",TK_STRING},
+    {"find_all","regex",TK_ARRAY},{"split","regex",TK_ARRAY},
+    /* json */
+    {"is_valid","json",TK_BOOL},{"decode","json",TK_MAP},
+    {"encode","json",TK_STRING},{"stringify","json",TK_STRING},
+    {"parse","json",TK_UNKNOWN},{"pretty_print","json",TK_STRING},
+    /* io */
+    {"read_file","io",TK_STRING},{"read_bytes","io",TK_ARRAY},
+    {"read_lines","io",TK_ARRAY},{"write_file","io",TK_BOOL},
+    {"append_file","io",TK_BOOL},{"delete_file","io",TK_BOOL},
+    {"rename_file","io",TK_BOOL},{"file_exists","io",TK_BOOL},
+    {"is_file","io",TK_BOOL},{"is_directory","io",TK_BOOL},
+    {"file_size","io",TK_INT},{"glob","io",TK_ARRAY},
+    {"list_dir","io",TK_ARRAY},{"walk","io",TK_ARRAY},
+    {"make_dir","io",TK_BOOL},{"make_dir_all","io",TK_BOOL},
+    {"remove_dir","io",TK_BOOL},{"remove_dir_all","io",TK_BOOL},
+    {"copy_file","io",TK_BOOL},{"move_file","io",TK_BOOL},
+    {"is_absolute","io",TK_BOOL},
+    {"path_join","io",TK_STRING},{"dirname","io",TK_STRING},
+    {"basename","io",TK_STRING},{"extension","io",TK_STRING},
+    {"normalize","io",TK_STRING},
+    /* os */
+    {"args","os",TK_ARRAY},{"get_env","os",TK_STRING},
+    {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
+    {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
+    {"current_os","os",TK_INT},{"pid","os",TK_INT},
+    /* time */
+    {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
+    {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
+    {"year","time",TK_INT},{"month","time",TK_INT},{"day","time",TK_INT},
+    {"hour","time",TK_INT},{"minute","time",TK_INT},{"second","time",TK_INT},
+    {"weekday","time",TK_INT},
+    {"format","time",TK_STRING},{"to_iso","time",TK_STRING},
+    {"date","time",TK_STRING},{"to_clock","time",TK_STRING},
+    /* strconv */
+    {"to_int","strconv",TK_INT},{"to_uint","strconv",TK_UINT},
+    {"to_float","strconv",TK_FLOAT},{"to_bool","strconv",TK_BOOL},
+    {"from_int","strconv",TK_STRING},{"from_uint","strconv",TK_STRING},
+    {"from_float","strconv",TK_STRING},{"from_bool","strconv",TK_STRING},
+    {"is_numeric","strconv",TK_BOOL},{"is_integer","strconv",TK_BOOL},
+    /* uuid */
+    {"generate_hyphenated","uuid",TK_STRING},{"generate","uuid",TK_STRING},
+    {"generate_compact","uuid",TK_STRING},
+    {"generate_random","uuid",TK_STRING},
+    {"generate_time_ordered","uuid",TK_STRING},
+    {"parse","uuid",TK_STRING},
+    {"is_valid","uuid",TK_BOOL},
+    /* bytes */
+    {"from_string","bytes",TK_ARRAY},{"from_hex","bytes",TK_ARRAY},
+    {"from_base64","bytes",TK_ARRAY},
+    {"to_string","bytes",TK_STRING},{"to_hex","bytes",TK_STRING},
+    {"to_base64","bytes",TK_STRING},
+    /* binary */
+    {"encode_i8","binary",TK_ARRAY},{"encode_u8","binary",TK_ARRAY},
+    {"encode_i16_le","binary",TK_ARRAY},{"encode_i16_be","binary",TK_ARRAY},
+    {"encode_u16_le","binary",TK_ARRAY},{"encode_u16_be","binary",TK_ARRAY},
+    {"encode_i32_le","binary",TK_ARRAY},{"encode_i32_be","binary",TK_ARRAY},
+    {"encode_u32_le","binary",TK_ARRAY},{"encode_u32_be","binary",TK_ARRAY},
+    {"encode_i64_le","binary",TK_ARRAY},{"encode_i64_be","binary",TK_ARRAY},
+    {"encode_u64_le","binary",TK_ARRAY},{"encode_u64_be","binary",TK_ARRAY},
+    {"encode_i128_le","binary",TK_ARRAY},{"encode_i128_be","binary",TK_ARRAY},
+    {"encode_u128_le","binary",TK_ARRAY},{"encode_u128_be","binary",TK_ARRAY},
+    {"encode_i256_le","binary",TK_ARRAY},{"encode_i256_be","binary",TK_ARRAY},
+    {"encode_u256_le","binary",TK_ARRAY},{"encode_u256_be","binary",TK_ARRAY},
+    {"encode_f32_le","binary",TK_ARRAY},{"encode_f32_be","binary",TK_ARRAY},
+    {"encode_f64_le","binary",TK_ARRAY},{"encode_f64_be","binary",TK_ARRAY},
+    {"decode_i8","binary",TK_INT},{"decode_u8","binary",TK_INT},
+    {"decode_i16_le","binary",TK_INT},{"decode_i16_be","binary",TK_INT},
+    {"decode_u16_le","binary",TK_INT},{"decode_u16_be","binary",TK_INT},
+    {"decode_i32_le","binary",TK_INT},{"decode_i32_be","binary",TK_INT},
+    {"decode_u32_le","binary",TK_INT},{"decode_u32_be","binary",TK_INT},
+    {"decode_i64_le","binary",TK_INT},{"decode_i64_be","binary",TK_INT},
+    {"decode_u64_le","binary",TK_INT},{"decode_u64_be","binary",TK_INT},
+    {"decode_i128_le","binary",TK_INT},{"decode_i128_be","binary",TK_INT},
+    {"decode_u128_le","binary",TK_INT},{"decode_u128_be","binary",TK_INT},
+    {"decode_i256_le","binary",TK_INT},{"decode_i256_be","binary",TK_INT},
+    {"decode_u256_le","binary",TK_INT},{"decode_u256_be","binary",TK_INT},
+    {"decode_f32_le","binary",TK_FLOAT},{"decode_f32_be","binary",TK_FLOAT},
+    {"decode_f64_le","binary",TK_FLOAT},{"decode_f64_be","binary",TK_FLOAT},
+    /* csv */
+    {"parse","csv",TK_ARRAY},{"read_file","csv",TK_ARRAY},
+    {"headers","csv",TK_ARRAY},
+    {"write","csv",TK_BOOL},{"write_file","csv",TK_BOOL},
+    {"format","csv",TK_STRING},{"encode","csv",TK_STRING},
+    /* sqlite */
+    {"open","sqlite",TK_UNKNOWN},{"close","sqlite",TK_VOID},
+    {"exec","sqlite",TK_BOOL},{"query","sqlite",TK_ARRAY},
+    /* threads */
+    {"spawn","threads",TK_UNKNOWN},{"spawn_arg","threads",TK_UNKNOWN},
+    {"join","threads",TK_VOID},
+    {"get_id","threads",TK_INT},
+    {"detach","threads",TK_VOID},{"is_alive","threads",TK_BOOL},
+    {"current","threads",TK_INT},{"yield","threads",TK_VOID},
+    {"sleep","threads",TK_VOID},
+    {"thread_count","threads",TK_INT},
+    /* sync */
+    {"mutex","sync",TK_UNKNOWN},{"lock","sync",TK_VOID},
+    {"unlock","sync",TK_VOID},{"try_lock","sync",TK_BOOL},
+    {"destroy","sync",TK_VOID},
+    /* atomic */
+    {"load","atomic",TK_INT},{"store","atomic",TK_VOID},
+    {"add","atomic",TK_INT},{"sub","atomic",TK_INT},
+    {"exchange","atomic",TK_INT},{"cas","atomic",TK_BOOL},
+    {"and","atomic",TK_INT},{"or","atomic",TK_INT},{"xor","atomic",TK_INT},
+    {"spinlock","atomic",TK_UNKNOWN},{"spin_lock","atomic",TK_VOID},
+    {"spin_trylock","atomic",TK_BOOL},{"spin_unlock","atomic",TK_VOID},
+    {"fence","atomic",TK_VOID},
+    /* channels */
+    {"open","channels",TK_UNKNOWN},{"send","channels",TK_VOID},
+    {"receive","channels",TK_INT},{"close","channels",TK_VOID},
+    /* server */
+    {"add_router","server",TK_UNKNOWN},{"add_route","server",TK_VOID},
+    {"listen","server",TK_VOID},{"cors","server",TK_VOID},
+    {"use","server",TK_VOID},{"text","server",TK_UNKNOWN},
+    {"json","server",TK_UNKNOWN},{"html","server",TK_UNKNOWN},
+    {"redirect","server",TK_UNKNOWN},
+    /* http */
+    {"get","http",TK_UNKNOWN},{"post","http",TK_UNKNOWN},
+    {"put","http",TK_UNKNOWN},{"delete","http",TK_UNKNOWN},
+    {"head","http",TK_UNKNOWN},{"patch","http",TK_UNKNOWN},
+    /* net */
+    {"listen","net",TK_UNKNOWN},{"connect","net",TK_UNKNOWN},
+    {"accept","net",TK_UNKNOWN},{"send","net",TK_INT},
+    {"receive","net",TK_STRING},{"resolve","net",TK_STRING},
+    {"close","net",TK_VOID},{"set_timeout","net",TK_VOID},
+    /* fmt */
+    {"sprintf","fmt",TK_STRING},{"format","fmt",TK_STRING},
+    {"pad_left","fmt",TK_STRING},{"pad_right","fmt",TK_STRING},
+    {"center","fmt",TK_STRING},{"int_to_hex","fmt",TK_STRING},
+    {"int_to_binary","fmt",TK_STRING},{"int_to_octal","fmt",TK_STRING},
+    {"float_fixed","fmt",TK_STRING},{"float_sci","fmt",TK_STRING},
+    {"printf","fmt",TK_VOID},
+    /* mem */
+    {"arena","mem",TK_UNKNOWN},{"usage","mem",TK_INT},
+    {"free","mem",TK_VOID},{"reset","mem",TK_VOID},
+    {"destroy","mem",TK_VOID},
+    {"init","mem",TK_UNKNOWN},{"alloc","mem",TK_UNKNOWN},
+    {"make","mem",TK_UNKNOWN},
+    {NULL,NULL,TK_UNKNOWN}
+};
+
 /* : stdlib constants reachable via `import and use` / `using`. */
 typedef struct { const char *name; const char *mod; TypeKind ret; } UsingConst;
 static const UsingConst _using_consts[] = {
@@ -4639,211 +4860,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     } else if (!tc_is_builtin(fn_name)) {
                         /* Check if it's a function from a 'using' module */
                         bool found_in_using = false;
-                        /* Map function names to module + return type */
-                        static const struct { const char *func; const char *mod; TypeKind ret; } using_funcs[] = {
-                            /* @strings */
-                            {"to_upper","strings",TK_STRING},{"to_lower","strings",TK_STRING},
-                            {"trim","strings",TK_STRING},{"trim_left","strings",TK_STRING},
-                            {"trim_right","strings",TK_STRING},{"replace","strings",TK_STRING},
-                            {"repeat","strings",TK_STRING},{"reverse","strings",TK_STRING},
-                            {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
-                            {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
-                            {"ends_with","strings",TK_BOOL},{"is_empty","strings",TK_BOOL},
-                            {"index_of","strings",TK_INT},{"count","strings",TK_INT},
-                            {"split","strings",TK_ARRAY},
-                            /* @math (arg-dependent abs/neg/min/max/clamp handled by special case below) */
-                            {"sign","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
-                            {"lcm","math",TK_INT},
-                            {"floor","math",TK_FLOAT},{"ceil","math",TK_FLOAT},{"round","math",TK_FLOAT},
-                            {"trunc","math",TK_FLOAT},
-                            {"pow","math",TK_FLOAT},{"sqrt","math",TK_FLOAT},{"cbrt","math",TK_FLOAT},
-                            {"hypot","math",TK_FLOAT},{"exp","math",TK_FLOAT},{"exp2","math",TK_FLOAT},
-                            {"log","math",TK_FLOAT},{"log2","math",TK_FLOAT},{"log10","math",TK_FLOAT},
-                            {"log_base","math",TK_FLOAT},{"sin","math",TK_FLOAT},{"cos","math",TK_FLOAT},
-                            {"tan","math",TK_FLOAT},{"asin","math",TK_FLOAT},{"acos","math",TK_FLOAT},
-                            {"atan","math",TK_FLOAT},{"atan2","math",TK_FLOAT},
-                            {"sinh","math",TK_FLOAT},{"cosh","math",TK_FLOAT},{"tanh","math",TK_FLOAT},
-                            {"deg_to_rad","math",TK_FLOAT},{"rad_to_deg","math",TK_FLOAT},
-                            {"lerp","math",TK_FLOAT},{"distance","math",TK_FLOAT},
-                            {"is_prime","math",TK_BOOL},{"is_even","math",TK_BOOL},
-                            {"is_odd","math",TK_BOOL},{"is_infinite","math",TK_BOOL},
-                            {"is_nan","math",TK_BOOL},{"is_finite","math",TK_BOOL},
-                            /* @arrays (arg-dependent get_first/get_last/etc handled by inline dispatch) */
-                            {"append","arrays",TK_VOID},{"insert_at","arrays",TK_VOID},
-                            {"prepend","arrays",TK_VOID},{"fill","arrays",TK_VOID},
-                            {"remove_at","arrays",TK_VOID},{"remove","arrays",TK_VOID},
-                            {"remove_first","arrays",TK_VOID},{"remove_last","arrays",TK_VOID},
-                            {"sort_asc","arrays",TK_VOID},
-                            {"sort_desc","arrays",TK_VOID},{"clear","arrays",TK_VOID},
-                            {"concat","arrays",TK_ARRAY},{"deduplicate","arrays",TK_ARRAY},
-                            {"flatten","arrays",TK_ARRAY},{"reverse","arrays",TK_ARRAY},
-                            {"slice","arrays",TK_ARRAY},{"split_every","arrays",TK_ARRAY},
-                            {"pair","arrays",TK_ARRAY},
-                            {"get_first","arrays",TK_UNKNOWN},{"get_last","arrays",TK_UNKNOWN},
-                            {"get_sum","arrays",TK_INT},{"get_min","arrays",TK_INT},
-                            {"get_max","arrays",TK_INT},{"count","arrays",TK_INT},
-                            {"index_of","arrays",TK_INT},
-                            {"is_empty","arrays",TK_BOOL},{"contains","arrays",TK_BOOL},
-                            {"is_equal","arrays",TK_BOOL},
-                            /* @maps (arg-dependent get_keys/get_values handled by special case below) */
-                            {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
-                            {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
-                            {"clear","maps",TK_VOID},{"is_equal","maps",TK_BOOL},
-                            {"merge","maps",TK_MAP},{"get_or_default","maps",TK_UNKNOWN},
-                            /* @random (arg-dependent choice/shuffle/sample handled by special case below) */
-                            {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
-                            {"rand_bool","random",TK_BOOL},{"rand_byte","random",TK_INT},
-                            {"rand_char","random",TK_INT},{"random_hex","random",TK_STRING},
-                            {"seed","random",TK_VOID},
-                            /* @encoding */
-                            {"base64_encode","encoding",TK_STRING},{"base64_decode","encoding",TK_STRING},
-                            {"hex_encode","encoding",TK_STRING},{"hex_decode","encoding",TK_STRING},
-                            {"url_encode","encoding",TK_STRING},{"url_decode","encoding",TK_STRING},
-                            /* @crypto */
-                            {"sha256","crypto",TK_STRING},{"md5","crypto",TK_STRING},
-                            {"random_hex","crypto",TK_STRING},
-                            /* @regex */
-                            {"is_match","regex",TK_BOOL},{"is_valid","regex",TK_BOOL},
-                            {"find","regex",TK_STRING},{"replace","regex",TK_STRING},
-                            {"find_all","regex",TK_ARRAY},{"split","regex",TK_ARRAY},
-                            /* @json */
-                            {"is_valid","json",TK_BOOL},{"decode","json",TK_MAP},
-                            {"encode","json",TK_STRING},{"stringify","json",TK_STRING},
-                            {"parse","json",TK_UNKNOWN},{"pretty_print","json",TK_STRING},
-                            /* @io */
-                            {"read_file","io",TK_STRING},{"read_bytes","io",TK_ARRAY},
-                            {"read_lines","io",TK_ARRAY},{"write_file","io",TK_BOOL},
-                            {"append_file","io",TK_BOOL},{"delete_file","io",TK_BOOL},
-                            {"rename_file","io",TK_BOOL},{"file_exists","io",TK_BOOL},
-                            {"is_file","io",TK_BOOL},{"is_directory","io",TK_BOOL},
-                            {"file_size","io",TK_INT},{"glob","io",TK_ARRAY},
-                            {"list_dir","io",TK_ARRAY},{"walk","io",TK_ARRAY},
-                            {"make_dir","io",TK_BOOL},{"make_dir_all","io",TK_BOOL},
-                            {"remove_dir","io",TK_BOOL},{"remove_dir_all","io",TK_BOOL},
-                            {"copy_file","io",TK_BOOL},{"move_file","io",TK_BOOL},
-                            {"is_absolute","io",TK_BOOL},
-                            {"path_join","io",TK_STRING},{"dirname","io",TK_STRING},
-                            {"basename","io",TK_STRING},{"extension","io",TK_STRING},
-                            {"normalize","io",TK_STRING},
-                            /* @os */
-                            {"args","os",TK_ARRAY},{"get_env","os",TK_STRING},
-                            {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
-                            {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
-                            {"current_os","os",TK_INT},{"pid","os",TK_INT},
-                            /* @time */
-                            {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
-                            {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
-                            {"year","time",TK_INT},{"month","time",TK_INT},{"day","time",TK_INT},
-                            {"hour","time",TK_INT},{"minute","time",TK_INT},{"second","time",TK_INT},
-                            {"weekday","time",TK_INT},
-                            {"format","time",TK_STRING},{"to_iso","time",TK_STRING},
-                            {"date","time",TK_STRING},{"to_clock","time",TK_STRING},
-                            /* @strconv */
-                            {"to_int","strconv",TK_INT},{"to_uint","strconv",TK_UINT},
-                            {"to_float","strconv",TK_FLOAT},{"to_bool","strconv",TK_BOOL},
-                            {"from_int","strconv",TK_STRING},{"from_uint","strconv",TK_STRING},
-                            {"from_float","strconv",TK_STRING},{"from_bool","strconv",TK_STRING},
-                            {"is_numeric","strconv",TK_BOOL},{"is_integer","strconv",TK_BOOL},
-                            /* @uuid */
-                            {"generate_hyphenated","uuid",TK_STRING},{"generate","uuid",TK_STRING},
-                            {"generate_compact","uuid",TK_STRING},
-                            {"generate_random","uuid",TK_STRING},
-                            {"generate_time_ordered","uuid",TK_STRING},
-                            {"parse","uuid",TK_STRING},
-                            {"is_valid","uuid",TK_BOOL},
-                            /* @bytes */
-                            {"from_string","bytes",TK_ARRAY},{"from_hex","bytes",TK_ARRAY},
-                            {"from_base64","bytes",TK_ARRAY},
-                            {"to_string","bytes",TK_STRING},{"to_hex","bytes",TK_STRING},
-                            {"to_base64","bytes",TK_STRING},
-                            /* @binary */
-                            {"encode_i8","binary",TK_ARRAY},{"encode_u8","binary",TK_ARRAY},
-                            {"encode_i16_le","binary",TK_ARRAY},{"encode_i16_be","binary",TK_ARRAY},
-                            {"encode_u16_le","binary",TK_ARRAY},{"encode_u16_be","binary",TK_ARRAY},
-                            {"encode_i32_le","binary",TK_ARRAY},{"encode_i32_be","binary",TK_ARRAY},
-                            {"encode_u32_le","binary",TK_ARRAY},{"encode_u32_be","binary",TK_ARRAY},
-                            {"encode_i64_le","binary",TK_ARRAY},{"encode_i64_be","binary",TK_ARRAY},
-                            {"encode_u64_le","binary",TK_ARRAY},{"encode_u64_be","binary",TK_ARRAY},
-                            {"encode_i128_le","binary",TK_ARRAY},{"encode_i128_be","binary",TK_ARRAY},
-                            {"encode_u128_le","binary",TK_ARRAY},{"encode_u128_be","binary",TK_ARRAY},
-                            {"encode_i256_le","binary",TK_ARRAY},{"encode_i256_be","binary",TK_ARRAY},
-                            {"encode_u256_le","binary",TK_ARRAY},{"encode_u256_be","binary",TK_ARRAY},
-                            {"encode_f32_le","binary",TK_ARRAY},{"encode_f32_be","binary",TK_ARRAY},
-                            {"encode_f64_le","binary",TK_ARRAY},{"encode_f64_be","binary",TK_ARRAY},
-                            {"decode_i8","binary",TK_INT},{"decode_u8","binary",TK_INT},
-                            {"decode_i16_le","binary",TK_INT},{"decode_i16_be","binary",TK_INT},
-                            {"decode_u16_le","binary",TK_INT},{"decode_u16_be","binary",TK_INT},
-                            {"decode_i32_le","binary",TK_INT},{"decode_i32_be","binary",TK_INT},
-                            {"decode_u32_le","binary",TK_INT},{"decode_u32_be","binary",TK_INT},
-                            {"decode_i64_le","binary",TK_INT},{"decode_i64_be","binary",TK_INT},
-                            {"decode_u64_le","binary",TK_INT},{"decode_u64_be","binary",TK_INT},
-                            {"decode_i128_le","binary",TK_INT},{"decode_i128_be","binary",TK_INT},
-                            {"decode_u128_le","binary",TK_INT},{"decode_u128_be","binary",TK_INT},
-                            {"decode_i256_le","binary",TK_INT},{"decode_i256_be","binary",TK_INT},
-                            {"decode_u256_le","binary",TK_INT},{"decode_u256_be","binary",TK_INT},
-                            {"decode_f32_le","binary",TK_FLOAT},{"decode_f32_be","binary",TK_FLOAT},
-                            {"decode_f64_le","binary",TK_FLOAT},{"decode_f64_be","binary",TK_FLOAT},
-                            /* @csv */
-                            {"parse","csv",TK_ARRAY},{"read_file","csv",TK_ARRAY},
-                            {"headers","csv",TK_ARRAY},
-                            {"write","csv",TK_BOOL},{"write_file","csv",TK_BOOL},
-                            {"format","csv",TK_STRING},{"encode","csv",TK_STRING},
-                            /* @sqlite */
-                            {"open","sqlite",TK_UNKNOWN},{"close","sqlite",TK_VOID},
-                            {"exec","sqlite",TK_BOOL},{"query","sqlite",TK_ARRAY},
-                            /* @threads */
-                            {"spawn","threads",TK_UNKNOWN},{"spawn_arg","threads",TK_UNKNOWN},
-                            {"join","threads",TK_VOID},
-                            {"get_id","threads",TK_INT},
-                            {"detach","threads",TK_VOID},{"is_alive","threads",TK_BOOL},
-                            {"current","threads",TK_INT},{"yield","threads",TK_VOID},
-                            {"sleep","threads",TK_VOID},
-                            {"thread_count","threads",TK_INT},
-                            /* @sync */
-                            {"mutex","sync",TK_UNKNOWN},{"lock","sync",TK_VOID},
-                            {"unlock","sync",TK_VOID},{"try_lock","sync",TK_BOOL},
-                            {"destroy","sync",TK_VOID},
-                            /* @atomic */
-                            {"load","atomic",TK_INT},{"store","atomic",TK_VOID},
-                            {"add","atomic",TK_INT},{"sub","atomic",TK_INT},
-                            {"exchange","atomic",TK_INT},{"cas","atomic",TK_BOOL},
-                            {"and","atomic",TK_INT},{"or","atomic",TK_INT},{"xor","atomic",TK_INT},
-                            {"spinlock","atomic",TK_UNKNOWN},{"spin_lock","atomic",TK_VOID},
-                            {"spin_trylock","atomic",TK_BOOL},{"spin_unlock","atomic",TK_VOID},
-                            {"fence","atomic",TK_VOID},
-                            /* @channels */
-                            {"open","channels",TK_UNKNOWN},{"send","channels",TK_VOID},
-                            {"receive","channels",TK_INT},{"close","channels",TK_VOID},
-                            /* @server */
-                            {"add_router","server",TK_UNKNOWN},{"add_route","server",TK_VOID},
-                            {"listen","server",TK_VOID},{"cors","server",TK_VOID},
-                            {"use","server",TK_VOID},{"text","server",TK_UNKNOWN},
-                            {"json","server",TK_UNKNOWN},{"html","server",TK_UNKNOWN},
-                            {"redirect","server",TK_UNKNOWN},
-                            /* @http */
-                            {"get","http",TK_UNKNOWN},{"post","http",TK_UNKNOWN},
-                            {"put","http",TK_UNKNOWN},{"delete","http",TK_UNKNOWN},
-                            {"head","http",TK_UNKNOWN},{"patch","http",TK_UNKNOWN},
-                            /* @net */
-                            {"listen","net",TK_UNKNOWN},{"connect","net",TK_UNKNOWN},
-                            {"accept","net",TK_UNKNOWN},{"send","net",TK_INT},
-                            {"receive","net",TK_STRING},{"resolve","net",TK_STRING},
-                            {"close","net",TK_VOID},{"set_timeout","net",TK_VOID},
-                            /* @fmt */
-                            {"sprintf","fmt",TK_STRING},{"format","fmt",TK_STRING},
-                            {"pad_left","fmt",TK_STRING},{"pad_right","fmt",TK_STRING},
-                            {"center","fmt",TK_STRING},{"int_to_hex","fmt",TK_STRING},
-                            {"int_to_binary","fmt",TK_STRING},{"int_to_octal","fmt",TK_STRING},
-                            {"float_fixed","fmt",TK_STRING},{"float_sci","fmt",TK_STRING},
-                            {"printf","fmt",TK_VOID},
-                            /* @mem */
-                            {"arena","mem",TK_UNKNOWN},{"usage","mem",TK_INT},
-                            {"free","mem",TK_VOID},{"reset","mem",TK_VOID},
-                            {"destroy","mem",TK_VOID},
-                            {"init","mem",TK_UNKNOWN},{"alloc","mem",TK_UNKNOWN},
-                            {"make","mem",TK_UNKNOWN},
-                            {NULL,NULL,TK_UNKNOWN}
-                        };
                         /* Check for math functions whose return type depends on argument */
                         if (!found_in_using && (strcmp(fn_name, "abs") == 0 || strcmp(fn_name, "neg") == 0 ||
                             strcmp(fn_name, "min") == 0 || strcmp(fn_name, "max") == 0 ||
@@ -4907,11 +4923,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* Resolve alias to actual module name */
                             const char *real_mod = tc_resolve_alias(tc, umod);
                             /* 1) Try hardcoded stdlib table */
-                            for (int fi = 0; using_funcs[fi].func; fi++) {
-                                if (strcmp(fn_name, using_funcs[fi].func) == 0 &&
-                                    strcmp(real_mod, using_funcs[fi].mod) == 0) {
+                            for (int fi = 0; _using_funcs[fi].func; fi++) {
+                                if (strcmp(fn_name, _using_funcs[fi].func) == 0 &&
+                                    strcmp(real_mod, _using_funcs[fi].mod) == 0) {
                                     found_in_using = true;
-                                    switch (using_funcs[fi].ret) {
+                                    switch (_using_funcs[fi].ret) {
                                     case TK_STRING: result = &TYPE_STRING; break;
                                     case TK_FLOAT:  result = &TYPE_FLOAT; break;
                                     case TK_BOOL:   result = &TYPE_BOOL; break;
@@ -5650,35 +5666,79 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_FUNC_REF: {
-        /* Validate that the referenced function exists */
+        /* Validate that the referenced function exists.
+         * Builtin and stdlib functions cannot be used as function references. */
         const char *ref_name = NULL;
         if (node->data.func_ref.function->kind == NODE_LABEL) {
-            ref_name = node->data.func_ref.function->data.label.value;
+            const char *lname = node->data.func_ref.function->data.label.value;
+            /* Surface 1: ()builtin_name — builtins are not first-class values */
+            if (tc_is_builtin(lname)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot take a function reference to '%s'; builtin functions are not first-class values", lname);
+                diag_error_msg(tc->diag, "E4019", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            } else {
+                ref_name = lname;
+            }
         } else if (node->data.func_ref.function->kind == NODE_MEMBER_EXPR) {
-            /* Struct.func → lookup as Struct_func */
             AstNode *obj = node->data.func_ref.function->data.member.object;
             const char *member = node->data.func_ref.function->data.member.member;
             if (obj->kind == NODE_LABEL) {
-                char *prefixed = xmalloc(strlen(obj->data.label.value) + strlen(member) + 2);
-                sprintf(prefixed, "%s_%s", obj->data.label.value, member);
-                ref_name = prefixed;
+                const char *mod_name = tc_resolve_alias(tc, obj->data.label.value);
+                /* Surface 2: ()module.func — stdlib module functions are not first-class values */
+                if (tc_is_stdlib_module(mod_name)) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values",
+                        obj->data.label.value, member);
+                    diag_error_msg(tc->diag, "E4019", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else {
+                    /* Struct.func → lookup as Struct_func */
+                    char *prefixed = xmalloc(strlen(obj->data.label.value) + strlen(member) + 2);
+                    sprintf(prefixed, "%s_%s", obj->data.label.value, member);
+                    ref_name = prefixed;
+                }
             }
         }
         FuncSig *ref_sig = ref_name ? find_func(tc, ref_name) : NULL;
         if (ref_sig) {
             ref_sig->used = true;
-        } else if (ref_name && !tc_is_builtin(ref_name)) {
-            char msg[EZ_MSG_BUF_SIZE];
-            snprintf(msg, sizeof(msg), "undefined function '%s' in function reference", ref_name);
-            const char *suggestion = suggest_name(tc, ref_name);
-            if (suggestion) {
-                char help[EZ_MSG_BUF_SIZE];
-                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                diag_error_help(tc->diag, "E4002", strdup(msg),
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
-            } else {
-                diag_error_msg(tc->diag, "E4002", strdup(msg),
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        } else if (ref_name) {
+            /* Surface 3: using module; ()stdlib_func — check if ref_name is in an active using module */
+            bool found_in_using = false;
+            for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
+                const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                if (tc_is_stdlib_module(real_mod)) {
+                    for (int fi = 0; _using_funcs[fi].func; fi++) {
+                        if (strcmp(ref_name, _using_funcs[fi].func) == 0 &&
+                            strcmp(real_mod, _using_funcs[fi].mod) == 0) {
+                            found_in_using = true;
+                            char msg[EZ_MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "cannot take a function reference to '%s'; stdlib functions are not first-class values",
+                                ref_name);
+                            diag_error_msg(tc->diag, "E4019", strdup(msg),
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!found_in_using) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg), "undefined function '%s' in function reference", ref_name);
+                const char *suggestion = suggest_name(tc, ref_name);
+                if (suggestion) {
+                    char help[EZ_MSG_BUF_SIZE];
+                    snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                    diag_error_help(tc->diag, "E4002", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
+                } else {
+                    diag_error_msg(tc->diag, "E4002", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
         }
         /* Build a typed-func type from the referenced function's signature.

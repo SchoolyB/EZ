@@ -203,7 +203,8 @@
     EZ_ERROR("E4015", "names", "'%s' is private and cannot be accessed from outside its file") \
     EZ_ERROR("E4016", "names", "undefined type '%s'; check the spelling or import the module that defines it") \
     EZ_ERROR("E4017", "names", "function '%s.%s' is private and cannot be called from outside the struct") \
-    EZ_ERROR("E4018", "names", "struct '%s' has no function named '%s'")
+    EZ_ERROR("E4018", "names", "struct '%s' has no function named '%s'") \
+    EZ_ERROR("E4019", "names", "cannot take a function reference to '%s'; builtin and stdlib functions are not first-class values")
 
 /* --- E5xxx: Usage Problems --- */
 #define EZ_USAGE_ERRORS \
