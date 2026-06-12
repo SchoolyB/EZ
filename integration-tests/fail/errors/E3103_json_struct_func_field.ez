@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3103 - #json struct with func-typed field
+ * Expected: E3103 error, compilation fails
+ */
+
+do double(n int) -> int { return n * 2 }
+
+#json
+const Wrapper struct {
+    value int
+    transform func(int) -> int
+}
+
+do main() {
+    mut w = Wrapper{value: 10, transform: ()double}
+}

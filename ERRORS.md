@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 307 codes** (202 errors, 16 warnings, 89 panics)
+**Total: 308 codes** (203 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -163,6 +163,7 @@
 | `E3100` | types | type name '%s' cannot be used as a value |
 | `E3101` | types | func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases |
 | `E3102` | types | function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference |
+| `E3103` | types | #json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -358,4 +359,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-12 03:02:20 UTC*
+*Generated on 2026-06-12 03:14:41 UTC*

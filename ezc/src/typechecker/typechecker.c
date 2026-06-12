@@ -8390,6 +8390,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                 "struct", STRUCT_DISPLAY_NAME(node));
         }
+        /* E3103: #json structs cannot have func-typed fields */
+        if (node->data.struct_decl.is_json) {
+            for (int fi = 0; fi < node->data.struct_decl.field_count; fi++) {
+                const char *ftype = node->data.struct_decl.fields[fi].type_name;
+                if (ftype && strncmp(ftype, "func", 4) == 0) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "#json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation",
+                        STRUCT_DISPLAY_NAME(node),
+                        node->data.struct_decl.fields[fi].name);
+                    diag_error_msg(tc->diag, "E3103", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
+        }
         /* Type-check struct-namespaced function bodies */
         tc->current_struct_name = node->data.struct_decl.name;
         for (int i = 0; i < node->data.struct_decl.func_count; i++) {
