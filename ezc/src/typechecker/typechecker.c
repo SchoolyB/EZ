@@ -2572,6 +2572,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     NODE_FILE(tc, arg), arg->token.line,
                                     arg->token.column, 0);
                             }
+                        } else if (arg->kind == NODE_MEMBER_EXPR &&
+                                   arg->data.member.object->kind == NODE_LABEL &&
+                                   is_enum_name(tc, arg->data.member.object->data.label.value)) {
+                            char emsg[EZ_MSG_BUF_SIZE];
+                            snprintf(emsg, sizeof(emsg),
+                                "cannot pass enum constant to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
+                                found_decl->data.func_decl.params[ai].name,
+                                mod_name, struct_name, func_name);
+                            diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                NODE_FILE(tc, arg), arg->token.line,
+                                arg->token.column, 0);
                         } else if (arg->kind != NODE_MEMBER_EXPR &&
                                    arg->kind != NODE_INDEX_EXPR &&
                                    arg->kind != NODE_PREFIX_EXPR) {
@@ -3767,6 +3778,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             NODE_FILE(tc, arg), arg->token.line,
                                             arg->token.column, 0);
                                     }
+                                } else if (arg->kind == NODE_MEMBER_EXPR &&
+                                           arg->data.member.object->kind == NODE_LABEL &&
+                                           is_enum_name(tc, arg->data.member.object->data.label.value)) {
+                                    char emsg[EZ_MSG_BUF_SIZE];
+                                    snprintf(emsg, sizeof(emsg),
+                                        "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
+                                        found_decl->data.func_decl.params[ai].name, mod, mfn);
+                                    diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                        NODE_FILE(tc, arg), arg->token.line,
+                                        arg->token.column, 0);
                                 } else if (arg->kind != NODE_MEMBER_EXPR &&
                                            arg->kind != NODE_INDEX_EXPR &&
                                            arg->kind != NODE_PREFIX_EXPR) {
@@ -4880,6 +4901,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             NODE_FILE(tc, arg), arg->token.line,
                                             arg->token.column, 0);
                                     }
+                                } else if (arg->kind == NODE_MEMBER_EXPR &&
+                                           arg->data.member.object->kind == NODE_LABEL &&
+                                           is_enum_name(tc, arg->data.member.object->data.label.value)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
+                                        s->data.func_decl.params[ai].name, fn_name);
+                                    diag_error_msg(tc->diag, "E3027", strdup(msg),
+                                        NODE_FILE(tc, arg), arg->token.line,
+                                        arg->token.column, 0);
                                 } else if (arg->kind != NODE_MEMBER_EXPR &&
                                            arg->kind != NODE_INDEX_EXPR &&
                                            arg->kind != NODE_PREFIX_EXPR) {
@@ -5004,6 +5035,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                                         NODE_FILE(tc, arg), arg->token.line,
                                                         arg->token.column, 0);
                                                 }
+                                            } else if (arg->kind == NODE_MEMBER_EXPR &&
+                                                       arg->data.member.object->kind == NODE_LABEL &&
+                                                       is_enum_name(tc, arg->data.member.object->data.label.value)) {
+                                                char emsg[EZ_MSG_BUF_SIZE];
+                                                snprintf(emsg, sizeof(emsg),
+                                                    "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
+                                                    s->data.func_decl.params[ai].name, func_display_name(ref_sig));
+                                                diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                                    NODE_FILE(tc, arg), arg->token.line,
+                                                    arg->token.column, 0);
                                             } else if (arg->kind != NODE_MEMBER_EXPR &&
                                                        arg->kind != NODE_INDEX_EXPR &&
                                                        arg->kind != NODE_PREFIX_EXPR) {
@@ -5056,10 +5097,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     }
                                     /* E3027/E3067: `&` param requires an lvalue */
                                     if (sig->param_mutable[ai]) {
-                                        bool is_lvalue = (arg->kind == NODE_LABEL ||
+                                        bool is_enum_const = (arg->kind == NODE_MEMBER_EXPR &&
+                                                              arg->data.member.object->kind == NODE_LABEL &&
+                                                              is_enum_name(tc, arg->data.member.object->data.label.value));
+                                        bool is_lvalue = !is_enum_const &&
+                                                         (arg->kind == NODE_LABEL ||
                                                           arg->kind == NODE_MEMBER_EXPR ||
                                                           arg->kind == NODE_INDEX_EXPR);
-                                        if (!is_lvalue) {
+                                        if (is_enum_const) {
+                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            snprintf(emsg, sizeof(emsg),
+                                                "cannot pass enum constant to '&' parameter %d of '%s'; expected a mutable variable",
+                                                ai + 1, fn_name);
+                                            diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                                NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0);
+                                        } else if (!is_lvalue) {
                                             diag_error_codef(tc->diag, "E3067", NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0, ai + 1, fn_name);
                                         } else if (arg->kind == NODE_LABEL) {
                                             Symbol *as = scope_lookup(tc->current_scope, arg->data.label.value);
