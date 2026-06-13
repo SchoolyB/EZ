@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.5.15](https://github.com/SchoolyB/EZ/compare/v3.5.14...v3.5.15) (2026-06-13)
+
+
+### Bug Fixes
+
+* **parser:** backfill default values across grouped params ([#1823](https://github.com/SchoolyB/EZ/issues/1823)) ([ce8b999](https://github.com/SchoolyB/EZ/commit/ce8b9996c9daf2470c532d75007d3664feebfe8c))
+* typechecker & parser improvements ([7b42747](https://github.com/SchoolyB/EZ/commit/7b427476c577e5207d111477f1a20ba14059582e))
+* **typechecker:** enforce private on struct function references ([#1835](https://github.com/SchoolyB/EZ/issues/1835)) ([3b82944](https://github.com/SchoolyB/EZ/commit/3b829443e148c89b493a591132f376b80aab8be3))
+* **typechecker:** reject func references to builtin and stdlib functions ([#1832](https://github.com/SchoolyB/EZ/issues/1832)) ([2306015](https://github.com/SchoolyB/EZ/commit/23060154f7215a3bf31f865daa2e680f43f5ad44))
+* **typechecker:** reject func-typed fields on #json structs ([#1836](https://github.com/SchoolyB/EZ/issues/1836)) ([63746f3](https://github.com/SchoolyB/EZ/commit/63746f355497fbbbc5b7e8bdef76f5ac69f24b91))
+* **typechecker:** reject struct functions declared on #json structs ([#1837](https://github.com/SchoolyB/EZ/issues/1837)) ([962cc8f](https://github.com/SchoolyB/EZ/commit/962cc8fa60e1e2e19a033a6eb9c9cb9978c4325e))
+* **typechecker:** reject unknown directives, arg count mismatches, and dangling % in fmt format strings ([#1839](https://github.com/SchoolyB/EZ/issues/1839)) ([e306837](https://github.com/SchoolyB/EZ/commit/e30683734c6d5a42078c9ea5d390ecce2421a5fc))
+
 ## [3.5.14](https://github.com/SchoolyB/EZ/compare/v3.5.13...v3.5.14) (2026-06-11)
 
 
