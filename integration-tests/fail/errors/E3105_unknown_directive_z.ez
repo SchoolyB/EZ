@@ -1,0 +1,7 @@
+/* Error Test: E3105 - unknown format directive %z */
+import @fmt
+
+do main() {
+    mut x int = 42
+    fmt.printf("%z\n", x)
+}

@@ -1,0 +1,6 @@
+/* Error Test: E3107 - too few arguments for format string */
+import @fmt
+
+do main() {
+    fmt.printf("%s and %d\n", "hello")
+}

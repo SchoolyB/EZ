@@ -185,7 +185,13 @@
     EZ_ERROR("E3099", "types", "'%s' is a reserved stdlib type name and cannot be used as a struct name") \
     EZ_ERROR("E3100", "types", "type name '%s' cannot be used as a value") \
     EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases") \
-    EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference")
+    EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference") \
+    EZ_ERROR("E3103", "types", "#json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation") \
+    EZ_ERROR("E3104", "types", "#json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function") \
+    EZ_ERROR("E3105", "types", "fmt.%s: unknown format directive '%%%c'") \
+    EZ_ERROR("E3106", "types", "fmt.%s: dangling '%%' at end of format string") \
+    EZ_ERROR("E3107", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few)") \
+    EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -203,7 +209,8 @@
     EZ_ERROR("E4015", "names", "'%s' is private and cannot be accessed from outside its file") \
     EZ_ERROR("E4016", "names", "undefined type '%s'; check the spelling or import the module that defines it") \
     EZ_ERROR("E4017", "names", "function '%s.%s' is private and cannot be called from outside the struct") \
-    EZ_ERROR("E4018", "names", "struct '%s' has no function named '%s'")
+    EZ_ERROR("E4018", "names", "struct '%s' has no function named '%s'") \
+    EZ_ERROR("E4019", "names", "cannot take a function reference to '%s'; builtin and stdlib functions are not first-class values")
 
 /* --- E5xxx: Usage Problems --- */
 #define EZ_USAGE_ERRORS \

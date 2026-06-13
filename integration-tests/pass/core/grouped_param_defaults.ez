@@ -1,0 +1,116 @@
+/*
+ * grouped_param_defaults.ez - Test that default values backfill across grouped params
+ * Verifies fix for #1823: a, b string = "X" → both default to "X"
+ */
+
+do two_defaults(a, b string = "hello") -> string {
+    return "${a} ${b}"
+}
+
+do three_defaults(x, y, z int = 42) -> int {
+    return x + y + z
+}
+
+do mixed(name string, a, b int = 10) -> string {
+    return "${name}: ${a}, ${b}"
+}
+
+do all_provided(a, b string = "default") -> string {
+    return "${a} ${b}"
+}
+
+do main() {
+    println("=== Grouped Param Defaults Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: both params use default
+    mut r1 string = two_defaults()
+    if r1 == "hello hello" {
+        println("  [PASS] two_defaults() = 'hello hello'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] two_defaults(): expected 'hello hello', got '${r1}'")
+        failed += 1
+    }
+
+    // Test 2: first param provided, second uses default
+    mut r2 string = two_defaults("world")
+    if r2 == "world hello" {
+        println("  [PASS] two_defaults('world') = 'world hello'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] two_defaults('world'): expected 'world hello', got '${r2}'")
+        failed += 1
+    }
+
+    // Test 3: both params provided, no defaults used
+    mut r3 string = all_provided("foo", "bar")
+    if r3 == "foo bar" {
+        println("  [PASS] all_provided('foo', 'bar') = 'foo bar'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] all_provided('foo', 'bar'): expected 'foo bar', got '${r3}'")
+        failed += 1
+    }
+
+    // Test 4: three grouped params all using default
+    mut r4 int = three_defaults()
+    if r4 == 126 {
+        println("  [PASS] three_defaults() = 126")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] three_defaults(): expected 126, got ${r4}")
+        failed += 1
+    }
+
+    // Test 5: three grouped, first provided
+    mut r5 int = three_defaults(1)
+    if r5 == 85 {
+        println("  [PASS] three_defaults(1) = 85")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] three_defaults(1): expected 85, got ${r5}")
+        failed += 1
+    }
+
+    // Test 6: three grouped, first two provided
+    mut r6 int = three_defaults(1, 2)
+    if r6 == 45 {
+        println("  [PASS] three_defaults(1, 2) = 45")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] three_defaults(1, 2): expected 45, got ${r6}")
+        failed += 1
+    }
+
+    // Test 7: mixed - required param + grouped defaults both using default
+    mut r7 string = mixed("test")
+    if r7 == "test: 10, 10" {
+        println("  [PASS] mixed('test') = 'test: 10, 10'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mixed('test'): expected 'test: 10, 10', got '${r7}'")
+        failed += 1
+    }
+
+    // Test 8: mixed - required param + first grouped provided
+    mut r8 string = mixed("test", 5)
+    if r8 == "test: 5, 10" {
+        println("  [PASS] mixed('test', 5) = 'test: 5, 10'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mixed('test', 5): expected 'test: 5, 10', got '${r8}'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

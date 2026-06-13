@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 306 codes** (201 errors, 16 warnings, 89 panics)
+**Total: 313 codes** (208 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -163,6 +163,12 @@
 | `E3100` | types | type name '%s' cannot be used as a value |
 | `E3101` | types | func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases |
 | `E3102` | types | function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference |
+| `E3103` | types | #json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation |
+| `E3104` | types | #json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function |
+| `E3105` | types | fmt.%s: unknown format directive '%%%c' |
+| `E3106` | types | fmt.%s: dangling '%%' at end of format string |
+| `E3107` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few) |
+| `E3108` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many) |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -178,6 +184,7 @@
 | `E4016` | names | undefined type '%s'; check the spelling or import the module that defines it |
 | `E4017` | names | function '%s.%s' is private and cannot be called from outside the struct |
 | `E4018` | names | struct '%s' has no function named '%s' |
+| `E4019` | names | cannot take a function reference to '%s'; builtin and stdlib functions are not first-class values |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | wrong number of arguments; the function expects a different count than was provided |
 | `E5009` | arguments | invalid base for integer conversion; base must be between 2 and 36 |
@@ -357,4 +364,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-11 05:28:53 UTC*
+*Generated on 2026-06-13 17:26:24 UTC*

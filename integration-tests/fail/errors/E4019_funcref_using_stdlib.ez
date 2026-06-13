@@ -1,0 +1,10 @@
+/*
+ * Error Test: E4019 - func reference to stdlib function brought in via using
+ * Expected: E4019 error, compilation fails
+ */
+
+import and use @strings
+
+do main() {
+    const f = ()to_upper
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4019 - func reference to builtin function
+ * Expected: E4019 error, compilation fails
+ */
+
+do main() {
+    const f = ()println
+}

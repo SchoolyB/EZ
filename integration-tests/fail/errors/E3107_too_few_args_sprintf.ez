@@ -1,0 +1,7 @@
+/* Error Test: E3107 - too few arguments for sprintf */
+import @fmt
+
+do main() {
+    mut s string = fmt.sprintf("%s is %d years old", "alice")
+    println(s)
+}
