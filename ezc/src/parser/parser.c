@@ -1026,35 +1026,6 @@ static AstNode *parse_infix_expression(Parser *p, AstNode *left) {
     return node;
 }
 
-static AstNode **parse_expression_list(Parser *p, TokenType end, int *count) {
-    *count = 0;
-    int cap = 4;
-    AstNode **list = arena_alloc(p->arena, sizeof(AstNode *) * cap);
-
-    if (peek_token_is(p, end)) {
-        next_token(p);
-        return list;
-    }
-
-    next_token(p);
-    list[(*count)++] = parse_expression(p, PREC_LOWEST);
-
-    while (peek_token_is(p, TOK_COMMA)) {
-        next_token(p); /* skip comma */
-        next_token(p);
-        if (*count >= cap) {
-            cap *= 2;
-            AstNode **new_list = arena_alloc(p->arena, sizeof(AstNode *) * cap);
-            memcpy(new_list, list, sizeof(AstNode *) * (*count));
-            list = new_list;
-        }
-        list[(*count)++] = parse_expression(p, PREC_LOWEST);
-    }
-
-    if (!expect_peek(p, end)) return NULL;
-    return list;
-}
-
 static AstNode *parse_call_expression(Parser *p, AstNode *function) {
     if (p->cur_token.preceded_by_ws) {
         diag_error_code(p->diag, "E2073", p->file, p->cur_token.line, p->cur_token.column, 0);
@@ -1063,7 +1034,54 @@ static AstNode *parse_call_expression(Parser *p, AstNode *function) {
     }
     AstNode *node = ast_alloc(p->arena, NODE_CALL_EXPR, p->cur_token);
     node->data.call.function = function;
-    node->data.call.args = parse_expression_list(p, TOK_RPAREN, &node->data.call.arg_count);
+
+    /* Parse arguments with named-argument detection.
+     * Named args use the syntax  name: value  at the call site.
+     * Detection: current token is TOK_IDENT and peek is TOK_COLON. */
+    int count = 0;
+    int cap = 4;
+    AstNode **args = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+    const char **names = arena_alloc(p->arena, sizeof(const char *) * cap);
+    memset(names, 0, sizeof(const char *) * cap);
+    bool has_named = false;
+
+    if (peek_token_is(p, TOK_RPAREN)) {
+        next_token(p);
+    } else {
+        for (;;) {
+            next_token(p);
+            if (count >= cap) {
+                int old_cap = cap;
+                cap *= 2;
+                AstNode **new_args = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                memcpy(new_args, args, sizeof(AstNode *) * count);
+                args = new_args;
+                const char **new_names = arena_alloc(p->arena, sizeof(const char *) * cap);
+                memset(new_names, 0, sizeof(const char *) * cap);
+                memcpy(new_names, names, sizeof(const char *) * old_cap);
+                names = new_names;
+            }
+
+            /* Check for named arg: ident followed by colon */
+            if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COLON)) {
+                names[count] = arena_strdup(p->arena, p->cur_token.literal);
+                has_named = true;
+                next_token(p); /* skip ident */
+                next_token(p); /* skip colon, now on value */
+            }
+
+            args[count] = parse_expression(p, PREC_LOWEST);
+            count++;
+
+            if (!peek_token_is(p, TOK_COMMA)) break;
+            next_token(p); /* skip comma */
+        }
+        if (!expect_peek(p, TOK_RPAREN)) return NULL;
+    }
+
+    node->data.call.args = args;
+    node->data.call.arg_count = count;
+    node->data.call.arg_names = has_named ? names : NULL;
     return node;
 }
 

@@ -232,7 +232,11 @@
     EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree") \
     EZ_ERROR("E5028", "usage", "func references are not printable values; func references cannot be passed to print functions") \
     EZ_ERROR("E5029", "usage", "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values") \
-    EZ_ERROR("E5030", "usage", "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling")
+    EZ_ERROR("E5030", "usage", "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling") \
+    EZ_ERROR("E5031", "usage", "unknown parameter name '%s' in call to '%s'") \
+    EZ_ERROR("E5032", "usage", "parameter '%s' is already provided positionally (argument %d) in call to '%s'") \
+    EZ_ERROR("E5033", "usage", "positional argument after named argument in call to '%s'") \
+    EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \

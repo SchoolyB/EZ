@@ -174,7 +174,7 @@ struct AstNode {
         struct { AstNode *left; const char *op; } postfix;
 
         /* NODE_CALL_EXPR */
-        struct { AstNode *function; AstNode **args; int arg_count; } call;
+        struct { AstNode *function; AstNode **args; int arg_count; const char **arg_names; } call;
 
         /* NODE_INDEX_EXPR */
         struct { AstNode *left; AstNode *index; } index_expr;
