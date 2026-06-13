@@ -187,7 +187,11 @@
     EZ_ERROR("E3101", "types", "func reference variables must be declared with 'const', not 'mut'; func references are compile-time aliases") \
     EZ_ERROR("E3102", "types", "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference") \
     EZ_ERROR("E3103", "types", "#json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation") \
-    EZ_ERROR("E3104", "types", "#json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function")
+    EZ_ERROR("E3104", "types", "#json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function") \
+    EZ_ERROR("E3105", "types", "fmt.%s: unknown format directive '%%%c'") \
+    EZ_ERROR("E3106", "types", "fmt.%s: dangling '%%' at end of format string") \
+    EZ_ERROR("E3107", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few)") \
+    EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

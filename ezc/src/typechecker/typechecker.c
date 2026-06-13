@@ -3344,10 +3344,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             const char *fstr = fmt_arg->data.string_value.value;
                             const char *p = fstr;
                             int di = 1;
+                            int num_directives = 0;
                             while (*p) {
                                 if (*p != '%') { p++; continue; }
                                 p++;
-                                if (!*p) break;
+                                if (!*p) {
+                                    /* Dangling % at end of format string */
+                                    diag_error_codef(tc->diag, "E3106",
+                                        NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                        fmt_arg->token.column, 0, mfn);
+                                    break;
+                                }
                                 if (*p == '%') { p++; continue; }
                                 if (*p == 'n') {
                                     diag_error_codef(tc->diag, "E3087",
@@ -3363,7 +3370,33 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 else if (*p == 'l') { p++; if (*p == 'l') p++; }
                                 else if (*p == 'L') p++;
                                 char spec = *p ? *p++ : 0;
-                                if (!spec) break;
+                                if (!spec) {
+                                    diag_error_codef(tc->diag, "E3106",
+                                        NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                        fmt_arg->token.column, 0, mfn);
+                                    break;
+                                }
+                                num_directives++;
+                                /* Reject unknown format directives */
+                                bool known = false;
+                                switch (spec) {
+                                case 'd': case 'i': case 'u':
+                                case 'x': case 'X': case 'o':
+                                case 'f': case 'g': case 'e': case 'G': case 'E':
+                                case 's': case 'c': case 'b':
+                                    known = true;
+                                    break;
+                                default:
+                                    known = false;
+                                    break;
+                                }
+                                if (!known) {
+                                    diag_error_codef(tc->diag, "E3105",
+                                        NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                        fmt_arg->token.column, 0, mfn, spec);
+                                    di++;
+                                    continue;
+                                }
                                 if (di >= node->data.call.arg_count) { di++; continue; }
                                 AstNode *darg = node->data.call.args[di];
                                 EzType *dt = resolve_expr(tc, darg);
@@ -3408,6 +3441,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         mfn, spec_str, expected, di - 1,
                                         type_name(dt));
                                 }
+                            }
+                            /* Check argument count vs directive count */
+                            int num_args = node->data.call.arg_count - 1;
+                            if (num_args < num_directives) {
+                                diag_error_codef(tc->diag, "E3107",
+                                    NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                    fmt_arg->token.column, 0,
+                                    mfn, num_directives, num_args);
+                            } else if (num_args > num_directives) {
+                                diag_error_codef(tc->diag, "E3108",
+                                    NODE_FILE(tc, fmt_arg), fmt_arg->token.line,
+                                    fmt_arg->token.column, 0,
+                                    mfn, num_directives, num_args);
                             }
                         }
                     }
