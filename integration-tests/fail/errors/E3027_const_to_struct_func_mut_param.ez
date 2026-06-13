@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3027 - constant passed to mutable parameter via instance dispatch
+ * Expected: E3027 error — cannot pass constant to mutable (&) param of struct function
+ */
+
+const Counter struct {
+    value int
+
+    do add(&self Counter, &amount int) {
+        self.value = self.value + amount
+    }
+}
+
+do main() {
+    mut c = new(Counter)
+    const step int = 5
+    c.add(step)
+}

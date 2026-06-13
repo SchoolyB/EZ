@@ -4043,6 +4043,67 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     }
                                 }
                             }
+                            /* E3027: non-lvalue or const passed to mutable (&) param
+                             * in instance dispatch. After the AST rewrite, arg[0]
+                             * is self; user-visible args start at index 1. */
+                            if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                                int pc = ssig->decl->data.func_decl.param_count;
+                                int cc = node->data.call.arg_count < pc ? node->data.call.arg_count : pc;
+                                for (int ai = 0; ai < cc; ai++) {
+                                    if (!ssig->decl->data.func_decl.params[ai].mutable)
+                                        continue;
+                                    AstNode *arg = node->data.call.args[ai];
+                                    if (ai == 0) {
+                                        /* Self arg: synthetic NODE_LABEL with value mod_raw */
+                                        Symbol *self_sym = scope_lookup(tc->current_scope, mod_raw);
+                                        if (self_sym && !self_sym->mutable) {
+                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            snprintf(emsg, sizeof(emsg),
+                                                "cannot call '%s.%s' on constant '%s'; function requires a mutable ('&') self parameter",
+                                                sname, mfn, self_sym->name);
+                                            diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                                NODE_FILE(tc, node), node->token.line,
+                                                node->token.column, 0);
+                                        }
+                                    } else {
+                                        /* User-visible args */
+                                        if (arg->kind == NODE_LABEL) {
+                                            Symbol *arg_sym = scope_lookup(tc->current_scope,
+                                                arg->data.label.value);
+                                            if (arg_sym && !arg_sym->mutable) {
+                                                char emsg[EZ_MSG_BUF_SIZE];
+                                                snprintf(emsg, sizeof(emsg),
+                                                    "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
+                                                    arg_sym->name, ssig->decl->data.func_decl.params[ai].name,
+                                                    sname, mfn);
+                                                diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                                    NODE_FILE(tc, arg), arg->token.line,
+                                                    arg->token.column, 0);
+                                            }
+                                        } else if (arg->kind == NODE_MEMBER_EXPR &&
+                                                   arg->data.member.object->kind == NODE_LABEL &&
+                                                   is_enum_name(tc, arg->data.member.object->data.label.value)) {
+                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            snprintf(emsg, sizeof(emsg),
+                                                "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
+                                                ssig->decl->data.func_decl.params[ai].name, sname, mfn);
+                                            diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                                NODE_FILE(tc, arg), arg->token.line,
+                                                arg->token.column, 0);
+                                        } else if (arg->kind != NODE_MEMBER_EXPR &&
+                                                   arg->kind != NODE_INDEX_EXPR &&
+                                                   arg->kind != NODE_PREFIX_EXPR) {
+                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            snprintf(emsg, sizeof(emsg),
+                                                "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
+                                                ssig->decl->data.func_decl.params[ai].name, sname, mfn);
+                                            diag_error_msg(tc->diag, "E3027", strdup(emsg),
+                                                NODE_FILE(tc, arg), arg->token.line,
+                                                arg->token.column, 0);
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             diag_error_codef(tc->diag, "E3042", NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0, sname, mfn, mod_raw, mfn);
                             if (ssig && ssig->return_count > 0) {
