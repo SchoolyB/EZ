@@ -1,0 +1,7 @@
+/* Error Test: E3106 - dangling % in sprintf */
+import @fmt
+
+do main() {
+    mut s string = fmt.sprintf("value: %")
+    println(s)
+}

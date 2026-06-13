@@ -1,0 +1,6 @@
+/* Error Test: E3107 - no arguments for format directives */
+import @fmt
+
+do main() {
+    fmt.printf("%d %s %f\n")
+}

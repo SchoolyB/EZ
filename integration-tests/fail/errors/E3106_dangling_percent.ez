@@ -1,0 +1,6 @@
+/* Error Test: E3106 - dangling % at end of format string */
+import @fmt
+
+do main() {
+    fmt.printf("%")
+}

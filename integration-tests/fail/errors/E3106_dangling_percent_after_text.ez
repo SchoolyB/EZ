@@ -1,0 +1,6 @@
+/* Error Test: E3106 - dangling % after text */
+import @fmt
+
+do main() {
+    fmt.printf("hello %")
+}
