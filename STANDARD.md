@@ -1320,7 +1320,7 @@ const Vec struct {
 
 mut v = Vec{x: 2, y: 3}
 mut scaled = v.scale(factor: 5)        // instance dispatch: name non-self params
-mut also = Vec.scale(v: v, factor: 5)  // static dispatch: name all params
+mut also = Vec.scale(self: v, factor: 5)  // static dispatch: name all params
 ```
 
 - Named arguments are **not supported** for built-in functions (`println`, `len`, `cast`, etc.) or standard library module functions (`strings.to_upper`, `math.sqrt`, etc.):
