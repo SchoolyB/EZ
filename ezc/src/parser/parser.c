@@ -1636,11 +1636,14 @@ static AstNode *parse_func_declaration(Parser *p) {
 
     if (!expect_peek(p, TOK_RPAREN)) return NULL;
 
-    /* Backfill grouped param types (a, b int → both get int) and check for missing types */
+    /* Backfill grouped param types and defaults (a, b int = 0 → both get int, both default to 0) */
     for (int i = node->data.func_decl.param_count - 1; i >= 0; i--) {
         Param *p_i = &node->data.func_decl.params[i];
         if (!p_i->type_name && i + 1 < node->data.func_decl.param_count) {
             p_i->type_name = node->data.func_decl.params[i + 1].type_name;
+            if (!p_i->default_value && node->data.func_decl.params[i + 1].default_value) {
+                p_i->default_value = node->data.func_decl.params[i + 1].default_value;
+            }
         }
         if (!p_i->type_name && !p_i->default_value) {
             char buf[EZ_MSG_BUF_SIZE];
