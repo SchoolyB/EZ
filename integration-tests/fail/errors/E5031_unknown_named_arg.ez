@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5031 - unknown parameter name in named argument
+ * Expected: "unknown parameter name 'z' in call to 'add'"
+ */
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+do main() {
+    mut x int = add(z: 5, b: 10)
+}
