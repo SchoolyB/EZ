@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 313 codes** (208 errors, 16 warnings, 89 panics)
+**Total: 317 codes** (212 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -204,6 +204,10 @@
 | `E5028` | usage | func references are not printable values; func references cannot be passed to print functions |
 | `E5029` | usage | copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values |
 | `E5030` | usage | cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling |
+| `E5031` | usage | unknown parameter name '%s' in call to '%s' |
+| `E5032` | usage | parameter '%s' is already provided positionally (argument %d) in call to '%s' |
+| `E5033` | usage | positional argument after named argument in call to '%s' |
+| `E5034` | usage | named arguments are not supported for builtin function '%s' |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -364,4 +368,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-13 17:26:24 UTC*
+*Generated on 2026-06-13 17:59:08 UTC*

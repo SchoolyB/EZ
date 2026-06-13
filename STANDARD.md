@@ -1267,6 +1267,69 @@ do foo(a int = 10, b int) {}   // error: required parameter cannot follow a defa
 do bar(a int, b int = 10) {}   // OK: required first, then default
 ```
 
+#### 7.2.5 Named Arguments
+
+When calling a function, arguments can be passed by name using `name: value` syntax. This lets callers provide arguments in any order and skip over defaulted parameters to target specific ones:
+
+```ez
+do connect(host string, port int = 8080, verbose bool = false) {
+    if verbose {
+        println("Connecting to ${host}:${port}")
+    }
+}
+
+connect(host: "localhost", verbose: true)  // port uses default 8080
+connect(verbose: true, host: "localhost")  // same — order doesn't matter
+connect("localhost", verbose: true)        // positional + named mix
+```
+
+**Rules:**
+
+- Positional arguments must come before named arguments. Once a named argument appears, all remaining arguments must also be named:
+
+```ez
+add(1, b: 2)     // OK: positional first, then named
+add(a: 1, 2)     // error: positional argument after named argument
+```
+
+- Named arguments must match a parameter name in the function signature exactly. Unknown names are rejected:
+
+```ez
+do add(a int, b int) -> int { return a + b }
+
+add(a: 1, c: 2)  // error: unknown parameter name 'c' in call to 'add'
+```
+
+- A parameter cannot be provided both positionally and by name:
+
+```ez
+add(1, a: 2)      // error: parameter 'a' is already provided positionally
+```
+
+- Named arguments work with struct functions. For instance dispatch, the self parameter is implicit — only name the non-self parameters:
+
+```ez
+const Vec struct {
+    x int
+    y int
+
+    do scale(self Vec, factor int) -> Vec {
+        return Vec{x: self.x * factor, y: self.y * factor}
+    }
+}
+
+mut v = Vec{x: 2, y: 3}
+mut scaled = v.scale(factor: 5)        // instance dispatch: name non-self params
+mut also = Vec.scale(self: v, factor: 5)  // static dispatch: name all params
+```
+
+- Named arguments are **not supported** for built-in functions (`println`, `len`, `cast`, etc.) or standard library module functions (`strings.to_upper`, `math.sqrt`, etc.):
+
+```ez
+println(value: "hello")           // error: named arguments not supported
+strings.to_upper(s: "hello")      // error: named arguments not supported
+```
+
 ### 7.3 Return Types
 
 #### 7.3.1 Single Return Value

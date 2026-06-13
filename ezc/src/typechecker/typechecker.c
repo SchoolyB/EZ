@@ -1091,6 +1091,130 @@ static bool tc_is_builtin(const char *name) {
     return false;
 }
 
+/* Check whether any arg_names entry is non-NULL (i.e. call has named args). */
+static bool tc_has_named_args(AstNode *node) {
+    if (!node->data.call.arg_names) return false;
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (node->data.call.arg_names[i]) return true;
+    }
+    return false;
+}
+
+/* Resolve named arguments: validate names, check ordering, and reorder
+ * args in-place so downstream code sees normal positional args. */
+static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
+                                  AstNode *func_decl, const char *display_name) {
+    if (!node->data.call.arg_names) return;
+
+    const char **arg_names = node->data.call.arg_names;
+    int arg_count = node->data.call.arg_count;
+
+    /* Quick check: any named args at all? */
+    bool any_named = false;
+    for (int i = 0; i < arg_count; i++) {
+        if (arg_names[i]) { any_named = true; break; }
+    }
+    if (!any_named) return;
+
+    /* E5033: positional-before-named check */
+    bool seen_named = false;
+    for (int i = 0; i < arg_count; i++) {
+        if (arg_names[i]) {
+            seen_named = true;
+        } else if (seen_named) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "positional argument after named argument in call to '%s'",
+                display_name);
+            diag_error_msg(tc->diag, "E5033", strdup(msg),
+                NODE_FILE(tc, node), node->data.call.args[i]->token.line,
+                node->data.call.args[i]->token.column, 0);
+            return;
+        }
+    }
+
+    if (!func_decl || func_decl->kind != NODE_FUNC_DECL) return;
+
+    int param_count = func_decl->data.func_decl.param_count;
+    Param *params = func_decl->data.func_decl.params;
+
+    /* Build reordered args array sized to param_count. */
+    AstNode **new_args = xmalloc(sizeof(AstNode *) * (param_count > 0 ? param_count : 1));
+    memset(new_args, 0, sizeof(AstNode *) * (param_count > 0 ? param_count : 1));
+
+    /* Copy positional args into their slots */
+    int positional_count = 0;
+    for (int i = 0; i < arg_count; i++) {
+        if (!arg_names[i]) {
+            if (i < param_count) {
+                new_args[i] = node->data.call.args[i];
+            }
+            positional_count++;
+        } else {
+            break; /* positional args are contiguous at the front */
+        }
+    }
+
+    /* Place named args by matching param names */
+    for (int i = positional_count; i < arg_count; i++) {
+        const char *name = arg_names[i];
+        int slot = -1;
+        for (int pi = 0; pi < param_count; pi++) {
+            if (strcmp(params[pi].name, name) == 0) {
+                slot = pi;
+                break;
+            }
+        }
+        if (slot < 0) {
+            /* E5031: unknown parameter name */
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "unknown parameter name '%s' in call to '%s'",
+                name, display_name);
+            diag_error_msg(tc->diag, "E5031", strdup(msg),
+                NODE_FILE(tc, node), node->data.call.args[i]->token.line,
+                node->data.call.args[i]->token.column, 0);
+            free(new_args);
+            return;
+        }
+        if (new_args[slot]) {
+            /* E5032: already filled by a positional arg */
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "parameter '%s' is already provided positionally (argument %d) in call to '%s'",
+                name, slot + 1, display_name);
+            diag_error_msg(tc->diag, "E5032", strdup(msg),
+                NODE_FILE(tc, node), node->data.call.args[i]->token.line,
+                node->data.call.args[i]->token.column, 0);
+            free(new_args);
+            return;
+        }
+        new_args[slot] = node->data.call.args[i];
+    }
+
+    /* Count how many slots are actually filled (positional + named).
+     * Unfilled slots will be handled by the existing default-value logic. */
+    int filled = 0;
+    for (int i = param_count - 1; i >= 0; i--) {
+        if (new_args[i]) { filled = i + 1; break; }
+    }
+    /* Ensure at least all positional + named are accounted for */
+    if (filled < positional_count) filled = positional_count;
+
+    /* Fill interior gaps with default value AST nodes from the function
+     * declaration so codegen doesn't encounter NULL arg pointers. */
+    for (int i = 0; i < filled; i++) {
+        if (!new_args[i] && i < param_count && params[i].default_value) {
+            new_args[i] = params[i].default_value;
+        }
+    }
+
+    /* Replace the node's args in-place */
+    node->data.call.args = new_args;
+    node->data.call.arg_count = filled;
+    node->data.call.arg_names = NULL; /* now positional */
+}
+
 static bool tc_is_stdlib_module(const char *name) {
     static const char *stdlib_mods[] = {
         "strings", "math", "arrays", "maps", "random", "encoding", "crypto",
@@ -2553,6 +2677,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!tc_is_stdlib_import(tc, mod_raw)) {
                 goto user_module_dispatch;
             }
+            /* E5034: named arguments are not supported for stdlib functions */
+            if (tc_has_named_args(node)) {
+                char fname[EZ_MSG_BUF_SIZE];
+                snprintf(fname, sizeof(fname), "%s.%s", mod, mfn);
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "named arguments are not supported for builtin function '%s'",
+                    fname);
+                diag_error_msg(tc->diag, "E5034", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
             /* Validate argument count for stdlib function calls */
             tc_check_stdlib_arg_count(tc, mod, mfn, node);
             tc_check_stdlib_arg_types(tc, mod, mfn, node);
@@ -3490,6 +3625,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, prefixed);
                 if (sig) {
                     sig->used = true;
+                    /* Resolve named arguments for struct static calls */
+                    if (sig->decl) {
+                        char display[EZ_MSG_BUF_SIZE];
+                        snprintf(display, sizeof(display), "%s.%s", mod, mfn);
+                        tc_resolve_named_args(tc, node, sig->decl, display);
+                    }
                     /* E4017: private struct function called from outside the struct */
                     if (sig->is_private &&
                         !(tc->current_struct_name && strcmp(tc->current_struct_name, mod) == 0)) {
@@ -3655,6 +3796,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E4015", NODE_FILE(tc, node), node->token.line, node->token.column, 0, mfn);
                 } else if (sig) {
                     sig->used = true;
+                    /* Resolve named arguments for user-module function calls */
+                    if (sig->decl) {
+                        char display[EZ_MSG_BUF_SIZE];
+                        snprintf(display, sizeof(display), "%s.%s", mod, mfn);
+                        tc_resolve_named_args(tc, node, sig->decl, display);
+                    }
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
                     } else {
@@ -3721,6 +3868,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
                                 diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
                                     node->token.line, node->token.column, 0, sname, mfn);
+                            }
+                            /* Resolve named arguments before AST rewrite.
+                             * User-visible params start at index 1 (after self),
+                             * so build a temporary shifted decl view. Named
+                             * args target param names excluding the self param. */
+                            if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
+                                tc_has_named_args(node)) {
+                                AstNode *sdecl = ssig->decl;
+                                /* Create a temporary fake decl with params shifted
+                                 * to skip the self parameter (param[0]). */
+                                AstNode tmp_decl = *sdecl;
+                                int orig_pc = sdecl->data.func_decl.param_count;
+                                if (orig_pc > 1) {
+                                    tmp_decl.data.func_decl.params = &sdecl->data.func_decl.params[1];
+                                    tmp_decl.data.func_decl.param_count = orig_pc - 1;
+                                } else {
+                                    tmp_decl.data.func_decl.param_count = 0;
+                                }
+                                char display[EZ_MSG_BUF_SIZE];
+                                snprintf(display, sizeof(display), "%s.%s", sname, mfn);
+                                tc_resolve_named_args(tc, node, &tmp_decl, display);
                             }
                             /* Rewrite the call AST: change the member-expr
                              * object from the instance label to the type
@@ -3897,6 +4065,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         if (fn_name) {
             if (tc_is_builtin(fn_name)) {
+                /* E5034: named arguments are not supported for builtins */
+                if (tc_has_named_args(node)) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "named arguments are not supported for builtin function '%s'",
+                        fn_name);
+                    diag_error_msg(tc->diag, "E5034", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
             /* Check built-in functions first */
             if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
@@ -4401,6 +4578,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                             break;
                         }
+                    }
+                    /* Resolve named arguments before checking counts/types */
+                    if (sig->decl) {
+                        tc_resolve_named_args(tc, node, sig->decl, fn_name);
                     }
                     /* Check argument count; account for default parameters */
                     int min_args = sig->param_count;
