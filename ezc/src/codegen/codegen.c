@@ -2821,8 +2821,9 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
 }
 
 /* Emit a fmt format string literal with %d/%i/%u upgraded to %lld/%llu for
- * EZ int/uint arguments (which are int64_t/uint64_t) to avoid -Wformat. */
-static void emit_fmt_string_normalized(CodeGen *cg, const char *fmt_str, AstNode *call_node) {
+ * EZ int/uint arguments (which are int64_t/uint64_t) to avoid -Wformat.
+ * If append_newline is true, a \n is appended before the closing quote. */
+static void emit_fmt_string_normalized_ex(CodeGen *cg, const char *fmt_str, AstNode *call_node, bool append_newline) {
     const char *p = fmt_str;
     int di = 1; /* which call arg corresponds to the next directive */
     buf_append_char(&cg->output, '"');
@@ -2868,7 +2869,12 @@ static void emit_fmt_string_normalized(CodeGen *cg, const char *fmt_str, AstNode
         buf_append_char(&cg->output, spec);
         di++;
     }
+    if (append_newline) { buf_append_char(&cg->output, '\\'); buf_append_char(&cg->output, 'n'); }
     buf_append_char(&cg->output, '"');
+}
+
+static void emit_fmt_string_normalized(CodeGen *cg, const char *fmt_str, AstNode *call_node) {
+    emit_fmt_string_normalized_ex(cg, fmt_str, call_node, false);
 }
 
 static void emit_fmt_args(CodeGen *cg, AstNode *node, int start_idx) {
@@ -5168,6 +5174,39 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    if (strcmp(func, "printfln") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "printf(");
+        AstNode *fmt_arg = node->data.call.args[0];
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized_ex(cg, fmt_arg->data.string_value.value, node, true);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
+        emit_fmt_args(cg, node, 1);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "eprintf") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "fprintf(stderr, ");
+        AstNode *fmt_arg = node->data.call.args[0];
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized(cg, fmt_arg->data.string_value.value, node);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
+        emit_fmt_args(cg, node, 1);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "eprintfln") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "fprintf(stderr, ");
+        AstNode *fmt_arg = node->data.call.args[0];
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized_ex(cg, fmt_arg->data.string_value.value, node, true);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
+        emit_fmt_args(cg, node, 1);
+        emit(cg, ")");
+        return true;
+    }
+
     if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 1) {
         emit(cg, "ez_string_format(ez_default_arena, ");
         AstNode *fmt_arg = node->data.call.args[0];
@@ -5184,6 +5223,17 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         AstNode *fmt_arg = node->data.call.args[0];
         if (fmt_arg->kind == NODE_STRING_VALUE)
             emit_fmt_string_normalized(cg, fmt_arg->data.string_value.value, node);
+        else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
+        emit_fmt_args(cg, node, 1);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "sprintfln") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "ez_string_format(ez_default_arena, ");
+        AstNode *fmt_arg = node->data.call.args[0];
+        if (fmt_arg->kind == NODE_STRING_VALUE)
+            emit_fmt_string_normalized_ex(cg, fmt_arg->data.string_value.value, node, true);
         else { emit_expression(cg, fmt_arg); emit(cg, ".data"); }
         emit_fmt_args(cg, node, 1);
         emit(cg, ")");
@@ -5682,6 +5732,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"receive","net"},{"resolve","net"},{"close","net"},
                 /* @fmt */
                 {"sprintf","fmt"},{"format","fmt"},{"printf","fmt"},
+                {"printfln","fmt"},{"eprintf","fmt"},{"eprintfln","fmt"},{"sprintfln","fmt"},
                 {"pad_left","fmt"},{"pad_right","fmt"},{"center","fmt"},
                 {"int_to_hex","fmt"},{"int_to_binary","fmt"},{"int_to_octal","fmt"},
                 {"float_fixed","fmt"},{"float_sci","fmt"},
