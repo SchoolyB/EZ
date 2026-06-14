@@ -520,6 +520,36 @@ mut origin Point = Point{x: 0, y: 0}
 mut p Point = Point{}  // Zero-initialized: x=0, y=0
 ```
 
+#### Default Field Values
+
+Struct fields may specify a default value using `= expr` after the type. When a struct is created with `new()` or a struct literal that omits a field, the default value is used instead of zero-initialization.
+
+```ez
+const Config struct {
+    host string = "localhost"
+    port int = 8080
+    verbose bool = false
+}
+
+do main() {
+    mut c = new(Config)       // c.host = "localhost", c.port = 8080, c.verbose = false
+    mut c2 = Config{port: 3000}  // c2.host = "localhost", c2.port = 3000, c2.verbose = false
+}
+```
+
+Grouped fields share the same default:
+
+```ez
+const Point struct {
+    x, y int = 0
+    z int = 1
+}
+```
+
+Fields without a default value remain zero-initialized when omitted.
+
+`#json` structs cannot have default field values. They are data-only and always zero-initialized from JSON input.
+
 Fields are accessed using dot notation:
 
 ```ez
