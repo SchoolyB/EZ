@@ -1,0 +1,77 @@
+/*
+ * Pass Test: Instance dispatch for struct functions without self parameter
+ * Verifies that instance.func() works even when func() does not take self.
+ */
+
+const Stats struct {
+    hp int
+    mp int
+
+    do max_health() -> int {
+        return 100
+    }
+
+    do max_mana() -> int {
+        return 50
+    }
+
+    do add(a int, b int) -> int {
+        return a + b
+    }
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut s = new(Stats)
+    s.hp = 80
+    s.mp = 30
+
+    // Test 1: no-arg struct function via instance dispatch
+    mut mh int = s.max_health()
+    if mh == 100 {
+        println("  [PASS] instance.max_health() returned 100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] instance.max_health(): expected 100, got ${mh}")
+        failed += 1
+    }
+
+    // Test 2: another no-arg struct function via instance dispatch
+    mut mm int = s.max_mana()
+    if mm == 50 {
+        println("  [PASS] instance.max_mana() returned 50")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] instance.max_mana(): expected 50, got ${mm}")
+        failed += 1
+    }
+
+    // Test 3: struct function with args (no self) via instance dispatch
+    mut sum int = s.add(3, 7)
+    if sum == 10 {
+        println("  [PASS] instance.add(3, 7) returned 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] instance.add(3, 7): expected 10, got ${sum}")
+        failed += 1
+    }
+
+    // Test 4: static call still works
+    mut mh2 int = Stats.max_health()
+    if mh2 == 100 {
+        println("  [PASS] Stats.max_health() returned 100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Stats.max_health(): expected 100, got ${mh2}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

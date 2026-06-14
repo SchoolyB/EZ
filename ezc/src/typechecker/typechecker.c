@@ -4104,13 +4104,85 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     }
                                 }
                             }
-                        } else {
-                            diag_error_codef(tc->diag, "E3042", NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0, sname, mfn, mod_raw, mfn);
-                            if (ssig && ssig->return_count > 0) {
-                                result = ssig->return_types[0];
-                            } else {
-                                result = &TYPE_VOID;
+                        } else if (ssig) {
+                            /* Non-self struct function called on an instance.
+                             * Rewrite the AST so the member-expr object uses
+                             * the struct type name instead of the instance
+                             * name.  Do NOT prepend self as arg[0] — the
+                             * function doesn't take a self parameter. This
+                             * makes the call identical to Type.func() by the
+                             * time codegen sees it. */
+                            /* E4017: private struct function via instance dispatch */
+                            if (ssig->is_private &&
+                                !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
+                                diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
+                                    node->token.line, node->token.column, 0, sname, mfn);
                             }
+                            /* Resolve named arguments if present */
+                            if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
+                                tc_has_named_args(node)) {
+                                char display[EZ_MSG_BUF_SIZE];
+                                snprintf(display, sizeof(display), "%s.%s", sname, mfn);
+                                tc_resolve_named_args(tc, node, ssig->decl, display);
+                            }
+                            fn->data.member.object->data.label.value = strdup(sname);
+                            ssig->used = true;
+                            sym->used = true;
+                            result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
+                            /* Validate argument count */
+                            {
+                                int min_params = ssig->param_count;
+                                if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                                    min_params = 0;
+                                    for (int pi = 0; pi < ssig->decl->data.func_decl.param_count; pi++) {
+                                        if (!ssig->decl->data.func_decl.params[pi].default_value)
+                                            min_params++;
+                                    }
+                                }
+                                if (node->data.call.arg_count < min_params ||
+                                    node->data.call.arg_count > ssig->param_count) {
+                                    char emsg[EZ_MSG_BUF_SIZE];
+                                    if (min_params == ssig->param_count) {
+                                        snprintf(emsg, sizeof(emsg),
+                                            "function '%s.%s' expects %d argument(s), got %d",
+                                            sname, mfn, ssig->param_count, node->data.call.arg_count);
+                                    } else {
+                                        snprintf(emsg, sizeof(emsg),
+                                            "function '%s.%s' expects %d-%d argument(s), got %d",
+                                            sname, mfn, min_params, ssig->param_count, node->data.call.arg_count);
+                                    }
+                                    diag_error_msg(tc->diag, "E5008", strdup(emsg),
+                                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                                }
+                            }
+                            /* Validate argument types */
+                            {
+                                int check_count = node->data.call.arg_count < ssig->param_count
+                                    ? node->data.call.arg_count : ssig->param_count;
+                                for (int ai = 0; ai < check_count; ai++) {
+                                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                    EzType *param_t = ssig->param_types[ai];
+                                    if (arg_t && param_t &&
+                                        arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                                        arg_t->kind != param_t->kind &&
+                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                                        !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                                        !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                                        !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                                        char amsg[EZ_MSG_BUF_SIZE];
+                                        snprintf(amsg, sizeof(amsg),
+                                            "argument %d of '%s.%s': expected %s, got %s",
+                                            ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
+                                        diag_error_msg(tc->diag, "E3001", strdup(amsg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                }
+                            }
+                        } else {
+                            result = &TYPE_VOID;
                         }
                     } else {
                         result = &TYPE_VOID;

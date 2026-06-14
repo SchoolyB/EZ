@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 317 codes** (212 errors, 16 warnings, 89 panics)
+**Total: 316 codes** (211 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -103,7 +103,6 @@
 | `E3039` | types | ensure expects a function call; for example: ensure close(file) |
 | `E3040` | types | '%s' returns %d values; use mut a, b = %s() to capture all of them |
 | `E3041` | types | cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps |
-| `E3042` | types | struct functions must be called on the type; use '%s.%s()' instead of '%s.%s()' |
 | `E3043` | types | cannot cast between incompatible types; only numeric, enum, and string conversions are allowed |
 | `E3044` | types | cannot access field '%s' on type '%s'; use an instance variable instead |
 | `E3045` | types | 'or_return' requires a function that returns (T, Error); '%s()' does not return an error |
@@ -368,4 +367,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-13 17:59:08 UTC*
+*Generated on 2026-06-14 00:14:35 UTC*

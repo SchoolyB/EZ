@@ -126,7 +126,6 @@
     EZ_ERROR("E3039", "types", "ensure expects a function call; for example: ensure close(file)") \
     EZ_ERROR("E3040", "types", "'%s' returns %d values; use mut a, b = %s() to capture all of them") \
     EZ_ERROR("E3041", "types", "cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps") \
-    EZ_ERROR("E3042", "types", "struct functions must be called on the type; use '%s.%s()' instead of '%s.%s()'") \
     EZ_ERROR("E3043", "types", "cannot cast between incompatible types; only numeric, enum, and string conversions are allowed") \
     EZ_ERROR("E3044", "types", "cannot access field '%s' on type '%s'; use an instance variable instead") \
     EZ_ERROR("E3045", "types", "'or_return' requires a function that returns (T, Error); '%s()' does not return an error") \
