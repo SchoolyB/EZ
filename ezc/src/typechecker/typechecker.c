@@ -1431,6 +1431,8 @@ static const UsingFunc _using_funcs[] = {
     {"int_to_binary","fmt",TK_STRING},{"int_to_octal","fmt",TK_STRING},
     {"float_fixed","fmt",TK_STRING},{"float_sci","fmt",TK_STRING},
     {"printf","fmt",TK_VOID},
+    {"printfln","fmt",TK_VOID},{"eprintf","fmt",TK_VOID},{"eprintfln","fmt",TK_VOID},
+    {"sprintfln","fmt",TK_STRING},
     /* mem */
     {"arena","mem",TK_UNKNOWN},{"usage","mem",TK_INT},
     {"free","mem",TK_VOID},{"reset","mem",TK_VOID},
@@ -3537,6 +3539,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "fmt") == 0) {
                 if (strcmp(mfn, "sprintf") == 0 ||
+                    strcmp(mfn, "sprintfln") == 0 ||
                     strcmp(mfn, "format") == 0 ||
                     strcmp(mfn, "pad_left") == 0 ||
                     strcmp(mfn, "pad_right") == 0 ||
@@ -3547,7 +3550,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "float_fixed") == 0 ||
                     strcmp(mfn, "float_sci") == 0) {
                     result = &TYPE_STRING;
-                } else if (strcmp(mfn, "printf") == 0) {
+                } else if (strcmp(mfn, "printf") == 0 ||
+                           strcmp(mfn, "printfln") == 0 ||
+                           strcmp(mfn, "eprintf") == 0 ||
+                           strcmp(mfn, "eprintfln") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -3556,7 +3562,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 /* Validate printf/sprintf/format: literal format string + directive types */
                 {
                     bool is_fmt_fn = strcmp(mfn, "printf") == 0 ||
+                                     strcmp(mfn, "printfln") == 0 ||
+                                     strcmp(mfn, "eprintf") == 0 ||
+                                     strcmp(mfn, "eprintfln") == 0 ||
                                      strcmp(mfn, "sprintf") == 0 ||
+                                     strcmp(mfn, "sprintfln") == 0 ||
                                      strcmp(mfn, "format") == 0;
                     if (is_fmt_fn && node->data.call.arg_count >= 1) {
                         AstNode *fmt_arg = node->data.call.args[0];

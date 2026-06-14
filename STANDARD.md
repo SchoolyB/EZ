@@ -3063,7 +3063,11 @@ Formatted output and string formatting functions.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `printf` | `(format string, ...args T)` | Print formatted string to stdout |
+| `printfln` | `(format string, ...args T)` | Print formatted string to stdout with trailing newline |
+| `eprintf` | `(format string, ...args T)` | Print formatted string to stderr |
+| `eprintfln` | `(format string, ...args T)` | Print formatted string to stderr with trailing newline |
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
+| `sprintfln` | `(format string, ...args T) -> string` | Return formatted string with trailing newline |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
 
 > 💡 **Flip's Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.

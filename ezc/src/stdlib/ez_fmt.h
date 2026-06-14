@@ -59,6 +59,55 @@
  */
 /* fmt.format — handled via ez_string_format with ez_default_arena */
 
+/*@man printfln
+ *@module fmt
+ *@group Output
+ *@sig printfln(format string, ...args T)
+ *@desc Prints a formatted string to stdout with a trailing newline. Uses the same format directives as printf.
+ *@example
+ *   import @fmt
+ *   fmt.printfln("hello %s, you are %d years old", "alice", 30)
+ *@end
+ */
+/* fmt.printfln — handled directly by codegen */
+
+/*@man eprintf
+ *@module fmt
+ *@group Output
+ *@sig eprintf(format string, ...args T)
+ *@desc Prints a formatted string to stderr. Uses the same format directives as printf.
+ *@example
+ *   import @fmt
+ *   fmt.eprintf("error: %s\n", "something went wrong")
+ *@end
+ */
+/* fmt.eprintf — handled directly by codegen */
+
+/*@man eprintfln
+ *@module fmt
+ *@group Output
+ *@sig eprintfln(format string, ...args T)
+ *@desc Prints a formatted string to stderr with a trailing newline. Uses the same format directives as printf.
+ *@example
+ *   import @fmt
+ *   fmt.eprintfln("error: %s", "something went wrong")
+ *@end
+ */
+/* fmt.eprintfln — handled directly by codegen */
+
+/*@man sprintfln
+ *@module fmt
+ *@group Output
+ *@sig sprintfln(format string, ...args T) -> string
+ *@desc Returns a formatted string with a trailing newline. Uses the same format directives as sprintf.
+ *@example
+ *   import @fmt
+ *   mut s string = fmt.sprintfln("x = %d", 42)
+ *   println(s)
+ *@end
+ */
+/* fmt.sprintfln — handled directly by codegen */
+
 /*@man pad_left
  *@module fmt
  *@group Padding
