@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3043 - cannot convert string to string
+ * Expected: E3043 error
+ */
+
+do main() {
+    mut s string = "hello"
+    mut r = string(s)
+}

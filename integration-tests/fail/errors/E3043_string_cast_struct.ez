@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3043 - cannot convert struct to string
+ * Expected: E3043 error
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut p = Point{x: 1, y: 2}
+    mut r = string(p)
+}
