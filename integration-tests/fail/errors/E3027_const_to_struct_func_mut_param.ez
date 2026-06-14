@@ -12,7 +12,7 @@ const Counter struct {
 }
 
 do main() {
-    mut c = new(Counter)
+    mut c Counter = Counter{value: 0}
     const step int = 5
     c.add(step)
 }

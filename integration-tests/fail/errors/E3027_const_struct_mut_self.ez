@@ -1,0 +1,17 @@
+/*
+ * Error Test: E3027 - const struct instance calling &self function
+ * Expected: E3027 error — cannot call function with &self on constant instance
+ */
+
+const Counter struct {
+    value int
+
+    do increment(&self Counter) {
+        self.value = self.value + 1
+    }
+}
+
+do main() {
+    const c Counter = Counter{value: 0}
+    c.increment()
+}
