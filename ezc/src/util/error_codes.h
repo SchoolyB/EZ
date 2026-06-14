@@ -191,7 +191,8 @@
     EZ_ERROR("E3106", "types", "fmt.%s: dangling '%%' at end of format string") \
     EZ_ERROR("E3107", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few)") \
     EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)") \
-    EZ_ERROR("E3109", "types", "#json struct '%s' cannot have default field values; field '%s' has a default")
+    EZ_ERROR("E3109", "types", "#json struct '%s' cannot have default field values; field '%s' has a default") \
+    EZ_ERROR("E3110", "types", "implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

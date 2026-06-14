@@ -592,6 +592,44 @@ mut dir = Direction.NORTH
 mut status = Status.TODO
 ```
 
+**Implicit enum selector (`.VARIANT`):**
+
+When the expected enum type is known from context, you can use the shorthand `.VARIANT` instead of the full `EnumName.VARIANT`. The compiler resolves the enum type automatically.
+
+```ez
+// Variable declaration with type annotation
+mut dir Direction = .NORTH
+
+// Assignment
+dir = .SOUTH
+
+// Function arguments
+do move(d Direction) -> int { return 0 }
+move(.EAST)
+
+// When/is branches
+when dir {
+    is .NORTH { println("north") }
+    is .SOUTH { println("south") }
+    default { println("other") }
+}
+
+// Comparisons
+if dir == .WEST { println("west") }
+
+// Return statements
+do get_dir() -> Direction { return .NORTH }
+
+// Struct literal fields
+const Config struct { dir Direction }
+mut c = Config{ dir: .EAST }
+
+// Array literals
+mut dirs [Direction] = {.NORTH, .SOUTH}
+```
+
+The full `EnumName.VARIANT` form is always valid and is required when no type context is available.
+
 ### 3.3 Type Inference
 
 EZ is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.

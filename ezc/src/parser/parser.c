@@ -820,6 +820,22 @@ static AstNode *parse_prefix(Parser *p) {
             p->file, p->cur_token.line, p->cur_token.column, 0);
         return parse_prefix_expression(p);
     }
+    case TOK_DOT: {
+        /* .VARIANT — implicit enum selector (resolved by typechecker) */
+        Token dot_tok = p->cur_token;
+        next_token(p); /* consume dot */
+        if (p->cur_token.type != TOK_IDENT) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "expected enum variant name after '.'");
+            diag_error(p->diag, "E2001", arena_strdup(p->arena, buf),
+                p->file, dot_tok.line, dot_tok.column, 0);
+            return ast_alloc(p->arena, NODE_NIL_VALUE, dot_tok);
+        }
+        AstNode *node = ast_alloc(p->arena, NODE_IMPLICIT_ENUM, dot_tok);
+        node->data.implicit_enum.variant = arena_strdup(p->arena, p->cur_token.literal);
+        node->data.implicit_enum.resolved_enum = NULL;
+        return node;
+    }
     case TOK_LPAREN:    return parse_grouped_expression(p);
     case TOK_LBRACE: {
         /* Could be array literal {1, 2, 3} or map literal {"k": v, ...}

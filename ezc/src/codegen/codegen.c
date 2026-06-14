@@ -2641,6 +2641,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
+    case NODE_IMPLICIT_ENUM: {
+        const char *ename = node->data.implicit_enum.resolved_enum;
+        const char *variant = node->data.implicit_enum.variant;
+        if (ename) {
+            emitf(cg, "EzEnum_%s_%s", ename, variant);
+        }
+        break;
+    }
+
     default:
         emitf(cg, "0 /* ezc: unhandled expression kind %d at %s:%d */",
             node->kind, cg->file, node->token.line);
