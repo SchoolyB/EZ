@@ -4,7 +4,7 @@
 <h1 align="center">EZ</h1>
 
 <p align="center">
-  A statically typed, compiled programming language inspired by C, Odin, Rust, and Go.
+  A compiled language that's actually approachable. Compiles to C, ships a single binary, reads like pseudocode.
 </p>
 
 <h3 align="center">Programming made EZ.</h3>
@@ -20,57 +20,60 @@
 
 ---
 
+```ez
+do main() {
+    println("Hello, World!")
+}
+```
 
 ```ez
-import @json, @arrays
+import @json
 
 #json
-const Task struct {
-    title string
-    priority int
-    done bool
-}
-
-do urgent(tasks [Task]) -> (result [Task], count int) {
-    mut result [Task] = {}
-    mut count int = 0
-
-    for_each t in tasks {
-        when t.priority {
-            is 1, 2 {
-                if !t.done {
-                    arrays.append(result, t)
-                    count += 1
-                }
-            }
-        }
-    }
-
-    return result, count
+const User struct {
+    name string
+    age int
 }
 
 do main() {
-    mut tasks [Task] = {
-        Task{title: "Fix login bug", priority: 1, done: false},
-        Task{title: "Write tests", priority: 2, done: false},
-        Task{title: "Update docs", priority: 3, done: true},
-        Task{title: "Deploy v3", priority: 1, done: true},
-        Task{title: "Review PRs", priority: 2, done: false}
-    }
+    mut u = User{name: "Alice", age: 30}
+    println(json.stringify(u))
+}
+// Output: {"name":"Alice","age":30}
+```
 
-    mut pending, total = urgent(tasks)
+```ez
+import @io
 
-    println("${total} urgent tasks:")
-    for_each t in pending {
-        println("  [!] ${t.title}")
+do main() {
+    mut content, err = io.read_file("config.json")
+    if err != nil {
+        eprintln("Failed: ${err}")
+        exit(1)
     }
-
-    println("\nExported as JSON:")
-    for_each t in pending {
-        println(json.stringify(t))
-    }
+    println(content)
 }
 ```
+
+---
+
+## What makes EZ different
+
+- **Readable syntax** — `for_each`, `as_long_as`, `otherwise`, `when`/`is`. Code that reads like it runs.
+- **Ample Standard Library** — `@json`, `@arrays`, `@maps`, `@http`, `@server`, and many more!
+- **Compiles to C** — native speed, single binary, no runtime, no VM.
+
+---
+
+## Standard Library
+
+<p align="center">
+
+`arrays` · `strings` · `maps` · `math` · `time` · `random` · `json` · `io` · `os`
+`http` · `server` · `crypto` · `encoding` · `uuid` · `bytes` · `binary` · `sqlite`
+`regex` · `csv` · `net` · `threads` · `sync` · `channels` · `mem` · `atomic` · `fmt` · `strconv`
+
+</p>
 
 ---
 
@@ -95,45 +98,25 @@ make install
 
 ---
 
-## Quick Start
-
-Create a file called `main.ez`:
-
-```ez
-do main() {
-    println("Hello, World!")
-}
-```
-
-Run it:
-
-```bash
-ez main.ez
-```
-
-EZ compiles your code to a native binary, executes it, and cleans up.
-
----
-
 ## Commands
 
-```
-ez <file.ez>                Compile and run
-ez build <file.ez> -o app   Compile to a distributable binary
-ez check <file.ez>          Type check without compiling
-ez watch <file.ez>          Watch for changes, re-run on save
-ez doc <file.ez>            Generate docs from #doc attributes
-ez pz <name>                Scaffold a new project
-ez report                   Print system info for bug reports
-ez update                   Update to the latest stable version
-ez update --pre             Update to the latest pre-release (alpha/beta/rc)
-ez install <version>        Install a specific version (e.g. 2.5.0, 3.0.0-beta.2)
-ez version                  Show version info
-ez man                      Show helpful information about using the ez man command
-ez man <stdlib module>      Show information about the contents of the provided stdlib module
-ez man <stdlib function>    Show information about the provide stdlib function
-ez man <stdlib struct type> Show information about the provied stdlib struct type
-```
+| Command | Description | Example |
+|---------|-------------|---------|
+| `ez <file>` | Compile and run | `ez main.ez` |
+| `ez build <file> -o <name>` | Compile to a distributable binary | `ez build main.ez -o myapp` |
+| `ez check <file>` | Type check without compiling | `ez check main.ez` |
+| `ez watch <file>` | Watch for changes, re-run on save | `ez watch main.ez` |
+| `ez doc <file>` | Generate docs from `#doc` attributes | `ez doc main.ez` |
+| `ez pz <name>` | Scaffold a new project | `ez pz myproject` |
+| `ez report` | Print system info for bug reports | `ez report` |
+| `ez update` | Update to the latest stable version | `ez update` |
+| `ez update --pre` | Update to the latest pre-release (alpha/beta) | `ez update --pre` |
+| `ez install <version>` | Install a specific version by semver | `ez install 2.5.0` |
+| `ez version` | Show version info | `ez version` |
+| `ez man` | Show help for the man command | `ez man` |
+| `ez man <module>` | Show info about a stdlib module | `ez man strings` |
+| `ez man <function>` | Show info about a stdlib function | `ez man to_upper` |
+| `ez man <struct>` | Show info about a stdlib struct type | `ez man HttpRequest` |
 
 ---
 
@@ -149,36 +132,16 @@ ez install 2.5.0       # pin to an exact version
 
 ---
 
-## Bug Reports
-
-Found a bug? Run `ez report` to gather your system info, then open an issue at [github.com/SchoolyB/EZ/issues](https://github.com/SchoolyB/EZ/issues) and paste the output:
-
-```bash
-ez report
-```
-
-```
-EZ Bug Report Info
-======================
-EZ Version:  v3.0.0-alpha.13  (pre-release)
-Commit:      (released build)
-Install:     /usr/local/bin/ez
-OS:          darwin/arm64  Darwin 24.5.0
-CPU:         Apple M2
-RAM:         8 GB
-C compiler:  /usr/bin/clang
-             Apple clang version 17.0.0 (clang-1700.0.13.5)
-             target: arm64-apple-darwin24.5.0
-```
-
-Include this output along with a description of the bug, the EZ code that triggers it, and what you expected to happen.
-
----
-
 ## Learn More
 
 - [Official documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs)
 - [Contributing guide](CONTRIBUTING.md)
+
+---
+
+## Status
+
+EZ is in active development. The language is usable for personal projects and dev tools. Breaking changes may occur frequentlly.
 
 ---
 
