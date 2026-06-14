@@ -4760,6 +4760,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else
                     result = &TYPE_INT;
             } else if (strcmp(fn_name, "string") == 0 && node->data.call.arg_count == 1) {
+                /* E3043: validate source type is convertible to string */
+                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                if (src_t->kind == TK_STRING) {
+                    diag_error_msg(tc->diag, "E3043",
+                        strdup("cannot convert string to string; value is already a string"),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to float */
