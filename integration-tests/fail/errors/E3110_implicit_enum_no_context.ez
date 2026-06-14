@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3110 - implicit enum selector without type context
+ * Expected: "implicit enum selector '.RED' requires type context" error
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut x = .RED
+}
