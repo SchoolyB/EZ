@@ -2156,8 +2156,19 @@ static AstNode *parse_struct_declaration(Parser *p) {
          * binding consistency at each struct literal usage site. */
         for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
             node->data.struct_decl.fields[i].type_name = type_name;
+            node->data.struct_decl.fields[i].default_value = NULL;
         }
         next_token(p);
+
+        /* Parse optional default value: `= expr` */
+        if (cur_token_is(p, TOK_ASSIGN)) {
+            next_token(p); /* skip '=' */
+            AstNode *def = parse_expression(p, PREC_LOWEST);
+            for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
+                node->data.struct_decl.fields[i].default_value = def;
+            }
+            next_token(p);
+        }
 
         /* Skip optional trailing comma after a field type */
         if (cur_token_is(p, TOK_COMMA)) next_token(p);

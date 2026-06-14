@@ -76,6 +76,7 @@ typedef struct {
 typedef struct {
     const char *name;
     const char *type_name;
+    AstNode *default_value;
 } StructField;
 
 /* Function in struct declaration (namespaced free function) */

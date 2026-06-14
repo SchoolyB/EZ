@@ -8815,6 +8815,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3103", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
+                if (node->data.struct_decl.fields[fi].default_value) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "#json struct '%s' cannot have default field values; field '%s' has a default",
+                        STRUCT_DISPLAY_NAME(node),
+                        node->data.struct_decl.fields[fi].name);
+                    diag_error_msg(tc->diag, "E3109", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
             for (int fi = 0; fi < node->data.struct_decl.func_count; fi++) {
                 AstNode *fn = node->data.struct_decl.funcs[fi].func_decl;

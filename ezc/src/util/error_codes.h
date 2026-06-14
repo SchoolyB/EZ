@@ -190,7 +190,8 @@
     EZ_ERROR("E3105", "types", "fmt.%s: unknown format directive '%%%c'") \
     EZ_ERROR("E3106", "types", "fmt.%s: dangling '%%' at end of format string") \
     EZ_ERROR("E3107", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few)") \
-    EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)")
+    EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)") \
+    EZ_ERROR("E3109", "types", "#json struct '%s' cannot have default field values; field '%s' has a default")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
