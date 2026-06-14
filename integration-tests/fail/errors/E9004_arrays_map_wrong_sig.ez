@@ -1,0 +1,13 @@
+/*
+ * Error Test: E9004 - arrays.map() callback signature mismatch
+ * Expected: E9004 error (map callback must take 1 parameter)
+ */
+
+import @arrays
+
+do bad_map(a int, b int) -> int { return a + b }
+
+do main() {
+    mut nums [int] = {1, 2, 3}
+    mut result [int] = arrays.map(nums, ()bad_map)
+}

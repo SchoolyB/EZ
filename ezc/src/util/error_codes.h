@@ -253,6 +253,8 @@
     EZ_ERROR("E7014", "stdlib", "cannot convert %lld to char; value must be a valid Unicode code point (0 or greater)") \
     EZ_ERROR("E7015", "stdlib", "len() is not supported for type '%s'; len() works on string, array, and map types") \
     EZ_ERROR("E9002", "stdlib", "arrays.%s() requires a numeric array, got array of %s") \
+    EZ_ERROR("E9003", "stdlib", "arrays.%s() requires a function reference; use ()func_name to pass a function") \
+    EZ_ERROR("E9004", "stdlib", "arrays.%s() callback signature mismatch; %s") \
     EZ_ERROR("E9005", "stdlib", "invalid range: start (%lld) must be less than end (%lld)") \
     EZ_ERROR("E12001", "stdlib", "maps.%s() requires a map argument, got an array") \
     EZ_ERROR("E12006", "stdlib", "duplicate key in map literal")

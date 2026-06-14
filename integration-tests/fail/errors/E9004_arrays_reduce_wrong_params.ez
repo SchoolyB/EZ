@@ -1,0 +1,13 @@
+/*
+ * Error Test: E9004 - arrays.reduce() callback must take 2 parameters
+ * Expected: E9004 error
+ */
+
+import @arrays
+
+do bad_reduce(x int) -> int { return x }
+
+do main() {
+    mut nums [int] = {1, 2, 3}
+    mut result int = arrays.reduce(nums, 0, ()bad_reduce)
+}
