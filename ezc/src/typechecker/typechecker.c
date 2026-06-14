@@ -2406,6 +2406,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 find_func(tc, node->data.call.args[i]->data.label.value)) {
                 continue;
             }
+            /* Skip implicit enum nodes; they need expected_type context
+             * from the function signature, which is resolved later. */
+            if (node->data.call.args[i]->kind == NODE_IMPLICIT_ENUM)
+                continue;
             resolve_expr(tc, node->data.call.args[i]);
 
             /* E3040: a multi-return call cannot appear in single-value
@@ -6864,6 +6868,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             EzType *saved_expected = tc->expected_type;
             if (declared->kind == TK_ENUM && declared->name)
                 tc->expected_type = declared;
+            else if (declared->kind == TK_ARRAY && declared->element_type) {
+                EzType *elem_t = tc_type_from_name(tc, declared->element_type);
+                if (elem_t && elem_t->kind == TK_ENUM)
+                    tc->expected_type = declared;
+            }
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
             tc->expected_type = saved_expected;
             /* : when a func-pointer call returns TK_UNKNOWN but
