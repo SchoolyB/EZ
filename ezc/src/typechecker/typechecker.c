@@ -4766,6 +4766,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3043",
                         strdup("cannot convert string to string; value is already a string"),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+                           src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "cannot convert %s to string; use string interpolation or access individual elements",
+                        type_name(src_t));
+                    diag_error_msg(tc->diag, "E3043", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
