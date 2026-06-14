@@ -3332,6 +3332,41 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 
 For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
 
+### 11.10 Under the Hood
+
+EZ's scope-based memory model is built on **arena allocators**. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in one operation.
+
+#### Program Startup
+
+Every EZ program starts with two arenas:
+
+- **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out.
+- **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped. This is why pointers returned by `new()` are always valid until the program exits.
+
+Each thread gets its own pair of arenas, so multithreaded programs do not contend over memory.
+
+#### How Scopes Work
+
+When a non-void function is called, a fresh arena is created and set as the active arena. All allocations inside that function go to this new arena. When the function returns, the return value is copied to the caller's arena, and the function's arena is destroyed.
+
+Void functions use a cheaper strategy: they save a watermark on the current arena and reset to that point on exit, reclaiming memory without creating or destroying anything.
+
+Functions that accept mutable reference parameters (`&`) skip scoping entirely and run directly in the caller's arena. This is necessary because writes to passed arrays or maps must survive the function call.
+
+#### Block and Loop Scopes
+
+Conditional blocks (`if`, `otherwise`) and loop iterations (`for`, `for_each`) each get their own arena. For loops, a new arena is created and destroyed on **every iteration**, which is why temporaries inside a loop never accumulate regardless of how many iterations run.
+
+When a value created inside a scoped block needs to survive — for example, appending to an outer array inside a loop — EZ automatically copies it to the outer scope's arena before the inner arena is destroyed.
+
+#### Early Exits
+
+When `return`, `break`, or `continue` exits through nested scopes, the runtime unwinds all live arenas in reverse order. A `break` inside an `if` inside a loop will clean up the if-block arena and the loop iteration arena before jumping out. This ensures no memory is leaked regardless of control flow.
+
+#### Growth
+
+Arenas start at a fixed size but are not limited by it. If an allocation exceeds the remaining space, the arena chains a new, larger block automatically. An arena never fails due to its initial size being too small.
+
 ---
 
 ## 12. Program Execution
