@@ -36,7 +36,7 @@ const User struct {
 }
 
 do main() {
-    mut u = User{name: "Alice", age: 30}
+    mut u = User{name: "Marshall", age: 31}
     println(json.stringify(u))
 }
 // Output: {"name":"Alice","age":30}
@@ -59,7 +59,7 @@ do main() {
 
 ## What makes EZ different
 
-- **Readable syntax** — `for_each`, `as_long_as`, `otherwise`, `when`/`is`. Code that reads like it runs.
+- **Readable syntax** — `for_each`, `as_long_as`, `otherwise`, `when`/`is`, `do function_name()`. Code that reads like it runs.
 - **Ample Standard Library** — `@json`, `@arrays`, `@maps`, `@http`, `@server`, and many more!
 - **Compiles to C** — native speed, single binary, no runtime, no VM.
 
