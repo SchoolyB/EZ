@@ -1513,6 +1513,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.struct_value.field_values[i]);
             }
         }
+        /* Emit default values for fields not specified in the literal */
+        if (sdecl_for_fields) {
+            for (int fi = 0; fi < sdecl_for_fields->data.struct_decl.field_count; fi++) {
+                StructField *sf = &sdecl_for_fields->data.struct_decl.fields[fi];
+                if (!sf->default_value) continue;
+                bool specified = false;
+                for (int si = 0; si < node->data.struct_value.count; si++) {
+                    if (strcmp(node->data.struct_value.field_names[si], sf->name) == 0) {
+                        specified = true;
+                        break;
+                    }
+                }
+                if (!specified) {
+                    if (node->data.struct_value.count > 0 || fi > 0) emit(cg, ", ");
+                    emitf(cg, ".%s = ", safe_name(sf->name));
+                    emit_expression(cg, sf->default_value);
+                }
+            }
+        }
         emit(cg, "}");
         break;
     }
@@ -2579,7 +2598,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
                 const char *ft = sdecl->data.struct_decl.fields[fi].type_name;
                 if ((ft && strncmp(ft, "map[", 4) == 0) ||
-                    (ft && ft[0] == '[')) {
+                    (ft && ft[0] == '[') ||
+                    sdecl->data.struct_decl.fields[fi].default_value) {
                     needs_init = true;
                     break;
                 }
@@ -2607,6 +2627,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         c_elem = ez_map_elem_c_type(cg, at->element_type);
                     emitf(cg, "_np->%s = ez_array_new(ez_heap_arena, sizeof(%s), 4); ",
                         safe_name(fn), c_elem);
+                }
+                if (sdecl->data.struct_decl.fields[fi].default_value) {
+                    emitf(cg, "_np->%s = ", safe_name(fn));
+                    emit_expression(cg, sdecl->data.struct_decl.fields[fi].default_value);
+                    emit(cg, "; ");
                 }
             }
             emit(cg, "_np; })");

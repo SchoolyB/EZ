@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3109 - #json struct cannot have default field values
+ * Expected: E3109 error
+ */
+
+#json
+const Settings struct {
+    name string = "default"
+    value int = 42
+}
+
+do main() {
+    mut s = new(Settings)
+    println(s^.name)
+}
