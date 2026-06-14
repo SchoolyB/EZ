@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9003 - arrays.reduce() requires a function reference
+ * Expected: E9003 error
+ */
+
+import @arrays
+
+do main() {
+    mut nums [int] = {1, 2, 3}
+    mut result int = arrays.reduce(nums, 0, 42)
+}

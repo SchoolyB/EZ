@@ -417,4 +417,48 @@ void ez_arrays_sort_desc(EzArray *arr);
 void ez_arrays_sort_desc_float(EzArray *arr);
 void ez_arrays_sort_desc_str(EzArray *arr);
 
+/* Higher-Order */
+
+/*@man map
+ *@module arrays
+ *@group Higher-Order
+ *@sig map(arr [T], ()transform) -> [T]
+ *@desc Returns a new array with transform applied to each element. transform must be a function that takes T and returns T. Does not modify the original.
+ *@example
+ *   import @arrays
+ *   do double_it(x int) -> int { return x * 2 }
+ *   mut nums [int] = [1, 2, 3]
+ *   mut result [int] = arrays.map(nums, ()double_it)
+ *   println(result)
+ *@end
+ */
+
+/*@man filter
+ *@module arrays
+ *@group Higher-Order
+ *@sig filter(arr [T], ()predicate) -> [T]
+ *@desc Returns a new array containing only elements for which predicate returns true. predicate must be a function that takes T and returns bool. Does not modify the original.
+ *@example
+ *   import @arrays
+ *   do is_even(x int) -> bool { return x % 2 == 0 }
+ *   mut nums [int] = [1, 2, 3, 4]
+ *   mut result [int] = arrays.filter(nums, ()is_even)
+ *   println(result)
+ *@end
+ */
+
+/*@man reduce
+ *@module arrays
+ *@group Higher-Order
+ *@sig reduce(arr [T], initial T, ()accumulator) -> T
+ *@desc Reduces arr to a single value by applying accumulator(acc, element) for each element, starting with initial. accumulator must take two T parameters and return T. Does not modify the original.
+ *@example
+ *   import @arrays
+ *   do add(a int, b int) -> int { return a + b }
+ *   mut nums [int] = [1, 2, 3, 4]
+ *   mut total int = arrays.reduce(nums, 0, ()add)
+ *   println(total)
+ *@end
+ */
+
 #endif

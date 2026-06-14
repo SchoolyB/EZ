@@ -42,6 +42,9 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"arrays.get_max":      {Module: "arrays", Group: "Computation", Kind: "func", Sig: "get_max(arr [T]) -> T", Fields: "", Desc: "Returns the largest element in arr.", Example: ""},
 	"arrays.sort_asc":     {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_asc(&arr [T])", Fields: "", Desc: "Sorts arr in ascending order in place. Works on int, float, and string arrays.", Example: ""},
 	"arrays.sort_desc":    {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_desc(&arr [T])", Fields: "", Desc: "Sorts arr in descending order in place. Works on int, float, and string arrays.", Example: ""},
+	"arrays.map":          {Module: "arrays", Group: "Higher-Order", Kind: "func", Sig: "map(arr [T], ()transform) -> [T]", Fields: "", Desc: "Returns a new array with transform applied to each element. transform must be a function that takes T and returns T. Does not modify the original.", Example: ""},
+	"arrays.filter":       {Module: "arrays", Group: "Higher-Order", Kind: "func", Sig: "filter(arr [T], ()predicate) -> [T]", Fields: "", Desc: "Returns a new array containing only elements for which predicate returns true. predicate must be a function that takes T and returns bool. Does not modify the original.", Example: ""},
+	"arrays.reduce":       {Module: "arrays", Group: "Higher-Order", Kind: "func", Sig: "reduce(arr [T], initial T, ()accumulator) -> T", Fields: "", Desc: "Reduces arr to a single value by applying accumulator(acc, element) for each element, starting with initial. accumulator must take two T parameters and return T. Does not modify the original.", Example: ""},
 	"bytes.from_string":   {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_string(s string) -> [byte]", Fields: "", Desc: "Converts a UTF-8 string into a byte array.", Example: ""},
 	"bytes.from_hex":      {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_hex(hex string) -> [byte]", Fields: "", Desc: "Decodes a hex-encoded string into a byte array.", Example: ""},
 	"bytes.from_base64":   {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_base64(b64 string) -> [byte]", Fields: "", Desc: "Decodes a base64-encoded string into a byte array.", Example: ""},
@@ -261,7 +264,7 @@ var stdlibManDocs = map[string]StdlibManEntry{
 
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
-	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc"},
+	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc", "map", "filter", "reduce"},
 	"bytes":   {"from_string", "from_hex", "from_base64", "to_string", "to_hex", "to_base64"},
 	"csv":     {"parse", "decode", "encode", "format", "headers", "read_file", "write_file"},
 	"fmt":     {"printf", "sprintf", "format", "pad_left", "pad_right", "center", "int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"},
@@ -293,6 +296,7 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Query         ", Names: []string{"is_empty", "contains", "index_of", "count", "is_equal"}},
 		{Label: "Transformation", Names: []string{"reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair"}},
 		{Label: "Computation   ", Names: []string{"get_sum", "get_min", "get_max"}},
+		{Label: "Higher-Order  ", Names: []string{"map", "filter", "reduce"}},
 	},
 	"bytes": {
 		{Label: "Conversion    ", Names: []string{"from_string", "from_hex", "from_base64"}},

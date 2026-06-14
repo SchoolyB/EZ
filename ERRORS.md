@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 317 codes** (212 errors, 16 warnings, 89 panics)
+**Total: 319 codes** (214 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -218,6 +218,8 @@
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 or greater) |
 | `E7015` | stdlib | len() is not supported for type '%s'; len() works on string, array, and map types |
 | `E9002` | stdlib | arrays.%s() requires a numeric array, got array of %s |
+| `E9003` | stdlib | arrays.%s() requires a function reference; use ()func_name to pass a function |
+| `E9004` | stdlib | arrays.%s() callback signature mismatch; %s |
 | `E9005` | stdlib | invalid range: start (%lld) must be less than end (%lld) |
 | `E12001` | stdlib | maps.%s() requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
@@ -368,4 +370,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-14 00:24:34 UTC*
+*Generated on 2026-06-14 00:59:12 UTC*

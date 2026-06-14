@@ -773,6 +773,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"sqlite", "exec", 2, 99}, {"sqlite", "query", 2, 99},
     /* arrays */
     {"arrays", "remove", 2, 2},
+    {"arrays", "map", 2, 2}, {"arrays", "filter", 2, 2},
+    {"arrays", "reduce", 3, 3},
     /* bytes */
     {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
     {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
@@ -1270,6 +1272,8 @@ static const UsingFunc _using_funcs[] = {
     {"flatten","arrays",TK_ARRAY},{"reverse","arrays",TK_ARRAY},
     {"slice","arrays",TK_ARRAY},{"split_every","arrays",TK_ARRAY},
     {"pair","arrays",TK_ARRAY},
+    {"map","arrays",TK_ARRAY},{"filter","arrays",TK_ARRAY},
+    {"reduce","arrays",TK_UNKNOWN},
     {"get_first","arrays",TK_UNKNOWN},{"get_last","arrays",TK_UNKNOWN},
     {"get_sum","arrays",TK_INT},{"get_min","arrays",TK_INT},
     {"get_max","arrays",TK_INT},{"count","arrays",TK_INT},
@@ -3059,7 +3063,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "count") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "reverse") == 0 || strcmp(mfn, "slice") == 0 ||
-                           strcmp(mfn, "concat") == 0 || strcmp(mfn, "deduplicate") == 0) {
+                           strcmp(mfn, "concat") == 0 || strcmp(mfn, "deduplicate") == 0 ||
+                           strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0) {
                     /* Preserve input array element type */
                     if (node->data.call.arg_count > 0) {
                         EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
@@ -3086,7 +3091,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = type_array("int");
                     }
                 } else if (strcmp(mfn, "get_first") == 0 || strcmp(mfn, "get_last") == 0 ||
-                           strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0) {
+                           strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0 ||
+                           strcmp(mfn, "reduce") == 0) {
                     if (node->data.call.arg_count > 0) {
                         EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                         result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
@@ -3217,6 +3223,79 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 t0->element_type);
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0);
+                        }
+                    }
+                }
+                /* E9003/E9004: map/filter/reduce callback validation */
+                if ((strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0 ||
+                     strcmp(mfn, "reduce") == 0) && node->data.call.arg_count >= 2) {
+                    /* Determine which arg is the callback */
+                    int cb_idx = (strcmp(mfn, "reduce") == 0) ? 2 : 1;
+                    if (cb_idx < node->data.call.arg_count) {
+                        AstNode *cb_arg = node->data.call.args[cb_idx];
+                        if (cb_arg->kind != NODE_FUNC_REF &&
+                            !(cb_arg->kind == NODE_CALL_EXPR &&
+                              cb_arg->data.call.function->kind == NODE_LABEL &&
+                              strcmp(cb_arg->data.call.function->data.label.value, "ref") == 0)) {
+                            diag_error_codef(tc->diag, "E9003",
+                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                mfn);
+                        } else {
+                            /* Validate callback signature */
+                            const char *ref_name = NULL;
+                            if (cb_arg->kind == NODE_FUNC_REF &&
+                                cb_arg->data.func_ref.function->kind == NODE_LABEL) {
+                                ref_name = cb_arg->data.func_ref.function->data.label.value;
+                            }
+                            if (ref_name) {
+                                FuncSig *cb_fs = find_func(tc, ref_name);
+                                if (cb_fs) {
+                                    if (strcmp(mfn, "map") == 0) {
+                                        if (cb_fs->param_count != 1) {
+                                            char msg[EZ_MSG_BUF_SIZE];
+                                            snprintf(msg, sizeof(msg),
+                                                "map callback must take 1 parameter, got %d",
+                                                cb_fs->param_count);
+                                            diag_error_codef(tc->diag, "E9004",
+                                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                                mfn, msg);
+                                        } else if (cb_fs->return_count < 1) {
+                                            diag_error_codef(tc->diag, "E9004",
+                                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                                mfn, "map callback must return a value");
+                                        }
+                                    } else if (strcmp(mfn, "filter") == 0) {
+                                        if (cb_fs->param_count != 1) {
+                                            char msg[EZ_MSG_BUF_SIZE];
+                                            snprintf(msg, sizeof(msg),
+                                                "filter callback must take 1 parameter, got %d",
+                                                cb_fs->param_count);
+                                            diag_error_codef(tc->diag, "E9004",
+                                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                                mfn, msg);
+                                        } else if (cb_fs->return_count < 1 ||
+                                                   cb_fs->return_types[0]->kind != TK_BOOL) {
+                                            diag_error_codef(tc->diag, "E9004",
+                                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                                mfn, "filter callback must return bool");
+                                        }
+                                    } else { /* reduce */
+                                        if (cb_fs->param_count != 2) {
+                                            char msg[EZ_MSG_BUF_SIZE];
+                                            snprintf(msg, sizeof(msg),
+                                                "reduce callback must take 2 parameters, got %d",
+                                                cb_fs->param_count);
+                                            diag_error_codef(tc->diag, "E9004",
+                                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                                mfn, msg);
+                                        } else if (cb_fs->return_count < 1) {
+                                            diag_error_codef(tc->diag, "E9004",
+                                                NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                                mfn, "reduce callback must return a value");
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -4965,6 +4965,50 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    /* --- map / filter / reduce: inline loop emission --- */
+    if (strcmp(func, "map") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _m_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; %s (*_m_fn)(%s) = (void *)", c_elem, c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; EzArray _m_res = ez_array_new(ez_default_arena, sizeof(%s), _m_src.len);", c_elem);
+        emitf(cg, "for (int32_t _m_i = 0; _m_i < _m_src.len; _m_i++) { ");
+        emitf(cg, "%s _m_v = _m_fn(((%s *)_m_src.data)[_m_i]); ", c_elem, c_elem);
+        emitf(cg, "ez_arrays_append(ez_default_arena, &_m_res, &_m_v); } _m_res; })");
+        return true;
+    }
+    if (strcmp(func, "filter") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _f_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; bool (*_f_fn)(%s) = (void *)", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; EzArray _f_res = ez_array_new(ez_default_arena, sizeof(%s), _f_src.len);", c_elem);
+        emitf(cg, "for (int32_t _f_i = 0; _f_i < _f_src.len; _f_i++) { ");
+        emitf(cg, "%s _f_v = ((%s *)_f_src.data)[_f_i]; ", c_elem, c_elem);
+        emitf(cg, "if (_f_fn(_f_v)) { ez_arrays_append(ez_default_arena, &_f_res, &_f_v); } } _f_res; })");
+        return true;
+    }
+    if (strcmp(func, "reduce") == 0 && node->data.call.arg_count == 3) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _r_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; %s _r_acc = ", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; %s (*_r_fn)(%s, %s) = (void *)", c_elem, c_elem, c_elem);
+        emit_expression(cg, node->data.call.args[2]);
+        emitf(cg, "; for (int32_t _r_i = 0; _r_i < _r_src.len; _r_i++) { ");
+        emitf(cg, "_r_acc = _r_fn(_r_acc, ((%s *)_r_src.data)[_r_i]); } _r_acc; })", c_elem);
+        return true;
+    }
+
     /* Generic: arrays.func(&arr, ...) or arrays.func(arena, &arr, ...) */
     bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
         strcmp(func, "concat") == 0 || strcmp(func, "deduplicate") == 0 ||
@@ -5533,6 +5577,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"split_every","arrays"},{"pair","arrays"},{"count","arrays"},
                 {"index_of","arrays"},{"is_empty","arrays"},{"contains","arrays"},
                 {"is_equal","arrays"},
+                {"map","arrays"},{"filter","arrays"},{"reduce","arrays"},
                 /* @maps */
                 {"has_key","maps"},{"keys","maps"},{"values","maps"},{"get_keys","maps"},
                 {"get_values","maps"},{"remove_key","maps"},{"clear","maps"},
