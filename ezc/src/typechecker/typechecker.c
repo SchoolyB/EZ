@@ -1718,6 +1718,48 @@ static void emit_unknown_stdlib_fn(TypeChecker *tc, const char *mod,
     diag_error_codef(tc->diag, "E4005", NODE_FILE(tc, node), node->token.line, node->token.column, 0, mod, mfn);
 }
 
+/* Resolve .VARIANT implicit enum selector using expected type context.
+ * Sets node->data.implicit_enum.resolved_enum on success. */
+static EzType *resolve_implicit_enum(TypeChecker *tc, AstNode *node) {
+    const char *variant = node->data.implicit_enum.variant;
+    EzType *expected = tc->expected_type;
+
+    /* No type context — emit E3110 */
+    if (!expected || expected->kind != TK_ENUM || !expected->name) {
+        diag_error_codef(tc->diag, "E3110",
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+            variant, variant);
+        return &TYPE_UNKNOWN;
+    }
+
+    const char *enum_name = expected->name;
+
+    /* Validate the variant exists in the enum */
+    bool found = false;
+    for (int ei = 0; ei < tc->enum_count; ei++) {
+        if (strcmp(tc->enum_names[ei], enum_name) == 0) {
+            for (int vi = 0; vi < tc->enum_value_counts[ei]; vi++) {
+                if (strcmp(tc->enum_values[ei][vi], variant) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    if (!found) {
+        diag_error_codef(tc->diag, "E3047",
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+            enum_name, variant);
+        return &TYPE_UNKNOWN;
+    }
+
+    /* Resolve: write the enum name onto the node for codegen */
+    node->data.implicit_enum.resolved_enum = enum_name;
+    return type_enum(enum_name);
+}
+
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
@@ -1955,9 +1997,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_INFIX_EXPR: {
-        EzType *left = resolve_expr(tc, node->data.infix.left);
-        EzType *right = resolve_expr(tc, node->data.infix.right);
         const char *op = node->data.infix.op;
+        EzType *left = resolve_expr(tc, node->data.infix.left);
+        /* For == and !=, set expected_type so .VARIANT on the RHS
+         * can resolve against the LHS enum type. */
+        EzType *saved_infix_expected = tc->expected_type;
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left && left->kind == TK_ENUM && left->name)
+            tc->expected_type = left;
+        EzType *right = resolve_expr(tc, node->data.infix.right);
+        tc->expected_type = saved_infix_expected;
 
         /* : track whether any op-specific check has rejected the
          * expression so the final result can be collapsed to TK_UNKNOWN
@@ -2357,6 +2406,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 find_func(tc, node->data.call.args[i]->data.label.value)) {
                 continue;
             }
+            /* Skip implicit enum nodes; they need expected_type context
+             * from the function signature, which is resolved later. */
+            if (node->data.call.args[i]->kind == NODE_IMPLICIT_ENUM)
+                continue;
             resolve_expr(tc, node->data.call.args[i]);
 
             /* E3040: a multi-return call cannot appear in single-value
@@ -3779,8 +3832,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     int check_count = node->data.call.arg_count < sig->param_count
                         ? node->data.call.arg_count : sig->param_count;
                     for (int ai = 0; ai < check_count; ai++) {
-                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                         EzType *param_t = sig->param_types[ai];
+                        /* Set expected_type for implicit enum resolution */
+                        EzType *saved_expected_m = tc->expected_type;
+                        if (param_t && param_t->kind == TK_ENUM && param_t->name)
+                            tc->expected_type = param_t;
+                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        tc->expected_type = saved_expected_m;
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
                             !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
@@ -4083,8 +4141,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 int check_count = node->data.call.arg_count < ssig->param_count
                                     ? node->data.call.arg_count : ssig->param_count;
                                 for (int ai = 0; ai < check_count; ai++) {
-                                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                                     EzType *param_t = ssig->param_types[ai];
+                                    /* Set expected_type for implicit enum resolution */
+                                    EzType *saved_expected_s = tc->expected_type;
+                                    if (param_t && param_t->kind == TK_ENUM && param_t->name)
+                                        tc->expected_type = param_t;
+                                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                    tc->expected_type = saved_expected_s;
                                     if (arg_t && param_t &&
                                         arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                                         arg_t->kind != param_t->kind &&
@@ -4968,8 +5031,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     int check_count = node->data.call.arg_count < sig->param_count
                         ? node->data.call.arg_count : sig->param_count;
                     for (int ai = 0; ai < check_count; ai++) {
-                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                         EzType *param_t = sig->param_types[ai];
+                        /* Set expected_type for implicit enum resolution */
+                        EzType *saved_expected = tc->expected_type;
+                        if (param_t && param_t->kind == TK_ENUM && param_t->name)
+                            tc->expected_type = param_t;
+                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        tc->expected_type = saved_expected;
                         if (is_generic_call) {
                             /* Generic branch already handled unification;
                              * suppress the scalar param/arg comparison which
@@ -5867,7 +5935,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_ARRAY_VALUE:
+    case NODE_ARRAY_VALUE: {
+        /* If expected_type is an array-of-enum, propagate element type for .VARIANT */
+        EzType *saved_arr_expected = tc->expected_type;
+        if (tc->expected_type && tc->expected_type->kind == TK_ARRAY &&
+            tc->expected_type->element_type) {
+            EzType *elem_t = tc_type_from_name(tc, tc->expected_type->element_type);
+            if (elem_t && elem_t->kind == TK_ENUM && elem_t->name)
+                tc->expected_type = elem_t;
+        }
         if (node->data.array_value.count > 0) {
             EzType *first = resolve_expr(tc, node->data.array_value.elements[0]);
             result = type_array(type_name(first));
@@ -5892,7 +5968,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
+        tc->expected_type = saved_arr_expected;
         break;
+    }
 
     case NODE_MAP_VALUE: {
         /* Resolve key and value types */
@@ -5962,7 +6040,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
         for (int i = 0; i < node->data.struct_value.count; i++) {
+            /* Look up expected field type for implicit enum resolution */
+            EzType *field_expected_t = NULL;
+            if (si && node->data.struct_value.field_names[i]) {
+                const char *fname_pre = node->data.struct_value.field_names[i];
+                for (int j = 0; j < si->field_count; j++) {
+                    if (strcmp(si->field_names[j], fname_pre) == 0) {
+                        field_expected_t = si->field_types[j];
+                        break;
+                    }
+                }
+            }
+            EzType *saved_sv_expected = tc->expected_type;
+            if (field_expected_t && field_expected_t->kind == TK_ENUM && field_expected_t->name)
+                tc->expected_type = field_expected_t;
             EzType *val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
+            tc->expected_type = saved_sv_expected;
             /* Validate field exists */
             if (si && node->data.struct_value.field_names[i]) {
                 const char *fname = node->data.struct_value.field_names[i];
@@ -6099,6 +6192,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         result = rt;
         break;
     }
+
+    case NODE_IMPLICIT_ENUM:
+        result = resolve_implicit_enum(tc, node);
+        break;
 
     case NODE_CAST_EXPR: {
         EzType *src_t = resolve_expr(tc, node->data.cast.value);
@@ -6767,7 +6864,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (node->data.var_decl.value) {
+            /* Set expected_type for implicit enum resolution (.VARIANT) */
+            EzType *saved_expected = tc->expected_type;
+            if (declared->kind == TK_ENUM && declared->name)
+                tc->expected_type = declared;
+            else if (declared->kind == TK_ARRAY && declared->element_type) {
+                EzType *elem_t = tc_type_from_name(tc, declared->element_type);
+                if (elem_t && elem_t->kind == TK_ENUM)
+                    tc->expected_type = declared;
+            }
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
+            tc->expected_type = saved_expected;
             /* : when a func-pointer call returns TK_UNKNOWN but
              * the assignment target has a concrete declared type,
              * push the declared type onto the call node's typetable
@@ -7639,7 +7746,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_ASSIGN_STMT: {
         EzType *target_t = resolve_expr(tc, node->data.assign.target);
+        /* Set expected_type for implicit enum resolution (.VARIANT) */
+        EzType *saved_expected = tc->expected_type;
+        if (target_t && target_t->kind == TK_ENUM && target_t->name)
+            tc->expected_type = target_t;
         EzType *value_t = resolve_expr(tc, node->data.assign.value);
+        tc->expected_type = saved_expected;
 
         /* E3078: compound arithmetic assigns on pointer variables
          * (p += 1, p -= 2, etc.) are pointer arithmetic and not
@@ -7943,7 +8055,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {
+            /* Set expected_type for implicit enum resolution in return values */
+            EzType *saved_ret_expected = tc->expected_type;
+            if (i < tc->current_return_count &&
+                tc->current_return_types[i] &&
+                tc->current_return_types[i]->kind == TK_ENUM &&
+                tc->current_return_types[i]->name)
+                tc->expected_type = tc->current_return_types[i];
             resolve_expr(tc, node->data.return_stmt.values[i]);
+            tc->expected_type = saved_ret_expected;
         }
         /* main() exits when control reaches the closing brace; an
          * explicit `return` is not allowed. Without this check, codegen
@@ -8603,7 +8723,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             /* E3001: validate default value type matches parameter type */
             if (p->default_value && p->type_name) {
+                /* Set expected_type for implicit enum resolution in default param values */
+                EzType *saved_def_expected = tc->expected_type;
+                if (ptype->kind == TK_ENUM && ptype->name)
+                    tc->expected_type = ptype;
                 EzType *def_t = resolve_expr(tc, p->default_value);
+                tc->expected_type = saved_def_expected;
                 if (def_t->kind != TK_UNKNOWN && ptype->kind != TK_UNKNOWN &&
                     def_t->kind != ptype->kind &&
                     !(is_int_kind(def_t->kind) && is_int_kind(ptype->kind)) &&
@@ -8972,6 +9097,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_warning_code(tc->diag, "W2012", NODE_FILE(tc, subj), subj->token.line, subj->token.column, 0);
         }
         /* E2043: check for duplicate case values, E3001: check type match */
+        /* Set expected_type for implicit enum resolution in when/is branches */
+        EzType *saved_when_expected = tc->expected_type;
+        if (when_t && when_t->kind == TK_ENUM && when_t->name)
+            tc->expected_type = when_t;
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {
                 AstNode *val_i = node->data.when_stmt.cases[i].values[j];
@@ -9017,6 +9146,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             check_block(tc, node->data.when_stmt.cases[i].body);
             tc->current_scope = case_outer;
         }
+        tc->expected_type = saved_when_expected;
         if (node->data.when_stmt.default_body) {
             Scope *def_outer = tc->current_scope;
             tc->current_scope = scope_create(def_outer);
@@ -9043,6 +9173,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         const char *name = cv->data.member.object->data.label.value;
                         if (is_enum_name(tc, name)) enum_name = name;
                     }
+                    /* Also infer from resolved implicit enum */
+                    if (cv->kind == NODE_IMPLICIT_ENUM &&
+                        cv->data.implicit_enum.resolved_enum) {
+                        enum_name = cv->data.implicit_enum.resolved_enum;
+                    }
                 }
             }
             if (enum_name) {
@@ -9067,6 +9202,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 if (cv->kind == NODE_MEMBER_EXPR &&
                                     cv->data.member.object->kind == NODE_LABEL &&
                                     strcmp(cv->data.member.member, variants[vi]) == 0) {
+                                    covered = true;
+                                }
+                                /* Match .VARIANT (implicit enum selector) */
+                                if (cv->kind == NODE_IMPLICIT_ENUM &&
+                                    strcmp(cv->data.implicit_enum.variant, variants[vi]) == 0) {
                                     covered = true;
                                 }
                                 /* Match bare integer literal (for auto-increment enums) */

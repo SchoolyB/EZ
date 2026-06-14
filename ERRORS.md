@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 319 codes** (214 errors, 16 warnings, 89 panics)
+**Total: 320 codes** (215 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -169,6 +169,7 @@
 | `E3107` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few) |
 | `E3108` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many) |
 | `E3109` | types | #json struct '%s' cannot have default field values; field '%s' has a default |
+| `E3110` | types | implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -370,4 +371,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-14 17:25:43 UTC*
+*Generated on 2026-06-14 18:11:21 UTC*

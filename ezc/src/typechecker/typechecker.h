@@ -142,6 +142,12 @@ typedef struct {
      * NULL when outside a struct function body. Used for private access. */
     const char *current_struct_name;
 
+    /* Expected type for resolving implicit enum selectors (.VARIANT).
+     * Set before resolving expressions where the target enum type is
+     * known (assignments, function args, when/is, comparisons, returns).
+     * Cleared after use to prevent stale context. */
+    EzType *expected_type;
+
 } TypeChecker;
 
 /* Create and run the type checker */

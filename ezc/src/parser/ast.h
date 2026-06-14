@@ -36,6 +36,7 @@ typedef enum {
     NODE_CAST_EXPR,
     NODE_BLANK_IDENT,
     NODE_FUNC_REF,
+    NODE_IMPLICIT_ENUM,
 
     /* Statements */
     NODE_VAR_DECL,
@@ -199,6 +200,9 @@ struct AstNode {
 
         /* NODE_FUNC_REF — ()func_name */
         struct { AstNode *function; } func_ref;
+
+        /* NODE_IMPLICIT_ENUM — .VARIANT (resolved by typechecker) */
+        struct { const char *variant; const char *resolved_enum; } implicit_enum;
 
         /* NODE_VAR_DECL */
         struct {
