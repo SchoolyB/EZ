@@ -47,19 +47,6 @@ EzString ez_json_encode_map_int(EzArena *arena, EzMap *m);
 EzString ez_json_encode_map_float(EzArena *arena, EzMap *m);
 EzString ez_json_encode_map_bool(EzArena *arena, EzMap *m);
 
-/*@man format
- *@module json
- *@group Encoding
- *@sig format(value T) -> string
- *@desc Alias for encode(). Encodes a value as a JSON string.
- *@example
- *   import @json
- *   mut s string = json.format(3.14)
- *   println(s)
- *@end
- */
-/* json.format — codegen alias for encode */
-
 /*@man stringify
  *@module json
  *@group Encoding

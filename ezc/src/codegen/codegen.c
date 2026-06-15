@@ -4366,7 +4366,7 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_multi_var = cg->current_var_name != NULL &&
         strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
-    if (strcmp(func, "decode") == 0 || strcmp(func, "parse") == 0) {
+    if (strcmp(func, "parse") == 0) {
         emit(cg, "ez_csv_parse(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
@@ -4378,7 +4378,7 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "encode") == 0 || strcmp(func, "format") == 0) {
+    if (strcmp(func, "encode") == 0) {
         emit(cg, "({ EzArray _csv_a = ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, "; ez_csv_stringify(ez_default_arena, &_csv_a); })");
@@ -4412,7 +4412,7 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @json module --- */
 
 static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "encode") == 0 || strcmp(func, "format") == 0) {
+    if (strcmp(func, "encode") == 0) {
         AstNode *arg = node->data.call.args[0];
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_MAP) {

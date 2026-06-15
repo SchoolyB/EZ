@@ -717,7 +717,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "slice", 3, 3},
     /* json */
     {"json", "decode", 1, 1}, {"json", "encode", 1, 1},
-    {"json", "stringify", 1, 1}, {"json", "format", 1, 1},
+    {"json", "stringify", 1, 1},
     {"json", "is_valid", 1, 1}, {"json", "pretty_print", 2, 2},
     {"json", "parse", 1, 1},
     /* crypto */
@@ -738,8 +738,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"regex", "find", 2, 2}, {"regex", "find_all", 2, 2},
     {"regex", "replace", 3, 3}, {"regex", "split", 2, 2},
     /* csv */
-    {"csv", "parse", 1, 1}, {"csv", "decode", 1, 1},
-    {"csv", "encode", 1, 1}, {"csv", "format", 1, 1},
+    {"csv", "parse", 1, 1},
+    {"csv", "encode", 1, 1},
     {"csv", "read_file", 1, 1}, {"csv", "write_file", 2, 2},
     {"csv", "headers", 1, 1},
     /* http */
@@ -899,7 +899,7 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"json", "decode", 0, ARG_STRING}, {"json", "is_valid", 0, ARG_STRING},
     {"json", "parse", 0, ARG_STRING},
     /* csv */
-    {"csv", "parse", 0, ARG_STRING}, {"csv", "decode", 0, ARG_STRING},
+    {"csv", "parse", 0, ARG_STRING},
     {"csv", "read_file", 0, ARG_STRING}, {"csv", "write_file", 0, ARG_STRING},
     {"csv", "headers", 0, ARG_ARRAY},
     /* bytes */
@@ -1382,7 +1382,7 @@ static const UsingFunc _using_funcs[] = {
     {"parse","csv",TK_ARRAY},{"read_file","csv",TK_ARRAY},
     {"headers","csv",TK_ARRAY},
     {"write","csv",TK_BOOL},{"write_file","csv",TK_BOOL},
-    {"format","csv",TK_STRING},{"encode","csv",TK_STRING},
+    {"encode","csv",TK_STRING},
     /* sqlite */
     {"open","sqlite",TK_UNKNOWN},{"close","sqlite",TK_VOID},
     {"exec","sqlite",TK_BOOL},{"query","sqlite",TK_ARRAY},
@@ -3132,7 +3132,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else if (strncmp(mfn, "decode_f", 8) == 0) result = &TYPE_FLOAT;
                 else result = &TYPE_INT;
             } else if (strcmp(mod, "csv") == 0) {
-                if (strcmp(mfn, "decode") == 0 || strcmp(mfn, "parse") == 0 ||
+                if (strcmp(mfn, "parse") == 0 ||
                     strcmp(mfn, "read_file") == 0) {
                     result = type_array("[string]"); /* [[string]] */
                 } else if (strcmp(mfn, "headers") == 0) {
@@ -3152,7 +3152,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 node->data.call.args[1]->token.column, 0);
                         }
                     }
-                } else if (strcmp(mfn, "format") == 0 || strcmp(mfn, "encode") == 0) {
+                } else if (strcmp(mfn, "encode") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -3168,7 +3168,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                      * type onto the call node via 's mechanism. */
                     result = &TYPE_UNKNOWN;
                 } else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
-                           strcmp(mfn, "format") == 0 || strcmp(mfn, "pretty_print") == 0) {
+                           strcmp(mfn, "pretty_print") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);

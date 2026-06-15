@@ -16,7 +16,7 @@
  *@module csv
  *@group Parsing
  *@sig parse(data string) -> [[string]]
- *@desc Parses a CSV-formatted string and returns an array of rows, where each row is an array of string fields. Also available as csv.decode — both names are identical. Returns a single value; do not use destructuring.
+ *@desc Parses a CSV-formatted string and returns an array of rows, where each row is an array of string fields. Returns a single value; do not use destructuring.
  *@example
  *   import @csv
  *   mut rows = csv.parse("a,b,c\n1,2,3")
@@ -26,39 +26,16 @@
  *@end
  */
 
-/*@man decode
- *@module csv
- *@group Parsing
- *@sig decode(data string) -> [[string]]
- *@desc Alias for csv.parse. Parses a CSV-formatted string and returns an array of rows, where each row is an array of string fields. Returns a single value; do not use destructuring.
- *@example
- *   import @csv
- *   mut rows = csv.decode("name,age\nAlice,30")
- *@end
- */
-
 /*@man encode
  *@module csv
  *@group Formatting
  *@sig encode(rows [[string]]) -> string
- *@desc Converts an array of rows (each row an array of strings) into a CSV-formatted string. Also available as csv.format — both names are identical. Returns a single value; do not use destructuring.
+ *@desc Converts an array of rows (each row an array of strings) into a CSV-formatted string. Returns a single value; do not use destructuring.
  *@example
  *   import @csv
  *   mut data = {{"Alice", "30"}, {"Bob", "25"}}
  *   mut out = csv.encode(data)
  *   println(out)
- *@end
- */
-
-/*@man format
- *@module csv
- *@group Formatting
- *@sig format(rows [[string]]) -> string
- *@desc Alias for csv.encode. Converts an array of rows (each row an array of strings) into a CSV-formatted string. Returns a single value; do not use destructuring.
- *@example
- *   import @csv
- *   mut data = {{"Alice", "30"}, {"Bob", "25"}}
- *   mut out = csv.format(data)
  *@end
  */
 
