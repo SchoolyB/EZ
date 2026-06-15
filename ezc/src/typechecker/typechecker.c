@@ -8765,6 +8765,34 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         Scope *outer = tc->current_scope;
         tc->current_scope = loop_scope;
 
+        /* W2002: check if for_each iterator/index variables shadow outer variables */
+        {
+            const char *var = node->data.for_each.var_name;
+            if (var && strcmp(var, "_") != 0) {
+                Symbol *outer_sym = scope_lookup(outer, var);
+                if (outer_sym) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "for_each variable '%s' shadows a variable declared on line %d",
+                        var, outer_sym->def_line);
+                    diag_warning_msg(tc->diag, "W2002", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
+            const char *idx = node->data.for_each.index_name;
+            if (idx && strcmp(idx, "_") != 0) {
+                Symbol *outer_sym = scope_lookup(outer, idx);
+                if (outer_sym) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "for_each index variable '%s' shadows a variable declared on line %d",
+                        idx, outer_sym->def_line);
+                    diag_warning_msg(tc->diag, "W2002", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
+        }
+
         /* Resolve collection type to determine element type */
         EzType *coll_t = resolve_expr(tc, node->data.for_each.collection);
 

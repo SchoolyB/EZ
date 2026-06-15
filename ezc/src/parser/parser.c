@@ -2529,12 +2529,25 @@ static AstNode *parse_for_statement(Parser *p) {
     if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);  /* advance: cur_token = IDENT */
         if (peek_token_is(p, TOK_IN)) {
-            /* --- iteration form: for x in collection { } --- */
+            /* --- iteration form: for x in range(...) { } --- */
+            /* 'for x in ...' is only valid with range().
+             * For collection iteration, users must use for_each. */
+            const char *var = p->cur_token.literal;
             AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, for_tok);
-            node->data.for_stmt.var_name = p->cur_token.literal;
+            node->data.for_stmt.var_name = var;
             node->data.for_stmt.var_type = NULL;
             next_token(p);  /* consume IN */
             next_token(p);  /* advance to iterable start */
+            if (!cur_token_is(p, TOK_RANGE)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'for %s in ...' only supports range(); use 'for_each %s in ...' to iterate over a collection",
+                    var, var);
+                diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                    p->file, for_tok.line, for_tok.column, 0);
+                synchronize(p);
+                return NULL;
+            }
             node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
             if (has_parens && peek_token_is(p, TOK_RPAREN)) next_token(p);
             if (!expect_peek(p, TOK_LBRACE)) return NULL;
