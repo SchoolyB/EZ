@@ -115,12 +115,35 @@ static bool is_reserved_type_name(const char *name) {
            strcmp(name, "SourceLocation") == 0;
 }
 
-/* Builtin function names that user code may not redeclare. Today this is
- * scoped narrowly to `here` so that `do here() { ... }`, `mut here = ...`,
- * etc. are rejected loudly rather than silently shadowed. The broader
- * builtin set still allows shadowing — that's a separate change. */
+/* Builtin function names that user code may not redeclare. */
 static bool is_reserved_builtin_func_name(const char *name) {
-    return strcmp(name, "here") == 0;
+    static const char *builtins[] = {
+        "println", "print", "eprintln", "eprint", "input",
+        "len", "type_of", "size_of", "copy", "ref", "addr", "error",
+        "exit", "panic", "assert", "cast",
+        "sleep_s", "sleep_ms", "sleep_ns", "c_string",
+        "to_char", "char_count", "here", "embed",
+        NULL
+    };
+    for (int i = 0; builtins[i]; i++) {
+        if (strcmp(name, builtins[i]) == 0) return true;
+    }
+    return false;
+}
+
+/* Standard library module names that user code may not shadow. */
+static bool is_stdlib_module_name(const char *name) {
+    static const char *modules[] = {
+        "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
+        "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
+        "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
+        "threads", "time", "uuid",
+        NULL
+    };
+    for (int i = 0; modules[i]; i++) {
+        if (strcmp(name, modules[i]) == 0) return true;
+    }
+    return false;
 }
 
 /* Forward declaration — resolve_expr is defined later but needed by helper
@@ -6854,6 +6877,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E5016", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E5035: stdlib module name as variable name */
+        if (node->data.var_decl.name[0] != '_' &&
+            is_stdlib_module_name(node->data.var_decl.name)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a standard library module and cannot be used as a variable name",
+                VAR_DISPLAY_NAME(node));
+            diag_error_msg(tc->diag, "E5035", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* E3045: or_return on non-error-returning function */
         if (strncmp(node->data.var_decl.name, "_ez_or", 6) == 0 &&
             node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
@@ -8761,6 +8794,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_msg(tc->diag, "E5016", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E5035: stdlib module name as function name */
+        if (is_stdlib_module_name(node->data.func_decl.name)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a standard library module and cannot be used as a function name",
+                FUNC_DISPLAY_NAME(node));
+            diag_error_msg(tc->diag, "E5035", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* Check for nested function declarations */
         if (tc->func_depth > 0) {
             diag_error_codef(tc->diag, "E2051", NODE_FILE(tc, node), node->token.line, node->token.column, 0, FUNC_DISPLAY_NAME(node));
@@ -8791,6 +8833,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "'%s' is a builtin function and cannot be used as a parameter name",
                     p->name);
                 diag_error_msg(tc->diag, "E5016", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* E5035: stdlib module name as parameter name */
+            if (is_stdlib_module_name(p->name)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a standard library module and cannot be used as a parameter name",
+                    p->name);
+                diag_error_msg(tc->diag, "E5035", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for duplicate parameter name */
@@ -9683,6 +9734,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             snprintf(msg, sizeof(msg), "'%s' is a builtin function and cannot be used as an enum name", en);
             diag_error_msg(tc->diag, "E5016", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
+        /* E5035: stdlib module name as enum name */
+        if (is_stdlib_module_name(stmt->data.enum_decl.name)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg), "'%s' is a standard library module and cannot be used as an enum name", en);
+            diag_error_msg(tc->diag, "E5035", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
         /* E2016: empty enum */
         if (stmt->data.enum_decl.value_count == 0) {
             diag_error_codef(tc->diag, "E2016", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, en);
@@ -9706,15 +9763,41 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         /* E2014: check for duplicate enum variant names */
         /* E2065: check variant name vs enum type name */
         for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-            if (strcmp(stmt->data.enum_decl.values[j].name,
-                       stmt->data.enum_decl.name) == 0) {
-                diag_error_codef(tc->diag, "E2065", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.enum_decl.values[j].name,
+            const char *vname = stmt->data.enum_decl.values[j].name;
+            if (strcmp(vname, stmt->data.enum_decl.name) == 0) {
+                diag_error_codef(tc->diag, "E2065", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, vname,
                     en);
             }
+            /* E2038: reserved type name as enum variant */
+            if (is_reserved_type_name(vname)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a reserved type name and cannot be used as an enum variant name",
+                    vname);
+                diag_error_msg(tc->diag, "E2038", strdup(msg),
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+            }
+            /* E5016: builtin function name as enum variant */
+            if (is_reserved_builtin_func_name(vname)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a builtin function and cannot be used as an enum variant name",
+                    vname);
+                diag_error_msg(tc->diag, "E5016", strdup(msg),
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+            }
+            /* E5035: stdlib module name as enum variant */
+            if (is_stdlib_module_name(vname)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a standard library module and cannot be used as an enum variant name",
+                    vname);
+                diag_error_msg(tc->diag, "E5035", strdup(msg),
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+            }
             for (int k = 0; k < j; k++) {
-                if (strcmp(stmt->data.enum_decl.values[k].name,
-                          stmt->data.enum_decl.values[j].name) == 0) {
-                    diag_error_codef(tc->diag, "E2014", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, stmt->data.enum_decl.values[j].name,
+                if (strcmp(stmt->data.enum_decl.values[k].name, vname) == 0) {
+                    diag_error_codef(tc->diag, "E2014", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, vname,
                         en);
                     break;
                 }
@@ -9804,6 +9887,24 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (strcmp(fnames[j], stmt->data.struct_decl.name) == 0) {
                     diag_error_codef(tc->diag, "E2066", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, fnames[j], STRUCT_DISPLAY_NAME(stmt));
                 }
+                /* E5016: builtin function name as struct field name */
+                if (is_reserved_builtin_func_name(fnames[j])) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "'%s' is a builtin function and cannot be used as a struct field name",
+                        fnames[j]);
+                    diag_error_msg(tc->diag, "E5016", strdup(msg),
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+                }
+                /* E5035: stdlib module name as struct field name */
+                if (is_stdlib_module_name(fnames[j])) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "'%s' is a standard library module and cannot be used as a struct field name",
+                        fnames[j]);
+                    diag_error_msg(tc->diag, "E5035", strdup(msg),
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+                }
                 /* E3061 (): struct field cannot be the enclosing
                  * struct by value; that produces an infinite-size
                  * type. Direct self-reference or transitive cycles
@@ -9866,6 +9967,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "'%s' is a builtin function and cannot be used as a struct name", sn);
                 diag_error_msg(tc->diag, "E5016", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+            }
+            /* E5035: stdlib module name as struct name */
+            if (is_stdlib_module_name(stmt->data.struct_decl.name)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg), "'%s' is a standard library module and cannot be used as a struct name", sn);
+                diag_error_msg(tc->diag, "E5035", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E4007: duplicate struct name */
             if (is_struct_name(tc, stmt->data.struct_decl.name) ||

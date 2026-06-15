@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 327 codes** (222 errors, 16 warnings, 89 panics)
+**Total: 328 codes** (223 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -216,6 +216,7 @@
 | `E5032` | usage | parameter '%s' is already provided positionally (argument %d) in call to '%s' |
 | `E5033` | usage | positional argument after named argument in call to '%s' |
 | `E5034` | usage | named arguments are not supported for builtin function '%s' |
+| `E5035` | naming | this name is reserved by a standard library module and cannot be redeclared |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -378,4 +379,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-14 23:50:32 UTC*
+*Generated on 2026-06-15 18:53:35 UTC*

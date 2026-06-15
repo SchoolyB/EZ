@@ -182,6 +182,37 @@ static bool is_reserved_type_name(const char *lit) {
         strcmp(lit, "f32") == 0 || strcmp(lit, "f64") == 0);
 }
 
+/* Check if an identifier is a builtin function name */
+static bool is_builtin_func_name(const char *name) {
+    static const char *builtins[] = {
+        "println", "print", "eprintln", "eprint", "input",
+        "len", "type_of", "size_of", "copy", "ref", "addr", "error",
+        "exit", "panic", "assert", "cast",
+        "sleep_s", "sleep_ms", "sleep_ns", "c_string",
+        "to_char", "char_count", "here", "embed",
+        NULL
+    };
+    for (int i = 0; builtins[i]; i++) {
+        if (strcmp(name, builtins[i]) == 0) return true;
+    }
+    return false;
+}
+
+/* Check if an identifier is a standard library module name */
+static bool is_stdlib_module_name(const char *name) {
+    static const char *modules[] = {
+        "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
+        "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
+        "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
+        "threads", "time", "uuid",
+        NULL
+    };
+    for (int i = 0; modules[i]; i++) {
+        if (strcmp(name, modules[i]) == 0) return true;
+    }
+    return false;
+}
+
 /* Synchronize parser after an error; skip to a safe point.
  * Advances past the current line and stops at the next statement boundary. */
 static void synchronize(Parser *p) {
@@ -1627,7 +1658,13 @@ static AstNode *parse_func_declaration(Parser *p) {
                     /* builtin functions */
                     "println", "print", "eprintln", "eprint", "input",
                     "len", "type_of", "size_of", "copy", "ref", "addr", "error",
-                    "exit", "panic", "assert", "sleep_s", "sleep_ms", "sleep_ns",
+                    "exit", "panic", "assert", "cast", "sleep_s", "sleep_ms", "sleep_ns",
+                    "c_string", "to_char", "char_count", "here", "embed",
+                    /* stdlib modules */
+                    "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
+                    "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
+                    "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
+                    "threads", "time", "uuid",
                     NULL
                 };
                 for (int ri = 0; reserved[ri]; ri++) {
@@ -2191,6 +2228,26 @@ static AstNode *parse_struct_declaration(Parser *p) {
                 synchronize(p);
                 break;
             }
+            if (cur_token_is(p, TOK_IDENT) && is_builtin_func_name(p->cur_token.literal)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a builtin function and cannot be used as a struct field name",
+                    p->cur_token.literal);
+                diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                synchronize(p);
+                break;
+            }
+            if (cur_token_is(p, TOK_IDENT) && is_stdlib_module_name(p->cur_token.literal)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a standard library module and cannot be used as a struct field name",
+                    p->cur_token.literal);
+                diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                synchronize(p);
+                break;
+            }
             StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
             field->name = p->cur_token.literal;
             field->type_name = NULL;
@@ -2302,6 +2359,48 @@ static AstNode *parse_enum_declaration(Parser *p) {
             /* Skip an optional trailing ',' so we don't cascade into the
              * next variant with a stale cur_token. */
             if (cur_token_is(p, TOK_COMMA)) next_token(p);
+            continue;
+        }
+
+        /* Reject reserved names as enum variant names */
+        if (is_keyword_token(p->cur_token.type)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a reserved keyword and cannot be used as an enum variant name",
+                p->cur_token.literal);
+            diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            synchronize(p);
+            continue;
+        }
+        if (cur_token_is(p, TOK_IDENT) && is_reserved_type_name(p->cur_token.literal)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a reserved type name and cannot be used as an enum variant name",
+                p->cur_token.literal);
+            diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            synchronize(p);
+            continue;
+        }
+        if (cur_token_is(p, TOK_IDENT) && is_builtin_func_name(p->cur_token.literal)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a builtin function and cannot be used as an enum variant name",
+                p->cur_token.literal);
+            diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            synchronize(p);
+            continue;
+        }
+        if (cur_token_is(p, TOK_IDENT) && is_stdlib_module_name(p->cur_token.literal)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a standard library module and cannot be used as an enum variant name",
+                p->cur_token.literal);
+            diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            synchronize(p);
             continue;
         }
 
