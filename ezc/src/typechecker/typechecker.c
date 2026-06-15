@@ -237,11 +237,36 @@ static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
 
 /* A type name fit to print in a diagnostic — for struct/enum types this
  * is the user-facing name, never the module-prefixed lookup key. Composite
- * types fall through to type_name() unchanged. */
+ * types (pointers, arrays, maps) recurse into their inner types so that
+ * e.g. ^myutils_Thing displays as ^Thing. */
 static const char *type_display_name(TypeChecker *tc, EzType *t) {
     if (!t) return type_name(t);
     if (t->kind == TK_STRUCT && t->name) return struct_display_name(tc, t->name);
     if (t->kind == TK_ENUM && t->name) return enum_display_name(tc, t->name);
+    if (t->kind == TK_POINTER && t->name) {
+        const char *inner = struct_display_name(tc, t->name);
+        if (inner == t->name) inner = enum_display_name(tc, t->name);
+        if (inner != t->name) {
+            static char ptr_bufs[4][EZ_TYPE_NAME_MAX];
+            static int ptr_slot = 0;
+            char *out = ptr_bufs[ptr_slot];
+            ptr_slot = (ptr_slot + 1) & 3;
+            snprintf(out, sizeof(ptr_bufs[0]), "^%s", inner);
+            return out;
+        }
+    }
+    if (t->kind == TK_ARRAY && t->element_type) {
+        const char *inner = struct_display_name(tc, t->element_type);
+        if (inner == t->element_type) inner = enum_display_name(tc, t->element_type);
+        if (inner != t->element_type) {
+            static char arr_bufs[4][EZ_TYPE_NAME_MAX];
+            static int arr_slot = 0;
+            char *out = arr_bufs[arr_slot];
+            arr_slot = (arr_slot + 1) & 3;
+            snprintf(out, sizeof(arr_bufs[0]), "[%s]", inner);
+            return out;
+        }
+    }
     return type_name(t);
 }
 
@@ -5013,6 +5038,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {
                     sig->used = true;
+                    /* Use the user-facing name in error messages, never
+                     * the module-prefixed internal key. */
+                    fn_name = func_display_name(sig);
                     /* : if this bare name is a using-module alias,
                      * also mark the prefixed sig + import as used so
                      * W1002/W1003 don't fire on the source. */
@@ -5216,7 +5244,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected %s, got %s",
-                                ai + 1, fn_name, type_name(param_t), type_name(arg_t));
+                                ai + 1, fn_name, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -5252,7 +5280,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected '%s', got '%s'",
-                                ai + 1, fn_name, type_name(param_t), type_name(arg_t));
+                                ai + 1, fn_name, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -5529,7 +5557,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         snprintf(msg, sizeof(msg),
                                             "argument %d of '%s': expected %s, got %s",
                                             ai + 1, fn_name,
-                                            type_name(pt), type_name(at));
+                                            type_display_name(tc, pt), type_display_name(tc, at));
                                         diag_error_msg(tc->diag, "E3001", strdup(msg),
                                             NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0);
                                     }
@@ -6225,7 +6253,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     char msg[EZ_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                         "field '%s' of struct '%s': expected %s, got %s",
-                        fname, sname, type_name(expected_t), type_name(val_t));
+                        fname, struct_display_name(tc, sname), type_display_name(tc, expected_t), type_display_name(tc, val_t));
                     diag_error_msg(tc->diag, "E3001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
@@ -7237,7 +7265,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s",
-                    type_name(value_type), type_name(declared));
+                    type_display_name(tc, value_type), type_display_name(tc, declared));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
@@ -7251,7 +7279,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s",
-                    type_name(value_type), type_name(declared));
+                    type_display_name(tc, value_type), type_display_name(tc, declared));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
@@ -8118,7 +8146,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s variable '%s'",
-                    type_name(value_t), type_name(target_t), target->data.label.value);
+                    type_display_name(tc, value_t), type_display_name(tc, target_t), target->data.label.value);
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
@@ -8163,7 +8191,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "type mismatch: cannot assign %s to %s variable '%s'",
-                type_name(value_t), type_name(target_t), target->data.label.value);
+                type_display_name(tc, value_t), type_display_name(tc, target_t), target->data.label.value);
             diag_error_msg(tc->diag, "E3001", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
@@ -8207,7 +8235,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     char msg[EZ_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                         "type mismatch: cannot assign %s to %s field '%s'",
-                        type_name(value_t), type_name(field_t), target->data.member.member);
+                        type_display_name(tc, value_t), type_display_name(tc, field_t), target->data.member.member);
                     diag_error_msg(tc->diag, "E3001", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
@@ -8394,7 +8422,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",
-                    type_name(expected), type_name(ret_t));
+                    type_display_name(tc, expected), type_display_name(tc, ret_t));
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
@@ -8459,10 +8487,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (ret_t->kind == TK_POINTER && expected->kind == TK_POINTER &&
                 ret_t->element_type && expected->element_type &&
                 strcmp(ret_t->element_type, expected->element_type) != 0) {
-                /* Build human-readable pointer type strings */
+                /* Build human-readable pointer type strings (strip module prefix) */
+                const char *exp_inner = struct_display_name(tc, expected->element_type);
+                if (exp_inner == expected->element_type) exp_inner = enum_display_name(tc, expected->element_type);
+                const char *got_inner = struct_display_name(tc, ret_t->element_type);
+                if (got_inner == ret_t->element_type) got_inner = enum_display_name(tc, ret_t->element_type);
                 char exp_str[EZ_TYPE_NAME_MAX], got_str[EZ_TYPE_NAME_MAX];
-                snprintf(exp_str, sizeof(exp_str), "^%s", expected->element_type);
-                snprintf(got_str, sizeof(got_str), "^%s", ret_t->element_type);
+                snprintf(exp_str, sizeof(exp_str), "^%s", exp_inner);
+                snprintf(got_str, sizeof(got_str), "^%s", got_inner);
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected '%s', got '%s'",
