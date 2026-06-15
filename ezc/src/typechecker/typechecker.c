@@ -6784,6 +6784,39 @@ static void check_block(TypeChecker *tc, AstNode *node) {
             seen_return = true;
         }
     }
+    /* E3006: multi-var destructuring with fewer variables than return values.
+     * Desugared blocks look like: _ez_tmpN = call(); a = _ez_tmpN.v0; b = _ez_tmpN.v1; ...
+     * If var_count < ret_count, trailing return values are silently lost. */
+    if (node->data.block.count >= 2) {
+        AstNode *first = node->data.block.stmts[0];
+        if (first && first->kind == NODE_VAR_DECL &&
+            strncmp(first->data.var_decl.name, "_ez_tmp", 7) == 0 &&
+            first->data.var_decl.value &&
+            first->data.var_decl.value->kind == NODE_CALL_EXPR) {
+            Symbol *sym = scope_lookup_local(tc->current_scope, first->data.var_decl.name);
+            if (sym && sym->ret_types && sym->ret_count > 0) {
+                int var_count = node->data.block.count - 1;
+                if (var_count < sym->ret_count) {
+                    /* Extract function name for the error message */
+                    AstNode *call_fn = first->data.var_decl.value->data.call.function;
+                    const char *fn_name = "function";
+                    if (call_fn->kind == NODE_LABEL) {
+                        fn_name = call_fn->data.label.value;
+                    } else if (call_fn->kind == NODE_MEMBER_EXPR &&
+                               call_fn->data.member.member) {
+                        fn_name = call_fn->data.member.member;
+                    }
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "'%s' returns %d values but only %d variable(s) provided; "
+                        "all return values must be handled (use '_' to discard unwanted values)",
+                        fn_name, sym->ret_count, var_count);
+                    diag_error_msg(tc->diag, "E3006", strdup(msg),
+                        NODE_FILE(tc, first), first->token.line, first->token.column, 0);
+                }
+            }
+        }
+    }
 }
 
 static void check_statement(TypeChecker *tc, AstNode *node) {
