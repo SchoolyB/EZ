@@ -630,6 +630,66 @@ mut dirs [Direction] = {.NORTH, .SOUTH}
 
 The full `EnumName.VARIANT` form is always valid and is required when no type context is available.
 
+**Tagged Enums (Variants with Data):**
+
+Enum variants can carry associated data (payloads), making the enum a tagged union. A variant's payload is declared with positional types in parentheses:
+
+```ez
+const Shape enum {
+    Circle(float)
+    Rect(float, float)
+    Point
+}
+```
+
+An enum becomes a tagged union if ANY variant has a payload. Variants without payloads (like `Point` above) are plain tag-only variants. Payloads and explicit values (`= 5`) are mutually exclusive per variant. String enums and `#flags` enums cannot have payloads.
+
+**Construction:**
+
+Tagged enum values are constructed by calling the variant with arguments:
+
+```ez
+mut s Shape = Shape.Circle(3.14)
+mut r Shape = Shape.Rect(10.0, 20.0)
+mut p Shape = Shape.Point
+```
+
+The implicit selector syntax also works with tagged constructors:
+
+```ez
+mut s Shape = .Circle(3.14)
+```
+
+**Destructuring with `when/is`:**
+
+Use pattern destructuring in `when/is` to extract payload values:
+
+```ez
+when shape {
+    is Circle(radius) {
+        println("Circle with radius ${radius}")
+    }
+    is Rect(w, h) {
+        println("Rectangle ${w} x ${h}")
+    }
+    is Point {
+        println("Just a point")
+    }
+}
+```
+
+Implicit selector patterns also work in `when/is`:
+
+```ez
+when shape {
+    is .Circle(r) { println("radius: ${r}") }
+    is .Rect(w, h) { println("${w}x${h}") }
+    is .Point { println("point") }
+}
+```
+
+The number of bindings in a pattern must match the variant's payload count. `#strict` exhaustiveness checking works with tagged enums.
+
 ### 3.3 Type Inference
 
 EZ is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.

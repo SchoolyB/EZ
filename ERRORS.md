@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 320 codes** (215 errors, 16 warnings, 89 panics)
+**Total: 327 codes** (222 errors, 16 warnings, 89 panics)
 
 ---
 
@@ -73,6 +73,7 @@
 | `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
 | `E2081` | syntax | '^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^' |
 | `E2082` | syntax | arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead |
+| `E2083` | syntax | enum variant '%s' cannot have both a payload and an explicit value |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -170,6 +171,12 @@
 | `E3108` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many) |
 | `E3109` | types | #json struct '%s' cannot have default field values; field '%s' has a default |
 | `E3110` | types | implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation |
+| `E3111` | types | payload types are not allowed on string enum variants |
+| `E3112` | types | payload types are not allowed on #flags enum variants |
+| `E3113` | types | variant '%s' of enum '%s' expects %d payload value(s), got %d |
+| `E3114` | types | variant '%s' of enum '%s' has no payload; remove the arguments |
+| `E3115` | types | enum '%s' is not a tagged enum; variant '%s' cannot be called |
+| `E3116` | types | wrong number of bindings for variant '%s'; expected %d, got %d |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -371,4 +378,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-14 18:11:21 UTC*
+*Generated on 2026-06-14 23:50:32 UTC*

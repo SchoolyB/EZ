@@ -29,6 +29,8 @@ typedef struct {
     /* Track declared type names for codegen */
     const char **enum_names;
     bool *enum_is_string;
+    bool *enum_is_tagged;    /* parallel: true if tagged union enum */
+    AstNode **enum_decls;    /* parallel: AST nodes for payload type lookup */
     int enum_count;
     int enum_cap;
 

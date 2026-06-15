@@ -2206,6 +2206,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_ENUM_DECL, p->cur_token);
     node->data.enum_decl.name = p->cur_token.literal;
     node->data.enum_decl.is_flags = false;
+    node->data.enum_decl.is_tagged = false;
 
     next_token(p); /* skip 'enum' keyword */
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
@@ -2269,9 +2270,37 @@ static AstNode *parse_enum_declaration(Parser *p) {
         EnumVal *ev = &node->data.enum_decl.values[node->data.enum_decl.value_count];
         ev->name = p->cur_token.literal;
         ev->value = NULL;
+        ev->payload_types = NULL;
+        ev->payload_count = 0;
+
+        /* Check for payload types: VARIANT(type1, type2, ...) */
+        if (peek_token_is(p, TOK_LPAREN)) {
+            next_token(p); /* consume ( */
+            next_token(p); /* first type */
+            int pt_cap = 4;
+            ev->payload_types = arena_alloc(p->arena, sizeof(const char *) * pt_cap);
+            while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                if (ev->payload_count >= pt_cap) {
+                    pt_cap *= 2;
+                    const char **new_pt = arena_alloc(p->arena, sizeof(const char *) * pt_cap);
+                    memcpy(new_pt, ev->payload_types, sizeof(const char *) * ev->payload_count);
+                    ev->payload_types = new_pt;
+                }
+                ev->payload_types[ev->payload_count++] = p->cur_token.literal;
+                next_token(p);
+                if (cur_token_is(p, TOK_COMMA)) next_token(p);
+            }
+            /* cur_token is now TOK_RPAREN */
+        }
 
         /* Check for explicit value: VALUE = expr */
         if (peek_token_is(p, TOK_ASSIGN)) {
+            /* E2083: payload and explicit value are mutually exclusive */
+            if (ev->payload_count > 0) {
+                diag_error_codef(p->diag, "E2083",
+                    p->file, p->cur_token.line, p->cur_token.column, 0,
+                    ev->name);
+            }
             next_token(p); /* skip = */
             next_token(p);
             ev->value = parse_expression(p, PREC_LOWEST);
@@ -2290,6 +2319,14 @@ static AstNode *parse_enum_declaration(Parser *p) {
                 strdup("semicolons are not used; put each enum variant on its own line"),
                 p->file, p->cur_token.line, p->cur_token.column, 0);
             next_token(p);
+        }
+    }
+
+    /* Set is_tagged if any variant has a payload */
+    for (int j = 0; j < node->data.enum_decl.value_count; j++) {
+        if (node->data.enum_decl.values[j].payload_count > 0) {
+            node->data.enum_decl.is_tagged = true;
+            break;
         }
     }
 
@@ -2493,9 +2530,124 @@ static AstNode *parse_when_statement(Parser *p) {
 
             /* Parse case values: is 1, 2, 3 { } */
             next_token(p);
+
+            /* Detect destructuring pattern: IDENT(IDENT,...) or .IDENT(IDENT,...)
+             * All tokens inside parens must be bare identifiers (no operators/literals). */
+            {
+                bool try_pattern = false;
+                bool is_implicit_pat = false;
+                Token pat_tok = p->cur_token;
+
+                if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_LPAREN)) {
+                    /* Save lexer state for lookahead */
+                    int sv_pos  = p->lexer->position;
+                    int sv_rpos = p->lexer->read_position;
+                    char sv_ch  = p->lexer->ch;
+                    int sv_line = p->lexer->line;
+                    int sv_col  = p->lexer->column;
+                    Token sv_cur  = p->cur_token;
+                    Token sv_peek = p->peek_token;
+
+                    const char *vname = p->cur_token.literal;
+                    next_token(p); /* skip IDENT */
+                    next_token(p); /* skip ( */
+                    bool all_idents = true;
+                    int bind_count = 0;
+                    while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                        if (!cur_token_is(p, TOK_IDENT)) { all_idents = false; break; }
+                        bind_count++;
+                        next_token(p);
+                        if (cur_token_is(p, TOK_COMMA)) next_token(p);
+                    }
+                    if (all_idents && bind_count > 0 && cur_token_is(p, TOK_RPAREN)) {
+                        try_pattern = true;
+                        (void)vname;
+                    }
+                    /* Restore lexer state */
+                    p->lexer->position = sv_pos;
+                    p->lexer->read_position = sv_rpos;
+                    p->lexer->ch = sv_ch;
+                    p->lexer->line = sv_line;
+                    p->lexer->column = sv_col;
+                    p->cur_token  = sv_cur;
+                    p->peek_token = sv_peek;
+                } else if (cur_token_is(p, TOK_DOT) && peek_token_is(p, TOK_IDENT)) {
+                    /* .IDENT(IDENT,...) form */
+                    int sv_pos  = p->lexer->position;
+                    int sv_rpos = p->lexer->read_position;
+                    char sv_ch  = p->lexer->ch;
+                    int sv_line = p->lexer->line;
+                    int sv_col  = p->lexer->column;
+                    Token sv_cur  = p->cur_token;
+                    Token sv_peek = p->peek_token;
+
+                    next_token(p); /* skip dot */
+                    const char *vname = p->cur_token.literal;
+                    if (peek_token_is(p, TOK_LPAREN)) {
+                        next_token(p); /* skip IDENT */
+                        next_token(p); /* skip ( */
+                        bool all_idents = true;
+                        int bind_count = 0;
+                        while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                            if (!cur_token_is(p, TOK_IDENT)) { all_idents = false; break; }
+                            bind_count++;
+                            next_token(p);
+                            if (cur_token_is(p, TOK_COMMA)) next_token(p);
+                        }
+                        if (all_idents && bind_count > 0 && cur_token_is(p, TOK_RPAREN)) {
+                            try_pattern = true;
+                            is_implicit_pat = true;
+                            (void)vname;
+                        }
+                    }
+                    /* Restore lexer state */
+                    p->lexer->position = sv_pos;
+                    p->lexer->read_position = sv_rpos;
+                    p->lexer->ch = sv_ch;
+                    p->lexer->line = sv_line;
+                    p->lexer->column = sv_col;
+                    p->cur_token  = sv_cur;
+                    p->peek_token = sv_peek;
+                }
+
+                if (try_pattern) {
+                    /* Actually consume and build NODE_WHEN_PATTERN */
+                    AstNode *pat = ast_alloc(p->arena, NODE_WHEN_PATTERN, pat_tok);
+                    pat->data.when_pattern.enum_name = NULL;
+                    pat->data.when_pattern.is_implicit = is_implicit_pat;
+
+                    if (is_implicit_pat) {
+                        next_token(p); /* skip dot */
+                    }
+                    pat->data.when_pattern.variant = arena_strdup(p->arena, p->cur_token.literal);
+                    next_token(p); /* skip IDENT (variant) */
+                    next_token(p); /* skip ( */
+
+                    int bc = 0, bc_cap = 4;
+                    pat->data.when_pattern.bindings = arena_alloc(p->arena, sizeof(const char *) * bc_cap);
+                    while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                        if (bc >= bc_cap) {
+                            bc_cap *= 2;
+                            const char **nb = arena_alloc(p->arena, sizeof(const char *) * bc_cap);
+                            memcpy(nb, pat->data.when_pattern.bindings, sizeof(const char *) * bc);
+                            pat->data.when_pattern.bindings = nb;
+                        }
+                        pat->data.when_pattern.bindings[bc++] = arena_strdup(p->arena, p->cur_token.literal);
+                        next_token(p);
+                        if (cur_token_is(p, TOK_COMMA)) next_token(p);
+                    }
+                    pat->data.when_pattern.binding_count = bc;
+                    /* cur_token is RPAREN, peek should be LBRACE */
+
+                    wc->values[wc->value_count++] = pat;
+                    goto when_case_body;
+                }
+            }
+
             if (cur_token_is(p, TOK_RANGE)) {
                 wc->is_range = true;
             }
+            p->no_struct_literal = true;
             if (wc->value_count < val_cap) {
                 wc->values[wc->value_count++] = parse_expression(p, PREC_LOWEST);
             }
@@ -2514,6 +2666,8 @@ static AstNode *parse_when_statement(Parser *p) {
                 wc->values[wc->value_count++] = parse_expression(p, PREC_LOWEST);
             }
 
+            when_case_body:
+            p->no_struct_literal = false;
             if (!expect_peek(p, TOK_LBRACE)) return NULL;
             wc->body = parse_block_statement(p);
             node->data.when_stmt.case_count++;

@@ -1499,7 +1499,8 @@ static EzType *tc_resolve_using_constant_type(TypeChecker *tc, const char *name)
 
 static void register_enum(TypeChecker *tc, const char *name,
     const char *display_name, bool is_string,
-    const char **values, int value_count) {
+    const char **values, int value_count,
+    const char ***payload_types, int *payload_counts, bool is_tagged) {
     if (tc->enum_count >= tc->enum_cap) {
         tc->enum_cap = tc->enum_cap ? tc->enum_cap * 2 : 8;
         tc->enum_names = xrealloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
@@ -1507,12 +1508,18 @@ static void register_enum(TypeChecker *tc, const char *name,
         tc->enum_is_string = xrealloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
         tc->enum_values = xrealloc(tc->enum_values, sizeof(const char **) * tc->enum_cap);
         tc->enum_value_counts = xrealloc(tc->enum_value_counts, sizeof(int) * tc->enum_cap);
+        tc->enum_payload_types = xrealloc(tc->enum_payload_types, sizeof(const char ***) * tc->enum_cap);
+        tc->enum_payload_counts = xrealloc(tc->enum_payload_counts, sizeof(int *) * tc->enum_cap);
+        tc->enum_is_tagged = xrealloc(tc->enum_is_tagged, sizeof(bool) * tc->enum_cap);
     }
     tc->enum_names[tc->enum_count] = name;
     tc->enum_display_names[tc->enum_count] = display_name ? display_name : name;
     tc->enum_is_string[tc->enum_count] = is_string;
     tc->enum_values[tc->enum_count] = values;
     tc->enum_value_counts[tc->enum_count] = value_count;
+    tc->enum_payload_types[tc->enum_count] = payload_types;
+    tc->enum_payload_counts[tc->enum_count] = payload_counts;
+    tc->enum_is_tagged[tc->enum_count] = is_tagged;
     tc->enum_count++;
 }
 
@@ -2559,6 +2566,56 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Tagged enum construction via implicit selector: .Circle(3.14) */
+        if (fn->kind == NODE_IMPLICIT_ENUM) {
+            const char *vname = fn->data.implicit_enum.variant;
+            /* Resolve enum from expected_type */
+            EzType *et = tc->expected_type;
+            if (et && et->kind == TK_ENUM && et->name) {
+                fn->data.implicit_enum.resolved_enum = et->name;
+                int eidx = -1;
+                for (int ei = 0; ei < tc->enum_count; ei++) {
+                    if (strcmp(tc->enum_names[ei], et->name) == 0) { eidx = ei; break; }
+                }
+                if (eidx >= 0) {
+                    int vidx = -1;
+                    for (int vi = 0; vi < tc->enum_value_counts[eidx]; vi++) {
+                        if (strcmp(tc->enum_values[eidx][vi], vname) == 0) { vidx = vi; break; }
+                    }
+                    if (vidx < 0) {
+                        diag_error_codef(tc->diag, "E3047", NODE_FILE(tc, node), node->token.line, node->token.column, 0, et->name, vname);
+                    } else if (tc->enum_is_tagged[eidx]) {
+                        int expected_pc = tc->enum_payload_counts[eidx][vidx];
+                        int got_ac = node->data.call.arg_count;
+                        if (expected_pc == 0 && got_ac > 0) {
+                            diag_error_codef(tc->diag, "E3114", NODE_FILE(tc, node), node->token.line, node->token.column, 0, vname, tc->enum_display_names[eidx]);
+                        } else if (expected_pc != got_ac) {
+                            diag_error_codef(tc->diag, "E3113", NODE_FILE(tc, node), node->token.line, node->token.column, 0, vname, tc->enum_display_names[eidx], expected_pc, got_ac);
+                        } else {
+                            for (int ai = 0; ai < got_ac; ai++) {
+                                EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                EzType *exp_t = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][ai]);
+                                if (arg_t && exp_t &&
+                                    arg_t->kind != TK_UNKNOWN && exp_t->kind != TK_UNKNOWN &&
+                                    arg_t->kind != exp_t->kind &&
+                                    !(is_int_kind(arg_t->kind) && is_int_kind(exp_t->kind))) {
+                                    diag_error_codef(tc->diag, "E3001", NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line, node->data.call.args[ai]->token.column, 0);
+                                }
+                            }
+                        }
+                    } else {
+                        diag_error_codef(tc->diag, "E3115", NODE_FILE(tc, node), node->token.line, node->token.column, 0, tc->enum_display_names[eidx], vname);
+                    }
+                }
+                result = type_enum(et->name);
+            } else {
+                diag_error_codef(tc->diag, "E3110", NODE_FILE(tc, node), node->token.line, node->token.column, 0, vname, vname);
+                result = &TYPE_UNKNOWN;
+            }
+            break;
+        }
+
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
         } else if (fn->kind == NODE_MEMBER_EXPR &&
@@ -2658,6 +2715,57 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else {
                 result = &TYPE_VOID;
+            }
+        } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL &&
+                   is_enum_name(tc, fn->data.member.object->data.label.value)) {
+            /* Tagged enum construction: Shape.Circle(3.14) */
+            const char *ename = fn->data.member.object->data.label.value;
+            const char *vname = fn->data.member.member;
+            int eidx = -1;
+            for (int ei = 0; ei < tc->enum_count; ei++) {
+                if (strcmp(tc->enum_names[ei], ename) == 0) { eidx = ei; break; }
+            }
+            if (eidx >= 0) {
+                /* Find variant index */
+                int vidx = -1;
+                for (int vi = 0; vi < tc->enum_value_counts[eidx]; vi++) {
+                    if (strcmp(tc->enum_values[eidx][vi], vname) == 0) { vidx = vi; break; }
+                }
+                if (vidx < 0) {
+                    diag_error_codef(tc->diag, "E3047", NODE_FILE(tc, node), node->token.line, node->token.column, 0, ename, vname);
+                    result = &TYPE_UNKNOWN;
+                    break;
+                }
+                if (!tc->enum_is_tagged[eidx]) {
+                    /* E3115: plain enum, can't call */
+                    const char *dname = tc->enum_display_names[eidx];
+                    diag_error_codef(tc->diag, "E3115", NODE_FILE(tc, node), node->token.line, node->token.column, 0, dname, vname);
+                    result = type_enum(ename);
+                    break;
+                }
+                int expected_pc = tc->enum_payload_counts[eidx][vidx];
+                int got_ac = node->data.call.arg_count;
+                if (expected_pc == 0 && got_ac > 0) {
+                    diag_error_codef(tc->diag, "E3114", NODE_FILE(tc, node), node->token.line, node->token.column, 0, vname, tc->enum_display_names[eidx]);
+                } else if (expected_pc != got_ac) {
+                    diag_error_codef(tc->diag, "E3113", NODE_FILE(tc, node), node->token.line, node->token.column, 0, vname, tc->enum_display_names[eidx], expected_pc, got_ac);
+                } else {
+                    /* Validate each arg type against payload type */
+                    for (int ai = 0; ai < got_ac; ai++) {
+                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        EzType *expected_t = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][ai]);
+                        if (arg_t && expected_t &&
+                            arg_t->kind != TK_UNKNOWN && expected_t->kind != TK_UNKNOWN &&
+                            arg_t->kind != expected_t->kind &&
+                            !(is_int_kind(arg_t->kind) && is_int_kind(expected_t->kind))) {
+                            diag_error_codef(tc->diag, "E3001", NODE_FILE(tc, node->data.call.args[ai]),
+                                node->data.call.args[ai]->token.line, node->data.call.args[ai]->token.column, 0);
+                        }
+                    }
+                }
+                result = type_enum(ename);
+            } else {
+                result = &TYPE_UNKNOWN;
             }
         } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
             const char *mod_raw = fn->data.member.object->data.label.value;
@@ -6197,6 +6305,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         result = resolve_implicit_enum(tc, node);
         break;
 
+    case NODE_WHEN_PATTERN:
+        /* Pattern nodes are validated in the NODE_WHEN_STMT handler */
+        if (node->data.when_pattern.enum_name)
+            result = type_enum(node->data.when_pattern.enum_name);
+        else
+            result = &TYPE_UNKNOWN;
+        break;
+
     case NODE_CAST_EXPR: {
         EzType *src_t = resolve_expr(tc, node->data.cast.value);
         EzType *dst_t = type_from_name(node->data.cast.target_type);
@@ -9104,6 +9220,42 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {
                 AstNode *val_i = node->data.when_stmt.cases[i].values[j];
+                /* Handle NODE_WHEN_PATTERN: validate variant + binding count */
+                if (val_i->kind == NODE_WHEN_PATTERN) {
+                    const char *vname = val_i->data.when_pattern.variant;
+                    const char *ename = NULL;
+                    if (val_i->data.when_pattern.is_implicit) {
+                        if (when_t && when_t->kind == TK_ENUM && when_t->name)
+                            ename = when_t->name;
+                    } else {
+                        /* For explicit form Variant(x), resolve from scrutinee type */
+                        if (when_t && when_t->kind == TK_ENUM && when_t->name)
+                            ename = when_t->name;
+                    }
+                    if (ename) {
+                        val_i->data.when_pattern.enum_name = ename;
+                        int eidx = -1;
+                        for (int ei = 0; ei < tc->enum_count; ei++) {
+                            if (strcmp(tc->enum_names[ei], ename) == 0) { eidx = ei; break; }
+                        }
+                        if (eidx >= 0) {
+                            int vidx = -1;
+                            for (int vi = 0; vi < tc->enum_value_counts[eidx]; vi++) {
+                                if (strcmp(tc->enum_values[eidx][vi], vname) == 0) { vidx = vi; break; }
+                            }
+                            if (vidx < 0) {
+                                diag_error_codef(tc->diag, "E3047", NODE_FILE(tc, val_i), val_i->token.line, val_i->token.column, 0, ename, vname);
+                            } else {
+                                int expected_bc = tc->enum_payload_counts[eidx][vidx];
+                                int got_bc = val_i->data.when_pattern.binding_count;
+                                if (expected_bc != got_bc) {
+                                    diag_error_codef(tc->diag, "E3116", NODE_FILE(tc, val_i), val_i->token.line, val_i->token.column, 0, vname, expected_bc, got_bc);
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
                 EzType *case_t = resolve_expr(tc, val_i);
                 /* Check case value type matches scrutinee; skip range exprs and unknowns */
                 if (when_t && case_t &&
@@ -9143,6 +9295,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             Scope *case_outer = tc->current_scope;
             tc->current_scope = scope_create(case_outer);
+            /* Introduce pattern bindings into case scope */
+            for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {
+                AstNode *val_i = node->data.when_stmt.cases[i].values[j];
+                if (val_i->kind == NODE_WHEN_PATTERN && val_i->data.when_pattern.enum_name) {
+                    const char *ename = val_i->data.when_pattern.enum_name;
+                    const char *vname = val_i->data.when_pattern.variant;
+                    int eidx = -1;
+                    for (int ei = 0; ei < tc->enum_count; ei++) {
+                        if (strcmp(tc->enum_names[ei], ename) == 0) { eidx = ei; break; }
+                    }
+                    if (eidx >= 0) {
+                        int vidx = -1;
+                        for (int vi = 0; vi < tc->enum_value_counts[eidx]; vi++) {
+                            if (strcmp(tc->enum_values[eidx][vi], vname) == 0) { vidx = vi; break; }
+                        }
+                        if (vidx >= 0) {
+                            int bc = val_i->data.when_pattern.binding_count;
+                            int pc = tc->enum_payload_counts[eidx][vidx];
+                            int limit = bc < pc ? bc : pc;
+                            for (int bi = 0; bi < limit; bi++) {
+                                EzType *bt = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][bi]);
+                                scope_define(tc->current_scope, val_i->data.when_pattern.bindings[bi], bt, false);
+                            }
+                        }
+                    }
+                }
+            }
             check_block(tc, node->data.when_stmt.cases[i].body);
             tc->current_scope = case_outer;
         }
@@ -9178,6 +9357,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         cv->data.implicit_enum.resolved_enum) {
                         enum_name = cv->data.implicit_enum.resolved_enum;
                     }
+                    /* Infer from when pattern */
+                    if (cv->kind == NODE_WHEN_PATTERN &&
+                        cv->data.when_pattern.enum_name) {
+                        enum_name = cv->data.when_pattern.enum_name;
+                    }
                 }
             }
             if (enum_name) {
@@ -9207,6 +9391,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 /* Match .VARIANT (implicit enum selector) */
                                 if (cv->kind == NODE_IMPLICIT_ENUM &&
                                     strcmp(cv->data.implicit_enum.variant, variants[vi]) == 0) {
+                                    covered = true;
+                                }
+                                /* Match when pattern (destructuring) */
+                                if (cv->kind == NODE_WHEN_PATTERN &&
+                                    strcmp(cv->data.when_pattern.variant, variants[vi]) == 0) {
                                     covered = true;
                                 }
                                 /* Match bare integer literal (for auto-increment enums) */
@@ -9553,7 +9742,35 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         for (int j = 0; j < vc; j++) {
             vnames[j] = stmt->data.enum_decl.values[j].name;
         }
-        register_enum(tc, stmt->data.enum_decl.name, ENUM_DISPLAY_NAME(stmt), is_str, vnames, vc);
+        /* Extract payload info for tagged enums */
+        bool has_tagged = stmt->data.enum_decl.is_tagged;
+        const char ***pt = NULL;
+        int *pc = NULL;
+        if (vc > 0) {
+            pt = xmalloc(sizeof(const char **) * vc);
+            pc = xmalloc(sizeof(int) * vc);
+            for (int j = 0; j < vc; j++) {
+                EnumVal *ev = &stmt->data.enum_decl.values[j];
+                pc[j] = ev->payload_count;
+                if (ev->payload_count > 0) {
+                    pt[j] = xmalloc(sizeof(const char *) * ev->payload_count);
+                    for (int k = 0; k < ev->payload_count; k++) {
+                        pt[j][k] = ev->payload_types[k];
+                    }
+                } else {
+                    pt[j] = NULL;
+                }
+            }
+        }
+        /* E3111: string enum with payloads */
+        if (is_str && has_tagged) {
+            diag_error_code(tc->diag, "E3111", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
+        /* E3112: flags enum with payloads */
+        if (stmt->data.enum_decl.is_flags && has_tagged) {
+            diag_error_code(tc->diag, "E3112", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
+        register_enum(tc, stmt->data.enum_decl.name, ENUM_DISPLAY_NAME(stmt), is_str, vnames, vc, pt, pc, has_tagged);
     }
 
     /* Pass 2b: Register structs and functions (enums already registered above) */
@@ -9925,7 +10142,9 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 const char *unprefixed = en + prefix_len;
                 if (!is_enum_name(tc, unprefixed)) {
                     register_enum(tc, unprefixed, unprefixed, tc->enum_is_string[ei],
-                        tc->enum_values[ei], tc->enum_value_counts[ei]);
+                        tc->enum_values[ei], tc->enum_value_counts[ei],
+                        tc->enum_payload_types[ei], tc->enum_payload_counts[ei],
+                        tc->enum_is_tagged[ei]);
                 }
             }
         }

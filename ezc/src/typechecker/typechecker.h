@@ -82,6 +82,9 @@ typedef struct {
     bool *enum_is_string; /* parallel array: true if string enum */
     const char ***enum_values; /* parallel array: variant name arrays */
     int *enum_value_counts; /* parallel array: variant counts */
+    const char ****enum_payload_types; /* [enum_idx][variant_idx] → type name array */
+    int **enum_payload_counts;         /* [enum_idx][variant_idx] → count */
+    bool *enum_is_tagged;              /* parallel to enum_names */
     int enum_count;
     int enum_cap;
 
