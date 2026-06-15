@@ -3081,13 +3081,25 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
     case TK_STRUCT: {
         const char *struct_name = t->name;
         AstNode *sdecl = find_struct_decl(cg, struct_name);
+        /* Use the user-facing name (without module prefix) for display.
+         * Check struct decls first, then enum decls (enums are struct-backed). */
+        const char *display_name = struct_name;
+        if (sdecl && sdecl->data.struct_decl.original_name) {
+            display_name = sdecl->data.struct_decl.original_name;
+        } else {
+            int eidx = cg_enum_index(cg, struct_name);
+            if (eidx >= 0 && cg->enum_decls[eidx] &&
+                cg->enum_decls[eidx]->data.enum_decl.original_name) {
+                display_name = cg->enum_decls[eidx]->data.enum_decl.original_name;
+            }
+        }
 
         /* Cycle detection: if already printing this struct type, emit a
          * placeholder to avoid infinite recursion on circular references. */
         for (int _j = 0; _j < evp_depth; _j++) {
             if (evp_visiting[_j] && strcmp(evp_visiting[_j], struct_name) == 0) {
                 emit_indent(cg);
-                emitf(cg, "fprintf(%s, \"%s{...}\");\n", stream, struct_name);
+                emitf(cg, "fprintf(%s, \"%s{...}\");\n", stream, display_name);
                 break;
             }
         }
@@ -3102,7 +3114,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         if (evp_depth < EVP_MAX_DEPTH) evp_visiting[evp_depth++] = struct_name;
 
         emit_indent(cg);
-        emitf(cg, "fprintf(%s, \"%s{\");\n", stream, struct_name);
+        emitf(cg, "fprintf(%s, \"%s{\");\n", stream, display_name);
 
         if (sdecl) {
             for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
