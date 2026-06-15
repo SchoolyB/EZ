@@ -92,7 +92,8 @@
     EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause") \
     EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted") \
     EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'") \
-    EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead")
+    EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead") \
+    EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -192,7 +193,13 @@
     EZ_ERROR("E3107", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few)") \
     EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)") \
     EZ_ERROR("E3109", "types", "#json struct '%s' cannot have default field values; field '%s' has a default") \
-    EZ_ERROR("E3110", "types", "implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation")
+    EZ_ERROR("E3110", "types", "implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation") \
+    EZ_ERROR("E3111", "types", "payload types are not allowed on string enum variants") \
+    EZ_ERROR("E3112", "types", "payload types are not allowed on #flags enum variants") \
+    EZ_ERROR("E3113", "types", "variant '%s' of enum '%s' expects %d payload value(s), got %d") \
+    EZ_ERROR("E3114", "types", "variant '%s' of enum '%s' has no payload; remove the arguments") \
+    EZ_ERROR("E3115", "types", "enum '%s' is not a tagged enum; variant '%s' cannot be called") \
+    EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

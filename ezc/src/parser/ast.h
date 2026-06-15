@@ -37,6 +37,7 @@ typedef enum {
     NODE_BLANK_IDENT,
     NODE_FUNC_REF,
     NODE_IMPLICIT_ENUM,
+    NODE_WHEN_PATTERN,
 
     /* Statements */
     NODE_VAR_DECL,
@@ -89,7 +90,9 @@ typedef struct {
 /* Enum value */
 typedef struct {
     const char *name;
-    AstNode *value; /* optional explicit value */
+    AstNode *value;              /* optional explicit value (plain enums only) */
+    const char **payload_types;  /* NULL if no payload */
+    int payload_count;           /* 0 for plain variants */
 } EnumVal;
 
 /* Import item */
@@ -203,6 +206,15 @@ struct AstNode {
 
         /* NODE_IMPLICIT_ENUM — .VARIANT (resolved by typechecker) */
         struct { const char *variant; const char *resolved_enum; } implicit_enum;
+
+        /* NODE_WHEN_PATTERN — destructuring pattern in when/is */
+        struct {
+            const char *variant;       /* e.g. "Circle" */
+            const char *enum_name;     /* resolved by typechecker, e.g. "Shape" */
+            const char **bindings;     /* binding variable names */
+            int binding_count;
+            bool is_implicit;          /* true if .Circle(r) form */
+        } when_pattern;
 
         /* NODE_VAR_DECL */
         struct {
@@ -324,6 +336,7 @@ struct AstNode {
             EnumVal *values;
             int value_count;
             bool is_flags;
+            bool is_tagged;  /* true if ANY variant has a payload */
         } enum_decl;
 
         /* NODE_MODULE_DECL */

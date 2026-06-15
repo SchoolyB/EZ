@@ -29,6 +29,8 @@ static void emit_statement(CodeGen *cg, AstNode *node);
 static void emit_expression(CodeGen *cg, AstNode *node);
 static void emit_call_expression(CodeGen *cg, AstNode *node);
 static bool codegen_is_enum(CodeGen *cg, const char *name);
+static bool cg_enum_is_tagged(CodeGen *cg, const char *name);
+static int cg_enum_index(CodeGen *cg, const char *name);
 static void emit_to_string(CodeGen *cg, AstNode *arg);
 static bool emit_narrowing_cast(CodeGen *cg, const char *target, AstNode *val, int line);
 
@@ -2152,7 +2154,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     if (r != mod && codegen_is_enum(cg, r)) resolved_enum = r;
                 }
                 if (resolved_enum) {
-                    emitf(cg, "EzEnum_%s_%s", resolved_enum, mem);
+                    if (cg_enum_is_tagged(cg, resolved_enum)) {
+                        emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s }", resolved_enum, resolved_enum, mem);
+                    } else {
+                        emitf(cg, "EzEnum_%s_%s", resolved_enum, mem);
+                    }
                     break;
                 }
             }
@@ -2164,7 +2170,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
              * member's first-letter casing (lowercase variants like
              * `type_change` are valid). */
             if (codegen_is_enum(cg, mod)) {
-                emitf(cg, "EzEnum_%s_%s", mod, mem);
+                if (cg_enum_is_tagged(cg, mod)) {
+                    emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s }", mod, mod, mem);
+                } else {
+                    emitf(cg, "EzEnum_%s_%s", mod, mem);
+                }
                 break;
             }
 
@@ -2645,7 +2655,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         const char *ename = node->data.implicit_enum.resolved_enum;
         const char *variant = node->data.implicit_enum.variant;
         if (ename) {
-            emitf(cg, "EzEnum_%s_%s", ename, variant);
+            if (cg_enum_is_tagged(cg, ename)) {
+                emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s }", ename, ename, variant);
+            } else {
+                emitf(cg, "EzEnum_%s_%s", ename, variant);
+            }
         }
         break;
     }
@@ -5790,6 +5804,64 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
 
+    /* Tagged enum construction: Shape.Circle(3.14) */
+    if (node->data.call.function->kind == NODE_MEMBER_EXPR &&
+        node->data.call.function->data.member.object->kind == NODE_LABEL) {
+        const char *ename = node->data.call.function->data.member.object->data.label.value;
+        const char *vname = node->data.call.function->data.member.member;
+        /* Also check using-module-resolved names */
+        const char *resolved_ename = ename;
+        if (!codegen_is_enum(cg, ename)) {
+            const char *r = resolve_unprefixed_name(cg, ename);
+            if (r != ename && codegen_is_enum(cg, r)) resolved_ename = r;
+        }
+        if (codegen_is_enum(cg, resolved_ename) && cg_enum_is_tagged(cg, resolved_ename)) {
+            /* Emit compound literal: (EzEnum_Shape){ .tag = EzEnum_Shape_TAG_Circle, .data.Circle = { args } } */
+            int eidx = cg_enum_index(cg, resolved_ename);
+            AstNode *decl = cg->enum_decls[eidx];
+            int vidx = -1;
+            for (int vi = 0; vi < decl->data.enum_decl.value_count; vi++) {
+                if (strcmp(decl->data.enum_decl.values[vi].name, vname) == 0) { vidx = vi; break; }
+            }
+            emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s", resolved_ename, resolved_ename, vname);
+            if (vidx >= 0 && decl->data.enum_decl.values[vidx].payload_count > 0) {
+                emitf(cg, ", .data.%s = { ", vname);
+                for (int ai = 0; ai < node->data.call.arg_count; ai++) {
+                    if (ai > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[ai]);
+                }
+                emit(cg, " }");
+            }
+            emit(cg, " }");
+            return;
+        }
+    }
+
+    /* Tagged enum construction via implicit selector: .Circle(3.14) */
+    if (node->data.call.function->kind == NODE_IMPLICIT_ENUM) {
+        const char *ename = node->data.call.function->data.implicit_enum.resolved_enum;
+        const char *vname = node->data.call.function->data.implicit_enum.variant;
+        if (ename && cg_enum_is_tagged(cg, ename)) {
+            int eidx = cg_enum_index(cg, ename);
+            AstNode *decl = cg->enum_decls[eidx];
+            int vidx = -1;
+            for (int vi = 0; vi < decl->data.enum_decl.value_count; vi++) {
+                if (strcmp(decl->data.enum_decl.values[vi].name, vname) == 0) { vidx = vi; break; }
+            }
+            emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s", ename, ename, vname);
+            if (vidx >= 0 && decl->data.enum_decl.values[vidx].payload_count > 0) {
+                emitf(cg, ", .data.%s = { ", vname);
+                for (int ai = 0; ai < node->data.call.arg_count; ai++) {
+                    if (ai > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[ai]);
+                }
+                emit(cg, " }");
+            }
+            emit(cg, " }");
+            return;
+        }
+    }
+
     /* Check for struct-namespaced or user-module function call: Name.func() */
     if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
         AstNode *obj = node->data.call.function->data.member.object;
@@ -8331,10 +8403,17 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         AstNode *val = node->data.when_stmt.value;
         EzType *when_val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
         bool when_is_string = (when_val_t && when_val_t->kind == TK_STRING);
+        bool when_is_tagged = false;
+        const char *when_tagged_ename = NULL;
         if (!when_is_string && when_val_t && when_val_t->kind == TK_ENUM && when_val_t->name) {
             for (int ei = 0; ei < cg->enum_count; ei++) {
-                if (strcmp(cg->enum_names[ei], when_val_t->name) == 0 && cg->enum_is_string[ei]) {
-                    when_is_string = true; break;
+                if (strcmp(cg->enum_names[ei], when_val_t->name) == 0) {
+                    if (cg->enum_is_string[ei]) when_is_string = true;
+                    if (cg->enum_is_tagged[ei]) {
+                        when_is_tagged = true;
+                        when_tagged_ename = when_val_t->name;
+                    }
+                    break;
                 }
             }
         }
@@ -8351,7 +8430,31 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             }
             for (int j = 0; j < wc->value_count; j++) {
                 if (j > 0) emit(cg, " || ");
-                if (wc->is_range && wc->values[j]->kind == NODE_RANGE_EXPR) {
+                if (wc->values[j]->kind == NODE_WHEN_PATTERN) {
+                    /* Destructuring pattern: compare tag */
+                    const char *vname = wc->values[j]->data.when_pattern.variant;
+                    const char *ename = wc->values[j]->data.when_pattern.enum_name;
+                    if (!ename) ename = when_tagged_ename;
+                    emit_expression(cg, val);
+                    emitf(cg, ".tag == EzEnum_%s_TAG_%s", ename, vname);
+                } else if (when_is_tagged) {
+                    /* Tagged enum, plain variant: compare .tag */
+                    AstNode *cv = wc->values[j];
+                    const char *vname = NULL;
+                    if (cv->kind == NODE_MEMBER_EXPR && cv->data.member.object->kind == NODE_LABEL) {
+                        vname = cv->data.member.member;
+                    } else if (cv->kind == NODE_IMPLICIT_ENUM) {
+                        vname = cv->data.implicit_enum.variant;
+                    }
+                    if (vname) {
+                        emit_expression(cg, val);
+                        emitf(cg, ".tag == EzEnum_%s_TAG_%s", when_tagged_ename, vname);
+                    } else {
+                        emit_expression(cg, val);
+                        emit(cg, ".tag == ");
+                        emit_expression(cg, cv);
+                    }
+                } else if (wc->is_range && wc->values[j]->kind == NODE_RANGE_EXPR) {
                     AstNode *r = wc->values[j];
                     /* Check if step is a negative literal to reverse comparison direction */
                     bool neg_step = (r->data.range_expr.step &&
@@ -8395,6 +8498,36 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             }
             emit(cg, ") {\n");
             cg->indent++;
+            /* Emit binding declarations for when patterns */
+            for (int j = 0; j < wc->value_count; j++) {
+                if (wc->values[j]->kind == NODE_WHEN_PATTERN) {
+                    AstNode *pat = wc->values[j];
+                    const char *vname = pat->data.when_pattern.variant;
+                    const char *ename = pat->data.when_pattern.enum_name;
+                    if (!ename) ename = when_tagged_ename;
+                    int eidx = cg_enum_index(cg, ename);
+                    if (eidx >= 0) {
+                        AstNode *decl = cg->enum_decls[eidx];
+                        int vidx = -1;
+                        for (int vi = 0; vi < decl->data.enum_decl.value_count; vi++) {
+                            if (strcmp(decl->data.enum_decl.values[vi].name, vname) == 0) { vidx = vi; break; }
+                        }
+                        if (vidx >= 0) {
+                            EnumVal *ev = &decl->data.enum_decl.values[vidx];
+                            int limit = pat->data.when_pattern.binding_count < ev->payload_count
+                                ? pat->data.when_pattern.binding_count : ev->payload_count;
+                            for (int bi = 0; bi < limit; bi++) {
+                                emit_indent(cg);
+                                emitf(cg, "%s %s = ",
+                                    ez_type_to_c_cg(cg, ev->payload_types[bi]),
+                                    pat->data.when_pattern.bindings[bi]);
+                                emit_expression(cg, val);
+                                emitf(cg, ".data.%s._%d;\n", vname, bi);
+                            }
+                        }
+                    }
+                }
+            }
             emit_block(cg, wc->body);
             cg->indent--;
         }
@@ -8506,6 +8639,20 @@ static bool codegen_is_enum(CodeGen *cg, const char *name) {
     return false;
 }
 
+static bool cg_enum_is_tagged(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->enum_count; i++) {
+        if (strcmp(cg->enum_names[i], name) == 0) return cg->enum_is_tagged[i];
+    }
+    return false;
+}
+
+static int cg_enum_index(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->enum_count; i++) {
+        if (strcmp(cg->enum_names[i], name) == 0) return i;
+    }
+    return -1;
+}
+
 CodeGen codegen_create(const char *file) {
     CodeGen cg;
     cg.output = buf_create(CG_OUTPUT_BUF_INITIAL);
@@ -8516,6 +8663,8 @@ CodeGen codegen_create(const char *file) {
     cg.file = file;
     cg.enum_names = NULL;
     cg.enum_is_string = NULL;
+    cg.enum_is_tagged = NULL;
+    cg.enum_decls = NULL;
     cg.enum_count = 0;
     cg.enum_cap = 0;
     cg.current_func = NULL;
@@ -8721,13 +8870,18 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
 
             /* Register enum name and string flag */
+            bool is_tagged = stmt->data.enum_decl.is_tagged;
             if (cg->enum_count >= cg->enum_cap) {
                 cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
                 cg->enum_names = xrealloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
                 cg->enum_is_string = xrealloc(cg->enum_is_string, sizeof(bool) * cg->enum_cap);
+                cg->enum_is_tagged = xrealloc(cg->enum_is_tagged, sizeof(bool) * cg->enum_cap);
+                cg->enum_decls = xrealloc(cg->enum_decls, sizeof(AstNode *) * cg->enum_cap);
             }
             cg->enum_names[cg->enum_count] = stmt->data.enum_decl.name;
             cg->enum_is_string[cg->enum_count] = is_string_enum;
+            cg->enum_is_tagged[cg->enum_count] = is_tagged;
+            cg->enum_decls[cg->enum_count] = stmt;
             cg->enum_count++;
 
             if (is_string_enum) {
@@ -8743,6 +8897,47 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                         str_val, (int)strlen(str_val));
                 }
                 emit(cg, "\n");
+            } else if (is_tagged) {
+                const char *ename = stmt->data.enum_decl.name;
+                /* Tag enum */
+                emitf(cg, "typedef enum {\n");
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    emitf(cg, "    EzEnum_%s_TAG_%s = %d,\n", ename, stmt->data.enum_decl.values[j].name, j);
+                }
+                emitf(cg, "} EzEnum_%s_Tag;\n\n", ename);
+
+                /* Payload structs (only for variants with payloads) */
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    EnumVal *ev = &stmt->data.enum_decl.values[j];
+                    if (ev->payload_count > 0) {
+                        emitf(cg, "typedef struct {");
+                        for (int k = 0; k < ev->payload_count; k++) {
+                            if (k > 0) emit(cg, "");
+                            emitf(cg, " %s _%d;", ez_type_to_c_cg(cg, ev->payload_types[k]), k);
+                        }
+                        emitf(cg, " } EzEnum_%s_Data_%s;\n", ename, ev->name);
+                    }
+                }
+
+                /* Tagged union struct */
+                emitf(cg, "typedef struct {\n");
+                emitf(cg, "    EzEnum_%s_Tag tag;\n", ename);
+                /* Only emit union if any variant has a payload */
+                bool has_any_payload = false;
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    if (stmt->data.enum_decl.values[j].payload_count > 0) { has_any_payload = true; break; }
+                }
+                if (has_any_payload) {
+                    emitf(cg, "    union {\n");
+                    for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                        EnumVal *ev = &stmt->data.enum_decl.values[j];
+                        if (ev->payload_count > 0) {
+                            emitf(cg, "        EzEnum_%s_Data_%s %s;\n", ename, ev->name, ev->name);
+                        }
+                    }
+                    emitf(cg, "    } data;\n");
+                }
+                emitf(cg, "} EzEnum_%s;\n\n", ename);
             } else {
                 bool is_flags = stmt->data.enum_decl.is_flags;
                 emitf(cg, "typedef enum {\n");
