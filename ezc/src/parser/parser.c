@@ -2153,6 +2153,17 @@ static AstNode *parse_struct_declaration(Parser *p) {
                     sizeof(StructField) * node->data.struct_decl.field_count);
                 node->data.struct_decl.fields = new_f;
             }
+            /* Reject reserved keywords as struct field names */
+            if (is_keyword_token(p->cur_token.type)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a reserved keyword and cannot be used as a struct field name",
+                    p->cur_token.literal);
+                diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, msg),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                synchronize(p);
+                break;
+            }
             StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
             field->name = p->cur_token.literal;
             field->type_name = NULL;

@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2002 - reserved keyword as struct field name
+ * Expected: "'return' is a reserved keyword" error
+ */
+
+const Bad struct {
+    return int
+}
+
+do main() {
+    mut b = Bad{return: 1}
+    println("${b.return}")
+}

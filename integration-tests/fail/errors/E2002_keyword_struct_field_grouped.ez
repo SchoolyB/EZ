@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - reserved keyword in grouped struct field names
+ * Expected: "'for' is a reserved keyword" error
+ */
+
+const Bad struct {
+    x, for int
+}
+
+do main() {
+    println("nope")
+}
