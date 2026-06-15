@@ -2197,17 +2197,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
-        /* E3049: arithmetic on enum values */
-        if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-            strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
-            bool left_is_enum = node->data.infix.left->kind == NODE_MEMBER_EXPR &&
-                node->data.infix.left->data.member.object->kind == NODE_LABEL &&
-                is_enum_name(tc, node->data.infix.left->data.member.object->data.label.value);
-            bool right_is_enum = node->data.infix.right->kind == NODE_MEMBER_EXPR &&
-                node->data.infix.right->data.member.object->kind == NODE_LABEL &&
-                is_enum_name(tc, node->data.infix.right->data.member.object->data.label.value);
+        /* E3049: arithmetic and ordering on enum values — catch both
+         * direct enum literals (Color.RED + 1) and variables of enum
+         * type (c + 1).  Enums only support == and != comparison. */
+        if (!infix_errored &&
+            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0 ||
+             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
+             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0)) {
+            bool left_is_enum = (left && left->kind == TK_ENUM);
+            bool right_is_enum = (right && right->kind == TK_ENUM);
             if (left_is_enum || right_is_enum) {
                 diag_error_codef(tc->diag, "E3049", NODE_FILE(tc, node), node->token.line, node->token.column, 0, op);
+                infix_errored = true;
             }
         }
 

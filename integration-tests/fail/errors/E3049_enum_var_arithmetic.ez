@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3049 - arithmetic on enum variable
+ * Expected: "cannot use '+' on enum values" error
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut c Color = Color.RED
+    mut x int = c + 1
+}
