@@ -7505,6 +7505,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                         arr->data.array_value.elements[ei]->token.column, 0, expected_et->name, actual_et->name);
                                 }
                             }
+                            /* E3053: cross-enum mismatch — both are TK_ENUM but
+                             * from different enum types (e.g. Color vs Dir).
+                             * The kind-level check above passes since both are
+                             * TK_ENUM, so we need a name-level comparison. */
+                            if (actual_et && expected_et &&
+                                actual_et->kind == TK_ENUM && expected_et->kind == TK_ENUM &&
+                                actual_et->name && expected_et->name &&
+                                strcmp(actual_et->name, expected_et->name) != 0) {
+                                diag_error_codef(tc->diag, "E3053", NODE_FILE(tc, arr->data.array_value.elements[ei]),
+                                    arr->data.array_value.elements[ei]->token.line,
+                                    arr->data.array_value.elements[ei]->token.column, 0, expected_et->name, actual_et->name);
+                            }
                         }
                     }
                     /* W3003/E3052: fixed-size array initialization count checks */
