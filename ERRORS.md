@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 328 codes** (223 errors, 16 warnings, 89 panics)
+**Total: 329 codes** (223 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -248,6 +248,7 @@
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
 | `W2003` | safety | unreachable code; this statement will never execute because it comes after a return |
 | `W2007` | safety | this variable shadows a global constant or variable |
+| `W2008` | safety | parameter shadows an enum variant name |
 | `W2011` | safety | named return value is declared in the signature but no matching variable exists in the function body |
 | `W2012` | safety | when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon |
 | `W2013` | imports | duplicate import of already-imported module |
@@ -379,4 +380,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-15 18:53:35 UTC*
+*Generated on 2026-06-16 05:39:42 UTC*

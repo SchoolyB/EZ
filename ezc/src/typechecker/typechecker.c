@@ -9023,6 +9023,25 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     break;
                 }
             }
+            /* W2008: parameter shadows an enum variant name */
+            for (int ei = 0; ei < tc->enum_count; ei++) {
+                bool found_variant = false;
+                for (int vi = 0; vi < tc->enum_value_counts[ei]; vi++) {
+                    if (strcmp(tc->enum_values[ei][vi], p->name) == 0) {
+                        const char *display = tc->enum_display_names[ei]
+                            ? tc->enum_display_names[ei] : tc->enum_names[ei];
+                        char msg[EZ_MSG_BUF_SIZE];
+                        snprintf(msg, sizeof(msg),
+                            "parameter '%s' shadows enum variant '%s.%s'",
+                            p->name, display, p->name);
+                        diag_warning(tc->diag, "W2008", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                        found_variant = true;
+                        break;
+                    }
+                }
+                if (found_variant) break;
+            }
             /* E2039: required param after param with default value */
             if (i > 0 && !p->default_value) {
                 bool prev_has_default = false;

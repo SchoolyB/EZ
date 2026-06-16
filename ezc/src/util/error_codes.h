@@ -374,6 +374,7 @@
     EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope") \
     EZ_WARNING("W2003", "safety", "unreachable code; this statement will never execute because it comes after a return") \
     EZ_WARNING("W2007", "safety", "this variable shadows a global constant or variable") \
+    EZ_WARNING("W2008", "safety", "parameter shadows an enum variant name") \
     EZ_WARNING("W2011", "safety", "named return value is declared in the signature but no matching variable exists in the function body") \
     EZ_WARNING("W2012", "safety", "when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon") \
     EZ_WARNING("W2013", "imports", "duplicate import of already-imported module") \
