@@ -3967,6 +3967,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             user_module_dispatch:
             if (is_struct_name(tc, mod)) {
                 /* Struct-namespaced function call: Type.func(); look up return type */
+                const char *display_mod = struct_display_name(tc, mod);
                 char prefixed[EZ_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
                 FuncSig *sig = find_func(tc, prefixed);
@@ -3975,14 +3976,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Resolve named arguments for struct static calls */
                     if (sig->decl) {
                         char display[EZ_MSG_BUF_SIZE];
-                        snprintf(display, sizeof(display), "%s.%s", mod, mfn);
+                        snprintf(display, sizeof(display), "%s.%s", display_mod, mfn);
                         tc_resolve_named_args(tc, node, sig->decl, display);
                     }
                     /* E4017: private struct function called from outside the struct */
                     if (sig->is_private &&
                         !(tc->current_struct_name && strcmp(tc->current_struct_name, mod) == 0)) {
                         diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
-                            node->token.line, node->token.column, 0, mod, mfn);
+                            node->token.line, node->token.column, 0, display_mod, mfn);
                     }
                     /* Wildcard (generic) struct function: record instantiation
                      * and substitute the concrete return type. */
@@ -4029,11 +4030,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             if (min_params == sig->param_count) {
                                 snprintf(msg, sizeof(msg),
                                     "function '%s.%s' expects %d argument(s), got %d",
-                                    mod, mfn, sig->param_count, node->data.call.arg_count);
+                                    display_mod, mfn, sig->param_count, node->data.call.arg_count);
                             } else {
                                 snprintf(msg, sizeof(msg),
                                     "function '%s.%s' expects %d-%d argument(s), got %d",
-                                    mod, mfn, min_params, sig->param_count, node->data.call.arg_count);
+                                    display_mod, mfn, min_params, sig->param_count, node->data.call.arg_count);
                             }
                             diag_error_msg(tc->diag, "E5008", strdup(msg),
                                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -4060,7 +4061,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected %s, got %s",
-                                ai + 1, mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                ai + 1, display_mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -4072,7 +4073,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
-                                ai + 1, mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                ai + 1, display_mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -4084,7 +4085,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
-                                ai + 1, mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                ai + 1, display_mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -4096,7 +4097,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected '%s', got '%s'",
-                                ai + 1, mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                ai + 1, display_mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -4131,7 +4132,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char emsg[EZ_MSG_BUF_SIZE];
                                         snprintf(emsg, sizeof(emsg),
                                             "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
-                                            arg_sym->name, found_decl->data.func_decl.params[ai].name, mod, mfn);
+                                            arg_sym->name, found_decl->data.func_decl.params[ai].name, display_mod, mfn);
                                         diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                             NODE_FILE(tc, arg), arg->token.line,
                                             arg->token.column, 0);
@@ -4142,7 +4143,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     char emsg[EZ_MSG_BUF_SIZE];
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                        found_decl->data.func_decl.params[ai].name, mod, mfn);
+                                        found_decl->data.func_decl.params[ai].name, display_mod, mfn);
                                     diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                         NODE_FILE(tc, arg), arg->token.line,
                                         arg->token.column, 0);
@@ -4152,7 +4153,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     char emsg[EZ_MSG_BUF_SIZE];
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                        found_decl->data.func_decl.params[ai].name, mod, mfn);
+                                        found_decl->data.func_decl.params[ai].name, display_mod, mfn);
                                     diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                         NODE_FILE(tc, arg), arg->token.line,
                                         arg->token.column, 0);
@@ -4163,7 +4164,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     /* E4018: struct has no function with this name */
                     diag_error_codef(tc->diag, "E4018", NODE_FILE(tc, node),
-                        node->token.line, node->token.column, 0, mod, mfn);
+                        node->token.line, node->token.column, 0, display_mod, mfn);
                     result = &TYPE_VOID;
                 }
             } else {
@@ -4194,6 +4195,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         sym->type->kind == TK_POINTER)) {
                         const char *sname = sym->type->kind == TK_POINTER
                             ? sym->type->element_type : sym->type->name;
+                        const char *display_sname = struct_display_name(tc, sname);
                         /* : check if `mfn` is a data field of type func
                          * before trying struct-function dispatch. A func-typed
                          * field should be called as a function pointer, not
@@ -4246,7 +4248,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             if (ssig->is_private &&
                                 !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
                                 diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
-                                    node->token.line, node->token.column, 0, sname, mfn);
+                                    node->token.line, node->token.column, 0, display_sname, mfn);
                             }
                             /* Resolve named arguments before AST rewrite.
                              * User-visible params start at index 1 (after self),
@@ -4266,7 +4268,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     tmp_decl.data.func_decl.param_count = 0;
                                 }
                                 char display[EZ_MSG_BUF_SIZE];
-                                snprintf(display, sizeof(display), "%s.%s", sname, mfn);
+                                snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
                                 tc_resolve_named_args(tc, node, &tmp_decl, display);
                             }
                             /* Rewrite the call AST: change the member-expr
@@ -4337,11 +4339,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     if (display_min == display_max) {
                                         snprintf(emsg, sizeof(emsg),
                                             "function '%s.%s' expects %d argument(s), got %d",
-                                            sname, mfn, display_max, display_got);
+                                            display_sname, mfn, display_max, display_got);
                                     } else {
                                         snprintf(emsg, sizeof(emsg),
                                             "function '%s.%s' expects %d-%d argument(s), got %d",
-                                            sname, mfn, display_min, display_max, display_got);
+                                            display_sname, mfn, display_min, display_max, display_got);
                                     }
                                     diag_error_msg(tc->diag, "E5008", strdup(emsg),
                                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -4370,7 +4372,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char amsg[EZ_MSG_BUF_SIZE];
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
-                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                            ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(amsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
@@ -4384,7 +4386,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char smsg[EZ_MSG_BUF_SIZE];
                                         snprintf(smsg, sizeof(smsg),
                                             "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
-                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                            ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(smsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
@@ -4398,7 +4400,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char pmsg[EZ_MSG_BUF_SIZE];
                                         snprintf(pmsg, sizeof(pmsg),
                                             "argument %d of '%s.%s': expected '%s', got '%s'",
-                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                            ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(pmsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
@@ -4423,7 +4425,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             char emsg[EZ_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot call '%s.%s' on constant '%s'; function requires a mutable ('&') self parameter",
-                                                sname, mfn, self_sym->name);
+                                                display_sname, mfn, self_sym->name);
                                             diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                                 NODE_FILE(tc, node), node->token.line,
                                                 node->token.column, 0);
@@ -4438,7 +4440,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
                                                     arg_sym->name, ssig->decl->data.func_decl.params[ai].name,
-                                                    sname, mfn);
+                                                    display_sname, mfn);
                                                 diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                                     NODE_FILE(tc, arg), arg->token.line,
                                                     arg->token.column, 0);
@@ -4449,7 +4451,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             char emsg[EZ_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                                ssig->decl->data.func_decl.params[ai].name, sname, mfn);
+                                                ssig->decl->data.func_decl.params[ai].name, display_sname, mfn);
                                             diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                                 NODE_FILE(tc, arg), arg->token.line,
                                                 arg->token.column, 0);
@@ -4459,7 +4461,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             char emsg[EZ_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                                ssig->decl->data.func_decl.params[ai].name, sname, mfn);
+                                                ssig->decl->data.func_decl.params[ai].name, display_sname, mfn);
                                             diag_error_msg(tc->diag, "E3027", strdup(emsg),
                                                 NODE_FILE(tc, arg), arg->token.line,
                                                 arg->token.column, 0);
@@ -4479,13 +4481,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             if (ssig->is_private &&
                                 !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
                                 diag_error_codef(tc->diag, "E4017", NODE_FILE(tc, node),
-                                    node->token.line, node->token.column, 0, sname, mfn);
+                                    node->token.line, node->token.column, 0, display_sname, mfn);
                             }
                             /* Resolve named arguments if present */
                             if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
                                 tc_has_named_args(node)) {
                                 char display[EZ_MSG_BUF_SIZE];
-                                snprintf(display, sizeof(display), "%s.%s", sname, mfn);
+                                snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
                                 tc_resolve_named_args(tc, node, ssig->decl, display);
                             }
                             fn->data.member.object->data.label.value = strdup(sname);
@@ -4508,11 +4510,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     if (min_params == ssig->param_count) {
                                         snprintf(emsg, sizeof(emsg),
                                             "function '%s.%s' expects %d argument(s), got %d",
-                                            sname, mfn, ssig->param_count, node->data.call.arg_count);
+                                            display_sname, mfn, ssig->param_count, node->data.call.arg_count);
                                     } else {
                                         snprintf(emsg, sizeof(emsg),
                                             "function '%s.%s' expects %d-%d argument(s), got %d",
-                                            sname, mfn, min_params, ssig->param_count, node->data.call.arg_count);
+                                            display_sname, mfn, min_params, ssig->param_count, node->data.call.arg_count);
                                     }
                                     diag_error_msg(tc->diag, "E5008", strdup(emsg),
                                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -4536,7 +4538,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char amsg[EZ_MSG_BUF_SIZE];
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
-                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
+                                            ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(amsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
@@ -8629,7 +8631,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                     if (obj_name && mem_name && !is_side_effect) {
                         char full[EZ_MSG_BUF_SIZE];
-                        snprintf(full, sizeof(full), "%s.%s()", obj_name, mem_name);
+                        const char *display_obj = struct_display_name(tc, obj_name);
+                        snprintf(full, sizeof(full), "%s.%s()", display_obj, mem_name);
                         diag_error_codef(tc->diag, "E5011",
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                             full);
