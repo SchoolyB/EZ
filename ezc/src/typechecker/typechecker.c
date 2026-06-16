@@ -7662,11 +7662,22 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     !(is_int_kind(expected_k->kind) && is_int_kind(kt->kind)) &&
                                     !(is_int_kind(expected_k->kind) && kt->kind == TK_ENUM) &&
                                     !(expected_k->kind == TK_ENUM && is_int_kind(kt->kind)) &&
-                                    !(expected_k->kind == TK_ENUM && kt->kind == TK_ENUM) &&
                                     !(expected_k->kind == TK_FLOAT && is_int_kind(kt->kind))) {
                                     char msg[EZ_MSG_BUF_SIZE];
                                     snprintf(msg, sizeof(msg),
                                         "type mismatch in map literal key; expected '%s', got '%s'",
+                                        type_display_name(tc, expected_k), type_display_name(tc, kt));
+                                    diag_error_msg(tc->diag, "E3053", strdup(msg),
+                                        NODE_FILE(tc, kn), kn->token.line, kn->token.column, 0);
+                                }
+                                /* Enum-to-enum: key types both TK_ENUM but different names */
+                                if (expected_k && kt &&
+                                    expected_k->kind == TK_ENUM && kt->kind == TK_ENUM &&
+                                    expected_k->name && kt->name &&
+                                    !tc_same_enum_type(tc, expected_k->name, kt->name)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in map literal key; expected enum '%s', got enum '%s'",
                                         type_display_name(tc, expected_k), type_display_name(tc, kt));
                                     diag_error_msg(tc->diag, "E3053", strdup(msg),
                                         NODE_FILE(tc, kn), kn->token.line, kn->token.column, 0);
@@ -7677,12 +7688,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     !(is_int_kind(expected_v->kind) && is_int_kind(vt->kind)) &&
                                     !(is_int_kind(expected_v->kind) && vt->kind == TK_ENUM) &&
                                     !(expected_v->kind == TK_ENUM && is_int_kind(vt->kind)) &&
-                                    !(expected_v->kind == TK_ENUM && vt->kind == TK_ENUM) &&
                                     !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER) &&
                                     !(expected_v->kind == TK_FLOAT && is_int_kind(vt->kind))) {
                                     char msg[EZ_MSG_BUF_SIZE];
                                     snprintf(msg, sizeof(msg),
                                         "type mismatch in map literal value; expected '%s', got '%s'",
+                                        type_display_name(tc, expected_v), type_display_name(tc, vt));
+                                    diag_error_msg(tc->diag, "E3053", strdup(msg),
+                                        NODE_FILE(tc, vn), vn->token.line, vn->token.column, 0);
+                                }
+                                /* Enum-to-enum: value types both TK_ENUM but different names */
+                                if (expected_v && vt &&
+                                    expected_v->kind == TK_ENUM && vt->kind == TK_ENUM &&
+                                    expected_v->name && vt->name &&
+                                    !tc_same_enum_type(tc, expected_v->name, vt->name)) {
+                                    char msg[EZ_MSG_BUF_SIZE];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in map literal value; expected enum '%s', got enum '%s'",
                                         type_display_name(tc, expected_v), type_display_name(tc, vt));
                                     diag_error_msg(tc->diag, "E3053", strdup(msg),
                                         NODE_FILE(tc, vn), vn->token.line, vn->token.column, 0);
