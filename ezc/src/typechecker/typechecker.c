@@ -225,6 +225,16 @@ static const char *enum_display_name(TypeChecker *tc, const char *name) {
     return name;
 }
 
+/* Compare two type names by their user-facing display names, so that
+ * module-prefixed internal names (e.g. lib_Foo vs objects_Foo) match
+ * when they refer to the same user-defined type. */
+static bool tc_same_struct_type(TypeChecker *tc, const char *a, const char *b) {
+    return strcmp(struct_display_name(tc, a), struct_display_name(tc, b)) == 0;
+}
+static bool tc_same_enum_type(TypeChecker *tc, const char *a, const char *b) {
+    return strcmp(enum_display_name(tc, a), enum_display_name(tc, b)) == 0;
+}
+
 /* Returns true if the named enum is string-backed. */
 static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
     if (!name) return false;
@@ -4033,7 +4043,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Enum-to-enum: kinds both TK_ENUM but different names */
                         if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
                             arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
+                            !tc_same_enum_type(tc, arg_t->name, param_t->name)) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
@@ -4045,7 +4055,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Struct-to-struct: kinds both TK_STRUCT but different names */
                         if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                             arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
+                            !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
@@ -4057,7 +4067,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Pointer-to-pointer: pointee types differ */
                         if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                             arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
+                            !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected '%s', got '%s'",
@@ -4345,7 +4355,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     if (arg_t && param_t &&
                                         arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                                         arg_t->name && param_t->name &&
-                                        strcmp(arg_t->name, param_t->name) != 0) {
+                                        !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
                                         char smsg[EZ_MSG_BUF_SIZE];
                                         snprintf(smsg, sizeof(smsg),
                                             "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
@@ -4359,7 +4369,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     if (arg_t && param_t &&
                                         arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                                         arg_t->name && param_t->name &&
-                                        strcmp(arg_t->name, param_t->name) != 0) {
+                                        !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
                                         char pmsg[EZ_MSG_BUF_SIZE];
                                         snprintf(pmsg, sizeof(pmsg),
                                             "argument %d of '%s.%s': expected '%s', got '%s'",
@@ -5263,7 +5273,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Enum-to-enum: kinds both TK_ENUM but different names */
                         if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
                             arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
+                            !tc_same_enum_type(tc, arg_t->name, param_t->name)) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected enum '%s', got enum '%s'",
@@ -5275,7 +5285,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Struct-to-struct: kinds both TK_STRUCT but different names */
                         if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                             arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
+                            !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected struct '%s', got struct '%s'",
@@ -5287,7 +5297,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Pointer-to-pointer: pointee types differ (e.g., addr(Color) to ^Point) */
                         if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                             arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
+                            !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected '%s', got '%s'",
