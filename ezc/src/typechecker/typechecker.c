@@ -9768,6 +9768,17 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
     if (is_struct_name(tc, type_name)) return;
     if (struct_name_declared(program, type_name)) return;
 
+    /* Stdlib opaque struct types are registered after user structs; accept
+     * them here so struct fields can reference them without false E4016. */
+    static const char *stdlib_struct_types[] = {
+        "Thread", "Mutex", "SpinLock", "Channel", "Socket", "Listener",
+        "Database", "Router", "HttpRequest", "HttpResponse", "UUID",
+        "Arena", "SourceLocation", NULL
+    };
+    for (int si = 0; stdlib_struct_types[si]; si++) {
+        if (strcmp(type_name, stdlib_struct_types[si]) == 0) return;
+    }
+
     char msg[EZ_MSG_BUF_SIZE];
     snprintf(msg, sizeof(msg),
         "field '%s' references undefined type '%s'",
