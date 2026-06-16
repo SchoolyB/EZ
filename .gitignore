@@ -99,3 +99,7 @@ context/
 /internal/ezc/runtime/src/
 *.md
 .claude/
+
+
+# Ignore local EZ playground env
+/playground
