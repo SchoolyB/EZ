@@ -2094,6 +2094,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
             p->file, p->cur_token.line, p->cur_token.column, 0);
     }
 
+    int prev_field_line = -1;
     int field_cap = 8;
     int func_cap = 4;
     node->data.struct_decl.field_count = 0;
@@ -2194,6 +2195,14 @@ static AstNode *parse_struct_declaration(Parser *p) {
             }
             continue;
         }
+
+        /* E2002: multiple fields on the same line */
+        if (prev_field_line >= 0 && p->cur_token.line == prev_field_line) {
+            diag_error_msg(p->diag, "E2002",
+                strdup("struct fields must be on separate lines"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
+        prev_field_line = p->cur_token.line;
 
         /* Collect one or more comma-separated field names, then read the
          * shared type and backfill (mirrors the parameter grouping logic).
@@ -2315,6 +2324,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             p->file, p->cur_token.line, p->cur_token.column, 0);
     }
 
+    int prev_variant_line = -1;
     int val_cap = 8;
     node->data.enum_decl.value_count = 0;
     node->data.enum_decl.values = arena_alloc(p->arena, sizeof(EnumVal) * val_cap);
@@ -2403,6 +2413,14 @@ static AstNode *parse_enum_declaration(Parser *p) {
             synchronize(p);
             continue;
         }
+
+        /* E2002: multiple variants on the same line */
+        if (prev_variant_line >= 0 && p->cur_token.line == prev_variant_line) {
+            diag_error_msg(p->diag, "E2002",
+                strdup("enum variants must be on separate lines"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
+        prev_variant_line = p->cur_token.line;
 
         EnumVal *ev = &node->data.enum_decl.values[node->data.enum_decl.value_count];
         ev->name = p->cur_token.literal;
