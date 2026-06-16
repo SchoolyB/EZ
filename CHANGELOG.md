@@ -1,5 +1,63 @@
 # Changelog
 
+## [3.6.0](https://github.com/SchoolyB/EZ/compare/v3.5.15...v3.6.0) (2026-06-16)
+
+
+### Features
+
+* **arrays:** add map, filter, reduce higher-order functions ([#1795](https://github.com/SchoolyB/EZ/issues/1795)) ([706ba17](https://github.com/SchoolyB/EZ/commit/706ba174711a23da05af9b7e8102caba21b61be9))
+* **compiler:** add tagged union enums with pattern destructuring ([#1709](https://github.com/SchoolyB/EZ/issues/1709)) ([2af9502](https://github.com/SchoolyB/EZ/commit/2af9502783e28815ed91edbd54b4af575359973b))
+* **fmt:** add printfln, eprintf, eprintfln, sprintfln functions ([#1838](https://github.com/SchoolyB/EZ/issues/1838)) ([ac94620](https://github.com/SchoolyB/EZ/commit/ac9462050f5110c84a84c4832bf6d5d76572974c))
+* implicit enum selector .VARIANT syntax ([#1850](https://github.com/SchoolyB/EZ/issues/1850)) ([61fd916](https://github.com/SchoolyB/EZ/commit/61fd916dcfb0ad76dc1e88aad14292f9ae2671ad))
+* named function arguments ([639dd40](https://github.com/SchoolyB/EZ/commit/639dd40722fd01c6f1fbbaebaa478ada5fc1379b))
+* **parser,typechecker:** support named function arguments ([#1840](https://github.com/SchoolyB/EZ/issues/1840)) ([52171e1](https://github.com/SchoolyB/EZ/commit/52171e1a904c0df6afd33bf7fc73e6ac7c598927))
+* **stdlib:** add `map`, `filter`, `reduce` functions to arrays stdlib module ([3ee4f3c](https://github.com/SchoolyB/EZ/commit/3ee4f3cb4dbbc31de2550989305a3de5d2a9153a))
+* **stdlib:** add `printfln`, `eprintf`, `eprintfln`, `sprintfln` to `fmt` stdlib module ([9b2e27a](https://github.com/SchoolyB/EZ/commit/9b2e27af406f8c75945de946a784f6fdebdaaffc))
+* struct default values ([b444ee9](https://github.com/SchoolyB/EZ/commit/b444ee91670779c0d779ab4eda0a19c52b579905))
+* **structs:** add default field values for struct declarations ([#1794](https://github.com/SchoolyB/EZ/issues/1794)) ([ad26dd2](https://github.com/SchoolyB/EZ/commit/ad26dd2afe9622bad3bec9e33e8d6db5f5e953f6))
+* tagged union enums with pattern destructuring ([7f66e96](https://github.com/SchoolyB/EZ/commit/7f66e96f1e2b3694c6c73739e4232bbb2e752c61))
+* **typechecker:** add implicit enum selector .VARIANT syntax ([#1850](https://github.com/SchoolyB/EZ/issues/1850)) ([f154522](https://github.com/SchoolyB/EZ/commit/f1545224898d1786f4d508742cf411339f896fdf))
+* **uuid:** add UUID struct type to uuid module ([5b92b93](https://github.com/SchoolyB/EZ/commit/5b92b9318af3ba9a3726be3c4faee3af7160ed2f))
+* **uuid:** add UUID struct type to uuid module ([#1870](https://github.com/SchoolyB/EZ/issues/1870)) ([5f0b2a7](https://github.com/SchoolyB/EZ/commit/5f0b2a79cce0003417cb1ebec6f9599fbfe9b81e))
+
+
+### Bug Fixes
+
+* **codegen:** handle default params and mutable refs in cross-module using calls ([#1872](https://github.com/SchoolyB/EZ/issues/1872)) ([c6ce374](https://github.com/SchoolyB/EZ/commit/c6ce374eda13b2d045f78aeb8f9700bb85829ad1))
+* **codegen:** prefix default-value bindings to prevent variable shadowing ([#1840](https://github.com/SchoolyB/EZ/issues/1840)) ([bf0e393](https://github.com/SchoolyB/EZ/commit/bf0e393bd33e45bae229abfb653d677687c1b2c1))
+* **codegen:** strip module prefixes from struct/enum names in println output ([9b0bcf4](https://github.com/SchoolyB/EZ/commit/9b0bcf4ec45cf1911ca478711ce62396120bbd49))
+* **codegen:** use bare param names in default-value statement expressions ([a076141](https://github.com/SchoolyB/EZ/commit/a076141fdee3e99d20684507ed0cbc4d7a75418f))
+* **parser:** also reject reserved type names as struct field names ([#1859](https://github.com/SchoolyB/EZ/issues/1859)) ([62ca179](https://github.com/SchoolyB/EZ/commit/62ca179e3d5afe6b4acd37130be75e3fdce493ba))
+* **parser:** enforce separate lines for all struct fields and enum variants ([#1867](https://github.com/SchoolyB/EZ/issues/1867)) ([f50b5c3](https://github.com/SchoolyB/EZ/commit/f50b5c3ae1e6ed2c6c4fee3b4e9a10aadad4777e))
+* **parser:** reject reserved keywords as struct field names ([#1859](https://github.com/SchoolyB/EZ/issues/1859)) ([db595c5](https://github.com/SchoolyB/EZ/commit/db595c57f1b6af856355c2ede54592c828d92737))
+* **parser:** restrict 'for x in' to range() and add for_each shadowing warning ([d3b4384](https://github.com/SchoolyB/EZ/commit/d3b4384d1ea71329e79b09288fb05eef36b6733c))
+* **stdlib:** remove function name aliases csv.decode, csv.format, json.format ([189b7f1](https://github.com/SchoolyB/EZ/commit/189b7f1e261a9b377ceb23309c14f13f742973ec))
+* **tests:** remove stale E3042 unit and integration tests ([a076141](https://github.com/SchoolyB/EZ/commit/a076141fdee3e99d20684507ed0cbc4d7a75418f))
+* **tests:** remove stale E3042 unit test ([28bc4a0](https://github.com/SchoolyB/EZ/commit/28bc4a024be6509b956c86ca35a145d45c9f84f9))
+* **tests:** update tests using reserved builtin/stdlib/type names ([7987209](https://github.com/SchoolyB/EZ/commit/798720984a444c504b3a4a5b963aeb67bb1d90bd))
+* **typechecker:** accept stdlib struct types in struct field declarations ([#1870](https://github.com/SchoolyB/EZ/issues/1870)) ([5ede4d1](https://github.com/SchoolyB/EZ/commit/5ede4d150f3583d0fa12dec2f6e3f34ada4eab2d))
+* **typechecker:** account for default params in cross-module function calls ([#1872](https://github.com/SchoolyB/EZ/issues/1872)) ([cc7c6cd](https://github.com/SchoolyB/EZ/commit/cc7c6cdbfea7fd612f8198fb68af1afc35723020))
+* **typechecker:** add missing arg type validation for strings stdlib functions ([#1875](https://github.com/SchoolyB/EZ/issues/1875)) ([308108a](https://github.com/SchoolyB/EZ/commit/308108ab1d163ee8e45da838af344adbced177bf))
+* **typechecker:** allow instance dispatch for all struct functions ([#1848](https://github.com/SchoolyB/EZ/issues/1848)) ([367ef74](https://github.com/SchoolyB/EZ/commit/367ef744231f1f5ca6436466688e3ec450f43b59))
+* **typechecker:** block builtin and stdlib names from all identifier positions ([#1859](https://github.com/SchoolyB/EZ/issues/1859)) ([3fbb037](https://github.com/SchoolyB/EZ/commit/3fbb037c8d3454e558b4a1d8efb84bfeedd80bf0))
+* **typechecker:** compare display names for cross-module struct/enum type matching ([#1873](https://github.com/SchoolyB/EZ/issues/1873)) ([3165652](https://github.com/SchoolyB/EZ/commit/3165652112166b20abac2602b9788fd0a3434ab3))
+* **typechecker:** prevent transitive import type leaking ([bc37dd9](https://github.com/SchoolyB/EZ/commit/bc37dd96291701167dcf788fa4c68d91011c670e))
+* **typechecker:** reject arithmetic and ordering on enum variables ([#1858](https://github.com/SchoolyB/EZ/issues/1858)) ([0cb5d15](https://github.com/SchoolyB/EZ/commit/0cb5d15bd49ba61ca724c673c8282b03a69b7048))
+* **typechecker:** reject comparison of different enum types ([#1865](https://github.com/SchoolyB/EZ/issues/1865)) ([f64aa67](https://github.com/SchoolyB/EZ/commit/f64aa6799f3e65f4c3b7d9131284489d840ffec9))
+* **typechecker:** reject enum constants passed to mutable parameters ([#1844](https://github.com/SchoolyB/EZ/issues/1844)) ([0e7f608](https://github.com/SchoolyB/EZ/commit/0e7f608c070f9fe7d9ee98cb905a397b6f26451b))
+* **typechecker:** reject mixed enum types in array literals ([#1862](https://github.com/SchoolyB/EZ/issues/1862)) ([0838368](https://github.com/SchoolyB/EZ/commit/0838368bce6d6c62c10f528269a3198bac370583))
+* **typechecker:** reject multi-return destructuring with too few variables ([#1860](https://github.com/SchoolyB/EZ/issues/1860)) ([afbad4c](https://github.com/SchoolyB/EZ/commit/afbad4c32abfeff4bf621a7ef545b883deecf341))
+* **typechecker:** reject return of wrong enum type ([#1864](https://github.com/SchoolyB/EZ/issues/1864)) ([3f5fb02](https://github.com/SchoolyB/EZ/commit/3f5fb0205af099354f66954e4c8402cfbb4f3dc2))
+* **typechecker:** reject string() on array, map, struct, pointer with E3043 ([#1853](https://github.com/SchoolyB/EZ/issues/1853), [#1854](https://github.com/SchoolyB/EZ/issues/1854)) ([f4146fa](https://github.com/SchoolyB/EZ/commit/f4146faebe8387b2d58819498e11394bcd507427))
+* **typechecker:** reject string() on string values with E3043 ([#1852](https://github.com/SchoolyB/EZ/issues/1852)) ([f3d42ee](https://github.com/SchoolyB/EZ/commit/f3d42ee50e9be6267003e033528d922861d66938))
+* **typechecker:** reject wrong enum type in map literal keys and values ([#1863](https://github.com/SchoolyB/EZ/issues/1863)) ([1b6d845](https://github.com/SchoolyB/EZ/commit/1b6d8459cd0c55785e4a83348c239478f185fdb6))
+* **typechecker:** skip early resolve for implicit enum args, propagate array-of-enum expected_type ([#1850](https://github.com/SchoolyB/EZ/issues/1850)) ([acc0857](https://github.com/SchoolyB/EZ/commit/acc08573c641fc2961cf27d979410642c28b93db))
+* **typechecker:** strip module prefix from struct name in all error messages ([#1866](https://github.com/SchoolyB/EZ/issues/1866)) ([25aff14](https://github.com/SchoolyB/EZ/commit/25aff1451688664729c5e46fd266f2dc2e6d4717))
+* **typechecker:** strip module prefixes from user-facing error messages ([cfeffde](https://github.com/SchoolyB/EZ/commit/cfeffde793b6ea0935ac0e0f52b5e6c54854d716))
+* **typechecker:** use type_display_name in struct function arg errors ([#1866](https://github.com/SchoolyB/EZ/issues/1866)) ([8c4af9a](https://github.com/SchoolyB/EZ/commit/8c4af9ad2649845ddeae699e2a3f64bfa625881d))
+* **typechecker:** validate mutable params in instance dispatch path ([#1845](https://github.com/SchoolyB/EZ/issues/1845)) ([fb98a9c](https://github.com/SchoolyB/EZ/commit/fb98a9ca6a24a4a76c40b73872eeb3c600941701))
+* **typechecker:** warn when function parameter shadows enum variant ([#1861](https://github.com/SchoolyB/EZ/issues/1861)) ([26f8e1d](https://github.com/SchoolyB/EZ/commit/26f8e1d19913e856ce259d372d9db306f0d25d52))
+
 ## [3.5.15](https://github.com/SchoolyB/EZ/compare/v3.5.14...v3.5.15) (2026-06-13)
 
 
