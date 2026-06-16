@@ -4060,7 +4060,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected %s, got %s",
-                                ai + 1, mod, mfn, type_name(param_t), type_name(arg_t));
+                                ai + 1, mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -4096,7 +4096,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char msg[EZ_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s.%s': expected '%s', got '%s'",
-                                ai + 1, mod, mfn, type_name(param_t), type_name(arg_t));
+                                ai + 1, mod, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                             diag_error_msg(tc->diag, "E3001", strdup(msg),
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
@@ -4370,7 +4370,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char amsg[EZ_MSG_BUF_SIZE];
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
-                                            ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
+                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(amsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
@@ -4398,7 +4398,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char pmsg[EZ_MSG_BUF_SIZE];
                                         snprintf(pmsg, sizeof(pmsg),
                                             "argument %d of '%s.%s': expected '%s', got '%s'",
-                                            ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
+                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(pmsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
@@ -4536,7 +4536,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char amsg[EZ_MSG_BUF_SIZE];
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
-                                            ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
+                                            ai + 1, sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
                                         diag_error_msg(tc->diag, "E3001", strdup(amsg),
                                             NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
