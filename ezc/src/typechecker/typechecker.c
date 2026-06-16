@@ -8491,6 +8491,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_msg(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Enum-to-enum return name mismatch */
+            if (ret_t->kind == TK_ENUM && expected->kind == TK_ENUM &&
+                ret_t->name && expected->name &&
+                !tc_same_enum_type(tc, ret_t->name, expected->name)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "return type mismatch: expected enum '%s', got enum '%s'",
+                    type_display_name(tc, expected), type_display_name(tc, ret_t));
+                diag_error_msg(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
             /* E3066: func signature mismatch in return */
             if (ret_t->kind == TK_FUNCTION && expected->kind == TK_FUNCTION &&
                 ret_t->name && expected->name &&
