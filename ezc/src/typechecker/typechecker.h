@@ -124,8 +124,12 @@ typedef struct {
 
     /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
+    const char **using_module_files; /* parallel: source file each using came from (NULL = main) */
     int using_module_count;
     int using_module_cap;
+
+    /* File currently being validated — used to filter using_modules per-file */
+    const char *current_check_file;
 
     /* Import alias → module name mapping */
     const char **alias_names;

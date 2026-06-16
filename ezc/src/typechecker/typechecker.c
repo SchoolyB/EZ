@@ -22,6 +22,19 @@
  * Imported nodes carry their original file path in token.file; main-file nodes have NULL. */
 #define NODE_FILE(tc, n) ((n)->token.file ? (n)->token.file : (tc)->file)
 
+/* Check if using_modules[ui] is accessible from the current file being checked.
+ * A using-module entry is accessible only if it was declared in the same file
+ * that is currently being validated (prevents transitive import type leaking). */
+static inline bool using_module_accessible(TypeChecker *tc, int ui) {
+    const char *using_file = tc->using_module_files ? tc->using_module_files[ui] : NULL;
+    const char *check_file = tc->current_check_file;
+    /* Both NULL — both from main file context */
+    if (!using_file && !check_file) return true;
+    /* Both set — compare paths */
+    if (using_file && check_file && strcmp(using_file, check_file) == 0) return true;
+    return false;
+}
+
 /* Helper: get the user-facing display name for a declaration.
  * Import merging prefixes names (e.g. foo → mod_foo) but errors should
  * show the original name the user wrote. */
@@ -1517,6 +1530,7 @@ static const UsingConst _using_consts[] = {
 
 static bool tc_is_using_constant(TypeChecker *tc, const char *name) {
     for (int ui = 0; ui < tc->using_module_count; ui++) {
+        if (!using_module_accessible(tc, ui)) continue;
         const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
         for (int ci = 0; _using_consts[ci].name; ci++) {
             if (strcmp(name, _using_consts[ci].name) == 0 &&
@@ -1537,6 +1551,7 @@ static bool tc_is_using_constant(TypeChecker *tc, const char *name) {
 
 static EzType *tc_resolve_using_constant_type(TypeChecker *tc, const char *name) {
     for (int ui = 0; ui < tc->using_module_count; ui++) {
+        if (!using_module_accessible(tc, ui)) continue;
         const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
         for (int ci = 0; _using_consts[ci].name; ci++) {
             if (strcmp(name, _using_consts[ci].name) == 0 &&
@@ -1601,6 +1616,7 @@ static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
     if (name && name[0] >= 'A' && name[0] <= 'Z' &&
         !is_struct_name(tc, name) && !is_enum_name(tc, name)) {
         for (int ui = 0; ui < tc->using_module_count; ui++) {
+            if (!using_module_accessible(tc, ui)) continue;
             const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
             char prefixed[EZ_MSG_BUF_SIZE];
             snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
@@ -1936,6 +1952,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         /* Try using-module-prefixed name if not found */
         if (!sym) {
             for (int ui = 0; ui < tc->using_module_count; ui++) {
+                if (!using_module_accessible(tc, ui)) continue;
                 const char *umod = tc_resolve_alias(tc, tc->using_modules[ui]);
                 char prefixed[EZ_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", umod, name);
@@ -5073,6 +5090,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                      * also mark the prefixed sig + import as used so
                      * W1002/W1003 don't fire on the source. */
                     for (int ui = 0; ui < tc->using_module_count; ui++) {
+                        if (!using_module_accessible(tc, ui)) continue;
                         const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                         char pfx[EZ_MSG_BUF_SIZE];
                         snprintf(pfx, sizeof(pfx), "%s_%s", real_mod, fn_name);
@@ -5631,6 +5649,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             strcmp(fn_name, "min") == 0 || strcmp(fn_name, "max") == 0 ||
                             strcmp(fn_name, "clamp") == 0)) {
                             for (int ui = 0; ui < tc->using_module_count; ui++) {
+                                if (!using_module_accessible(tc, ui)) continue;
                                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                                 if (strcmp(real_mod, "math") == 0) {
                                     found_in_using = true;
@@ -5648,6 +5667,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         if (!found_in_using && (strcmp(fn_name, "choice") == 0 ||
                             strcmp(fn_name, "shuffle") == 0 || strcmp(fn_name, "sample") == 0)) {
                             for (int ui = 0; ui < tc->using_module_count; ui++) {
+                                if (!using_module_accessible(tc, ui)) continue;
                                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                                 if (strcmp(real_mod, "random") == 0) {
                                     found_in_using = true;
@@ -5668,6 +5688,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Maps functions whose return type depends on map key/value types */
                         if (!found_in_using && (strcmp(fn_name, "get_keys") == 0 || strcmp(fn_name, "get_values") == 0)) {
                             for (int ui = 0; ui < tc->using_module_count; ui++) {
+                                if (!using_module_accessible(tc, ui)) continue;
                                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                                 if (strcmp(real_mod, "maps") == 0) {
                                     found_in_using = true;
@@ -5685,6 +5706,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                         }
                         for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
+                            if (!using_module_accessible(tc, ui)) continue;
                             const char *umod = tc->using_modules[ui];
                             /* Resolve alias to actual module name */
                             const char *real_mod = tc_resolve_alias(tc, umod);
@@ -6524,6 +6546,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* Surface 3: using module; ()stdlib_func — check if ref_name is in an active using module */
             bool found_in_using = false;
             for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
+                if (!using_module_accessible(tc, ui)) continue;
                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                 if (tc_is_stdlib_module(real_mod)) {
                     for (int fi = 0; _using_funcs[fi].func; fi++) {
@@ -8653,6 +8676,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             expr->data.call.args[0]->kind == NODE_LABEL) {
             bool is_mem_using = false;
             for (int ui = 0; ui < tc->using_module_count; ui++) {
+                if (!using_module_accessible(tc, ui)) continue;
                 if (strcmp(tc->using_modules[ui], "mem") == 0) { is_mem_using = true; break; }
             }
             if (is_mem_using) {
@@ -9290,7 +9314,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
                 tc->using_modules = xrealloc(tc->using_modules,
                     sizeof(const char *) * (size_t)tc->using_module_cap);
+                tc->using_module_files = xrealloc(tc->using_module_files,
+                    sizeof(const char *) * (size_t)tc->using_module_cap);
             }
+            tc->using_module_files[tc->using_module_count] = node->token.file;
             tc->using_modules[tc->using_module_count++] = node->data.using_stmt.modules[j];
         }
         break;
@@ -9610,6 +9637,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             has_enum_case = true;
                         } else {
                             for (int ui = 0; ui < tc->using_module_count && !has_enum_case; ui++) {
+                                if (!using_module_accessible(tc, ui)) continue;
                                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                                 char prefixed[EZ_MSG_BUF_SIZE];
                                 snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
@@ -9999,6 +10027,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
     /* Pass 2b: Register structs and functions (enums already registered above) */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
+        tc->current_check_file = stmt->token.file;
 
         if (stmt->kind == NODE_STRUCT_DECL) {
             /* E2067: empty struct */
@@ -10326,12 +10355,25 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_USING_STMT) {
             for (int j = 0; j < stmt->data.using_stmt.count; j++) {
-                /* E2010: check that the module was imported BEFORE this using statement */
+                /* E2010: check that the module was imported BEFORE this using statement.
+                 * For using stmts from imported files, just verify the module exists
+                 * as an import (line ordering can't be compared across files). */
                 const char *umod = stmt->data.using_stmt.modules[j];
                 bool imported_before = false;
+                const char *using_src = stmt->token.file;
                 for (int mi = 0; mi < tc->import_count; mi++) {
-                    if (strcmp(tc->imported_modules[mi], umod) == 0 &&
-                        tc->import_lines[mi] < stmt->token.line) {
+                    if (strcmp(tc->imported_modules[mi], umod) != 0) continue;
+                    const char *imp_src = tc->import_files[mi];
+                    /* Same file: require import line < using line */
+                    bool same_file = (!using_src && !imp_src) ||
+                        (using_src && imp_src && strcmp(using_src, imp_src) == 0);
+                    if (same_file && tc->import_lines[mi] < stmt->token.line) {
+                        imported_before = true;
+                        break;
+                    }
+                    /* Cross-file: the using is from an imported file whose own
+                     * import was already injected — just check existence */
+                    if (!same_file && using_src) {
                         imported_before = true;
                         break;
                     }
@@ -10343,7 +10385,10 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                     tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
                     tc->using_modules = xrealloc(tc->using_modules,
                         sizeof(const char *) * (size_t)tc->using_module_cap);
+                    tc->using_module_files = xrealloc(tc->using_module_files,
+                        sizeof(const char *) * (size_t)tc->using_module_cap);
                 }
+                tc->using_module_files[tc->using_module_count] = stmt->token.file;
                 tc->using_modules[tc->using_module_count++] = stmt->data.using_stmt.modules[j];
                 /* Mark the module as used */
                 for (int mi = 0; mi < tc->import_count; mi++) {
@@ -10362,15 +10407,23 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                         tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
                         tc->using_modules = xrealloc(tc->using_modules,
                             sizeof(const char *) * (size_t)tc->using_module_cap);
+                        tc->using_module_files = xrealloc(tc->using_module_files,
+                            sizeof(const char *) * (size_t)tc->using_module_cap);
                     }
+                    tc->using_module_files[tc->using_module_count] = stmt->token.file;
                     tc->using_modules[tc->using_module_count++] = item->module;
                 }
             }
         }
     }
 
-    /* Register unprefixed aliases for struct/enum types from 'import and use' modules */
+    /* Register unprefixed aliases for struct/enum types from 'import and use' modules.
+     * Only process using-modules declared in the main file — transitive imports
+     * should not leak their unprefixed aliases into the main compilation unit. */
     for (int ui = 0; ui < tc->using_module_count; ui++) {
+        const char *uf = tc->using_module_files ? tc->using_module_files[ui] : NULL;
+        bool is_main = (!uf && !tc->file) || (uf && tc->file && strcmp(uf, tc->file) == 0);
+        if (!is_main) continue;
         const char *umod = tc->using_modules[ui];
         size_t umod_len = strlen(umod);
         char prefix[EZ_TYPE_NAME_MAX];
@@ -10446,6 +10499,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     /* Pass 2: check all statements */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
+        tc->current_check_file = program->data.program.stmts[i]->token.file;
         check_statement(tc, program->data.program.stmts[i]);
     }
 
@@ -10465,6 +10519,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             fs->instantiation_count == 0) continue;
 
         AstNode *decl = fs->decl;
+        tc->current_check_file = decl->token.file;
         for (int ii = 0; ii < fs->instantiation_count; ii++) {
             const char *concrete = fs->instantiations[ii];
             AstNode *call_site = fs->instantiation_calls[ii];
