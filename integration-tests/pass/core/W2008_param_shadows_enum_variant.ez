@@ -1,0 +1,34 @@
+/*
+ * Warning Test: W2008 - parameter shadows enum variant
+ * Verifies that shadowing still compiles and runs correctly
+ */
+
+const Dir enum {
+    NORTH
+    SOUTH
+}
+
+do move(NORTH int) -> int {
+    return NORTH + 1
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut result = move(5)
+    if result == 6 {
+        println("  [PASS] param shadowing enum variant works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] param shadowing enum variant: got ${result}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

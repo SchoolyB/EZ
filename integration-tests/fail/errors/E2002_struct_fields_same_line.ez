@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2002 - struct fields on same line
+ * Expected: error requiring separate lines
+ */
+
+const Point struct {
+    x int y int
+    z int
+}
+
+do main() {
+    mut p = new(Point)
+}

@@ -1,0 +1,49 @@
+do add(a int, b int = a + 1) -> int {
+    return a + b
+}
+
+do greet(name string, msg string = "Hello, ${name}!") -> string {
+    return msg
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: default param using earlier param in expression
+    mut r1 = add(5)
+    if r1 == 11 {
+        println("  [PASS] default param refs earlier param")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] default param refs earlier param: got ${r1}")
+        failed += 1
+    }
+
+    // Test 2: default param with string interpolation of earlier param
+    mut r2 = greet("World")
+    if r2 == "Hello, World!" {
+        println("  [PASS] default param string interpolation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] default param string interpolation: got ${r2}")
+        failed += 1
+    }
+
+    // Test 3: override default param
+    mut r3 = add(5, 10)
+    if r3 == 15 {
+        println("  [PASS] override default param")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] override default param: got ${r3}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

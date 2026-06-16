@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3001 - passing char to strings.contains second arg
+ * Expected: type mismatch, second arg must be string
+ */
+
+import @strings
+
+do main() {
+    mut s string = "hello"
+    mut ch char = 'e'
+    mut result = strings.contains(s, ch)
+}

@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3053 - wrong enum type in map literal value
+ * Expected: type mismatch for cross-enum in map value
+ */
+
+const Color enum {
+    RED
+    GREEN
+}
+
+const Dir enum {
+    NORTH
+    SOUTH
+}
+
+do main() {
+    mut m map[string:Color] = {"a": Color.RED, "b": Dir.NORTH}
+}

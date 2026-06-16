@@ -1,0 +1,22 @@
+/*
+ * Error Test: E3001 - comparing values from different enum types
+ * Expected: type mismatch for cross-enum comparison
+ */
+
+const Color enum {
+    RED
+    GREEN
+}
+
+const Dir enum {
+    NORTH
+    SOUTH
+}
+
+do main() {
+    mut c Color = Color.RED
+    mut d Dir = Dir.NORTH
+    if c == d {
+        println("same")
+    }
+}

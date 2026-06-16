@@ -1,0 +1,51 @@
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: for x in range() works
+    mut sum int = 0
+    for i in range(1, 4) {
+        sum += i
+    }
+    if sum == 6 {
+        println("  [PASS] for in range()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for in range(): got ${sum}")
+        failed += 1
+    }
+
+    // Test 2: for_each over array works
+    const arr [int, 3] = {10, 20, 30}
+    mut total int = 0
+    for_each x in arr {
+        total += x
+    }
+    if total == 60 {
+        println("  [PASS] for_each over array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over array: got ${total}")
+        failed += 1
+    }
+
+    // Test 3: for_each over string works
+    mut count int = 0
+    for_each ch in "abc" {
+        count += 1
+    }
+    if count == 3 {
+        println("  [PASS] for_each over string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over string: got ${count}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
