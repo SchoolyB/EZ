@@ -271,6 +271,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "Listener") == 0) return "EzSocket";
     if (strcmp(type_name, "Database") == 0) return "EzSqlite";
     if (strcmp(type_name, "Router") == 0)   return "EzRouter";
+    if (strcmp(type_name, "UUID") == 0)     return "EzUUID";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
@@ -916,7 +917,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             {"O_RDONLY","io","0"},{"O_WRONLY","io","1"},{"O_RDWR","io","2"},
             {"BASE_2","strconv","2"},{"BASE_8","strconv","8"},{"BASE_10","strconv","10"},
             {"BASE_16","strconv","16"},{"BASE_36","strconv","36"},
-            {"NIL_UUID","uuid","ez_string_lit(\"00000000-0000-0000-0000-000000000000\")"},
+            {"NIL_UUID","uuid","ez_uuid_nil()"},
             {NULL,NULL,NULL}
         };
         bool emitted_const = false;
@@ -1115,6 +1116,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_ARRAY:  emit(cg, "%s"); break;
                 case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ERROR:  emit(cg, "%s"); break;
+                case TK_STRUCT:
+                    if (t && t->name && strcmp(t->name, "UUID") == 0)
+                        emit(cg, "%s");
+                    else
+                        emit(cg, "%lld");
+                    break;
                 case TK_ENUM:
                     if (t && t->name && cg_enum_is_string(cg, t->name))
                         emit(cg, "%s");
@@ -1219,6 +1226,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "(unsigned long long)(");
                 emit_expression(cg, part);
                 emit(cg, ")");
+                break;
+            case TK_STRUCT:
+                if (t && t->name && strcmp(t->name, "UUID") == 0) {
+                    emit_expression(cg, part);
+                    emit(cg, ".value.data");
+                } else {
+                    emit(cg, "(long long)(");
+                    emit_expression(cg, part);
+                    emit(cg, ")");
+                }
                 break;
             case TK_ENUM:
                 if (t && t->name && cg_enum_is_string(cg, t->name)) {
@@ -2138,7 +2155,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* @uuid constants */
             if (strcmp(mod, "uuid") == 0) {
                 if (strcmp(mem, "NIL_UUID") == 0) {
-                    emit(cg, "ez_string_lit(\"00000000-0000-0000-0000-000000000000\")");
+                    emit(cg, "ez_uuid_nil()");
                     break;
                 }
             }
@@ -2759,8 +2776,10 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
             /* Check if it's a known stdlib module function that returns string */
             if ((strcmp(obj, "strings") == 0) ||
                 (strcmp(obj, "encoding") == 0) ||
-                (strcmp(obj, "crypto") == 0) ||
-                (strcmp(obj, "uuid") == 0)) return "_str";
+                (strcmp(obj, "crypto") == 0)) return "_str";
+            if (strcmp(obj, "uuid") == 0 &&
+                (strcmp(mem, "generate_compact") == 0 ||
+                 strcmp(mem, "to_string") == 0)) return "_str";
             /* Check if it's a struct-namespaced function or instance method call */
             {
                 const char *struct_name = NULL;
@@ -3234,6 +3253,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, " ? ");
                 emit_expression(cg, arg);
                 emit(cg, "->message : ez_string_lit(\"nil\"))");
+            } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
+                       strcmp(arg_t->name, "UUID") == 0) {
+                emit(cg, "ez_builtin_println_str(");
+                emit_expression(cg, arg);
+                emit(cg, ".value)");
             } else {
                 const char *bi_type = resolve_bigint_type(cg, arg);
                 if (bi_type) {
@@ -3517,6 +3541,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, " ? ");
                 emit_expression(cg, arg);
                 emit(cg, "->message : ez_string_lit(\"nil\"))");
+            } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
+                       strcmp(arg_t->name, "UUID") == 0) {
+                emit(cg, "ez_builtin_eprintln_str(");
+                emit_expression(cg, arg);
+                emit(cg, ".value)");
             } else {
                 const char *bi_type = resolve_bigint_type(cg, arg);
                 if (bi_type) {
@@ -3543,6 +3572,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, " ? ");
             emit_expression(cg, arg);
             emit(cg, "->message : ez_string_lit(\"nil\"))");
+        } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
+                   strcmp(arg_t->name, "UUID") == 0) {
+            emit(cg, "ez_builtin_eprint_str(");
+            emit_expression(cg, arg);
+            emit(cg, ".value)");
         } else {
             const char *bi_type = resolve_bigint_type(cg, arg);
             if (bi_type) {
@@ -3701,6 +3735,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, " ? ");
             emit_expression(cg, arg);
             emit(cg, "->message : ez_string_lit(\"nil\"))");
+        } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
+                   strcmp(arg_t->name, "UUID") == 0) {
+            emit(cg, "ez_builtin_print_str(");
+            emit_expression(cg, arg);
+            emit(cg, ".value)");
         } else {
             const char *bi_type = resolve_bigint_type(cg, arg);
             if (bi_type) {
@@ -4029,11 +4068,13 @@ static bool emit_time_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @uuid module --- */
 
 static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "generate_hyphenated") == 0) {
+    if (strcmp(func, "generate") == 0 || strcmp(func, "generate_hyphenated") == 0) {
         emit(cg, "ez_uuid_generate(ez_default_arena)"); return true;
     }
-    if (strcmp(func, "generate") == 0 || strcmp(func, "generate_compact") == 0) {
-        emit(cg, "ez_uuid_generate_compact(ez_default_arena)"); return true;
+    if (strcmp(func, "generate_compact") == 0) {
+        emit(cg, "ez_uuid_generate_compact(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")"); return true;
     }
     if (strcmp(func, "generate_random") == 0) {
         emit(cg, "ez_uuid_generate_random(ez_default_arena)"); return true;
@@ -4048,6 +4089,11 @@ static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "parse") == 0) {
         emit(cg, "ez_uuid_parse(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")"); return true;
+    }
+    if (strcmp(func, "to_string") == 0) {
+        emit(cg, "ez_uuid_to_string(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")"); return true;
     }
@@ -5705,6 +5751,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"format","time"},{"to_iso","time"},{"date","time"},{"to_clock","time"},
                 /* @uuid */
                 {"generate_hyphenated","uuid"},{"generate","uuid"},{"is_valid","uuid"},
+                {"generate_compact","uuid"},{"to_string","uuid"},
                 {"generate_random","uuid"},{"generate_time_ordered","uuid"},{"parse","uuid"},
                 /* @bytes */
                 {"from_string","bytes"},{"from_hex","bytes"},{"from_base64","bytes"},

@@ -777,8 +777,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"encoding", "url_encode", 1, 1}, {"encoding", "url_decode", 1, 1},
     /* uuid */
     {"uuid", "generate", 0, 0}, {"uuid", "generate_hyphenated", 0, 0},
-    {"uuid", "generate_compact", 0, 0},
-    {"uuid", "is_valid", 1, 1},
+    {"uuid", "generate_compact", 1, 1},
+    {"uuid", "is_valid", 1, 1}, {"uuid", "to_string", 1, 1},
     {"uuid", "generate_random", 0, 0}, {"uuid", "generate_time_ordered", 0, 0},
     {"uuid", "parse", 1, 1},
     /* regex */
@@ -1388,12 +1388,12 @@ static const UsingFunc _using_funcs[] = {
     {"from_float","strconv",TK_STRING},{"from_bool","strconv",TK_STRING},
     {"is_numeric","strconv",TK_BOOL},{"is_integer","strconv",TK_BOOL},
     /* uuid */
-    {"generate_hyphenated","uuid",TK_STRING},{"generate","uuid",TK_STRING},
+    {"generate_hyphenated","uuid",TK_UNKNOWN},{"generate","uuid",TK_UNKNOWN},
     {"generate_compact","uuid",TK_STRING},
-    {"generate_random","uuid",TK_STRING},
-    {"generate_time_ordered","uuid",TK_STRING},
-    {"parse","uuid",TK_STRING},
-    {"is_valid","uuid",TK_BOOL},
+    {"generate_random","uuid",TK_UNKNOWN},
+    {"generate_time_ordered","uuid",TK_UNKNOWN},
+    {"parse","uuid",TK_UNKNOWN},
+    {"is_valid","uuid",TK_BOOL},{"to_string","uuid",TK_STRING},
     /* bytes */
     {"from_string","bytes",TK_ARRAY},{"from_hex","bytes",TK_ARRAY},
     {"from_base64","bytes",TK_ARRAY},
@@ -1501,7 +1501,7 @@ static const UsingConst _using_consts[] = {
     {"O_RDONLY","io",TK_INT},{"O_WRONLY","io",TK_INT},{"O_RDWR","io",TK_INT},
     {"BASE_2","strconv",TK_INT},{"BASE_8","strconv",TK_INT},{"BASE_10","strconv",TK_INT},
     {"BASE_16","strconv",TK_INT},{"BASE_36","strconv",TK_INT},
-    {"NIL_UUID","uuid",TK_STRING},
+    {"NIL_UUID","uuid",TK_STRUCT},
     {NULL,NULL,TK_UNKNOWN}
 };
 
@@ -3151,13 +3151,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "uuid") == 0) {
                 if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "generate") == 0 ||
+                else if (strcmp(mfn, "generate_compact") == 0 ||
+                         strcmp(mfn, "to_string") == 0) {
+                    result = &TYPE_STRING;
+                } else if (strcmp(mfn, "generate") == 0 ||
                          strcmp(mfn, "generate_hyphenated") == 0 ||
-                         strcmp(mfn, "generate_compact") == 0 ||
                          strcmp(mfn, "generate_random") == 0 ||
                          strcmp(mfn, "generate_time_ordered") == 0 ||
                          strcmp(mfn, "parse") == 0) {
-                    result = &TYPE_STRING;
+                    result = type_struct("UUID");
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -5827,7 +5829,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (strcmp(obj_name, "uuid") == 0) {
                 const char *mem = node->data.member.member;
                 if (strcmp(mem, "NIL_UUID") == 0) {
-                    result = &TYPE_STRING;
+                    result = type_struct("UUID");
                     break;
                 }
             }
@@ -9289,7 +9291,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * invalid C with no EZ diagnostic. */
         static const char *reserved_stdlib_struct_names[] = {
             "Thread", "Mutex", "SpinLock", "Channel", "Socket",
-            "Listener", "Database", "Router", "HttpRequest", "HttpResponse", NULL
+            "Listener", "Database", "Router", "HttpRequest", "HttpResponse",
+            "UUID", NULL
         };
         const char *sname = STRUCT_DISPLAY_NAME(node);
         for (int ri = 0; reserved_stdlib_struct_names[ri]; ri++) {
@@ -10279,6 +10282,13 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         req_types[4] = type_from_name("map[string:string]");
         req_types[5] = type_from_name("map[string:string]");
         register_struct(tc, "HttpRequest", "HttpRequest", req_fields, req_types, 6);
+    }
+
+    if (tc_is_imported_module(tc, "uuid")) {
+        static const char *uuid_fields[] = {"value"};
+        static EzType *uuid_types[1];
+        uuid_types[0] = &TYPE_STRING;
+        register_struct(tc, "UUID", "UUID", uuid_fields, uuid_types, 1);
     }
 
     /* Collect 'using' and 'import and use' module names */

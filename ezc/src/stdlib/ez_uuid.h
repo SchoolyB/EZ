@@ -10,11 +10,17 @@
 
 #include "../runtime/ez_runtime.h"
 
-EzString ez_uuid_generate(EzArena *arena);
-EzString ez_uuid_generate_compact(EzArena *arena);
-EzString ez_uuid_generate_random(EzArena *arena);
-EzString ez_uuid_generate_time_ordered(EzArena *arena);
+typedef struct {
+    EzString value;
+} EzUUID;
+
+EzUUID ez_uuid_generate(EzArena *arena);
+EzString ez_uuid_generate_compact(EzArena *arena, EzUUID id);
+EzUUID ez_uuid_generate_random(EzArena *arena);
+EzUUID ez_uuid_generate_time_ordered(EzArena *arena);
 bool ez_uuid_is_valid(EzString s);
-EzString ez_uuid_parse(EzArena *arena, EzString s);
+EzUUID ez_uuid_parse(EzArena *arena, EzString s);
+EzString ez_uuid_to_string(EzUUID id);
+EzUUID ez_uuid_nil(void);
 
 #endif

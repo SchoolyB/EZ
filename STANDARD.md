@@ -2841,18 +2841,22 @@ The `HttpResponse` struct is available when either `@http` or `@server` is impor
 
 ### 9.14 UUID Module (`@uuid`)
 
+UUID is a struct type wrapping a canonical 36-character hyphenated string. All generator and parse functions return `UUID`.
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `generate` | `() -> string` | Generate UUID v4 without hyphens (32 chars) |
-| `generate_hyphenated` | `() -> string` | Generate UUID v4 with hyphens (36 chars) |
-| `generate_random` | `() -> string` | RFC 4122 v4 (random), hyphenated, lowercase |
-| `generate_time_ordered` | `() -> string` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
-| `parse` | `(s string) -> string` | Validate and normalize a 36-char hyphenated UUID to lowercase. Panics on invalid input — gate with `is_valid()` for a non-panicking check |
+| `generate` | `() -> UUID` | Generate UUID v4 (hyphenated, 36 chars) |
+| `generate_hyphenated` | `() -> UUID` | Alias for `generate` |
+| `generate_random` | `() -> UUID` | RFC 4122 v4 (random), hyphenated, lowercase |
+| `generate_time_ordered` | `() -> UUID` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
+| `generate_compact` | `(id UUID) -> string` | Strip hyphens from a UUID, returning a 32-char hex string |
+| `parse` | `(s string) -> UUID` | Validate and normalize a 36-char hyphenated UUID to lowercase. Panics on invalid input — gate with `is_valid()` for a non-panicking check |
+| `to_string` | `(id UUID) -> string` | Convert UUID to its 36-char hyphenated string representation |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
 
 | Constant | Type | Value |
 |----------|------|-------|
-| `NIL_UUID` | `string` | `"00000000-0000-0000-0000-000000000000"` |
+| `NIL_UUID` | `UUID` | All-zero UUID (`00000000-0000-0000-0000-000000000000`) |
 
 UUID randomness comes from `getentropy()` (macOS, BSDs, glibc 2.25+) with a fallback to `/dev/urandom`, suitable for security-sensitive identifiers.
 
