@@ -3978,14 +3978,31 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     } else {
                         result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
                     }
-                    /* E5008: check argument count */
-                    if (node->data.call.arg_count != sig->param_count) {
-                        char msg[EZ_MSG_BUF_SIZE];
-                        snprintf(msg, sizeof(msg),
-                            "function '%s.%s' expects %d argument(s), got %d",
-                            mod, mfn, sig->param_count, node->data.call.arg_count);
-                        diag_error_msg(tc->diag, "E5008", strdup(msg),
-                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    /* E5008: check argument count, accounting for default params */
+                    {
+                        int min_params = sig->param_count;
+                        if (sig->decl && sig->decl->kind == NODE_FUNC_DECL) {
+                            min_params = 0;
+                            for (int pi = 0; pi < sig->decl->data.func_decl.param_count; pi++) {
+                                if (!sig->decl->data.func_decl.params[pi].default_value)
+                                    min_params++;
+                            }
+                        }
+                        if (node->data.call.arg_count < min_params ||
+                            node->data.call.arg_count > sig->param_count) {
+                            char msg[EZ_MSG_BUF_SIZE];
+                            if (min_params == sig->param_count) {
+                                snprintf(msg, sizeof(msg),
+                                    "function '%s.%s' expects %d argument(s), got %d",
+                                    mod, mfn, sig->param_count, node->data.call.arg_count);
+                            } else {
+                                snprintf(msg, sizeof(msg),
+                                    "function '%s.%s' expects %d-%d argument(s), got %d",
+                                    mod, mfn, min_params, sig->param_count, node->data.call.arg_count);
+                            }
+                            diag_error_msg(tc->diag, "E5008", strdup(msg),
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                        }
                     }
                     /* Check argument types */
                     int check_count = node->data.call.arg_count < sig->param_count
@@ -5068,18 +5085,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                     /* Check argument count; account for default parameters */
                     int min_args = sig->param_count;
-                    /* Find the AST func decl to count defaults */
-                    for (int fi = 0; fi < tc->program->data.program.stmt_count; fi++) {
-                        AstNode *s = tc->program->data.program.stmts[fi];
-                        if (s->kind == NODE_FUNC_DECL &&
-                            strcmp(s->data.func_decl.name, fn_name) == 0) {
-                            min_args = 0;
-                            for (int pi = 0; pi < s->data.func_decl.param_count; pi++) {
-                                if (!s->data.func_decl.params[pi].default_value) {
-                                    min_args++;
-                                }
-                            }
-                            break;
+                    if (sig->decl && sig->decl->kind == NODE_FUNC_DECL) {
+                        min_args = 0;
+                        for (int pi = 0; pi < sig->decl->data.func_decl.param_count; pi++) {
+                            if (!sig->decl->data.func_decl.params[pi].default_value)
+                                min_args++;
                         }
                     }
                     if (node->data.call.arg_count < min_args ||
