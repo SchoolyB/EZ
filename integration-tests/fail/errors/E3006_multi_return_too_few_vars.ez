@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3006 - too few variables for multi-return destructuring
+ * Expected: error about missing variables in destructuring
+ */
+
+do get_three() -> (int, int, int) {
+    return 1, 2, 3
+}
+
+do main() {
+    mut a, mut b = get_three()
+}

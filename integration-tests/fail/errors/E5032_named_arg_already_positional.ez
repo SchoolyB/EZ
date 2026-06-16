@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5032 - parameter already provided positionally
+ * Expected: "parameter 'a' is already provided positionally (argument 1)"
+ */
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+do main() {
+    mut x int = add(1, a: 5)
+}

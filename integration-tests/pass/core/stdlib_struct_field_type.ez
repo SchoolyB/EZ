@@ -1,0 +1,30 @@
+import @uuid
+
+const MyRecord struct {
+    id UUID
+    name string
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: struct with stdlib UUID field compiles and works
+    mut r = new(MyRecord)
+    r.name = "test"
+    r.id = uuid.generate()
+    if len(r.name) > 0 {
+        println("  [PASS] stdlib struct type in field declaration")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stdlib struct type in field declaration")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

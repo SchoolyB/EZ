@@ -10,9 +10,9 @@ do main() {
     mut failed int = 0
 
     // Test 1: net.resolve success
-    mut addr, err = net.resolve("localhost")
+    mut resolved, err = net.resolve("localhost")
     if err == nil {
-        println("  [PASS] net.resolve success, addr='${addr}'")
+        println("  [PASS] net.resolve success, addr='${resolved}'")
         passed += 1
     } otherwise {
         println("  [FAIL] net.resolve error on localhost")

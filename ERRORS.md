@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 313 codes** (208 errors, 16 warnings, 89 panics)
+**Total: 329 codes** (223 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -73,6 +73,7 @@
 | `E2080` | syntax | invalid character in C header path; only [A-Za-z0-9./_+-] are permitted |
 | `E2081` | syntax | '^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^' |
 | `E2082` | syntax | arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead |
+| `E2083` | syntax | enum variant '%s' cannot have both a payload and an explicit value |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -103,7 +104,6 @@
 | `E3039` | types | ensure expects a function call; for example: ensure close(file) |
 | `E3040` | types | '%s' returns %d values; use mut a, b = %s() to capture all of them |
 | `E3041` | types | cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps |
-| `E3042` | types | struct functions must be called on the type; use '%s.%s()' instead of '%s.%s()' |
 | `E3043` | types | cannot cast between incompatible types; only numeric, enum, and string conversions are allowed |
 | `E3044` | types | cannot access field '%s' on type '%s'; use an instance variable instead |
 | `E3045` | types | 'or_return' requires a function that returns (T, Error); '%s()' does not return an error |
@@ -169,6 +169,14 @@
 | `E3106` | types | fmt.%s: dangling '%%' at end of format string |
 | `E3107` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few) |
 | `E3108` | types | fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many) |
+| `E3109` | types | #json struct '%s' cannot have default field values; field '%s' has a default |
+| `E3110` | types | implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation |
+| `E3111` | types | payload types are not allowed on string enum variants |
+| `E3112` | types | payload types are not allowed on #flags enum variants |
+| `E3113` | types | variant '%s' of enum '%s' expects %d payload value(s), got %d |
+| `E3114` | types | variant '%s' of enum '%s' has no payload; remove the arguments |
+| `E3115` | types | enum '%s' is not a tagged enum; variant '%s' cannot be called |
+| `E3116` | types | wrong number of bindings for variant '%s'; expected %d, got %d |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -204,6 +212,11 @@
 | `E5028` | usage | func references are not printable values; func references cannot be passed to print functions |
 | `E5029` | usage | copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values |
 | `E5030` | usage | cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling |
+| `E5031` | usage | unknown parameter name '%s' in call to '%s' |
+| `E5032` | usage | parameter '%s' is already provided positionally (argument %d) in call to '%s' |
+| `E5033` | usage | positional argument after named argument in call to '%s' |
+| `E5034` | usage | named arguments are not supported for builtin function '%s' |
+| `E5035` | naming | this name is reserved by a standard library module and cannot be redeclared |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -214,6 +227,8 @@
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 or greater) |
 | `E7015` | stdlib | len() is not supported for type '%s'; len() works on string, array, and map types |
 | `E9002` | stdlib | arrays.%s() requires a numeric array, got array of %s |
+| `E9003` | stdlib | arrays.%s() requires a function reference; use ()func_name to pass a function |
+| `E9004` | stdlib | arrays.%s() callback signature mismatch; %s |
 | `E9005` | stdlib | invalid range: start (%lld) must be less than end (%lld) |
 | `E12001` | stdlib | maps.%s() requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
@@ -233,6 +248,7 @@
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
 | `W2003` | safety | unreachable code; this statement will never execute because it comes after a return |
 | `W2007` | safety | this variable shadows a global constant or variable |
+| `W2008` | safety | parameter shadows an enum variant name |
 | `W2011` | safety | named return value is declared in the signature but no matching variable exists in the function body |
 | `W2012` | safety | when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon |
 | `W2013` | imports | duplicate import of already-imported module |
@@ -364,4 +380,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-13 17:26:24 UTC*
+*Generated on 2026-06-16 06:24:13 UTC*

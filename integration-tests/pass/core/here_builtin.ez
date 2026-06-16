@@ -2,10 +2,8 @@
  * here_builtin.ez - Test the here() builtin and SourceLocation type
  *
  * Verifies that here() returns a SourceLocation struct with the
- * file, line, and column of the here() call itself, that the
- * coordinates differ across separate call sites, and that enum
- * variants / struct fields named 'here' / 'SourceLocation' still
- * compile (qualified access, no conflict with the global builtin).
+ * file, line, and column of the here() call itself, and that the
+ * coordinates differ across separate call sites.
  *
  * Rejection of unqualified uses (mut here = ..., do here(), etc.)
  * is covered by the E5016_* fail tests.
@@ -15,43 +13,22 @@ do print_loc(label string, loc SourceLocation) {
     println("[${label}] ${loc.file}:${loc.line}:${loc.column}")
 }
 
-const Place enum {
-    here,
-    there,
-    SourceLocation
-}
-
-const Container struct {
-    here int
-}
-
 do main() {
     // 1. Basic call: returns a SourceLocation
     mut loc SourceLocation = here()
-    assert(loc.line == 30, "loc.line should be 30")
+    assert(loc.line == 18, "loc.line should be 18")
     assert(loc.column > 0, "loc.column should be set")
     assert(len(loc.file) > 0, "loc.file should be set")
 
     // 2. Two calls on different lines return different lines
     mut a SourceLocation = here()
     mut b SourceLocation = here()
-    assert(a.line == 36, "first call should be on line 36")
-    assert(b.line == 37, "second call should be on line 37")
+    assert(a.line == 24, "first call should be on line 24")
+    assert(b.line == 25, "second call should be on line 25")
     assert(a.line != b.line, "different lines should differ")
 
     // 3. here() composes inline as a function argument
     print_loc("inline", here())
-
-    // 4. Enum variants named 'here' and 'SourceLocation' are fine because
-    //    enum members are accessed via a qualifier
-    mut p Place = Place.here
-    assert(p == Place.here, "enum variant 'here' works")
-    mut q Place = Place.SourceLocation
-    assert(q == Place.SourceLocation, "enum variant 'SourceLocation' works")
-
-    // 5. Struct fields named 'here' are also fine (qualified as t.here)
-    mut t Container = Container{here: 42}
-    assert(t.here == 42, "struct field 'here' works")
 
     println("ALL TESTS PASSED")
 }

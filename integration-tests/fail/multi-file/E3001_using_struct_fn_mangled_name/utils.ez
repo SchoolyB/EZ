@@ -1,0 +1,7 @@
+const Foo struct {
+    x int
+
+    do take_foo(other Foo) -> int {
+        return other.x
+    }
+}

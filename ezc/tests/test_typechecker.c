@@ -624,15 +624,6 @@ static void test_error_E3040_multi_return_single_var(void) {
     diag_destroy(d);
 }
 
-static void test_error_E3042_instance_method(void) {
-    DiagnosticList *d = check_diag(
-        "const Foo struct { x int }\n"
-        "do Foo.bar() -> int { return 1 }\n"
-        "do main() { mut f Foo = Foo{x: 1}\n f.bar() }");
-    ASSERT(has_code(d, "E3042"));
-    diag_destroy(d);
-}
-
 static void test_error_E3044_field_on_type(void) {
     DiagnosticList *d = check_diag(
         "const Point struct { x int\n y int }\n"
@@ -1506,7 +1497,6 @@ int main(void) {
     RUN_TEST(test_error_E3035_not_all_paths_return);
     RUN_TEST(test_error_E3039_ensure_non_call);
     RUN_TEST(test_error_E3040_multi_return_single_var);
-    RUN_TEST(test_error_E3042_instance_method);
     RUN_TEST(test_error_E3044_field_on_type);
 
     /* More E4xxx */

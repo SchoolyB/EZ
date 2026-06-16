@@ -1,6 +1,6 @@
 /*
  * csv_c.ez - Comprehensive integration test for @csv (compiler)
- * Tests: decode, encode, write_file, read_file
+ * Tests: parse, encode, write_file, read_file
  */
 
 import @csv
@@ -12,32 +12,32 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // decode
+    // parse
     mut csv_data string = "name,age,city\nAlice,30,NYC\nBob,25,LA"
-    mut rows [[string]] = csv.decode(csv_data)
+    mut rows [[string]] = csv.parse(csv_data)
     if len(rows) == 3 {
-        println("  [PASS] decode row count")
+        println("  [PASS] parse row count")
         passed += 1
     } otherwise {
-        println("  [FAIL] decode row count: expected 3, got ${len(rows)}")
+        println("  [FAIL] parse row count: expected 3, got ${len(rows)}")
         failed += 1
     }
 
-    // decode - verify header
+    // parse - verify header
     if len(rows) >= 1 && rows[0][0] == "name" && rows[0][1] == "age" && rows[0][2] == "city" {
-        println("  [PASS] decode header")
+        println("  [PASS] parse header")
         passed += 1
     } otherwise {
-        println("  [FAIL] decode header")
+        println("  [FAIL] parse header")
         failed += 1
     }
 
-    // decode - verify data
+    // parse - verify data
     if len(rows) >= 3 && rows[1][0] == "Alice" && rows[2][0] == "Bob" {
-        println("  [PASS] decode data")
+        println("  [PASS] parse data")
         passed += 1
     } otherwise {
-        println("  [FAIL] decode data")
+        println("  [FAIL] parse data")
         failed += 1
     }
 

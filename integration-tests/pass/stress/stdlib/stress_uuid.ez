@@ -1,38 +1,39 @@
-/* Stress test: @uuid — format validation
+/* Stress test: uuid module — format validation
  * Expected: all tests pass
  */
 
 import @uuid
 
 do main() {
-    println("=== Stress: @uuid ===")
+    println("=== Stress: uuid ===")
     mut passed int = 0
     mut failed int = 0
 
-    // generate() — 32 hex chars (no hyphens)
-    mut id string = uuid.generate()
-    if len(id) == 32 {
-        println("  [PASS] generate() returns 32 chars")
+    // generate() returns UUID with 36-char hyphenated string
+    mut id UUID = uuid.generate()
+    mut id_str string = uuid.to_string(id)
+    if len(id_str) == 36 {
+        println("  [PASS] generate() returns 36-char UUID")
         passed += 1
-    } otherwise { println("  [FAIL] generate() — len ${len(id)}") failed += 1 }
+    } otherwise { println("  [FAIL] generate() — len ${len(id_str)}") failed += 1 }
 
-    // generate_hyphenated() — 36 chars with hyphens
-    mut hid string = uuid.generate_hyphenated()
-    if len(hid) == 36 {
-        println("  [PASS] generate_hyphenated() returns 36 chars")
+    // generate_compact() strips hyphens to 32 chars
+    mut compact string = uuid.generate_compact(id)
+    if len(compact) == 32 {
+        println("  [PASS] generate_compact() returns 32 chars")
         passed += 1
-    } otherwise { println("  [FAIL] generate_hyphenated() — len ${len(hid)}") failed += 1 }
+    } otherwise { println("  [FAIL] generate_compact() — len ${len(compact)}") failed += 1 }
 
     // is_valid
-    if uuid.is_valid(hid) && !uuid.is_valid("not-a-uuid") {
+    if uuid.is_valid(id_str) && !uuid.is_valid("not-a-uuid") {
         println("  [PASS] is_valid on valid and invalid")
         passed += 1
     } otherwise { println("  [FAIL] is_valid") failed += 1 }
 
     // Two UUIDs should be different
-    mut id1 string = uuid.generate()
-    mut id2 string = uuid.generate()
-    if id1 != id2 {
+    mut id1 UUID = uuid.generate()
+    mut id2 UUID = uuid.generate()
+    if uuid.to_string(id1) != uuid.to_string(id2) {
         println("  [PASS] two UUIDs are different")
         passed += 1
     } otherwise { println("  [FAIL] UUIDs identical") failed += 1 }

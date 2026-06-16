@@ -1,0 +1,15 @@
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do color_name(c Color) -> string {
+    when c {
+        is Color.RED { return "red" }
+        is Color.GREEN { return "green" }
+        is Color.BLUE { return "blue" }
+        default { return "unknown" }
+    }
+    return "unknown"
+}

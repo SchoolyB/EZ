@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3027 - enum constant passed to mutable parameter
+ * Expected: E3027 error — cannot pass enum constant to mutable (&) param
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do modify(&val int) {
+    val = 42
+}
+
+do main() {
+    modify(Color.RED)
+}

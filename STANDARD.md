@@ -520,6 +520,36 @@ mut origin Point = Point{x: 0, y: 0}
 mut p Point = Point{}  // Zero-initialized: x=0, y=0
 ```
 
+#### Default Field Values
+
+Struct fields may specify a default value using `= expr` after the type. When a struct is created with `new()` or a struct literal that omits a field, the default value is used instead of zero-initialization.
+
+```ez
+const Config struct {
+    host string = "localhost"
+    port int = 8080
+    verbose bool = false
+}
+
+do main() {
+    mut c = new(Config)       // c.host = "localhost", c.port = 8080, c.verbose = false
+    mut c2 = Config{port: 3000}  // c2.host = "localhost", c2.port = 3000, c2.verbose = false
+}
+```
+
+Grouped fields share the same default:
+
+```ez
+const Point struct {
+    x, y int = 0
+    z int = 1
+}
+```
+
+Fields without a default value remain zero-initialized when omitted.
+
+`#json` structs cannot have default field values. They are data-only and always zero-initialized from JSON input.
+
 Fields are accessed using dot notation:
 
 ```ez
@@ -561,6 +591,104 @@ Enum values are accessed using dot notation:
 mut dir = Direction.NORTH
 mut status = Status.TODO
 ```
+
+**Implicit enum selector (`.VARIANT`):**
+
+When the expected enum type is known from context, you can use the shorthand `.VARIANT` instead of the full `EnumName.VARIANT`. The compiler resolves the enum type automatically.
+
+```ez
+// Variable declaration with type annotation
+mut dir Direction = .NORTH
+
+// Assignment
+dir = .SOUTH
+
+// Function arguments
+do move(d Direction) -> int { return 0 }
+move(.EAST)
+
+// When/is branches
+when dir {
+    is .NORTH { println("north") }
+    is .SOUTH { println("south") }
+    default { println("other") }
+}
+
+// Comparisons
+if dir == .WEST { println("west") }
+
+// Return statements
+do get_dir() -> Direction { return .NORTH }
+
+// Struct literal fields
+const Config struct { dir Direction }
+mut c = Config{ dir: .EAST }
+
+// Array literals
+mut dirs [Direction] = {.NORTH, .SOUTH}
+```
+
+The full `EnumName.VARIANT` form is always valid and is required when no type context is available.
+
+**Tagged Enums (Variants with Data):**
+
+Enum variants can carry associated data (payloads), making the enum a tagged union. A variant's payload is declared with positional types in parentheses:
+
+```ez
+const Shape enum {
+    Circle(float)
+    Rect(float, float)
+    Point
+}
+```
+
+An enum becomes a tagged union if ANY variant has a payload. Variants without payloads (like `Point` above) are plain tag-only variants. Payloads and explicit values (`= 5`) are mutually exclusive per variant. String enums and `#flags` enums cannot have payloads.
+
+**Construction:**
+
+Tagged enum values are constructed by calling the variant with arguments:
+
+```ez
+mut s Shape = Shape.Circle(3.14)
+mut r Shape = Shape.Rect(10.0, 20.0)
+mut p Shape = Shape.Point
+```
+
+The implicit selector syntax also works with tagged constructors:
+
+```ez
+mut s Shape = .Circle(3.14)
+```
+
+**Destructuring with `when/is`:**
+
+Use pattern destructuring in `when/is` to extract payload values:
+
+```ez
+when shape {
+    is Circle(radius) {
+        println("Circle with radius ${radius}")
+    }
+    is Rect(w, h) {
+        println("Rectangle ${w} x ${h}")
+    }
+    is Point {
+        println("Just a point")
+    }
+}
+```
+
+Implicit selector patterns also work in `when/is`:
+
+```ez
+when shape {
+    is .Circle(r) { println("radius: ${r}") }
+    is .Rect(w, h) { println("${w}x${h}") }
+    is .Point { println("point") }
+}
+```
+
+The number of bindings in a pattern must match the variant's payload count. `#strict` exhaustiveness checking works with tagged enums.
 
 ### 3.3 Type Inference
 
@@ -1265,6 +1393,69 @@ Default parameters must appear after non-default parameters. A required paramete
 ```ez
 do foo(a int = 10, b int) {}   // error: required parameter cannot follow a default parameter
 do bar(a int, b int = 10) {}   // OK: required first, then default
+```
+
+#### 7.2.5 Named Arguments
+
+When calling a function, arguments can be passed by name using `name: value` syntax. This lets callers provide arguments in any order and skip over defaulted parameters to target specific ones:
+
+```ez
+do connect(host string, port int = 8080, verbose bool = false) {
+    if verbose {
+        println("Connecting to ${host}:${port}")
+    }
+}
+
+connect(host: "localhost", verbose: true)  // port uses default 8080
+connect(verbose: true, host: "localhost")  // same — order doesn't matter
+connect("localhost", verbose: true)        // positional + named mix
+```
+
+**Rules:**
+
+- Positional arguments must come before named arguments. Once a named argument appears, all remaining arguments must also be named:
+
+```ez
+add(1, b: 2)     // OK: positional first, then named
+add(a: 1, 2)     // error: positional argument after named argument
+```
+
+- Named arguments must match a parameter name in the function signature exactly. Unknown names are rejected:
+
+```ez
+do add(a int, b int) -> int { return a + b }
+
+add(a: 1, c: 2)  // error: unknown parameter name 'c' in call to 'add'
+```
+
+- A parameter cannot be provided both positionally and by name:
+
+```ez
+add(1, a: 2)      // error: parameter 'a' is already provided positionally
+```
+
+- Named arguments work with struct functions. For instance dispatch, the self parameter is implicit — only name the non-self parameters:
+
+```ez
+const Vec struct {
+    x int
+    y int
+
+    do scale(self Vec, factor int) -> Vec {
+        return Vec{x: self.x * factor, y: self.y * factor}
+    }
+}
+
+mut v = Vec{x: 2, y: 3}
+mut scaled = v.scale(factor: 5)        // instance dispatch: name non-self params
+mut also = Vec.scale(self: v, factor: 5)  // static dispatch: name all params
+```
+
+- Named arguments are **not supported** for built-in functions (`println`, `len`, `cast`, etc.) or standard library module functions (`strings.to_upper`, `math.sqrt`, etc.):
+
+```ez
+println(value: "hello")           // error: named arguments not supported
+strings.to_upper(s: "hello")      // error: named arguments not supported
 ```
 
 ### 7.3 Return Types
@@ -2208,6 +2399,14 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `get_min` | `(arr [T]) -> T` | Minimum element |
 | `get_max` | `(arr [T]) -> T` | Maximum element |
 
+#### Higher-Order Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `map` | `(arr [T], ()transform) -> [T]` | Returns a new array with `transform` applied to each element. `transform` must be `(T) -> T`. |
+| `filter` | `(arr [T], ()predicate) -> [T]` | Returns a new array containing only elements for which `predicate` returns true. `predicate` must be `(T) -> bool`. |
+| `reduce` | `(arr [T], initial T, ()accumulator) -> T` | Reduces the array to a single value by applying `accumulator(acc, element)` for each element, starting with `initial`. `accumulator` must be `(T, T) -> T`. |
+
 ### 9.3 Strings Module (`@strings`)
 
 #### Case Functions
@@ -2642,18 +2841,22 @@ The `HttpResponse` struct is available when either `@http` or `@server` is impor
 
 ### 9.14 UUID Module (`@uuid`)
 
+UUID is a struct type wrapping a canonical 36-character hyphenated string. All generator and parse functions return `UUID`.
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `generate` | `() -> string` | Generate UUID v4 without hyphens (32 chars) |
-| `generate_hyphenated` | `() -> string` | Generate UUID v4 with hyphens (36 chars) |
-| `generate_random` | `() -> string` | RFC 4122 v4 (random), hyphenated, lowercase |
-| `generate_time_ordered` | `() -> string` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
-| `parse` | `(s string) -> string` | Validate and normalize a 36-char hyphenated UUID to lowercase. Panics on invalid input — gate with `is_valid()` for a non-panicking check |
+| `generate` | `() -> UUID` | Generate UUID v4 (hyphenated, 36 chars) |
+| `generate_hyphenated` | `() -> UUID` | Alias for `generate` |
+| `generate_random` | `() -> UUID` | RFC 4122 v4 (random), hyphenated, lowercase |
+| `generate_time_ordered` | `() -> UUID` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
+| `generate_compact` | `(id UUID) -> string` | Strip hyphens from a UUID, returning a 32-char hex string |
+| `parse` | `(s string) -> UUID` | Validate and normalize a 36-char hyphenated UUID to lowercase. Panics on invalid input — gate with `is_valid()` for a non-panicking check |
+| `to_string` | `(id UUID) -> string` | Convert UUID to its 36-char hyphenated string representation |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
 
 | Constant | Type | Value |
 |----------|------|-------|
-| `NIL_UUID` | `string` | `"00000000-0000-0000-0000-000000000000"` |
+| `NIL_UUID` | `UUID` | All-zero UUID (`00000000-0000-0000-0000-000000000000`) |
 
 UUID randomness comes from `getentropy()` (macOS, BSDs, glibc 2.25+) with a fallback to `/dev/urandom`, suitable for security-sensitive identifiers.
 
@@ -2962,7 +3165,11 @@ Formatted output and string formatting functions.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `printf` | `(format string, ...args T)` | Print formatted string to stdout |
+| `printfln` | `(format string, ...args T)` | Print formatted string to stdout with trailing newline |
+| `eprintf` | `(format string, ...args T)` | Print formatted string to stderr |
+| `eprintfln` | `(format string, ...args T)` | Print formatted string to stderr with trailing newline |
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
+| `sprintfln` | `(format string, ...args T) -> string` | Return formatted string with trailing newline |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
 
 > 💡 **Flip's Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
@@ -3238,6 +3445,41 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
 For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
+
+### 11.10 Under the Hood
+
+EZ's scope-based memory model is built on **arena allocators**. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in one operation.
+
+#### Program Startup
+
+Every EZ program starts with two arenas:
+
+- **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out.
+- **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped. This is why pointers returned by `new()` are always valid until the program exits.
+
+Each thread gets its own pair of arenas, so multithreaded programs do not contend over memory.
+
+#### How Scopes Work
+
+When a non-void function is called, a fresh arena is created and set as the active arena. All allocations inside that function go to this new arena. When the function returns, the return value is copied to the caller's arena, and the function's arena is destroyed.
+
+Void functions use a cheaper strategy: they save a watermark on the current arena and reset to that point on exit, reclaiming memory without creating or destroying anything.
+
+Functions that accept mutable reference parameters (`&`) skip scoping entirely and run directly in the caller's arena. This is necessary because writes to passed arrays or maps must survive the function call.
+
+#### Block and Loop Scopes
+
+Conditional blocks (`if`, `otherwise`) and loop iterations (`for`, `for_each`) each get their own arena. For loops, a new arena is created and destroyed on **every iteration**, which is why temporaries inside a loop never accumulate regardless of how many iterations run.
+
+When a value created inside a scoped block needs to survive — for example, appending to an outer array inside a loop — EZ automatically copies it to the outer scope's arena before the inner arena is destroyed.
+
+#### Early Exits
+
+When `return`, `break`, or `continue` exits through nested scopes, the runtime unwinds all live arenas in reverse order. A `break` inside an `if` inside a loop will clean up the if-block arena and the loop iteration arena before jumping out. This ensures no memory is leaked regardless of control flow.
+
+#### Growth
+
+Arenas start at a fixed size but are not limited by it. If an allocation exceeds the remaining space, the arena chains a new, larger block automatically. An arena never fails due to its initial size being too small.
 
 ---
 

@@ -1,0 +1,9 @@
+const Color enum {
+    RED
+    GREEN
+}
+
+const Point struct {
+    x int
+    y int
+}

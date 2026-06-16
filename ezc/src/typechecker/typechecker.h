@@ -82,6 +82,9 @@ typedef struct {
     bool *enum_is_string; /* parallel array: true if string enum */
     const char ***enum_values; /* parallel array: variant name arrays */
     int *enum_value_counts; /* parallel array: variant counts */
+    const char ****enum_payload_types; /* [enum_idx][variant_idx] → type name array */
+    int **enum_payload_counts;         /* [enum_idx][variant_idx] → count */
+    bool *enum_is_tagged;              /* parallel to enum_names */
     int enum_count;
     int enum_cap;
 
@@ -121,8 +124,12 @@ typedef struct {
 
     /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
+    const char **using_module_files; /* parallel: source file each using came from (NULL = main) */
     int using_module_count;
     int using_module_cap;
+
+    /* File currently being validated — used to filter using_modules per-file */
+    const char *current_check_file;
 
     /* Import alias → module name mapping */
     const char **alias_names;
@@ -141,6 +148,12 @@ typedef struct {
     /* Name of the struct whose function body is currently being checked.
      * NULL when outside a struct function body. Used for private access. */
     const char *current_struct_name;
+
+    /* Expected type for resolving implicit enum selectors (.VARIANT).
+     * Set before resolving expressions where the target enum type is
+     * known (assignments, function args, when/is, comparisons, returns).
+     * Cleared after use to prevent stale context. */
+    EzType *expected_type;
 
 } TypeChecker;
 

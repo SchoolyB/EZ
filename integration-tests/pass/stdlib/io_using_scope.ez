@@ -53,12 +53,12 @@ do main() {
     }
 
     // Test 5: read_bytes via io. prefix
-    mut bytes, _ = io.read_bytes(test_file)
-    if len(bytes) == 16 {
+    mut byte_data, _ = io.read_bytes(test_file)
+    if len(byte_data) == 16 {
         println("  [PASS] read_bytes works")
         passed += 1
     } otherwise {
-        println("  [FAIL] read_bytes: got ${len(bytes)} bytes")
+        println("  [FAIL] read_bytes: got ${len(byte_data)} bytes")
         failed += 1
     }
 

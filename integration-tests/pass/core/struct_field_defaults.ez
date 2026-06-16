@@ -1,0 +1,142 @@
+/*
+ * Pass Test: Struct default field values
+ * Tests new() with defaults, struct literals with partial fields,
+ * explicit override, and grouped field defaults.
+ */
+
+const Config struct {
+    host string = "localhost"
+    port int = 8080
+    verbose bool = false
+}
+
+const Point struct {
+    x, y int = 0
+    z int = 1
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: new() uses default values
+    mut c = new(Config)
+    if c^.host == "localhost" {
+        println("  [PASS] new(Config).host == \"localhost\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Config).host: expected \"localhost\"")
+        failed += 1
+    }
+
+    if c^.port == 8080 {
+        println("  [PASS] new(Config).port == 8080")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Config).port: expected 8080")
+        failed += 1
+    }
+
+    if c^.verbose == false {
+        println("  [PASS] new(Config).verbose == false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Config).verbose: expected false")
+        failed += 1
+    }
+
+    // Test 2: struct literal with partial fields overrides only specified
+    mut c2 = Config{port: 3000}
+    if c2.host == "localhost" {
+        println("  [PASS] Config{port: 3000}.host == \"localhost\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Config{port: 3000}.host: expected \"localhost\"")
+        failed += 1
+    }
+
+    if c2.port == 3000 {
+        println("  [PASS] Config{port: 3000}.port == 3000")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Config{port: 3000}.port: expected 3000")
+        failed += 1
+    }
+
+    // Test 3: struct literal with all fields overridden
+    mut c3 = Config{host: "example.com", port: 443, verbose: true}
+    if c3.host == "example.com" {
+        println("  [PASS] full override host == \"example.com\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] full override host: expected \"example.com\"")
+        failed += 1
+    }
+
+    if c3.verbose == true {
+        println("  [PASS] full override verbose == true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] full override verbose: expected true")
+        failed += 1
+    }
+
+    // Test 4: grouped field defaults
+    mut p = new(Point)
+    if p^.x == 0 {
+        println("  [PASS] new(Point).x == 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Point).x: expected 0")
+        failed += 1
+    }
+
+    if p^.y == 0 {
+        println("  [PASS] new(Point).y == 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Point).y: expected 0")
+        failed += 1
+    }
+
+    if p^.z == 1 {
+        println("  [PASS] new(Point).z == 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Point).z: expected 1")
+        failed += 1
+    }
+
+    // Test 5: struct literal with grouped defaults, partial override
+    mut p2 = Point{x: 10}
+    if p2.x == 10 {
+        println("  [PASS] Point{x: 10}.x == 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Point{x: 10}.x: expected 10")
+        failed += 1
+    }
+
+    if p2.y == 0 {
+        println("  [PASS] Point{x: 10}.y == 0 (default)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Point{x: 10}.y: expected 0")
+        failed += 1
+    }
+
+    if p2.z == 1 {
+        println("  [PASS] Point{x: 10}.z == 1 (default)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Point{x: 10}.z: expected 1")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

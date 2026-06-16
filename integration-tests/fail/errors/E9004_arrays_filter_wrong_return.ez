@@ -1,0 +1,13 @@
+/*
+ * Error Test: E9004 - arrays.filter() callback must return bool
+ * Expected: E9004 error
+ */
+
+import @arrays
+
+do not_bool(x int) -> int { return x * 2 }
+
+do main() {
+    mut nums [int] = {1, 2, 3}
+    mut result [int] = arrays.filter(nums, ()not_bool)
+}

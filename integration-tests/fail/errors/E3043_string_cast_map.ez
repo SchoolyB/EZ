@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3043 - cannot convert map to string
+ * Expected: E3043 error
+ */
+
+do main() {
+    mut m map[string:int] = {"a": 1}
+    mut r = string(m)
+}

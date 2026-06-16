@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5034 - named arguments on builtin function
+ * Expected: "named arguments are not supported for builtin function 'println'"
+ */
+
+do main() {
+    println(value: "hello")
+}

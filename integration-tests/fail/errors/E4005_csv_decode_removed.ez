@@ -1,0 +1,11 @@
+/*
+ * Error Test: E4005 - csv.decode alias removed
+ * Expected: undefined function error for removed alias
+ */
+
+import @csv
+
+do main() {
+    mut data string = "a,b,c"
+    mut result = csv.decode(data)
+}

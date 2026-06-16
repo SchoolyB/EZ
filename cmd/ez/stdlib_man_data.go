@@ -42,6 +42,9 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"arrays.get_max":      {Module: "arrays", Group: "Computation", Kind: "func", Sig: "get_max(arr [T]) -> T", Fields: "", Desc: "Returns the largest element in arr.", Example: ""},
 	"arrays.sort_asc":     {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_asc(&arr [T])", Fields: "", Desc: "Sorts arr in ascending order in place. Works on int, float, and string arrays.", Example: ""},
 	"arrays.sort_desc":    {Module: "arrays", Group: "Modification", Kind: "func", Sig: "sort_desc(&arr [T])", Fields: "", Desc: "Sorts arr in descending order in place. Works on int, float, and string arrays.", Example: ""},
+	"arrays.map":          {Module: "arrays", Group: "Higher-Order", Kind: "func", Sig: "map(arr [T], ()transform) -> [T]", Fields: "", Desc: "Returns a new array with transform applied to each element. transform must be a function that takes T and returns T. Does not modify the original.", Example: ""},
+	"arrays.filter":       {Module: "arrays", Group: "Higher-Order", Kind: "func", Sig: "filter(arr [T], ()predicate) -> [T]", Fields: "", Desc: "Returns a new array containing only elements for which predicate returns true. predicate must be a function that takes T and returns bool. Does not modify the original.", Example: ""},
+	"arrays.reduce":       {Module: "arrays", Group: "Higher-Order", Kind: "func", Sig: "reduce(arr [T], initial T, ()accumulator) -> T", Fields: "", Desc: "Reduces arr to a single value by applying accumulator(acc, element) for each element, starting with initial. accumulator must take two T parameters and return T. Does not modify the original.", Example: ""},
 	"bytes.from_string":   {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_string(s string) -> [byte]", Fields: "", Desc: "Converts a UTF-8 string into a byte array.", Example: ""},
 	"bytes.from_hex":      {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_hex(hex string) -> [byte]", Fields: "", Desc: "Decodes a hex-encoded string into a byte array.", Example: ""},
 	"bytes.from_base64":   {Module: "bytes", Group: "Conversion", Kind: "func", Sig: "from_base64(b64 string) -> [byte]", Fields: "", Desc: "Decodes a base64-encoded string into a byte array.", Example: ""},
@@ -58,6 +61,10 @@ var stdlibManDocs = map[string]StdlibManEntry{
 	"fmt.printf":          {Module: "fmt", Group: "Output", Kind: "func", Sig: "printf(format string, ...args T)", Fields: "", Desc: "Prints a formatted string to stdout. Uses C-style format directives: %d (int), %f (float), %s (string), %b (bool), %c (char). Accepts string, int, float, and bool arguments. Composite types are not supported.", Example: ""},
 	"fmt.sprintf":         {Module: "fmt", Group: "Output", Kind: "func", Sig: "sprintf(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string without printing it. Uses the same format directives as printf.", Example: ""},
 	"fmt.format":          {Module: "fmt", Group: "Output", Kind: "func", Sig: "format(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string. Alias for sprintf.", Example: ""},
+	"fmt.printfln":        {Module: "fmt", Group: "Output", Kind: "func", Sig: "printfln(format string, ...args T)", Fields: "", Desc: "Prints a formatted string to stdout with a trailing newline. Uses the same format directives as printf.", Example: ""},
+	"fmt.eprintf":         {Module: "fmt", Group: "Output", Kind: "func", Sig: "eprintf(format string, ...args T)", Fields: "", Desc: "Prints a formatted string to stderr. Uses the same format directives as printf.", Example: ""},
+	"fmt.eprintfln":       {Module: "fmt", Group: "Output", Kind: "func", Sig: "eprintfln(format string, ...args T)", Fields: "", Desc: "Prints a formatted string to stderr with a trailing newline. Uses the same format directives as printf.", Example: ""},
+	"fmt.sprintfln":       {Module: "fmt", Group: "Output", Kind: "func", Sig: "sprintfln(format string, ...args T) -> string", Fields: "", Desc: "Returns a formatted string with a trailing newline. Uses the same format directives as sprintf.", Example: ""},
 	"fmt.pad_left":        {Module: "fmt", Group: "Padding", Kind: "func", Sig: "pad_left(s string, width int, ch char) -> string", Fields: "", Desc: "Returns s padded on the left with ch until the total length reaches width. Returns s unchanged if it is already at least width characters long.", Example: ""},
 	"fmt.pad_right":       {Module: "fmt", Group: "Padding", Kind: "func", Sig: "pad_right(s string, width int, ch char) -> string", Fields: "", Desc: "Returns s padded on the right with ch until the total length reaches width. Returns s unchanged if it is already at least width characters long.", Example: ""},
 	"fmt.center":          {Module: "fmt", Group: "Padding", Kind: "func", Sig: "center(s string, width int, ch char) -> string", Fields: "", Desc: "Returns s centered within width, padded on both sides with ch. If padding is uneven, the extra character goes on the right.", Example: ""},
@@ -261,10 +268,10 @@ var stdlibManDocs = map[string]StdlibManEntry{
 
 // stdlibModules maps module names to their ordered function lists.
 var stdlibModules = map[string][]string{
-	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc"},
+	"arrays":  {"append", "insert_at", "prepend", "remove_at", "remove", "clear", "fill", "get_first", "get_last", "remove_first", "remove_last", "is_empty", "contains", "index_of", "count", "is_equal", "reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair", "get_sum", "get_min", "get_max", "sort_asc", "sort_desc", "map", "filter", "reduce"},
 	"bytes":   {"from_string", "from_hex", "from_base64", "to_string", "to_hex", "to_base64"},
 	"csv":     {"parse", "decode", "encode", "format", "headers", "read_file", "write_file"},
-	"fmt":     {"printf", "sprintf", "format", "pad_left", "pad_right", "center", "int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"},
+	"fmt":     {"printf", "sprintf", "format", "printfln", "eprintf", "eprintfln", "sprintfln", "pad_left", "pad_right", "center", "int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"},
 	"http":    {"HttpResponse", "get", "post", "put", "patch", "delete", "head"},
 	"io":      {"read_file", "read_bytes", "read_lines", "file_exists", "is_file", "is_directory", "file_size", "write_file", "append_file", "delete_file", "rename_file", "copy_file", "move_file", "list_dir", "make_dir", "make_dir_all", "remove_dir", "remove_dir_all", "walk", "glob", "path_join", "dirname", "basename", "extension", "is_absolute", "normalize", "O_RDONLY", "O_WRONLY", "O_RDWR"},
 	"json":    {"encode", "format", "stringify", "decode", "parse", "is_valid", "pretty_print"},
@@ -293,6 +300,7 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "Query         ", Names: []string{"is_empty", "contains", "index_of", "count", "is_equal"}},
 		{Label: "Transformation", Names: []string{"reverse", "slice", "concat", "deduplicate", "flatten", "split_every", "pair"}},
 		{Label: "Computation   ", Names: []string{"get_sum", "get_min", "get_max"}},
+		{Label: "Higher-Order  ", Names: []string{"map", "filter", "reduce"}},
 	},
 	"bytes": {
 		{Label: "Conversion    ", Names: []string{"from_string", "from_hex", "from_base64"}},
@@ -304,7 +312,7 @@ var stdlibModuleGroups = map[string][]stdlibGroup{
 		{Label: "File I/O      ", Names: []string{"read_file", "write_file"}},
 	},
 	"fmt": {
-		{Label: "Output        ", Names: []string{"printf", "sprintf", "format"}},
+		{Label: "Output        ", Names: []string{"printf", "sprintf", "format", "printfln", "eprintf", "eprintfln", "sprintfln"}},
 		{Label: "Padding       ", Names: []string{"pad_left", "pad_right", "center"}},
 		{Label: "Number Formatting", Names: []string{"int_to_hex", "int_to_binary", "int_to_octal", "float_fixed", "float_sci"}},
 	},

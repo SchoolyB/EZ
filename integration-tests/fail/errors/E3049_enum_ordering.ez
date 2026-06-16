@@ -1,0 +1,17 @@
+/*
+ * Error Test: E3049 - ordering comparison on enum values
+ * Expected: "cannot use '>' on enum values" error
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut c Color = Color.RED
+    if c > Color.GREEN {
+        println("bigger")
+    }
+}

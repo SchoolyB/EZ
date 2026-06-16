@@ -1369,9 +1369,10 @@ int main(int argc, char **argv) {
                 /* Pass 2: functions, structs, enums */
                 for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
                     AstNode *imp_stmt = imp_program->data.program.stmts[mi];
-                    /* Skip import/using/module/var declarations (vars handled in Pass 1) */
+                    /* Skip import/module/var declarations (vars handled in Pass 1).
+                     * Using statements are preserved so the typechecker can scope
+                     * them per-file and prevent transitive type leaking (#1874). */
                     if (imp_stmt->kind == NODE_IMPORT_STMT ||
-                        imp_stmt->kind == NODE_USING_STMT ||
                         imp_stmt->kind == NODE_MODULE_DECL ||
                         imp_stmt->kind == NODE_VAR_DECL) continue;
 

@@ -92,7 +92,8 @@
     EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause") \
     EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted") \
     EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'") \
-    EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead")
+    EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead") \
+    EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -126,7 +127,6 @@
     EZ_ERROR("E3039", "types", "ensure expects a function call; for example: ensure close(file)") \
     EZ_ERROR("E3040", "types", "'%s' returns %d values; use mut a, b = %s() to capture all of them") \
     EZ_ERROR("E3041", "types", "cannot interpolate expression; interpolation supports primitives, strings, arrays, and maps") \
-    EZ_ERROR("E3042", "types", "struct functions must be called on the type; use '%s.%s()' instead of '%s.%s()'") \
     EZ_ERROR("E3043", "types", "cannot cast between incompatible types; only numeric, enum, and string conversions are allowed") \
     EZ_ERROR("E3044", "types", "cannot access field '%s' on type '%s'; use an instance variable instead") \
     EZ_ERROR("E3045", "types", "'or_return' requires a function that returns (T, Error); '%s()' does not return an error") \
@@ -191,7 +191,15 @@
     EZ_ERROR("E3105", "types", "fmt.%s: unknown format directive '%%%c'") \
     EZ_ERROR("E3106", "types", "fmt.%s: dangling '%%' at end of format string") \
     EZ_ERROR("E3107", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too few)") \
-    EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)")
+    EZ_ERROR("E3108", "types", "fmt.%s: format string has %d directive(s) but %d argument(s) were passed (too many)") \
+    EZ_ERROR("E3109", "types", "#json struct '%s' cannot have default field values; field '%s' has a default") \
+    EZ_ERROR("E3110", "types", "implicit enum selector '.%s' requires type context; use the full form 'EnumName.%s' or add a type annotation") \
+    EZ_ERROR("E3111", "types", "payload types are not allowed on string enum variants") \
+    EZ_ERROR("E3112", "types", "payload types are not allowed on #flags enum variants") \
+    EZ_ERROR("E3113", "types", "variant '%s' of enum '%s' expects %d payload value(s), got %d") \
+    EZ_ERROR("E3114", "types", "variant '%s' of enum '%s' has no payload; remove the arguments") \
+    EZ_ERROR("E3115", "types", "enum '%s' is not a tagged enum; variant '%s' cannot be called") \
+    EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -232,7 +240,12 @@
     EZ_ERROR("E5027", "usage", "embed() path must not escape the source file's directory tree") \
     EZ_ERROR("E5028", "usage", "func references are not printable values; func references cannot be passed to print functions") \
     EZ_ERROR("E5029", "usage", "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values") \
-    EZ_ERROR("E5030", "usage", "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling")
+    EZ_ERROR("E5030", "usage", "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling") \
+    EZ_ERROR("E5031", "usage", "unknown parameter name '%s' in call to '%s'") \
+    EZ_ERROR("E5032", "usage", "parameter '%s' is already provided positionally (argument %d) in call to '%s'") \
+    EZ_ERROR("E5033", "usage", "positional argument after named argument in call to '%s'") \
+    EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'") \
+    EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
@@ -249,6 +262,8 @@
     EZ_ERROR("E7014", "stdlib", "cannot convert %lld to char; value must be a valid Unicode code point (0 or greater)") \
     EZ_ERROR("E7015", "stdlib", "len() is not supported for type '%s'; len() works on string, array, and map types") \
     EZ_ERROR("E9002", "stdlib", "arrays.%s() requires a numeric array, got array of %s") \
+    EZ_ERROR("E9003", "stdlib", "arrays.%s() requires a function reference; use ()func_name to pass a function") \
+    EZ_ERROR("E9004", "stdlib", "arrays.%s() callback signature mismatch; %s") \
     EZ_ERROR("E9005", "stdlib", "invalid range: start (%lld) must be less than end (%lld)") \
     EZ_ERROR("E12001", "stdlib", "maps.%s() requires a map argument, got an array") \
     EZ_ERROR("E12006", "stdlib", "duplicate key in map literal")
@@ -359,6 +374,7 @@
     EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope") \
     EZ_WARNING("W2003", "safety", "unreachable code; this statement will never execute because it comes after a return") \
     EZ_WARNING("W2007", "safety", "this variable shadows a global constant or variable") \
+    EZ_WARNING("W2008", "safety", "parameter shadows an enum variant name") \
     EZ_WARNING("W2011", "safety", "named return value is declared in the signature but no matching variable exists in the function body") \
     EZ_WARNING("W2012", "safety", "when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon") \
     EZ_WARNING("W2013", "imports", "duplicate import of already-imported module") \
