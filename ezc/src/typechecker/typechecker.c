@@ -2231,18 +2231,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
-        /* E3032: different enum types in comparison */
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
-            node->data.infix.left->kind == NODE_MEMBER_EXPR &&
-            node->data.infix.right->kind == NODE_MEMBER_EXPR &&
-            node->data.infix.left->data.member.object->kind == NODE_LABEL &&
-            node->data.infix.right->data.member.object->kind == NODE_LABEL) {
-            const char *lname = node->data.infix.left->data.member.object->data.label.value;
-            const char *rname = node->data.infix.right->data.member.object->data.label.value;
-            if (is_enum_name(tc, lname) && is_enum_name(tc, rname) &&
-                strcmp(lname, rname) != 0) {
-                diag_error_codef(tc->diag, "E3032", NODE_FILE(tc, node), node->token.line, node->token.column, 0, lname, rname);
-            }
+        /* E3032: different enum types in comparison — catches both
+         * direct enum literals (Color.RED == Dir.NORTH) and variables
+         * of different enum types (c == d where c:Color, d:Dir). */
+        if (!infix_errored &&
+            (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind == TK_ENUM && right->kind == TK_ENUM &&
+            left->name && right->name &&
+            strcmp(left->name, right->name) != 0) {
+            diag_error_codef(tc->diag, "E3032", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                enum_display_name(tc, left->name), enum_display_name(tc, right->name));
+            infix_errored = true;
         }
 
         /* E3049: arithmetic and ordering on enum values — catch both
