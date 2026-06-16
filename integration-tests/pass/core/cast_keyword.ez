@@ -60,12 +60,12 @@ do main() {
 
     // Test 6: Array cast - [int] to [u8]
     mut ints [int] = {1, 2, 3}
-    mut bytes [u8] = cast(ints, [u8])
-    if len(bytes) == 3 {
+    mut byte_arr [u8] = cast(ints, [u8])
+    if len(byte_arr) == 3 {
         println("  [PASS] cast([int] to [u8]) preserves length 3")
         passed += 1
     } otherwise {
-        println("  [FAIL] cast([int] to [u8]): expected length 3, got ${len(bytes)}")
+        println("  [FAIL] cast([int] to [u8]): expected length 3, got ${len(byte_arr)}")
         failed += 1
     }
 

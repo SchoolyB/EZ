@@ -51,14 +51,14 @@ do main() {
     } otherwise { println("  [FAIL] for_each string — got ${concat}") failed += 1 }
 
     // for_each characters in string
-    mut char_count int = 0
+    mut chr_count int = 0
     for_each ch in "hello" {
-        char_count += 1
+        chr_count += 1
     }
-    if char_count == 5 {
+    if chr_count == 5 {
         println("  [PASS] for_each chars in string")
         passed += 1
-    } otherwise { println("  [FAIL] for_each chars — got ${char_count}") failed += 1 }
+    } otherwise { println("  [FAIL] for_each chars — got ${chr_count}") failed += 1 }
 
     // for_each with break
     mut break_count int = 0

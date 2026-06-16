@@ -13,12 +13,12 @@ do main() {
     mut _, _ = io.write_file(test_file, "line1\nline2\nline3")
 
     // Test 1: read_bytes returns correct byte count
-    mut bytes, _ = io.read_bytes(test_file)
-    if len(bytes) == 17 {
+    mut byte_data, _ = io.read_bytes(test_file)
+    if len(byte_data) == 17 {
         println("  [PASS] read_bytes: correct byte count (17)")
         passed += 1
     } otherwise {
-        println("  [FAIL] read_bytes: expected 17 bytes, got ${len(bytes)}")
+        println("  [FAIL] read_bytes: expected 17 bytes, got ${len(byte_data)}")
         failed += 1
     }
 

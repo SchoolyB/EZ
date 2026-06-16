@@ -12,8 +12,8 @@ do main() {
     mut failed int = 0
 
     mut scores map[string:int] = {"alice": 10, "bob": 20}
-    mut copy map[string:int] = scores
-    if copy["alice"] == 10 && copy["bob"] == 20 {
+    mut scores_copy map[string:int] = scores
+    if scores_copy["alice"] == 10 && scores_copy["bob"] == 20 {
         println("  [PASS] same-type map assignment")
         passed += 1
     } otherwise {

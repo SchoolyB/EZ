@@ -2273,7 +2273,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* E3049: arithmetic and ordering on enum values — catch both
          * direct enum literals (Color.RED + 1) and variables of enum
-         * type (c + 1).  Enums only support == and != comparison. */
+         * type (c + 1).  Enums only support == and != comparison.
+         * Exception: ordering comparisons (< > <= >=) are allowed when
+         * one side is an integer variable (user has explicitly unboxed
+         * the enum value into an int for numeric comparison). */
         if (!infix_errored &&
             (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
              strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0 ||
@@ -2281,7 +2284,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
              strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0)) {
             bool left_is_enum = (left && left->kind == TK_ENUM);
             bool right_is_enum = (right && right->kind == TK_ENUM);
-            if (left_is_enum || right_is_enum) {
+            bool is_ordering = (strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
+                                strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0);
+            bool has_int_side = (left && left->kind == TK_INT) ||
+                                (right && right->kind == TK_INT);
+            if ((left_is_enum || right_is_enum) &&
+                !(is_ordering && has_int_side)) {
                 diag_error_codef(tc->diag, "E3049", NODE_FILE(tc, node), node->token.line, node->token.column, 0, op);
                 infix_errored = true;
             }

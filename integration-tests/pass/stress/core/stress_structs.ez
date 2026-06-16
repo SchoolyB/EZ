@@ -15,7 +15,7 @@ const Address struct {
 
 const Employee struct {
     person Person
-    addr Address
+    address Address
     active bool
 }
 
@@ -46,10 +46,10 @@ do main() {
     // Nested struct
     mut emp = Employee{
         person: Person{name: "Carol", age: 35},
-        addr: Address{city: "NYC", zip: 10001},
+        address: Address{city: "NYC", zip: 10001},
         active: true
     }
-    if emp.person.name == "Carol" && emp.addr.city == "NYC" && emp.active == true {
+    if emp.person.name == "Carol" && emp.address.city == "NYC" && emp.active == true {
         println("  [PASS] nested struct access")
         passed += 1
     } otherwise { println("  [FAIL] nested struct") failed += 1 }

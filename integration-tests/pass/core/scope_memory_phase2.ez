@@ -16,8 +16,8 @@
 import @strings
 import @arrays
 
-do get_first(csv string) -> string {
-    mut upper string = strings.to_upper(csv)
+do get_first(csv_input string) -> string {
+    mut upper string = strings.to_upper(csv_input)
     mut parts [string] = strings.split(upper, ",")
     return parts[0]
 }
