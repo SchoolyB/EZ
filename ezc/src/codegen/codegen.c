@@ -5850,10 +5850,26 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, func);
                     AstNode *uf = find_func(cg, prefixed);
                     if (uf) {
+                        int pc = uf->data.func_decl.param_count;
+                        int ac = node->data.call.arg_count;
+                        int total = ac < pc ? pc : ac;
                         emitf(cg, "ez_fn_%s_%s(", real_mod, func);
-                        for (int i = 0; i < node->data.call.arg_count; i++) {
+                        for (int i = 0; i < total; i++) {
                             if (i > 0) emit(cg, ", ");
-                            emit_expression(cg, node->data.call.args[i]);
+                            if (i < ac) {
+                                bool mut_param = i < pc && uf->data.func_decl.params[i].mutable;
+                                if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
+                                    const char *vn = node->data.call.args[i]->data.label.value;
+                                    if (is_mutable_param(cg, vn)) emit(cg, vn);
+                                    else emitf(cg, "&%s", vn);
+                                } else if (mut_param && node->data.call.args[i]->kind == NODE_MEMBER_EXPR) {
+                                    emit(cg, "&"); emit_expression(cg, node->data.call.args[i]);
+                                } else {
+                                    emit_expression(cg, node->data.call.args[i]);
+                                }
+                            } else if (i < pc && uf->data.func_decl.params[i].default_value) {
+                                emit_expression(cg, uf->data.func_decl.params[i].default_value);
+                            }
                         }
                         emit(cg, ")");
                         return;
@@ -6335,6 +6351,26 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         if (obj->kind == NODE_LABEL) {
             const char *mod_name = resolve_alias(cg, obj->data.label.value);
             emitf(cg, "ez_%s_%s", mod_name, member);
+            /* Look up target_func for default params / mutable ref handling */
+            char prefixed[256];
+            snprintf(prefixed, sizeof(prefixed), "%s_%s", mod_name, member);
+            for (int fi = 0; fi < cg->func_count; fi++) {
+                if (strcmp(cg->all_funcs[fi]->data.func_decl.name, prefixed) == 0) {
+                    target_func = cg->all_funcs[fi];
+                    break;
+                }
+            }
+            if (!target_func) {
+                /* Try just the bare member name */
+                for (int fi = 0; fi < cg->func_count; fi++) {
+                    const char *registered = cg->all_funcs[fi]->data.func_decl.name;
+                    const char *us = strchr(registered, '_');
+                    if (us && strcmp(us + 1, member) == 0) {
+                        target_func = cg->all_funcs[fi];
+                        break;
+                    }
+                }
+            }
         } else {
             emit_expression(cg, node->data.call.function);
         }
