@@ -2313,17 +2313,37 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Enum vs integer comparison: reject with a specific diagnostic. */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+            if (left->kind == TK_ENUM && is_int_kind(right->kind)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'",
+                    type_display_name(tc, left), type_name(right), type_display_name(tc, left));
+                diag_error_msg(tc->diag, "E3117", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            if (is_int_kind(left->kind) && right->kind == TK_ENUM) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot compare %s with enum '%s'; use an enum variant like '%s.VARIANT'",
+                    type_name(left), type_display_name(tc, right), type_display_name(tc, right));
+                diag_error_msg(tc->diag, "E3117", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
         /* Comparison of incompatible types (e.g., int == string) */
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
             left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
             !(is_int_kind(left->kind) && is_int_kind(right->kind)) &&
-            !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
-            !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
             !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
             !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
             !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
             !(left->kind == TK_BOOL && is_int_kind(right->kind)) &&
+            !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
+            !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
             /* String enums can be compared with string literals */
             !(left->kind == TK_ENUM && right->kind == TK_STRING && tc_enum_is_string(tc, left->name)) &&
             !(left->kind == TK_STRING && right->kind == TK_ENUM && tc_enum_is_string(tc, right->name))) {
@@ -8213,6 +8233,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                 }
             }
+        }
+        /* Reject integer assigned to enum variable */
+        if (target->kind == NODE_LABEL && target_t->kind == TK_ENUM &&
+            is_int_kind(value_t->kind)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'",
+                type_name(value_t), type_display_name(tc, target_t), type_display_name(tc, target_t));
+            diag_error_msg(tc->diag, "E3118", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Check type mismatch on assignment (only for direct variable targets) */
         if (target->kind == NODE_LABEL) {

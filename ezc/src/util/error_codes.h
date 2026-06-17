@@ -200,7 +200,9 @@
     EZ_ERROR("E3113", "types", "variant '%s' of enum '%s' expects %d payload value(s), got %d") \
     EZ_ERROR("E3114", "types", "variant '%s' of enum '%s' has no payload; remove the arguments") \
     EZ_ERROR("E3115", "types", "enum '%s' is not a tagged enum; variant '%s' cannot be called") \
-    EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d")
+    EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d") \
+    EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'") \
+    EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
