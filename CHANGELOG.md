@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.6.1](https://github.com/SchoolyB/EZ/compare/v3.6.0...v3.6.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* **codegen:** emit 0 instead of {0} for scalar or_return slots ([#1882](https://github.com/SchoolyB/EZ/issues/1882)) ([d9e6a23](https://github.com/SchoolyB/EZ/commit/d9e6a233da99eba0458d83b8d7674d3af0a38726))
+* **codegen:** use outer arena for struct deep copy inside scoped blocks ([#1880](https://github.com/SchoolyB/EZ/issues/1880)) ([c0140aa](https://github.com/SchoolyB/EZ/commit/c0140aac5abeaa698741073383ac2f63e7fb5bd1))
+* **parser:** reject blank identifier declarations missing '=' ([#1878](https://github.com/SchoolyB/EZ/issues/1878)) ([c7ec8ad](https://github.com/SchoolyB/EZ/commit/c7ec8adb3517c753a6b98aa3ef73afc30c122db5))
+* **tests:** update enum tests ([#1885](https://github.com/SchoolyB/EZ/issues/1885)) ([a56358d](https://github.com/SchoolyB/EZ/commit/a56358d67060680a66b6bf4c58754ede589470c0))
+* **typechecker:** reject integer comparison and assignment with enum types ([#1884](https://github.com/SchoolyB/EZ/issues/1884)) ([ad2334e](https://github.com/SchoolyB/EZ/commit/ad2334e818b6b2897c9e275960e2d5842e5c8ee7))
+* **typechecker:** unify struct array types across imported files ([#1879](https://github.com/SchoolyB/EZ/issues/1879)) ([ab424fe](https://github.com/SchoolyB/EZ/commit/ab424fe8a83b8205bf8c780721f8d2a2697ee201))
+
 ## [3.6.0](https://github.com/SchoolyB/EZ/compare/v3.5.15...v3.6.0) (2026-06-16)
 
 
