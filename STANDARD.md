@@ -117,7 +117,7 @@ const        do          enum        import      mut
 new          private     struct      use*        using
 ```
 
-> `*use` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
+> 💡 **Flip's Tip:** `*use` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
 
 **Types (reserved names):**
 ```
@@ -573,6 +573,8 @@ const Direction enum {
 ```
 
 > 💡 **Flip's Tip:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
+
+> 💡 **Flip's Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -2340,7 +2342,7 @@ do main() {
 }
 ```
 
-> **Flip's Tips:** The embedded file is read once during compilation. Changes to the file after compilation have no effect on the binary. The compiler resolves the path relative to the `.ez` source file, not the current working directory when running `ezc`.
+> 💡 **Flip's Tip:** The embedded file is read once during compilation. Changes to the file after compilation have no effect on the binary. The compiler resolves the path relative to the `.ez` source file, not the current working directory when running `ezc`.
 
 ### 9.2 Arrays Module (`@arrays`)
 
@@ -2937,7 +2939,7 @@ SQLite database access for persistent storage.
 
 Error-returning variants: `open`, `exec`, `query` — always use destructuring.
 
-> **Flip's Tips:** Parameterized queries (`?` placeholders) are not supported. Build your SQL strings directly. Always sanitize any user-supplied values before interpolating them into SQL.
+> 💡 **Flip's Tip:** Parameterized queries (`?` placeholders) are not supported. Build your SQL strings directly. Always sanitize any user-supplied values before interpolating them into SQL.
 
 ```ez
 import @sqlite

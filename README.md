@@ -106,6 +106,8 @@ make install
 | `ez build <file> -o <name>` | Compile to a distributable binary | `ez build main.ez -o myapp` |
 | `ez check <file>` | Type check without compiling | `ez check main.ez` |
 | `ez watch <file>` | Watch for changes, re-run on save | `ez watch main.ez` |
+| `ez fmt <path>` | Format `.ez` source files in place | `ez fmt .` or `ez fmt ./...` |
+| `ez fmt --check <path>` | Check formatting without modifying files (CI gate) | `ez fmt --check ./...` |
 | `ez doc <file>` | Generate docs from `#doc` attributes | `ez doc main.ez` |
 | `ez pz <name>` | Scaffold a new project | `ez pz myproject` |
 | `ez report` | Print system info for bug reports | `ez report` |
