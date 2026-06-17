@@ -1405,20 +1405,6 @@ static AstNode *parse_var_declaration(Parser *p) {
     }
     node->data.var_decl.name = p->cur_token.literal;
 
-    /* Blank identifier requires '=' — a bare `mut _` or `mut _ foo()` is
-     * meaningless.  Catch it here before the type-annotation lookahead can
-     * consume the next identifier and desynchronize the parser. */
-    if (strcmp(node->data.var_decl.name, "_") == 0 && !peek_token_is(p, TOK_ASSIGN)) {
-        const char *kw = node->data.var_decl.mutable ? "mut" : "const";
-        char msg[EZ_MSG_BUF_SIZE];
-        snprintf(msg, sizeof(msg),
-            "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result", kw);
-        diag_error_msg(p->diag, "E2084", arena_strdup(p->arena, msg),
-            p->file, node->token.line, node->token.column, 0);
-        synchronize(p);
-        return NULL;
-    }
-
     /* Optional type annotation. TOK_QUESTION is included so a bare
      * wildcard `?` in a var_decl flows through parse_complex_type and
      * lands on the existing E2070 diagnostic below; without it, the
@@ -1455,6 +1441,21 @@ static AstNode *parse_var_declaration(Parser *p) {
             diag_error_codef(p->diag, "E2068", p->file, node->token.line, node->token.column, 0, node->data.var_decl.type_name);
             return NULL;
         }
+    }
+
+    /* Blank identifier requires '=' (or ',' for multi-var destructuring).
+     * Checked after the type-annotation block so `mut _ int, ...` is allowed
+     * but `mut _ foo()` is caught before the leftover tokens desync the parser. */
+    if (strcmp(node->data.var_decl.name, "_") == 0 &&
+        !peek_token_is(p, TOK_ASSIGN) && !peek_token_is(p, TOK_COMMA)) {
+        const char *kw = node->data.var_decl.mutable ? "mut" : "const";
+        char msg[EZ_MSG_BUF_SIZE];
+        snprintf(msg, sizeof(msg),
+            "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result", kw);
+        diag_error_msg(p->diag, "E2084", arena_strdup(p->arena, msg),
+            p->file, node->token.line, node->token.column, 0);
+        synchronize(p);
+        return NULL;
     }
 
     /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */

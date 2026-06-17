@@ -43,16 +43,20 @@ do main() {
     println("  -- Basic Int Enum --")
 
     // Test 1: first enum value is 0
-    if Direction.NORTH == 0 {
+    mut n int = Direction.NORTH
+    if n == 0 {
         println("  [PASS] Direction.NORTH = 0")
         passed += 1
     } otherwise {
-        println("  [FAIL] Direction.NORTH: expected 0, got ${Direction.NORTH}")
+        println("  [FAIL] Direction.NORTH: expected 0, got ${n}")
         failed += 1
     }
 
     // Test 2: auto-increment
-    if Direction.EAST == 1 && Direction.SOUTH == 2 && Direction.WEST == 3 {
+    mut e int = Direction.EAST
+    mut s int = Direction.SOUTH
+    mut w int = Direction.WEST
+    if e == 1 && s == 2 && w == 3 {
         println("  [PASS] enum auto-increment (1, 2, 3)")
         passed += 1
     } otherwise {
@@ -74,29 +78,33 @@ do main() {
     println("  -- Flags Enum (power-of-2) --")
 
     // Test 4: first flag value is 1
-    if Permissions.READ == 1 {
+    mut r int = Permissions.READ
+    if r == 1 {
         println("  [PASS] Permissions.READ = 1")
         passed += 1
     } otherwise {
-        println("  [FAIL] Permissions.READ: expected 1, got ${Permissions.READ}")
+        println("  [FAIL] Permissions.READ: expected 1, got ${r}")
         failed += 1
     }
 
     // Test 5: power-of-2 values
-    if Permissions.WRITE == 2 {
+    mut wr int = Permissions.WRITE
+    if wr == 2 {
         println("  [PASS] Permissions.WRITE = 2")
         passed += 1
     } otherwise {
-        println("  [FAIL] Permissions.WRITE: expected 2, got ${Permissions.WRITE}")
+        println("  [FAIL] Permissions.WRITE: expected 2, got ${wr}")
         failed += 1
     }
 
     // Test 6: continue power-of-2
-    if Permissions.EXECUTE == 4 && Permissions.DELETE == 8 {
+    mut ex int = Permissions.EXECUTE
+    mut dl int = Permissions.DELETE
+    if ex == 4 && dl == 8 {
         println("  [PASS] Permissions.EXECUTE=4, DELETE=8")
         passed += 1
     } otherwise {
-        println("  [FAIL] flags enum: EXECUTE=${Permissions.EXECUTE}, DELETE=${Permissions.DELETE}")
+        println("  [FAIL] flags enum: EXECUTE=${ex}, DELETE=${dl}")
         failed += 1
     }
 
@@ -135,18 +143,21 @@ do main() {
     println("  -- Int Enum (auto-detected) --")
 
     // Test 10: int enum auto-increment works without any attribute
-    if Priority.LOW == 0 && Priority.MEDIUM == 1 && Priority.HIGH == 2 {
+    mut lo int = Priority.LOW
+    mut md int = Priority.MEDIUM
+    mut hi int = Priority.HIGH
+    if lo == 0 && md == 1 && hi == 2 {
         println("  [PASS] int enum auto-increment (0, 1, 2)")
         passed += 1
     } otherwise {
-        println("  [FAIL] int enum: LOW=${Priority.LOW}, MEDIUM=${Priority.MEDIUM}, HIGH=${Priority.HIGH}")
+        println("  [FAIL] int enum: LOW=${lo}, MEDIUM=${md}, HIGH=${hi}")
         failed += 1
     }
 
     // ==================== ENUM COMPARISON ====================
     println("  -- Enum Comparison --")
 
-    // Test 11: compare enum values
+    // Test 11: compare enum values via int variables
     mut priority int = Priority.HIGH
     if priority >= Priority.MEDIUM {
         println("  [PASS] enum comparison (HIGH >= MEDIUM)")
