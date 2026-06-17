@@ -1,0 +1,66 @@
+const Item struct {
+    name string
+    weight int
+}
+
+do find_heaviest(items [Item]) -> (Item, int) {
+    mut best Item = items[0]
+    mut bestIdx int = 0
+    for_each i, item in items {
+        if item.weight > best.weight {
+            best = item
+            bestIdx = i
+        }
+    }
+    return best, bestIdx
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut items [Item] = {
+        Item{name: "Sword", weight: 5},
+        Item{name: "Shield", weight: 8},
+        Item{name: "Dagger", weight: 3}
+    }
+
+    // Test 1: conditional struct reassignment inside for_each preserves string
+    mut best Item = items[0]
+    for_each i, item in items {
+        if item.weight > best.weight {
+            best = item
+        }
+    }
+    if best.name == "Shield" {
+        println("  [PASS] struct string survives conditional for_each reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 'Shield', got '${best.name}'")
+        failed += 1
+    }
+
+    // Test 2: struct returned from function after for_each reassignment
+    mut heavy, idx = find_heaviest(items)
+    if heavy.name == "Shield" {
+        println("  [PASS] struct string survives function return after for_each")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 'Shield', got '${heavy.name}'")
+        failed += 1
+    }
+    if idx == 1 {
+        println("  [PASS] correct index returned")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected index 1, got ${idx}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

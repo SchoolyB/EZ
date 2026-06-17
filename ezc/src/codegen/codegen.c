@@ -7541,7 +7541,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emit(cg, "; }\n");
             return;
         }
-        /* Struct copy-by-default: deep copy structs with container fields. */
+        /* Struct copy-by-default: deep copy structs with container fields.
+         * When inside a scoped arena (if-block / for_each), allocate on
+         * the outer arena so the copy survives scope destruction. */
         if (tgt_t && tgt_t->kind == TK_STRUCT && tgt_t->name &&
             type_needs_deep_copy(cg, tgt_t->name)) {
             int t = next_dc_tag();
@@ -7551,10 +7553,17 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, "{ %s %s = ", ct, src_var);
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; ");
+            if (cg->loop_scope_depth > 0) {
+                emit(cg, "EzArena *_esc_a = ez_default_arena; ez_default_arena = _ez_outer_arena; ");
+            }
             emit_expression(cg, node->data.assign.target);
             emit(cg, " = ");
             emit_value_deep_copy(cg, tgt_t->name, src_var);
-            emit(cg, "; }\n");
+            if (cg->loop_scope_depth > 0) {
+                emit(cg, "; ez_default_arena = _esc_a; }\n");
+            } else {
+                emit(cg, "; }\n");
+            }
             return;
         }
     }
