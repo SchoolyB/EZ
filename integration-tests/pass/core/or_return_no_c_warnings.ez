@@ -1,0 +1,83 @@
+const Item struct {
+    name string
+    value int
+}
+
+do risky_int(ok bool) -> (int, Error) {
+    if !ok {
+        return 0, error("int failed")
+    }
+    return 7, nil
+}
+
+do risky_item(ok bool) -> (Item, Error) {
+    if !ok {
+        return Item{name: "", value: 0}, error("item failed")
+    }
+    return Item{name: "Gem", value: 99}, nil
+}
+
+do chain_ints() -> (int, Error) {
+    mut a = risky_int(true) or_return
+    mut b = risky_int(true) or_return
+    return a + b, nil
+}
+
+do chain_struct() -> (Item, Error) {
+    mut item = risky_item(true) or_return
+    return item, nil
+}
+
+do chain_fail() -> (int, Error) {
+    mut _ = risky_int(false) or_return
+    return 0, nil
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut r1, e1 = chain_ints()
+    if e1 == nil {
+        if r1 == 14 {
+            println("  [PASS] chained scalar or_return")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] expected 14, got ${r1}")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] unexpected error: ${e1.message}")
+        failed += 1
+    }
+
+    mut r2, e2 = chain_struct()
+    if e2 == nil {
+        if r2.name == "Gem" {
+            println("  [PASS] struct or_return")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] expected 'Gem', got '${r2.name}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] unexpected error: ${e2.message}")
+        failed += 1
+    }
+
+    mut r3, e3 = chain_fail()
+    if e3 != nil {
+        println("  [PASS] or_return propagates error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected error, got ${r3}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

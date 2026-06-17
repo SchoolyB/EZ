@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 329 codes** (223 errors, 17 warnings, 89 panics)
+**Total: 332 codes** (226 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -74,6 +74,7 @@
 | `E2081` | syntax | '^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^' |
 | `E2082` | syntax | arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead |
 | `E2083` | syntax | enum variant '%s' cannot have both a payload and an explicit value |
+| `E2084` | syntax | blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -177,6 +178,8 @@
 | `E3114` | types | variant '%s' of enum '%s' has no payload; remove the arguments |
 | `E3115` | types | enum '%s' is not a tagged enum; variant '%s' cannot be called |
 | `E3116` | types | wrong number of bindings for variant '%s'; expected %d, got %d |
+| `E3117` | types | cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT' |
+| `E3118` | types | cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -380,4 +383,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-16 06:24:13 UTC*
+*Generated on 2026-06-17 01:41:59 UTC*

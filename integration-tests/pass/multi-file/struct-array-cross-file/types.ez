@@ -1,0 +1,14 @@
+const Item struct {
+    name string
+    weight int
+}
+
+do find_heaviest(items [Item]) -> Item {
+    mut best Item = items[0]
+    for_each i, item in items {
+        if item.weight > best.weight {
+            best = item
+        }
+    }
+    return best
+}

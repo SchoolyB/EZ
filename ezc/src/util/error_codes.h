@@ -93,7 +93,8 @@
     EZ_ERROR("E2080", "syntax", "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted") \
     EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'") \
     EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead") \
-    EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value")
+    EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value") \
+    EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -199,7 +200,9 @@
     EZ_ERROR("E3113", "types", "variant '%s' of enum '%s' expects %d payload value(s), got %d") \
     EZ_ERROR("E3114", "types", "variant '%s' of enum '%s' has no payload; remove the arguments") \
     EZ_ERROR("E3115", "types", "enum '%s' is not a tagged enum; variant '%s' cannot be called") \
-    EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d")
+    EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d") \
+    EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'") \
+    EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

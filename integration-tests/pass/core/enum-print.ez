@@ -89,13 +89,14 @@ do main() {
         failed += 1
     }
 
-    // Test 7: enum variable compared then printed
+    // Test 7: enum variable value verified via string interpolation
     mut level Priority = Priority.MEDIUM
-    if level == 1 {
-        println("  [PASS] enum variable comparison (MEDIUM==1)")
+    mut s7 string = "${level}"
+    if s7 == "1" {
+        println("  [PASS] enum variable value via interpolation (MEDIUM=1)")
         passed += 1
     } otherwise {
-        println("  [FAIL] enum comparison: ${level} != 1")
+        println("  [FAIL] enum interpolation: got '${s7}', expected '1'")
         failed += 1
     }
 

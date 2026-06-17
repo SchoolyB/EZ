@@ -1443,6 +1443,21 @@ static AstNode *parse_var_declaration(Parser *p) {
         }
     }
 
+    /* Blank identifier requires '=' (or ',' for multi-var destructuring).
+     * Checked after the type-annotation block so `mut _ int, ...` is allowed
+     * but `mut _ foo()` is caught before the leftover tokens desync the parser. */
+    if (strcmp(node->data.var_decl.name, "_") == 0 &&
+        !peek_token_is(p, TOK_ASSIGN) && !peek_token_is(p, TOK_COMMA)) {
+        const char *kw = node->data.var_decl.mutable ? "mut" : "const";
+        char msg[EZ_MSG_BUF_SIZE];
+        snprintf(msg, sizeof(msg),
+            "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result", kw);
+        diag_error_msg(p->diag, "E2084", arena_strdup(p->arena, msg),
+            p->file, node->token.line, node->token.column, 0);
+        synchronize(p);
+        return NULL;
+    }
+
     /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */
     if (peek_token_is(p, TOK_COMMA)) {
             /* Collect all variable names and types */

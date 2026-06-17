@@ -247,6 +247,18 @@ static bool tc_same_struct_type(TypeChecker *tc, const char *a, const char *b) {
 static bool tc_same_enum_type(TypeChecker *tc, const char *a, const char *b) {
     return strcmp(enum_display_name(tc, a), enum_display_name(tc, b)) == 0;
 }
+/* Compare array element type names accounting for module-prefixed struct
+ * aliases (e.g. "Item" vs "utils_Item" should match). */
+static bool tc_same_array_elem(TypeChecker *tc, const char *a, const char *b) {
+    if (strcmp(a, b) == 0) return true;
+    EzType *at = type_from_name(a);
+    EzType *bt = type_from_name(b);
+    if (at && bt && at->kind == TK_STRUCT && bt->kind == TK_STRUCT)
+        return tc_same_struct_type(tc, a, b);
+    if (at && bt && at->kind == TK_ENUM && bt->kind == TK_ENUM)
+        return tc_same_enum_type(tc, a, b);
+    return false;
+}
 
 /* Returns true if the named enum is string-backed. */
 static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
@@ -2301,17 +2313,37 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Enum vs integer comparison: reject with a specific diagnostic. */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+            if (left->kind == TK_ENUM && is_int_kind(right->kind)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'",
+                    type_display_name(tc, left), type_name(right), type_display_name(tc, left));
+                diag_error_msg(tc->diag, "E3117", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            if (is_int_kind(left->kind) && right->kind == TK_ENUM) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "cannot compare %s with enum '%s'; use an enum variant like '%s.VARIANT'",
+                    type_name(left), type_display_name(tc, right), type_display_name(tc, right));
+                diag_error_msg(tc->diag, "E3117", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
         /* Comparison of incompatible types (e.g., int == string) */
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
             left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
             !(is_int_kind(left->kind) && is_int_kind(right->kind)) &&
-            !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
-            !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
             !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
             !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
             !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
             !(left->kind == TK_BOOL && is_int_kind(right->kind)) &&
+            !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
+            !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
             /* String enums can be compared with string literals */
             !(left->kind == TK_ENUM && right->kind == TK_STRING && tc_enum_is_string(tc, left->name)) &&
             !(left->kind == TK_STRING && right->kind == TK_ENUM && tc_enum_is_string(tc, right->name))) {
@@ -5357,7 +5389,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* Array element type mismatch */
                         if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
                             arg_t->element_type && param_t->element_type &&
-                            strcmp(arg_t->element_type, param_t->element_type) != 0) {
+                            !tc_same_array_elem(tc, arg_t->element_type, param_t->element_type)) {
                             EzType *ae = type_from_name(arg_t->element_type);
                             EzType *pe = type_from_name(param_t->element_type);
                             if (!(ae && pe && is_int_kind(ae->kind) && is_int_kind(pe->kind))) {
@@ -7397,16 +7429,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Array element type mismatch (both TK_ARRAY but different element types) */
             if (declared->kind == TK_ARRAY && value_type->kind == TK_ARRAY &&
                 declared->element_type && value_type->element_type &&
-                strcmp(declared->element_type, value_type->element_type) != 0) {
+                !tc_same_array_elem(tc, declared->element_type, value_type->element_type)) {
                 EzType *decl_elem = type_from_name(declared->element_type);
                 EzType *val_elem  = type_from_name(value_type->element_type);
                 /* Allow int-kind ↔ int-kind, int→float, and skip when either
                  * element type is opaque/unknown (e.g. generic stdlib returns) */
                 /* Skip function-type arrays: signature strings differ by whitespace */
                 bool elem_is_func = strncmp(declared->element_type, "func", 4) == 0;
-                /* Only fire when both element types resolve to known builtins.
-                 * TK_STRUCT covers user-defined names (enums/structs) via type_from_name;
-                 * int-kind target allows enum arrays like {Color.RED} assigned to [int]. */
                 if (!elem_is_func && decl_elem && val_elem &&
                     decl_elem->kind != TK_UNKNOWN && val_elem->kind != TK_UNKNOWN &&
                     !(is_int_kind(decl_elem->kind) && is_int_kind(val_elem->kind)) &&
@@ -8205,6 +8234,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
+        /* Reject integer assigned to enum variable */
+        if (target->kind == NODE_LABEL && target_t->kind == TK_ENUM &&
+            is_int_kind(value_t->kind)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'",
+                type_name(value_t), type_display_name(tc, target_t), type_display_name(tc, target_t));
+            diag_error_msg(tc->diag, "E3118", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         /* Check type mismatch on assignment (only for direct variable targets) */
         if (target->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);
@@ -8546,7 +8585,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Array element type mismatch in return */
             if (ret_t->kind == TK_ARRAY && expected->kind == TK_ARRAY &&
                 ret_t->element_type && expected->element_type &&
-                strcmp(ret_t->element_type, expected->element_type) != 0) {
+                !tc_same_array_elem(tc, ret_t->element_type, expected->element_type)) {
                 EzType *re = type_from_name(ret_t->element_type);
                 EzType *ee = type_from_name(expected->element_type);
                 if (!(re && ee && is_int_kind(re->kind) && is_int_kind(ee->kind))) {

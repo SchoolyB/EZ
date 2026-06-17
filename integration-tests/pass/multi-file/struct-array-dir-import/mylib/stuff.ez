@@ -1,0 +1,21 @@
+import @arrays
+
+const Fruit struct {
+    name string
+    price int
+}
+
+do get_fruits() -> [Fruit] {
+    mut fruits [Fruit] = {}
+    arrays.append(fruits, Fruit{name: "Apple", price: 2})
+    arrays.append(fruits, Fruit{name: "Banana", price: 3})
+    return fruits
+}
+
+do total_price(fruits [Fruit]) -> int {
+    mut sum int = 0
+    for_each f in fruits {
+        sum += f.price
+    }
+    return sum
+}

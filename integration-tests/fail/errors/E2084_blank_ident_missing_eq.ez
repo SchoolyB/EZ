@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2084 - blank identifier missing '='
+ * Expected: error about missing '=' after '_'
+ */
+
+do foo() -> int {
+    return 1
+}
+
+do main() {
+    mut _ foo()
+}

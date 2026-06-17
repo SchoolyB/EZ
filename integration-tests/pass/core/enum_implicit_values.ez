@@ -28,20 +28,31 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    if Status.PENDING == 10 && Status.ACTIVE == 11 && Status.DONE == 20 {
+    // Assign enum values to int variables, then compare
+    mut sp int = Status.PENDING
+    mut sa int = Status.ACTIVE
+    mut sd int = Status.DONE
+    if sp == 10 && sa == 11 && sd == 20 {
         println("  [PASS] PENDING=10, ACTIVE=11, DONE=20")
         passed += 1
     } otherwise {
-        println("  [FAIL] Status: ${Status.PENDING}, ${Status.ACTIVE}, ${Status.DONE}")
+        println("  [FAIL] Status: ${sp}, ${sa}, ${sd}")
         failed += 1
     }
 
-    if Mixed.A == 0 && Mixed.B == 1 && Mixed.C == 100 && Mixed.D == 101 &&
-       Mixed.E == 200 && Mixed.F == 201 && Mixed.G == 202 {
+    mut ma int = Mixed.A
+    mut mb int = Mixed.B
+    mut mc int = Mixed.C
+    mut md int = Mixed.D
+    mut me int = Mixed.E
+    mut mf int = Mixed.F
+    mut mg int = Mixed.G
+    if ma == 0 && mb == 1 && mc == 100 && md == 101 &&
+       me == 200 && mf == 201 && mg == 202 {
         println("  [PASS] A=0, B=1, C=100, D=101, E=200, F=201, G=202")
         passed += 1
     } otherwise {
-        println("  [FAIL] Mixed: A=${Mixed.A} B=${Mixed.B} C=${Mixed.C} D=${Mixed.D} E=${Mixed.E} F=${Mixed.F} G=${Mixed.G}")
+        println("  [FAIL] Mixed: A=${ma} B=${mb} C=${mc} D=${md} E=${me} F=${mf} G=${mg}")
         failed += 1
     }
 
