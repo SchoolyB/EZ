@@ -7789,7 +7789,18 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         const char *mbn2 = multi_ret_name(cg->current_func);
         emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn2, mbn2);
         for (int i = 0; i < rc - 1; i++) {
-            emit(cg, "{0}, ");
+            /* Use {0} for composite types (structs, arrays, maps, strings)
+             * and 0 for scalars to avoid -Wbraced-scalar-init. */
+            const char *rt = cg->current_func->data.func_decl.return_types[i];
+            bool composite = false;
+            if (rt) {
+                EzType *rtt = type_from_name(rt);
+                if (rtt && (rtt->kind == TK_STRUCT || rtt->kind == TK_ARRAY ||
+                            rtt->kind == TK_MAP || rtt->kind == TK_STRING ||
+                            rtt->kind == TK_ERROR))
+                    composite = true;
+            }
+            emit(cg, composite ? "{0}, " : "0, ");
         }
         emit_expression(cg, node->data.return_stmt.values[0]);
         emit(cg, "}; ");
