@@ -39,7 +39,7 @@ do main() {
     mut u = User{name: "Marshall", age: 31}
     println(json.stringify(u))
 }
-// Output: {"name":"Alice","age":30}
+// Output: {"name":"Marshall","age":31}
 ```
 
 ```ez
@@ -143,7 +143,7 @@ ez install 2.5.0       # pin to an exact version
 
 ## Status
 
-EZ is in active development. The language is usable for personal projects and dev tools. Breaking changes may occur frequentlly.
+EZ is in active development. The language is usable for personal projects and dev tools. Breaking changes may occur frequently.
 
 ---
 
