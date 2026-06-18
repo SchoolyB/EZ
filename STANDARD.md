@@ -702,8 +702,9 @@ Type inference works with:
 2. **Function return values** - The variable's type is inferred from the function's return type
 3. **Struct literals** - The type is known from the struct name
 4. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
-5. **Array literals** - When element types are consistent
-6. **Multiple return values** - Each variable's type is inferred from the corresponding return type
+5. **Multiple return values** - Each variable's type is inferred from the corresponding return type
+
+> **Note:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
 
 ```ez
 // Inferred from literals
@@ -729,8 +730,8 @@ const p = Point{x: 1, y: 2}    // Inferred: Point
 mut val = new(Person)         // Inferred: ^Person (pointer)
 mut dup = copy(val)           // Inferred: Person
 
-// Inferred from array literal
-mut arr = {1, 2, 3}           // Inferred: [int]
+// Arrays and maps always require explicit type annotations
+mut arr [int] = {1, 2, 3}           // Explicit: [int]
 
 // Multiple return values
 do divide(a, b int) -> (int, int) {
@@ -1716,7 +1717,7 @@ do run(f func() -> int) -> int {
 }
 
 // No return value
-do each(arr [int, 3], f func(int)) {
+do each(arr [int], f func(int)) {
     for_each v in arr { f(v) }
 }
 
@@ -2638,7 +2639,6 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 | `parse` | `(text string) -> T` | Parse JSON into a `#json` struct (context-dependent) |
 | `encode` | `(value T) -> string` | Encode to JSON string. Accepts int, float, bool, string, map, array. |
 | `stringify` | `(value T) -> string` | Encode to JSON string (alias for encode, supports `#json` structs) |
-| `format` | `(value T) -> string` | Format value as JSON string |
 | `pretty_print` | `(m map, indent int) -> string` | Pretty-print a map as indented JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
@@ -3040,9 +3040,7 @@ Reading and writing CSV (Comma-Separated Values) data.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `parse` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array |
-| `decode` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array (alias for parse) |
 | `encode` | `(data [[string]]) -> string` | Encode 2D array to CSV string |
-| `format` | `(data [[string]]) -> string` | Format 2D array as CSV string (alias for encode) |
 | `read_file` | `(path string) -> ([[string]], Error)` | Read and parse CSV file — always use destructuring |
 | `write_file` | `(path string, data [[string]]) -> (bool, Error)` | Write 2D array to CSV file — always use destructuring |
 | `headers` | `(data [[string]]) -> [string]` | Extract header row from parsed CSV data |
