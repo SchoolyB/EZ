@@ -5127,6 +5127,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_BOOL;
+            } else if ((strcmp(fn_name, "i8") == 0 || strcmp(fn_name, "i16") == 0 ||
+                        strcmp(fn_name, "i32") == 0 || strcmp(fn_name, "i64") == 0 ||
+                        strcmp(fn_name, "u8") == 0 || strcmp(fn_name, "u16") == 0 ||
+                        strcmp(fn_name, "u32") == 0 || strcmp(fn_name, "u64") == 0 ||
+                        strcmp(fn_name, "f32") == 0 || strcmp(fn_name, "f64") == 0)) {
+                diag_error_codef(tc->diag, "E5036", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0, fn_name, fn_name);
+                result = type_from_name(fn_name);
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {

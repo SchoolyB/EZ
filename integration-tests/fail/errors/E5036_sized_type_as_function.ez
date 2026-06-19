@@ -1,0 +1,12 @@
+do main() {
+    mut a = i8(100)
+    mut b = i16(200)
+    mut c = i32(300)
+    mut d = i64(400)
+    mut e = u8(50)
+    mut f = u16(600)
+    mut g = u32(700)
+    mut h = u64(800)
+    mut i = f32(1.5)
+    mut j = f64(2.5)
+}

@@ -248,7 +248,8 @@
     EZ_ERROR("E5032", "usage", "parameter '%s' is already provided positionally (argument %d) in call to '%s'") \
     EZ_ERROR("E5033", "usage", "positional argument after named argument in call to '%s'") \
     EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'") \
-    EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared")
+    EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared") \
+    EZ_ERROR("E5036", "usage", "'%s' is a type, not a function; use cast(value, %s) to convert")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
