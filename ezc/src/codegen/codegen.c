@@ -1198,9 +1198,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (et->kind == TK_BYTE) ek = 5;
                     else if (et->kind == TK_CHAR) ek = 6;
                 }
-                emitf(cg, "ez_builtin_array_to_string(ez_default_arena, &");
+                emitf(cg, "({ EzArray _interp_arr = ");
                 emit_expression(cg, part);
-                emitf(cg, ", %d).data", ek);
+                emitf(cg, "; ez_builtin_array_to_string(ez_default_arena, &_interp_arr, %d); }).data", ek);
                 break;
             }
             case TK_MAP: {
@@ -1215,9 +1215,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (vt->kind == TK_BYTE) vk = 5;
                     else if (vt->kind == TK_CHAR) vk = 6;
                 }
-                emitf(cg, "ez_builtin_map_to_string(ez_default_arena, &");
+                emitf(cg, "({ EzMap _interp_map = ");
                 emit_expression(cg, part);
-                emitf(cg, ", %d).data", vk);
+                emitf(cg, "; ez_builtin_map_to_string(ez_default_arena, &_interp_map, %d); }).data", vk);
                 break;
             }
             case TK_ERROR:
