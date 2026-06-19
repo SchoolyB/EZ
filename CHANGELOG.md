@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.6.2](https://github.com/SchoolyB/EZ/compare/v3.6.1...v3.6.2) (2026-06-19)
+
+
+### Bug Fixes
+
+* **cli:** correct errors in pz server and client scaffold templates ([#1888](https://github.com/SchoolyB/EZ/issues/1888)) ([88c709b](https://github.com/SchoolyB/EZ/commit/88c709b49b426d073a5bc84f089c18d334e23b43))
+* **cli:** replace return with exit(0) in pz cli template main() ([#1890](https://github.com/SchoolyB/EZ/issues/1890)) ([6ddb39c](https://github.com/SchoolyB/EZ/commit/6ddb39ccff271e8ef8b9fab0b28b79440caa66af))
+* **codegen:** escape Error return values from function arena before destruction ([#1895](https://github.com/SchoolyB/EZ/issues/1895)) ([8c94e57](https://github.com/SchoolyB/EZ/commit/8c94e5706ef69affa66e2ee203839f0970d25893))
+* **codegen:** materialize rvalue arrays and maps in string interpolation ([#1894](https://github.com/SchoolyB/EZ/issues/1894)) ([159fd7a](https://github.com/SchoolyB/EZ/commit/159fd7a776d4655f54a5cc8f97f3b13411abde03))
+* **codegen:** materialize rvalue maps and arrays in json.encode() ([#1898](https://github.com/SchoolyB/EZ/issues/1898)) ([6818385](https://github.com/SchoolyB/EZ/commit/6818385dae0463c6bac855f9f4cf7d6f373dc175))
+* **codegen:** recognize or_return temp prefix in fallible stdlib result checks ([#1893](https://github.com/SchoolyB/EZ/issues/1893)) ([1eeb0fc](https://github.com/SchoolyB/EZ/commit/1eeb0fc95debf3938f26aea2da488cff27609549))
+* **typechecker:** reject fixed-size array types in function parameters ([#1892](https://github.com/SchoolyB/EZ/issues/1892)) ([257dfda](https://github.com/SchoolyB/EZ/commit/257dfda91c48b464d74210c0b7058838140e6c5b))
+* **typechecker:** reject sized integer and float type names used as function calls ([#1896](https://github.com/SchoolyB/EZ/issues/1896)) ([fb3570f](https://github.com/SchoolyB/EZ/commit/fb3570f34a39a0b4eea3450ddafc798f885def3e))
+* **typechecker:** validate argument types for server response builder functions ([#1887](https://github.com/SchoolyB/EZ/issues/1887)) ([4c62066](https://github.com/SchoolyB/EZ/commit/4c62066e3df7c6e5e1f8dc624063496f18a37761))
+
 ## [3.6.1](https://github.com/SchoolyB/EZ/compare/v3.6.0...v3.6.1) (2026-06-17)
 
 
