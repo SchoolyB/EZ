@@ -1,0 +1,49 @@
+import @io
+
+do read_missing_file() -> (string, Error) {
+    mut content = io.read_file("/tmp/_ez_no_such_file_1893.txt") or_return
+    return content, nil
+}
+
+do read_real_file() -> (string, Error) {
+    mut content = io.read_file("/tmp/_ez_or_return_test_1893.txt") or_return
+    return content, nil
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: or_return propagates error from fallible stdlib call
+    mut c1, e1 = read_missing_file()
+    if e1 != nil {
+        println("  [PASS] or_return propagates io.read_file error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected error for missing file")
+        failed += 1
+    }
+
+    // Test 2: or_return passes value on success
+    mut _, we = io.write_file("/tmp/_ez_or_return_test_1893.txt", "hello from test")
+    mut c2, e2 = read_real_file()
+    if e2 == nil {
+        if c2 == "hello from test" {
+            println("  [PASS] or_return passes io.read_file value on success")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] content mismatch: got '${c2}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] unexpected error reading real file")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
