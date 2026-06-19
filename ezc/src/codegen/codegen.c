@@ -7710,6 +7710,12 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
     EzType *rt = type_from_name(ret_type_name);
     if (rt->kind == TK_STRING) {
         emit(cg, "_ret = ez_string_new(_func_saved, _ret.data, _ret.len); ");
+    } else if (rt->kind == TK_ERROR) {
+        emit(cg, "if (_ret) { EzError *_src_err = (EzError *)_ret; ");
+        emit(cg, "EzError *_esc_err = (EzError *)ez_arena_alloc(_func_saved, sizeof(EzError)); ");
+        emit(cg, "_esc_err->message = ez_string_new(_func_saved, _src_err->message.data, _src_err->message.len); ");
+        emit(cg, "_esc_err->code = ez_string_new(_func_saved, _src_err->code.data, _src_err->code.len); ");
+        emit(cg, "_ret = _esc_err; } ");
     } else if (type_needs_deep_copy(cg, ret_type_name)) {
         emit(cg, "{ EzArena *_esc = ez_default_arena; ez_default_arena = _func_saved; _ret = ");
         emit_value_deep_copy(cg, ret_type_name, "_ret");
@@ -7735,6 +7741,11 @@ static void emit_multi_func_return_escape(CodeGen *cg) {
         EzType *rt = type_from_name(tn);
         if (rt->kind == TK_STRING) {
             emitf(cg, "_ret.v%d = ez_string_new(_func_saved, _ret.v%d.data, _ret.v%d.len); ", i, i, i);
+        } else if (rt->kind == TK_ERROR) {
+            emitf(cg, "if (_ret.v%d) { EzError *_esc_err = (EzError *)ez_arena_alloc(_func_saved, sizeof(EzError)); ", i);
+            emitf(cg, "_esc_err->message = ez_string_new(_func_saved, _ret.v%d->message.data, _ret.v%d->message.len); ", i, i);
+            emitf(cg, "_esc_err->code = ez_string_new(_func_saved, _ret.v%d->code.data, _ret.v%d->code.len); ", i, i);
+            emitf(cg, "_ret.v%d = _esc_err; } ", i);
         } else if (type_needs_deep_copy(cg, tn)) {
             char field[32];
             snprintf(field, sizeof(field), "_ret.v%d", i);
