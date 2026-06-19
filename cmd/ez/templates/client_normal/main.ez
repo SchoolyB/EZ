@@ -4,23 +4,22 @@
 // Errors surface as a non-nil Error; check against nil before use.
 
 import @http
+import @json
 
 do main() {
-    mut resp HttpResponse, err Error = http.get("https://httpbin.org/get")
+    mut resp, err = http.get("https://httpbin.org/get")
     if err != nil {
         println("GET failed.")
-        return
+        exit(1)
     }
     println("GET Status: ${resp.status}")
     println("GET Body: ${resp.body}")
 
-    mut post_resp HttpResponse, post_err Error = http.post(
-        "https://httpbin.org/post",
-        http.json_body({"title": "Hello from EZ!", "body": "This is a test post."})
-    )
+    mut payload map[string:string] = {"title": "Hello from EZ!", "body": "This is a test post."}
+    mut post_resp, post_err = http.post("https://httpbin.org/post", json.encode(payload))
     if post_err != nil {
         println("POST failed.")
-        return
+        exit(1)
     }
     println("POST Status: ${post_resp.status}")
     println("POST Body: ${post_resp.body}")

@@ -6,10 +6,10 @@
 import @http
 
 do main() {
-    mut resp HttpResponse, err Error = http.get("https://httpbin.org/get")
+    mut resp, err = http.get("https://httpbin.org/get")
     if err != nil {
         println("Request failed.")
-        return
+        exit(1)
     }
     println("Status: ${resp.status}")
     println("Body: ${resp.body}")
