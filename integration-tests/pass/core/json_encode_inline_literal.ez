@@ -1,0 +1,65 @@
+import @json
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: inline map literal with string values
+    mut s1 string = json.encode({"status": "ok"})
+    if s1 == "{\"status\":\"ok\"}" {
+        println("  [PASS] inline map string values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] inline map string: got '${s1}'")
+        failed += 1
+    }
+
+    // Test 2: inline map literal with int values
+    mut s2 string = json.encode({"a": 1, "b": 2})
+    if s2 == "{\"a\":1,\"b\":2}" {
+        println("  [PASS] inline map int values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] inline map int: got '${s2}'")
+        failed += 1
+    }
+
+    // Test 3: lvalue map still works
+    mut m map[string:string] = {"key": "val"}
+    mut s3 string = json.encode(m)
+    if s3 == "{\"key\":\"val\"}" {
+        println("  [PASS] lvalue map")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lvalue map: got '${s3}'")
+        failed += 1
+    }
+
+    // Test 4: inline array literal
+    mut s4 string = json.encode({10, 20, 30})
+    if s4 == "[10,20,30]" {
+        println("  [PASS] inline array literal")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] inline array: got '${s4}'")
+        failed += 1
+    }
+
+    // Test 5: lvalue array still works
+    mut arr [int] = {5, 6}
+    mut s5 string = json.encode(arr)
+    if s5 == "[5,6]" {
+        println("  [PASS] lvalue array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lvalue array: got '${s5}'")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

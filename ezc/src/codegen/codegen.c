@@ -4471,31 +4471,34 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         AstNode *arg = node->data.call.args[0];
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_MAP) {
-            /* Typed map: dispatch based on value type */
+            /* Typed map: dispatch based on value type.
+             * Materialize into a temporary to handle rvalue expressions
+             * (e.g. inline map literals). */
+            emit(cg, "({ EzMap _jm = ");
+            emit_expression(cg, arg);
             if (arg_t->value_type && strcmp(arg_t->value_type, "int") == 0) {
-                emit(cg, "ez_json_encode_map_int(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map_int(ez_default_arena, &_jm); })");
             } else if (arg_t->value_type && strcmp(arg_t->value_type, "float") == 0) {
-                emit(cg, "ez_json_encode_map_float(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map_float(ez_default_arena, &_jm); })");
             } else if (arg_t->value_type && strcmp(arg_t->value_type, "bool") == 0) {
-                emit(cg, "ez_json_encode_map_bool(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map_bool(ez_default_arena, &_jm); })");
             } else {
-                emit(cg, "ez_json_encode_map(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map(ez_default_arena, &_jm); })");
             }
-            emit_expression(cg, arg);
-            emit(cg, ")");
         } else if (arg_t && arg_t->kind == TK_ARRAY) {
-            /* Typed array: dispatch based on element type */
-            if (arg_t->element_type && strcmp(arg_t->element_type, "float") == 0) {
-                emit(cg, "ez_json_encode_array_float(ez_default_arena, &");
-            } else if (arg_t->element_type && strcmp(arg_t->element_type, "string") == 0) {
-                emit(cg, "ez_json_encode_array_string(ez_default_arena, &");
-            } else if (arg_t->element_type && strcmp(arg_t->element_type, "bool") == 0) {
-                emit(cg, "ez_json_encode_array_bool(ez_default_arena, &");
-            } else {
-                emit(cg, "ez_json_encode_array_int(ez_default_arena, &");
-            }
+            /* Typed array: dispatch based on element type.
+             * Materialize into a temporary for the same rvalue reason. */
+            emit(cg, "({ EzArray _ja = ");
             emit_expression(cg, arg);
-            emit(cg, ")");
+            if (arg_t->element_type && strcmp(arg_t->element_type, "float") == 0) {
+                emit(cg, "; ez_json_encode_array_float(ez_default_arena, &_ja); })");
+            } else if (arg_t->element_type && strcmp(arg_t->element_type, "string") == 0) {
+                emit(cg, "; ez_json_encode_array_string(ez_default_arena, &_ja); })");
+            } else if (arg_t->element_type && strcmp(arg_t->element_type, "bool") == 0) {
+                emit(cg, "; ez_json_encode_array_bool(ez_default_arena, &_ja); })");
+            } else {
+                emit(cg, "; ez_json_encode_array_int(ez_default_arena, &_ja); })");
+            }
         } else if (arg_t && arg_t->kind == TK_INT) {
             /* Int: format as JSON number string */
             emit(cg, "({ char _jbuf[32]; snprintf(_jbuf, sizeof(_jbuf), \"%\" PRId64, (int64_t)");
