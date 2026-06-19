@@ -999,6 +999,10 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"sqlite", "open", 0, ARG_STRING},
     /* server: listen(router, port int) — catch non-int port before it reaches C */
     {"server", "listen", 1, ARG_INT},
+    {"server", "text", 1, ARG_STRING},
+    {"server", "json", 1, ARG_STRING},
+    {"server", "html", 1, ARG_STRING},
+    {"server", "redirect", 1, ARG_STRING},
     /* math: numeric argument required for all single-arg functions */
     {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
     {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
