@@ -1,0 +1,19 @@
+import @server
+
+do h1(req HttpRequest) -> HttpResponse {
+    return server.json(200, {"status": "ok"})
+}
+
+do h2(req HttpRequest) -> HttpResponse {
+    return server.text(200, 123)
+}
+
+do h3(req HttpRequest) -> HttpResponse {
+    return server.html(200, true)
+}
+
+do h4(req HttpRequest) -> HttpResponse {
+    return server.redirect(301, 456)
+}
+
+do main() { }

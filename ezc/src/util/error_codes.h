@@ -202,7 +202,8 @@
     EZ_ERROR("E3115", "types", "enum '%s' is not a tagged enum; variant '%s' cannot be called") \
     EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d") \
     EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'") \
-    EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'")
+    EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'") \
+    EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -248,7 +249,8 @@
     EZ_ERROR("E5032", "usage", "parameter '%s' is already provided positionally (argument %d) in call to '%s'") \
     EZ_ERROR("E5033", "usage", "positional argument after named argument in call to '%s'") \
     EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'") \
-    EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared")
+    EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared") \
+    EZ_ERROR("E5036", "usage", "'%s' is a type, not a function; use cast(value, %s) to convert")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \

@@ -999,6 +999,10 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"sqlite", "open", 0, ARG_STRING},
     /* server: listen(router, port int) — catch non-int port before it reaches C */
     {"server", "listen", 1, ARG_INT},
+    {"server", "text", 1, ARG_STRING},
+    {"server", "json", 1, ARG_STRING},
+    {"server", "html", 1, ARG_STRING},
+    {"server", "redirect", 1, ARG_STRING},
     /* math: numeric argument required for all single-arg functions */
     {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
     {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
@@ -5127,6 +5131,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_BOOL;
+            } else if ((strcmp(fn_name, "i8") == 0 || strcmp(fn_name, "i16") == 0 ||
+                        strcmp(fn_name, "i32") == 0 || strcmp(fn_name, "i64") == 0 ||
+                        strcmp(fn_name, "u8") == 0 || strcmp(fn_name, "u16") == 0 ||
+                        strcmp(fn_name, "u32") == 0 || strcmp(fn_name, "u64") == 0 ||
+                        strcmp(fn_name, "f32") == 0 || strcmp(fn_name, "f64") == 0)) {
+                diag_error_codef(tc->diag, "E5036", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0, fn_name, fn_name);
+                result = type_from_name(fn_name);
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {
@@ -9120,6 +9132,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
                 if (prev_has_default) {
                     diag_error_codef(tc->diag, "E2039", NODE_FILE(tc, node), node->token.line, node->token.column, 0, p->name);
+                }
+            }
+            /* E3119: fixed-size array in function parameter */
+            if (p->type_name && p->type_name[0] == '[') {
+                const char *tn = p->type_name;
+                const char *size_comma = NULL;
+                int depth = 0;
+                for (const char *c = tn; *c; c++) {
+                    if (*c == '(' || *c == '[') depth++;
+                    else if (*c == ')' || *c == ']') depth--;
+                    else if (*c == ',' && depth == 1) { size_comma = c; break; }
+                }
+                if (size_comma) {
+                    char elem[EZ_MSG_BUF_SIZE];
+                    int elem_len = (int)(size_comma - tn - 1);
+                    snprintf(elem, sizeof(elem), "%.*s", elem_len, tn + 1);
+                    diag_error_codef(tc->diag, "E3119", NODE_FILE(tc, node),
+                        node->token.line, node->token.column, 0, elem, tn, p->name);
                 }
             }
             EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;

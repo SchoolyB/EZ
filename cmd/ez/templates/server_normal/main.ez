@@ -7,20 +7,23 @@
 //   curl http://localhost:8080/api/status
 
 import @server
+import @json
 
-do home(req Request) -> HttpResponse {
+do home(req HttpRequest) -> HttpResponse {
     return server.html(200, "<h1>Welcome to EZ!</h1>")
 }
 
-do health(req Request) -> HttpResponse {
-    return server.json(200, {"status": "ok"})
+do health(req HttpRequest) -> HttpResponse {
+    mut data map[string:string] = {"status": "ok"}
+    return server.json(200, json.encode(data))
 }
 
-do api_status(req Request) -> HttpResponse {
-    return server.json(200, {
+do api_status(req HttpRequest) -> HttpResponse {
+    mut data map[string:string] = {
         "version": "1.0.0",
         "status": "running"
-    })
+    }
+    return server.json(200, json.encode(data))
 }
 
 do main() {
@@ -31,5 +34,5 @@ do main() {
     server.add_route(router, "GET", "/api/status", ()api_status)
 
     println("Server running on http://localhost:8080")
-    server.listen(8080, router)
+    server.listen(router, 8080)
 }

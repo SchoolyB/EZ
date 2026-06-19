@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 332 codes** (226 errors, 17 warnings, 89 panics)
+**Total: 334 codes** (228 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -180,6 +180,7 @@
 | `E3116` | types | wrong number of bindings for variant '%s'; expected %d, got %d |
 | `E3117` | types | cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT' |
 | `E3118` | types | cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT' |
+| `E3119` | types | fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -220,6 +221,7 @@
 | `E5033` | usage | positional argument after named argument in call to '%s' |
 | `E5034` | usage | named arguments are not supported for builtin function '%s' |
 | `E5035` | naming | this name is reserved by a standard library module and cannot be redeclared |
+| `E5036` | usage | '%s' is a type, not a function; use cast(value, %s) to convert |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -383,4 +385,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-17 01:41:59 UTC*
+*Generated on 2026-06-19 20:04:54 UTC*

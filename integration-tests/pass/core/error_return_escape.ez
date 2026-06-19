@@ -1,0 +1,199 @@
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: single-return Error preserved
+    mut e1 = validate_age(-5)
+    if e1 != nil {
+        mut msg string = "${e1}"
+        if msg == "age cannot be negative" {
+            println("  [PASS] single-return error message preserved")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] single-return error: expected 'age cannot be negative', got '${msg}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] single-return error was nil")
+        failed += 1
+    }
+
+    // Test 2: single-return nil Error
+    mut e2 = validate_age(25)
+    if e2 == nil {
+        println("  [PASS] single-return nil error preserved")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] single-return: expected nil for valid age")
+        failed += 1
+    }
+
+    // Test 3: multi-return Error preserved
+    mut val3, e3 = safe_divide(10, 0)
+    if e3 != nil {
+        mut msg3 string = "${e3}"
+        if msg3 == "division by zero" {
+            println("  [PASS] multi-return error message preserved")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] multi-return error: expected 'division by zero', got '${msg3}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] multi-return error was nil")
+        failed += 1
+    }
+
+    // Test 4: multi-return success path
+    mut val4, e4 = safe_divide(10, 2)
+    if e4 == nil {
+        if val4 == 5 {
+            println("  [PASS] multi-return success value correct")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] multi-return: expected 5, got ${val4}")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] multi-return: unexpected error on valid input")
+        failed += 1
+    }
+
+    // Test 5: error from multiple branches in same function
+    mut e5 = check_range(150)
+    if e5 != nil {
+        mut msg5 string = "${e5}"
+        if msg5 == "value too high" {
+            println("  [PASS] second error branch preserved")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] second branch: expected 'value too high', got '${msg5}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] second branch error was nil")
+        failed += 1
+    }
+
+    // Test 6: first branch of multi-error function
+    mut e6 = check_range(-10)
+    if e6 != nil {
+        mut msg6 string = "${e6}"
+        if msg6 == "value too low" {
+            println("  [PASS] first error branch preserved")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] first branch: expected 'value too low', got '${msg6}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] first branch error was nil")
+        failed += 1
+    }
+
+    // Test 7: named return with Error
+    mut val7, e7 = parse_positive(-3)
+    if e7 != nil {
+        mut msg7 string = "${e7}"
+        if msg7 == "not positive" {
+            println("  [PASS] named return error preserved")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] named return error: expected 'not positive', got '${msg7}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] named return error was nil")
+        failed += 1
+    }
+
+    // Test 8: named return success path
+    mut val8, e8 = parse_positive(7)
+    if e8 == nil {
+        if val8 == 7 {
+            println("  [PASS] named return success value correct")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] named return: expected 7, got ${val8}")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] named return: unexpected error")
+        failed += 1
+    }
+
+    // Test 9: chained error returns across calls
+    mut e9 = outer_validate(-1)
+    if e9 != nil {
+        mut msg9 string = "${e9}"
+        if msg9 == "value too low" {
+            println("  [PASS] chained error return preserved")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] chained: expected 'value too low', got '${msg9}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] chained error was nil")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
+
+do filler_a() {
+    mut x int = 111
+    mut s string = "filler to cause arena reuse"
+    println("${x} ${s}")
+}
+
+do filler_b() {
+    mut y float = 3.14
+    mut t string = "more filler for memory pressure"
+    println("${y} ${t}")
+}
+
+do validate_age(age int) -> Error {
+    if age < 0 {
+        return error("age cannot be negative")
+    }
+    return nil
+}
+
+do safe_divide(a int, b int) -> (int, Error) {
+    if b == 0 {
+        return 0, error("division by zero")
+    }
+    return a / b, nil
+}
+
+do check_range(val int) -> Error {
+    if val < 0 {
+        return error("value too low")
+    }
+    if val > 100 {
+        return error("value too high")
+    }
+    return nil
+}
+
+do parse_positive(n int) -> (result int, err Error) {
+    mut result int = 0
+    mut err Error = nil
+    if n <= 0 {
+        err = error("not positive")
+        return result, err
+    }
+    result = n
+    return result, err
+}
+
+do outer_validate(v int) -> Error {
+    mut e = check_range(v)
+    return e
+}

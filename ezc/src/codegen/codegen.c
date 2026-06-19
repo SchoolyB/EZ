@@ -842,6 +842,11 @@ static bool func_uses_caller_arena(AstNode *fn) {
     return false;
 }
 
+static bool is_result_temp(const char *name) {
+    if (!name) return false;
+    return strncmp(name, "_ez_tmp", 7) == 0 || strncmp(name, "_ez_or", 6) == 0;
+}
+
 static int func_name_cmp(const void *a, const void *b) {
     const AstNode *fa = *(const AstNode *const *)a;
     const AstNode *fb = *(const AstNode *const *)b;
@@ -1193,9 +1198,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (et->kind == TK_BYTE) ek = 5;
                     else if (et->kind == TK_CHAR) ek = 6;
                 }
-                emitf(cg, "ez_builtin_array_to_string(ez_default_arena, &");
+                emitf(cg, "({ EzArray _interp_arr = ");
                 emit_expression(cg, part);
-                emitf(cg, ", %d).data", ek);
+                emitf(cg, "; ez_builtin_array_to_string(ez_default_arena, &_interp_arr, %d); }).data", ek);
                 break;
             }
             case TK_MAP: {
@@ -1210,9 +1215,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (vt->kind == TK_BYTE) vk = 5;
                     else if (vt->kind == TK_CHAR) vk = 6;
                 }
-                emitf(cg, "ez_builtin_map_to_string(ez_default_arena, &");
+                emitf(cg, "({ EzMap _interp_map = ");
                 emit_expression(cg, part);
-                emitf(cg, ", %d).data", vk);
+                emitf(cg, "; ez_builtin_map_to_string(ez_default_arena, &_interp_map, %d); }).data", vk);
                 break;
             }
             case TK_ERROR:
@@ -2295,8 +2300,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 bool is_multi_temp = false;
                 if (node->data.member.object->kind == NODE_LABEL) {
                     const char *oname = node->data.member.object->data.label.value;
-                    if (strncmp(oname, "_ez_tmp", 7) == 0 ||
-                        strncmp(oname, "_ez_or", 6) == 0) is_multi_temp = true;
+                    if (is_result_temp(oname)) is_multi_temp = true;
                 }
                 if (!is_multi_temp && obj_t &&
                     (obj_t->kind == TK_INT || obj_t->kind == TK_UINT || obj_t->kind == TK_FLOAT ||
@@ -4118,8 +4122,7 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "find") == 0 && node->data.call.arg_count == 2) {
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         emitf(cg, "ez_regex_find%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4128,8 +4131,7 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "find_all") == 0 && node->data.call.arg_count == 2) {
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         emitf(cg, "ez_regex_find_all%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4138,8 +4140,7 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "replace") == 0 && node->data.call.arg_count == 3) {
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         emitf(cg, "ez_regex_replace%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4150,8 +4151,7 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "split") == 0 && node->data.call.arg_count == 2) {
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         emitf(cg, "ez_regex_split%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4244,8 +4244,7 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @http module --- */
 
 static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
-    bool is_multi_var = cg->current_var_name != NULL &&
-        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+    bool is_multi_var = is_result_temp(cg->current_var_name);
     const char *sfx = is_multi_var ? "_result" : "";
     if (strcmp(func, "get") == 0 && node->data.call.arg_count == 1) {
         emitf(cg, "ez_http_get%s(ez_default_arena, ", sfx);
@@ -4295,8 +4294,7 @@ static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @net module --- */
 
 static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
-    bool is_multi_var = cg->current_var_name != NULL &&
-        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+    bool is_multi_var = is_result_temp(cg->current_var_name);
     if (strcmp(func, "connect") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_net_dial%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
@@ -4422,8 +4420,7 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @csv module --- */
 
 static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
-    bool is_multi_var = cg->current_var_name != NULL &&
-        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+    bool is_multi_var = is_result_temp(cg->current_var_name);
     if (strcmp(func, "parse") == 0) {
         emit(cg, "ez_csv_parse(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
@@ -4474,31 +4471,34 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         AstNode *arg = node->data.call.args[0];
         EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_MAP) {
-            /* Typed map: dispatch based on value type */
+            /* Typed map: dispatch based on value type.
+             * Materialize into a temporary to handle rvalue expressions
+             * (e.g. inline map literals). */
+            emit(cg, "({ EzMap _jm = ");
+            emit_expression(cg, arg);
             if (arg_t->value_type && strcmp(arg_t->value_type, "int") == 0) {
-                emit(cg, "ez_json_encode_map_int(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map_int(ez_default_arena, &_jm); })");
             } else if (arg_t->value_type && strcmp(arg_t->value_type, "float") == 0) {
-                emit(cg, "ez_json_encode_map_float(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map_float(ez_default_arena, &_jm); })");
             } else if (arg_t->value_type && strcmp(arg_t->value_type, "bool") == 0) {
-                emit(cg, "ez_json_encode_map_bool(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map_bool(ez_default_arena, &_jm); })");
             } else {
-                emit(cg, "ez_json_encode_map(ez_default_arena, &");
+                emit(cg, "; ez_json_encode_map(ez_default_arena, &_jm); })");
             }
-            emit_expression(cg, arg);
-            emit(cg, ")");
         } else if (arg_t && arg_t->kind == TK_ARRAY) {
-            /* Typed array: dispatch based on element type */
-            if (arg_t->element_type && strcmp(arg_t->element_type, "float") == 0) {
-                emit(cg, "ez_json_encode_array_float(ez_default_arena, &");
-            } else if (arg_t->element_type && strcmp(arg_t->element_type, "string") == 0) {
-                emit(cg, "ez_json_encode_array_string(ez_default_arena, &");
-            } else if (arg_t->element_type && strcmp(arg_t->element_type, "bool") == 0) {
-                emit(cg, "ez_json_encode_array_bool(ez_default_arena, &");
-            } else {
-                emit(cg, "ez_json_encode_array_int(ez_default_arena, &");
-            }
+            /* Typed array: dispatch based on element type.
+             * Materialize into a temporary for the same rvalue reason. */
+            emit(cg, "({ EzArray _ja = ");
             emit_expression(cg, arg);
-            emit(cg, ")");
+            if (arg_t->element_type && strcmp(arg_t->element_type, "float") == 0) {
+                emit(cg, "; ez_json_encode_array_float(ez_default_arena, &_ja); })");
+            } else if (arg_t->element_type && strcmp(arg_t->element_type, "string") == 0) {
+                emit(cg, "; ez_json_encode_array_string(ez_default_arena, &_ja); })");
+            } else if (arg_t->element_type && strcmp(arg_t->element_type, "bool") == 0) {
+                emit(cg, "; ez_json_encode_array_bool(ez_default_arena, &_ja); })");
+            } else {
+                emit(cg, "; ez_json_encode_array_int(ez_default_arena, &_ja); })");
+            }
         } else if (arg_t && arg_t->kind == TK_INT) {
             /* Int: format as JSON number string */
             emit(cg, "({ char _jbuf[32]; snprintf(_jbuf, sizeof(_jbuf), \"%\" PRId64, (int64_t)");
@@ -4528,8 +4528,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "decode") == 0) {
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         emitf(cg, "ez_json_decode%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
@@ -4608,8 +4607,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_sqlite_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_fallible = (strcmp(func, "open") == 0 || strcmp(func, "exec") == 0 ||
         strcmp(func, "query") == 0);
-    bool is_multi_var = cg->current_var_name != NULL &&
-        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+    bool is_multi_var = is_result_temp(cg->current_var_name);
     if (strcmp(func, "open") == 0) {
         emitf(cg, "ez_sqlite_open%s(ez_default_arena, ", (is_fallible && is_multi_var) ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
@@ -5181,8 +5179,7 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         /* Use non-result version when assigned to a single variable (typed or
          * inferred).  Use _result version only for multi-var destructuring
          * (temp vars prefixed with _ez_tmp). */
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         bool use_non_result = !is_multi_var;
         if (use_non_result) {
             if (needs_arena) {
@@ -5466,8 +5463,7 @@ static bool emit_strconv_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "from_float") == 0);
 
     if (is_fallible) {
-        bool is_multi_var = cg->current_var_name != NULL &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool is_multi_var = is_result_temp(cg->current_var_name);
         if (is_multi_var) {
             emitf(cg, "ez_strconv_%s_result(", func);
         } else {
@@ -7710,6 +7706,12 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
     EzType *rt = type_from_name(ret_type_name);
     if (rt->kind == TK_STRING) {
         emit(cg, "_ret = ez_string_new(_func_saved, _ret.data, _ret.len); ");
+    } else if (rt->kind == TK_ERROR) {
+        emit(cg, "if (_ret) { EzError *_src_err = (EzError *)_ret; ");
+        emit(cg, "EzError *_esc_err = (EzError *)ez_arena_alloc(_func_saved, sizeof(EzError)); ");
+        emit(cg, "_esc_err->message = ez_string_new(_func_saved, _src_err->message.data, _src_err->message.len); ");
+        emit(cg, "_esc_err->code = ez_string_new(_func_saved, _src_err->code.data, _src_err->code.len); ");
+        emit(cg, "_ret = _esc_err; } ");
     } else if (type_needs_deep_copy(cg, ret_type_name)) {
         emit(cg, "{ EzArena *_esc = ez_default_arena; ez_default_arena = _func_saved; _ret = ");
         emit_value_deep_copy(cg, ret_type_name, "_ret");
@@ -7735,6 +7737,11 @@ static void emit_multi_func_return_escape(CodeGen *cg) {
         EzType *rt = type_from_name(tn);
         if (rt->kind == TK_STRING) {
             emitf(cg, "_ret.v%d = ez_string_new(_func_saved, _ret.v%d.data, _ret.v%d.len); ", i, i, i);
+        } else if (rt->kind == TK_ERROR) {
+            emitf(cg, "if (_ret.v%d) { EzError *_esc_err = (EzError *)ez_arena_alloc(_func_saved, sizeof(EzError)); ", i);
+            emitf(cg, "_esc_err->message = ez_string_new(_func_saved, _ret.v%d->message.data, _ret.v%d->message.len); ", i, i);
+            emitf(cg, "_esc_err->code = ez_string_new(_func_saved, _ret.v%d->code.data, _ret.v%d->code.len); ", i, i);
+            emitf(cg, "_ret.v%d = _esc_err; } ", i);
         } else if (type_needs_deep_copy(cg, tn)) {
             char field[32];
             snprintf(field, sizeof(field), "_ret.v%d", i);

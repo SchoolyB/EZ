@@ -3537,29 +3537,246 @@ The `ez` command-line tool provides the following commands:
 | Command | Description |
 |---------|-------------|
 | `ez <file.ez>` | Compile and run a source file |
-| `ez build <file.ez> -o <name>` | Compile to a distributable binary |
+| `ez build <file.ez>` | Compile to a distributable binary |
 | `ez check <file.ez>` | Type-check without compiling |
-| `ez repl` | Start interactive REPL mode |
 | `ez watch <file.ez>` | Watch for changes and re-run on save |
+| `ez fmt <path>` | Format source files |
 | `ez doc <path>` | Generate documentation from `#doc` attributes |
 | `ez pz <name>` | Scaffold a new project |
+| `ez man <name>` | Show documentation for builtins and stdlib |
 | `ez report` | Print system info for bug reports |
-| `ez update` | Check for updates and upgrade to the latest stable |
-| `ez update --pre` | Upgrade to the latest pre-release (alpha/beta/rc) |
+| `ez update` | Check for updates and upgrade |
 | `ez install <version>` | Install a specific version by exact semver |
 | `ez version` | Show version information |
 
-### 13.1 `ez report`
+### Global Flags
 
-Prints system information for filing bug reports:
+These flags are available on `ez <file>`, `build`, `check`, and `watch`:
+
+| Flag | Description |
+|------|-------------|
+| `-q, --quiet <codes>` | Suppress warnings. Use `all` to suppress all, or a comma-separated list of codes (e.g. `W1001,W1003`). |
+| `--no-color` | Disable colored diagnostic output. |
+
+### 13.1 `ez <file.ez>`
+
+Compile and run a source file in one step.
 
 ```
-EZ Bug Report Info
-==================
-EZ Version:  v3.0.0
-Commit:      abc1234
-OS:          darwin/arm64
-RAM:         16 GB
+ez <file.ez> [flags] [-- args...]
+```
+
+Arguments after `--` are forwarded to the compiled program.
+
+```bash
+ez main.ez
+ez main.ez -q all
+ez main.ez -- --port 8080
+```
+
+### 13.2 `ez build`
+
+Compile a source file to a native binary.
+
+```
+ez build <file.ez> [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-o, --output <name>` | Output binary name. Defaults to the input filename without `.ez`. |
+| `--emit-c` | Emit the generated C source file without compiling to a binary. |
+| `--time` | Show compilation timing. |
+| `-q, --quiet <codes>` | Suppress warnings. |
+| `--no-color` | Disable colored output. |
+
+```bash
+ez build main.ez -o myapp
+ez build main.ez --emit-c
+ez build main.ez --time -q all
+```
+
+### 13.3 `ez check`
+
+Type-check a file or project without compiling. Returns a non-zero exit code if errors are found.
+
+```
+ez check <file.ez | directory> [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-q, --quiet <codes>` | Suppress warnings. |
+
+```bash
+ez check main.ez
+ez check src/
+```
+
+### 13.4 `ez watch`
+
+Watch a file or directory for changes and re-run on save. Automatically discovers and watches imported files.
+
+```
+ez watch <file.ez | directory> [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-q, --quiet <codes>` | Suppress warnings. |
+| `--no-color` | Disable colored output. |
+
+When watching a directory, EZ finds the file containing `main()` and watches all `.ez` files in the directory.
+
+```bash
+ez watch main.ez
+ez watch src/
+```
+
+### 13.5 `ez fmt`
+
+Format `.ez` source files in place. Normalizes indentation to 4 spaces, removes trailing whitespace, ensures a final newline, and collapses runs of more than 2 blank lines.
+
+```
+ez fmt <path> [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--check` | Check formatting without modifying files. Exits non-zero if any file would change. Intended for CI. |
+
+Supported path patterns:
+
+| Pattern | Scope |
+|---------|-------|
+| `file.ez` | Single file |
+| `dir` | All `.ez` files in directory (non-recursive) |
+| `./...` or `dir/...` | Recursive walk for all `.ez` files |
+
+```bash
+ez fmt main.ez
+ez fmt src/
+ez fmt ./...
+ez fmt --check ./...
+```
+
+### 13.6 `ez doc`
+
+Generate markdown documentation from `#doc` attributes in source files.
+
+```
+ez doc <path> [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-o, --output <path>` | Output file path. Defaults to `DOCS.md`. |
+
+Supports the same path patterns as `ez fmt` (single file, directory, `./...` recursive).
+
+```bash
+ez doc main.ez
+ez doc ./...
+ez doc src/ -o API.md
+```
+
+### 13.7 `ez pz`
+
+Scaffold a new EZ project.
+
+```
+ez pz [project-name] [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-t, --template <name>` | Template to use. One of: `basic`, `cli`, `lib`, `multi`, `server`, `client`. Defaults to `basic`. |
+| `-s, --server-type <type>` | `minimal` or `normal`. Only applies to `server` and `client` templates. Defaults to `normal`. |
+| `-c, --comments` | Include a quick-reference comment block in the entry file. |
+| `-f, --force` | Overwrite an existing directory. |
+
+Running `ez pz` with no arguments enters interactive mode, which prompts for the project name, template, and options.
+
+```bash
+ez pz myapp
+ez pz myapp -t cli
+ez pz myapi -t server -s minimal
+ez pz myapp -t basic -c
+ez pz                          # interactive mode
+```
+
+### 13.8 `ez man`
+
+Show documentation for builtin functions, stdlib modules, and stdlib types.
+
+```
+ez man [name]
+```
+
+| Argument | Result |
+|----------|--------|
+| *(none)* | Show usage and list available stdlib modules. |
+| `builtins` | List all builtin functions by category. |
+| `<module>` | List all functions and types in a stdlib module. |
+| `<name>` | Show documentation for a specific function or type. |
+| `<module>.<name>` | Qualified lookup to resolve ambiguity. |
+
+```bash
+ez man
+ez man builtins
+ez man math
+ez man println
+ez man strings.contains
+```
+
+### 13.9 `ez report`
+
+Print system information for filing bug reports.
+
+```
+ez report
+```
+
+Output includes EZ version, commit hash, OS, CPU, RAM, C compiler version, and target triple.
+
+### 13.10 `ez update`
+
+Check for updates and upgrade to a newer version.
+
+```
+ez update [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--pre` | Install the latest pre-release (alpha/beta/rc) instead of latest stable. |
+| `--confirm` | Skip the confirmation prompt. |
+
+```bash
+ez update
+ez update --pre
+ez update --confirm
+```
+
+### 13.11 `ez install`
+
+Install a specific EZ version by exact semver, replacing the current installation. Supports downgrades and pre-release tags.
+
+```
+ez install <version>
+```
+
+```bash
+ez install 3.0.0
+ez install 3.1.0-beta.2
+```
+
+### 13.12 `ez version`
+
+Show the installed version, build commit, build timestamp, and whether newer versions are available.
+
+```
+ez version
 ```
 
 ---

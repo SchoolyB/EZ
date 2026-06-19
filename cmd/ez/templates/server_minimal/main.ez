@@ -5,7 +5,7 @@
 
 import @server
 
-do home(req Request) -> HttpResponse {
+do home(req HttpRequest) -> HttpResponse {
     return server.text(200, "Hello, World!")
 }
 
@@ -14,5 +14,5 @@ do main() {
     server.add_route(router, "GET", "/", ()home)
 
     println("Server running on http://localhost:8080")
-    server.listen(8080, router)
+    server.listen(router, 8080)
 }

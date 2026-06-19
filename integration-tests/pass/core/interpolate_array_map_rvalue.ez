@@ -1,0 +1,83 @@
+import @arrays
+import @maps
+
+do get_nums() -> [int] {
+    mut result [int] = {5, 10, 15}
+    return result
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: interpolate array-returning stdlib call
+    mut nums [int] = {1, 2, 3}
+    mut s1 string = "${arrays.reverse(nums)}"
+    if s1 == "{3, 2, 1}" {
+        println("  [PASS] interpolate arrays.reverse()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.reverse: got '${s1}'")
+        failed += 1
+    }
+
+    // Test 2: interpolate arrays.slice()
+    mut s2 string = "${arrays.slice(nums, 0, 2)}"
+    if s2 == "{1, 2}" {
+        println("  [PASS] interpolate arrays.slice()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.slice: got '${s2}'")
+        failed += 1
+    }
+
+    // Test 3: interpolate map-returning stdlib call
+    mut m map[string:int] = {"a": 1, "b": 2}
+    mut s3 string = "${maps.get_keys(m)}"
+    if s3 == "{\"a\", \"b\"}" {
+        println("  [PASS] interpolate maps.get_keys()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.get_keys: got '${s3}'")
+        failed += 1
+    }
+
+    // Test 4: interpolate user-defined function returning array
+    mut s4 string = "${get_nums()}"
+    if s4 == "{5, 10, 15}" {
+        println("  [PASS] interpolate user func returning array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_nums: got '${s4}'")
+        failed += 1
+    }
+
+    // Test 5: lvalue array still works
+    mut arr [int] = {7, 8, 9}
+    mut s5 string = "${arr}"
+    if s5 == "{7, 8, 9}" {
+        println("  [PASS] interpolate lvalue array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lvalue array: got '${s5}'")
+        failed += 1
+    }
+
+    // Test 6: lvalue map still works
+    mut m2 map[string:int] = {"x": 100}
+    mut s6 string = "${m2}"
+    if s6 == "{\"x\": 100}" {
+        println("  [PASS] interpolate lvalue map")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lvalue map: got '${s6}'")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

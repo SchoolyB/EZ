@@ -366,4 +366,9 @@ void diag_print_summary(DiagnosticList *dl) {
     } else {
         fprintf(stderr, "\n");
     }
+
+    if (warnings > 0 && !dl->suppress_all_warnings && dl->suppressed_count == 0) {
+        fprintf(stderr, "%shint:%s suppress warnings with -q <W1001,W1002,...> or -q 'all'\n",
+            col(dl, COL_BOLD), col(dl, COL_RESET));
+    }
 }
