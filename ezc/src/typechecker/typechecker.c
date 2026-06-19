@@ -9130,6 +9130,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E2039", NODE_FILE(tc, node), node->token.line, node->token.column, 0, p->name);
                 }
             }
+            /* E3119: fixed-size array in function parameter */
+            if (p->type_name && p->type_name[0] == '[') {
+                const char *tn = p->type_name;
+                const char *size_comma = NULL;
+                int depth = 0;
+                for (const char *c = tn; *c; c++) {
+                    if (*c == '(' || *c == '[') depth++;
+                    else if (*c == ')' || *c == ']') depth--;
+                    else if (*c == ',' && depth == 1) { size_comma = c; break; }
+                }
+                if (size_comma) {
+                    char elem[EZ_MSG_BUF_SIZE];
+                    int elem_len = (int)(size_comma - tn - 1);
+                    snprintf(elem, sizeof(elem), "%.*s", elem_len, tn + 1);
+                    diag_error_codef(tc->diag, "E3119", NODE_FILE(tc, node),
+                        node->token.line, node->token.column, 0, elem, tn, p->name);
+                }
+            }
             EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
             /* E4016: undefined parameter type */
             if (p->type_name && ptype->kind == TK_UNKNOWN &&
