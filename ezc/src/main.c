@@ -1506,6 +1506,7 @@ int main(int argc, char **argv) {
     /* Print warnings even if no errors */
     if (diag_warning_count(diag) > 0 && !diag_has_errors(diag)) {
         diag_print_all(diag);
+        diag_print_summary(diag);
     }
 
     /* Check-only mode: stop after type checking */
