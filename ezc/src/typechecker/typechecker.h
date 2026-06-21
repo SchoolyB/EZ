@@ -11,6 +11,7 @@
 #include "scope.h"
 #include "../parser/ast.h"
 #include "../util/error.h"
+#include "../util/arena.h"
 
 /* Type annotation table: maps AST node pointers to resolved types.
  * Uses open-addressing hash table with pointer hashing for O(1) lookup. */
@@ -154,6 +155,9 @@ typedef struct {
      * known (assignments, function args, when/is, comparisons, returns).
      * Cleared after use to prevent stale context. */
     EzType *expected_type;
+
+    /* Arena for diagnostic message strings — replaces per-message strdup */
+    Arena *arena;
 
 } TypeChecker;
 
