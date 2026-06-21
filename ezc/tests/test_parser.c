@@ -357,10 +357,10 @@ static void test_parse_infix_expr(void) {
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
     /* 1 + (2 * 3) — left is 1, right is 2*3 */
-    ASSERT_STR_EQ(val->data.infix.op, "+");
+    ASSERT_EQ(val->data.infix.op, TOK_PLUS);
     ASSERT_EQ(val->data.infix.left->kind, NODE_INT_VALUE);
     ASSERT_EQ(val->data.infix.right->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.right->data.infix.op, "*");
+    ASSERT_EQ(val->data.infix.right->data.infix.op, TOK_ASTERISK);
 }
 
 static void test_parse_prefix_expr(void) {
@@ -368,7 +368,7 @@ static void test_parse_prefix_expr(void) {
     AstNode *val = var_value(prog);
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_PREFIX_EXPR);
-    ASSERT_STR_EQ(val->data.prefix.op, "-");
+    ASSERT_EQ(val->data.prefix.op, TOK_MINUS);
     ASSERT_EQ(val->data.prefix.right->kind, NODE_INT_VALUE);
 }
 
@@ -377,7 +377,7 @@ static void test_parse_not_expr(void) {
     AstNode *val = var_value(prog);
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_PREFIX_EXPR);
-    ASSERT_STR_EQ(val->data.prefix.op, "!");
+    ASSERT_EQ(val->data.prefix.op, TOK_BANG);
     ASSERT_EQ(val->data.prefix.right->kind, NODE_BOOL_VALUE);
 }
 
@@ -387,7 +387,7 @@ static void test_parse_postfix_expr(void) {
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_EXPR_STMT);
     ASSERT_EQ(stmt->data.expr_stmt.expr->kind, NODE_POSTFIX_EXPR);
-    ASSERT_STR_EQ(stmt->data.expr_stmt.expr->data.postfix.op, "++");
+    ASSERT_EQ(stmt->data.expr_stmt.expr->data.postfix.op, TOK_INCREMENT);
 }
 
 static void test_parse_index_expr(void) {
@@ -442,7 +442,7 @@ static void test_parse_comparison_operators(void) {
     AstNode *val = var_value(prog);
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.op, "<");
+    ASSERT_EQ(val->data.infix.op, TOK_LT);
 }
 
 static void test_parse_logical_and_or(void) {
@@ -451,7 +451,7 @@ static void test_parse_logical_and_or(void) {
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
     /* || has lower precedence than && */
-    ASSERT_STR_EQ(val->data.infix.op, "||");
+    ASSERT_EQ(val->data.infix.op, TOK_OR);
 }
 
 /* --- Literal AST Tests --- */
@@ -598,11 +598,11 @@ static void test_parse_precedence_add_mul(void) {
     AstNode *val = var_value(prog);
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.op, "+");
+    ASSERT_EQ(val->data.infix.op, TOK_PLUS);
     ASSERT_EQ(val->data.infix.left->kind, NODE_INT_VALUE);
     ASSERT_EQ(val->data.infix.left->data.int_value.value, 1);
     ASSERT_EQ(val->data.infix.right->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.right->data.infix.op, "*");
+    ASSERT_EQ(val->data.infix.right->data.infix.op, TOK_ASTERISK);
 }
 
 static void test_parse_precedence_comparison_logical(void) {
@@ -611,11 +611,11 @@ static void test_parse_precedence_comparison_logical(void) {
     AstNode *val = var_value(prog);
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.op, "&&");
+    ASSERT_EQ(val->data.infix.op, TOK_AND);
     ASSERT_EQ(val->data.infix.left->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.left->data.infix.op, ">");
+    ASSERT_EQ(val->data.infix.left->data.infix.op, TOK_GT);
     ASSERT_EQ(val->data.infix.right->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.right->data.infix.op, "<");
+    ASSERT_EQ(val->data.infix.right->data.infix.op, TOK_LT);
 }
 
 static void test_parse_named_return(void) {
@@ -738,7 +738,7 @@ static void test_parse_in_operator(void) {
     ASSERT_NOT_NULL(val);
     ASSERT_EQ(val->kind, NODE_VAR_DECL);
     ASSERT_EQ(val->data.var_decl.value->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.var_decl.value->data.infix.op, "in");
+    ASSERT_EQ(val->data.var_decl.value->data.infix.op, TOK_IN);
 }
 
 

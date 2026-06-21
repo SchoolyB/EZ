@@ -163,6 +163,45 @@ static bool is_stdlib_module_name(const char *name) {
  * routines and stdlib arg-type validation. */
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
 
+/* Return the user-facing display string for an operator TokenType.
+ * Used in error messages that embed the operator name. */
+static const char *op_to_str(TokenType op) {
+    switch (op) {
+    case TOK_PLUS: return "+";
+    case TOK_MINUS: return "-";
+    case TOK_ASTERISK: return "*";
+    case TOK_SLASH: return "/";
+    case TOK_PERCENT: return "%";
+    case TOK_EQ: return "==";
+    case TOK_NOT_EQ: return "!=";
+    case TOK_LT: return "<";
+    case TOK_GT: return ">";
+    case TOK_LT_EQ: return "<=";
+    case TOK_GT_EQ: return ">=";
+    case TOK_AND: return "&&";
+    case TOK_OR: return "||";
+    case TOK_BANG: return "!";
+    case TOK_BIT_AND: return "bit_and";
+    case TOK_BIT_OR: return "bit_or";
+    case TOK_BIT_XOR: return "bit_xor";
+    case TOK_BIT_NOT: return "bit_not";
+    case TOK_BIT_SHIFT_LEFT: return "bit_shift_left";
+    case TOK_BIT_SHIFT_RIGHT: return "bit_shift_right";
+    case TOK_INCREMENT: return "++";
+    case TOK_DECREMENT: return "--";
+    case TOK_CARET: return "^";
+    case TOK_ASSIGN: return "=";
+    case TOK_PLUS_ASSIGN: return "+=";
+    case TOK_MINUS_ASSIGN: return "-=";
+    case TOK_ASTERISK_ASSIGN: return "*=";
+    case TOK_SLASH_ASSIGN: return "/=";
+    case TOK_PERCENT_ASSIGN: return "%=";
+    case TOK_IN: return "in";
+    case TOK_NOT_IN: return "not_in";
+    default: return "?";
+    }
+}
+
 /* True if expr is an lvalue (something with a stable address): a variable,
  * a field of an lvalue, an index into an lvalue, or a pointer dereference.
  * Used by addr() and ref() to reject literals, call results, arithmetic
@@ -175,8 +214,7 @@ static bool is_lvalue_expr(AstNode *e) {
     case NODE_INDEX_EXPR:   return is_lvalue_expr(e->data.index_expr.left);
     case NODE_POSTFIX_EXPR:
         /* p^ (dereference) is an lvalue */
-        return e->data.postfix.op &&
-               strcmp(e->data.postfix.op, "^") == 0;
+        return e->data.postfix.op == TOK_CARET;
     default:                return false;
     }
 }
@@ -1705,7 +1743,7 @@ static bool try_get_literal_int(AstNode *node, int64_t *out) {
         *out = node->data.int_value.value;
         return true;
     }
-    if (node->kind == NODE_PREFIX_EXPR && strcmp(node->data.prefix.op, "-") == 0 &&
+    if (node->kind == NODE_PREFIX_EXPR && node->data.prefix.op == TOK_MINUS &&
         node->data.prefix.right && node->data.prefix.right->kind == NODE_INT_VALUE) {
         *out = -node->data.prefix.right->data.int_value.value;
         return true;
@@ -1715,10 +1753,10 @@ static bool try_get_literal_int(AstNode *node, int64_t *out) {
         int64_t lv, rv;
         if (try_get_literal_int(node->data.infix.left, &lv) &&
             try_get_literal_int(node->data.infix.right, &rv)) {
-            if (strcmp(node->data.infix.op, "+") == 0) { *out = lv + rv; return true; }
-            if (strcmp(node->data.infix.op, "-") == 0) { *out = lv - rv; return true; }
-            if (strcmp(node->data.infix.op, "*") == 0) { *out = lv * rv; return true; }
-            if (strcmp(node->data.infix.op, "/") == 0 && rv != 0) { *out = lv / rv; return true; }
+            if (node->data.infix.op == TOK_PLUS) { *out = lv + rv; return true; }
+            if (node->data.infix.op == TOK_MINUS) { *out = lv - rv; return true; }
+            if (node->data.infix.op == TOK_ASTERISK) { *out = lv * rv; return true; }
+            if (node->data.infix.op == TOK_SLASH && rv != 0) { *out = lv / rv; return true; }
         }
     }
     return false;
@@ -2076,19 +2114,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_PREFIX_EXPR: {
         EzType *right = resolve_expr(tc, node->data.prefix.right);
-        if (strcmp(node->data.prefix.op, "!") == 0) {
+        if (node->data.prefix.op == TOK_BANG) {
             if (right->kind != TK_BOOL && right->kind != TK_UNKNOWN) {
                 diag_error_codef(tc->diag, "E3090", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
             }
             result = &TYPE_BOOL;
-        } else if (strcmp(node->data.prefix.op, "-") == 0) {
+        } else if (node->data.prefix.op == TOK_MINUS) {
             if (right->kind != TK_UNKNOWN && !type_is_numeric(right)) {
                 diag_error_codef(tc->diag, "E3007", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
             } else if (right->kind != TK_UNKNOWN && right->name && is_unsigned_type(right->name)) {
                 diag_error_codef(tc->diag, "E3096", NODE_FILE(tc, node), node->token.line, node->token.column, 0, right->name);
             }
             result = right;
-        } else if (strcmp(node->data.prefix.op, "bit_not") == 0) {
+        } else if (node->data.prefix.op == TOK_BIT_NOT) {
             /* E3090: bit_not requires an integer operand */
             if (right->kind != TK_UNKNOWN && !is_int_kind(right->kind) && right->kind != TK_CHAR) {
                 diag_error_codef(tc->diag, "E8002", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
@@ -2101,12 +2139,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_INFIX_EXPR: {
-        const char *op = node->data.infix.op;
+        TokenType op = node->data.infix.op;
         EzType *left = resolve_expr(tc, node->data.infix.left);
         /* For == and !=, set expected_type so .VARIANT on the RHS
          * can resolve against the LHS enum type. */
         EzType *saved_infix_expected = tc->expected_type;
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
             left && left->kind == TK_ENUM && left->name)
             tc->expected_type = left;
         EzType *right = resolve_expr(tc, node->data.infix.right);
@@ -2133,11 +2171,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* String ordering operators not supported; use strings.compare() */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
-            (strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
-             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0)) {
+            (op == TOK_LT || op == TOK_GT ||
+             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
-                "cannot use '%s' on strings; use strings.compare() instead", op);
+                "cannot use '%s' on strings; use strings.compare() instead", op_to_str(op));
             diag_error_msg(tc->diag, "E3002", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             result = &TYPE_BOOL;
@@ -2145,7 +2183,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* E3002: modulo on float */
-        if (strcmp(op, "%") == 0 &&
+        if (op == TOK_PERCENT &&
             (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
             diag_error_msg(tc->diag, "E3002",
                 "modulo (%) only works on integers, not floats",
@@ -2157,7 +2195,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * statically-detectable case where the RHS is an integer or
          * float literal zero (including a prefix -0). Runtime checks
          * still cover the dynamic case. */
-        if (strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
+        if (op == TOK_SLASH || op == TOK_PERCENT) {
             AstNode *r = node->data.infix.right;
             bool is_zero = false;
             int64_t iv;
@@ -2167,7 +2205,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                        r->data.float_value.value == 0.0) {
                 is_zero = true;
             } else if (r && r->kind == NODE_PREFIX_EXPR &&
-                       strcmp(r->data.prefix.op, "-") == 0 &&
+                       r->data.prefix.op == TOK_MINUS &&
                        r->data.prefix.right &&
                        r->data.prefix.right->kind == NODE_FLOAT_VALUE &&
                        r->data.prefix.right->data.float_value.value == 0.0) {
@@ -2177,7 +2215,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 char msg[EZ_TYPE_NAME_MAX];
                 snprintf(msg, sizeof(msg),
                     "%s by zero; dividing by a literal zero is always invalid",
-                    strcmp(op, "%") == 0 ? "modulo" : "division");
+                    op == TOK_PERCENT ? "modulo" : "division");
                 diag_error_msg(tc->diag, "E3002", strdup(msg),
                     NODE_FILE(tc, r), r->token.line, r->token.column, 0);
                 infix_errored = true;
@@ -2186,14 +2224,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* E3002: bool used in arithmetic (e.g., 1 + true) */
         if ((left->kind == TK_BOOL || right->kind == TK_BOOL) &&
-            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 ||
-             strcmp(op, "%") == 0) &&
+            (op == TOK_PLUS || op == TOK_MINUS ||
+             op == TOK_ASTERISK || op == TOK_SLASH ||
+             op == TOK_PERCENT) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "invalid operands: cannot use '%s' with %s and %s",
-                op, type_name(left), type_name(right));
+                op_to_str(op), type_name(left), type_name(right));
             diag_error_msg(tc->diag, "E3002", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2207,18 +2245,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * `mut x int = nil + 1` (which was caught by the downstream
          * nil-assignment check with a confusing message). */
         if ((left->kind == TK_NIL || right->kind == TK_NIL) &&
-            strcmp(op, "==") != 0 && strcmp(op, "!=") != 0) {
+            op != TOK_EQ && op != TOK_NOT_EQ) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "cannot use nil with operator '%s'; nil is only valid for == / != against nullable types (Error, pointers)",
-                op);
+                op_to_str(op));
             diag_error_msg(tc->diag, "E3002", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
         /* E3092: nil compared to a non-nullable type (struct, map, array) */
-        if (!infix_errored && (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0)) {
+        if (!infix_errored && (op == TOK_EQ || op == TOK_NOT_EQ)) {
             EzType *non_nil = NULL;
             if (left->kind == TK_NIL && right->kind != TK_UNKNOWN &&
                 (right->kind == TK_STRUCT || right->kind == TK_MAP || right->kind == TK_ARRAY))
@@ -2234,18 +2272,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* String + string: reject with helpful message */
-        if ((left->kind == TK_STRING || right->kind == TK_STRING) && strcmp(op, "+") == 0) {
+        if ((left->kind == TK_STRING || right->kind == TK_STRING) && op == TOK_PLUS) {
             diag_error_code(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
         /* Arithmetic on strings (-, *, /, %, etc.) */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
-            strcmp(op, "+") != 0 && strcmp(op, "==") != 0 && strcmp(op, "!=") != 0 &&
-            strcmp(op, "in") != 0 && strcmp(op, "not_in") != 0 && strcmp(op, "!in") != 0) {
+            op != TOK_PLUS && op != TOK_EQ && op != TOK_NOT_EQ &&
+            op != TOK_IN && op != TOK_NOT_IN) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
-                "cannot use '%s' on string type", op);
+                "cannot use '%s' on string type", op_to_str(op));
             diag_error_msg(tc->diag, "E3002", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2253,8 +2291,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* E3093: arithmetic on map, array, or struct */
         if (!infix_errored &&
-            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0)) {
+            (op == TOK_PLUS || op == TOK_MINUS ||
+             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
             EzType *bad = NULL;
             if (left->kind == TK_MAP || left->kind == TK_ARRAY || left->kind == TK_STRUCT)
                 bad = left;
@@ -2262,7 +2300,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 bad = right;
             if (bad && bad->kind != TK_UNKNOWN) {
                 diag_error_codef(tc->diag, "E3093", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                    op, type_display_name(tc, bad));
+                    op_to_str(op), type_display_name(tc, bad));
                 infix_errored = true;
             }
         }
@@ -2273,8 +2311,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * garbage. Equality (== / !=) against nil or another pointer is
          * still allowed. */
         if ((left->kind == TK_POINTER || right->kind == TK_POINTER) &&
-            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0)) {
+            (op == TOK_PLUS || op == TOK_MINUS ||
+             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
             diag_error_code(tc->diag, "E3078",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2284,7 +2322,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * direct enum literals (Color.RED == Dir.NORTH) and variables
          * of different enum types (c == d where c:Color, d:Dir). */
         if (!infix_errored &&
-            (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            (op == TOK_EQ || op == TOK_NOT_EQ) &&
             left->kind == TK_ENUM && right->kind == TK_ENUM &&
             left->name && right->name &&
             strcmp(left->name, right->name) != 0) {
@@ -2300,25 +2338,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * one side is an integer variable (user has explicitly unboxed
          * the enum value into an int for numeric comparison). */
         if (!infix_errored &&
-            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0 ||
-             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
-             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0)) {
+            (op == TOK_PLUS || op == TOK_MINUS ||
+             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
+             op == TOK_LT || op == TOK_GT ||
+             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
             bool left_is_enum = (left && left->kind == TK_ENUM);
             bool right_is_enum = (right && right->kind == TK_ENUM);
-            bool is_ordering = (strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
-                                strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0);
+            bool is_ordering = (op == TOK_LT || op == TOK_GT ||
+                                op == TOK_LT_EQ || op == TOK_GT_EQ);
             bool has_int_side = (left && left->kind == TK_INT) ||
                                 (right && right->kind == TK_INT);
             if ((left_is_enum || right_is_enum) &&
                 !(is_ordering && has_int_side)) {
-                diag_error_codef(tc->diag, "E3049", NODE_FILE(tc, node), node->token.line, node->token.column, 0, op);
+                diag_error_codef(tc->diag, "E3049", NODE_FILE(tc, node), node->token.line, node->token.column, 0, op_to_str(op));
                 infix_errored = true;
             }
         }
 
         /* Enum vs integer comparison: reject with a specific diagnostic. */
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
             if (left->kind == TK_ENUM && is_int_kind(right->kind)) {
                 char msg[EZ_MSG_BUF_SIZE];
@@ -2338,7 +2376,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
         /* Comparison of incompatible types (e.g., int == string) */
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
             left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
             !(is_int_kind(left->kind) && is_int_kind(right->kind)) &&
@@ -2359,7 +2397,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* Pointer-to-pointer: pointee types differ in == / != comparison */
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
             left->kind == TK_POINTER && right->kind == TK_POINTER &&
             left->name && right->name &&
             strcmp(left->name, right->name) != 0 &&
@@ -2374,27 +2412,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * backend has no structural-equality operator on aggregate types,
          * so this used to slip through to clang. Point users at
          * arrays.is_equal. */
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
-             strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
-             strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ ||
+             op == TOK_LT || op == TOK_LT_EQ ||
+             op == TOK_GT || op == TOK_GT_EQ) &&
             left->kind == TK_ARRAY && right->kind == TK_ARRAY) {
             diag_error_code_help(tc->diag, "E3074",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                 "use arrays.is_equal(a, b) to compare arrays element-by-element");
             infix_errored = true;
         }
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
-             strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
-             strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ ||
+             op == TOK_LT || op == TOK_LT_EQ ||
+             op == TOK_GT || op == TOK_GT_EQ) &&
             left->kind == TK_MAP && right->kind == TK_MAP) {
             diag_error_code_help(tc->diag, "E3076",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                 "use maps.is_equal(a, b) to compare maps for equality");
             infix_errored = true;
         }
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
-             strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
-             strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
+        if ((op == TOK_EQ || op == TOK_NOT_EQ ||
+             op == TOK_LT || op == TOK_LT_EQ ||
+             op == TOK_GT || op == TOK_GT_EQ) &&
             left->kind == TK_STRUCT && right->kind == TK_STRUCT) {
             diag_error_code_help(tc->diag, "E3077",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0,
@@ -2403,7 +2441,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* E3085: validate type compatibility for in/not_in/!in */
-        if ((strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) &&
+        if ((op == TOK_IN || op == TOK_NOT_IN) &&
             !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
             bool mismatch = false;
             const char *left_tn = type_name(left);
@@ -2450,31 +2488,31 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* E3089: binary bitwise operators require integer operands */
-        if ((strcmp(op, "bit_and") == 0 || strcmp(op, "bit_or") == 0 ||
-             strcmp(op, "bit_xor") == 0 || strcmp(op, "bit_shift_left") == 0 ||
-             strcmp(op, "bit_shift_right") == 0) &&
+        if ((op == TOK_BIT_AND || op == TOK_BIT_OR ||
+             op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
+             op == TOK_BIT_SHIFT_RIGHT) &&
             !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
             bool left_ok  = is_int_kind(left->kind)  || left->kind  == TK_CHAR;
             bool right_ok = is_int_kind(right->kind) || right->kind == TK_CHAR;
             if (!left_ok || !right_ok) {
                 diag_error_codef(tc->diag, "E8001",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                    op, type_display_name(tc, left), type_display_name(tc, right));
+                    op_to_str(op), type_display_name(tc, left), type_display_name(tc, right));
                 infix_errored = true;
             } else {
                 result = left;
             }
         }
 
-        if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
-            strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
-            strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0 ||
-            strcmp(op, "&&") == 0 || strcmp(op, "||") == 0 ||
-            strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) {
+        if (op == TOK_EQ || op == TOK_NOT_EQ ||
+            op == TOK_LT || op == TOK_GT ||
+            op == TOK_LT_EQ || op == TOK_GT_EQ ||
+            op == TOK_AND || op == TOK_OR ||
+            op == TOK_IN || op == TOK_NOT_IN) {
             result = &TYPE_BOOL;
         } else if (left->kind == TK_FLOAT || right->kind == TK_FLOAT) {
             result = &TYPE_FLOAT;
-        } else if (left->kind == TK_STRING && strcmp(op, "+") == 0) {
+        } else if (left->kind == TK_STRING && op == TOK_PLUS) {
             result = &TYPE_STRING;
         } else {
             result = left;
@@ -2489,7 +2527,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_POSTFIX_EXPR: {
         EzType *left_t = resolve_expr(tc, node->data.postfix.left);
-        if (strcmp(node->data.postfix.op, "^") == 0) {
+        if (node->data.postfix.op == TOK_CARET) {
             if (left_t->kind == TK_POINTER) {
                 /* Dereference: ^T^ → T */
                 result = tc_type_from_name(tc, left_t->element_type);
@@ -2499,8 +2537,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else {
                 result = left_t;
             }
-        } else if (strcmp(node->data.postfix.op, "++") == 0 ||
-                   strcmp(node->data.postfix.op, "--") == 0) {
+        } else if (node->data.postfix.op == TOK_INCREMENT ||
+                   node->data.postfix.op == TOK_DECREMENT) {
             /* E5015: ++ and -- require a variable, not a literal */
             if (node->data.postfix.left->kind != NODE_LABEL &&
                 node->data.postfix.left->kind != NODE_INDEX_EXPR &&
@@ -2517,7 +2555,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
             if (left_t->kind != TK_UNKNOWN && !type_is_integer(left_t)) {
-                diag_error_codef(tc->diag, "E5023", NODE_FILE(tc, node), node->token.line, node->token.column, 0, node->data.postfix.op, type_display_name(tc, left_t));
+                diag_error_codef(tc->diag, "E5023", NODE_FILE(tc, node), node->token.line, node->token.column, 0, op_to_str(node->data.postfix.op), type_display_name(tc, left_t));
             }
             result = left_t;
         } else {
@@ -6151,7 +6189,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * when the index is a literal '-N'. */
         if ((left->kind == TK_ARRAY || left->kind == TK_STRING) &&
             node->data.index_expr.index->kind == NODE_PREFIX_EXPR &&
-            strcmp(node->data.index_expr.index->data.prefix.op, "-") == 0 &&
+            node->data.index_expr.index->data.prefix.op == TOK_MINUS &&
             node->data.index_expr.index->data.prefix.right->kind == NODE_INT_VALUE) {
             const char *what = left->kind == TK_STRING ? "string" : "array";
             char msg[EZ_TYPE_NAME_MAX];
@@ -8104,10 +8142,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * (p += 1, p -= 2, etc.) are pointer arithmetic and not
          * supported. Plain `=` (and the existing `p = nil` /
          * `p = addr(...)` paths) stay valid. */
-        const char *aop = node->data.assign.op;
-        if (aop && (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 ||
-                    strcmp(aop, "*=") == 0 || strcmp(aop, "/=") == 0 ||
-                    strcmp(aop, "%=") == 0) &&
+        TokenType aop = node->data.assign.op;
+        if ((aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN ||
+             aop == TOK_ASTERISK_ASSIGN || aop == TOK_SLASH_ASSIGN ||
+             aop == TOK_PERCENT_ASSIGN) &&
             target_t && target_t->kind == TK_POINTER) {
             diag_error_code(tc->diag, "E3078",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -8302,7 +8340,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * dereference. resolve_expr already strips the pointer layer, so
          * target_t and value_t are both TK_STRUCT — just compare names. */
         if (target->kind == NODE_POSTFIX_EXPR &&
-            strcmp(target->data.postfix.op, "^") == 0 &&
+            target->data.postfix.op == TOK_CARET &&
             target_t && value_t &&
             target_t->kind == TK_STRUCT && value_t->kind == TK_STRUCT &&
             target_t->name && value_t->name &&
@@ -8873,7 +8911,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     r->data.range_expr.step->data.int_value.value < 0;
                 bool has_neg_prefix = r->data.range_expr.step &&
                     r->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
-                    strcmp(r->data.range_expr.step->data.prefix.op, "-") == 0;
+                    r->data.range_expr.step->data.prefix.op == TOK_MINUS;
                 bool step_direction_known = !r->data.range_expr.step ||
                     (r->data.range_expr.step->kind == NODE_INT_VALUE) ||
                     has_neg_prefix;
