@@ -69,6 +69,11 @@ typedef struct {
     int struct_count;
     int struct_cap;
 
+    /* Sorted view of structs[] for O(log n) find_struct lookups.
+     * Invalidated whenever a new struct is registered. */
+    StructInfo **structs_sorted;
+    bool structs_sorted_built;
+
     /* Registered function signatures */
     FuncSig *funcs;
     int func_count;
@@ -93,6 +98,11 @@ typedef struct {
     bool *enum_is_tagged;              /* parallel to enum_names */
     int enum_count;
     int enum_cap;
+
+    /* Sorted view of enum_names[] for O(log n) is_enum_name lookups.
+     * Invalidated whenever a new enum is registered. */
+    const char **enum_names_sorted;
+    bool enum_names_sorted_built;
 
     /* Control flow tracking */
     int loop_depth;               /* >0 means inside a loop */
