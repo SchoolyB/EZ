@@ -1649,7 +1649,8 @@ static const UsingConst _using_consts[] = {
     {NULL,NULL,TK_UNKNOWN}
 };
 
-static bool tc_is_using_constant(TypeChecker *tc, const char *name) {
+/* Single-pass lookup: marks import used and returns the type (NULL = not found). */
+static EzType *tc_lookup_using_constant(TypeChecker *tc, const char *name) {
     for (int ui = 0; ui < tc->using_module_count; ui++) {
         if (!using_module_accessible(tc, ui)) continue;
         const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
@@ -1663,20 +1664,6 @@ static bool tc_is_using_constant(TypeChecker *tc, const char *name) {
                         break;
                     }
                 }
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-static EzType *tc_resolve_using_constant_type(TypeChecker *tc, const char *name) {
-    for (int ui = 0; ui < tc->using_module_count; ui++) {
-        if (!using_module_accessible(tc, ui)) continue;
-        const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
-        for (int ci = 0; _using_consts[ci].name; ci++) {
-            if (strcmp(name, _using_consts[ci].name) == 0 &&
-                strcmp(real_mod, _using_consts[ci].mod) == 0) {
                 switch (_using_consts[ci].ret) {
                 case TK_FLOAT: return &TYPE_FLOAT;
                 case TK_INT:   return &TYPE_INT;
@@ -1686,7 +1673,7 @@ static EzType *tc_resolve_using_constant_type(TypeChecker *tc, const char *name)
             }
         }
     }
-    return &TYPE_UNKNOWN;
+    return NULL;
 }
 
 /* --- Enum helpers --- */
@@ -2126,8 +2113,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             FuncSig *fs = find_func(tc, name);
             if (fs) fs->used = true;
             diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node), node->token.line, node->token.column, 0, name, name, name);
-        } else if (tc_is_using_constant(tc, name)) {
-            result = tc_resolve_using_constant_type(tc, name);
+        } else if ((result = tc_lookup_using_constant(tc, name)) != NULL) {
         } else if (tc_is_builtin(name)) {
             EzType *bt = type_from_name(name);
             if (bt != &TYPE_UNKNOWN) {
