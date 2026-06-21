@@ -118,6 +118,14 @@ EzType *typetable_get(TypeTable *tt, AstNode *node) {
     }
 }
 
+/* Shared helpers for sorted-string-set lookups. */
+static int strptr_cmp(const void *a, const void *b) {
+    return strcmp(*(const char *const *)a, *(const char *const *)b);
+}
+static bool strset_contains(const char *const *sorted, int n, const char *name) {
+    return bsearch(&name, sorted, (size_t)n, sizeof(const char *), strptr_cmp) != NULL;
+}
+
 /* --- Reserved type name check --- */
 static bool is_reserved_type_name(const char *name) {
     return strcmp(name, "int") == 0 || strcmp(name, "uint") == 0 ||
@@ -130,33 +138,24 @@ static bool is_reserved_type_name(const char *name) {
 
 /* Builtin function names that user code may not redeclare. */
 static bool is_reserved_builtin_func_name(const char *name) {
-    static const char *builtins[] = {
-        "println", "print", "eprintln", "eprint", "input",
-        "len", "type_of", "size_of", "copy", "ref", "addr", "error",
-        "exit", "panic", "assert", "cast",
-        "sleep_s", "sleep_ms", "sleep_ns", "c_string",
-        "to_char", "char_count", "here", "embed",
-        NULL
+    static const char *const builtins[] = {
+        "addr", "assert", "c_string", "cast", "char_count", "copy",
+        "embed", "eprint", "eprintln", "error", "exit", "here",
+        "input", "len", "panic", "print", "println", "ref", "size_of",
+        "sleep_ms", "sleep_ns", "sleep_s", "to_char", "type_of",
     };
-    for (int i = 0; builtins[i]; i++) {
-        if (strcmp(name, builtins[i]) == 0) return true;
-    }
-    return false;
+    return strset_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
 }
 
 /* Standard library module names that user code may not shadow. */
 static bool is_stdlib_module_name(const char *name) {
-    static const char *modules[] = {
+    static const char *const modules[] = {
         "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
         "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
         "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
         "threads", "time", "uuid",
-        NULL
     };
-    for (int i = 0; modules[i]; i++) {
-        if (strcmp(name, modules[i]) == 0) return true;
-    }
-    return false;
+    return strset_contains(modules, (int)(sizeof(modules)/sizeof(modules[0])), name);
 }
 
 /* Forward declaration — resolve_expr is defined later but needed by helper
@@ -1276,21 +1275,17 @@ static void tc_mark_type_module_used(TypeChecker *tc, const char *type_name) {
 }
 
 static bool tc_is_builtin(const char *name) {
-    static const char *builtins[] = {
-        "println", "print", "eprintln", "eprint", "input",
-        "len", "type_of", "size_of", "copy", "new", "ref", "addr", "error",
-        "int", "uint", "float", "string", "char", "byte", "bool",
-        "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64",
-        "i128", "i256", "u128", "u256",
-        "exit", "panic", "assert", "range", "cast",
-        "sleep_s", "sleep_ms", "sleep_ns", "c_string",
-        "to_char", "char_count", "here", "embed",
-        NULL
+    static const char *const builtins[] = {
+        "addr", "assert", "bool", "byte", "c_string", "cast",
+        "char", "char_count", "copy", "embed", "eprint", "eprintln",
+        "error", "exit", "f32", "f64", "float", "here",
+        "i128", "i16", "i256", "i32", "i64", "i8",
+        "input", "int", "len", "new", "panic", "print", "println",
+        "range", "ref", "size_of", "sleep_ms", "sleep_ns", "sleep_s",
+        "string", "to_char", "type_of",
+        "u128", "u16", "u256", "u32", "u64", "u8", "uint",
     };
-    for (int i = 0; builtins[i]; i++) {
-        if (strcmp(name, builtins[i]) == 0) return true;
-    }
-    return false;
+    return strset_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
 }
 
 /* Check whether any arg_names entry is non-NULL (i.e. call has named args). */
@@ -1418,17 +1413,14 @@ static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
 }
 
 static bool tc_is_stdlib_module(const char *name) {
-    static const char *stdlib_mods[] = {
-        "strings", "math", "arrays", "maps", "random", "encoding", "crypto",
-        "regex", "json", "io", "os", "time", "strconv", "uuid", "bytes",
-        "binary", "csv", "sqlite", "threads", "sync", "atomic_mod", "atomic",
-        "channels", "net", "http", "server", "bigint", "fmt", "mem",
-        NULL
+    static const char *const stdlib_mods[] = {
+        "arrays", "atomic", "atomic_mod", "bigint", "binary", "bytes",
+        "channels", "crypto", "csv", "encoding", "fmt", "http",
+        "io", "json", "maps", "math", "mem", "net", "os", "random",
+        "regex", "server", "sqlite", "strconv", "strings", "sync",
+        "threads", "time", "uuid",
     };
-    for (int i = 0; stdlib_mods[i]; i++) {
-        if (strcmp(name, stdlib_mods[i]) == 0) return true;
-    }
-    return false;
+    return strset_contains(stdlib_mods, (int)(sizeof(stdlib_mods)/sizeof(stdlib_mods[0])), name);
 }
 
 /* stdlib functions reachable via `import and use` / `using`. */
@@ -9923,17 +9915,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
 /* Known stdlib module names */
 static bool is_valid_module(const char *name) {
-    static const char *modules[] = {
-        "math", "strings", "arrays", "maps", "io", "os", "time",
-        "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
-        "binary", "fmt", "http", "server", "regex", "net", "threads",
-        "sync", "atomic", "channels", "mem", "sqlite", "errors", "db",
-        "strconv", NULL
+    static const char *const modules[] = {
+        "arrays", "atomic", "binary", "bytes", "channels", "crypto",
+        "csv", "db", "encoding", "errors", "fmt", "http",
+        "io", "json", "maps", "math", "mem", "net", "os", "random",
+        "regex", "server", "sqlite", "strconv", "strings", "sync",
+        "threads", "time", "uuid",
     };
-    for (int i = 0; modules[i]; i++) {
-        if (strcmp(name, modules[i]) == 0) return true;
-    }
-    return false;
+    return strset_contains(modules, (int)(sizeof(modules)/sizeof(modules[0])), name);
 }
 
 /* : returns true if any NODE_STRUCT_DECL in the program has the given
