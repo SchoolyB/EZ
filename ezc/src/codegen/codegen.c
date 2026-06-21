@@ -2242,17 +2242,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* User-module qualified constant/variable access: mod.NAME → mod_NAME
              * Only apply for known imported module names, not local variables */
             if (mod[0] >= 'a' && mod[0] <= 'z') {
-                /* Check if mod is an imported module by looking for mod_ prefixed declarations */
+                /* Check if mod is an imported module by looking for mod_-prefixed
+                 * declarations. Stack buffer — identifiers are always short. */
                 bool is_module = false;
-                size_t mod_len = strlen(mod);
-                size_t mem_len = strlen(mem);
-                size_t cn_len = mod_len + 1 + mem_len + 1;
-                char *check_name = malloc(cn_len);
-                if (!check_name) break;
-                snprintf(check_name, cn_len, "%s_%s", mod, mem);
-                /* Check functions, variables via find_func */
-                if (find_func(cg, check_name)) is_module = true;
-                free(check_name);
+                char check_name[512];
+                snprintf(check_name, sizeof(check_name), "%s_%s", mod, mem);
                 /* Note: a "is `mod` a module?" prefix scan over all declared
                  * functions used to live here. It produced false positives
                  * whenever a local variable or parameter shared its name with
@@ -2261,16 +2255,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                  * scope). Module membership must come from an explicit
                  * registration (find_func above, using_modules, aliases, or
                  * imported_modules below), never from a name-prefix guess. */
-                /* Check using_modules list */
+                if (find_func(cg, check_name)) is_module = true;
                 if (!is_module) {
                     for (int ui = 0; ui < cg->using_module_count; ui++) {
-                        if (strcmp(cg->using_modules[ui], mod) == 0) {
-                            is_module = true;
-                            break;
-                        }
+                        if (strcmp(cg->using_modules[ui], mod) == 0) { is_module = true; break; }
                     }
                 }
-                /* Check alias mappings */
                 if (!is_module) {
                     for (int ai = 0; ai < cg->alias_count; ai++) {
                         if (strcmp(cg->alias_names[ai], mod) == 0) {
@@ -2280,13 +2270,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         }
                     }
                 }
-                /* Check imported module names list */
                 if (!is_module) {
                     for (int ii = 0; ii < cg->imported_module_count; ii++) {
-                        if (strcmp(cg->imported_modules[ii], mod) == 0) {
-                            is_module = true;
-                            break;
-                        }
+                        if (strcmp(cg->imported_modules[ii], mod) == 0) { is_module = true; break; }
                     }
                 }
                 if (is_module) {
