@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 /* Built-in type singletons */
 EzType TYPE_VOID    = {TK_VOID,   "void",   NULL, NULL, NULL, NULL};
@@ -38,15 +39,52 @@ EzType *type_alloc(void) {
     return &type_pool[type_pool_count++];
 }
 
+/* Hash index for O(1) pool_find. Must be a power of 2 and at least 2x
+ * TYPE_POOL_CAPACITY to keep load factor below 50%. */
+#define TYPE_HASH_CAP 8192
+
+typedef struct {
+    TypeKind kind;
+    const char *name;  /* points into the pool entry's name — not a copy */
+    EzType    *type;   /* NULL = empty slot */
+} TypeHashEntry;
+
+static TypeHashEntry type_hash_table[TYPE_HASH_CAP];
+
+static uint32_t type_hash(TypeKind kind, const char *name) {
+    uint32_t h = 5381u ^ ((uint32_t)kind * 2654435761u);
+    for (const unsigned char *p = (const unsigned char *)name; *p; p++)
+        h = h * 33u ^ (uint32_t)*p;
+    return h;
+}
+
 /* Return an existing pool entry matching kind+name, or NULL if not found. */
 static EzType *pool_find(TypeKind kind, const char *name) {
     if (!name) return NULL;
-    for (int i = 0; i < type_pool_count; i++) {
-        EzType *t = &type_pool[i];
-        if (t->kind == kind && t->name && strcmp(t->name, name) == 0)
-            return t;
+    uint32_t mask = TYPE_HASH_CAP - 1;
+    uint32_t idx  = type_hash(kind, name) & mask;
+    for (;;) {
+        TypeHashEntry *e = &type_hash_table[idx];
+        if (!e->type) return NULL;
+        if (e->kind == kind && strcmp(e->name, name) == 0) return e->type;
+        idx = (idx + 1) & mask;
     }
-    return NULL;
+}
+
+/* Insert a newly created type into the hash index. */
+static void pool_insert(TypeKind kind, const char *name, EzType *t) {
+    uint32_t mask = TYPE_HASH_CAP - 1;
+    uint32_t idx  = type_hash(kind, name) & mask;
+    for (;;) {
+        TypeHashEntry *e = &type_hash_table[idx];
+        if (!e->type) {
+            e->kind = kind;
+            e->name = name;
+            e->type = t;
+            return;
+        }
+        idx = (idx + 1) & mask;
+    }
 }
 
 EzType *type_array(const char *elem_type) {
@@ -56,6 +94,7 @@ EzType *type_array(const char *elem_type) {
     t->kind = TK_ARRAY;
     t->element_type = elem_type;
     t->name = elem_type; /* simplified */
+    pool_insert(TK_ARRAY, t->name, t);
     return t;
 }
 
@@ -65,6 +104,7 @@ EzType *type_struct(const char *name) {
     EzType *t = type_alloc();
     t->kind = TK_STRUCT;
     t->name = strdup(name);
+    pool_insert(TK_STRUCT, t->name, t);
     return t;
 }
 
@@ -74,6 +114,7 @@ EzType *type_enum(const char *name) {
     EzType *t = type_alloc();
     t->kind = TK_ENUM;
     t->name = strdup(name);
+    pool_insert(TK_ENUM, t->name, t);
     return t;
 }
 
@@ -85,6 +126,7 @@ EzType *type_pointer(const char *pointee_type) {
     const char *dup = strdup(pointee_type);
     t->element_type = dup;
     t->name = dup;
+    pool_insert(TK_POINTER, t->name, t);
     return t;
 }
 
@@ -317,6 +359,7 @@ EzType *type_from_name(const char *name) {
         t->kind = TK_FUNCTION;
         t->name = strdup(name);
         t->func_sig = parse_func_sig(name);
+        pool_insert(TK_FUNCTION, t->name, t);
         return t;
     }
 
@@ -331,6 +374,7 @@ EzType *type_from_name(const char *name) {
         EzType *t = type_alloc();
         t->kind = hit->alloc_kind;
         t->name = hit->alloc_name ? hit->alloc_name : strdup(name);
+        pool_insert(t->kind, t->name, t);
         return t;
     }
 
@@ -378,6 +422,7 @@ EzType *type_from_name(const char *name) {
             val[vlen] = '\0';
             t->value_type = val;
         }
+        pool_insert(TK_MAP, t->name, t);
         return t;
     }
 
