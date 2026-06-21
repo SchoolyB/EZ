@@ -937,29 +937,47 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strconv", "is_numeric", 1, 1}, {"strconv", "is_integer", 1, 1},
 };
 
+static int stdlib_arg_entry_cmp(const void *a, const void *b) {
+    const StdlibArgEntry *ea = *(const StdlibArgEntry *const *)a;
+    const StdlibArgEntry *eb = *(const StdlibArgEntry *const *)b;
+    int r = strcmp(ea->mod, eb->mod);
+    return r != 0 ? r : strcmp(ea->fn, eb->fn);
+}
+
+#define STDLIB_ARG_TABLE_N (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0]))
+
 static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
     const char *fn, AstNode *node)
 {
+    static const StdlibArgEntry *sorted[STDLIB_ARG_TABLE_N];
+    static bool built = false;
+    if (!built) {
+        for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) sorted[i] = &stdlib_arg_table[i];
+        qsort(sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
+        built = true;
+    }
+
+    StdlibArgEntry key = { .mod = mod, .fn = fn };
+    const StdlibArgEntry *key_ptr = &key;
+    const StdlibArgEntry **hit = bsearch(&key_ptr, sorted, STDLIB_ARG_TABLE_N,
+        sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
+    if (!hit) return;
+
+    const StdlibArgEntry *e = *hit;
     int nargs = node->data.call.arg_count;
-    for (int i = 0; i < (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0])); i++) {
-        if (strcmp(mod, stdlib_arg_table[i].mod) == 0 &&
-            strcmp(fn, stdlib_arg_table[i].fn) == 0) {
-            if (nargs < stdlib_arg_table[i].min_args || nargs > stdlib_arg_table[i].max_args) {
-                char msg[EZ_MSG_BUF_SIZE];
-                if (stdlib_arg_table[i].min_args == stdlib_arg_table[i].max_args) {
-                    snprintf(msg, sizeof(msg),
-                        "function '%s.%s' expects %d argument(s), got %d",
-                        mod, fn, stdlib_arg_table[i].min_args, nargs);
-                } else {
-                    snprintf(msg, sizeof(msg),
-                        "function '%s.%s' expects %d to %d argument(s), got %d",
-                        mod, fn, stdlib_arg_table[i].min_args, stdlib_arg_table[i].max_args, nargs);
-                }
-                diag_error_msg(tc->diag, "E5008", arena_strdup(tc->arena, msg),
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
-            }
-            return;
+    if (nargs < e->min_args || nargs > e->max_args) {
+        char msg[EZ_MSG_BUF_SIZE];
+        if (e->min_args == e->max_args) {
+            snprintf(msg, sizeof(msg),
+                "function '%s.%s' expects %d argument(s), got %d",
+                mod, fn, e->min_args, nargs);
+        } else {
+            snprintf(msg, sizeof(msg),
+                "function '%s.%s' expects %d to %d argument(s), got %d",
+                mod, fn, e->min_args, e->max_args, nargs);
         }
+        diag_error_msg(tc->diag, "E5008", arena_strdup(tc->arena, msg),
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
     }
 }
 
@@ -1118,29 +1136,51 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     return "unknown";
 }
 
+static int stdlib_argtype_entry_cmp(const void *a, const void *b) {
+    const StdlibArgTypeEntry *ea = *(const StdlibArgTypeEntry *const *)a;
+    const StdlibArgTypeEntry *eb = *(const StdlibArgTypeEntry *const *)b;
+    int r = strcmp(ea->mod, eb->mod);
+    return r != 0 ? r : strcmp(ea->fn, eb->fn);
+}
+
+#define STDLIB_ARG_TYPE_TABLE_N (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0]))
+
 static void tc_check_stdlib_arg_types(TypeChecker *tc, const char *mod,
     const char *fn, AstNode *node)
 {
-    for (int i = 0; i < (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0])); i++) {
-        if (strcmp(mod, stdlib_arg_type_table[i].mod) == 0 &&
-            strcmp(fn, stdlib_arg_type_table[i].fn) == 0) {
-            int idx = stdlib_arg_type_table[i].arg_index;
-            if (idx < node->data.call.arg_count) {
-                EzType *arg_t = resolve_expr(tc, node->data.call.args[idx]);
-                if (!arg_kind_matches(stdlib_arg_type_table[i].kind, arg_t)) {
-                    char msg[EZ_MSG_BUF_SIZE];
-                    snprintf(msg, sizeof(msg),
-                        "%s.%s() expects %s as argument %d, got '%s'",
-                        mod, fn, expected_kind_name(stdlib_arg_type_table[i].kind),
-                        idx + 1, type_name(arg_t));
-                    diag_error_msg(tc->diag, "E5026", arena_strdup(tc->arena, msg),
-                        NODE_FILE(tc, node->data.call.args[idx]),
-                        node->data.call.args[idx]->token.line,
-                        node->data.call.args[idx]->token.column, 0);
-                }
+    static const StdlibArgTypeEntry *sorted[STDLIB_ARG_TYPE_TABLE_N];
+    static bool built = false;
+    if (!built) {
+        for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) sorted[i] = &stdlib_arg_type_table[i];
+        qsort(sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+        built = true;
+    }
+
+    StdlibArgTypeEntry key = { .mod = mod, .fn = fn };
+    const StdlibArgTypeEntry *key_ptr = &key;
+    const StdlibArgTypeEntry **hit = bsearch(&key_ptr, sorted, STDLIB_ARG_TYPE_TABLE_N,
+        sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+    if (!hit) return;
+
+    /* bsearch may land on any entry in the (mod, fn) group; walk back to first. */
+    while (hit > sorted && stdlib_argtype_entry_cmp(hit - 1, hit) == 0) hit--;
+
+    /* Iterate the contiguous group of entries for this (mod, fn). */
+    for (; hit < sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_argtype_entry_cmp(hit, &key_ptr) == 0; hit++) {
+        const StdlibArgTypeEntry *e = *hit;
+        int idx = e->arg_index;
+        if (idx < node->data.call.arg_count) {
+            EzType *arg_t = resolve_expr(tc, node->data.call.args[idx]);
+            if (!arg_kind_matches(e->kind, arg_t)) {
+                char msg[EZ_MSG_BUF_SIZE];
+                snprintf(msg, sizeof(msg),
+                    "%s.%s() expects %s as argument %d, got '%s'",
+                    mod, fn, expected_kind_name(e->kind), idx + 1, type_name(arg_t));
+                diag_error_msg(tc->diag, "E5026", arena_strdup(tc->arena, msg),
+                    NODE_FILE(tc, node->data.call.args[idx]),
+                    node->data.call.args[idx]->token.line,
+                    node->data.call.args[idx]->token.column, 0);
             }
-            /* Don't return — there may be multiple entries for the same function
-             * checking different argument positions. */
         }
     }
 }
