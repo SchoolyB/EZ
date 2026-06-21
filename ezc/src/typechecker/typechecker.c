@@ -447,6 +447,7 @@ static void register_func(TypeChecker *tc, const char *name,
         tc->func_cap = tc->func_cap ? tc->func_cap * 2 : 16;
         tc->funcs = xrealloc(tc->funcs, sizeof(FuncSig) * tc->func_cap);
     }
+    tc->funcs_sorted_built = false;
     FuncSig *fs = &tc->funcs[tc->func_count++];
     fs->name = name;
     fs->param_types = param_types;
@@ -654,12 +655,27 @@ static bool record_instantiation(FuncSig *fs, const char *concrete,
     return true;
 }
 
+static int funcsig_name_cmp(const void *a, const void *b) {
+    return strcmp((*(const FuncSig *const *)a)->name,
+                  (*(const FuncSig *const *)b)->name);
+}
+
 static FuncSig *find_func(TypeChecker *tc, const char *name) {
-    for (int i = 0; i < tc->func_count; i++) {
-        if (strcmp(tc->funcs[i].name, name) == 0)
-            return &tc->funcs[i];
+    if (tc->func_count == 0) return NULL;
+    if (!tc->funcs_sorted_built) {
+        tc->funcs_sorted = xrealloc(tc->funcs_sorted,
+            sizeof(FuncSig *) * (size_t)tc->func_count);
+        for (int i = 0; i < tc->func_count; i++)
+            tc->funcs_sorted[i] = &tc->funcs[i];
+        qsort(tc->funcs_sorted, (size_t)tc->func_count,
+              sizeof(FuncSig *), funcsig_name_cmp);
+        tc->funcs_sorted_built = true;
     }
-    return NULL;
+    FuncSig key = { .name = name };
+    FuncSig *key_ptr = &key;
+    FuncSig **hit = bsearch(&key_ptr, tc->funcs_sorted,
+        (size_t)tc->func_count, sizeof(FuncSig *), funcsig_name_cmp);
+    return hit ? *hit : NULL;
 }
 
 /* The name the programmer wrote, never the module-prefixed internal one.

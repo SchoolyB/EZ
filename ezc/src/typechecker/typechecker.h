@@ -74,6 +74,11 @@ typedef struct {
     int func_count;
     int func_cap;
 
+    /* Sorted view of funcs[] for O(log n) find_func lookups.
+     * Invalidated whenever a new function is registered. */
+    FuncSig **funcs_sorted;
+    bool funcs_sorted_built;
+
     /* Program AST (for default param lookup) */
     AstNode *program;
 
