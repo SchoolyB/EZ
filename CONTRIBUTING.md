@@ -177,23 +177,34 @@ This is a great way to quickly validate your change while developing. When your 
 
 ### Adding a Stdlib Function, Builtin, Constant, or Type
 
-Any time you add or modify a user-facing stdlib function, builtin, constant, or type, three things are **required** before your PR is ready:
+Any time you add or modify a user-facing stdlib function, builtin, constant, or type, every item below is **required** before your PR is ready.
 
-1. **Add `@man` documentation blocks** to the relevant header file (`ezc/src/stdlib/ez_<module>.h` for stdlib, or the builtins header for builtins). Follow the existing `@man` block format used throughout those files.
+#### C Implementation
 
-2. **Update `STANDARD.md`** — add the new function, constant, or type to the appropriate module section in the language specification.
+- [ ] `ezc/src/stdlib/ez_<module>.h` — declare the C function and add a `@man` block following the existing format
+- [ ] `ezc/src/stdlib/ez_<module>.c` — implement it
 
-3. **Run the generation script** to regenerate the man data file:
-   ```bash
-   # For stdlib modules:
-   ./scripts/generate_stdlib_man.sh
+#### Typechecker (`ezc/src/typechecker/typechecker.c`) — 4 locations
 
-   # For builtins:
-   ./scripts/generate_builtins_man.sh
-   ```
-   Commit the updated generated file (`cmd/ez/stdlib_man_data.go` or `cmd/ez/builtins_man_data.go`) along with your changes.
+- [ ] **Return type block** — find the `strcmp(mod, "<module>")` section and register what the function returns
+- [ ] **`stdlib_arg_table[]`** — add `{"module", "fn", min_args, max_args}` for arg count validation
+- [ ] **`stdlib_arg_type_table[]`** — add `{"module", "fn", arg_index, ARG_TYPE}` entries for arg type validation
+- [ ] **`_using_funcs[]`** — add `{"fn", "module", TK_RETURNTYPE}` so the `using` keyword resolves this function
 
-PRs that add user-facing functionality without documentation and a regenerated data file will not be merged.
+#### Codegen (`ezc/src/codegen/codegen.c`)
+
+- [ ] Emit the C call in `emit_<module>_call()`
+
+#### Docs
+
+- [ ] `STANDARD.md` — add the function to the module's table in the language spec
+- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cmd/ez/stdlib_man_data.go`
+
+#### Build
+
+- [ ] `make build` — must compile clean with zero warnings
+
+PRs that add user-facing functionality without completing this checklist will not be merged.
 
 ---
 

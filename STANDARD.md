@@ -2426,6 +2426,17 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `index_of` | `(s string, sub string) -> int` | First index of substring |
 | `count` | `(s string, sub string) -> int` | Count occurrences |
 
+#### Classification Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `is_alpha` | `(c char) -> bool` | True if c is an ASCII letter (a-z, A-Z) |
+| `is_digit` | `(c char) -> bool` | True if c is a decimal digit (0-9) |
+| `is_alnum` | `(c char) -> bool` | True if c is a letter or digit |
+| `is_whitespace` | `(c char) -> bool` | True if c is space, tab, newline, or carriage return |
+| `is_upper` | `(c char) -> bool` | True if c is an uppercase letter (A-Z) |
+| `is_lower` | `(c char) -> bool` | True if c is a lowercase letter (a-z) |
+
 #### Transformation Functions
 
 | Function | Signature | Description |

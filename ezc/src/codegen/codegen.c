@@ -5709,6 +5709,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"join","strings"},{"contains","strings"},{"starts_with","strings"},
                 {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},
                 {"count","strings"},{"split","strings"},
+                {"is_alpha","strings"},{"is_digit","strings"},{"is_alnum","strings"},
+                {"is_whitespace","strings"},{"is_upper","strings"},{"is_lower","strings"},
                 /* @math */
                 {"abs","math"},{"neg","math"},{"sign","math"},{"min","math"},{"max","math"},
                 {"clamp","math"},{"floor","math"},{"ceil","math"},{"round","math"},{"trunc","math"},

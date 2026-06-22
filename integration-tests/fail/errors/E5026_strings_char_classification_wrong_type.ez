@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5026 - wrong argument type to strings char classification function
+ * Expected: strings.is_alpha() expects char, got string
+ */
+
+import @strings
+
+do main() {
+    mut result bool = strings.is_alpha("hello")
+}

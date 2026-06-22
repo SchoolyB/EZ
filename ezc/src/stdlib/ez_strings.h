@@ -222,4 +222,83 @@ EzArray ez_strings_split(EzArena *arena, EzString s, EzString sep);
  */
 EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep);
 
+/*@man is_alpha
+ *@module strings
+ *@group Classification
+ *@sig is_alpha(c char) -> bool
+ *@desc Returns true if c is an ASCII letter (a-z or A-Z).
+ *@example
+ *   import @strings
+ *   println(strings.is_alpha('a'))
+ *   println(strings.is_alpha('1'))
+ *@end
+ */
+bool ez_strings_is_alpha(char c);
+
+/*@man is_digit
+ *@module strings
+ *@group Classification
+ *@sig is_digit(c char) -> bool
+ *@desc Returns true if c is a decimal digit (0-9).
+ *@example
+ *   import @strings
+ *   println(strings.is_digit('5'))
+ *   println(strings.is_digit('a'))
+ *@end
+ */
+bool ez_strings_is_digit(char c);
+
+/*@man is_alnum
+ *@module strings
+ *@group Classification
+ *@sig is_alnum(c char) -> bool
+ *@desc Returns true if c is an ASCII letter or decimal digit.
+ *@example
+ *   import @strings
+ *   println(strings.is_alnum('a'))
+ *   println(strings.is_alnum('3'))
+ *   println(strings.is_alnum('!'))
+ *@end
+ */
+bool ez_strings_is_alnum(char c);
+
+/*@man is_whitespace
+ *@module strings
+ *@group Classification
+ *@sig is_whitespace(c char) -> bool
+ *@desc Returns true if c is a whitespace character (space, tab, newline, carriage return).
+ *@example
+ *   import @strings
+ *   println(strings.is_whitespace(' '))
+ *   println(strings.is_whitespace('a'))
+ *@end
+ */
+bool ez_strings_is_whitespace(char c);
+
+/*@man is_upper
+ *@module strings
+ *@group Classification
+ *@sig is_upper(c char) -> bool
+ *@desc Returns true if c is an uppercase ASCII letter (A-Z).
+ *@example
+ *   import @strings
+ *   println(strings.is_upper('A'))
+ *   println(strings.is_upper('a'))
+ *@end
+ */
+bool ez_strings_is_upper(char c);
+
+/*@man is_lower
+ *@module strings
+ *@group Classification
+ *@sig is_lower(c char) -> bool
+ *@desc Returns true if c is a lowercase ASCII letter (a-z).
+ *@example
+ *   import @strings
+ *   println(strings.is_lower('a'))
+ *   println(strings.is_lower('A'))
+ *@end
+ */
+bool ez_strings_is_lower(char c);
+
 #endif
