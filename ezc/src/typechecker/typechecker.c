@@ -864,6 +864,9 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
     {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
     {"strings", "slice", 3, 3},
+    {"strings", "is_alpha", 1, 1}, {"strings", "is_digit", 1, 1},
+    {"strings", "is_alnum", 1, 1}, {"strings", "is_whitespace", 1, 1},
+    {"strings", "is_upper", 1, 1}, {"strings", "is_lower", 1, 1},
     /* json */
     {"json", "decode", 1, 1}, {"json", "encode", 1, 1},
     {"json", "stringify", 1, 1},
@@ -1074,7 +1077,7 @@ static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
  * expected types so we can catch type mismatches before they leak to C.
  * ARG_ANY means no validation (the function accepts mixed types). */
 typedef enum {
-    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER
+    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR
 } ExpectedArgKind;
 
 typedef struct {
@@ -1101,6 +1104,9 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "repeat", 1, ARG_INT},
     {"strings", "slice", 1, ARG_INT}, {"strings", "slice", 2, ARG_INT},
     {"strings", "join", 0, ARG_ARRAY}, {"strings", "join", 1, ARG_STRING},
+    {"strings", "is_alpha", 0, ARG_CHAR}, {"strings", "is_digit", 0, ARG_CHAR},
+    {"strings", "is_alnum", 0, ARG_CHAR}, {"strings", "is_whitespace", 0, ARG_CHAR},
+    {"strings", "is_upper", 0, ARG_CHAR}, {"strings", "is_lower", 0, ARG_CHAR},
     /* io: path args are strings */
     {"io", "read_file", 0, ARG_STRING}, {"io", "read_bytes", 0, ARG_STRING},
     {"io", "read_lines", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
@@ -1197,6 +1203,7 @@ static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
     case ARG_ANY:    return true;
     case ARG_NUMBER: return actual->kind == TK_INT || actual->kind == TK_UINT ||
                             actual->kind == TK_BYTE || actual->kind == TK_FLOAT;
+    case ARG_CHAR:   return actual->kind == TK_CHAR;
     }
     return true;
 }
@@ -1211,6 +1218,7 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     case ARG_MAP:    return "map";
     case ARG_ANY:    return "any";
     case ARG_NUMBER: return "number";
+    case ARG_CHAR:   return "char";
     }
     return "unknown";
 }
@@ -1514,8 +1522,14 @@ static const UsingFunc _using_funcs[] = {
     {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
     {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
     {"ends_with","strings",TK_BOOL},{"is_empty","strings",TK_BOOL},
+    {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
+    {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
+    {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     {"index_of","strings",TK_INT},{"count","strings",TK_INT},
     {"split","strings",TK_ARRAY},
+    {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
+    {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
+    {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     /* math (arg-dependent abs/neg/min/max/clamp handled by special case) */
     {"sign","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
     {"lcm","math",TK_INT},
