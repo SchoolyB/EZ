@@ -9806,6 +9806,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             AstNode *subj = node->data.when_stmt.value;
             diag_warning_code(tc->diag, "W2012", NODE_FILE(tc, subj), subj->token.line, subj->token.column, 0);
         }
+        /* E3121: struct, array, map, and pointer types are not valid when subjects.
+         * Null out when_t so subsequent case type checks are skipped. */
+        if (when_t && (when_t->kind == TK_STRUCT || when_t->kind == TK_ARRAY ||
+                       when_t->kind == TK_MAP || when_t->kind == TK_POINTER)) {
+            AstNode *subj = node->data.when_stmt.value;
+            diag_error_codef(tc->diag, "E3121", NODE_FILE(tc, subj), subj->token.line, subj->token.column, 0,
+                type_display_name(tc, when_t));
+            when_t = NULL;
+        }
         /* E2043: check for duplicate case values, E3001: check type match */
         /* Set expected_type for implicit enum resolution in when/is branches */
         EzType *saved_when_expected = tc->expected_type;
