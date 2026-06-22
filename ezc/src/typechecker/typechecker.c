@@ -8131,6 +8131,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             sym->ret_count = 2;
                         }
                     }
+                    /* os.exec returns (int, string, bool) — synthesize 3-type slots */
+                    if (strcmp(mod, "os") == 0 && strcmp(mfn, "exec") == 0) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            EzType **rt = xmalloc(sizeof(EzType *) * 3);
+                            rt[0] = &TYPE_INT;
+                            rt[1] = &TYPE_STRING;
+                            rt[2] = &TYPE_BOOL;
+                            sym->ret_types = rt;
+                            sym->ret_count = 3;
+                        }
+                    }
                 }
                 /* User-defined module calls (mod.func); look up the prefixed
                  * function signature and propagate multi-return types so
