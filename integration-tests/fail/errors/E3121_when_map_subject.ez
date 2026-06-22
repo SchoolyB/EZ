@@ -1,0 +1,7 @@
+/* Error Test: E3121 - map used as when condition */
+do main() {
+    mut m map[string:int] = {"a": 1}
+    when m {
+        default { println("default") }
+    }
+}

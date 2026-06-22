@@ -1,0 +1,7 @@
+/* Error Test: E3121 - array used as when condition */
+do main() {
+    mut arr [int] = {1, 2, 3}
+    when arr {
+        default { println("default") }
+    }
+}
