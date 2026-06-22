@@ -864,6 +864,9 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
     {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
     {"strings", "slice", 3, 3},
+    {"strings", "is_alpha", 1, 1}, {"strings", "is_digit", 1, 1},
+    {"strings", "is_alnum", 1, 1}, {"strings", "is_whitespace", 1, 1},
+    {"strings", "is_upper", 1, 1}, {"strings", "is_lower", 1, 1},
     /* json */
     {"json", "decode", 1, 1}, {"json", "encode", 1, 1},
     {"json", "stringify", 1, 1},
@@ -911,6 +914,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
     {"os", "hostname", 0, 0}, {"os", "pid", 0, 0},
     {"os", "current_os", 0, 0}, {"os", "arch", 0, 0},
+    {"os", "exec", 2, 2},
     /* random (variable args) */
     {"random", "rand_float", 0, 2}, {"random", "rand_int", 1, 2},
     {"random", "rand_bool", 0, 0}, {"random", "rand_byte", 0, 0},
@@ -934,6 +938,71 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strconv", "from_int", 1, 1}, {"strconv", "from_uint", 1, 1},
     {"strconv", "from_float", 1, 1}, {"strconv", "from_bool", 1, 1},
     {"strconv", "is_numeric", 1, 1}, {"strconv", "is_integer", 1, 1},
+    /* math */
+    {"math", "abs", 1, 1}, {"math", "neg", 1, 1}, {"math", "sign", 1, 1},
+    {"math", "min", 2, 2}, {"math", "max", 2, 2}, {"math", "clamp", 3, 3},
+    {"math", "floor", 1, 1}, {"math", "ceil", 1, 1},
+    {"math", "round", 1, 1}, {"math", "trunc", 1, 1},
+    {"math", "pow", 2, 2}, {"math", "sqrt", 1, 1}, {"math", "cbrt", 1, 1},
+    {"math", "hypot", 2, 2}, {"math", "exp", 1, 1}, {"math", "exp2", 1, 1},
+    {"math", "log", 1, 1}, {"math", "log2", 1, 1},
+    {"math", "log10", 1, 1}, {"math", "log_base", 2, 2},
+    {"math", "sin", 1, 1}, {"math", "cos", 1, 1}, {"math", "tan", 1, 1},
+    {"math", "asin", 1, 1}, {"math", "acos", 1, 1},
+    {"math", "atan", 1, 1}, {"math", "atan2", 2, 2},
+    {"math", "sinh", 1, 1}, {"math", "cosh", 1, 1}, {"math", "tanh", 1, 1},
+    {"math", "deg_to_rad", 1, 1}, {"math", "rad_to_deg", 1, 1},
+    {"math", "factorial", 1, 1}, {"math", "gcd", 2, 2}, {"math", "lcm", 2, 2},
+    {"math", "is_prime", 1, 1}, {"math", "is_even", 1, 1}, {"math", "is_odd", 1, 1},
+    {"math", "is_infinite", 1, 1}, {"math", "is_nan", 1, 1}, {"math", "is_finite", 1, 1},
+    {"math", "lerp", 3, 3}, {"math", "distance", 4, 4},
+    /* maps */
+    {"maps", "get_keys", 1, 1}, {"maps", "get_values", 1, 1},
+    {"maps", "has_key", 2, 2}, {"maps", "is_empty", 1, 1},
+    {"maps", "contains_value", 2, 2}, {"maps", "is_equal", 2, 2},
+    {"maps", "merge", 2, 2}, {"maps", "remove_key", 2, 2},
+    {"maps", "clear", 1, 1}, {"maps", "get_or_default", 3, 3},
+    /* mem */
+    {"mem", "arena", 1, 1}, {"mem", "destroy", 1, 1},
+    {"mem", "reset", 1, 1}, {"mem", "usage", 1, 1},
+    {"mem", "raw_copy", 3, 3}, {"mem", "zero", 2, 2}, {"mem", "fill", 3, 3},
+    {"mem", "init", 2, 2}, {"mem", "alloc", 2, 2},
+    /* threads */
+    {"threads", "spawn", 1, 2}, {"threads", "join", 1, 1},
+    {"threads", "detach", 1, 1}, {"threads", "is_alive", 1, 1},
+    {"threads", "get_id", 0, 0}, {"threads", "current", 0, 0},
+    {"threads", "yield", 0, 0}, {"threads", "sleep", 1, 1},
+    {"threads", "thread_count", 0, 0},
+    /* sync */
+    {"sync", "mutex", 0, 0}, {"sync", "lock", 1, 1},
+    {"sync", "unlock", 1, 1}, {"sync", "try_lock", 1, 1},
+    {"sync", "destroy", 1, 1},
+    /* channels */
+    {"channels", "open", 1, 1}, {"channels", "send", 2, 2},
+    {"channels", "receive", 1, 1}, {"channels", "close", 1, 1},
+    /* atomic */
+    {"atomic", "load", 1, 1}, {"atomic", "store", 2, 2},
+    {"atomic", "add", 2, 2}, {"atomic", "sub", 2, 2},
+    {"atomic", "exchange", 2, 2}, {"atomic", "cas", 3, 3},
+    {"atomic", "and", 2, 2}, {"atomic", "or", 2, 2}, {"atomic", "xor", 2, 2},
+    {"atomic", "spinlock", 0, 0}, {"atomic", "spin_lock", 1, 1},
+    {"atomic", "spin_trylock", 1, 1}, {"atomic", "spin_unlock", 1, 1},
+    {"atomic", "fence", 0, 0},
+    /* fmt */
+    {"fmt", "sprintf", 1, 99}, {"fmt", "format", 1, 99},
+    {"fmt", "printf", 1, 99}, {"fmt", "printfln", 1, 99},
+    {"fmt", "eprintf", 1, 99}, {"fmt", "eprintfln", 1, 99},
+    {"fmt", "sprintfln", 1, 99},
+    {"fmt", "pad_left", 3, 3}, {"fmt", "pad_right", 3, 3}, {"fmt", "center", 3, 3},
+    {"fmt", "int_to_hex", 1, 1}, {"fmt", "int_to_binary", 1, 1},
+    {"fmt", "int_to_octal", 1, 1}, {"fmt", "float_fixed", 2, 2},
+    {"fmt", "float_sci", 1, 1},
+    /* server */
+    {"server", "add_router", 0, 0}, {"server", "add_route", 4, 4},
+    {"server", "listen", 2, 2}, {"server", "cors", 2, 2},
+    {"server", "use", 2, 2}, {"server", "text", 2, 2},
+    {"server", "json", 2, 2}, {"server", "html", 2, 2},
+    {"server", "redirect", 2, 2},
 };
 
 static int stdlib_arg_entry_cmp(const void *a, const void *b) {
@@ -1008,7 +1077,7 @@ static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
  * expected types so we can catch type mismatches before they leak to C.
  * ARG_ANY means no validation (the function accepts mixed types). */
 typedef enum {
-    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER
+    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR
 } ExpectedArgKind;
 
 typedef struct {
@@ -1035,6 +1104,9 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "repeat", 1, ARG_INT},
     {"strings", "slice", 1, ARG_INT}, {"strings", "slice", 2, ARG_INT},
     {"strings", "join", 0, ARG_ARRAY}, {"strings", "join", 1, ARG_STRING},
+    {"strings", "is_alpha", 0, ARG_CHAR}, {"strings", "is_digit", 0, ARG_CHAR},
+    {"strings", "is_alnum", 0, ARG_CHAR}, {"strings", "is_whitespace", 0, ARG_CHAR},
+    {"strings", "is_upper", 0, ARG_CHAR}, {"strings", "is_lower", 0, ARG_CHAR},
     /* io: path args are strings */
     {"io", "read_file", 0, ARG_STRING}, {"io", "read_bytes", 0, ARG_STRING},
     {"io", "read_lines", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
@@ -1102,6 +1174,20 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"math", "is_odd", 0, ARG_INT}, {"math", "is_infinite", 0, ARG_NUMBER},
     {"math", "is_nan", 0, ARG_NUMBER}, {"math", "is_finite", 0, ARG_NUMBER},
     {"math", "deg_to_rad", 0, ARG_NUMBER}, {"math", "rad_to_deg", 0, ARG_NUMBER},
+    {"math", "neg", 0, ARG_NUMBER},
+    {"math", "min", 0, ARG_NUMBER}, {"math", "min", 1, ARG_NUMBER},
+    {"math", "max", 0, ARG_NUMBER}, {"math", "max", 1, ARG_NUMBER},
+    {"math", "clamp", 0, ARG_NUMBER}, {"math", "clamp", 1, ARG_NUMBER}, {"math", "clamp", 2, ARG_NUMBER},
+    {"math", "pow", 0, ARG_NUMBER}, {"math", "pow", 1, ARG_NUMBER},
+    {"math", "hypot", 0, ARG_NUMBER}, {"math", "hypot", 1, ARG_NUMBER},
+    {"math", "log_base", 0, ARG_NUMBER}, {"math", "log_base", 1, ARG_NUMBER},
+    {"math", "atan2", 0, ARG_NUMBER}, {"math", "atan2", 1, ARG_NUMBER},
+    {"math", "sinh", 0, ARG_NUMBER}, {"math", "cosh", 0, ARG_NUMBER}, {"math", "tanh", 0, ARG_NUMBER},
+    {"math", "gcd", 0, ARG_INT}, {"math", "gcd", 1, ARG_INT},
+    {"math", "lcm", 0, ARG_INT}, {"math", "lcm", 1, ARG_INT},
+    {"math", "lerp", 0, ARG_NUMBER}, {"math", "lerp", 1, ARG_NUMBER}, {"math", "lerp", 2, ARG_NUMBER},
+    {"math", "distance", 0, ARG_NUMBER}, {"math", "distance", 1, ARG_NUMBER},
+    {"math", "distance", 2, ARG_NUMBER}, {"math", "distance", 3, ARG_NUMBER},
 };
 
 static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
@@ -1117,6 +1203,7 @@ static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
     case ARG_ANY:    return true;
     case ARG_NUMBER: return actual->kind == TK_INT || actual->kind == TK_UINT ||
                             actual->kind == TK_BYTE || actual->kind == TK_FLOAT;
+    case ARG_CHAR:   return actual->kind == TK_CHAR;
     }
     return true;
 }
@@ -1131,6 +1218,7 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     case ARG_MAP:    return "map";
     case ARG_ANY:    return "any";
     case ARG_NUMBER: return "number";
+    case ARG_CHAR:   return "char";
     }
     return "unknown";
 }
@@ -1434,8 +1522,14 @@ static const UsingFunc _using_funcs[] = {
     {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
     {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
     {"ends_with","strings",TK_BOOL},{"is_empty","strings",TK_BOOL},
+    {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
+    {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
+    {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     {"index_of","strings",TK_INT},{"count","strings",TK_INT},
     {"split","strings",TK_ARRAY},
+    {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
+    {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
+    {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     /* math (arg-dependent abs/neg/min/max/clamp handled by special case) */
     {"sign","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
     {"lcm","math",TK_INT},
@@ -1517,6 +1611,7 @@ static const UsingFunc _using_funcs[] = {
     {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
     {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
     {"current_os","os",TK_INT},{"pid","os",TK_INT},
+    {"exec","os",TK_BOOL},
     /* time */
     {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
     {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
@@ -3281,7 +3376,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
-                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
+                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0 ||
+                    strcmp(mfn, "is_alpha") == 0 || strcmp(mfn, "is_digit") == 0 ||
+                    strcmp(mfn, "is_alnum") == 0 || strcmp(mfn, "is_whitespace") == 0 ||
+                    strcmp(mfn, "is_upper") == 0 || strcmp(mfn, "is_lower") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "index_of") == 0 ||
                            strcmp(mfn, "count") == 0) {
@@ -3737,6 +3835,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "set_env") == 0) {
                     result = &TYPE_VOID;
+                } else if (strcmp(mfn, "exec") == 0) {
+                    result = &TYPE_BOOL;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -8125,6 +8225,20 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                        }
+                    }
+                    /* os.exec returns (int, string, string, bool) — synthesize 4-type slots */
+                    if (strcmp(mod, "os") == 0 && strcmp(mfn, "exec") == 0) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            EzType **rt = xmalloc(sizeof(EzType *) * 4);
+                            rt[0] = &TYPE_INT;
+                            rt[1] = &TYPE_STRING;
+                            rt[2] = &TYPE_STRING;
+                            rt[3] = &TYPE_BOOL;
+                            sym->ret_types = rt;
+                            sym->ret_count = 4;
                         }
                     }
                 }

@@ -124,6 +124,23 @@ int64_t ez_os_pid(void);
 /* Store argc/argv from main for os.args() */
 void ez_os_init(int argc, char **argv);
 
+/*@man exec
+ *@module os
+ *@group System
+ *@sig exec(cmd string, args [string]) -> (int, string, string, bool)
+ *@desc Executes the command cmd with the given args. Returns (exit_code, stdout, stderr, ok). ok is false if the process could not be launched.
+ *@example
+ *   import @os
+ *   mut code, stdout, stderr, ok = os.exec("ls", {"-l"})
+ *   if ok && code == 0 {
+ *       println(stdout)
+ *   }
+ *@end
+ */
+/* os.exec(cmd, args) — run a process, capture stdout and stderr, return (exit_code, stdout, stderr, ok) */
+typedef struct { int64_t v0; EzString v1; EzString v2; bool v3; } EzOsExecResult;
+EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args);
+
 /*@man MAC_OS
  *@module os
  *@group Constants

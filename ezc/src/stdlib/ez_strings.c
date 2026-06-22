@@ -189,3 +189,10 @@ EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep) {
     return r;
 }
 
+
+bool ez_strings_is_alpha(char c)      { return isalpha((unsigned char)c) != 0; }
+bool ez_strings_is_digit(char c)      { return isdigit((unsigned char)c) != 0; }
+bool ez_strings_is_alnum(char c)      { return isalnum((unsigned char)c) != 0; }
+bool ez_strings_is_whitespace(char c) { return isspace((unsigned char)c) != 0; }
+bool ez_strings_is_upper(char c)      { return isupper((unsigned char)c) != 0; }
+bool ez_strings_is_lower(char c)      { return islower((unsigned char)c) != 0; }

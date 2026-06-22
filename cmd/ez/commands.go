@@ -482,8 +482,8 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			fmt.Print(asciiBanner)
-			return cmd.Help()
+			fmt.Printf("%sVersion: %s\n\nRun 'ez help' for usage.\n", asciiBanner, Version)
+			return nil
 		}
 		if !strings.HasSuffix(args[0], ".ez") {
 			fmt.Fprintf(os.Stderr, "error: unknown command or invalid file '%s' — expected a .ez file\n", args[0])
