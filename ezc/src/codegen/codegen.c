@@ -24,6 +24,43 @@
 #define CG_VAR_NAME_BUF         64
 #define CG_SHORT_VAR_BUF        32
 
+/* Return the C-syntax string for an operator TokenType. Used when emitting
+ * the operator literally into C source code. */
+static const char *op_to_c_str(TokenType op) {
+    switch (op) {
+    case TOK_PLUS: return "+";
+    case TOK_MINUS: return "-";
+    case TOK_ASTERISK: return "*";
+    case TOK_SLASH: return "/";
+    case TOK_PERCENT: return "%";
+    case TOK_EQ: return "==";
+    case TOK_NOT_EQ: return "!=";
+    case TOK_LT: return "<";
+    case TOK_GT: return ">";
+    case TOK_LT_EQ: return "<=";
+    case TOK_GT_EQ: return ">=";
+    case TOK_AND: return "&&";
+    case TOK_OR: return "||";
+    case TOK_BANG: return "!";
+    case TOK_BIT_AND: return "&";
+    case TOK_BIT_OR: return "|";
+    case TOK_BIT_XOR: return "^";
+    case TOK_BIT_NOT: return "~";
+    case TOK_BIT_SHIFT_LEFT: return "<<";
+    case TOK_BIT_SHIFT_RIGHT: return ">>";
+    case TOK_INCREMENT: return "++";
+    case TOK_DECREMENT: return "--";
+    case TOK_ASSIGN: return "=";
+    case TOK_PLUS_ASSIGN: return "+=";
+    case TOK_MINUS_ASSIGN: return "-=";
+    case TOK_ASTERISK_ASSIGN: return "*=";
+    case TOK_SLASH_ASSIGN: return "/=";
+    case TOK_PERCENT_ASSIGN: return "%=";
+    case TOK_CARET: return "^";
+    default: return "?";
+    }
+}
+
 /* Forward declarations */
 static void emit_statement(CodeGen *cg, AstNode *node);
 static void emit_expression(CodeGen *cg, AstNode *node);
@@ -728,7 +765,7 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
     if (node->kind == NODE_CAST_EXPR && is_bigint_type(node->data.cast.target_type))
         return node->data.cast.target_type;
     /* -bigint_var — the result is still the same bigint type */
-    if (node->kind == NODE_PREFIX_EXPR && strcmp(node->data.prefix.op, "-") == 0)
+    if (node->kind == NODE_PREFIX_EXPR && node->data.prefix.op == TOK_MINUS)
         return resolve_bigint_type(cg, node->data.prefix.right);
     /* If this is an infix expression, check left operand */
     if (node->kind == NODE_INFIX_EXPR) {
@@ -737,7 +774,7 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
         return resolve_bigint_type(cg, node->data.infix.right);
     }
     /* Pointer dereference p^ — check whether the pointee type is bigint */
-    if (node->kind == NODE_POSTFIX_EXPR && strcmp(node->data.postfix.op, "^") == 0) {
+    if (node->kind == NODE_POSTFIX_EXPR && node->data.postfix.op == TOK_CARET) {
         EzType *ptr_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
         if (ptr_t && ptr_t->kind == TK_POINTER && ptr_t->element_type &&
@@ -765,7 +802,7 @@ static void emit_bigint_operand(CodeGen *cg, AstNode *operand,
     }
     /* Negative integer literal */
     if (operand->kind == NODE_PREFIX_EXPR &&
-        strcmp(operand->data.prefix.op, "-") == 0 &&
+        operand->data.prefix.op == TOK_MINUS &&
         operand->data.prefix.right->kind == NODE_INT_VALUE) {
         if (operand->data.prefix.right->data.int_value.overflow) {
             emitf(cg, "%s_from_decimal(\"-%s\")", pfx,
@@ -1564,7 +1601,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* For negation of int literals that are already negative (e.g. parser
          * stored -9223372036854775808 as the literal), emit directly.
          * Special case INT64_MIN to avoid C literal overflow warning. */
-        if (strcmp(node->data.prefix.op, "-") == 0 &&
+        if (node->data.prefix.op == TOK_MINUS &&
             node->data.prefix.right->kind == NODE_INT_VALUE &&
             node->data.prefix.right->data.int_value.value < 0) {
             int64_t v = node->data.prefix.right->data.int_value.value;
@@ -1576,7 +1613,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
         /* Bigint negation */
-        if (strcmp(node->data.prefix.op, "-") == 0) {
+        if (node->data.prefix.op == TOK_MINUS) {
             const char *bi_type = resolve_bigint_type(cg, node->data.prefix.right);
             if (bi_type && (strcmp(bi_type, "i128") == 0 || strcmp(bi_type, "i256") == 0)) {
                 emitf(cg, "%s_neg(", bigint_prefix(bi_type));
@@ -1587,7 +1624,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         /* Overflow-checked negation for signed integer types; STANDARD §3.1.1
          * promises arithmetic panics rather than silent wrap on overflow. */
-        if (strcmp(node->data.prefix.op, "-") == 0) {
+        if (node->data.prefix.op == TOK_MINUS) {
             EzType *ot = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
             if (ot && ot->kind == TK_INT) {
                 const char *sn = ot->name;
@@ -1612,7 +1649,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* bit_not → ~ ; byte operands must be masked back to 8 bits because
          * C promotes uint8_t to int before applying ~, yielding a negative
          * value that fails the runtime byte range check. */
-        if (strcmp(node->data.prefix.op, "bit_not") == 0) {
+        if (node->data.prefix.op == TOK_BIT_NOT) {
             EzType *bn_t = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
             if (bn_t && bn_t->kind == TK_BYTE) {
                 emit(cg, "((uint8_t)(~(");
@@ -1626,8 +1663,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
         emit(cg, "(");
-        emit(cg, node->data.prefix.op);
-        if (strcmp(node->data.prefix.op, "-") == 0 &&
+        emit(cg, op_to_c_str(node->data.prefix.op));
+        if (node->data.prefix.op == TOK_MINUS &&
             node->data.prefix.right->kind == NODE_INT_VALUE) {
             emit(cg, " ");
         }
@@ -1640,7 +1677,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_INFIX_EXPR: {
-        const char *op = node->data.infix.op;
+        TokenType op = node->data.infix.op;
 
         /* Check if either operand is a string; need special handling */
         EzType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
@@ -1674,12 +1711,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        if ((left_is_str || right_is_str) && strcmp(op, "+") == 0) {
+        if ((left_is_str || right_is_str) && op == TOK_PLUS) {
             /* String concatenation is rejected by the typechecker (E3048).
              * This path is unreachable but kept as a safety net. */
             break;
         }
-        if ((left_is_str || right_is_str) && strcmp(op, "==") == 0) {
+        if ((left_is_str || right_is_str) && op == TOK_EQ) {
             emit(cg, "ez_string_eq(");
             emit_expression(cg, node->data.infix.left);
             emit(cg, ", ");
@@ -1687,7 +1724,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, ")");
             break;
         }
-        if ((left_is_str || right_is_str) && strcmp(op, "!=") == 0) {
+        if ((left_is_str || right_is_str) && op == TOK_NOT_EQ) {
             emit(cg, "!ez_string_eq(");
             emit_expression(cg, node->data.infix.left);
             emit(cg, ", ");
@@ -1697,16 +1734,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
 
         /* Bitwise keyword operators → C bitwise operators */
-        if (strcmp(op, "bit_and") == 0 || strcmp(op, "bit_or") == 0 ||
-            strcmp(op, "bit_xor") == 0 || strcmp(op, "bit_shift_left") == 0 ||
-            strcmp(op, "bit_shift_right") == 0) {
-            const char *c_op =
-                strcmp(op, "bit_and")         == 0 ? "&"  :
-                strcmp(op, "bit_or")          == 0 ? "|"  :
-                strcmp(op, "bit_xor")         == 0 ? "^"  :
-                strcmp(op, "bit_shift_left")  == 0 ? "<<" : ">>";
-            bool is_shift = (strcmp(op, "bit_shift_left") == 0 ||
-                             strcmp(op, "bit_shift_right") == 0);
+        if (op == TOK_BIT_AND || op == TOK_BIT_OR ||
+            op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
+            op == TOK_BIT_SHIFT_RIGHT) {
+            const char *c_op = op_to_c_str(op);
+            bool is_shift = (op == TOK_BIT_SHIFT_LEFT ||
+                             op == TOK_BIT_SHIFT_RIGHT);
             bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
             emit(cg, "(");
             if (is_shift && left_is_literal) emit(cg, "(int64_t)");
@@ -1718,8 +1751,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
 
         /* in / not_in; array or range membership check */
-        if (strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) {
-            bool negated = (op[0] == 'n' || op[0] == '!');
+        if (op == TOK_IN || op == TOK_NOT_IN) {
+            bool negated = (op == TOK_NOT_IN);
 
             /* Check if right side is a range expression: x in range(a, b) */
             if (node->data.infix.right->kind == NODE_RANGE_EXPR) {
@@ -1828,17 +1861,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (bi_type) {
                 const char *pfx = bigint_prefix(bi_type);
                 const char *fn_op = NULL;
-                if (strcmp(op, "+") == 0) fn_op = "add";
-                else if (strcmp(op, "-") == 0) fn_op = "sub";
-                else if (strcmp(op, "*") == 0) fn_op = "mul";
-                else if (strcmp(op, "/") == 0) fn_op = "div";
-                else if (strcmp(op, "%") == 0) fn_op = "mod";
-                else if (strcmp(op, "==") == 0) fn_op = "eq";
-                else if (strcmp(op, "!=") == 0) fn_op = "ne";
-                else if (strcmp(op, "<") == 0) fn_op = "lt";
-                else if (strcmp(op, ">") == 0) fn_op = "gt";
-                else if (strcmp(op, "<=") == 0) fn_op = "le";
-                else if (strcmp(op, ">=") == 0) fn_op = "ge";
+                if (op == TOK_PLUS) fn_op = "add";
+                else if (op == TOK_MINUS) fn_op = "sub";
+                else if (op == TOK_ASTERISK) fn_op = "mul";
+                else if (op == TOK_SLASH) fn_op = "div";
+                else if (op == TOK_PERCENT) fn_op = "mod";
+                else if (op == TOK_EQ) fn_op = "eq";
+                else if (op == TOK_NOT_EQ) fn_op = "ne";
+                else if (op == TOK_LT) fn_op = "lt";
+                else if (op == TOK_GT) fn_op = "gt";
+                else if (op == TOK_LT_EQ) fn_op = "le";
+                else if (op == TOK_GT_EQ) fn_op = "ge";
                 if (fn_op) {
                     bool is_checked = (strcmp(fn_op, "add") == 0 || strcmp(fn_op, "sub") == 0 || strcmp(fn_op, "mul") == 0);
                     if (is_checked) {
@@ -1860,7 +1893,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
 
         /* Runtime division/modulo by zero check */
-        if (strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
+        if (op == TOK_SLASH || op == TOK_PERCENT) {
             bool is_float_div = (lt && lt->kind == TK_FLOAT) || (rt && rt->kind == TK_FLOAT);
             if (is_float_div) {
                 /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
@@ -1868,7 +1901,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.infix.right);
                 emit(cg, "; if (_dv == 0.0) { ez_panic_code(\"P0078\", \"division by zero\"); } (double)");
                 emit_expression(cg, node->data.infix.left);
-                emitf(cg, " %s _dv; })", op);
+                emitf(cg, " %s _dv; })", op_to_c_str(op));
                 break;
             } else {
                 /* For signed integer division, also guard the TYPE_MIN / -1
@@ -1887,14 +1920,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.infix.right);
                 emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (is_signed) {
-                    const char *opname = (strcmp(op, "/") == 0) ? "division" : "modulo";
+                    const char *opname = (op == TOK_SLASH) ? "division" : "modulo";
                     emit(cg, "__auto_type _dn = ");
                     emit_expression(cg, node->data.infix.left);
                     emitf(cg, "; if (_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
-                        signed_min, opname, op);
+                        signed_min, opname, op_to_c_str(op));
                 } else {
                     emit_expression(cg, node->data.infix.left);
-                    emitf(cg, " %s _dv; })", op);
+                    emitf(cg, " %s _dv; })", op_to_c_str(op));
                 }
                 break;
             }
@@ -1906,7 +1939,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             bool right_is_int = (rt && (rt->kind == TK_INT || rt->kind == TK_UINT || rt->kind == TK_BYTE || rt->kind == TK_CHAR));
             bool left_is_float = (lt && lt->kind == TK_FLOAT);
             bool right_is_float = (rt && rt->kind == TK_FLOAT);
-            bool is_arith = (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 || strcmp(op, "*") == 0);
+            bool is_arith = (op == TOK_PLUS || op == TOK_MINUS || op == TOK_ASTERISK);
 
             if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
                 /* Check for sized types that need bounds-checked arithmetic.
@@ -1943,13 +1976,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     /* Sized type; use bounds-checked arithmetic */
                     const char *op_fn = NULL;
                     if (sized_unsigned) {
-                        if (strcmp(op, "+") == 0) op_fn = "ez_usized_add_check";
-                        else if (strcmp(op, "-") == 0) op_fn = "ez_usized_sub_check";
-                        else if (strcmp(op, "*") == 0) op_fn = "ez_usized_mul_check";
+                        if (op == TOK_PLUS) op_fn = "ez_usized_add_check";
+                        else if (op == TOK_MINUS) op_fn = "ez_usized_sub_check";
+                        else if (op == TOK_ASTERISK) op_fn = "ez_usized_mul_check";
                     } else {
-                        if (strcmp(op, "+") == 0) op_fn = "ez_sized_add_check";
-                        else if (strcmp(op, "-") == 0) op_fn = "ez_sized_sub_check";
-                        else if (strcmp(op, "*") == 0) op_fn = "ez_sized_mul_check";
+                        if (op == TOK_PLUS) op_fn = "ez_sized_add_check";
+                        else if (op == TOK_MINUS) op_fn = "ez_sized_sub_check";
+                        else if (op == TOK_ASTERISK) op_fn = "ez_sized_mul_check";
                     }
                     if (op_fn) {
                         emitf(cg, "%s(", op_fn);
@@ -1969,13 +2002,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 bool is_unsigned = (lt && lt->kind == TK_UINT) || (rt && rt->kind == TK_UINT);
                 const char *fn = NULL;
                 if (is_unsigned) {
-                    if (strcmp(op, "+") == 0) fn = "ez_uadd_check";
-                    else if (strcmp(op, "-") == 0) fn = "ez_usub_check";
-                    else if (strcmp(op, "*") == 0) fn = "ez_umul_check";
+                    if (op == TOK_PLUS) fn = "ez_uadd_check";
+                    else if (op == TOK_MINUS) fn = "ez_usub_check";
+                    else if (op == TOK_ASTERISK) fn = "ez_umul_check";
                 } else {
-                    if (strcmp(op, "+") == 0) fn = "ez_add_check";
-                    else if (strcmp(op, "-") == 0) fn = "ez_sub_check";
-                    else if (strcmp(op, "*") == 0) fn = "ez_mul_check";
+                    if (op == TOK_PLUS) fn = "ez_add_check";
+                    else if (op == TOK_MINUS) fn = "ez_sub_check";
+                    else if (op == TOK_ASTERISK) fn = "ez_mul_check";
                 }
                 if (fn) {
                     emitf(cg, "%s(", fn);
@@ -1996,7 +2029,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (l_infix) emit(cg, "(");
         emit_expression(cg, node->data.infix.left);
         if (l_infix) emit(cg, ")");
-        emitf(cg, " %s ", op);
+        emitf(cg, " %s ", op_to_c_str(op));
         if (r_infix) emit(cg, "(");
         emit_expression(cg, node->data.infix.right);
         if (r_infix) emit(cg, ")");
@@ -2004,12 +2037,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_POSTFIX_EXPR:
-        if (strcmp(node->data.postfix.op, "^") == 0) {
+        if (node->data.postfix.op == TOK_CARET) {
             /* Pointer dereference: p^ → (*p) with nil check */
             emit(cg, "({ __auto_type _dp = ");
             emit_expression(cg, node->data.postfix.left);
             emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp; })");
-        } else if (strcmp(node->data.postfix.op, "++") == 0) {
+        } else if (node->data.postfix.op == TOK_INCREMENT) {
             /* Overflow-checked increment; sized types need bounds check */
             EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
             const char *sn = (pt && pt->name) ? pt->name : NULL;
@@ -2045,7 +2078,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.postfix.left);
                 emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             }
-        } else if (strcmp(node->data.postfix.op, "--") == 0) {
+        } else if (node->data.postfix.op == TOK_DECREMENT) {
             /* Overflow-checked decrement; sized types need bounds check */
             EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
             const char *sn = (pt && pt->name) ? pt->name : NULL;
@@ -2083,7 +2116,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         } else {
             emit_expression(cg, node->data.postfix.left);
-            emit(cg, node->data.postfix.op);
+            emit(cg, op_to_c_str(node->data.postfix.op));
         }
         break;
 
@@ -2209,17 +2242,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* User-module qualified constant/variable access: mod.NAME → mod_NAME
              * Only apply for known imported module names, not local variables */
             if (mod[0] >= 'a' && mod[0] <= 'z') {
-                /* Check if mod is an imported module by looking for mod_ prefixed declarations */
+                /* Check if mod is an imported module by looking for mod_-prefixed
+                 * declarations. Stack buffer — identifiers are always short. */
                 bool is_module = false;
-                size_t mod_len = strlen(mod);
-                size_t mem_len = strlen(mem);
-                size_t cn_len = mod_len + 1 + mem_len + 1;
-                char *check_name = malloc(cn_len);
-                if (!check_name) break;
-                snprintf(check_name, cn_len, "%s_%s", mod, mem);
-                /* Check functions, variables via find_func */
-                if (find_func(cg, check_name)) is_module = true;
-                free(check_name);
+                char check_name[512];
+                snprintf(check_name, sizeof(check_name), "%s_%s", mod, mem);
                 /* Note: a "is `mod` a module?" prefix scan over all declared
                  * functions used to live here. It produced false positives
                  * whenever a local variable or parameter shared its name with
@@ -2228,16 +2255,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                  * scope). Module membership must come from an explicit
                  * registration (find_func above, using_modules, aliases, or
                  * imported_modules below), never from a name-prefix guess. */
-                /* Check using_modules list */
+                if (find_func(cg, check_name)) is_module = true;
                 if (!is_module) {
                     for (int ui = 0; ui < cg->using_module_count; ui++) {
-                        if (strcmp(cg->using_modules[ui], mod) == 0) {
-                            is_module = true;
-                            break;
-                        }
+                        if (strcmp(cg->using_modules[ui], mod) == 0) { is_module = true; break; }
                     }
                 }
-                /* Check alias mappings */
                 if (!is_module) {
                     for (int ai = 0; ai < cg->alias_count; ai++) {
                         if (strcmp(cg->alias_names[ai], mod) == 0) {
@@ -2247,13 +2270,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         }
                     }
                 }
-                /* Check imported module names list */
                 if (!is_module) {
                     for (int ii = 0; ii < cg->imported_module_count; ii++) {
-                        if (strcmp(cg->imported_modules[ii], mod) == 0) {
-                            is_module = true;
-                            break;
-                        }
+                        if (strcmp(cg->imported_modules[ii], mod) == 0) { is_module = true; break; }
                     }
                 }
                 if (is_module) {
@@ -2384,7 +2403,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     arr_ptr_obj = _obj;
                     arr_ptr_field = _mem->data.member.member;
                 } else if (_obj->kind == NODE_POSTFIX_EXPR &&
-                           strcmp(_obj->data.postfix.op, "^") == 0) {
+                           _obj->data.postfix.op == TOK_CARET) {
                     /* b^.field: strip the deref, use the underlying pointer */
                     arr_ptr_obj = _obj->data.postfix.left;
                     arr_ptr_field = _mem->data.member.member;
@@ -3379,7 +3398,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         if (arg->kind == NODE_MEMBER_EXPR) {
             AstNode *obj = arg->data.member.object;
             if (obj->kind == NODE_POSTFIX_EXPR &&
-                strcmp(obj->data.postfix.op, "^") == 0) {
+                obj->data.postfix.op == TOK_CARET) {
                 /* addr(p^.field): p is the underlying pointer */
                 addr_ptr_expr = obj->data.postfix.left;
                 addr_field = arg->data.member.member;
@@ -6961,7 +6980,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             }
         } else if (type_name && is_bigint_type(type_name) &&
                    node->data.var_decl.value->kind == NODE_PREFIX_EXPR &&
-                   strcmp(node->data.var_decl.value->data.prefix.op, "-") == 0 &&
+                   node->data.var_decl.value->data.prefix.op == TOK_MINUS &&
                    node->data.var_decl.value->data.prefix.right->kind == NODE_INT_VALUE) {
             /* Negated integer literal for bigint: -N → from_i64(-N) or from_decimal("-N") */
             const char *pfx = bigint_prefix(type_name);
@@ -6979,13 +6998,13 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
              * resolve_bigint_type won't detect raw literals as bigint. */
             AstNode *infix = node->data.var_decl.value;
             const char *pfx = bigint_prefix(type_name);
-            const char *op = infix->data.infix.op;
+            TokenType op = infix->data.infix.op;
             const char *fn_op = NULL;
-            if (strcmp(op, "+") == 0) fn_op = "add";
-            else if (strcmp(op, "-") == 0) fn_op = "sub";
-            else if (strcmp(op, "*") == 0) fn_op = "mul";
-            else if (strcmp(op, "/") == 0) fn_op = "div";
-            else if (strcmp(op, "%") == 0) fn_op = "mod";
+            if (op == TOK_PLUS) fn_op = "add";
+            else if (op == TOK_MINUS) fn_op = "sub";
+            else if (op == TOK_ASTERISK) fn_op = "mul";
+            else if (op == TOK_SLASH) fn_op = "div";
+            else if (op == TOK_PERCENT) fn_op = "mod";
             if (fn_op) {
                 bool is_checked = (strcmp(fn_op, "add") == 0 || strcmp(fn_op, "sub") == 0 || strcmp(fn_op, "mul") == 0);
                 if (is_checked)
@@ -7099,7 +7118,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                         _set_ptr_obj = _sobj;
                         _set_ptr_field = left->data.member.member;
                     } else if (_sobj->kind == NODE_POSTFIX_EXPR &&
-                               strcmp(_sobj->data.postfix.op, "^") == 0) {
+                               _sobj->data.postfix.op == TOK_CARET) {
                         _set_ptr_obj = _sobj->data.postfix.left;
                         _set_ptr_field = left->data.member.member;
                     }
@@ -7107,8 +7126,8 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (_set_ptr_obj) {
                     static int arr_set_dp_ctr = 0;
                     int my_dp = arr_set_dp_ctr++;
-                    const char *aop2 = node->data.assign.op;
-                    bool is_compound2 = (strcmp(aop2, "+=") == 0 || strcmp(aop2, "-=") == 0 || strcmp(aop2, "*=") == 0);
+                    TokenType aop2 = node->data.assign.op;
+                    bool is_compound2 = (aop2 == TOK_PLUS_ASSIGN || aop2 == TOK_MINUS_ASSIGN || aop2 == TOK_ASTERISK_ASSIGN);
                     emitf(cg, "{ __auto_type _asdp%d = ", my_dp);
                     emit_expression(cg, _set_ptr_obj);
                     emitf(cg, "; if (!_asdp%d) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
@@ -7118,8 +7137,8 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, ", ");
                     if (is_compound2) {
                         const char *binop = "+";
-                        if (strcmp(aop2, "-=") == 0) binop = "-";
-                        else if (strcmp(aop2, "*=") == 0) binop = "*";
+                        if (aop2 == TOK_MINUS_ASSIGN) binop = "-";
+                        else if (aop2 == TOK_ASTERISK_ASSIGN) binop = "*";
                         emitf(cg, "EZ_ARRAY_GET(_asdp%d->%s, %s, ", my_dp, safe_name(_set_ptr_field), c_elem);
                         emit_expression(cg, node->data.assign.target->data.index_expr.index);
                         emitf(cg, ") %s (", binop);
@@ -7133,8 +7152,8 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 }
             }
             /* Compound assignment on array element with sized-type overflow check */
-            const char *aop = node->data.assign.op;
-            bool is_compound = (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 || strcmp(aop, "*=") == 0);
+            TokenType aop = node->data.assign.op;
+            bool is_compound = (aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN || aop == TOK_ASTERISK_ASSIGN);
             if (is_compound && left_t->element_type) {
                 const char *sn = left_t->element_type;
                 const char *smin = NULL, *smax = NULL;
@@ -7148,13 +7167,13 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (smax) {
                     const char *fn = NULL;
                     if (su) {
-                        if (strcmp(aop, "+=") == 0) fn = "ez_usized_add_check";
-                        else if (strcmp(aop, "-=") == 0) fn = "ez_usized_sub_check";
-                        else if (strcmp(aop, "*=") == 0) fn = "ez_usized_mul_check";
+                        if (aop == TOK_PLUS_ASSIGN) fn = "ez_usized_add_check";
+                        else if (aop == TOK_MINUS_ASSIGN) fn = "ez_usized_sub_check";
+                        else if (aop == TOK_ASTERISK_ASSIGN) fn = "ez_usized_mul_check";
                     } else {
-                        if (strcmp(aop, "+=") == 0) fn = "ez_sized_add_check";
-                        else if (strcmp(aop, "-=") == 0) fn = "ez_sized_sub_check";
-                        else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
+                        if (aop == TOK_PLUS_ASSIGN) fn = "ez_sized_add_check";
+                        else if (aop == TOK_MINUS_ASSIGN) fn = "ez_sized_sub_check";
+                        else if (aop == TOK_ASTERISK_ASSIGN) fn = "ez_sized_mul_check";
                     }
                     if (fn) {
                         /* EZ_ARRAY_SET/GET use int64_t (internal storage width) */
@@ -7185,8 +7204,8 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             /* Non-sized compound assignment on array element: read-modify-write */
             if (is_compound) {
                 const char *binop = "+";
-                if (strcmp(aop, "-=") == 0) binop = "-";
-                else if (strcmp(aop, "*=") == 0) binop = "*";
+                if (aop == TOK_MINUS_ASSIGN) binop = "-";
+                else if (aop == TOK_ASTERISK_ASSIGN) binop = "*";
                 emitf(cg, "EZ_ARRAY_GET(");
                 emit_expression(cg, left);
                 emitf(cg, ", %s, ", c_elem);
@@ -7267,7 +7286,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
 
     /* Pointer dereference assignment: p^ = value → nil check + *p = value */
     if (node->data.assign.target->kind == NODE_POSTFIX_EXPR &&
-        strcmp(node->data.assign.target->data.postfix.op, "^") == 0) {
+        node->data.assign.target->data.postfix.op == TOK_CARET) {
         AstNode *ptr_node = node->data.assign.target->data.postfix.left;
         EzType *ptr_t = cg->type_table ? typetable_get(cg->type_table, ptr_node) : NULL;
         const char *bi_elem = (ptr_t && ptr_t->kind == TK_POINTER && ptr_t->element_type &&
@@ -7276,7 +7295,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "{ __auto_type _dp = ");
         emit_expression(cg, ptr_node);
         emit(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp");
-        emitf(cg, " %s ", node->data.assign.op);
+        emitf(cg, " %s ", op_to_c_str(node->data.assign.op));
         if (bi_elem) {
             emit_bigint_operand(cg, node->data.assign.value,
                                 bigint_prefix(bi_elem), bi_elem, NULL);
@@ -7289,13 +7308,13 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* Pointer deref field assignment: p^.field = value → nil check + p->field = value */
     if (node->data.assign.target->kind == NODE_MEMBER_EXPR &&
         node->data.assign.target->data.member.object->kind == NODE_POSTFIX_EXPR &&
-        strcmp(node->data.assign.target->data.member.object->data.postfix.op, "^") == 0) {
+        node->data.assign.target->data.member.object->data.postfix.op == TOK_CARET) {
         AstNode *ptr = node->data.assign.target->data.member.object->data.postfix.left;
         const char *field = node->data.assign.target->data.member.member;
         emit(cg, "{ __auto_type _dp = ");
         emit_expression(cg, ptr);
         emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s", field);
-        emitf(cg, " %s ", node->data.assign.op);
+        emitf(cg, " %s ", op_to_c_str(node->data.assign.op));
         emit_expression(cg, node->data.assign.value);
         emit(cg, "; }\n");
         return;
@@ -7327,7 +7346,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 emit(cg, safe_name(chain[i]));
                 if (i > 0) emit(cg, ".");
             }
-            emitf(cg, " %s ", node->data.assign.op);
+            emitf(cg, " %s ", op_to_c_str(node->data.assign.op));
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; }\n");
             return;
@@ -7343,7 +7362,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             /* When assigning an array/string to a struct field inside a
              * scoped block (if/loop), deep-copy to the outer arena so the
              * data survives the block's arena destruction. */
-            if (strcmp(node->data.assign.op, "=") == 0 && cg->loop_scope_depth > 0) {
+            if (node->data.assign.op == TOK_ASSIGN && cg->loop_scope_depth > 0) {
                 EzType *field_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
                 if (field_t && field_t->kind == TK_ARRAY) {
                     char tn[EZ_MSG_BUF_SIZE];
@@ -7373,7 +7392,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emit(cg, "{ __auto_type _dp = ");
             emit_expression(cg, obj);
             emitf(cg, "; if (!_dp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } _dp->%s", safe_name(field));
-            emitf(cg, " %s ", node->data.assign.op);
+            emitf(cg, " %s ", op_to_c_str(node->data.assign.op));
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; }\n");
             return;
@@ -7384,9 +7403,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
      * routes through the checked helpers; the compound form must do the
      * same so a OP= b never wraps where a = a OP b would panic. */
     {
-        const char *aop = node->data.assign.op;
-        bool is_arith_compound = (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 || strcmp(aop, "*=") == 0);
-        bool is_div_compound = (strcmp(aop, "/=") == 0 || strcmp(aop, "%=") == 0);
+        TokenType aop = node->data.assign.op;
+        bool is_arith_compound = (aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN || aop == TOK_ASTERISK_ASSIGN);
+        bool is_div_compound = (aop == TOK_SLASH_ASSIGN || aop == TOK_PERCENT_ASSIGN);
         if (is_arith_compound || is_div_compound) {
             EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
             const char *sn = (tgt_t && tgt_t->name) ? tgt_t->name : NULL;
@@ -7397,9 +7416,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 const char *pfx = bigint_prefix(tgt_bi);
                 if (is_arith_compound) {
                     const char *fn_op = NULL;
-                    if (strcmp(aop, "+=") == 0) fn_op = "add";
-                    else if (strcmp(aop, "-=") == 0) fn_op = "sub";
-                    else if (strcmp(aop, "*=") == 0) fn_op = "mul";
+                    if (aop == TOK_PLUS_ASSIGN) fn_op = "add";
+                    else if (aop == TOK_MINUS_ASSIGN) fn_op = "sub";
+                    else if (aop == TOK_ASTERISK_ASSIGN) fn_op = "mul";
                     if (fn_op) {
                         emit_expression(cg, node->data.assign.target);
                         emitf(cg, " = %s_%s_checked(", pfx, fn_op);
@@ -7411,7 +7430,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     }
                 }
                 if (is_div_compound) {
-                    const char *fn_op = (strcmp(aop, "/=") == 0) ? "div" : "mod";
+                    const char *fn_op = (aop == TOK_SLASH_ASSIGN) ? "div" : "mod";
                     emit_expression(cg, node->data.assign.target);
                     emitf(cg, " = %s_%s(", pfx, fn_op);
                     emit_expression(cg, node->data.assign.target);
@@ -7436,13 +7455,13 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             if (is_arith_compound && smax) {
                 const char *fn = NULL;
                 if (su) {
-                    if (strcmp(aop, "+=") == 0) fn = "ez_usized_add_check";
-                    else if (strcmp(aop, "-=") == 0) fn = "ez_usized_sub_check";
-                    else if (strcmp(aop, "*=") == 0) fn = "ez_usized_mul_check";
+                    if (aop == TOK_PLUS_ASSIGN) fn = "ez_usized_add_check";
+                    else if (aop == TOK_MINUS_ASSIGN) fn = "ez_usized_sub_check";
+                    else if (aop == TOK_ASTERISK_ASSIGN) fn = "ez_usized_mul_check";
                 } else {
-                    if (strcmp(aop, "+=") == 0) fn = "ez_sized_add_check";
-                    else if (strcmp(aop, "-=") == 0) fn = "ez_sized_sub_check";
-                    else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
+                    if (aop == TOK_PLUS_ASSIGN) fn = "ez_sized_add_check";
+                    else if (aop == TOK_MINUS_ASSIGN) fn = "ez_sized_sub_check";
+                    else if (aop == TOK_ASTERISK_ASSIGN) fn = "ez_sized_mul_check";
                 }
                 if (fn) {
                     emitf(cg, "{ %s *_tgt = &(", ez_type_to_c_cg(cg, sn));
@@ -7462,13 +7481,13 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 bool unsigned_op = (tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE);
                 const char *fn = NULL;
                 if (unsigned_op) {
-                    if (strcmp(aop, "+=") == 0) fn = "ez_uadd_check";
-                    else if (strcmp(aop, "-=") == 0) fn = "ez_usub_check";
-                    else if (strcmp(aop, "*=") == 0) fn = "ez_umul_check";
+                    if (aop == TOK_PLUS_ASSIGN) fn = "ez_uadd_check";
+                    else if (aop == TOK_MINUS_ASSIGN) fn = "ez_usub_check";
+                    else if (aop == TOK_ASTERISK_ASSIGN) fn = "ez_umul_check";
                 } else {
-                    if (strcmp(aop, "+=") == 0) fn = "ez_add_check";
-                    else if (strcmp(aop, "-=") == 0) fn = "ez_sub_check";
-                    else if (strcmp(aop, "*=") == 0) fn = "ez_mul_check";
+                    if (aop == TOK_PLUS_ASSIGN) fn = "ez_add_check";
+                    else if (aop == TOK_MINUS_ASSIGN) fn = "ez_sub_check";
+                    else if (aop == TOK_ASTERISK_ASSIGN) fn = "ez_mul_check";
                 }
                 if (fn) {
                     const char *c_ty = unsigned_op ? "uint64_t" : "int64_t";
@@ -7491,8 +7510,8 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     else if (sn && strcmp(sn, "i32") == 0) signed_min = "-2147483648LL";
                     else                                   signed_min = "(-9223372036854775807LL - 1)";
                 }
-                const char *opname = (strcmp(aop, "/=") == 0) ? "division" : "modulo";
-                const char *binop = (strcmp(aop, "/=") == 0) ? "/" : "%";
+                const char *opname = (aop == TOK_SLASH_ASSIGN) ? "division" : "modulo";
+                const char *binop = (aop == TOK_SLASH_ASSIGN) ? "/" : "%";
                 emit(cg, "{ __auto_type _tgt_ref = &(");
                 emit_expression(cg, node->data.assign.target);
                 emit(cg, "); __auto_type _dv = ");
@@ -7513,7 +7532,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
      * independent backing storage ). Applies to any RHS expression
      * (variables, call results, etc.) to prevent use-after-free when the
      * source array lives on a function-local arena. */
-    if (strcmp(node->data.assign.op, "=") == 0) {
+    if (node->data.assign.op == TOK_ASSIGN) {
         EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_ARRAY) {
             emit_expression(cg, node->data.assign.target);
@@ -7569,7 +7588,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* : when inside a loop scope and assigning a string/container
      * value to a plain variable with =, escape the value to the outer
      * arena so it survives the iteration arena's destruction. */
-    if (cg->loop_scope_depth > 0 && strcmp(node->data.assign.op, "=") == 0 &&
+    if (cg->loop_scope_depth > 0 && node->data.assign.op == TOK_ASSIGN &&
         node->data.assign.target->kind == NODE_LABEL) {
         EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_STRING) {
@@ -7594,7 +7613,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     }
 
     emit_expression(cg, node->data.assign.target);
-    emitf(cg, " %s ", node->data.assign.op);
+    emitf(cg, " %s ", op_to_c_str(node->data.assign.op));
     if (node->data.assign.value->kind == NODE_LABEL &&
         is_ref_var(cg, node->data.assign.value->data.label.value)) {
         EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
@@ -7980,7 +7999,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 if (s->kind == NODE_INT_VALUE) {
                     known_direction = true;
                     neg_step = s->data.int_value.value < 0;
-                } else if (s->kind == NODE_PREFIX_EXPR && strcmp(s->data.prefix.op, "-") == 0) {
+                } else if (s->kind == NODE_PREFIX_EXPR && s->data.prefix.op == TOK_MINUS) {
                     known_direction = true;
                     neg_step = true;
                 }
@@ -8581,7 +8600,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     /* Check if step is a negative literal to reverse comparison direction */
                     bool neg_step = (r->data.range_expr.step &&
                         r->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
-                        strcmp(r->data.range_expr.step->data.prefix.op, "-") == 0);
+                        r->data.range_expr.step->data.prefix.op == TOK_MINUS);
                     emit(cg, "(");
                     emit_expression(cg, val);
                     emit(cg, neg_step ? " <= " : " >= ");

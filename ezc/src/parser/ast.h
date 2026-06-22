@@ -170,13 +170,13 @@ struct AstNode {
         } struct_value;
 
         /* NODE_PREFIX_EXPR */
-        struct { const char *op; AstNode *right; } prefix;
+        struct { TokenType op; AstNode *right; } prefix;
 
         /* NODE_INFIX_EXPR */
-        struct { AstNode *left; const char *op; AstNode *right; } infix;
+        struct { AstNode *left; TokenType op; AstNode *right; } infix;
 
         /* NODE_POSTFIX_EXPR */
-        struct { AstNode *left; const char *op; } postfix;
+        struct { AstNode *left; TokenType op; } postfix;
 
         /* NODE_CALL_EXPR */
         struct { AstNode *function; AstNode **args; int arg_count; const char **arg_names; } call;
@@ -229,7 +229,7 @@ struct AstNode {
         /* NODE_ASSIGN_STMT */
         struct {
             AstNode *target;
-            const char *op;
+            TokenType op;
             AstNode *value;
         } assign;
 

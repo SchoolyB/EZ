@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 334 codes** (228 errors, 17 warnings, 89 panics)
+**Total: 336 codes** (230 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -235,8 +235,10 @@
 | `E9003` | stdlib | arrays.%s() requires a function reference; use ()func_name to pass a function |
 | `E9004` | stdlib | arrays.%s() callback signature mismatch; %s |
 | `E9005` | stdlib | invalid range: start (%lld) must be less than end (%lld) |
+| `E9006` | stdlib | arrays.contains() does not support arrays of %s; only primitive and string element types are supported |
 | `E12001` | stdlib | maps.%s() requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
+| `E12007` | stdlib | maps.contains_value() does not support maps with %s values; only primitive and string value types are supported |
 | `E8001` | bitwise | '%s' can only be used with integers; got '%s' and '%s' |
 | `E8002` | bitwise | 'bit_not' can only be used with integers; got '%s' |
 
@@ -385,4 +387,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-19 20:04:54 UTC*
+*Generated on 2026-06-22 02:15:08 UTC*

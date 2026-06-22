@@ -35,11 +35,18 @@ typedef struct {
     int func_array_ref_count;
 } Symbol;
 
+typedef struct {
+    const char *name;  /* NULL = empty slot */
+    int idx;           /* index into Scope.symbols[] */
+} ScopeHashEntry;
+
 typedef struct Scope {
     struct Scope *parent;
     Symbol *symbols;
     int count;
     int cap;
+    ScopeHashEntry *hash;  /* open-addressing hash table; NULL until first define */
+    int hash_cap;          /* always a power of 2 */
 } Scope;
 
 Scope *scope_create(Scope *parent);

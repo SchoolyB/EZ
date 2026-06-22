@@ -11,6 +11,7 @@
 #include "scope.h"
 #include "../parser/ast.h"
 #include "../util/error.h"
+#include "../util/arena.h"
 
 /* Type annotation table: maps AST node pointers to resolved types.
  * Uses open-addressing hash table with pointer hashing for O(1) lookup. */
@@ -68,10 +69,20 @@ typedef struct {
     int struct_count;
     int struct_cap;
 
+    /* Sorted view of structs[] for O(log n) find_struct lookups.
+     * Invalidated whenever a new struct is registered. */
+    StructInfo **structs_sorted;
+    bool structs_sorted_built;
+
     /* Registered function signatures */
     FuncSig *funcs;
     int func_count;
     int func_cap;
+
+    /* Sorted view of funcs[] for O(log n) find_func lookups.
+     * Invalidated whenever a new function is registered. */
+    FuncSig **funcs_sorted;
+    bool funcs_sorted_built;
 
     /* Program AST (for default param lookup) */
     AstNode *program;
@@ -87,6 +98,11 @@ typedef struct {
     bool *enum_is_tagged;              /* parallel to enum_names */
     int enum_count;
     int enum_cap;
+
+    /* Sorted view of enum_names[] for O(log n) is_enum_name lookups.
+     * Invalidated whenever a new enum is registered. */
+    const char **enum_names_sorted;
+    bool enum_names_sorted_built;
 
     /* Control flow tracking */
     int loop_depth;               /* >0 means inside a loop */
@@ -154,6 +170,9 @@ typedef struct {
      * known (assignments, function args, when/is, comparisons, returns).
      * Cleared after use to prevent stale context. */
     EzType *expected_type;
+
+    /* Arena for diagnostic message strings — replaces per-message strdup */
+    Arena *arena;
 
 } TypeChecker;
 

@@ -743,7 +743,7 @@ static AstNode *parse_nil_literal(Parser *p) {
 
 static AstNode *parse_prefix_expression(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_PREFIX_EXPR, p->cur_token);
-    node->data.prefix.op = p->cur_token.literal;
+    node->data.prefix.op = p->cur_token.type;
     next_token(p);
     node->data.prefix.right = parse_expression(p, PREC_PREFIX);
     return node;
@@ -1073,7 +1073,7 @@ static AstNode *parse_prefix(Parser *p) {
 static AstNode *parse_infix_expression(Parser *p, AstNode *left) {
     AstNode *node = ast_alloc(p->arena, NODE_INFIX_EXPR, p->cur_token);
     node->data.infix.left = left;
-    node->data.infix.op = p->cur_token.literal;
+    node->data.infix.op = p->cur_token.type;
     Precedence prec = token_precedence(p->cur_token.type);
     bool is_membership = (p->cur_token.type == TOK_IN || p->cur_token.type == TOK_NOT_IN);
     /* Suppress struct-literal parsing on the RHS of comparisons and
@@ -1181,7 +1181,7 @@ static AstNode *parse_postfix_expression(Parser *p, AstNode *left) {
     }
     AstNode *node = ast_alloc(p->arena, NODE_POSTFIX_EXPR, p->cur_token);
     node->data.postfix.left = left;
-    node->data.postfix.op = p->cur_token.literal;
+    node->data.postfix.op = p->cur_token.type;
     return node;
 }
 
@@ -1299,7 +1299,7 @@ static AstNode *maybe_apply_or_return(Parser *p, AstNode *var_decl) {
     AstNode *nil_val = ast_alloc(p->arena, NODE_NIL_VALUE, p->cur_token);
     AstNode *cond = ast_alloc(p->arena, NODE_INFIX_EXPR, p->cur_token);
     cond->data.infix.left = err_access;
-    cond->data.infix.op = "!=";
+    cond->data.infix.op = TOK_NOT_EQ;
     cond->data.infix.right = nil_val;
     if_stmt->data.if_stmt.condition = cond;
 
@@ -3051,7 +3051,7 @@ static AstNode *parse_statement(Parser *p) {
             next_token(p);
             AstNode *node = ast_alloc(p->arena, NODE_ASSIGN_STMT, p->cur_token);
             node->data.assign.target = expr;
-            node->data.assign.op = p->cur_token.literal;
+            node->data.assign.op = p->cur_token.type;
             next_token(p);
             node->data.assign.value = parse_expression(p, PREC_LOWEST);
             return node;
