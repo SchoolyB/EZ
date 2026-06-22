@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.7.0](https://github.com/SchoolyB/EZ/compare/v3.6.3...v3.7.0) (2026-06-22)
+
+
+### Features
+
+* **stdlib:** add `os.exec()` for subprocess execution with stderr capture ([c29a8f5](https://github.com/SchoolyB/EZ/commit/c29a8f52181ea3a462824b19f7752c73544a0b6c))
+* **stdlib:** add character classification functions to strings module ([#1919](https://github.com/SchoolyB/EZ/issues/1919)) ([4e1608a](https://github.com/SchoolyB/EZ/commit/4e1608a3600f7936303ef515db58ecbf257990cf))
+* **stdlib:** add character classification functions to strings module ([#1919](https://github.com/SchoolyB/EZ/issues/1919)) ([9f172c6](https://github.com/SchoolyB/EZ/commit/9f172c6c24e20a018778ee4efabe7447902124fe))
+* **stdlib:** add os.exec() for subprocess execution with stderr capture ([#1447](https://github.com/SchoolyB/EZ/issues/1447)) ([9d8741b](https://github.com/SchoolyB/EZ/commit/9d8741bf25721c43c57192334a2a7ee36804e2c6))
+* **stdlib:** capture stdout in os.exec, return (int, string, string, bool) ([ec9eaf1](https://github.com/SchoolyB/EZ/commit/ec9eaf1dd5304673ba7ce9a9a16f903f38b01c70))
+
+
+### Bug Fixes
+
+* **cli:** separate bare ez output from help output ([#1917](https://github.com/SchoolyB/EZ/issues/1917)) ([5eee078](https://github.com/SchoolyB/EZ/commit/5eee07853ab0c76a4964fe7cfd78eec65e020ac6))
+* **typechecker:** add stdlib arg count and type validation for math, maps, mem, threads, sync, channels, atomic, fmt, server ([#1918](https://github.com/SchoolyB/EZ/issues/1918)) ([65818c9](https://github.com/SchoolyB/EZ/commit/65818c9992a0e31f19008b8239d1a1eecb9de418))
+
 ## [3.6.3](https://github.com/SchoolyB/EZ/compare/v3.6.2...v3.6.3) (2026-06-22)
 
 
