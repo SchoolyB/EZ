@@ -10,6 +10,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/wait.h>
+#include <errno.h>
 
 #define EZ_HOSTNAME_BUF 256
 
@@ -88,5 +90,78 @@ EzString ez_os_arch(void) {
 
 int64_t ez_os_pid(void) {
     return (int64_t)getpid();
+}
+
+EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
+    EzOsExecResult fail = {0, ez_string_lit(""), false};
+
+    /* Build null-terminated argv: argv[0] = cmd, argv[1..n] = args, argv[n+1] = NULL */
+    int argc = 1 + args.len;
+    char **argv = ez_arena_alloc(arena, sizeof(char *) * (size_t)(argc + 1));
+    argv[0] = (char *)cmd.data;
+    for (int i = 0; i < args.len; i++) {
+        EzString s = EZ_ARRAY_GET(args, EzString, i);
+        argv[1 + i] = (char *)s.data;
+    }
+    argv[argc] = NULL;
+
+    int stderr_pipe[2];
+    if (pipe(stderr_pipe) < 0) return fail;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(stderr_pipe[0]);
+        close(stderr_pipe[1]);
+        return fail;
+    }
+
+    if (pid == 0) {
+        /* Child: redirect stderr into pipe, stdout stays connected to terminal */
+        close(stderr_pipe[0]);
+        dup2(stderr_pipe[1], STDERR_FILENO);
+        close(stderr_pipe[1]);
+        execvp(cmd.data, argv);
+        /* execvp failed */
+        _exit(127);
+    }
+
+    /* Parent: read stderr from pipe */
+    close(stderr_pipe[1]);
+
+    char buf[4096];
+    size_t total = 0;
+    size_t cap = sizeof(buf);
+    char *collected = ez_arena_alloc(arena, cap);
+
+    ssize_t n;
+    while ((n = read(stderr_pipe[0], buf, sizeof(buf))) > 0) {
+        if (total + (size_t)n > cap) {
+            size_t new_cap = cap * 2 + (size_t)n;
+            char *grown = ez_arena_alloc(arena, new_cap);
+            memcpy(grown, collected, total);
+            collected = grown;
+            cap = new_cap;
+        }
+        memcpy(collected + total, buf, (size_t)n);
+        total += (size_t)n;
+    }
+    close(stderr_pipe[0]);
+
+    int status = 0;
+    waitpid(pid, &status, 0);
+
+    int exit_code = 0;
+    if (WIFEXITED(status)) {
+        exit_code = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        exit_code = 128 + WTERMSIG(status);
+    }
+
+    /* exit_code 127 means execvp failed (command not found / bad path) */
+    if (exit_code == 127) return fail;
+
+    EzString stderr_str = ez_string_new(arena, collected, (int32_t)total);
+    EzOsExecResult r = {(int64_t)exit_code, stderr_str, true};
+    return r;
 }
 
