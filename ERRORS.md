@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 337 codes** (231 errors, 17 warnings, 89 panics)
+**Total: 338 codes** (231 errors, 17 warnings, 90 panics)
 
 ---
 
@@ -364,6 +364,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0087` | io | io.write_file() cannot write to a directory |
 | `P0088` | io | io.append_file() cannot append to a directory |
 | `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
+| `P0090` | runtime | range step cannot be zero |
 
 ---
 
@@ -388,4 +389,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-22 22:41:27 UTC*
+*Generated on 2026-06-22 23:04:13 UTC*

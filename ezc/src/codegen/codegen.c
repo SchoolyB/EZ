@@ -8004,11 +8004,13 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
             /* Determine comparison direction: static for literal step, runtime ternary for variable. */
             bool neg_step = false;
             bool known_direction = false;
+            bool zero_step = false;
             if (iter->data.range_expr.step) {
                 AstNode *s = iter->data.range_expr.step;
                 if (s->kind == NODE_INT_VALUE) {
                     known_direction = true;
                     neg_step = s->data.int_value.value < 0;
+                    zero_step = (s->data.int_value.value == 0);
                 } else if (s->kind == NODE_PREFIX_EXPR && s->data.prefix.op == TOK_MINUS) {
                     known_direction = true;
                     neg_step = true;
@@ -8025,11 +8027,19 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 emitf(cg, ", _ez_end_%d = ", svc);
                 emit_expression(cg, iter->data.range_expr.end);
                 emit(cg, ";\n");
+                /* P0090: zero step at runtime is always a panic */
+                emit_indent(cg);
+                emitf(cg, "if (_ez_step_%d == 0) { ez_panic_code(\"P0090\", \"range step cannot be zero\"); }\n", svc);
                 emit_indent(cg);
                 emitf(cg, "for (int64_t %s = ", var);
                 emit_expression(cg, iter->data.range_expr.start);
                 emitf(cg, "; _ez_step_%d > 0 ? %s < _ez_end_%d : %s > _ez_end_%d", svc, var, svc, var, svc);
                 emitf(cg, "; %s += _ez_step_%d", var, svc);
+            } else if (zero_step) {
+                /* P0090: literal zero step always panics; emit panic then a dead loop */
+                emit(cg, "ez_panic_code(\"P0090\", \"range step cannot be zero\");\n");
+                emit_indent(cg);
+                emitf(cg, "for (int64_t %s = 0; 0; (void)0", var);
             } else {
                 emitf(cg, "for (int64_t %s = ", var);
                 emit_expression(cg, iter->data.range_expr.start);
