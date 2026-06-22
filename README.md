@@ -60,7 +60,7 @@ do main() {
 ## What makes EZ different
 
 - **Readable syntax** — `for_each`, `as_long_as`, `otherwise`, `when`/`is`, `do function_name()`. Code that reads like it runs.
-- **Ample Standard Library** — `@json`, `@arrays`, `@maps`, `@http`, `@server`, and many more!
+- **Ample Standard Library** — `@strings`, `@arrays`, `@maps`, `@json` `@http`, `@server`, and more!
 - **Compiles to C** — native speed, single binary, no runtime, no VM.
 
 ---
