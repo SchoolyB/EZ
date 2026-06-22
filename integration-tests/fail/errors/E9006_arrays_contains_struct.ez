@@ -1,0 +1,18 @@
+/*
+ * Error Test: E9006 - arrays.contains() with struct element type
+ * Expected: E9006 error rejecting composite element type
+ */
+
+import @arrays
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut pts [Point] = {Point{x: 1, y: 2}, Point{x: 3, y: 4}}
+    mut target Point = Point{x: 1, y: 2}
+    mut found bool = arrays.contains(pts, target)
+    println("${found}")
+}

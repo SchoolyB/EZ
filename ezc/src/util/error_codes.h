@@ -270,6 +270,7 @@
     EZ_ERROR("E9003", "stdlib", "arrays.%s() requires a function reference; use ()func_name to pass a function") \
     EZ_ERROR("E9004", "stdlib", "arrays.%s() callback signature mismatch; %s") \
     EZ_ERROR("E9005", "stdlib", "invalid range: start (%lld) must be less than end (%lld)") \
+    EZ_ERROR("E9006", "stdlib", "arrays.contains() does not support arrays of %s; only primitive and string element types are supported") \
     EZ_ERROR("E12001", "stdlib", "maps.%s() requires a map argument, got an array") \
     EZ_ERROR("E12006", "stdlib", "duplicate key in map literal")
 

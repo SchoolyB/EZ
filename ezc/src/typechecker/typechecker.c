@@ -3616,6 +3616,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
+                if (strcmp(mfn, "contains") == 0 && node->data.call.arg_count >= 1) {
+                    AstNode *a0 = node->data.call.args[0];
+                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
+                        EzType *et = type_from_name(t0->element_type);
+                        if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
+                            diag_error_codef(tc->diag, "E9006",
+                                NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0,
+                                t0->element_type);
+                        }
+                    }
+                }
                 /* E9003/E9004: map/filter/reduce callback validation */
                 if ((strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0 ||
                      strcmp(mfn, "reduce") == 0) && node->data.call.arg_count >= 2) {
