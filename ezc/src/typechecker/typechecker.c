@@ -2474,6 +2474,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3120: pointer ordering comparisons are not supported. STANDARD.md
+         * §5.2.2 allows only == and != on pointers; <, >, <=, >= silently
+         * fell through to C where cross-allocation ordering is undefined. */
+        if (!infix_errored &&
+            (left->kind == TK_POINTER || right->kind == TK_POINTER) &&
+            (op == TOK_LT || op == TOK_GT ||
+             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
+            diag_error_code(tc->diag, "E3120",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
         /* E3032: different enum types in comparison — catches both
          * direct enum literals (Color.RED == Dir.NORTH) and variables
          * of different enum types (c == d where c:Color, d:Dir). */

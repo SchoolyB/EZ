@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 336 codes** (230 errors, 17 warnings, 89 panics)
+**Total: 337 codes** (231 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -181,6 +181,7 @@
 | `E3117` | types | cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT' |
 | `E3118` | types | cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT' |
 | `E3119` | types | fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s' |
+| `E3120` | types | pointer ordering comparisons are not supported; only == and != are allowed on pointers |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -387,4 +388,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-22 02:15:08 UTC*
+*Generated on 2026-06-22 22:41:27 UTC*
