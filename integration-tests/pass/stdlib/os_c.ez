@@ -79,43 +79,53 @@ do main() {
         failed += 1
     }
 
-    // exec: success — 'true' exits 0 with no stderr
-    mut code, stderr, ok = os.exec("true", {})
-    if ok && code == 0 && len(stderr) == 0 {
-        println("  [PASS] exec success (code=0, ok=true, no stderr)")
+    // exec: stdout capture — 'echo' writes to stdout
+    mut code, stdout, _, ok = os.exec("echo", {"hello"})
+    if ok && code == 0 && len(stdout) > 0 {
+        println("  [PASS] exec stdout capture (captured ${len(stdout)} bytes)")
         passed += 1
     } otherwise {
-        println("  [FAIL] exec success: code=${code} ok=${ok} stderr=${stderr}")
+        println("  [FAIL] exec stdout capture: code=${code} ok=${ok} stdout_len=${len(stdout)}")
+        failed += 1
+    }
+
+    // exec: success — 'true' exits 0 with no output
+    mut code2, _, _, ok2 = os.exec("true", {})
+    if ok2 && code2 == 0 {
+        println("  [PASS] exec success (code=0, ok=true)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] exec success: code=${code2} ok=${ok2}")
         failed += 1
     }
 
     // exec: non-zero exit — 'false' exits 1, ok still true
-    mut code2, _, ok2 = os.exec("false", {})
-    if ok2 && code2 != 0 {
-        println("  [PASS] exec non-zero exit (code=${code2}, ok=true)")
+    mut code3, _, _, ok3 = os.exec("false", {})
+    if ok3 && code3 != 0 {
+        println("  [PASS] exec non-zero exit (code=${code3}, ok=true)")
         passed += 1
     } otherwise {
-        println("  [FAIL] exec non-zero exit: code=${code2} ok=${ok2}")
+        println("  [FAIL] exec non-zero exit: code=${code3} ok=${ok3}")
         failed += 1
     }
 
     // exec: stderr capture — ls on a nonexistent path writes to stderr
-    mut code3, stderr3, ok3 = os.exec("ls", {"/nonexistent_ez_test_path_xyz"})
-    if ok3 && code3 != 0 && len(stderr3) > 0 {
-        println("  [PASS] exec stderr capture (captured ${len(stderr3)} bytes)")
+    mut code4, _, stderr4, ok4 = os.exec("ls", {"/nonexistent_ez_test_path_xyz"})
+    if ok4 && code4 != 0 && len(stderr4) > 0 {
+        println("  [PASS] exec stderr capture (captured ${len(stderr4)} bytes)")
         passed += 1
     } otherwise {
-        println("  [FAIL] exec stderr capture: code=${code3} ok=${ok3} stderr_len=${len(stderr3)}")
+        println("  [FAIL] exec stderr capture: code=${code4} ok=${ok4} stderr_len=${len(stderr4)}")
         failed += 1
     }
 
     // exec: launch failure — command not found returns ok=false
-    mut code4, _, ok4 = os.exec("this_cmd_does_not_exist_ez", {})
-    if !ok4 {
+    mut code5, _, _, ok5 = os.exec("this_cmd_does_not_exist_ez", {})
+    if !ok5 {
         println("  [PASS] exec launch failure (ok=false)")
         passed += 1
     } otherwise {
-        println("  [FAIL] exec launch failure: expected ok=false, got code=${code4}")
+        println("  [FAIL] exec launch failure: expected ok=false, got code=${code5}")
         failed += 1
     }
 

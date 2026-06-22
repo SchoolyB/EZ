@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/select.h>
 #include <sys/wait.h>
 #include <errno.h>
 
@@ -93,7 +94,7 @@ int64_t ez_os_pid(void) {
 }
 
 EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
-    EzOsExecResult fail = {0, ez_string_lit(""), false};
+    EzOsExecResult fail = {0, ez_string_lit(""), ez_string_lit(""), false};
 
     /* Build null-terminated argv: argv[0] = cmd, argv[1..n] = args, argv[n+1] = NULL */
     int argc = 1 + args.len;
@@ -105,47 +106,92 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
     }
     argv[argc] = NULL;
 
-    int stderr_pipe[2];
-    if (pipe(stderr_pipe) < 0) return fail;
+    int stdout_pipe[2], stderr_pipe[2];
+    if (pipe(stdout_pipe) < 0) return fail;
+    if (pipe(stderr_pipe) < 0) {
+        close(stdout_pipe[0]); close(stdout_pipe[1]);
+        return fail;
+    }
 
     pid_t pid = fork();
     if (pid < 0) {
-        close(stderr_pipe[0]);
-        close(stderr_pipe[1]);
+        close(stdout_pipe[0]); close(stdout_pipe[1]);
+        close(stderr_pipe[0]); close(stderr_pipe[1]);
         return fail;
     }
 
     if (pid == 0) {
-        /* Child: redirect stderr into pipe, stdout stays connected to terminal */
+        /* Child: redirect stdout and stderr into pipes */
+        close(stdout_pipe[0]);
         close(stderr_pipe[0]);
+        dup2(stdout_pipe[1], STDOUT_FILENO);
         dup2(stderr_pipe[1], STDERR_FILENO);
+        close(stdout_pipe[1]);
         close(stderr_pipe[1]);
         execvp(cmd.data, argv);
         /* execvp failed */
         _exit(127);
     }
 
-    /* Parent: read stderr from pipe */
+    /* Parent: close write ends, then read stdout and stderr concurrently
+     * using select() to avoid deadlock when one pipe's buffer fills. */
+    close(stdout_pipe[1]);
     close(stderr_pipe[1]);
 
     char buf[4096];
-    size_t total = 0;
-    size_t cap = sizeof(buf);
-    char *collected = ez_arena_alloc(arena, cap);
+    size_t out_total = 0, err_total = 0;
+    size_t out_cap = sizeof(buf), err_cap = sizeof(buf);
+    char *out_buf = ez_arena_alloc(arena, out_cap);
+    char *err_buf = ez_arena_alloc(arena, err_cap);
+    int out_fd = stdout_pipe[0];
+    int err_fd = stderr_pipe[0];
+    bool out_done = false, err_done = false;
 
-    ssize_t n;
-    while ((n = read(stderr_pipe[0], buf, sizeof(buf))) > 0) {
-        if (total + (size_t)n > cap) {
-            size_t new_cap = cap * 2 + (size_t)n;
-            char *grown = ez_arena_alloc(arena, new_cap);
-            memcpy(grown, collected, total);
-            collected = grown;
-            cap = new_cap;
+    while (!out_done || !err_done) {
+        fd_set fds;
+        FD_ZERO(&fds);
+        if (!out_done) FD_SET(out_fd, &fds);
+        if (!err_done) FD_SET(err_fd, &fds);
+        int maxfd = (out_fd > err_fd ? out_fd : err_fd) + 1;
+        if (select(maxfd, &fds, NULL, NULL, NULL) < 0) break;
+
+        if (!out_done && FD_ISSET(out_fd, &fds)) {
+            ssize_t n = read(out_fd, buf, sizeof(buf));
+            if (n <= 0) {
+                out_done = true;
+            } else {
+                if (out_total + (size_t)n > out_cap) {
+                    size_t new_cap = out_cap * 2 + (size_t)n;
+                    char *grown = ez_arena_alloc(arena, new_cap);
+                    memcpy(grown, out_buf, out_total);
+                    out_buf = grown;
+                    out_cap = new_cap;
+                }
+                memcpy(out_buf + out_total, buf, (size_t)n);
+                out_total += (size_t)n;
+            }
         }
-        memcpy(collected + total, buf, (size_t)n);
-        total += (size_t)n;
+
+        if (!err_done && FD_ISSET(err_fd, &fds)) {
+            ssize_t n = read(err_fd, buf, sizeof(buf));
+            if (n <= 0) {
+                err_done = true;
+            } else {
+                if (err_total + (size_t)n > err_cap) {
+                    size_t new_cap = err_cap * 2 + (size_t)n;
+                    char *grown = ez_arena_alloc(arena, new_cap);
+                    memcpy(grown, err_buf, err_total);
+                    err_buf = grown;
+                    err_cap = new_cap;
+                }
+                memcpy(err_buf + err_total, buf, (size_t)n);
+                err_total += (size_t)n;
+            }
+        }
     }
-    close(stderr_pipe[0]);
+
+    close(out_fd);
+    close(err_fd);
 
     int status = 0;
     waitpid(pid, &status, 0);
@@ -160,8 +206,9 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
     /* exit_code 127 means execvp failed (command not found / bad path) */
     if (exit_code == 127) return fail;
 
-    EzString stderr_str = ez_string_new(arena, collected, (int32_t)total);
-    EzOsExecResult r = {(int64_t)exit_code, stderr_str, true};
+    EzString stdout_str = ez_string_new(arena, out_buf, (int32_t)out_total);
+    EzString stderr_str = ez_string_new(arena, err_buf, (int32_t)err_total);
+    EzOsExecResult r = {(int64_t)exit_code, stdout_str, stderr_str, true};
     return r;
 }
 
