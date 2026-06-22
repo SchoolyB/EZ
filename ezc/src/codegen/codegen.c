@@ -5160,6 +5160,14 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "exec") == 0) {
+        emit(cg, "ez_os_exec(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     return false;
 }
 

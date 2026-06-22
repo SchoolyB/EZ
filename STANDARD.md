@@ -2790,6 +2790,22 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 | `current_os` | `() -> int` | Get current OS as an int matching the constants below (`MAC_OS`, `LINUX`, `WINDOWS`, `OTHER`) |
 | `arch` | `() -> string` | Get CPU architecture |
 
+#### Process Execution
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `exec` | `(cmd string, args [string]) -> (int, string, bool)` | Run a subprocess. Returns `(exit_code, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout is inherited and passes through to the terminal; only stderr is captured. POSIX only. |
+
+```ez
+mut code, stderr, ok = os.exec("ls", {"-l", "/tmp"})
+if !ok {
+    println("failed to launch")
+}
+if ok && code != 0 {
+    println("exited with error: ${stderr}")
+}
+```
+
 #### Constants
 
 - `MAC_OS` = 0

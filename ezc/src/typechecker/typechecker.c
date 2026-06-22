@@ -911,6 +911,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
     {"os", "hostname", 0, 0}, {"os", "pid", 0, 0},
     {"os", "current_os", 0, 0}, {"os", "arch", 0, 0},
+    {"os", "exec", 2, 2},
     /* random (variable args) */
     {"random", "rand_float", 0, 2}, {"random", "rand_int", 1, 2},
     {"random", "rand_bool", 0, 0}, {"random", "rand_byte", 0, 0},
@@ -1517,6 +1518,7 @@ static const UsingFunc _using_funcs[] = {
     {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
     {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
     {"current_os","os",TK_INT},{"pid","os",TK_INT},
+    {"exec","os",TK_BOOL},
     /* time */
     {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
     {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
@@ -3737,6 +3739,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "set_env") == 0) {
                     result = &TYPE_VOID;
+                } else if (strcmp(mfn, "exec") == 0) {
+                    result = &TYPE_BOOL;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -8125,6 +8129,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                        }
+                    }
+                    /* os.exec returns (int, string, bool) — synthesize 3-type slots */
+                    if (strcmp(mod, "os") == 0 && strcmp(mfn, "exec") == 0) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            EzType **rt = xmalloc(sizeof(EzType *) * 3);
+                            rt[0] = &TYPE_INT;
+                            rt[1] = &TYPE_STRING;
+                            rt[2] = &TYPE_BOOL;
+                            sym->ret_types = rt;
+                            sym->ret_count = 3;
                         }
                     }
                 }
