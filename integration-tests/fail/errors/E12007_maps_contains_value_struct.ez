@@ -1,0 +1,18 @@
+/*
+ * Error Test: E12007 - maps.contains_value() with struct value type
+ * Expected: E12007 error rejecting composite value type
+ */
+
+import @maps
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut pts map[string:Point] = {"origin": Point{x: 0, y: 0}}
+    mut target Point = Point{x: 0, y: 0}
+    mut found bool = maps.contains_value(pts, target)
+    println("${found}")
+}

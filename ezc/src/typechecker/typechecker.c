@@ -3198,6 +3198,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
+                if (strcmp(mfn, "contains_value") == 0 && node->data.call.arg_count >= 1) {
+                    AstNode *a0 = node->data.call.args[0];
+                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    if (t0 && t0->kind == TK_MAP && t0->value_type) {
+                        EzType *vt = type_from_name(t0->value_type);
+                        if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT) {
+                            diag_error_codef(tc->diag, "E12007",
+                                NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0,
+                                t0->value_type);
+                        }
+                    }
+                }
                 /* E5007: mutating map functions on const map */
                 if ((strcmp(mfn, "clear") == 0 || strcmp(mfn, "remove_key") == 0) &&
                     node->data.call.arg_count > 0) {

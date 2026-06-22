@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 335 codes** (229 errors, 17 warnings, 89 panics)
+**Total: 336 codes** (230 errors, 17 warnings, 89 panics)
 
 ---
 
@@ -238,6 +238,7 @@
 | `E9006` | stdlib | arrays.contains() does not support arrays of %s; only primitive and string element types are supported |
 | `E12001` | stdlib | maps.%s() requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
+| `E12007` | stdlib | maps.contains_value() does not support maps with %s values; only primitive and string value types are supported |
 | `E8001` | bitwise | '%s' can only be used with integers; got '%s' and '%s' |
 | `E8002` | bitwise | 'bit_not' can only be used with integers; got '%s' |
 
@@ -386,4 +387,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-22 01:52:31 UTC*
+*Generated on 2026-06-22 02:10:19 UTC*

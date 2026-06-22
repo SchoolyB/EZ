@@ -272,7 +272,8 @@
     EZ_ERROR("E9005", "stdlib", "invalid range: start (%lld) must be less than end (%lld)") \
     EZ_ERROR("E9006", "stdlib", "arrays.contains() does not support arrays of %s; only primitive and string element types are supported") \
     EZ_ERROR("E12001", "stdlib", "maps.%s() requires a map argument, got an array") \
-    EZ_ERROR("E12006", "stdlib", "duplicate key in map literal")
+    EZ_ERROR("E12006", "stdlib", "duplicate key in map literal") \
+    EZ_ERROR("E12007", "stdlib", "maps.contains_value() does not support maps with %s values; only primitive and string value types are supported")
 
 /* --- E8xxx: Bitwise Operators --- */
 #define EZ_BITWISE_ERRORS \
