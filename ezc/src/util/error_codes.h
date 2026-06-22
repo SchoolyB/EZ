@@ -203,7 +203,8 @@
     EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d") \
     EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'") \
     EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'") \
-    EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'")
+    EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'") \
+    EZ_ERROR("E3120", "types", "pointer ordering comparisons are not supported; only == and != are allowed on pointers")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
