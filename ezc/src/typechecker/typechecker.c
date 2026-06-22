@@ -3376,7 +3376,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
-                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
+                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0 ||
+                    strcmp(mfn, "is_alpha") == 0 || strcmp(mfn, "is_digit") == 0 ||
+                    strcmp(mfn, "is_alnum") == 0 || strcmp(mfn, "is_whitespace") == 0 ||
+                    strcmp(mfn, "is_upper") == 0 || strcmp(mfn, "is_lower") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "index_of") == 0 ||
                            strcmp(mfn, "count") == 0) {

@@ -1,0 +1,137 @@
+/*
+ * strings_char_classification.ez - Integration test for strings char classification functions
+ */
+
+import @strings
+
+do main() {
+    println("=== Strings Char Classification Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // is_alpha - true
+    if strings.is_alpha('a') == true {
+        println("  [PASS] is_alpha letter")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_alpha letter")
+        failed += 1
+    }
+
+    // is_alpha - false
+    if strings.is_alpha('1') == false {
+        println("  [PASS] is_alpha digit (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_alpha digit (false)")
+        failed += 1
+    }
+
+    // is_digit - true
+    if strings.is_digit('9') == true {
+        println("  [PASS] is_digit digit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_digit digit")
+        failed += 1
+    }
+
+    // is_digit - false
+    if strings.is_digit('z') == false {
+        println("  [PASS] is_digit letter (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_digit letter (false)")
+        failed += 1
+    }
+
+    // is_alnum - letter
+    if strings.is_alnum('b') == true {
+        println("  [PASS] is_alnum letter")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_alnum letter")
+        failed += 1
+    }
+
+    // is_alnum - digit
+    if strings.is_alnum('3') == true {
+        println("  [PASS] is_alnum digit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_alnum digit")
+        failed += 1
+    }
+
+    // is_alnum - false
+    if strings.is_alnum('!') == false {
+        println("  [PASS] is_alnum symbol (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_alnum symbol (false)")
+        failed += 1
+    }
+
+    // is_whitespace - space
+    if strings.is_whitespace(' ') == true {
+        println("  [PASS] is_whitespace space")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_whitespace space")
+        failed += 1
+    }
+
+    // is_whitespace - false
+    if strings.is_whitespace('x') == false {
+        println("  [PASS] is_whitespace letter (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_whitespace letter (false)")
+        failed += 1
+    }
+
+    // is_upper - true
+    if strings.is_upper('A') == true {
+        println("  [PASS] is_upper uppercase")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_upper uppercase")
+        failed += 1
+    }
+
+    // is_upper - false
+    if strings.is_upper('a') == false {
+        println("  [PASS] is_upper lowercase (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_upper lowercase (false)")
+        failed += 1
+    }
+
+    // is_lower - true
+    if strings.is_lower('z') == true {
+        println("  [PASS] is_lower lowercase")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_lower lowercase")
+        failed += 1
+    }
+
+    // is_lower - false
+    if strings.is_lower('Z') == false {
+        println("  [PASS] is_lower uppercase (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_lower uppercase (false)")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
