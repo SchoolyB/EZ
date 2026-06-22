@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.6.3](https://github.com/SchoolyB/EZ/compare/v3.6.2...v3.6.3) (2026-06-22)
+
+
+### Bug Fixes
+
+* **typechecker:** fix segfault from null result in tc_lookup_using_constant ([#1912](https://github.com/SchoolyB/EZ/issues/1912)) ([971760c](https://github.com/SchoolyB/EZ/commit/971760cf1658be4c1d33804b4765c4b44acd7692))
+* **typechecker:** reject arrays.contains() with struct element types ([#1901](https://github.com/SchoolyB/EZ/issues/1901)) ([a3e2ef4](https://github.com/SchoolyB/EZ/commit/a3e2ef47f2b39ee40b7252b2eeaf85ea54faa13e))
+* **typechecker:** reject maps.contains_value() with struct value types ([#1902](https://github.com/SchoolyB/EZ/issues/1902)) ([1d1774c](https://github.com/SchoolyB/EZ/commit/1d1774ceb96aae47dd7f62059789706634b9ac29))
+
+
+### Performance Improvements
+
+* **codegen:** replace malloc/free with stack buffer in NODE_MEMBER_EXPR ([#1911](https://github.com/SchoolyB/EZ/issues/1911)) ([eb2a80b](https://github.com/SchoolyB/EZ/commit/eb2a80b263f3f7ceb5341268a9d0d95dca0814de))
+* **typechecker:** add hash index to type pool for O(1) lookup ([#1909](https://github.com/SchoolyB/EZ/issues/1909)) ([624a035](https://github.com/SchoolyB/EZ/commit/624a0352940d083eaa4a923fde3f8dbdbddeedef))
+* **typechecker:** add hash table per scope for O(1) symbol lookup ([#1910](https://github.com/SchoolyB/EZ/issues/1910)) ([dd092e9](https://github.com/SchoolyB/EZ/commit/dd092e9ec2a9334d22d47830369a3621b2c3c1b9))
+* **typechecker:** combine tc_is_using/tc_resolve_using into single-pass lookup ([#1912](https://github.com/SchoolyB/EZ/issues/1912)) ([b3a5ec2](https://github.com/SchoolyB/EZ/commit/b3a5ec2732bba2e66305857a7e9a6290439e4938))
+* **typechecker:** replace is_struct_name and is_enum_name linear scans with sorted bsearch ([#1906](https://github.com/SchoolyB/EZ/issues/1906)) ([80fa62e](https://github.com/SchoolyB/EZ/commit/80fa62e98f78f3243d0ed49e57d9186818790325))
+* **typechecker:** replace module and builtin name linear scans with bsearch ([#1908](https://github.com/SchoolyB/EZ/issues/1908)) ([2b3975e](https://github.com/SchoolyB/EZ/commit/2b3975ea3edfd4fb1e932b3e6c304e8e94d967f3))
+* **typechecker:** replace strdup with arena_strdup in error paths ([#1904](https://github.com/SchoolyB/EZ/issues/1904)) ([06a68a3](https://github.com/SchoolyB/EZ/commit/06a68a36e6b1bc68884a8db68024cb6a5e965cd9))
+* **typechecker:** sort stdlib arg tables and use bsearch for lookup ([#1907](https://github.com/SchoolyB/EZ/issues/1907)) ([486edbc](https://github.com/SchoolyB/EZ/commit/486edbc76703eb5aa2403385572bfe02477ad8a3))
+* **typechecker:** use sorted bsearch for find_func ([#1905](https://github.com/SchoolyB/EZ/issues/1905)) ([93926c7](https://github.com/SchoolyB/EZ/commit/93926c7f98dd1670fca99f4cc45f416fe8a2899d))
+
 ## [3.6.2](https://github.com/SchoolyB/EZ/compare/v3.6.1...v3.6.2) (2026-06-19)
 
 
