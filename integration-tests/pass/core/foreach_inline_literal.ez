@@ -1,0 +1,58 @@
+/*
+ * foreach_inline_literal.ez - Test for_each over inline array literals
+ *
+ * Covers: string literal, int literal, index form with literal
+ */
+
+do main() {
+    println("=== for_each Inline Literal Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: for_each over inline string literal
+    mut result string = ""
+    for_each item in {"a", "b", "c"} {
+        result = "${result}${item}"
+    }
+    if result == "abc" {
+        println("  [PASS] for_each over inline string literal")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string literal: result='${result}'")
+        failed += 1
+    }
+
+    // Test 2: for_each over inline int literal
+    mut total int = 0
+    for_each n in {10, 20, 30} {
+        total += n
+    }
+    if total == 60 {
+        println("  [PASS] for_each over inline int literal")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int literal: total=${total}")
+        failed += 1
+    }
+
+    // Test 3: index form with inline literal
+    mut idx_sum int = 0
+    mut val_sum int = 0
+    for_each i, v in {5, 10, 15} {
+        idx_sum += i
+        val_sum += v
+    }
+    if idx_sum == 3 && val_sum == 30 {
+        println("  [PASS] index form with inline literal")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] index form: idx_sum=${idx_sum}, val_sum=${val_sum}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, 0 failed")
+    if passed == 3 {
+        println("ALL TESTS PASSED")
+    }
+}

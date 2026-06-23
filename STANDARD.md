@@ -1171,6 +1171,14 @@ Map iteration order is undefined (maps are unordered).
 - **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe; new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
 - **Maps:** Modifying a map during `for_each` (inserting or deleting keys) is not allowed and will panic at runtime. Read the map freely, but do not mutate it until the loop completes.
 
+> 💡 **Flip's Tip:** You can iterate over an inline array literal directly — no variable needed:
+> ```ez
+> for_each item in {"a", "b", "c"} {
+>     println(item)
+> }
+> ```
+> This works with any element type and supports the index form (`for_each i, item in {...}`) as well.
+
 #### 6.3.3 While Loops
 
 `while` is an alias for `as_long_as`. Both are valid, user's choice.
