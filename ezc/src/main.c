@@ -1652,7 +1652,7 @@ int main(int argc, char **argv) {
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
             "-I'%s'/runtime -I'%s'/stdlib "
             "-o '%s' '%s' '%s' "
-            "-lm -lpthread 2>&1",
+            "-lm -lpthread -Wl,-w 2>&1",
             extra_flags,
             runtime_dir, runtime_dir,
             output_file, c_file, lib_path);
@@ -1690,7 +1690,7 @@ int main(int argc, char **argv) {
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
             "-I'%s'/runtime -I'%s'/stdlib "
             "-o '%s' '%s' %s"
-            "-lm -lpthread 2>&1",
+            "-lm -lpthread -Wl,-w 2>&1",
             extra_flags,
             runtime_dir, runtime_dir,
             output_file, c_file, srcs);
