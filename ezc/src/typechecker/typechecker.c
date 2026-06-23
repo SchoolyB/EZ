@@ -5263,6 +5263,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         arena_strdup(tc->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_UNKNOWN;
+                } else if (result->kind == TK_POINTER) {
+                    diag_error_code(tc->diag, "E5037",
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(fn_name, "char") == 0) {
                 /* E5008: char() requires exactly 1 argument */

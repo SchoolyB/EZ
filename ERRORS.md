@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 340 codes** (233 errors, 17 warnings, 90 panics)
+**Total: 341 codes** (234 errors, 17 warnings, 90 panics)
 
 ---
 
@@ -225,6 +225,7 @@
 | `E5034` | usage | named arguments are not supported for builtin function '%s' |
 | `E5035` | naming | this name is reserved by a standard library module and cannot be redeclared |
 | `E5036` | usage | '%s' is a type, not a function; use cast(value, %s) to convert |
+| `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -391,4 +392,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-22 23:56:48 UTC*
+*Generated on 2026-06-23 00:31:08 UTC*
