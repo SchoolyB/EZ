@@ -139,6 +139,8 @@ ez install 2.5.0       # pin to an exact version
 - [Official documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs)
 - [Contributing guide](CONTRIBUTING.md)
 
+## Tooling
+- [The EZ Language Server Protocol](https://github.com/SchoolyB/EZLS)
 ---
 
 ## Status
