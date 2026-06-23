@@ -2856,6 +2856,9 @@ static AstNode *parse_when_statement(Parser *p) {
             node->data.when_stmt.case_count++;
 
         } else if (cur_token_is(p, TOK_DEFAULT)) {
+            if (node->data.when_stmt.default_body) {
+                diag_error_code(p->diag, "E2085", p->file, p->cur_token.line, p->cur_token.column, 0);
+            }
             if (!expect_peek(p, TOK_LBRACE)) return NULL;
             node->data.when_stmt.default_body = parse_block_statement(p);
         }

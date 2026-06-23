@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 339 codes** (232 errors, 17 warnings, 90 panics)
+**Total: 340 codes** (233 errors, 17 warnings, 90 panics)
 
 ---
 
@@ -75,6 +75,7 @@
 | `E2082` | syntax | arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead |
 | `E2083` | syntax | enum variant '%s' cannot have both a payload and an explicit value |
 | `E2084` | syntax | blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result |
+| `E2085` | syntax | when statement already has a default branch; only one default is allowed |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -390,4 +391,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-22 23:17:35 UTC*
+*Generated on 2026-06-22 23:56:48 UTC*

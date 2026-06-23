@@ -94,7 +94,8 @@
     EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'") \
     EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead") \
     EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value") \
-    EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result")
+    EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result") \
+    EZ_ERROR("E2085", "syntax", "when statement already has a default branch; only one default is allowed")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
