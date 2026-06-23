@@ -507,7 +507,7 @@ println(a.next.val)   // 2, implicit dereference
 println(a.next^.val)  // 2, explicit dereference (also valid)
 ```
 
-Mutual recursion (two structs referencing each other) is not supported.
+Mutual recursion through pointer fields is supported. Both structs must use pointer fields (`^Type`) to reference each other; value-type mutual reference is rejected at compile time.
 
 Struct instantiation uses named field syntax:
 
