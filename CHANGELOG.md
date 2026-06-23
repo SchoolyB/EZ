@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.8.0](https://github.com/SchoolyB/EZ/compare/v3.7.0...v3.8.0) (2026-06-23)
+
+
+### Features
+
+* support for_each over inline array literals ([#1931](https://github.com/SchoolyB/EZ/issues/1931)) ([cadb6a8](https://github.com/SchoolyB/EZ/commit/cadb6a8e6894dc27724d5f4e09a82a3b2390d6ba))
+
+
+### Bug Fixes
+
+* panic P0090 on range() zero step instead of hanging ([#1924](https://github.com/SchoolyB/EZ/issues/1924)) ([#1933](https://github.com/SchoolyB/EZ/issues/1933)) ([efb9739](https://github.com/SchoolyB/EZ/commit/efb9739825739ee4820734d86ddd8567b6e9126b))
+* reject addr() on const variables with E3122 ([#1930](https://github.com/SchoolyB/EZ/issues/1930)) ([de5f604](https://github.com/SchoolyB/EZ/commit/de5f604979b09fb3ae7fda17539b2611ca1426dc))
+* reject copy() on pointer types with E5037 ([#1928](https://github.com/SchoolyB/EZ/issues/1928)) ([#1936](https://github.com/SchoolyB/EZ/issues/1936)) ([c7a8fac](https://github.com/SchoolyB/EZ/commit/c7a8face9aa9655fe9c5335f4099f14817fb8150))
+* reject duplicate default branches in when statements with E2085 ([#1926](https://github.com/SchoolyB/EZ/issues/1926)) ([#1935](https://github.com/SchoolyB/EZ/issues/1935)) ([1074521](https://github.com/SchoolyB/EZ/commit/10745214f5f5d75aa7a5034e5c803e9579d3198f))
+* reject nil comparison with non-pointer types with E3092 ([#1929](https://github.com/SchoolyB/EZ/issues/1929)) ([a903d7c](https://github.com/SchoolyB/EZ/commit/a903d7c8b6f204d4236b5c453a569e322028e50f))
+* reject pointer ordering comparisons with E3120 ([#1923](https://github.com/SchoolyB/EZ/issues/1923)) ([#1932](https://github.com/SchoolyB/EZ/issues/1932)) ([f035594](https://github.com/SchoolyB/EZ/commit/f0355947944d75c29592cf52f861224cbbe8db2e))
+* reject struct, array, map, and pointer as when conditions with E3121 ([#1925](https://github.com/SchoolyB/EZ/issues/1925)) ([#1934](https://github.com/SchoolyB/EZ/issues/1934)) ([2ca1702](https://github.com/SchoolyB/EZ/commit/2ca170218e7bcf81379e6ff59aede37f18ab2c98))
+
 ## [3.7.0](https://github.com/SchoolyB/EZ/compare/v3.6.3...v3.7.0) (2026-06-22)
 
 
