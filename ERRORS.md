@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 336 codes** (230 errors, 17 warnings, 89 panics)
+**Total: 342 codes** (235 errors, 17 warnings, 90 panics)
 
 ---
 
@@ -75,6 +75,7 @@
 | `E2082` | syntax | arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead |
 | `E2083` | syntax | enum variant '%s' cannot have both a payload and an explicit value |
 | `E2084` | syntax | blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result |
+| `E2085` | syntax | when statement already has a default branch; only one default is allowed |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -181,6 +182,9 @@
 | `E3117` | types | cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT' |
 | `E3118` | types | cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT' |
 | `E3119` | types | fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s' |
+| `E3120` | types | pointer ordering comparisons are not supported; only == and != are allowed on pointers |
+| `E3121` | types | cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum |
+| `E3122` | safety | cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -222,6 +226,7 @@
 | `E5034` | usage | named arguments are not supported for builtin function '%s' |
 | `E5035` | naming | this name is reserved by a standard library module and cannot be redeclared |
 | `E5036` | usage | '%s' is a type, not a function; use cast(value, %s) to convert |
+| `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -363,6 +368,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0087` | io | io.write_file() cannot write to a directory |
 | `P0088` | io | io.append_file() cannot append to a directory |
 | `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
+| `P0090` | runtime | range step cannot be zero |
 
 ---
 
@@ -387,4 +393,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-22 02:15:08 UTC*
+*Generated on 2026-06-23 05:44:51 UTC*

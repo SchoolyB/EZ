@@ -8004,11 +8004,13 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
             /* Determine comparison direction: static for literal step, runtime ternary for variable. */
             bool neg_step = false;
             bool known_direction = false;
+            bool zero_step = false;
             if (iter->data.range_expr.step) {
                 AstNode *s = iter->data.range_expr.step;
                 if (s->kind == NODE_INT_VALUE) {
                     known_direction = true;
                     neg_step = s->data.int_value.value < 0;
+                    zero_step = (s->data.int_value.value == 0);
                 } else if (s->kind == NODE_PREFIX_EXPR && s->data.prefix.op == TOK_MINUS) {
                     known_direction = true;
                     neg_step = true;
@@ -8025,11 +8027,19 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 emitf(cg, ", _ez_end_%d = ", svc);
                 emit_expression(cg, iter->data.range_expr.end);
                 emit(cg, ";\n");
+                /* P0090: zero step at runtime is always a panic */
+                emit_indent(cg);
+                emitf(cg, "if (_ez_step_%d == 0) { ez_panic_code(\"P0090\", \"range step cannot be zero\"); }\n", svc);
                 emit_indent(cg);
                 emitf(cg, "for (int64_t %s = ", var);
                 emit_expression(cg, iter->data.range_expr.start);
                 emitf(cg, "; _ez_step_%d > 0 ? %s < _ez_end_%d : %s > _ez_end_%d", svc, var, svc, var, svc);
                 emitf(cg, "; %s += _ez_step_%d", var, svc);
+            } else if (zero_step) {
+                /* P0090: literal zero step always panics; emit panic then a dead loop */
+                emit(cg, "ez_panic_code(\"P0090\", \"range step cannot be zero\");\n");
+                emit_indent(cg);
+                emitf(cg, "for (int64_t %s = 0; 0; (void)0", var);
             } else {
                 emitf(cg, "for (int64_t %s = ", var);
                 emit_expression(cg, iter->data.range_expr.start);
@@ -8375,6 +8385,13 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         const char *idx_name = node->data.for_each.index_name;
         if (!idx_name) idx_name = "_ez_idx";
         bool is_map_iter = (coll_t && coll_t->kind == TK_MAP);
+        /* Used by the array branch: when the collection is a non-lvalue
+         * expression (e.g. an inline literal), we materialize it into a
+         * named C temporary so that .iterating++ and EZ_ARRAY_GET can
+         * operate on an addressable lvalue. */
+        bool coll_needs_tmp = false;
+        char arr_tmp_name[CG_SHORT_VAR_BUF];
+        arr_tmp_name[0] = '\0';
 
         if (is_map_iter) {
             /* for_each on map; iterate occupied slots with internal counter */
@@ -8467,20 +8484,32 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             static int arr_iter_counter = 0;
             char len_name[CG_SHORT_VAR_BUF];
             snprintf(len_name, sizeof(len_name), "_ez_alen%d", arr_iter_counter++);
+            /* When the collection is a non-lvalue expression (inline array
+             * literal, function return, etc.) it is an rvalue in C and
+             * cannot be mutated (.iterating++) or addressed (EZ_ARRAY_GET).
+             * Assign it to a named temporary first. */
+            coll_needs_tmp = (coll->kind != NODE_LABEL);
+            if (coll_needs_tmp) {
+                snprintf(arr_tmp_name, sizeof(arr_tmp_name), "_ez_arr%d", arr_iter_counter - 1);
+                emitf(cg, "{ EzArray %s = ", arr_tmp_name);
+                emit_expression(cg, coll);
+                emit(cg, ";\n");
+                emit_indent(cg);
+            }
             emitf(cg, "{ int32_t %s = ", len_name);
-            emit_expression(cg, coll);
-            emit(cg, ".len;\n");
+            if (coll_needs_tmp) emitf(cg, "%s.len;\n", arr_tmp_name);
+            else { emit_expression(cg, coll); emit(cg, ".len;\n"); }
             /* Guard against mutation during iteration */
             emit_indent(cg);
-            emit_expression(cg, coll);
-            emit(cg, ".iterating++;\n");
+            if (coll_needs_tmp) emitf(cg, "%s.iterating++;\n", arr_tmp_name);
+            else { emit_expression(cg, coll); emit(cg, ".iterating++;\n"); }
             emit_indent(cg);
             emitf(cg, "for (int32_t %s = 0; %s < %s; %s++) {\n", idx_name, idx_name, len_name, idx_name);
             cg->indent++;
             emit_indent(cg);
             emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, safe_name(node->data.for_each.var_name));
-            emit_expression(cg, coll);
-            emitf(cg, ", %s, %s);\n", c_elem, idx_name);
+            if (coll_needs_tmp) emitf(cg, "%s, %s, %s);\n", arr_tmp_name, c_elem, idx_name);
+            else { emit_expression(cg, coll); emitf(cg, ", %s, %s);\n", c_elem, idx_name); }
         }
 
         /*  phase 2: per-iteration scratch arena */
@@ -8526,10 +8555,15 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         /* Decrement array iteration guard, then close the snapshot block */
         if (coll_t && coll_t->kind != TK_MAP && coll_t->kind != TK_STRING) {
             emit_indent(cg);
-            emit_expression(cg, coll);
-            emit(cg, ".iterating--;\n");
+            if (coll_needs_tmp) emitf(cg, "%s.iterating--;\n", arr_tmp_name);
+            else { emit_expression(cg, coll); emit(cg, ".iterating--;\n"); }
             emit_indent(cg);
             emit(cg, "}\n");
+            /* Close the outer temporary block if we materialized a C temp */
+            if (coll_needs_tmp) {
+                emit_indent(cg);
+                emit(cg, "}\n");
+            }
         }
         break;
     }

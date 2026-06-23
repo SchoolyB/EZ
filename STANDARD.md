@@ -507,7 +507,7 @@ println(a.next.val)   // 2, implicit dereference
 println(a.next^.val)  // 2, explicit dereference (also valid)
 ```
 
-Mutual recursion (two structs referencing each other) is not supported.
+Mutual recursion through pointer fields is supported. Both structs must use pointer fields (`^Type`) to reference each other; value-type mutual reference is rejected at compile time.
 
 Struct instantiation uses named field syntax:
 
@@ -1170,6 +1170,14 @@ Map iteration order is undefined (maps are unordered).
 
 - **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe; new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
 - **Maps:** Modifying a map during `for_each` (inserting or deleting keys) is not allowed and will panic at runtime. Read the map freely, but do not mutate it until the loop completes.
+
+> 💡 **Flip's Tip:** You can iterate over an inline array literal directly — no variable needed:
+> ```ez
+> for_each item in {"a", "b", "c"} {
+>     println(item)
+> }
+> ```
+> This works with any element type and supports the index form (`for_each i, item in {...}`) as well.
 
 #### 6.3.3 While Loops
 
@@ -2466,7 +2474,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `get_keys` | `(m map[K:V]) -> [K]` | Get all keys as an array |
 | `get_values` | `(m map[K:V]) -> [V]` | Get all values as an array |
 | `get_or_default` | `(m map[K:V], key K, default V) -> V` | Get value or return default if key missing |
-| `remove_key` | `(&m map[K:V], key K) -> bool` | Remove key-value pair |
+| `remove_key` | `(&m map[K:V], key K)` | Remove key-value pair; does nothing if key absent |
 | `clear` | `(&m map[K:V])` | Remove all entries |
 | `merge` | `(m1 map[K:V], m2 map[K:V]) -> map[K:V]` | Combine two maps (m2 overwrites on conflict) |
 | `is_equal` | `(a map[K:V], b map[K:V]) -> bool` | Structural equality. Compares counts, then iterates the first map's entries in insertion order looking each key up in the second. `K` and `V` must each be a primitive (`int`, `uint`, `float`, `bool`, `char`, `byte`, sized variants) or `string`; maps with nested-composite values are rejected at compile time. |

@@ -94,7 +94,8 @@
     EZ_ERROR("E2081", "syntax", "'^' is a dereference operator, not a type modifier; for a pointer return type write '^%s', not '%s^'") \
     EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead") \
     EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value") \
-    EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result")
+    EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result") \
+    EZ_ERROR("E2085", "syntax", "when statement already has a default branch; only one default is allowed")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -203,7 +204,10 @@
     EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d") \
     EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'") \
     EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'") \
-    EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'")
+    EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'") \
+    EZ_ERROR("E3120", "types", "pointer ordering comparisons are not supported; only == and != are allowed on pointers") \
+    EZ_ERROR("E3121", "types", "cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum") \
+    EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -250,7 +254,8 @@
     EZ_ERROR("E5033", "usage", "positional argument after named argument in call to '%s'") \
     EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'") \
     EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared") \
-    EZ_ERROR("E5036", "usage", "'%s' is a type, not a function; use cast(value, %s) to convert")
+    EZ_ERROR("E5036", "usage", "'%s' is a type, not a function; use cast(value, %s) to convert") \
+    EZ_ERROR("E5037", "usage", "copy() cannot be applied to a pointer; dereference first with copy(p^)")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
@@ -370,7 +375,8 @@
     EZ_PANIC("P0086", "io",         "io.read_file() cannot read a directory; use io.list_dir() or io.walk() to list directory contents") \
     EZ_PANIC("P0087", "io",         "io.write_file() cannot write to a directory") \
     EZ_PANIC("P0088", "io",         "io.append_file() cannot append to a directory") \
-    EZ_PANIC("P0089", "io",         "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually")
+    EZ_PANIC("P0089", "io",         "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually") \
+    EZ_PANIC("P0090", "runtime",    "range step cannot be zero")
 
 /* --- Warnings --- */
 #define EZ_WARNINGS \

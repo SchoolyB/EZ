@@ -218,6 +218,24 @@ static bool is_lvalue_expr(AstNode *e) {
     }
 }
 
+/* Walk an lvalue expression chain and return the root variable name.
+ * Returns NULL if the chain passes through a pointer dereference (^),
+ * because the pointed-to memory is independent of the pointer variable's
+ * mutability. */
+static const char *lvalue_root_name(AstNode *e) {
+    if (!e) return NULL;
+    switch (e->kind) {
+    case NODE_LABEL:       return e->data.label.value;
+    case NODE_MEMBER_EXPR: return lvalue_root_name(e->data.member.object);
+    case NODE_INDEX_EXPR:  return lvalue_root_name(e->data.index_expr.left);
+    case NODE_POSTFIX_EXPR:
+        if (e->data.postfix.op == TOK_CARET)
+            return NULL; /* pointer deref: memory is not the const variable */
+        return NULL;
+    default: return NULL;
+    }
+}
+
 /* True if the access path contains a map index, e.g. ref(m["k"]) or
  * ref(m["k"].field) or ref(rows[i].cells["k"]). Map values relocate on
  * rehash so a pointer to one is unsafe. */
@@ -2411,14 +2429,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
-        /* E3092: nil compared to a non-nullable type (struct, map, array) */
+        /* E3092: nil compared to a non-nullable type */
         if (!infix_errored && (op == TOK_EQ || op == TOK_NOT_EQ)) {
             EzType *non_nil = NULL;
-            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN &&
-                (right->kind == TK_STRUCT || right->kind == TK_MAP || right->kind == TK_ARRAY))
+            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN && right->kind != TK_NIL &&
+                right->kind != TK_POINTER && right->kind != TK_ERROR)
                 non_nil = right;
-            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN &&
-                (left->kind == TK_STRUCT || left->kind == TK_MAP || left->kind == TK_ARRAY))
+            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN && left->kind != TK_NIL &&
+                left->kind != TK_POINTER && left->kind != TK_ERROR)
                 non_nil = left;
             if (non_nil) {
                 diag_error_codef(tc->diag, "E3092", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
@@ -2470,6 +2488,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             (op == TOK_PLUS || op == TOK_MINUS ||
              op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
             diag_error_code(tc->diag, "E3078",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
+        /* E3120: pointer ordering comparisons are not supported. STANDARD.md
+         * §5.2.2 allows only == and != on pointers; <, >, <=, >= silently
+         * fell through to C where cross-allocation ordering is undefined. */
+        if (!infix_errored &&
+            (left->kind == TK_POINTER || right->kind == TK_POINTER) &&
+            (op == TOK_LT || op == TOK_GT ||
+             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
+            diag_error_code(tc->diag, "E3120",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
@@ -4876,6 +4906,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
+                /* E3122: addr() of a const variable would allow mutation
+                 * through the resulting pointer, bypassing immutability. */
+                const char *root = lvalue_root_name(arg);
+                if (root) {
+                    Symbol *sym = scope_lookup(tc->current_scope, root);
+                    if (sym && !sym->mutable) {
+                        diag_error_codef(tc->diag, "E3122", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0, root);
+                    }
+                }
                 EzType *arg_t = resolve_expr(tc, arg);
                 result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
@@ -5249,6 +5289,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (result->kind == TK_FUNCTION) {
                     diag_error_msg(tc->diag, "E5029",
                         arena_strdup(tc->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
+                } else if (result->kind == TK_POINTER) {
+                    diag_error_code(tc->diag, "E5037",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_UNKNOWN;
                 }
@@ -9793,6 +9837,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (when_t && when_t->kind == TK_FLOAT) {
             AstNode *subj = node->data.when_stmt.value;
             diag_warning_code(tc->diag, "W2012", NODE_FILE(tc, subj), subj->token.line, subj->token.column, 0);
+        }
+        /* E3121: struct, array, map, and pointer types are not valid when subjects.
+         * Null out when_t so subsequent case type checks are skipped. */
+        if (when_t && (when_t->kind == TK_STRUCT || when_t->kind == TK_ARRAY ||
+                       when_t->kind == TK_MAP || when_t->kind == TK_POINTER)) {
+            AstNode *subj = node->data.when_stmt.value;
+            diag_error_codef(tc->diag, "E3121", NODE_FILE(tc, subj), subj->token.line, subj->token.column, 0,
+                type_display_name(tc, when_t));
+            when_t = NULL;
         }
         /* E2043: check for duplicate case values, E3001: check type match */
         /* Set expected_type for implicit enum resolution in when/is branches */

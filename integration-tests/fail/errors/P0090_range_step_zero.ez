@@ -1,0 +1,6 @@
+/* Error Test: P0090 - range() with literal zero step panics at runtime */
+do main() {
+    for i in range(0, 10, 0) {
+        println(i)
+    }
+}
