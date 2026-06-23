@@ -218,6 +218,24 @@ static bool is_lvalue_expr(AstNode *e) {
     }
 }
 
+/* Walk an lvalue expression chain and return the root variable name.
+ * Returns NULL if the chain passes through a pointer dereference (^),
+ * because the pointed-to memory is independent of the pointer variable's
+ * mutability. */
+static const char *lvalue_root_name(AstNode *e) {
+    if (!e) return NULL;
+    switch (e->kind) {
+    case NODE_LABEL:       return e->data.label.value;
+    case NODE_MEMBER_EXPR: return lvalue_root_name(e->data.member.object);
+    case NODE_INDEX_EXPR:  return lvalue_root_name(e->data.index_expr.left);
+    case NODE_POSTFIX_EXPR:
+        if (e->data.postfix.op == TOK_CARET)
+            return NULL; /* pointer deref: memory is not the const variable */
+        return NULL;
+    default: return NULL;
+    }
+}
+
 /* True if the access path contains a map index, e.g. ref(m["k"]) or
  * ref(m["k"].field) or ref(rows[i].cells["k"]). Map values relocate on
  * rehash so a pointer to one is unsafe. */
@@ -4887,6 +4905,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E3012",
                         "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+                /* E3122: addr() of a const variable would allow mutation
+                 * through the resulting pointer, bypassing immutability. */
+                const char *root = lvalue_root_name(arg);
+                if (root) {
+                    Symbol *sym = scope_lookup(tc->current_scope, root);
+                    if (sym && !sym->mutable) {
+                        diag_error_codef(tc->diag, "E3122", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0, root);
+                    }
                 }
                 EzType *arg_t = resolve_expr(tc, arg);
                 result = type_pointer(type_name(arg_t));
