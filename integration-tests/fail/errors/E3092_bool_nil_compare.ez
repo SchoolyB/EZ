@@ -1,0 +1,5 @@
+/* Error Test: E3092 - bool compared to nil */
+do main() {
+    mut b bool = true
+    if b != nil { println("not nil") }
+}

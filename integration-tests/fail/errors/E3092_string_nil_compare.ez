@@ -1,0 +1,5 @@
+/* Error Test: E3092 - string compared to nil */
+do main() {
+    mut s string = "hello"
+    if s == nil { println("nil") }
+}

@@ -2411,14 +2411,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
-        /* E3092: nil compared to a non-nullable type (struct, map, array) */
+        /* E3092: nil compared to a non-nullable type */
         if (!infix_errored && (op == TOK_EQ || op == TOK_NOT_EQ)) {
             EzType *non_nil = NULL;
-            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN &&
-                (right->kind == TK_STRUCT || right->kind == TK_MAP || right->kind == TK_ARRAY))
+            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN && right->kind != TK_NIL &&
+                right->kind != TK_POINTER && right->kind != TK_ERROR)
                 non_nil = right;
-            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN &&
-                (left->kind == TK_STRUCT || left->kind == TK_MAP || left->kind == TK_ARRAY))
+            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN && left->kind != TK_NIL &&
+                left->kind != TK_POINTER && left->kind != TK_ERROR)
                 non_nil = left;
             if (non_nil) {
                 diag_error_codef(tc->diag, "E3092", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
