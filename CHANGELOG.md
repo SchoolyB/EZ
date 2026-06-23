@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.1](https://github.com/SchoolyB/EZ/compare/v3.8.0...v3.8.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **main:** suppress ld warnings from cc link command with -Wl,-w ([3ab0df7](https://github.com/SchoolyB/EZ/commit/3ab0df775f07e195e61fa42da485df18ceb7e74e))
+
 ## [3.8.0](https://github.com/SchoolyB/EZ/compare/v3.7.0...v3.8.0) (2026-06-23)
 
 
