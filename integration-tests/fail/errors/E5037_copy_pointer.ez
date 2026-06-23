@@ -1,0 +1,9 @@
+/* Error Test: E5037 - copy() on a pointer type */
+const Point struct {
+    x int
+}
+do main() {
+    mut p = new(Point)
+    mut q = copy(p)
+    println(q)
+}
