@@ -115,7 +115,7 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     int end_col, const char *help) {
 
     /* Cap errors at 20 to avoid flooding output */
-    if (sev == SEV_ERROR && diag_error_count(dl) >= EZ_MAX_ERRORS_DISPLAYED) return;
+    if (sev == SEV_ERROR && dl->error_count >= EZ_MAX_ERRORS_DISPLAYED) return;
 
     if (dl->count >= dl->cap) {
         dl->cap = dl->cap ? dl->cap * 2 : EZ_DIAG_INITIAL_CAP;
@@ -132,6 +132,9 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     d->end_column = end_col;
     d->source_line = NULL;
     d->help = help;
+
+    if (sev == SEV_ERROR) dl->error_count++;
+    else if (sev == SEV_WARNING) dl->warning_count++;
 }
 
 void diag_error(DiagnosticList *dl, const char *code, const char *message,
@@ -250,19 +253,11 @@ bool diag_has_errors(DiagnosticList *dl) {
 }
 
 int diag_error_count(DiagnosticList *dl) {
-    int n = 0;
-    for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_ERROR) n++;
-    }
-    return n;
+    return dl->error_count;
 }
 
 int diag_warning_count(DiagnosticList *dl) {
-    int n = 0;
-    for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_WARNING) n++;
-    }
-    return n;
+    return dl->warning_count;
 }
 
 /* --- Rendering --- */
@@ -370,11 +365,13 @@ void diag_print_all(DiagnosticList *dl) {
 }
 
 void diag_print_summary(DiagnosticList *dl) {
-    int errors = 0, warnings = 0;
+    int errors = dl->error_count;
+
+    /* visible_warnings excludes suppressed entries — checked at render time */
+    int warnings = 0;
     for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_ERROR) errors++;
-        else if (dl->items[i].severity == SEV_WARNING &&
-                 !is_warning_suppressed(dl, &dl->items[i]))
+        if (dl->items[i].severity == SEV_WARNING &&
+            !is_warning_suppressed(dl, &dl->items[i]))
             warnings++;
     }
 

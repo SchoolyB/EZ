@@ -36,6 +36,10 @@ typedef struct {
     int count;
     int cap;
 
+    /* Cached counts — incremented in diag_add for O(1) queries */
+    int error_count;
+    int warning_count;
+
     /* Source file cache for reading lines */
     const char *cached_file;
     const char *cached_source;
