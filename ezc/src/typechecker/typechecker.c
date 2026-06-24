@@ -1031,21 +1031,14 @@ static int stdlib_arg_entry_cmp(const void *a, const void *b) {
 }
 
 #define STDLIB_ARG_TABLE_N (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0]))
+static const StdlibArgEntry *stdlib_arg_sorted[STDLIB_ARG_TABLE_N];
 
 static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
     const char *fn, AstNode *node)
 {
-    static const StdlibArgEntry *sorted[STDLIB_ARG_TABLE_N];
-    static bool built = false;
-    if (!built) {
-        for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) sorted[i] = &stdlib_arg_table[i];
-        qsort(sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
-        built = true;
-    }
-
     StdlibArgEntry key = { .mod = mod, .fn = fn };
     const StdlibArgEntry *key_ptr = &key;
-    const StdlibArgEntry **hit = bsearch(&key_ptr, sorted, STDLIB_ARG_TABLE_N,
+    const StdlibArgEntry **hit = bsearch(&key_ptr, stdlib_arg_sorted, STDLIB_ARG_TABLE_N,
         sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
     if (!hit) return;
 
@@ -1249,29 +1242,22 @@ static int stdlib_argtype_entry_cmp(const void *a, const void *b) {
 }
 
 #define STDLIB_ARG_TYPE_TABLE_N (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0]))
+static const StdlibArgTypeEntry *stdlib_argtype_sorted[STDLIB_ARG_TYPE_TABLE_N];
 
 static void tc_check_stdlib_arg_types(TypeChecker *tc, const char *mod,
     const char *fn, AstNode *node)
 {
-    static const StdlibArgTypeEntry *sorted[STDLIB_ARG_TYPE_TABLE_N];
-    static bool built = false;
-    if (!built) {
-        for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) sorted[i] = &stdlib_arg_type_table[i];
-        qsort(sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
-        built = true;
-    }
-
     StdlibArgTypeEntry key = { .mod = mod, .fn = fn };
     const StdlibArgTypeEntry *key_ptr = &key;
-    const StdlibArgTypeEntry **hit = bsearch(&key_ptr, sorted, STDLIB_ARG_TYPE_TABLE_N,
+    const StdlibArgTypeEntry **hit = bsearch(&key_ptr, stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N,
         sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
     if (!hit) return;
 
     /* bsearch may land on any entry in the (mod, fn) group; walk back to first. */
-    while (hit > sorted && stdlib_argtype_entry_cmp(hit - 1, hit) == 0) hit--;
+    while (hit > stdlib_argtype_sorted && stdlib_argtype_entry_cmp(hit - 1, hit) == 0) hit--;
 
     /* Iterate the contiguous group of entries for this (mod, fn). */
-    for (; hit < sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_argtype_entry_cmp(hit, &key_ptr) == 0; hit++) {
+    for (; hit < stdlib_argtype_sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_argtype_entry_cmp(hit, &key_ptr) == 0; hit++) {
         const StdlibArgTypeEntry *e = *hit;
         int idx = e->arg_index;
         if (idx < node->data.call.arg_count) {
@@ -10719,6 +10705,16 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 /* --- Public API --- */
 
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
+    /* Build sorted stdlib lookup tables once before any type-check begins. */
+    static bool tables_built = false;
+    if (!tables_built) {
+        for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) stdlib_arg_sorted[i] = &stdlib_arg_table[i];
+        qsort(stdlib_arg_sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
+        for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) stdlib_argtype_sorted[i] = &stdlib_arg_type_table[i];
+        qsort(stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+        tables_built = true;
+    }
+
     TypeChecker *tc = xcalloc(1, sizeof(TypeChecker));
     tc->diag = diag;
     tc->file = file;
