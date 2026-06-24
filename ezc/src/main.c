@@ -853,6 +853,17 @@ int main(int argc, char **argv) {
         if (last_slash) *(last_slash + 1) = '\0';
         else { input_dir[0] = '.'; input_dir[1] = '/'; input_dir[2] = '\0'; }
 
+        /* Snapshot of original main-program nodes taken before any imports are merged.
+         * The outer rewrite pass after each import only needs to update these nodes;
+         * imported nodes are already rewritten inline during the rewrite+merge pass.
+         * A plain pointer would be invalidated by in-place memmoves, so we copy
+         * the AstNode* array into a stable arena allocation here. */
+        int main_stmt_snapshot_count = program->data.program.stmt_count;
+        AstNode **main_stmt_snapshot = arena_alloc(arena,
+            sizeof(AstNode *) * (main_stmt_snapshot_count > 0 ? main_stmt_snapshot_count : 1));
+        memcpy(main_stmt_snapshot, program->data.program.stmts,
+            sizeof(AstNode *) * main_stmt_snapshot_count);
+
         /* Process imports iteratively — re-scan after each merge to find transitive imports.
          * The already_imported cache prevents infinite loops and duplicate processing. */
         bool found_new_import = true;
@@ -1468,11 +1479,11 @@ int main(int argc, char **argv) {
                 } /* end for (pi: rewrite+merge pass) */
 
                 /* Rewrite label references in the main program's own statements.
-                 * Imported var/func/struct nodes are already rewritten above; this
-                 * pass fixes the main file's own initializers and function bodies
-                 * that reference imported names by their original (unqualified) name. */
-                for (int si = 0; si < program->data.program.stmt_count; si++) {
-                    rewrite_labels(program->data.program.stmts[si],
+                 * Imported nodes are already rewritten inline above; only the
+                 * original main-file nodes need updating here. Using the snapshot
+                 * avoids re-walking all previously merged imports on every pass. */
+                for (int si = 0; si < main_stmt_snapshot_count; si++) {
+                    rewrite_labels(main_stmt_snapshot[si],
                         orig_names, new_names, name_count, arena);
                 }
 
