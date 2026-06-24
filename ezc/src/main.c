@@ -581,6 +581,10 @@ static void mark_imported(const char *path) {
 /* Scan a directory for .ez files. Returns count of files found.
  * Fills paths[] with full file paths (dir_path + "/" + filename). */
 #define MAX_DIR_FILES 256
+static int ez_path_cmp(const void *a, const void *b) {
+    return strcmp((const char *)a, (const char *)b);
+}
+
 static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int max_files) {
     DIR *d = opendir(dir_path);
     if (!d) return -1;
@@ -598,16 +602,7 @@ static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int 
     closedir(d);
 
     /* Sort alphabetically for deterministic import order */
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = i + 1; j < count; j++) {
-            if (strcmp(paths[i], paths[j]) > 0) {
-                char tmp[PATH_BUF_SIZE];
-                memcpy(tmp, paths[i], PATH_BUF_SIZE);
-                memcpy(paths[i], paths[j], PATH_BUF_SIZE);
-                memcpy(paths[j], tmp, PATH_BUF_SIZE);
-            }
-        }
-    }
+    qsort(paths, (size_t)count, PATH_BUF_SIZE, ez_path_cmp);
     return count;
 }
 
