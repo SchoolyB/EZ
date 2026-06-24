@@ -864,24 +864,20 @@ int main(int argc, char **argv) {
         memcpy(main_stmt_snapshot, program->data.program.stmts,
             sizeof(AstNode *) * main_stmt_snapshot_count);
 
-        /* Process imports iteratively — re-scan after each merge to find transitive imports.
-         * The already_imported cache prevents infinite loops and duplicate processing. */
-        bool found_new_import = true;
-        while (found_new_import) {
-            found_new_import = false;
-
-            /* Collect current import statements */
-            AstNode *import_stmts[EZ_MAX_IMPORTS];
-            int import_stmt_count = 0;
-            for (int si = 0; si < program->data.program.stmt_count; si++) {
-                if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
-                    import_stmt_count < EZ_MAX_IMPORTS) {
-                    import_stmts[import_stmt_count++] = program->data.program.stmts[si];
-                }
+        /* Seed import queue once from the initial program stmts — O(N), done once.
+         * Transitive imports push onto the tail as they are discovered, so the
+         * queue drains naturally without re-scanning the growing program AST. */
+        AstNode *import_queue[EZ_MAX_IMPORTS];
+        int iq_head = 0, iq_tail = 0;
+        for (int si = 0; si < program->data.program.stmt_count; si++) {
+            if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
+                iq_tail < EZ_MAX_IMPORTS) {
+                import_queue[iq_tail++] = program->data.program.stmts[si];
             }
+        }
 
-        for (int si = 0; si < import_stmt_count; si++) {
-            AstNode *stmt = import_stmts[si];
+        while (iq_head < iq_tail) {
+            AstNode *stmt = import_queue[iq_head++];
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
@@ -1119,7 +1115,6 @@ int main(int argc, char **argv) {
                         continue;
                     }
                     mark_imported_with_module(norm_path, mod_name);
-                    found_new_import = true;
 
                     /* Read and parse the imported file */
                     char *imp_source = read_file(cur_file_path);
@@ -1250,6 +1245,7 @@ int main(int argc, char **argv) {
                                     program->data.program.stmts = ns;
                                     program->data.program.stmt_cap = nc;
                                 }
+                                if (iq_tail < EZ_MAX_IMPORTS) import_queue[iq_tail++] = ts;
                                 program->data.program.stmts[program->data.program.stmt_count++] = ts;
                             }
                         }
@@ -1487,13 +1483,10 @@ int main(int argc, char **argv) {
                         orig_names, new_names, name_count, arena);
                 }
 
-                /* Mark this import item as fully processed so re-scanning
-                 * the import list on the next while iteration doesn't
-                 * trigger a spurious W2013 "already imported" warning. */
+                /* Mark this import item as fully processed. */
                 item->path = NULL;
             }
-        }
-        } /* end while (found_new_import) */
+        } /* end while (iq_head < iq_tail) */
     }
 
     /* Type check */
