@@ -96,16 +96,25 @@ static void emit(CodeGen *cg, const char *s) {
 }
 
 static void emitf(CodeGen *cg, const char *fmt, ...) {
+    /* Fast path: try a stack buffer first. vsnprintf always returns the full
+     * needed length even when truncated, so the slow path below can skip the
+     * NULL-buffer measure call and write directly in one vsnprintf. */
+    char stack_buf[256];
     va_list args;
     va_start(args, fmt);
-
-    int needed = vsnprintf(NULL, 0, fmt, args);
+    int n = vsnprintf(stack_buf, sizeof(stack_buf), fmt, args);
     va_end(args);
 
-    if (needed < 0) return;
+    if (n < 0) return;
 
-    /* Ensure buffer has space, then format directly into it */
-    size_t req = cg->output.len + (size_t)needed + 1;
+    if (n < (int)sizeof(stack_buf)) {
+        buf_appendn(&cg->output, stack_buf, (size_t)n);
+        return;
+    }
+
+    /* Slow path: formatted string exceeds stack buffer.
+     * n is already the exact required length — no second measure needed. */
+    size_t req = cg->output.len + (size_t)n + 1;
     if (req > cg->output.cap) {
         size_t new_cap = cg->output.cap * 2;
         if (new_cap < req) new_cap = req;
@@ -114,10 +123,9 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
     }
 
     va_start(args, fmt);
-    vsnprintf(cg->output.data + cg->output.len, (size_t)needed + 1, fmt, args);
+    vsnprintf(cg->output.data + cg->output.len, (size_t)n + 1, fmt, args);
     va_end(args);
-
-    cg->output.len += (size_t)needed;
+    cg->output.len += (size_t)n;
 }
 
 static void emit_indent(CodeGen *cg) {
