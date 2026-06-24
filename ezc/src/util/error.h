@@ -39,6 +39,8 @@ typedef struct {
     /* Source file cache for reading lines */
     const char *cached_file;
     const char *cached_source;
+    const char **line_offsets; /* line_offsets[i-1] = start of line i, built by diag_set_source */
+    int line_count;
 
     /* Options */
     bool use_color;

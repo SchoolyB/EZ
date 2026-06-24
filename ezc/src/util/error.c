@@ -61,6 +61,22 @@ static const char *read_source_line(const char *source, int line_num) {
     return buf;
 }
 
+static const char *read_source_line_indexed(const char * const *offsets,
+    int line_count, int line_num) {
+    if (!offsets || line_num < 1 || line_num > line_count) return NULL;
+
+    const char *line_start = offsets[line_num - 1];
+    const char *line_end = line_start;
+    while (*line_end && *line_end != '\n') line_end++;
+
+    static char buf[EZ_SOURCE_LINE_MAX];
+    int len = (int)(line_end - line_start);
+    if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
+    memcpy(buf, line_start, len);
+    buf[len] = '\0';
+    return buf;
+}
+
 static const char *read_file_to_string(const char *path) {
     FILE *f = fopen(path, "rb");
     if (!f) return NULL;
@@ -89,6 +105,7 @@ DiagnosticList *diag_create(void) {
 
 void diag_destroy(DiagnosticList *dl) {
     free(dl->items);
+    free(dl->line_offsets);
     /* cached_source is owned by caller, don't free it */
     free(dl);
 }
@@ -206,6 +223,26 @@ void diag_set_source(DiagnosticList *dl, const char *file, const char *source) {
     dl->cached_file = file;
     /* Don't free — source is owned by caller (main.c's read_file) */
     dl->cached_source = source;
+
+    free(dl->line_offsets);
+    dl->line_offsets = NULL;
+    dl->line_count = 0;
+
+    if (!source) return;
+
+    /* Count newlines to size the index (line_count = newlines + 1) */
+    int count = 1;
+    for (const char *p = source; *p; p++) {
+        if (*p == '\n') count++;
+    }
+
+    dl->line_offsets = xmalloc(sizeof(const char *) * (size_t)count);
+    dl->line_offsets[0] = source;
+    dl->line_count = 1;
+
+    for (const char *p = source; *p && dl->line_count < count; p++) {
+        if (*p == '\n') dl->line_offsets[dl->line_count++] = p + 1;
+    }
 }
 
 bool diag_has_errors(DiagnosticList *dl) {
@@ -265,9 +302,9 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
 
     /* Lines 3-4: source context with underline */
     const char *src_line = d->source_line;
-    if (!src_line && dl->cached_source && d->file &&
+    if (!src_line && dl->line_offsets && d->file &&
         dl->cached_file && strcmp(d->file, dl->cached_file) == 0) {
-        src_line = read_source_line(dl->cached_source, d->line);
+        src_line = read_source_line_indexed(dl->line_offsets, dl->line_count, d->line);
     }
     if (!src_line && d->file) {
         const char *file_content = read_file_to_string(d->file);
