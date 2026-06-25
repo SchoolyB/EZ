@@ -1496,9 +1496,12 @@ static AstNode *parse_var_declaration(Parser *p) {
                 next_token(p); /* name (IDENT or _) */
                 names[var_count] = p->cur_token.literal;
                 if (cur_token_is(p, TOK_BLANK)) names[var_count] = "_";
-                if (peek_token_is(p, TOK_IDENT)) {
-                    next_token(p); /* type */
-                    types[var_count] = p->cur_token.literal;
+                if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) ||
+                    peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_STRUCT) ||
+                    peek_token_is(p, TOK_ENUM) || peek_token_is(p, TOK_QUESTION)) {
+                    next_token(p);
+                    types[var_count] = parse_complex_type(p);
+                    if (!types[var_count]) return NULL;
                 } else {
                     types[var_count] = NULL;
                 }
