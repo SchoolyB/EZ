@@ -1055,6 +1055,29 @@ static AstNode *parse_prefix(Parser *p) {
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
         return node;
     }
+    case TOK_IN:
+    case TOK_NOT_IN: {
+        /* 'in'/'not_in'/'!in' used without a left-hand value */
+        Token bad_tok = p->cur_token;
+        const char *op = bad_tok.literal;
+        char buf[EZ_MSG_BUF_SIZE];
+        snprintf(buf, sizeof(buf),
+            "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range",
+            op, op);
+        diag_error_msg(p->diag, "E2086", arena_strdup(p->arena, buf),
+            p->file, bad_tok.line, bad_tok.column, 0);
+        /* Consume the operator and its right-hand operand so subsequent tokens
+         * (like the if-body '{') are seen in the right context. */
+        next_token(p);
+        p->no_struct_literal = true;
+        parse_expression(p, PREC_LOWEST);
+        p->no_struct_literal = false;
+        /* Return a dummy bool so the condition slot is non-NULL and the
+         * typechecker does not add a second spurious diagnostic. */
+        AstNode *dummy = ast_alloc(p->arena, NODE_BOOL_VALUE, bad_tok);
+        dummy->data.bool_value.value = true;
+        return dummy;
+    }
     default:
     {
         /* Skip generic error for ILLEGAL tokens; the lexer already emitted a specific diagnostic */

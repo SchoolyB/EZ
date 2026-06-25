@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2086 - 'in' used without a left-hand value
+ * Expected: "'in' requires a value on the left side"
+ */
+
+do main() {
+    if in range(0, 10) {
+        println("test")
+    }
+}
