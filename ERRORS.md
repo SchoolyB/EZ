@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 342 codes** (235 errors, 17 warnings, 90 panics)
+**Total: 343 codes** (236 errors, 17 warnings, 90 panics)
 
 ---
 
@@ -28,6 +28,7 @@
 | `E1020` | syntax | unexpected '|' character; use '||' for logical OR |
 | `E1021` | syntax | unclosed string; add a closing double quote |
 | `E1022` | syntax | unexpected character |
+| `E1023` | syntax | string literals cannot span multiple lines; use a raw string with backticks for multi-line text |
 | `E2001` | syntax | unexpected symbol |
 | `E2002` | syntax | missing symbol; expected a bracket, parenthesis, or keyword |
 | `E2010` | syntax | cannot use module '%s' before importing it; add 'import @%s' before the using statement |
@@ -393,4 +394,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-23 05:44:51 UTC*
+*Generated on 2026-06-25 20:05:08 UTC*

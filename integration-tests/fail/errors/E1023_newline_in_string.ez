@@ -1,0 +1,10 @@
+/*
+ * Error Test: E1023 - newline in string literal
+ * Expected: "string literals cannot span multiple lines"
+ */
+
+do main() {
+    const s string = "line one
+line two"
+    println(s)
+}

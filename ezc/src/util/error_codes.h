@@ -44,7 +44,8 @@
     EZ_ERROR("E1019", "syntax", "unexpected '#' character; use '//' for comments") \
     EZ_ERROR("E1020", "syntax", "unexpected '|' character; use '||' for logical OR") \
     EZ_ERROR("E1021", "syntax", "unclosed string; add a closing double quote") \
-    EZ_ERROR("E1022", "syntax", "unexpected character")
+    EZ_ERROR("E1022", "syntax", "unexpected character") \
+    EZ_ERROR("E1023", "syntax", "string literals cannot span multiple lines; use a raw string with backticks for multi-line text")
 
 /* --- E2xxx: Understanding Your Code (Parser) --- */
 #define EZ_PARSER_ERRORS \

@@ -1089,6 +1089,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         /* Next char is also hex; break the string */
                         emit(cg, "\" \"");
                     }
+                } else if (*s == '\n') {
+                    emit(cg, "\\n");
+                    s++;
+                } else if (*s == '\r') {
+                    emit(cg, "\\r");
+                    s++;
                 } else {
                     buf_append_char(&cg->output, *s);
                     s++;
