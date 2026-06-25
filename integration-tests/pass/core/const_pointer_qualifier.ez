@@ -1,0 +1,45 @@
+/*
+ * const_pointer_qualifier.ez - const pointer emits T * const, not const T *
+ *
+ * A const pointer variable cannot be reassigned, but the data it points
+ * to is mutable. The generated C must use T * const (const pointer to
+ * mutable T) rather than const T * (pointer to const T).
+ */
+
+const Node struct {
+    val int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Mutation through a const pointer must compile without warnings
+    // and produce the correct result at runtime.
+    mut n = new(Node)
+    n^.val = 5
+    const p ^Node = n
+    p^.val = 10
+    if n^.val == 10 {
+        passed++
+    } otherwise {
+        println("FAIL: mutation through const pointer did not propagate")
+        failed++
+    }
+
+    // addr() of a field accessed through a const pointer must be usable
+    // as a mutable pointer (no const qualifier on the pointee).
+    mut field_ptr ^int = addr(p^.val)
+    field_ptr^ = 99
+    if n^.val == 99 {
+        passed++
+    } otherwise {
+        println("FAIL: addr() through const pointer produced wrong value")
+        failed++
+    }
+
+    println("const_pointer_qualifier: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    }
+}

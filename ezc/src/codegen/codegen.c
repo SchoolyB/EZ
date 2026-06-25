@@ -6971,10 +6971,19 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     }
 
     if (!node->data.var_decl.mutable) {
-        emit(cg, "const ");
+        if (type_name && type_name[0] == '^') {
+            /* const pointer: T * const p — the pointer is immutable, not the
+             * pointed-to data.  Placing const before the type would produce
+             * const T * p (pointer to const T), which incorrectly propagates
+             * the const qualifier through dereferences and field accesses. */
+            emitf(cg, "%s const %s", c_type, safe_name(node->data.var_decl.name));
+        } else {
+            emit(cg, "const ");
+            emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
+        }
+    } else {
+        emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
     }
-
-    emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
 
     if (node->data.var_decl.value) {
         emit(cg, " = ");
