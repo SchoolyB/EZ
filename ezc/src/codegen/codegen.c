@@ -6661,6 +6661,28 @@ static bool emit_narrowing_cast(CodeGen *cg, const char *target,
     return true;
 }
 
+/* Emit the initializer for a fixed-size array declaration.
+ * When the value is a partial array literal (count < fixed_size), a C
+ * compound literal with an explicit size is used so the trailing slots are
+ * zero-initialized by C semantics, and fixed_size is passed as the EzArray
+ * length so index bounds match the declared size N, not the init count k. */
+static void emit_fixed_size_array_init(CodeGen *cg, AstNode *value,
+                                       const char *elem_type, int fixed_size) {
+    if (value && value->kind == NODE_ARRAY_VALUE &&
+        value->data.array_value.count < fixed_size) {
+        const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+        int count = value->data.array_value.count;
+        emitf(cg, "ez_array_from(ez_default_arena, (%s[%d]){", c_elem_type, fixed_size);
+        for (int i = 0; i < count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, value->data.array_value.elements[i]);
+        }
+        emitf(cg, "}, sizeof(%s), %d)", c_elem_type, fixed_size);
+    } else {
+        emit_expression(cg, value);
+    }
+}
+
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
 
@@ -6691,7 +6713,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                     Buf saved = cg->output;
                     cg->output = cg->global_init;
                     cg->indent = 1;
-                    emit_expression(cg, node->data.var_decl.value);
+                    emit_fixed_size_array_init(cg, node->data.var_decl.value, elem_type, fixed_size);
                     emit(cg, ";\n");
                     cg->global_init = cg->output;
                     cg->output = saved;
@@ -6700,7 +6722,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             } else {
                 emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
                 if (node->data.var_decl.value) {
-                    emit_expression(cg, node->data.var_decl.value);
+                    emit_fixed_size_array_init(cg, node->data.var_decl.value, elem_type, fixed_size);
                 } else {
                     const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
                     emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), %d)", c_elem_type, fixed_size);

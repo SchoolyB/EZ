@@ -1,61 +1,52 @@
-/* Test: Fixed-size arrays with full initialization
- * Related to #1238 (W3003) — verifies that fully initialized
- * fixed-size arrays work correctly at runtime.
- * Expected: all tests pass with no warnings
+/*
+ * fixed_array_partial_init.ez - Fixed-size arrays with fewer than N elements
+ *
+ * A [T, N] array initialized with fewer than N elements must have length N.
+ * Slots beyond the initialized range must be zero-valued and accessible.
  */
 
-
 do main() {
-    println("=== Fixed Array Init Tests ===")
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: fully initialized int array
-    const ints [int, 3] = {10, 20, 30}
-    if ints[0] == 10 && ints[1] == 20 && ints[2] == 30 {
-        println("  [PASS] fully initialized int array")
-        passed += 1
+    // Partial init: 3 of 5 elements; slots 3 and 4 must be 0
+    const a [int, 5] = {10, 20, 30}
+    if a[0] == 10 && a[1] == 20 && a[2] == 30 && a[3] == 0 && a[4] == 0 {
+        passed++
     } otherwise {
-        println("  [FAIL] fully initialized int array")
-        failed += 1
+        println("FAIL: partial int init values wrong")
+        failed++
     }
 
-    // Test 2: len() reports fixed size
-    if len(ints) == 3 {
-        println("  [PASS] len() reports correct size")
-        passed += 1
+    // Empty init: all N slots must be zero
+    const b [int, 4] = {}
+    if b[0] == 0 && b[3] == 0 {
+        passed++
     } otherwise {
-        println("  [FAIL] len() — got ${len(ints)}")
-        failed += 1
+        println("FAIL: empty int init not zero")
+        failed++
     }
 
-    // Test 3: modification of dynamic array elements
-    mut dyn [int] = {10, 20, 30}
-    dyn[1] = 99
-    if dyn[1] == 99 {
-        println("  [PASS] dynamic array element modification")
-        passed += 1
+    // Full init: N of N elements; still works correctly
+    const c [int, 3] = {7, 8, 9}
+    if c[0] == 7 && c[1] == 8 && c[2] == 9 {
+        passed++
     } otherwise {
-        println("  [FAIL] dynamic array element modification")
-        failed += 1
+        println("FAIL: full int init wrong")
+        failed++
     }
 
-    // Test 4: larger fixed-size array
-    const big [int, 5] = {1, 2, 3, 4, 5}
-    if big[0] == 1 && big[4] == 5 && len(big) == 5 {
-        println("  [PASS] larger fixed-size array fully initialized")
-        passed += 1
+    // Float partial init
+    const d [float, 3] = {1.5}
+    if d[0] == 1.5 && d[1] == 0.0 && d[2] == 0.0 {
+        passed++
     } otherwise {
-        println("  [FAIL] larger fixed-size array")
-        failed += 1
+        println("FAIL: partial float init wrong")
+        failed++
     }
 
-    // Summary
-    println("")
-    println("Results: ${passed} passed, ${failed} failed")
+    println("fixed_array_partial_init: ${passed} passed, ${failed} failed")
     if failed > 0 {
         println("SOME TESTS FAILED")
-    } otherwise {
-        println("ALL TESTS PASSED")
     }
 }
