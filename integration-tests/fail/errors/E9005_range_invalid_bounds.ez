@@ -1,6 +1,6 @@
 /*
  * Error Test: E9005 - range-invalid-bounds
- * Expected: "invalid range" or "start" or "less than"
+ * Expected: "invalid range" or "start" or "less than or equal to"
  */
 
 do main() {

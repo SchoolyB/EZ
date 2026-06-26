@@ -9148,7 +9148,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     int64_t start_val = r->data.range_expr.start->data.int_value.value;
                     int64_t end_val = r->data.range_expr.end->data.int_value.value;
                     bool negative_step = has_neg_step || has_neg_prefix;
-                    bool invalid = negative_step ? (start_val < end_val) : (start_val >= end_val);
+                    bool invalid = negative_step ? (start_val < end_val) : (start_val > end_val);
                     if (invalid) {
                         char msg[EZ_MSG_BUF_SIZE];
                         if (negative_step) {
@@ -9157,7 +9157,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 (long long)start_val, (long long)end_val);
                         } else {
                             snprintf(msg, sizeof(msg),
-                                "invalid range: start (%lld) must be less than end (%lld)",
+                                "invalid range: start (%lld) must be less than or equal to end (%lld)",
                                 (long long)start_val, (long long)end_val);
                         }
                         diag_error_msg(tc->diag, "E9005", arena_strdup(tc->arena, msg),
