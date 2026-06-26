@@ -9,6 +9,7 @@
 
 #include "typechecker.h"
 #include "../util/constants.h"
+#include "../util/reserved.h"
 #include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,37 +127,6 @@ static bool strset_contains(const char *const *sorted, int n, const char *name) 
     return bsearch(&name, sorted, (size_t)n, sizeof(const char *), strptr_cmp) != NULL;
 }
 
-/* --- Reserved type name check --- */
-static bool is_reserved_type_name(const char *name) {
-    return strcmp(name, "int") == 0 || strcmp(name, "uint") == 0 ||
-           strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
-           strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
-           strcmp(name, "byte") == 0 || strcmp(name, "void") == 0 ||
-           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0 ||
-           strcmp(name, "SourceLocation") == 0;
-}
-
-/* Builtin function names that user code may not redeclare. */
-static bool is_reserved_builtin_func_name(const char *name) {
-    static const char *const builtins[] = {
-        "addr", "assert", "c_string", "cast", "char_count", "copy",
-        "embed", "eprint", "eprintln", "error", "exit", "here",
-        "input", "len", "panic", "print", "println", "ref", "size_of",
-        "sleep_ms", "sleep_ns", "sleep_s", "to_char", "type_of",
-    };
-    return strset_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
-}
-
-/* Standard library module names that user code may not shadow. */
-static bool is_stdlib_module_name(const char *name) {
-    static const char *const modules[] = {
-        "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
-        "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
-        "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-    };
-    return strset_contains(modules, (int)(sizeof(modules)/sizeof(modules[0])), name);
-}
 
 /* Forward declaration — resolve_expr is defined later but needed by helper
  * routines and stdlib arg-type validation. */
@@ -1332,8 +1302,6 @@ static const char *suggest_name(TypeChecker *tc, const char *name) {
 
 /* --- Builtin name check --- */
 
-static bool is_valid_module(const char *name);
-
 static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
     for (int i = 0; i < tc->import_count; i++) {
         if (strcmp(tc->imported_modules[i], name) == 0) return true;
@@ -1504,16 +1472,6 @@ static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
     node->data.call.arg_names = NULL; /* now positional */
 }
 
-static bool tc_is_stdlib_module(const char *name) {
-    static const char *const stdlib_mods[] = {
-        "arrays", "atomic", "atomic_mod", "bigint", "binary", "bytes",
-        "channels", "crypto", "csv", "encoding", "fmt", "http",
-        "io", "json", "maps", "math", "mem", "net", "os", "random",
-        "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-    };
-    return strset_contains(stdlib_mods, (int)(sizeof(stdlib_mods)/sizeof(stdlib_mods[0])), name);
-}
 
 /* stdlib functions reachable via `import and use` / `using`. */
 typedef struct { const char *func; const char *mod; TypeKind ret; } UsingFunc;
@@ -3117,7 +3075,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     break;
                 }
             }
-            if (!mod_imported && is_valid_module(mod)) {
+            if (!mod_imported && is_stdlib_module_name(mod)) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "module '%s' is not imported; add 'import @%s' at the top of the file",
@@ -6827,7 +6785,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (obj->kind == NODE_LABEL) {
                 const char *mod_name = tc_resolve_alias(tc, obj->data.label.value);
                 /* Surface 2: ()module.func — stdlib module functions are not first-class values */
-                if (tc_is_stdlib_module(mod_name)) {
+                if (is_stdlib_module_name(mod_name)) {
                     char msg[EZ_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                         "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values",
@@ -6861,7 +6819,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
                 if (!using_module_accessible(tc, ui)) continue;
                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
-                if (tc_is_stdlib_module(real_mod)) {
+                if (is_stdlib_module_name(real_mod)) {
                     for (int fi = 0; _using_funcs[fi].func; fi++) {
                         if (strcmp(ref_name, _using_funcs[fi].func) == 0 &&
                             strcmp(real_mod, _using_funcs[fi].mod) == 0) {
@@ -9752,18 +9710,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * These names map to internal C types (EzRouter, EzThread, etc.) before the
          * user-struct path, so any user struct with these names silently generates
          * invalid C with no EZ diagnostic. */
-        static const char *reserved_stdlib_struct_names[] = {
-            "Thread", "Mutex", "SpinLock", "Channel", "Socket",
-            "Listener", "Database", "Router", "HttpRequest", "HttpResponse",
-            "UUID", NULL
-        };
         const char *sname = STRUCT_DISPLAY_NAME(node);
-        for (int ri = 0; reserved_stdlib_struct_names[ri]; ri++) {
-            if (strcmp(sname, reserved_stdlib_struct_names[ri]) == 0) {
-                diag_error_codef(tc->diag, "E3099",
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname);
-                break;
-            }
+        if (is_reserved_stdlib_struct_name(sname)) {
+            diag_error_codef(tc->diag, "E3099",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname);
         }
         /* E2053: struct inside function */
         if (tc->func_depth > 0) {
@@ -10089,17 +10039,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
 /* --- Registration pass --- */
 
-/* Known stdlib module names */
-static bool is_valid_module(const char *name) {
-    static const char *const modules[] = {
-        "arrays", "atomic", "binary", "bytes", "channels", "crypto",
-        "csv", "db", "encoding", "errors", "fmt", "http",
-        "io", "json", "maps", "math", "mem", "net", "os", "random",
-        "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-    };
-    return strset_contains(modules, (int)(sizeof(modules)/sizeof(modules[0])), name);
-}
 
 /* : returns true if any NODE_STRUCT_DECL in the program has the given
  * name. Used by pointer-field pointee validation to accept forward
@@ -10265,7 +10204,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         if (stmt->kind == NODE_IMPORT_STMT) {
             for (int j = 0; j < stmt->data.import_stmt.count; j++) {
                 ImportItem *item = &stmt->data.import_stmt.items[j];
-                if (item->is_stdlib && item->module && !is_valid_module(item->module)) {
+                if (item->is_stdlib && item->module && !is_stdlib_module_name(item->module)) {
                     diag_error_codef(tc->diag, "E6001", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, item->module);
                 }
                 /* Record import for unused-import tracking.
