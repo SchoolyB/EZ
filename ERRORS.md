@@ -13,7 +13,7 @@
 |------|----------|-------------|
 | `E1003` | syntax | unclosed multi-line comment; add */ |
 | `E1005` | syntax | unclosed character; add a closing single quote |
-| `E1006` | syntax | invalid escape sequence in string; valid escapes are \\n \\t \\\\ \\\ |
+| `E1006` | syntax | invalid escape sequence in string; valid escapes are \\n \\t \\\\ \\\" and \\x |
 | `E1007` | syntax | invalid escape sequence in character |
 | `E1010` | syntax | invalid number format; hex (0x), octal (0o), or binary (0b) prefix must be followed by digits |
 | `E1011` | syntax | number cannot have consecutive underscores |
@@ -116,7 +116,7 @@
 | `E3048` | types | operator '+' is not defined for strings; use string interpolation or fmt.format() instead |
 | `E3049` | types | cannot use '%s' on enum values; enums only support == and != comparisons |
 | `E3050` | types | array needs a type annotation; declare as [T] (e.g., mut x [int] = {1, 2, 3}) |
-| `E3051` | types | map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\ |
+| `E3051` | types | map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1}) |
 | `E3052` | types | too many elements in array initializer; declared size is %d, got %d |
 | `E3053` | types | type mismatch in array initializer; expected '%s', got '%s' |
 | `E3054` | types | mutable arrays cannot have a fixed size; remove the size or use 'const' (e.g., mut %s %.*s] = ...) |
@@ -397,4 +397,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-26 19:43:14 UTC*
+*Generated on 2026-06-26 20:09:34 UTC*
