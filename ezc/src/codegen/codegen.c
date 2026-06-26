@@ -2545,6 +2545,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "ez_float_to_int((double)(");
             emit_expression(cg, val);
             emit(cg, "), __FILE__, __LINE__)");
+        } else if ((strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0) && val_kind == TK_FLOAT) {
+            /* float → uint: negative values and overflow are undefined behavior in C; panic instead */
+            emit(cg, "ez_float_to_uint((double)(");
+            emit_expression(cg, val);
+            emit(cg, "), __FILE__, __LINE__)");
         } else if (val_kind == TK_STRING) {
             /* string → numeric (targets other than int/float handled above):
              * parse to int64/double first, then apply narrowing check */

@@ -378,7 +378,8 @@
     EZ_PANIC("P0087", "io",         "io.write_file() cannot write to a directory") \
     EZ_PANIC("P0088", "io",         "io.append_file() cannot append to a directory") \
     EZ_PANIC("P0089", "io",         "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually") \
-    EZ_PANIC("P0090", "runtime",    "range step cannot be zero")
+    EZ_PANIC("P0090", "runtime",    "range step cannot be zero") \
+    EZ_PANIC("P0091", "arithmetic", "cannot convert float to uint; the value is negative, too large, or NaN")
 
 /* --- Warnings --- */
 #define EZ_WARNINGS \
