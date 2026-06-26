@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 345 codes** (237 errors, 17 warnings, 91 panics)
+**Total: 346 codes** (238 errors, 17 warnings, 91 panics)
 
 ---
 
@@ -187,6 +187,7 @@
 | `E3120` | types | pointer ordering comparisons are not supported; only == and != are allowed on pointers |
 | `E3121` | types | cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum |
 | `E3122` | safety | cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer |
+| `E3123` | iteration | for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -396,4 +397,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-26 19:39:37 UTC*
+*Generated on 2026-06-26 19:43:14 UTC*

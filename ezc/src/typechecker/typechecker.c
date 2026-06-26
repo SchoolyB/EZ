@@ -9206,6 +9206,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3123: both index and value discarded — no collection access occurs */
+        {
+            const char *var = node->data.for_each.var_name;
+            const char *idx = node->data.for_each.index_name;
+            if (idx && strcmp(idx, "_") == 0 && var && strcmp(var, "_") == 0) {
+                diag_error_codef(tc->diag, "E3123", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0);
+                tc->current_scope = outer;
+                break;
+            }
+        }
+
         /* Resolve collection type to determine element type */
         EzType *coll_t = resolve_expr(tc, node->data.for_each.collection);
 

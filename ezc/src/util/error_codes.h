@@ -209,7 +209,8 @@
     EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'") \
     EZ_ERROR("E3120", "types", "pointer ordering comparisons are not supported; only == and != are allowed on pointers") \
     EZ_ERROR("E3121", "types", "cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum") \
-    EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer")
+    EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer") \
+    EZ_ERROR("E3123", "iteration", "for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
