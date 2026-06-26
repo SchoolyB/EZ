@@ -660,23 +660,23 @@ mut s Shape = .Circle(3.14)
 
 **Destructuring with `when/is`:**
 
-Use pattern destructuring in `when/is` to extract payload values:
+Use pattern destructuring in `when/is` to extract payload values. Use the fully-qualified form:
 
 ```ez
 when shape {
-    is Circle(radius) {
+    is Shape.Circle(radius) {
         println("Circle with radius ${radius}")
     }
-    is Rect(w, h) {
+    is Shape.Rect(w, h) {
         println("Rectangle ${w} x ${h}")
     }
-    is Point {
+    is Shape.Point {
         println("Just a point")
     }
 }
 ```
 
-Implicit selector patterns also work in `when/is`:
+The implicit selector form (dot-prefix) also works:
 
 ```ez
 when shape {
