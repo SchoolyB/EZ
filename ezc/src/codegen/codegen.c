@@ -1404,6 +1404,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         TypeKind tk = elem_t ? elem_t->kind : TK_INT;
 
+        /* Integer literals in a declared [float]/[f32]/[f64] array must use
+         * double so the C compound literal stores the correct IEEE 754 bits
+         * instead of raw int64_t bit patterns. */
+        if (tk == TK_INT && cg->current_var_type) {
+            const char *cvt = cg->current_var_type;
+            if (strcmp(cvt, "[float]") == 0 || strcmp(cvt, "[f32]") == 0 || strcmp(cvt, "[f64]") == 0)
+                tk = TK_FLOAT;
+        }
+
         const char *c_type;
         /* Check for bigint types first */
         if (bi_elem) {
