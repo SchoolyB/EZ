@@ -320,7 +320,7 @@ func printBuiltinsIndex() {
 		{"Control    ", []string{"exit", "panic", "assert"}},
 		{"Sleep      ", []string{"sleep_s", "sleep_ms", "sleep_ns"}},
 		{"Type casts ", []string{"int", "uint", "float", "string", "char", "byte", "bool", "cast"}},
-		{"Width casts", []string{"i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "i128", "i256", "u128", "u256"}},
+		{"Width casts", []string{"i128", "u128", "i256", "u256"}},
 		{"Memory     ", []string{"new", "ref", "addr", "copy"}},
 		{"Introspect ", []string{"len", "type_of", "size_of"}},
 		{"Misc       ", []string{"error", "range", "c_string", "to_char", "char_count", "here"}},
