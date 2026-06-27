@@ -2539,8 +2539,8 @@ static AstNode *parse_for_statement(Parser *p) {
     bool has_parens = peek_token_is(p, TOK_LPAREN);
     if (has_parens) next_token(p);
 
-    if (peek_token_is(p, TOK_IDENT)) {
-        next_token(p);  /* advance: cur_token = IDENT */
+    if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
+        next_token(p);  /* advance: cur_token = IDENT or BLANK */
         if (peek_token_is(p, TOK_IN)) {
             /* --- iteration form: for x in range(...) { } --- */
             /* 'for x in ...' is only valid with range().

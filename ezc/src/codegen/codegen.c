@@ -8056,7 +8056,15 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     AstNode *iter = node->data.for_stmt.iterable;
     if (iter && iter->kind == NODE_RANGE_EXPR) {
         /* for i in range(start, end) or range(start, end, step) */
-        const char *var = safe_name(node->data.for_stmt.var_name);
+        static int blank_for_counter = 0;
+        static char blank_for_buf[64];
+        const char *var;
+        if (strcmp(node->data.for_stmt.var_name, "_") == 0) {
+            snprintf(blank_for_buf, sizeof(blank_for_buf), "_ez_for_blank_%d", blank_for_counter++);
+            var = blank_for_buf;
+        } else {
+            var = safe_name(node->data.for_stmt.var_name);
+        }
 
         if (iter->data.range_expr.start) {
             /* range(start, end) or range(start, end, step) */

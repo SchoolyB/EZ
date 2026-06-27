@@ -1115,6 +1115,16 @@ for (i in range(0, 10)) {
 }
 ```
 
+Use the blank identifier `_` to iterate by count without needing the loop variable:
+
+```ez
+for _ in range(0, 5) {
+    // body runs 5 times; loop counter is discarded
+}
+```
+
+`_` cannot be read inside the loop body. If you need the counter value, use a named variable instead.
+
 #### 6.3.2 For-Each Loops
 
 ```ez
