@@ -259,7 +259,8 @@
     EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'") \
     EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared") \
     EZ_ERROR("E5036", "usage", "'%s' is a type, not a function; use cast(value, %s) to convert") \
-    EZ_ERROR("E5037", "usage", "copy() cannot be applied to a pointer; dereference first with copy(p^)")
+    EZ_ERROR("E5037", "usage", "copy() cannot be applied to a pointer; dereference first with copy(p^)") \
+    EZ_ERROR("E5038", "usage", "tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \

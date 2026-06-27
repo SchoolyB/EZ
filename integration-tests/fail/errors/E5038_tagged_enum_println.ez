@@ -1,0 +1,10 @@
+const Shape enum {
+    Circle(float)
+    Rect(float, float)
+    Point
+}
+
+do main() {
+    mut s Shape = Shape.Circle(3.14)
+    println(s)
+}

@@ -296,6 +296,16 @@ static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
     return false;
 }
 
+/* Returns true if the named enum is a tagged enum (has payload variants). */
+static bool tc_enum_is_tagged(TypeChecker *tc, const char *name) {
+    if (!name) return false;
+    for (int i = 0; i < tc->enum_count; i++) {
+        if (strcmp(tc->enum_names[i], name) == 0)
+            return tc->enum_is_tagged[i];
+    }
+    return false;
+}
+
 /* A type name fit to print in a diagnostic — for struct/enum types this
  * is the user-facing name, never the module-prefixed lookup key. Composite
  * types (pointers, arrays, maps) recurse into their inner types so that
@@ -5161,6 +5171,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         diag_error_msg(tc->diag, "E5028", arena_strdup(tc->arena, msg),
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
+                    if (at->kind == TK_ENUM && at->name && tc_enum_is_tagged(tc, at->name)) {
+                        diag_error_codef(tc->diag, "E5038",
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                            enum_display_name(tc, at->name), fn_name);
+                    }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
@@ -5185,6 +5200,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             fn_name);
                         diag_error_msg(tc->diag, "E5028", arena_strdup(tc->arena, msg),
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                    if (at->kind == TK_ENUM && at->name && tc_enum_is_tagged(tc, at->name)) {
+                        diag_error_codef(tc->diag, "E5038",
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                            enum_display_name(tc, at->name), fn_name);
                     }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
