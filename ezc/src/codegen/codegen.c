@@ -2901,6 +2901,13 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
         return;
     }
     EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    if (at && at->kind == TK_ERROR) {
+        int t = next_dc_tag();
+        emitf(cg, "({ EzError *_ez_str_err%d = (", t);
+        emit_expression(cg, arg);
+        emitf(cg, "); _ez_str_err%d ? _ez_str_err%d->message : ez_c_string_dup(ez_default_arena, \"nil\"); })", t, t);
+        return;
+    }
     if (at && at->kind == TK_FLOAT)
         emit(cg, "ez_builtin_to_string_float(ez_default_arena, ");
     else if (at && at->kind == TK_BOOL)

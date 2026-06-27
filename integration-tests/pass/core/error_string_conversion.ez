@@ -1,0 +1,23 @@
+do main() {
+    mut err Error = error("oops")
+
+    mut s string = string(err)
+    if s != "oops" {
+        println("FAIL: expected 'oops', got '${s}'")
+        exit(1)
+    }
+
+    if string(err) != "${err}" {
+        println("FAIL: string(err) and interpolation disagree")
+        exit(1)
+    }
+
+    mut nil_err Error = nil
+    mut ns string = string(nil_err)
+    if ns != "nil" {
+        println("FAIL: expected 'nil' for nil error, got '${ns}'")
+        exit(1)
+    }
+
+    println("PASS")
+}
