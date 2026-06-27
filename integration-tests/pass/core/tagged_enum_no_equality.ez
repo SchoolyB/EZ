@@ -1,0 +1,22 @@
+const Shape enum {
+    Circle(float)
+    Rect(float, float)
+    Point
+}
+
+const Color enum {
+    Red
+    Green
+    Blue
+}
+
+do main() {
+    mut c1 Color = Color.Red
+    mut c2 Color = Color.Green
+    if c1 != c2 {
+        println("plain enum != works")
+    }
+    if c1 == Color.Red {
+        println("plain enum == works")
+    }
+}

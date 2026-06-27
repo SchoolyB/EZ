@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 346 codes** (238 errors, 17 warnings, 91 panics)
+**Total: 347 codes** (239 errors, 17 warnings, 91 panics)
 
 ---
 
@@ -188,6 +188,7 @@
 | `E3121` | types | cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum |
 | `E3122` | safety | cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer |
 | `E3123` | iteration | for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count |
+| `E3124` | types | operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or != |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -397,4 +398,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-26 20:09:34 UTC*
+*Generated on 2026-06-27 20:07:05 UTC*

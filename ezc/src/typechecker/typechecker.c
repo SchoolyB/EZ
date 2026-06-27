@@ -2461,6 +2461,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3124: == / != on tagged enums. Tagged enums are emitted as C
+         * structs (union + tag field) and cannot be compared with ==.
+         * Reject at the EZ level before C is ever invoked. */
+        if (!infix_errored &&
+            (op == TOK_EQ || op == TOK_NOT_EQ) &&
+            left->kind == TK_ENUM && right->kind == TK_ENUM &&
+            left->name) {
+            int eidx = -1;
+            for (int ei = 0; ei < tc->enum_count; ei++)
+                if (strcmp(tc->enum_names[ei], left->name) == 0) { eidx = ei; break; }
+            if (eidx >= 0 && tc->enum_is_tagged[eidx]) {
+                diag_error_codef(tc->diag, "E3124",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    op_to_str(op), enum_display_name(tc, left->name));
+                infix_errored = true;
+            }
+        }
+
         /* E3049: arithmetic and ordering on enum values — catch both
          * direct enum literals (Color.RED + 1) and variables of enum
          * type (c + 1).  Enums only support == and != comparison.
