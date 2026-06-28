@@ -7320,6 +7320,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (obj_t && obj_t->kind == TK_POINTER) map_via_ptr = true;
             }
 
+            bool ms_compound = (node->data.assign.op != TOK_ASSIGN);
+            const char *ms_base_op = NULL;
+            if (ms_compound) {
+                switch (node->data.assign.op) {
+                    case TOK_PLUS_ASSIGN:     ms_base_op = "+"; break;
+                    case TOK_MINUS_ASSIGN:    ms_base_op = "-"; break;
+                    case TOK_ASTERISK_ASSIGN: ms_base_op = "*"; break;
+                    case TOK_SLASH_ASSIGN:    ms_base_op = "/"; break;
+                    case TOK_PERCENT_ASSIGN:  ms_base_op = "%"; break;
+                    default: ms_compound = false; break;
+                }
+            }
             emitf(cg, "{ %s _mk = ", c_key);
             emit_expression(cg, node->data.assign.target->data.index_expr.index);
             emit(cg, "; ");
@@ -7332,8 +7344,32 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, "; ez_default_arena = _esc; } ");
                 }
             }
+            /* For compound assignments, read the existing value first so the
+             * operation is applied on top of the current entry rather than
+             * against a zero/uninitialized base. */
+            if (ms_compound) {
+                if (map_via_ptr) {
+                    /* Capture _mp early so _cur can reference the map field. */
+                    emitf(cg, "__auto_type _mp = ");
+                    emit_expression(cg, left->data.member.object);
+                    emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                          "void *_cur = ez_map_get(&_mp->%s, &_mk); "
+                          "if (!_cur) { ez_panic_code(\"P0081\", \"key not found in map\"); } ",
+                          safe_name(left->data.member.member));
+                } else {
+                    emitf(cg, "void *_cur = ez_map_get(&");
+                    emit_expression(cg, left);
+                    emitf(cg, ", &_mk); if (!_cur) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
+                }
+            }
             emitf(cg, "%s _mv = ", c_val);
-            emit_expression(cg, node->data.assign.value);
+            if (ms_compound) {
+                emitf(cg, "*(%s*)_cur %s (", c_val, ms_base_op);
+                emit_expression(cg, node->data.assign.value);
+                emit(cg, ")");
+            } else {
+                emit_expression(cg, node->data.assign.value);
+            }
             emit(cg, "; ");
             if (cg->loop_scope_depth > 0) {
                 if (ms_str_val) {
@@ -7345,12 +7381,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 }
             }
             if (map_via_ptr) {
-                /* Nil-check the pointer, then use -> to yield an lvalue */
-                emitf(cg, "{ __auto_type _mp = ");
-                emit_expression(cg, left->data.member.object);
-                emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
-                    "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
-                    ms_arena, safe_name(left->data.member.member));
+                if (ms_compound) {
+                    /* _mp was captured above; just set and close the outer block. */
+                    emitf(cg, "ez_map_set(%s, &_mp->%s, &_mk, &_mv); }\n",
+                        ms_arena, safe_name(left->data.member.member));
+                } else {
+                    /* Nil-check the pointer, then use -> to yield an lvalue. */
+                    emitf(cg, "{ __auto_type _mp = ");
+                    emit_expression(cg, left->data.member.object);
+                    emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                        "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
+                        ms_arena, safe_name(left->data.member.member));
+                }
             } else {
                 emitf(cg, "ez_map_set(%s, &", ms_arena);
                 emit_expression(cg, left);
