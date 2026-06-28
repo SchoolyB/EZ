@@ -156,11 +156,11 @@ EzString ez_string_format(EzArena *arena, const char *fmt, ...) {
 }
 
 EzString ez_string_concat(EzArena *arena, EzString a, EzString b) {
-    int32_t new_len = a.len + b.len;
-    if (new_len < a.len || new_len < b.len) {
+    if (b.len > INT32_MAX - a.len) {
         fprintf(stderr, "EZ runtime: string concatenation overflow\n");
         exit(1);
     }
+    int32_t new_len = a.len + b.len;
     char *data = (char *)ez_arena_alloc(arena, (size_t)new_len + 1);
     memcpy(data, a.data, (size_t)a.len);
     memcpy(data + a.len, b.data, (size_t)b.len);
