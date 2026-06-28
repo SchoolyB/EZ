@@ -92,7 +92,7 @@ var installCmd = &cobra.Command{
 }
 
 var updateCmd = &cobra.Command{
-	Use:   "update [url]",
+	Use:   "update",
 	Short: "Check for updates and upgrade EZ",
 	Long: "Check for updates and upgrade EZ.\n\n" +
 		"Without flags, installs the latest stable release and prints a note " +
@@ -557,7 +557,8 @@ Flags:
 Use "ez [command] --help" for more information about a command.
 `)
 	})
-	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
+	updateCmd.Flags().Bool("confirm", false, "")
+	_ = updateCmd.Flags().MarkHidden("confirm")
 	updateCmd.Flags().Bool("pre", false, "Install the latest pre-release (alpha/beta/rc) instead of the latest stable")
 
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")

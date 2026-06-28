@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1059,8 +1060,31 @@ func downloadAndInstall(url string) error {
 	return doInstall(url, execPath)
 }
 
+const (
+	trustedUpdateHost       = "github.com"
+	trustedUpdatePathPrefix = "/SchoolyB/EZ/releases/download/"
+)
+
+// isTrustedUpdateURL returns true only when the URL points to an official EZ
+// release asset on GitHub. Scheme must be https and the host/path must match
+// the known release download prefix exactly, so --confirm cannot be used to
+// fetch and install an arbitrary binary.
+func isTrustedUpdateURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "https" &&
+		u.Host == trustedUpdateHost &&
+		strings.HasPrefix(u.Path, trustedUpdatePathPrefix)
+}
+
 // doInstall performs the actual download and installation
-func doInstall(url, execPath string) error {
+func doInstall(downloadURL, execPath string) error {
+	if !isTrustedUpdateURL(downloadURL) {
+		return fmt.Errorf("download URL is not from a trusted origin: only https://github.com/SchoolyB/EZ/releases/download/ is accepted")
+	}
+	url := downloadURL
 	// Download archive to temp file
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Get(url)

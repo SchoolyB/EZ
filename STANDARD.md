@@ -3791,12 +3791,10 @@ ez update [flags]
 | Flag | Description |
 |------|-------------|
 | `--pre` | Install the latest pre-release (alpha/beta/rc) instead of latest stable. |
-| `--confirm` | Skip the confirmation prompt. |
 
 ```bash
 ez update
 ez update --pre
-ez update --confirm
 ```
 
 ### 13.11 `ez install`
