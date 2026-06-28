@@ -46,7 +46,8 @@ const (
 	updateCheckDir       = ".ez"
 	updateCheckFile      = "update_check"
 	checkTimeout         = 2 * time.Second
-	maxChangelogVersions = 10 // Maximum number of versions to show in changelog
+	maxChangelogVersions = 10        // Maximum number of versions to show in changelog
+	maxDownloadBytes     = 256 << 20 // 256 MiB upper bound on release archive size
 )
 
 // getUpdateStatePath returns the path to the update state file
@@ -1097,6 +1098,11 @@ func doInstall(downloadURL, execPath string) error {
 		return fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
 
+	// Reject oversized responses before streaming begins.
+	if resp.ContentLength > maxDownloadBytes {
+		return fmt.Errorf("download rejected: Content-Length %d exceeds the %d-byte limit", resp.ContentLength, maxDownloadBytes)
+	}
+
 	// Create temp directory for extraction
 	tmpDir, err := os.MkdirTemp("", "ez-update-*")
 	if err != nil {
@@ -1104,17 +1110,21 @@ func doInstall(downloadURL, execPath string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Download archive
+	// Download archive — cap at maxDownloadBytes+1 so we can detect servers
+	// that lie about Content-Length or omit the header entirely.
 	archivePath := filepath.Join(tmpDir, "archive")
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to create archive file: %w", err)
 	}
 
-	_, err = io.Copy(archiveFile, resp.Body)
+	n, err := io.Copy(archiveFile, io.LimitReader(resp.Body, maxDownloadBytes+1))
 	archiveFile.Close()
 	if err != nil {
 		return fmt.Errorf("failed to download archive: %w", err)
+	}
+	if n > maxDownloadBytes {
+		return fmt.Errorf("download aborted: response body exceeded the %d-byte limit", maxDownloadBytes)
 	}
 
 	// Extract binary from archive
