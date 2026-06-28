@@ -284,6 +284,9 @@ func reportCCompiler() (path, version, triple string) {
 	if out, err := exec.Command(cc, "-dumpmachine").Output(); err == nil {
 		triple = strings.TrimSpace(string(out))
 	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(path, home) {
+		path = "~" + strings.TrimPrefix(path, home)
+	}
 	return
 }
 
