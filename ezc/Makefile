@@ -234,22 +234,42 @@ leaks: $(BIN)
 	@echo ""
 ifeq ($(UNAME_S),Darwin)
 	@echo "=== Leak check: macOS (leaks --atExit) ==="
+	@echo "(compiling tests.ez through the compiler to exercise all allocations)"
+	@echo ""
 	@# Copy ezc to a temp binary and sign it with get-task-allow so leaks
 	@# can attach. The copy is deleted immediately after; the repo binary
 	@# is never modified and carries no residual entitlement.
 	@cp ./ezc /tmp/ezc_leak_check
 	@codesign -s - --entitlements ../scripts/leak-check.entitlements \
-	    /tmp/ezc_leak_check
+	    /tmp/ezc_leak_check 2>/dev/null
 	@leaks --atExit -- /tmp/ezc_leak_check ../cmd/ez/tests.ez \
-	    -o /tmp/ez_leak_out; LEAK_EXIT=$$?; \
-	    rm -f /tmp/ezc_leak_check /tmp/ez_leak_out; exit $$LEAK_EXIT
+	    -o /tmp/ez_leak_out 2>&1; LEAK_EXIT=$$?; \
+	    rm -f /tmp/ezc_leak_check /tmp/ez_leak_out; \
+	    echo ""; \
+	    if [ $$LEAK_EXIT -ne 0 ]; then \
+	        echo "LEAK CHECK FAILED — memory leaks detected in the EZ compiler (ezc)."; \
+	        echo "Scroll up to see the allocation stacks reported by 'leaks'."; \
+	        echo "These are compiler bugs for contributors to fix — not issues with your EZ code."; \
+	    else \
+	        echo "LEAK CHECK PASSED — no memory leaks detected."; \
+	    fi; \
+	    exit $$LEAK_EXIT
 else
 	@echo "=== Leak check: Linux (valgrind) ==="
+	@echo "(compiling tests.ez through the compiler to exercise all allocations)"
+	@echo ""
 	@command -v valgrind >/dev/null 2>&1 || \
 	    { echo "valgrind not found; install with: apt install valgrind"; exit 1; }
 	@valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
-	    ./ezc ../cmd/ez/tests.ez -o /tmp/ez_leak_out
-	@rm -f /tmp/ez_leak_out
+	    ./ezc ../cmd/ez/tests.ez -o /tmp/ez_leak_out 2>&1; LEAK_EXIT=$$?; \
+	    rm -f /tmp/ez_leak_out; \
+	    echo ""; \
+	    if [ $$LEAK_EXIT -ne 0 ]; then \
+	        echo "LEAK CHECK FAILED — memory leaks detected in the EZ compiler (ezc)."; \
+	        echo "Scroll up to see the valgrind report with allocation stacks."; \
+	        echo "These are compiler bugs for contributors to fix — not issues with your EZ code."; \
+	    else \
+	        echo "LEAK CHECK PASSED — no memory leaks detected."; \
+	    fi; \
+	    exit $$LEAK_EXIT
 endif
-	@echo ""
-	@echo "Leak check complete."
