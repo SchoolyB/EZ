@@ -113,7 +113,7 @@
     EZ_ERROR("E3010", "types", "struct '%s' has no field '%s'") \
     EZ_ERROR("E3011", "types", "'%s' is a type, not a value; did you mean to declare a type? (e.g., mut x %s = ...)") \
     EZ_ERROR("E3012", "types", "addr() needs a variable, field, or array element; the address of a value like 42 cannot be taken") \
-    EZ_ERROR("E3013", "types", "only structs have fields; .field is not valid on a number, string, or bool") \
+    EZ_ERROR("E3013", "types", "type does not support access via dot notation") \
     EZ_ERROR("E3015", "types", "'%s' is a %s, not a function; it cannot be called") \
     EZ_ERROR("E3016", "types", "cannot dereference non-pointer type '%s'; only ^T types can use ^") \
     EZ_ERROR("E3017", "types", "fmt.%s() cannot format value of type '%s'; use println() for composite types, or access individual fields") \

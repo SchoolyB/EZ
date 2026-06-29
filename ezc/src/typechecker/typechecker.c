@@ -4831,7 +4831,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no functions; only structs support function calls with dot syntax",
+                    "type '%s' does not support function calls via dot notation",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
@@ -6303,7 +6303,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                        !(member[0] == 'v' && member[1] >= '0' && member[1] <= '9')) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields; only structs support field access",
+                    "type '%s' does not support access via dot notation",
                     type_name(sym->type));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -6360,7 +6360,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields; only structs support field access",
+                    "type '%s' does not support access via dot notation",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -6373,7 +6373,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields or functions; only structs support member access",
+                    "type '%s' does not support access via dot notation",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
