@@ -143,23 +143,23 @@ static void codegen_ice(const char *context, const char *file, int line) {
     exit(1);
 }
 
+static int keyword_cmp(const void *a, const void *b) {
+    return strcmp((const char *)a, *(const char *const *)b);
+}
+
 /* Check if a name collides with a C keyword and mangle it if so.
  * Uses a rotating pool of static buffers so multiple calls can appear
  * in one format string (up to 4 simultaneous uses). */
 static bool is_c_keyword(const char *name) {
     static const char *keywords[] = {
-        "auto", "break", "case", "char", "const", "continue", "default",
-        "do", "double", "else", "enum", "extern", "float", "for", "goto",
-        "if", "inline", "int", "long", "register", "restrict", "return",
-        "short", "signed", "sizeof", "static", "struct", "switch",
-        "typedef", "union", "unsigned", "void", "volatile", "while",
-        "bool", "true", "false", "NULL",
-        NULL
+        "NULL", "auto", "bool", "break", "case", "char", "const", "continue",
+        "default", "do", "double", "else", "enum", "extern", "false", "float",
+        "for", "goto", "if", "inline", "int", "long", "register", "restrict",
+        "return", "short", "signed", "sizeof", "static", "struct", "switch",
+        "true", "typedef", "union", "unsigned", "void", "volatile", "while"
     };
-    for (const char **kw = keywords; *kw; kw++) {
-        if (strcmp(name, *kw) == 0) return true;
-    }
-    return false;
+    return bsearch(name, keywords, sizeof(keywords) / sizeof(keywords[0]),
+                   sizeof(keywords[0]), keyword_cmp) != NULL;
 }
 
 /* Returns the bit-width rank of a sized integer type name.
