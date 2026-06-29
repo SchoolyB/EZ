@@ -1,0 +1,21 @@
+do main() {
+    // assert with message — condition true, no termination
+    assert(1 == 1, "math works")
+
+    // assert without message — condition true
+    assert(2 > 1)
+
+    // assert with expression
+    mut x int = 42
+    assert(x == 42, "x is 42")
+
+    // assert with string expression
+    mut s string = "hello"
+    assert(len(s) == 5, "len works")
+
+    // assert with bool variable
+    mut ok bool = true
+    assert(ok, "ok is true")
+
+    println("ok")
+}
