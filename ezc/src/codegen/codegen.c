@@ -1946,7 +1946,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *opname = (op == TOK_SLASH) ? "division" : "modulo";
                     emit(cg, "__auto_type _dn = ");
                     emit_expression(cg, node->data.infix.left);
-                    emitf(cg, "; if (_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
+                    emitf(cg, "; if ((int64_t)_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
                         signed_min, opname, op_to_c_str(op));
                 } else {
                     emit_expression(cg, node->data.infix.left);
@@ -7636,7 +7636,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.assign.value);
                 emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (!unsigned_op) {
-                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } ",
+                    emitf(cg, "if ((int64_t)*_tgt_ref == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } ",
                         signed_min, opname);
                 }
                 emitf(cg, "*_tgt_ref %s= _dv; }\n", binop);
