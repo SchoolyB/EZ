@@ -1282,8 +1282,8 @@ static int levenshtein(const char *a, const char *b) {
     int la = (int)strlen(a), lb = (int)strlen(b);
     if (la == 0) return lb;
     if (lb == 0) return la;
-    /* Use single-row DP */
-    int *row = xmalloc(sizeof(int) * (lb + 1));
+    int stack_row[256];
+    int *row = lb < 256 ? stack_row : xmalloc(sizeof(int) * (lb + 1));
     for (int j = 0; j <= lb; j++) row[j] = j;
     for (int i = 1; i <= la; i++) {
         int prev = row[0];
@@ -1298,7 +1298,7 @@ static int levenshtein(const char *a, const char *b) {
         }
     }
     int result = row[lb];
-    free(row);
+    if (row != stack_row) free(row);
     return result;
 }
 
