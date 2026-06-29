@@ -3134,7 +3134,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
             /* c.func() without import c"..."; but only if "c" isn't a
              * local variable. A variable named `c` with a struct type
-             * should fall through to the struct-method dispatch, not
+             * should fall through to the struct function dispatch, not
              * be treated as the C interop module (). */
             if (!mod_imported && strcmp(mod, "c") == 0 &&
                 !scope_lookup(tc->current_scope, "c")) {
@@ -4487,7 +4487,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* : check if `mfn` is a data field of type func
                          * before trying struct-function dispatch. A func-typed
                          * field should be called as a function pointer, not
-                         * mistaken for a struct method. The bare "func" type
+                         * mistaken for a struct function. The bare "func" type
                          * was deprecated; modern typed function refs are
                          * encoded as "func(...)->R" with kind TK_FUNCTION. */
                         EzType *field_t = struct_field_type(tc, sname, mfn);
@@ -4509,29 +4509,29 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         char sfn[EZ_MSG_BUF_SIZE];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
                         FuncSig *ssig = find_func(tc, sfn);
-                        /* Auto-dispatch instance.method() → Type.method(instance)
+                        /* Auto-dispatch instance.func() → Type.func(instance)
                          * whenever the struct function takes the struct (or a
                          * pointer to it) as its first parameter. This covers
                          * both `do bar(self Foo)` and `do bar(&self Foo)`, and
-                         * lets users call methods on instances without
+                         * lets users call struct functions on instances without
                          * having to write the type name at every call site.
                          * Factory-style functions (e.g. `do make(x int) -> Foo`)
                          * whose first param isn't a Foo continue to require
                          * explicit `Foo.make(...)` since there's no instance
                          * to bind. */
-                        bool is_self_method = false;
+                        bool is_self_func = false;
                         if (ssig && ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
                             ssig->decl->data.func_decl.param_count > 0) {
                             const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
                             if (p0_tn) {
                                 if (strcmp(p0_tn, sname) == 0) {
-                                    is_self_method = true;
+                                    is_self_func = true;
                                 } else if (p0_tn[0] == '^' && strcmp(p0_tn + 1, sname) == 0) {
-                                    is_self_method = true;
+                                    is_self_func = true;
                                 }
                             }
                         }
-                        if (is_self_method) {
+                        if (is_self_func) {
                             /* E4017: private struct function via instance dispatch */
                             if (ssig->is_private &&
                                 !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {

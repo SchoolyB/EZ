@@ -2831,7 +2831,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
             if (strcmp(obj, "uuid") == 0 &&
                 (strcmp(mem, "generate_compact") == 0 ||
                  strcmp(mem, "to_string") == 0)) return "_str";
-            /* Check if it's a struct-namespaced function or instance method call */
+            /* Check if it's a struct-namespaced function or instance struct function call */
             {
                 const char *struct_name = NULL;
                 /* Direct struct type call: Foo.greet() */
