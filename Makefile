@@ -1,5 +1,5 @@
 # EZ Language Build System
-.PHONY: build stubs install uninstall clean help \
+.PHONY: build stubs install uninstall clean help leaks \
        test test-unit test-e2e test-integration test-go \
        test-ubsan test-asan
 
@@ -23,6 +23,7 @@ help:
 	@echo "  make install   - Install ez to $(INSTALL_PATH)"
 	@echo "  make uninstall - Remove ez from $(INSTALL_PATH)"
 	@echo "  make clean     - Remove built binaries"
+	@echo "  make leaks     - Check compiler for memory leaks (macOS: leaks, Linux: valgrind)"
 	@echo ""
 	@echo "Test targets:"
 	@echo "  make test             - Run the full test suite (unit + e2e + integration + Go)"
@@ -66,6 +67,9 @@ test-ubsan:
 
 test-asan:
 	@$(MAKE) -C ezc test-asan
+
+leaks:
+	@$(MAKE) -C ezc leaks
 
 # Create zero-length embed stubs. go:embed directives in
 # internal/ezc/embedded.go require these files to exist at `go build`

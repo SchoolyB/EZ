@@ -873,6 +873,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 		fmt.Println("\nSuccessfully updated!")
 	}
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
+	promptAndVerify()
 }
 
 // normalizeTag strips a single leading 'v' so user input and GitHub tag
@@ -996,6 +997,28 @@ func runInstall(version string) {
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
 	fmt.Println("\nSuccessfully installed!")
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
+	promptAndVerify()
+}
+
+// promptAndVerify asks the user (only when stdin is a terminal) whether to run
+// the verification test suite. It is CI-safe: if stdin is not a terminal the
+// function returns silently without blocking.
+func promptAndVerify() {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		return
+	}
+	if stat.Mode()&os.ModeCharDevice == 0 {
+		// Not an interactive terminal (pipe, CI, etc.) — skip the prompt.
+		return
+	}
+	fmt.Print("\nRun verification test? [y/N]: ")
+	reader := bufio.NewReader(os.Stdin)
+	response, _ := reader.ReadString('\n')
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response == "y" || response == "yes" {
+		os.Exit(runVerify())
+	}
 }
 
 // getAssetName returns the expected archive name for this OS/arch

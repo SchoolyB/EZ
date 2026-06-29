@@ -75,7 +75,8 @@ RT_SRC = src/runtime/ez_runtime.c \
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libezrt.a
 
-# Architecture-specific assembly (atomic operations)
+# OS and architecture detection
+UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_M),arm64)
   ATOMIC_ARCH = arm64
@@ -93,7 +94,7 @@ endif
 # Include paths for compiler source
 INCLUDES = -Isrc
 
-.PHONY: all build clean install test
+.PHONY: all build clean install test leaks
 
 all: build
 
@@ -228,3 +229,27 @@ format:
 	@echo "Formatted all C files"
 
 test: test-unit test-e2e
+
+leaks: $(BIN)
+	@echo ""
+ifeq ($(UNAME_S),Darwin)
+	@echo "=== Leak check: macOS (leaks --atExit) ==="
+	@# Copy ezc to a temp binary and sign it with get-task-allow so leaks
+	@# can attach. The copy is deleted immediately after; the repo binary
+	@# is never modified and carries no residual entitlement.
+	@cp ./ezc /tmp/ezc_leak_check
+	@codesign -s - --entitlements ../scripts/leak-check.entitlements \
+	    /tmp/ezc_leak_check
+	@leaks --atExit -- /tmp/ezc_leak_check ../cmd/ez/tests.ez \
+	    -o /tmp/ez_leak_out; LEAK_EXIT=$$?; \
+	    rm -f /tmp/ezc_leak_check /tmp/ez_leak_out; exit $$LEAK_EXIT
+else
+	@echo "=== Leak check: Linux (valgrind) ==="
+	@command -v valgrind >/dev/null 2>&1 || \
+	    { echo "valgrind not found; install with: apt install valgrind"; exit 1; }
+	@valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
+	    ./ezc ../cmd/ez/tests.ez -o /tmp/ez_leak_out
+	@rm -f /tmp/ez_leak_out
+endif
+	@echo ""
+	@echo "Leak check complete."

@@ -528,7 +528,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd)
+	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd, verifyCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
