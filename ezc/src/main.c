@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -547,30 +548,56 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
     }
 }
 
-/* Import cache: track already-imported files to avoid duplicates and cycles */
-static const char *imported_files[EZ_MAX_IMPORTS];
-static const char *imported_modules_map[EZ_MAX_IMPORTS]; /* module name that imported each file */
+/* Import cache: track already-imported files to avoid duplicates and cycles.
+ * Open-addressing hash set keyed on canonical file path. */
+
+/* Must be a power of 2 and >= 2*EZ_MAX_IMPORTS for safe linear probing. */
+#define IMPORT_HASH_BUCKETS 512
+
+#define FNV1A_OFFSET_BASIS 2166136261u
+#define FNV1A_PRIME        16777619u
+
+typedef struct {
+    const char *path;
+    const char *mod;
+} ImportHashEntry;
+
+static ImportHashEntry import_hash[IMPORT_HASH_BUCKETS];
 static int imported_file_count = 0;
 
+static uint32_t import_path_hash(const char *s) {
+    uint32_t h = FNV1A_OFFSET_BASIS;
+    for (; *s; s++) h = (h ^ (uint8_t)*s) * FNV1A_PRIME;
+    return h;
+}
+
 static bool already_imported(const char *path) {
-    for (int i = 0; i < imported_file_count; i++) {
-        if (strcmp(imported_files[i], path) == 0) return true;
+    uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
+    for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
+        if (!import_hash[i].path) return false;
+        if (strcmp(import_hash[i].path, path) == 0) return true;
     }
-    return false;
 }
 
 static const char *imported_by_module(const char *path) {
-    for (int i = 0; i < imported_file_count; i++) {
-        if (strcmp(imported_files[i], path) == 0) return imported_modules_map[i];
+    uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
+    for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
+        if (!import_hash[i].path) return NULL;
+        if (strcmp(import_hash[i].path, path) == 0) return import_hash[i].mod;
     }
-    return NULL;
 }
 
 static void mark_imported_with_module(const char *path, const char *mod) {
-    if (imported_file_count < EZ_MAX_IMPORTS) {
-        imported_files[imported_file_count] = path;
-        imported_modules_map[imported_file_count] = mod;
-        imported_file_count++;
+    if (imported_file_count >= EZ_MAX_IMPORTS) return;
+    uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
+    for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
+        if (!import_hash[i].path) {
+            import_hash[i].path = path;
+            import_hash[i].mod = mod;
+            imported_file_count++;
+            return;
+        }
+        if (strcmp(import_hash[i].path, path) == 0) return;
     }
 }
 
@@ -879,6 +906,10 @@ int main(int argc, char **argv) {
         while (iq_head < iq_tail) {
             AstNode *stmt = import_queue[iq_head++];
 
+            const char *seen_modules[EZ_MAX_IMPORTS];
+            const char *seen_paths[EZ_MAX_IMPORTS];
+            int seen_count = 0;
+
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
                 if (item->is_stdlib || item->is_c_import || !item->path) continue;
@@ -1006,9 +1037,6 @@ int main(int argc, char **argv) {
                  * Don't collide with the main file's own module name.
                  * Diamond dependencies (same file via different paths) emit a warning
                  * and are skipped rather than causing a false E6001 error. */
-                static const char *seen_modules[EZ_MAX_IMPORTS];
-                static const char *seen_paths[EZ_MAX_IMPORTS];
-                static int seen_count = 0;
                 bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
                     if (strcmp(seen_modules[sm], mod_name) == 0) {
