@@ -756,19 +756,29 @@ static const FallibleEntry fallible_stdlib[] = {
     {"strconv", "to_float"}, {"strconv", "to_bool"},
 };
 
-static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
-    for (int i = 0; i < (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0])); i++) {
-        if (strcmp(mod, fallible_stdlib[i].mod) == 0 &&
-            strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
-    }
-    return false;
+static int fallible_entry_cmp(const void *a, const void *b) {
+    const FallibleEntry *ea = *(const FallibleEntry *const *)a;
+    const FallibleEntry *eb = *(const FallibleEntry *const *)b;
+    int r = strcmp(ea->mod, eb->mod);
+    return r != 0 ? r : strcmp(ea->fn, eb->fn);
 }
 
-static bool tc_is_fallible_stdlib_bare(const char *fn) {
-    for (int i = 0; i < (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0])); i++) {
-        if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
+#define FALLIBLE_STDLIB_N (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0]))
+static const FallibleEntry *fallible_stdlib_sorted[FALLIBLE_STDLIB_N];
+
+/* Returns true if (mod, fn) is a fallible stdlib function.
+ * Pass mod=NULL to check by fn name alone (any module). */
+static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
+    if (!mod) {
+        for (int i = 0; i < FALLIBLE_STDLIB_N; i++) {
+            if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
+        }
+        return false;
     }
-    return false;
+    FallibleEntry key = { .mod = mod, .fn = fn };
+    const FallibleEntry *key_ptr = &key;
+    return bsearch(&key_ptr, fallible_stdlib_sorted, FALLIBLE_STDLIB_N,
+                   sizeof(const FallibleEntry *), fallible_entry_cmp) != NULL;
 }
 
 /* Return the primary (non-error) type for a fallible stdlib function.
@@ -823,27 +833,37 @@ static const FallibleTypeEntry fallible_type_table[] = {
     {"strconv", "to_float", FT_FLOAT}, {"strconv", "to_bool", FT_BOOL},
 };
 
+static int fallible_type_entry_cmp(const void *a, const void *b) {
+    const FallibleTypeEntry *ea = *(const FallibleTypeEntry *const *)a;
+    const FallibleTypeEntry *eb = *(const FallibleTypeEntry *const *)b;
+    int r = strcmp(ea->mod, eb->mod);
+    return r != 0 ? r : strcmp(ea->fn, eb->fn);
+}
+
+#define FALLIBLE_TYPE_TABLE_N (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0]))
+static const FallibleTypeEntry *fallible_type_sorted[FALLIBLE_TYPE_TABLE_N];
+
 static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
-    for (int i = 0; i < (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0])); i++) {
-        if (strcmp(mod, fallible_type_table[i].mod) == 0 &&
-            strcmp(fn, fallible_type_table[i].fn) == 0) {
-            switch (fallible_type_table[i].type) {
-            case FT_BOOL:                return &TYPE_BOOL;
-            case FT_INT:                 return &TYPE_INT;
-            case FT_UINT:                return &TYPE_UINT;
-            case FT_FLOAT:               return &TYPE_FLOAT;
-            case FT_STRING:              return &TYPE_STRING;
-            case FT_ARRAY_STRING:        return type_array("string");
-            case FT_NESTED_ARRAY_STRING: return type_array("[string]");
-            case FT_ARRAY_BYTE:          return type_array("byte");
-            case FT_ARRAY_MAP:           return type_array("map");
-            case FT_STRUCT_DATABASE:     return type_struct("Database");
-            case FT_STRUCT_SOCKET:       return type_struct("Socket");
-            case FT_STRUCT_LISTENER:     return type_struct("Listener");
-            case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
-            case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
-            }
-        }
+    FallibleTypeEntry key = { .mod = mod, .fn = fn };
+    const FallibleTypeEntry *key_ptr = &key;
+    const FallibleTypeEntry **hit = bsearch(&key_ptr, fallible_type_sorted, FALLIBLE_TYPE_TABLE_N,
+        sizeof(const FallibleTypeEntry *), fallible_type_entry_cmp);
+    if (!hit) return NULL;
+    switch ((*hit)->type) {
+    case FT_BOOL:                return &TYPE_BOOL;
+    case FT_INT:                 return &TYPE_INT;
+    case FT_UINT:                return &TYPE_UINT;
+    case FT_FLOAT:               return &TYPE_FLOAT;
+    case FT_STRING:              return &TYPE_STRING;
+    case FT_ARRAY_STRING:        return type_array("string");
+    case FT_NESTED_ARRAY_STRING: return type_array("[string]");
+    case FT_ARRAY_BYTE:          return type_array("byte");
+    case FT_ARRAY_MAP:           return type_array("map");
+    case FT_STRUCT_DATABASE:     return type_struct("Database");
+    case FT_STRUCT_SOCKET:       return type_struct("Socket");
+    case FT_STRUCT_LISTENER:     return type_struct("Listener");
+    case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
+    case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
     }
     return NULL;
 }
@@ -7506,9 +7526,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 if (sig && sig->return_count > 1) {
                     diag_error_codef(tc->diag, "E3040", NODE_FILE(tc, node), node->token.line, node->token.column, 0, call_name, sig->return_count, call_name);
                 } else if (call_name && !sig) {
-                    bool is_fallible = call_mod
-                        ? tc_is_fallible_stdlib(call_mod, call_name)
-                        : tc_is_fallible_stdlib_bare(call_name);
+                    bool is_fallible = tc_is_fallible_stdlib(call_mod, call_name);
                     if (is_fallible) {
                         diag_error_codef(tc->diag, "E3089", NODE_FILE(tc, node),
                             node->token.line, node->token.column, 0,
@@ -10702,6 +10720,10 @@ TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
         qsort(stdlib_arg_sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
         for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) stdlib_argtype_sorted[i] = &stdlib_arg_type_table[i];
         qsort(stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+        for (int i = 0; i < FALLIBLE_STDLIB_N; i++) fallible_stdlib_sorted[i] = &fallible_stdlib[i];
+        qsort(fallible_stdlib_sorted, FALLIBLE_STDLIB_N, sizeof(const FallibleEntry *), fallible_entry_cmp);
+        for (int i = 0; i < FALLIBLE_TYPE_TABLE_N; i++) fallible_type_sorted[i] = &fallible_type_table[i];
+        qsort(fallible_type_sorted, FALLIBLE_TYPE_TABLE_N, sizeof(const FallibleTypeEntry *), fallible_type_entry_cmp);
         tables_built = true;
     }
 
