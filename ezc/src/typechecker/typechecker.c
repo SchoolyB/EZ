@@ -244,24 +244,79 @@ static void register_struct(TypeChecker *tc, const char *name,
     si->field_count = field_count;
 }
 
+static int structinfo_name_cmp(const void *a, const void *b) {
+    return strcmp((*(const StructInfo *const *)a)->struct_name,
+                  (*(const StructInfo *const *)b)->struct_name);
+}
+
+static StructInfo *find_struct(TypeChecker *tc, const char *name) {
+    if (tc->struct_count == 0) return NULL;
+    if (!tc->structs_sorted_built) {
+        tc->structs_sorted = xrealloc(tc->structs_sorted,
+            sizeof(StructInfo *) * (size_t)tc->struct_count);
+        for (int i = 0; i < tc->struct_count; i++)
+            tc->structs_sorted[i] = &tc->structs[i];
+        qsort(tc->structs_sorted, (size_t)tc->struct_count,
+              sizeof(StructInfo *), structinfo_name_cmp);
+        tc->structs_sorted_built = true;
+    }
+    StructInfo key = { .struct_name = name };
+    StructInfo *key_ptr = &key;
+    StructInfo **hit = bsearch(&key_ptr, tc->structs_sorted,
+        (size_t)tc->struct_count, sizeof(StructInfo *), structinfo_name_cmp);
+    return hit ? *hit : NULL;
+}
+
+static bool is_struct_name(TypeChecker *tc, const char *name) {
+    return find_struct(tc, name) != NULL;
+}
+
+static int enum_name_str_cmp(const void *a, const void *b) {
+    return strcmp(*(const char *const *)a, *(const char *const *)b);
+}
+
+static void enum_ensure_sorted(TypeChecker *tc) {
+    if (tc->enum_names_sorted_built) return;
+    tc->enum_names_sorted = xrealloc(tc->enum_names_sorted,
+        sizeof(const char *) * (size_t)tc->enum_count);
+    for (int i = 0; i < tc->enum_count; i++)
+        tc->enum_names_sorted[i] = tc->enum_names[i];
+    qsort(tc->enum_names_sorted, (size_t)tc->enum_count,
+          sizeof(const char *), enum_name_str_cmp);
+    tc->enum_names_sorted_built = true;
+}
+
+/* Returns the original index of the named enum via O(log n) bsearch, or -1. */
+static int find_enum_index(TypeChecker *tc, const char *name) {
+    if (tc->enum_count == 0) return -1;
+    enum_ensure_sorted(tc);
+    const char **hit = bsearch(&name, tc->enum_names_sorted,
+        (size_t)tc->enum_count, sizeof(const char *), enum_name_str_cmp);
+    if (!hit) return -1;
+    for (int i = 0; i < tc->enum_count; i++)
+        if (tc->enum_names[i] == *hit) return i;
+    return -1;
+}
+
+static bool is_enum_name(TypeChecker *tc, const char *name) {
+    if (tc->enum_count == 0) return false;
+    enum_ensure_sorted(tc);
+    return bsearch(&name, tc->enum_names_sorted, (size_t)tc->enum_count,
+                   sizeof(const char *), enum_name_str_cmp) != NULL;
+}
+
 /* The name the programmer wrote for a struct, never the module-prefixed
  * lookup key. Diagnostics and namespace-collision checks must use this. */
 static const char *struct_display_name(TypeChecker *tc, const char *name) {
-    for (int i = 0; i < tc->struct_count; i++) {
-        if (strcmp(tc->structs[i].struct_name, name) == 0)
-            return tc->structs[i].display_name;
-    }
-    return name;
+    StructInfo *si = find_struct(tc, name);
+    return si ? si->display_name : name;
 }
 
 /* As struct_display_name, for enums. */
 static const char *enum_display_name(TypeChecker *tc, const char *name) {
-    for (int i = 0; i < tc->enum_count; i++) {
-        if (strcmp(tc->enum_names[i], name) == 0)
-            return tc->enum_display_names[i] ? tc->enum_display_names[i]
-                                             : tc->enum_names[i];
-    }
-    return name;
+    int i = find_enum_index(tc, name);
+    if (i < 0) return name;
+    return tc->enum_display_names[i] ? tc->enum_display_names[i] : tc->enum_names[i];
 }
 
 /* Compare two type names by their user-facing display names, so that
@@ -288,22 +343,14 @@ static bool tc_same_array_elem(TypeChecker *tc, const char *a, const char *b) {
 
 /* Returns true if the named enum is string-backed. */
 static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
-    if (!name) return false;
-    for (int i = 0; i < tc->enum_count; i++) {
-        if (strcmp(tc->enum_names[i], name) == 0)
-            return tc->enum_is_string[i];
-    }
-    return false;
+    int i = find_enum_index(tc, name);
+    return i >= 0 && tc->enum_is_string[i];
 }
 
 /* Returns true if the named enum is a tagged enum (has payload variants). */
 static bool tc_enum_is_tagged(TypeChecker *tc, const char *name) {
-    if (!name) return false;
-    for (int i = 0; i < tc->enum_count; i++) {
-        if (strcmp(tc->enum_names[i], name) == 0)
-            return tc->enum_is_tagged[i];
-    }
-    return false;
+    int i = find_enum_index(tc, name);
+    return i >= 0 && tc->enum_is_tagged[i];
 }
 
 /* A type name fit to print in a diagnostic — for struct/enum types this
@@ -350,33 +397,6 @@ static const char *tc_resolve_alias(TypeChecker *tc, const char *name) {
 }
 
 static AstNode *find_struct_in_program(AstNode *program, const char *name);
-
-static int structinfo_name_cmp(const void *a, const void *b) {
-    return strcmp((*(const StructInfo *const *)a)->struct_name,
-                  (*(const StructInfo *const *)b)->struct_name);
-}
-
-static StructInfo *find_struct(TypeChecker *tc, const char *name) {
-    if (tc->struct_count == 0) return NULL;
-    if (!tc->structs_sorted_built) {
-        tc->structs_sorted = xrealloc(tc->structs_sorted,
-            sizeof(StructInfo *) * (size_t)tc->struct_count);
-        for (int i = 0; i < tc->struct_count; i++)
-            tc->structs_sorted[i] = &tc->structs[i];
-        qsort(tc->structs_sorted, (size_t)tc->struct_count,
-              sizeof(StructInfo *), structinfo_name_cmp);
-        tc->structs_sorted_built = true;
-    }
-    StructInfo key = { .struct_name = name };
-    StructInfo *key_ptr = &key;
-    StructInfo **hit = bsearch(&key_ptr, tc->structs_sorted,
-        (size_t)tc->struct_count, sizeof(StructInfo *), structinfo_name_cmp);
-    return hit ? *hit : NULL;
-}
-
-static bool is_struct_name(TypeChecker *tc, const char *name) {
-    return find_struct(tc, name) != NULL;
-}
 
 static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const char *field) {
     StructInfo *si = find_struct(tc, struct_name);
@@ -1770,25 +1790,6 @@ static void register_enum(TypeChecker *tc, const char *name,
     tc->enum_payload_counts[tc->enum_count] = payload_counts;
     tc->enum_is_tagged[tc->enum_count] = is_tagged;
     tc->enum_count++;
-}
-
-static int enum_name_str_cmp(const void *a, const void *b) {
-    return strcmp(*(const char *const *)a, *(const char *const *)b);
-}
-
-static bool is_enum_name(TypeChecker *tc, const char *name) {
-    if (tc->enum_count == 0) return false;
-    if (!tc->enum_names_sorted_built) {
-        tc->enum_names_sorted = xrealloc(tc->enum_names_sorted,
-            sizeof(const char *) * (size_t)tc->enum_count);
-        for (int i = 0; i < tc->enum_count; i++)
-            tc->enum_names_sorted[i] = tc->enum_names[i];
-        qsort(tc->enum_names_sorted, (size_t)tc->enum_count,
-              sizeof(const char *), enum_name_str_cmp);
-        tc->enum_names_sorted_built = true;
-    }
-    return bsearch(&name, tc->enum_names_sorted, (size_t)tc->enum_count,
-                   sizeof(const char *), enum_name_str_cmp) != NULL;
 }
 
 /* Resolve a type name, returning TK_ENUM for known enum names instead of
