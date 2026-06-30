@@ -329,6 +329,15 @@ static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     return (int64_t)v;
 }
 
+/* Safe float-to-uint conversion with range check */
+static inline uint64_t ez_float_to_uint(double v, const char *file, int line) {
+    (void)file; (void)line;
+    /* 1.8446744073709552e+19 == 2^64 exactly as a double; any value >= it overflows uint64 */
+    if (v < 0.0 || v >= 1.8446744073709552e+19 || v != v /* NaN */)
+        ez_panic_code("P0091", "cannot convert float to uint; the value is negative, too large, or NaN");
+    return (uint64_t)v;
+}
+
 /* --- Result types for (value, Error) destructuring --- */
 
 /* Forward declarations for types defined in other headers */

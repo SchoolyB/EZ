@@ -1,0 +1,15 @@
+do main() {
+    mut count int = 0
+    for _ in range(0, 5) {
+        count++
+    }
+    println(count)
+
+    mut total int = 0
+    for _ in range(0, 3) {
+        for _ in range(0, 4) {
+            total++
+        }
+    }
+    println(total)
+}

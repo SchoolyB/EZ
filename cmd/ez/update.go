@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,7 +46,8 @@ const (
 	updateCheckDir       = ".ez"
 	updateCheckFile      = "update_check"
 	checkTimeout         = 2 * time.Second
-	maxChangelogVersions = 10 // Maximum number of versions to show in changelog
+	maxChangelogVersions = 10        // Maximum number of versions to show in changelog
+	maxDownloadBytes     = 256 << 20 // 256 MiB upper bound on release archive size
 )
 
 // getUpdateStatePath returns the path to the update state file
@@ -871,6 +873,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 		fmt.Println("\nSuccessfully updated!")
 	}
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
+	promptAndVerify()
 }
 
 // normalizeTag strips a single leading 'v' so user input and GitHub tag
@@ -994,6 +997,28 @@ func runInstall(version string) {
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
 	fmt.Println("\nSuccessfully installed!")
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
+	promptAndVerify()
+}
+
+// promptAndVerify asks the user (only when stdin is a terminal) whether to run
+// the verification test suite. It is CI-safe: if stdin is not a terminal the
+// function returns silently without blocking.
+func promptAndVerify() {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		return
+	}
+	if stat.Mode()&os.ModeCharDevice == 0 {
+		// Not an interactive terminal (pipe, CI, etc.) — skip the prompt.
+		return
+	}
+	fmt.Print("\nRun verification test? [y/N]: ")
+	reader := bufio.NewReader(os.Stdin)
+	response, _ := reader.ReadString('\n')
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response == "y" || response == "yes" {
+		os.Exit(runVerify())
+	}
 }
 
 // getAssetName returns the expected archive name for this OS/arch
@@ -1059,8 +1084,31 @@ func downloadAndInstall(url string) error {
 	return doInstall(url, execPath)
 }
 
+const (
+	trustedUpdateHost       = "github.com"
+	trustedUpdatePathPrefix = "/SchoolyB/EZ/releases/download/"
+)
+
+// isTrustedUpdateURL returns true only when the URL points to an official EZ
+// release asset on GitHub. Scheme must be https and the host/path must match
+// the known release download prefix exactly, so --confirm cannot be used to
+// fetch and install an arbitrary binary.
+func isTrustedUpdateURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "https" &&
+		u.Host == trustedUpdateHost &&
+		strings.HasPrefix(u.Path, trustedUpdatePathPrefix)
+}
+
 // doInstall performs the actual download and installation
-func doInstall(url, execPath string) error {
+func doInstall(downloadURL, execPath string) error {
+	if !isTrustedUpdateURL(downloadURL) {
+		return fmt.Errorf("download URL is not from a trusted origin: only https://github.com/SchoolyB/EZ/releases/download/ is accepted")
+	}
+	url := downloadURL
 	// Download archive to temp file
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Get(url)
@@ -1073,6 +1121,11 @@ func doInstall(url, execPath string) error {
 		return fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
 
+	// Reject oversized responses before streaming begins.
+	if resp.ContentLength > maxDownloadBytes {
+		return fmt.Errorf("download rejected: Content-Length %d exceeds the %d-byte limit", resp.ContentLength, maxDownloadBytes)
+	}
+
 	// Create temp directory for extraction
 	tmpDir, err := os.MkdirTemp("", "ez-update-*")
 	if err != nil {
@@ -1080,17 +1133,21 @@ func doInstall(url, execPath string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Download archive
+	// Download archive — cap at maxDownloadBytes+1 so we can detect servers
+	// that lie about Content-Length or omit the header entirely.
 	archivePath := filepath.Join(tmpDir, "archive")
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to create archive file: %w", err)
 	}
 
-	_, err = io.Copy(archiveFile, resp.Body)
+	n, err := io.Copy(archiveFile, io.LimitReader(resp.Body, maxDownloadBytes+1))
 	archiveFile.Close()
 	if err != nil {
 		return fmt.Errorf("failed to download archive: %w", err)
+	}
+	if n > maxDownloadBytes {
+		return fmt.Errorf("download aborted: response body exceeded the %d-byte limit", maxDownloadBytes)
 	}
 
 	// Extract binary from archive

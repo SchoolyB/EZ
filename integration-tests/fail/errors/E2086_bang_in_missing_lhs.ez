@@ -1,0 +1,11 @@
+/*
+ * Error Test: E2086 - '!in' used without a left-hand value
+ * Expected: "'!in' requires a value on the left side"
+ */
+
+do main() {
+    mut arr [int] = {1, 2, 3}
+    if !in arr {
+        println("test")
+    }
+}

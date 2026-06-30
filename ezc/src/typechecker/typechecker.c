@@ -9,6 +9,7 @@
 
 #include "typechecker.h"
 #include "../util/constants.h"
+#include "../util/reserved.h"
 #include "../util/xalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,37 +127,6 @@ static bool strset_contains(const char *const *sorted, int n, const char *name) 
     return bsearch(&name, sorted, (size_t)n, sizeof(const char *), strptr_cmp) != NULL;
 }
 
-/* --- Reserved type name check --- */
-static bool is_reserved_type_name(const char *name) {
-    return strcmp(name, "int") == 0 || strcmp(name, "uint") == 0 ||
-           strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
-           strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
-           strcmp(name, "byte") == 0 || strcmp(name, "void") == 0 ||
-           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0 ||
-           strcmp(name, "SourceLocation") == 0;
-}
-
-/* Builtin function names that user code may not redeclare. */
-static bool is_reserved_builtin_func_name(const char *name) {
-    static const char *const builtins[] = {
-        "addr", "assert", "c_string", "cast", "char_count", "copy",
-        "embed", "eprint", "eprintln", "error", "exit", "here",
-        "input", "len", "panic", "print", "println", "ref", "size_of",
-        "sleep_ms", "sleep_ns", "sleep_s", "to_char", "type_of",
-    };
-    return strset_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
-}
-
-/* Standard library module names that user code may not shadow. */
-static bool is_stdlib_module_name(const char *name) {
-    static const char *const modules[] = {
-        "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
-        "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
-        "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-    };
-    return strset_contains(modules, (int)(sizeof(modules)/sizeof(modules[0])), name);
-}
 
 /* Forward declaration — resolve_expr is defined later but needed by helper
  * routines and stdlib arg-type validation. */
@@ -274,24 +244,79 @@ static void register_struct(TypeChecker *tc, const char *name,
     si->field_count = field_count;
 }
 
+static int structinfo_name_cmp(const void *a, const void *b) {
+    return strcmp((*(const StructInfo *const *)a)->struct_name,
+                  (*(const StructInfo *const *)b)->struct_name);
+}
+
+static StructInfo *find_struct(TypeChecker *tc, const char *name) {
+    if (tc->struct_count == 0) return NULL;
+    if (!tc->structs_sorted_built) {
+        tc->structs_sorted = xrealloc(tc->structs_sorted,
+            sizeof(StructInfo *) * (size_t)tc->struct_count);
+        for (int i = 0; i < tc->struct_count; i++)
+            tc->structs_sorted[i] = &tc->structs[i];
+        qsort(tc->structs_sorted, (size_t)tc->struct_count,
+              sizeof(StructInfo *), structinfo_name_cmp);
+        tc->structs_sorted_built = true;
+    }
+    StructInfo key = { .struct_name = name };
+    StructInfo *key_ptr = &key;
+    StructInfo **hit = bsearch(&key_ptr, tc->structs_sorted,
+        (size_t)tc->struct_count, sizeof(StructInfo *), structinfo_name_cmp);
+    return hit ? *hit : NULL;
+}
+
+static bool is_struct_name(TypeChecker *tc, const char *name) {
+    return find_struct(tc, name) != NULL;
+}
+
+static int enum_name_str_cmp(const void *a, const void *b) {
+    return strcmp(*(const char *const *)a, *(const char *const *)b);
+}
+
+static void enum_ensure_sorted(TypeChecker *tc) {
+    if (tc->enum_names_sorted_built) return;
+    tc->enum_names_sorted = xrealloc(tc->enum_names_sorted,
+        sizeof(const char *) * (size_t)tc->enum_count);
+    for (int i = 0; i < tc->enum_count; i++)
+        tc->enum_names_sorted[i] = tc->enum_names[i];
+    qsort(tc->enum_names_sorted, (size_t)tc->enum_count,
+          sizeof(const char *), enum_name_str_cmp);
+    tc->enum_names_sorted_built = true;
+}
+
+/* Returns the original index of the named enum via O(log n) bsearch, or -1. */
+static int find_enum_index(TypeChecker *tc, const char *name) {
+    if (tc->enum_count == 0) return -1;
+    enum_ensure_sorted(tc);
+    const char **hit = bsearch(&name, tc->enum_names_sorted,
+        (size_t)tc->enum_count, sizeof(const char *), enum_name_str_cmp);
+    if (!hit) return -1;
+    for (int i = 0; i < tc->enum_count; i++)
+        if (tc->enum_names[i] == *hit) return i;
+    return -1;
+}
+
+static bool is_enum_name(TypeChecker *tc, const char *name) {
+    if (tc->enum_count == 0) return false;
+    enum_ensure_sorted(tc);
+    return bsearch(&name, tc->enum_names_sorted, (size_t)tc->enum_count,
+                   sizeof(const char *), enum_name_str_cmp) != NULL;
+}
+
 /* The name the programmer wrote for a struct, never the module-prefixed
  * lookup key. Diagnostics and namespace-collision checks must use this. */
 static const char *struct_display_name(TypeChecker *tc, const char *name) {
-    for (int i = 0; i < tc->struct_count; i++) {
-        if (strcmp(tc->structs[i].struct_name, name) == 0)
-            return tc->structs[i].display_name;
-    }
-    return name;
+    StructInfo *si = find_struct(tc, name);
+    return si ? si->display_name : name;
 }
 
 /* As struct_display_name, for enums. */
 static const char *enum_display_name(TypeChecker *tc, const char *name) {
-    for (int i = 0; i < tc->enum_count; i++) {
-        if (strcmp(tc->enum_names[i], name) == 0)
-            return tc->enum_display_names[i] ? tc->enum_display_names[i]
-                                             : tc->enum_names[i];
-    }
-    return name;
+    int i = find_enum_index(tc, name);
+    if (i < 0) return name;
+    return tc->enum_display_names[i] ? tc->enum_display_names[i] : tc->enum_names[i];
 }
 
 /* Compare two type names by their user-facing display names, so that
@@ -318,12 +343,14 @@ static bool tc_same_array_elem(TypeChecker *tc, const char *a, const char *b) {
 
 /* Returns true if the named enum is string-backed. */
 static bool tc_enum_is_string(TypeChecker *tc, const char *name) {
-    if (!name) return false;
-    for (int i = 0; i < tc->enum_count; i++) {
-        if (strcmp(tc->enum_names[i], name) == 0)
-            return tc->enum_is_string[i];
-    }
-    return false;
+    int i = find_enum_index(tc, name);
+    return i >= 0 && tc->enum_is_string[i];
+}
+
+/* Returns true if the named enum is a tagged enum (has payload variants). */
+static bool tc_enum_is_tagged(TypeChecker *tc, const char *name) {
+    int i = find_enum_index(tc, name);
+    return i >= 0 && tc->enum_is_tagged[i];
 }
 
 /* A type name fit to print in a diagnostic — for struct/enum types this
@@ -370,33 +397,6 @@ static const char *tc_resolve_alias(TypeChecker *tc, const char *name) {
 }
 
 static AstNode *find_struct_in_program(AstNode *program, const char *name);
-
-static int structinfo_name_cmp(const void *a, const void *b) {
-    return strcmp((*(const StructInfo *const *)a)->struct_name,
-                  (*(const StructInfo *const *)b)->struct_name);
-}
-
-static StructInfo *find_struct(TypeChecker *tc, const char *name) {
-    if (tc->struct_count == 0) return NULL;
-    if (!tc->structs_sorted_built) {
-        tc->structs_sorted = xrealloc(tc->structs_sorted,
-            sizeof(StructInfo *) * (size_t)tc->struct_count);
-        for (int i = 0; i < tc->struct_count; i++)
-            tc->structs_sorted[i] = &tc->structs[i];
-        qsort(tc->structs_sorted, (size_t)tc->struct_count,
-              sizeof(StructInfo *), structinfo_name_cmp);
-        tc->structs_sorted_built = true;
-    }
-    StructInfo key = { .struct_name = name };
-    StructInfo *key_ptr = &key;
-    StructInfo **hit = bsearch(&key_ptr, tc->structs_sorted,
-        (size_t)tc->struct_count, sizeof(StructInfo *), structinfo_name_cmp);
-    return hit ? *hit : NULL;
-}
-
-static bool is_struct_name(TypeChecker *tc, const char *name) {
-    return find_struct(tc, name) != NULL;
-}
 
 static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const char *field) {
     StructInfo *si = find_struct(tc, struct_name);
@@ -756,19 +756,29 @@ static const FallibleEntry fallible_stdlib[] = {
     {"strconv", "to_float"}, {"strconv", "to_bool"},
 };
 
-static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
-    for (int i = 0; i < (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0])); i++) {
-        if (strcmp(mod, fallible_stdlib[i].mod) == 0 &&
-            strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
-    }
-    return false;
+static int fallible_entry_cmp(const void *a, const void *b) {
+    const FallibleEntry *ea = *(const FallibleEntry *const *)a;
+    const FallibleEntry *eb = *(const FallibleEntry *const *)b;
+    int r = strcmp(ea->mod, eb->mod);
+    return r != 0 ? r : strcmp(ea->fn, eb->fn);
 }
 
-static bool tc_is_fallible_stdlib_bare(const char *fn) {
-    for (int i = 0; i < (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0])); i++) {
-        if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
+#define FALLIBLE_STDLIB_N (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0]))
+static const FallibleEntry *fallible_stdlib_sorted[FALLIBLE_STDLIB_N];
+
+/* Returns true if (mod, fn) is a fallible stdlib function.
+ * Pass mod=NULL to check by fn name alone (any module). */
+static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
+    if (!mod) {
+        for (int i = 0; i < FALLIBLE_STDLIB_N; i++) {
+            if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
+        }
+        return false;
     }
-    return false;
+    FallibleEntry key = { .mod = mod, .fn = fn };
+    const FallibleEntry *key_ptr = &key;
+    return bsearch(&key_ptr, fallible_stdlib_sorted, FALLIBLE_STDLIB_N,
+                   sizeof(const FallibleEntry *), fallible_entry_cmp) != NULL;
 }
 
 /* Return the primary (non-error) type for a fallible stdlib function.
@@ -823,27 +833,37 @@ static const FallibleTypeEntry fallible_type_table[] = {
     {"strconv", "to_float", FT_FLOAT}, {"strconv", "to_bool", FT_BOOL},
 };
 
+static int fallible_type_entry_cmp(const void *a, const void *b) {
+    const FallibleTypeEntry *ea = *(const FallibleTypeEntry *const *)a;
+    const FallibleTypeEntry *eb = *(const FallibleTypeEntry *const *)b;
+    int r = strcmp(ea->mod, eb->mod);
+    return r != 0 ? r : strcmp(ea->fn, eb->fn);
+}
+
+#define FALLIBLE_TYPE_TABLE_N (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0]))
+static const FallibleTypeEntry *fallible_type_sorted[FALLIBLE_TYPE_TABLE_N];
+
 static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
-    for (int i = 0; i < (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0])); i++) {
-        if (strcmp(mod, fallible_type_table[i].mod) == 0 &&
-            strcmp(fn, fallible_type_table[i].fn) == 0) {
-            switch (fallible_type_table[i].type) {
-            case FT_BOOL:                return &TYPE_BOOL;
-            case FT_INT:                 return &TYPE_INT;
-            case FT_UINT:                return &TYPE_UINT;
-            case FT_FLOAT:               return &TYPE_FLOAT;
-            case FT_STRING:              return &TYPE_STRING;
-            case FT_ARRAY_STRING:        return type_array("string");
-            case FT_NESTED_ARRAY_STRING: return type_array("[string]");
-            case FT_ARRAY_BYTE:          return type_array("byte");
-            case FT_ARRAY_MAP:           return type_array("map");
-            case FT_STRUCT_DATABASE:     return type_struct("Database");
-            case FT_STRUCT_SOCKET:       return type_struct("Socket");
-            case FT_STRUCT_LISTENER:     return type_struct("Listener");
-            case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
-            case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
-            }
-        }
+    FallibleTypeEntry key = { .mod = mod, .fn = fn };
+    const FallibleTypeEntry *key_ptr = &key;
+    const FallibleTypeEntry **hit = bsearch(&key_ptr, fallible_type_sorted, FALLIBLE_TYPE_TABLE_N,
+        sizeof(const FallibleTypeEntry *), fallible_type_entry_cmp);
+    if (!hit) return NULL;
+    switch ((*hit)->type) {
+    case FT_BOOL:                return &TYPE_BOOL;
+    case FT_INT:                 return &TYPE_INT;
+    case FT_UINT:                return &TYPE_UINT;
+    case FT_FLOAT:               return &TYPE_FLOAT;
+    case FT_STRING:              return &TYPE_STRING;
+    case FT_ARRAY_STRING:        return type_array("string");
+    case FT_NESTED_ARRAY_STRING: return type_array("[string]");
+    case FT_ARRAY_BYTE:          return type_array("byte");
+    case FT_ARRAY_MAP:           return type_array("map");
+    case FT_STRUCT_DATABASE:     return type_struct("Database");
+    case FT_STRUCT_SOCKET:       return type_struct("Socket");
+    case FT_STRUCT_LISTENER:     return type_struct("Listener");
+    case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
+    case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
     }
     return NULL;
 }
@@ -1031,21 +1051,14 @@ static int stdlib_arg_entry_cmp(const void *a, const void *b) {
 }
 
 #define STDLIB_ARG_TABLE_N (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0]))
+static const StdlibArgEntry *stdlib_arg_sorted[STDLIB_ARG_TABLE_N];
 
 static void tc_check_stdlib_arg_count(TypeChecker *tc, const char *mod,
     const char *fn, AstNode *node)
 {
-    static const StdlibArgEntry *sorted[STDLIB_ARG_TABLE_N];
-    static bool built = false;
-    if (!built) {
-        for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) sorted[i] = &stdlib_arg_table[i];
-        qsort(sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
-        built = true;
-    }
-
     StdlibArgEntry key = { .mod = mod, .fn = fn };
     const StdlibArgEntry *key_ptr = &key;
-    const StdlibArgEntry **hit = bsearch(&key_ptr, sorted, STDLIB_ARG_TABLE_N,
+    const StdlibArgEntry **hit = bsearch(&key_ptr, stdlib_arg_sorted, STDLIB_ARG_TABLE_N,
         sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
     if (!hit) return;
 
@@ -1249,29 +1262,22 @@ static int stdlib_argtype_entry_cmp(const void *a, const void *b) {
 }
 
 #define STDLIB_ARG_TYPE_TABLE_N (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0]))
+static const StdlibArgTypeEntry *stdlib_argtype_sorted[STDLIB_ARG_TYPE_TABLE_N];
 
 static void tc_check_stdlib_arg_types(TypeChecker *tc, const char *mod,
     const char *fn, AstNode *node)
 {
-    static const StdlibArgTypeEntry *sorted[STDLIB_ARG_TYPE_TABLE_N];
-    static bool built = false;
-    if (!built) {
-        for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) sorted[i] = &stdlib_arg_type_table[i];
-        qsort(sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
-        built = true;
-    }
-
     StdlibArgTypeEntry key = { .mod = mod, .fn = fn };
     const StdlibArgTypeEntry *key_ptr = &key;
-    const StdlibArgTypeEntry **hit = bsearch(&key_ptr, sorted, STDLIB_ARG_TYPE_TABLE_N,
+    const StdlibArgTypeEntry **hit = bsearch(&key_ptr, stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N,
         sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
     if (!hit) return;
 
     /* bsearch may land on any entry in the (mod, fn) group; walk back to first. */
-    while (hit > sorted && stdlib_argtype_entry_cmp(hit - 1, hit) == 0) hit--;
+    while (hit > stdlib_argtype_sorted && stdlib_argtype_entry_cmp(hit - 1, hit) == 0) hit--;
 
     /* Iterate the contiguous group of entries for this (mod, fn). */
-    for (; hit < sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_argtype_entry_cmp(hit, &key_ptr) == 0; hit++) {
+    for (; hit < stdlib_argtype_sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_argtype_entry_cmp(hit, &key_ptr) == 0; hit++) {
         const StdlibArgTypeEntry *e = *hit;
         int idx = e->arg_index;
         if (idx < node->data.call.arg_count) {
@@ -1296,8 +1302,8 @@ static int levenshtein(const char *a, const char *b) {
     int la = (int)strlen(a), lb = (int)strlen(b);
     if (la == 0) return lb;
     if (lb == 0) return la;
-    /* Use single-row DP */
-    int *row = xmalloc(sizeof(int) * (lb + 1));
+    int stack_row[256];
+    int *row = lb < 256 ? stack_row : xmalloc(sizeof(int) * (lb + 1));
     for (int j = 0; j <= lb; j++) row[j] = j;
     for (int i = 1; i <= la; i++) {
         int prev = row[0];
@@ -1312,7 +1318,7 @@ static int levenshtein(const char *a, const char *b) {
         }
     }
     int result = row[lb];
-    free(row);
+    if (row != stack_row) free(row);
     return result;
 }
 
@@ -1345,8 +1351,6 @@ static const char *suggest_name(TypeChecker *tc, const char *name) {
 }
 
 /* --- Builtin name check --- */
-
-static bool is_valid_module(const char *name);
 
 static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
     for (int i = 0; i < tc->import_count; i++) {
@@ -1518,16 +1522,6 @@ static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
     node->data.call.arg_names = NULL; /* now positional */
 }
 
-static bool tc_is_stdlib_module(const char *name) {
-    static const char *const stdlib_mods[] = {
-        "arrays", "atomic", "atomic_mod", "bigint", "binary", "bytes",
-        "channels", "crypto", "csv", "encoding", "fmt", "http",
-        "io", "json", "maps", "math", "mem", "net", "os", "random",
-        "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-    };
-    return strset_contains(stdlib_mods, (int)(sizeof(stdlib_mods)/sizeof(stdlib_mods[0])), name);
-}
 
 /* stdlib functions reachable via `import and use` / `using`. */
 typedef struct { const char *func; const char *mod; TypeKind ret; } UsingFunc;
@@ -1816,25 +1810,6 @@ static void register_enum(TypeChecker *tc, const char *name,
     tc->enum_payload_counts[tc->enum_count] = payload_counts;
     tc->enum_is_tagged[tc->enum_count] = is_tagged;
     tc->enum_count++;
-}
-
-static int enum_name_str_cmp(const void *a, const void *b) {
-    return strcmp(*(const char *const *)a, *(const char *const *)b);
-}
-
-static bool is_enum_name(TypeChecker *tc, const char *name) {
-    if (tc->enum_count == 0) return false;
-    if (!tc->enum_names_sorted_built) {
-        tc->enum_names_sorted = xrealloc(tc->enum_names_sorted,
-            sizeof(const char *) * (size_t)tc->enum_count);
-        for (int i = 0; i < tc->enum_count; i++)
-            tc->enum_names_sorted[i] = tc->enum_names[i];
-        qsort(tc->enum_names_sorted, (size_t)tc->enum_count,
-              sizeof(const char *), enum_name_str_cmp);
-        tc->enum_names_sorted_built = true;
-    }
-    return bsearch(&name, tc->enum_names_sorted, (size_t)tc->enum_count,
-                   sizeof(const char *), enum_name_str_cmp) != NULL;
 }
 
 /* Resolve a type name, returning TK_ENUM for known enum names instead of
@@ -2517,6 +2492,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3124: == / != on tagged enums. Tagged enums are emitted as C
+         * structs (union + tag field) and cannot be compared with ==.
+         * Reject at the EZ level before C is ever invoked. */
+        if (!infix_errored &&
+            (op == TOK_EQ || op == TOK_NOT_EQ) &&
+            left->kind == TK_ENUM && right->kind == TK_ENUM &&
+            left->name) {
+            int eidx = -1;
+            for (int ei = 0; ei < tc->enum_count; ei++)
+                if (strcmp(tc->enum_names[ei], left->name) == 0) { eidx = ei; break; }
+            if (eidx >= 0 && tc->enum_is_tagged[eidx]) {
+                diag_error_codef(tc->diag, "E3124",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    op_to_str(op), enum_display_name(tc, left->name));
+                infix_errored = true;
+            }
+        }
+
         /* E3049: arithmetic and ordering on enum values — catch both
          * direct enum literals (Color.RED + 1) and variables of enum
          * type (c + 1).  Enums only support == and != comparison.
@@ -3131,7 +3124,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     break;
                 }
             }
-            if (!mod_imported && is_valid_module(mod)) {
+            if (!mod_imported && is_stdlib_module_name(mod)) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "module '%s' is not imported; add 'import @%s' at the top of the file",
@@ -3141,7 +3134,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
             /* c.func() without import c"..."; but only if "c" isn't a
              * local variable. A variable named `c` with a struct type
-             * should fall through to the struct-method dispatch, not
+             * should fall through to the struct function dispatch, not
              * be treated as the C interop module (). */
             if (!mod_imported && strcmp(mod, "c") == 0 &&
                 !scope_lookup(tc->current_scope, "c")) {
@@ -4494,7 +4487,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* : check if `mfn` is a data field of type func
                          * before trying struct-function dispatch. A func-typed
                          * field should be called as a function pointer, not
-                         * mistaken for a struct method. The bare "func" type
+                         * mistaken for a struct function. The bare "func" type
                          * was deprecated; modern typed function refs are
                          * encoded as "func(...)->R" with kind TK_FUNCTION. */
                         EzType *field_t = struct_field_type(tc, sname, mfn);
@@ -4516,29 +4509,29 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         char sfn[EZ_MSG_BUF_SIZE];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
                         FuncSig *ssig = find_func(tc, sfn);
-                        /* Auto-dispatch instance.method() → Type.method(instance)
+                        /* Auto-dispatch instance.func() → Type.func(instance)
                          * whenever the struct function takes the struct (or a
                          * pointer to it) as its first parameter. This covers
                          * both `do bar(self Foo)` and `do bar(&self Foo)`, and
-                         * lets users call methods on instances without
+                         * lets users call struct functions on instances without
                          * having to write the type name at every call site.
                          * Factory-style functions (e.g. `do make(x int) -> Foo`)
                          * whose first param isn't a Foo continue to require
                          * explicit `Foo.make(...)` since there's no instance
                          * to bind. */
-                        bool is_self_method = false;
+                        bool is_self_func = false;
                         if (ssig && ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
                             ssig->decl->data.func_decl.param_count > 0) {
                             const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
                             if (p0_tn) {
                                 if (strcmp(p0_tn, sname) == 0) {
-                                    is_self_method = true;
+                                    is_self_func = true;
                                 } else if (p0_tn[0] == '^' && strcmp(p0_tn + 1, sname) == 0) {
-                                    is_self_method = true;
+                                    is_self_func = true;
                                 }
                             }
                         }
-                        if (is_self_method) {
+                        if (is_self_func) {
                             /* E4017: private struct function via instance dispatch */
                             if (ssig->is_private &&
                                 !(tc->current_struct_name && strcmp(tc->current_struct_name, sname) == 0)) {
@@ -4859,7 +4852,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no functions; only structs support function calls with dot syntax",
+                    "type '%s' does not support function calls via dot notation",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
@@ -5199,6 +5192,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         diag_error_msg(tc->diag, "E5028", arena_strdup(tc->arena, msg),
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
+                    if (at->kind == TK_ENUM && at->name && tc_enum_is_tagged(tc, at->name)) {
+                        diag_error_codef(tc->diag, "E5038",
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                            enum_display_name(tc, at->name), fn_name);
+                    }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
@@ -5223,6 +5221,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             fn_name);
                         diag_error_msg(tc->diag, "E5028", arena_strdup(tc->arena, msg),
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                    if (at->kind == TK_ENUM && at->name && tc_enum_is_tagged(tc, at->name)) {
+                        diag_error_codef(tc->diag, "E5038",
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                            enum_display_name(tc, at->name), fn_name);
                     }
                     char ctx[EZ_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
@@ -6321,7 +6324,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                        !(member[0] == 'v' && member[1] >= '0' && member[1] <= '9')) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields; only structs support field access",
+                    "type '%s' does not support access via dot notation",
                     type_name(sym->type));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -6378,7 +6381,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields; only structs support field access",
+                    "type '%s' does not support access via dot notation",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -6391,7 +6394,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields or functions; only structs support member access",
+                    "type '%s' does not support access via dot notation",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", arena_strdup(tc->arena, msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -6841,7 +6844,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (obj->kind == NODE_LABEL) {
                 const char *mod_name = tc_resolve_alias(tc, obj->data.label.value);
                 /* Surface 2: ()module.func — stdlib module functions are not first-class values */
-                if (tc_is_stdlib_module(mod_name)) {
+                if (is_stdlib_module_name(mod_name)) {
                     char msg[EZ_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                         "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values",
@@ -6875,7 +6878,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
                 if (!using_module_accessible(tc, ui)) continue;
                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
-                if (tc_is_stdlib_module(real_mod)) {
+                if (is_stdlib_module_name(real_mod)) {
                     for (int fi = 0; _using_funcs[fi].func; fi++) {
                         if (strcmp(ref_name, _using_funcs[fi].func) == 0 &&
                             strcmp(real_mod, _using_funcs[fi].mod) == 0) {
@@ -7523,9 +7526,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 if (sig && sig->return_count > 1) {
                     diag_error_codef(tc->diag, "E3040", NODE_FILE(tc, node), node->token.line, node->token.column, 0, call_name, sig->return_count, call_name);
                 } else if (call_name && !sig) {
-                    bool is_fallible = call_mod
-                        ? tc_is_fallible_stdlib(call_mod, call_name)
-                        : tc_is_fallible_stdlib_bare(call_name);
+                    bool is_fallible = tc_is_fallible_stdlib(call_mod, call_name);
                     if (is_fallible) {
                         diag_error_codef(tc->diag, "E3089", NODE_FILE(tc, node),
                             node->token.line, node->token.column, 0,
@@ -9162,7 +9163,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     int64_t start_val = r->data.range_expr.start->data.int_value.value;
                     int64_t end_val = r->data.range_expr.end->data.int_value.value;
                     bool negative_step = has_neg_step || has_neg_prefix;
-                    bool invalid = negative_step ? (start_val < end_val) : (start_val >= end_val);
+                    bool invalid = negative_step ? (start_val < end_val) : (start_val > end_val);
                     if (invalid) {
                         char msg[EZ_MSG_BUF_SIZE];
                         if (negative_step) {
@@ -9171,7 +9172,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 (long long)start_val, (long long)end_val);
                         } else {
                             snprintf(msg, sizeof(msg),
-                                "invalid range: start (%lld) must be less than end (%lld)",
+                                "invalid range: start (%lld) must be less than or equal to end (%lld)",
                                 (long long)start_val, (long long)end_val);
                         }
                         diag_error_msg(tc->diag, "E9005", arena_strdup(tc->arena, msg),
@@ -9217,6 +9218,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     diag_warning_msg(tc->diag, "W2002", arena_strdup(tc->arena, msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
+            }
+        }
+
+        /* E3123: both index and value discarded — no collection access occurs */
+        {
+            const char *var = node->data.for_each.var_name;
+            const char *idx = node->data.for_each.index_name;
+            if (idx && strcmp(idx, "_") == 0 && var && strcmp(var, "_") == 0) {
+                diag_error_codef(tc->diag, "E3123", NODE_FILE(tc, node),
+                    node->token.line, node->token.column, 0);
+                tc->current_scope = outer;
+                break;
             }
         }
 
@@ -9754,18 +9767,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * These names map to internal C types (EzRouter, EzThread, etc.) before the
          * user-struct path, so any user struct with these names silently generates
          * invalid C with no EZ diagnostic. */
-        static const char *reserved_stdlib_struct_names[] = {
-            "Thread", "Mutex", "SpinLock", "Channel", "Socket",
-            "Listener", "Database", "Router", "HttpRequest", "HttpResponse",
-            "UUID", NULL
-        };
         const char *sname = STRUCT_DISPLAY_NAME(node);
-        for (int ri = 0; reserved_stdlib_struct_names[ri]; ri++) {
-            if (strcmp(sname, reserved_stdlib_struct_names[ri]) == 0) {
-                diag_error_codef(tc->diag, "E3099",
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname);
-                break;
-            }
+        if (is_reserved_stdlib_struct_name(sname)) {
+            diag_error_codef(tc->diag, "E3099",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0, sname);
         }
         /* E2053: struct inside function */
         if (tc->func_depth > 0) {
@@ -10091,17 +10096,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
 /* --- Registration pass --- */
 
-/* Known stdlib module names */
-static bool is_valid_module(const char *name) {
-    static const char *const modules[] = {
-        "arrays", "atomic", "binary", "bytes", "channels", "crypto",
-        "csv", "db", "encoding", "errors", "fmt", "http",
-        "io", "json", "maps", "math", "mem", "net", "os", "random",
-        "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-    };
-    return strset_contains(modules, (int)(sizeof(modules)/sizeof(modules[0])), name);
-}
 
 /* : returns true if any NODE_STRUCT_DECL in the program has the given
  * name. Used by pointer-field pointee validation to accept forward
@@ -10267,7 +10261,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         if (stmt->kind == NODE_IMPORT_STMT) {
             for (int j = 0; j < stmt->data.import_stmt.count; j++) {
                 ImportItem *item = &stmt->data.import_stmt.items[j];
-                if (item->is_stdlib && item->module && !is_valid_module(item->module)) {
+                if (item->is_stdlib && item->module && !is_stdlib_module_name(item->module)) {
                     diag_error_codef(tc->diag, "E6001", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, item->module);
                 }
                 /* Record import for unused-import tracking.
@@ -10719,6 +10713,20 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 /* --- Public API --- */
 
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
+    /* Build sorted stdlib lookup tables once before any type-check begins. */
+    static bool tables_built = false;
+    if (!tables_built) {
+        for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) stdlib_arg_sorted[i] = &stdlib_arg_table[i];
+        qsort(stdlib_arg_sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
+        for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) stdlib_argtype_sorted[i] = &stdlib_arg_type_table[i];
+        qsort(stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+        for (int i = 0; i < FALLIBLE_STDLIB_N; i++) fallible_stdlib_sorted[i] = &fallible_stdlib[i];
+        qsort(fallible_stdlib_sorted, FALLIBLE_STDLIB_N, sizeof(const FallibleEntry *), fallible_entry_cmp);
+        for (int i = 0; i < FALLIBLE_TYPE_TABLE_N; i++) fallible_type_sorted[i] = &fallible_type_table[i];
+        qsort(fallible_type_sorted, FALLIBLE_TYPE_TABLE_N, sizeof(const FallibleTypeEntry *), fallible_type_entry_cmp);
+        tables_built = true;
+    }
+
     TypeChecker *tc = xcalloc(1, sizeof(TypeChecker));
     tc->diag = diag;
     tc->file = file;

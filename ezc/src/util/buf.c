@@ -71,9 +71,17 @@ void buf_append_char(Buf *b, char c) {
     b->data[b->len] = '\0';
 }
 
+#define BUF_INDENT_WIDTH 4
+
 void buf_append_indent(Buf *b, int depth) {
-    for (int i = 0; i < depth; i++) {
-        buf_append(b, "    ");
+    static const char spaces[] =
+        "                                                                ";
+    int n = depth * BUF_INDENT_WIDTH;
+    if (n < (int)sizeof(spaces)) {
+        buf_appendn(b, spaces, (size_t)n);
+    } else {
+        for (int i = 0; i < depth; i++)
+            buf_appendn(b, spaces, BUF_INDENT_WIDTH);
     }
 }
 

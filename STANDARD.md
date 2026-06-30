@@ -660,23 +660,23 @@ mut s Shape = .Circle(3.14)
 
 **Destructuring with `when/is`:**
 
-Use pattern destructuring in `when/is` to extract payload values:
+Use pattern destructuring in `when/is` to extract payload values. Use the fully-qualified form:
 
 ```ez
 when shape {
-    is Circle(radius) {
+    is Shape.Circle(radius) {
         println("Circle with radius ${radius}")
     }
-    is Rect(w, h) {
+    is Shape.Rect(w, h) {
         println("Rectangle ${w} x ${h}")
     }
-    is Point {
+    is Shape.Point {
         println("Just a point")
     }
 }
 ```
 
-Implicit selector patterns also work in `when/is`:
+The implicit selector form (dot-prefix) also works:
 
 ```ez
 when shape {
@@ -1114,6 +1114,16 @@ for (i in range(0, 10)) {
     // Parentheses optional
 }
 ```
+
+Use the blank identifier `_` to iterate by count without needing the loop variable:
+
+```ez
+for _ in range(0, 5) {
+    // body runs 5 times; loop counter is discarded
+}
+```
+
+`_` cannot be read inside the loop body. If you need the counter value, use a named variable instead.
 
 #### 6.3.2 For-Each Loops
 
@@ -2275,7 +2285,7 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `ref` | `(variable T) -> ref<T>` | Create a transparent reference (alias) to a variable. Reads and writes through the reference affect the original. Mutability is determined by the declaration (`mut` or `const`). |
 | `addr` | `(variable) -> ^T` | Get memory address of a variable |
 | `error` | `(message string) -> Error` | Create error value |
-| `assert` | `(condition bool, message string)` | Assert condition is true |
+| `assert` | `(condition bool [, message string])` | Terminate with `P0075` if condition is false. Message is optional. |
 | `panic` | `(message string)` | Terminate with error message |
 | `exit` | `(code int)` | Exit program with code |
 | `range` | `(start int, end int [, step int]) -> Range` | Create integer range |
@@ -2316,6 +2326,25 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `mut r = ref(x)`      | `const` | **no**; you cannot get a mutable reference to a const source. Use `copy(x)` to obtain an independent mutable instance. |
 
 **Argument requirement:** `ref()` requires a variable, struct field, array index, or pointer dereference; anything with a stable address. Literals, call results, and arithmetic expressions are rejected. The same rule applies to `addr()`, and the check recurses through member/index chains, so `ref(some_call().field)` and `addr(arr[0])` are validated end-to-end.
+
+**`assert()` — runtime assertion**
+
+`assert()` checks a condition at runtime. If the condition is `false`, the program terminates immediately with error code `P0075` and prints `"panic[P0075]: assertion failed"` to stderr. An optional second argument provides a message appended to the output.
+
+```ez
+assert(x > 0, "x must be positive")
+assert(len(items) > 0, "list cannot be empty")
+assert(connected)  // message is optional
+```
+
+`assert()` is a global builtin — no import required.
+
+**Rules:**
+- The condition must be a `bool`. Passing a non-bool is a compile-time error (E3001).
+- The optional message must be a `string`. Passing any other type is a compile-time error (E3001).
+- If the condition is `true`, the program continues normally. `assert()` has no return value.
+
+**Runtime error code:** `P0075`
 
 #### Sleep Functions
 
@@ -3760,6 +3789,8 @@ ez man println
 ez man strings.contains
 ```
 
+> 💡 **Flip's Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `ez` sees them. Use the name alone: `ez man println`, not `ez man println()`.
+
 ### 13.9 `ez report`
 
 Print system information for filing bug reports.
@@ -3781,12 +3812,10 @@ ez update [flags]
 | Flag | Description |
 |------|-------------|
 | `--pre` | Install the latest pre-release (alpha/beta/rc) instead of latest stable. |
-| `--confirm` | Skip the confirmation prompt. |
 
 ```bash
 ez update
 ez update --pre
-ez update --confirm
 ```
 
 ### 13.11 `ez install`

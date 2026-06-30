@@ -228,13 +228,18 @@ static const char *read_string(Lexer *l) {
         if (l->ch == '"' && brace_depth == 0) {
             break; /* end of string */
         }
+        if (l->ch == '\n' && brace_depth == 0) {
+            l->error_code = "E1023";
+            l->error_msg = "string literals cannot span multiple lines; use a raw string with backticks for multi-line text";
+            break;
+        }
         read_char(l);
     }
 
     const char *str = arena_strndup(l->arena, l->input + start, l->position - start);
     if (l->ch == '"') {
         read_char(l); /* skip closing " */
-    } else {
+    } else if (!l->error_code) {
         l->unterminated_string = true;
     }
     return str;

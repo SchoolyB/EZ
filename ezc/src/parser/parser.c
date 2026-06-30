@@ -6,6 +6,7 @@
 
 #include "parser.h"
 #include "../util/constants.h"
+#include "../util/reserved.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,53 +166,6 @@ static bool is_keyword_token(TokenType t) {
     }
 }
 
-/* Check if an identifier literal is a reserved type name per STANDARD.md §2.5 */
-static bool is_reserved_type_name(const char *lit) {
-    return (strcmp(lit, "int") == 0 || strcmp(lit, "uint") == 0 ||
-        strcmp(lit, "float") == 0 || strcmp(lit, "string") == 0 ||
-        strcmp(lit, "bool") == 0 || strcmp(lit, "char") == 0 ||
-        strcmp(lit, "byte") == 0 || strcmp(lit, "map") == 0 ||
-        strcmp(lit, "func") == 0 || strcmp(lit, "Error") == 0 ||
-        strcmp(lit, "nil") == 0 ||
-        strcmp(lit, "i8") == 0 || strcmp(lit, "i16") == 0 ||
-        strcmp(lit, "i32") == 0 || strcmp(lit, "i64") == 0 ||
-        strcmp(lit, "i128") == 0 || strcmp(lit, "i256") == 0 ||
-        strcmp(lit, "u8") == 0 || strcmp(lit, "u16") == 0 ||
-        strcmp(lit, "u32") == 0 || strcmp(lit, "u64") == 0 ||
-        strcmp(lit, "u128") == 0 || strcmp(lit, "u256") == 0 ||
-        strcmp(lit, "f32") == 0 || strcmp(lit, "f64") == 0);
-}
-
-/* Check if an identifier is a builtin function name */
-static bool is_builtin_func_name(const char *name) {
-    static const char *builtins[] = {
-        "println", "print", "eprintln", "eprint", "input",
-        "len", "type_of", "size_of", "copy", "ref", "addr", "error",
-        "exit", "panic", "assert", "cast",
-        "sleep_s", "sleep_ms", "sleep_ns", "c_string",
-        "to_char", "char_count", "here", "embed",
-        NULL
-    };
-    for (int i = 0; builtins[i]; i++) {
-        if (strcmp(name, builtins[i]) == 0) return true;
-    }
-    return false;
-}
-
-/* Check if an identifier is a standard library module name */
-static bool is_stdlib_module_name(const char *name) {
-    static const char *modules[] = {
-        "arrays", "binary", "bytes", "channels", "crypto", "csv", "encoding",
-        "fmt", "http", "io", "json", "maps", "math", "mem", "net", "os",
-        "random", "regex", "server", "sqlite", "strconv", "strings", "sync",
-        "threads", "time", "uuid",
-        NULL
-    };
-    for (int i = 0; modules[i]; i++) {
-        if (strcmp(name, modules[i]) == 0) return true;
-    }
-    return false;
-}
 
 /* Synchronize parser after an error; skip to a safe point.
  * Advances past the current line and stops at the next statement boundary. */
@@ -1055,6 +1009,29 @@ static AstNode *parse_prefix(Parser *p) {
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
         return node;
     }
+    case TOK_IN:
+    case TOK_NOT_IN: {
+        /* 'in'/'not_in'/'!in' used without a left-hand value */
+        Token bad_tok = p->cur_token;
+        const char *op = bad_tok.literal;
+        char buf[EZ_MSG_BUF_SIZE];
+        snprintf(buf, sizeof(buf),
+            "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range",
+            op, op);
+        diag_error_msg(p->diag, "E2086", arena_strdup(p->arena, buf),
+            p->file, bad_tok.line, bad_tok.column, 0);
+        /* Consume the operator and its right-hand operand so subsequent tokens
+         * (like the if-body '{') are seen in the right context. */
+        next_token(p);
+        p->no_struct_literal = true;
+        parse_expression(p, PREC_LOWEST);
+        p->no_struct_literal = false;
+        /* Return a dummy bool so the condition slot is non-NULL and the
+         * typechecker does not add a second spurious diagnostic. */
+        AstNode *dummy = ast_alloc(p->arena, NODE_BOOL_VALUE, bad_tok);
+        dummy->data.bool_value.value = true;
+        return dummy;
+    }
     default:
     {
         /* Skip generic error for ILLEGAL tokens; the lexer already emitted a specific diagnostic */
@@ -1473,9 +1450,12 @@ static AstNode *parse_var_declaration(Parser *p) {
                 next_token(p); /* name (IDENT or _) */
                 names[var_count] = p->cur_token.literal;
                 if (cur_token_is(p, TOK_BLANK)) names[var_count] = "_";
-                if (peek_token_is(p, TOK_IDENT)) {
-                    next_token(p); /* type */
-                    types[var_count] = p->cur_token.literal;
+                if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) ||
+                    peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_STRUCT) ||
+                    peek_token_is(p, TOK_ENUM) || peek_token_is(p, TOK_QUESTION)) {
+                    next_token(p);
+                    types[var_count] = parse_complex_type(p);
+                    if (!types[var_count]) return NULL;
                 } else {
                     types[var_count] = NULL;
                 }
@@ -2252,7 +2232,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
                 synchronize(p);
                 break;
             }
-            if (cur_token_is(p, TOK_IDENT) && is_builtin_func_name(p->cur_token.literal)) {
+            if (cur_token_is(p, TOK_IDENT) && is_reserved_builtin_func_name(p->cur_token.literal)) {
                 char msg[EZ_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a builtin function and cannot be used as a struct field name",
@@ -2408,7 +2388,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             synchronize(p);
             continue;
         }
-        if (cur_token_is(p, TOK_IDENT) && is_builtin_func_name(p->cur_token.literal)) {
+        if (cur_token_is(p, TOK_IDENT) && is_reserved_builtin_func_name(p->cur_token.literal)) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a builtin function and cannot be used as an enum variant name",
@@ -2559,8 +2539,8 @@ static AstNode *parse_for_statement(Parser *p) {
     bool has_parens = peek_token_is(p, TOK_LPAREN);
     if (has_parens) next_token(p);
 
-    if (peek_token_is(p, TOK_IDENT)) {
-        next_token(p);  /* advance: cur_token = IDENT */
+    if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
+        next_token(p);  /* advance: cur_token = IDENT or BLANK */
         if (peek_token_is(p, TOK_IN)) {
             /* --- iteration form: for x in range(...) { } --- */
             /* 'for x in ...' is only valid with range().

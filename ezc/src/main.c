@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -547,30 +548,56 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
     }
 }
 
-/* Import cache: track already-imported files to avoid duplicates and cycles */
-static const char *imported_files[EZ_MAX_IMPORTS];
-static const char *imported_modules_map[EZ_MAX_IMPORTS]; /* module name that imported each file */
+/* Import cache: track already-imported files to avoid duplicates and cycles.
+ * Open-addressing hash set keyed on canonical file path. */
+
+/* Must be a power of 2 and >= 2*EZ_MAX_IMPORTS for safe linear probing. */
+#define IMPORT_HASH_BUCKETS 512
+
+#define FNV1A_OFFSET_BASIS 2166136261u
+#define FNV1A_PRIME        16777619u
+
+typedef struct {
+    const char *path;
+    const char *mod;
+} ImportHashEntry;
+
+static ImportHashEntry import_hash[IMPORT_HASH_BUCKETS];
 static int imported_file_count = 0;
 
+static uint32_t import_path_hash(const char *s) {
+    uint32_t h = FNV1A_OFFSET_BASIS;
+    for (; *s; s++) h = (h ^ (uint8_t)*s) * FNV1A_PRIME;
+    return h;
+}
+
 static bool already_imported(const char *path) {
-    for (int i = 0; i < imported_file_count; i++) {
-        if (strcmp(imported_files[i], path) == 0) return true;
+    uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
+    for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
+        if (!import_hash[i].path) return false;
+        if (strcmp(import_hash[i].path, path) == 0) return true;
     }
-    return false;
 }
 
 static const char *imported_by_module(const char *path) {
-    for (int i = 0; i < imported_file_count; i++) {
-        if (strcmp(imported_files[i], path) == 0) return imported_modules_map[i];
+    uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
+    for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
+        if (!import_hash[i].path) return NULL;
+        if (strcmp(import_hash[i].path, path) == 0) return import_hash[i].mod;
     }
-    return NULL;
 }
 
 static void mark_imported_with_module(const char *path, const char *mod) {
-    if (imported_file_count < EZ_MAX_IMPORTS) {
-        imported_files[imported_file_count] = path;
-        imported_modules_map[imported_file_count] = mod;
-        imported_file_count++;
+    if (imported_file_count >= EZ_MAX_IMPORTS) return;
+    uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
+    for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
+        if (!import_hash[i].path) {
+            import_hash[i].path = path;
+            import_hash[i].mod = mod;
+            imported_file_count++;
+            return;
+        }
+        if (strcmp(import_hash[i].path, path) == 0) return;
     }
 }
 
@@ -581,6 +608,10 @@ static void mark_imported(const char *path) {
 /* Scan a directory for .ez files. Returns count of files found.
  * Fills paths[] with full file paths (dir_path + "/" + filename). */
 #define MAX_DIR_FILES 256
+static int ez_path_cmp(const void *a, const void *b) {
+    return strcmp((const char *)a, (const char *)b);
+}
+
 static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int max_files) {
     DIR *d = opendir(dir_path);
     if (!d) return -1;
@@ -598,16 +629,7 @@ static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int 
     closedir(d);
 
     /* Sort alphabetically for deterministic import order */
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = i + 1; j < count; j++) {
-            if (strcmp(paths[i], paths[j]) > 0) {
-                char tmp[PATH_BUF_SIZE];
-                memcpy(tmp, paths[i], PATH_BUF_SIZE);
-                memcpy(paths[i], paths[j], PATH_BUF_SIZE);
-                memcpy(paths[j], tmp, PATH_BUF_SIZE);
-            }
-        }
-    }
+    qsort(paths, (size_t)count, PATH_BUF_SIZE, ez_path_cmp);
     return count;
 }
 
@@ -858,24 +880,35 @@ int main(int argc, char **argv) {
         if (last_slash) *(last_slash + 1) = '\0';
         else { input_dir[0] = '.'; input_dir[1] = '/'; input_dir[2] = '\0'; }
 
-        /* Process imports iteratively — re-scan after each merge to find transitive imports.
-         * The already_imported cache prevents infinite loops and duplicate processing. */
-        bool found_new_import = true;
-        while (found_new_import) {
-            found_new_import = false;
+        /* Snapshot of original main-program nodes taken before any imports are merged.
+         * The outer rewrite pass after each import only needs to update these nodes;
+         * imported nodes are already rewritten inline during the rewrite+merge pass.
+         * A plain pointer would be invalidated by in-place memmoves, so we copy
+         * the AstNode* array into a stable arena allocation here. */
+        int main_stmt_snapshot_count = program->data.program.stmt_count;
+        AstNode **main_stmt_snapshot = arena_alloc(arena,
+            sizeof(AstNode *) * (main_stmt_snapshot_count > 0 ? main_stmt_snapshot_count : 1));
+        memcpy(main_stmt_snapshot, program->data.program.stmts,
+            sizeof(AstNode *) * main_stmt_snapshot_count);
 
-            /* Collect current import statements */
-            AstNode *import_stmts[EZ_MAX_IMPORTS];
-            int import_stmt_count = 0;
-            for (int si = 0; si < program->data.program.stmt_count; si++) {
-                if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
-                    import_stmt_count < EZ_MAX_IMPORTS) {
-                    import_stmts[import_stmt_count++] = program->data.program.stmts[si];
-                }
+        /* Seed import queue once from the initial program stmts — O(N), done once.
+         * Transitive imports push onto the tail as they are discovered, so the
+         * queue drains naturally without re-scanning the growing program AST. */
+        AstNode *import_queue[EZ_MAX_IMPORTS];
+        int iq_head = 0, iq_tail = 0;
+        for (int si = 0; si < program->data.program.stmt_count; si++) {
+            if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
+                iq_tail < EZ_MAX_IMPORTS) {
+                import_queue[iq_tail++] = program->data.program.stmts[si];
             }
+        }
 
-        for (int si = 0; si < import_stmt_count; si++) {
-            AstNode *stmt = import_stmts[si];
+        while (iq_head < iq_tail) {
+            AstNode *stmt = import_queue[iq_head++];
+
+            const char *seen_modules[EZ_MAX_IMPORTS];
+            const char *seen_paths[EZ_MAX_IMPORTS];
+            int seen_count = 0;
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
@@ -1004,9 +1037,6 @@ int main(int argc, char **argv) {
                  * Don't collide with the main file's own module name.
                  * Diamond dependencies (same file via different paths) emit a warning
                  * and are skipped rather than causing a false E6001 error. */
-                static const char *seen_modules[EZ_MAX_IMPORTS];
-                static const char *seen_paths[EZ_MAX_IMPORTS];
-                static int seen_count = 0;
                 bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
                     if (strcmp(seen_modules[sm], mod_name) == 0) {
@@ -1113,7 +1143,6 @@ int main(int argc, char **argv) {
                         continue;
                     }
                     mark_imported_with_module(norm_path, mod_name);
-                    found_new_import = true;
 
                     /* Read and parse the imported file */
                     char *imp_source = read_file(cur_file_path);
@@ -1244,6 +1273,7 @@ int main(int argc, char **argv) {
                                     program->data.program.stmts = ns;
                                     program->data.program.stmt_cap = nc;
                                 }
+                                if (iq_tail < EZ_MAX_IMPORTS) import_queue[iq_tail++] = ts;
                                 program->data.program.stmts[program->data.program.stmt_count++] = ts;
                             }
                         }
@@ -1473,21 +1503,18 @@ int main(int argc, char **argv) {
                 } /* end for (pi: rewrite+merge pass) */
 
                 /* Rewrite label references in the main program's own statements.
-                 * Imported var/func/struct nodes are already rewritten above; this
-                 * pass fixes the main file's own initializers and function bodies
-                 * that reference imported names by their original (unqualified) name. */
-                for (int si = 0; si < program->data.program.stmt_count; si++) {
-                    rewrite_labels(program->data.program.stmts[si],
+                 * Imported nodes are already rewritten inline above; only the
+                 * original main-file nodes need updating here. Using the snapshot
+                 * avoids re-walking all previously merged imports on every pass. */
+                for (int si = 0; si < main_stmt_snapshot_count; si++) {
+                    rewrite_labels(main_stmt_snapshot[si],
                         orig_names, new_names, name_count, arena);
                 }
 
-                /* Mark this import item as fully processed so re-scanning
-                 * the import list on the next while iteration doesn't
-                 * trigger a spurious W2013 "already imported" warning. */
+                /* Mark this import item as fully processed. */
                 item->path = NULL;
             }
-        }
-        } /* end while (found_new_import) */
+        } /* end while (iq_head < iq_tail) */
     }
 
     /* Type check */

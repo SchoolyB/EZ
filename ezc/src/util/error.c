@@ -35,30 +35,34 @@ static const char *col(DiagnosticList *dl, const char *code) {
 
 /* --- Source line reading --- */
 
-static const char *read_source_line(const char *source, int line_num) {
-    if (!source) return NULL;
+static const char *read_source_line_indexed(const char * const *offsets,
+    int line_count, int line_num) {
+    if (!offsets || line_num < 1 || line_num > line_count) return NULL;
 
-    int current_line = 1;
-    const char *line_start = source;
-
-    while (*line_start && current_line < line_num) {
-        if (*line_start == '\n') current_line++;
-        line_start++;
-    }
-
-    if (current_line != line_num) return NULL;
-
-    /* Find end of line */
+    const char *line_start = offsets[line_num - 1];
     const char *line_end = line_start;
     while (*line_end && *line_end != '\n') line_end++;
 
-    /* Copy line to static buffer (single-threaded compiler — safe) */
     static char buf[EZ_SOURCE_LINE_MAX];
     int len = (int)(line_end - line_start);
     if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
     memcpy(buf, line_start, len);
     buf[len] = '\0';
     return buf;
+}
+
+static void build_line_index(DiagSourceSlot *slot) {
+    const char *source = slot->source;
+    int count = 1;
+    for (const char *p = source; *p; p++) {
+        if (*p == '\n') count++;
+    }
+    slot->line_offsets = xmalloc(sizeof(const char *) * (size_t)count);
+    slot->line_offsets[0] = source;
+    slot->line_count = 1;
+    for (const char *p = source; *p && slot->line_count < count; p++) {
+        if (*p == '\n') slot->line_offsets[slot->line_count++] = p + 1;
+    }
 }
 
 static const char *read_file_to_string(const char *path) {
@@ -89,7 +93,10 @@ DiagnosticList *diag_create(void) {
 
 void diag_destroy(DiagnosticList *dl) {
     free(dl->items);
-    /* cached_source is owned by caller, don't free it */
+    for (int i = 0; i < DIAG_FILE_CACHE_SIZE; i++) {
+        if (dl->file_cache[i].owned) free((void *)dl->file_cache[i].source);
+        free(dl->file_cache[i].line_offsets);
+    }
     free(dl);
 }
 
@@ -98,7 +105,7 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     int end_col, const char *help) {
 
     /* Cap errors at 20 to avoid flooding output */
-    if (sev == SEV_ERROR && diag_error_count(dl) >= EZ_MAX_ERRORS_DISPLAYED) return;
+    if (sev == SEV_ERROR && dl->error_count >= EZ_MAX_ERRORS_DISPLAYED) return;
 
     if (dl->count >= dl->cap) {
         dl->cap = dl->cap ? dl->cap * 2 : EZ_DIAG_INITIAL_CAP;
@@ -115,6 +122,9 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     d->end_column = end_col;
     d->source_line = NULL;
     d->help = help;
+
+    if (sev == SEV_ERROR) dl->error_count++;
+    else if (sev == SEV_WARNING) dl->warning_count++;
 }
 
 void diag_error(DiagnosticList *dl, const char *code, const char *message,
@@ -203,9 +213,16 @@ void diag_warning_codef(DiagnosticList *dl, const char *code,
 }
 
 void diag_set_source(DiagnosticList *dl, const char *file, const char *source) {
-    dl->cached_file = file;
-    /* Don't free — source is owned by caller (main.c's read_file) */
-    dl->cached_source = source;
+    /* Slot 0 is the primary entry-file slot. Source is caller-owned — never freed here. */
+    DiagSourceSlot *s = &dl->file_cache[0];
+    free(s->line_offsets);
+    s->path = file;
+    s->source = source;
+    s->owned = false;
+    s->line_offsets = NULL;
+    s->line_count = 0;
+    s->last_use = 0;
+    if (source) build_line_index(s);
 }
 
 bool diag_has_errors(DiagnosticList *dl) {
@@ -213,19 +230,11 @@ bool diag_has_errors(DiagnosticList *dl) {
 }
 
 int diag_error_count(DiagnosticList *dl) {
-    int n = 0;
-    for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_ERROR) n++;
-    }
-    return n;
+    return dl->error_count;
 }
 
 int diag_warning_count(DiagnosticList *dl) {
-    int n = 0;
-    for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_WARNING) n++;
-    }
-    return n;
+    return dl->warning_count;
 }
 
 /* --- Rendering --- */
@@ -265,15 +274,40 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
 
     /* Lines 3-4: source context with underline */
     const char *src_line = d->source_line;
-    if (!src_line && dl->cached_source && d->file &&
-        dl->cached_file && strcmp(d->file, dl->cached_file) == 0) {
-        src_line = read_source_line(dl->cached_source, d->line);
-    }
     if (!src_line && d->file) {
-        const char *file_content = read_file_to_string(d->file);
-        if (file_content) {
-            src_line = read_source_line(file_content, d->line);
-            free((void *)file_content);
+        /* Search cache slots for this file */
+        DiagSourceSlot *slot = NULL;
+        for (int ci = 0; ci < DIAG_FILE_CACHE_SIZE; ci++) {
+            DiagSourceSlot *s = &dl->file_cache[ci];
+            if (s->source && s->path && strcmp(s->path, d->file) == 0) {
+                slot = s;
+                break;
+            }
+        }
+        if (!slot) {
+            /* Cache miss: read from disk and store in the LRU secondary slot */
+            const char *content = read_file_to_string(d->file);
+            if (content) {
+                int evict = 1;
+                for (int ci = 2; ci < DIAG_FILE_CACHE_SIZE; ci++) {
+                    if (dl->file_cache[ci].last_use < dl->file_cache[evict].last_use)
+                        evict = ci;
+                }
+                DiagSourceSlot *s = &dl->file_cache[evict];
+                if (s->owned) free((void *)s->source);
+                free(s->line_offsets);
+                s->path = d->file;
+                s->source = content;
+                s->owned = true;
+                s->line_offsets = NULL;
+                s->line_count = 0;
+                build_line_index(s);
+                slot = s;
+            }
+        }
+        if (slot) {
+            slot->last_use = ++dl->cache_clock;
+            src_line = read_source_line_indexed(slot->line_offsets, slot->line_count, d->line);
         }
     }
 
@@ -333,11 +367,13 @@ void diag_print_all(DiagnosticList *dl) {
 }
 
 void diag_print_summary(DiagnosticList *dl) {
-    int errors = 0, warnings = 0;
+    int errors = dl->error_count;
+
+    /* visible_warnings excludes suppressed entries — checked at render time */
+    int warnings = 0;
     for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_ERROR) errors++;
-        else if (dl->items[i].severity == SEV_WARNING &&
-                 !is_warning_suppressed(dl, &dl->items[i]))
+        if (dl->items[i].severity == SEV_WARNING &&
+            !is_warning_suppressed(dl, &dl->items[i]))
             warnings++;
     }
 

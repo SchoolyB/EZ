@@ -96,16 +96,25 @@ static void emit(CodeGen *cg, const char *s) {
 }
 
 static void emitf(CodeGen *cg, const char *fmt, ...) {
+    /* Fast path: try a stack buffer first. vsnprintf always returns the full
+     * needed length even when truncated, so the slow path below can skip the
+     * NULL-buffer measure call and write directly in one vsnprintf. */
+    char stack_buf[256];
     va_list args;
     va_start(args, fmt);
-
-    int needed = vsnprintf(NULL, 0, fmt, args);
+    int n = vsnprintf(stack_buf, sizeof(stack_buf), fmt, args);
     va_end(args);
 
-    if (needed < 0) return;
+    if (n < 0) return;
 
-    /* Ensure buffer has space, then format directly into it */
-    size_t req = cg->output.len + (size_t)needed + 1;
+    if (n < (int)sizeof(stack_buf)) {
+        buf_appendn(&cg->output, stack_buf, (size_t)n);
+        return;
+    }
+
+    /* Slow path: formatted string exceeds stack buffer.
+     * n is already the exact required length — no second measure needed. */
+    size_t req = cg->output.len + (size_t)n + 1;
     if (req > cg->output.cap) {
         size_t new_cap = cg->output.cap * 2;
         if (new_cap < req) new_cap = req;
@@ -114,10 +123,9 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
     }
 
     va_start(args, fmt);
-    vsnprintf(cg->output.data + cg->output.len, (size_t)needed + 1, fmt, args);
+    vsnprintf(cg->output.data + cg->output.len, (size_t)n + 1, fmt, args);
     va_end(args);
-
-    cg->output.len += (size_t)needed;
+    cg->output.len += (size_t)n;
 }
 
 static void emit_indent(CodeGen *cg) {
@@ -135,23 +143,23 @@ static void codegen_ice(const char *context, const char *file, int line) {
     exit(1);
 }
 
+static int keyword_cmp(const void *a, const void *b) {
+    return strcmp((const char *)a, *(const char *const *)b);
+}
+
 /* Check if a name collides with a C keyword and mangle it if so.
  * Uses a rotating pool of static buffers so multiple calls can appear
  * in one format string (up to 4 simultaneous uses). */
 static bool is_c_keyword(const char *name) {
     static const char *keywords[] = {
-        "auto", "break", "case", "char", "const", "continue", "default",
-        "do", "double", "else", "enum", "extern", "float", "for", "goto",
-        "if", "inline", "int", "long", "register", "restrict", "return",
-        "short", "signed", "sizeof", "static", "struct", "switch",
-        "typedef", "union", "unsigned", "void", "volatile", "while",
-        "bool", "true", "false", "NULL",
-        NULL
+        "NULL", "auto", "bool", "break", "case", "char", "const", "continue",
+        "default", "do", "double", "else", "enum", "extern", "false", "float",
+        "for", "goto", "if", "inline", "int", "long", "register", "restrict",
+        "return", "short", "signed", "sizeof", "static", "struct", "switch",
+        "true", "typedef", "union", "unsigned", "void", "volatile", "while"
     };
-    for (const char **kw = keywords; *kw; kw++) {
-        if (strcmp(name, *kw) == 0) return true;
-    }
-    return false;
+    return bsearch(name, keywords, sizeof(keywords) / sizeof(keywords[0]),
+                   sizeof(keywords[0]), keyword_cmp) != NULL;
 }
 
 /* Returns the bit-width rank of a sized integer type name.
@@ -1081,6 +1089,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         /* Next char is also hex; break the string */
                         emit(cg, "\" \"");
                     }
+                } else if (*s == '\n') {
+                    emit(cg, "\\n");
+                    s++;
+                } else if (*s == '\r') {
+                    emit(cg, "\\r");
+                    s++;
                 } else {
                     buf_append_char(&cg->output, *s);
                     s++;
@@ -1389,6 +1403,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
         TypeKind tk = elem_t ? elem_t->kind : TK_INT;
+
+        /* Integer literals in a declared [float]/[f32]/[f64] array must use
+         * double so the C compound literal stores the correct IEEE 754 bits
+         * instead of raw int64_t bit patterns. */
+        if (tk == TK_INT && cg->current_var_type) {
+            const char *cvt = cg->current_var_type;
+            if (strcmp(cvt, "[float]") == 0 || strcmp(cvt, "[f32]") == 0 || strcmp(cvt, "[f64]") == 0)
+                tk = TK_FLOAT;
+        }
 
         const char *c_type;
         /* Check for bigint types first */
@@ -1923,7 +1946,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *opname = (op == TOK_SLASH) ? "division" : "modulo";
                     emit(cg, "__auto_type _dn = ");
                     emit_expression(cg, node->data.infix.left);
-                    emitf(cg, "; if (_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
+                    emitf(cg, "; if ((int64_t)_dn == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
                         signed_min, opname, op_to_c_str(op));
                 } else {
                     emit_expression(cg, node->data.infix.left);
@@ -2522,6 +2545,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "ez_float_to_int((double)(");
             emit_expression(cg, val);
             emit(cg, "), __FILE__, __LINE__)");
+        } else if ((strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0) && val_kind == TK_FLOAT) {
+            /* float → uint: negative values and overflow are undefined behavior in C; panic instead */
+            emit(cg, "ez_float_to_uint((double)(");
+            emit_expression(cg, val);
+            emit(cg, "), __FILE__, __LINE__)");
         } else if (val_kind == TK_STRING) {
             /* string → numeric (targets other than int/float handled above):
              * parse to int64/double first, then apply narrowing check */
@@ -2803,7 +2831,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
             if (strcmp(obj, "uuid") == 0 &&
                 (strcmp(mem, "generate_compact") == 0 ||
                  strcmp(mem, "to_string") == 0)) return "_str";
-            /* Check if it's a struct-namespaced function or instance method call */
+            /* Check if it's a struct-namespaced function or instance struct function call */
             {
                 const char *struct_name = NULL;
                 /* Direct struct type call: Foo.greet() */
@@ -2873,6 +2901,13 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
         return;
     }
     EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    if (at && at->kind == TK_ERROR) {
+        int t = next_dc_tag();
+        emitf(cg, "({ EzError *_ez_str_err%d = (", t);
+        emit_expression(cg, arg);
+        emitf(cg, "); _ez_str_err%d ? _ez_str_err%d->message : ez_c_string_dup(ez_default_arena, \"nil\"); })", t, t);
+        return;
+    }
     if (at && at->kind == TK_FLOAT)
         emit(cg, "ez_builtin_to_string_float(ez_default_arena, ");
     else if (at && at->kind == TK_BOOL)
@@ -6647,6 +6682,28 @@ static bool emit_narrowing_cast(CodeGen *cg, const char *target,
     return true;
 }
 
+/* Emit the initializer for a fixed-size array declaration.
+ * When the value is a partial array literal (count < fixed_size), a C
+ * compound literal with an explicit size is used so the trailing slots are
+ * zero-initialized by C semantics, and fixed_size is passed as the EzArray
+ * length so index bounds match the declared size N, not the init count k. */
+static void emit_fixed_size_array_init(CodeGen *cg, AstNode *value,
+                                       const char *elem_type, int fixed_size) {
+    if (value && value->kind == NODE_ARRAY_VALUE &&
+        value->data.array_value.count < fixed_size) {
+        const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+        int count = value->data.array_value.count;
+        emitf(cg, "ez_array_from(ez_default_arena, (%s[%d]){", c_elem_type, fixed_size);
+        for (int i = 0; i < count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, value->data.array_value.elements[i]);
+        }
+        emitf(cg, "}, sizeof(%s), %d)", c_elem_type, fixed_size);
+    } else {
+        emit_expression(cg, value);
+    }
+}
+
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
 
@@ -6677,7 +6734,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                     Buf saved = cg->output;
                     cg->output = cg->global_init;
                     cg->indent = 1;
-                    emit_expression(cg, node->data.var_decl.value);
+                    emit_fixed_size_array_init(cg, node->data.var_decl.value, elem_type, fixed_size);
                     emit(cg, ";\n");
                     cg->global_init = cg->output;
                     cg->output = saved;
@@ -6686,7 +6743,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             } else {
                 emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
                 if (node->data.var_decl.value) {
-                    emit_expression(cg, node->data.var_decl.value);
+                    emit_fixed_size_array_init(cg, node->data.var_decl.value, elem_type, fixed_size);
                 } else {
                     const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
                     emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), %d)", c_elem_type, fixed_size);
@@ -6957,10 +7014,19 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     }
 
     if (!node->data.var_decl.mutable) {
-        emit(cg, "const ");
+        if (type_name && type_name[0] == '^') {
+            /* const pointer: T * const p — the pointer is immutable, not the
+             * pointed-to data.  Placing const before the type would produce
+             * const T * p (pointer to const T), which incorrectly propagates
+             * the const qualifier through dereferences and field accesses. */
+            emitf(cg, "%s const %s", c_type, safe_name(node->data.var_decl.name));
+        } else {
+            emit(cg, "const ");
+            emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
+        }
+    } else {
+        emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
     }
-
-    emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
 
     if (node->data.var_decl.value) {
         emit(cg, " = ");
@@ -7254,6 +7320,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (obj_t && obj_t->kind == TK_POINTER) map_via_ptr = true;
             }
 
+            bool ms_compound = (node->data.assign.op != TOK_ASSIGN);
+            const char *ms_base_op = NULL;
+            if (ms_compound) {
+                switch (node->data.assign.op) {
+                    case TOK_PLUS_ASSIGN:     ms_base_op = "+"; break;
+                    case TOK_MINUS_ASSIGN:    ms_base_op = "-"; break;
+                    case TOK_ASTERISK_ASSIGN: ms_base_op = "*"; break;
+                    case TOK_SLASH_ASSIGN:    ms_base_op = "/"; break;
+                    case TOK_PERCENT_ASSIGN:  ms_base_op = "%"; break;
+                    default: ms_compound = false; break;
+                }
+            }
             emitf(cg, "{ %s _mk = ", c_key);
             emit_expression(cg, node->data.assign.target->data.index_expr.index);
             emit(cg, "; ");
@@ -7266,8 +7344,32 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, "; ez_default_arena = _esc; } ");
                 }
             }
+            /* For compound assignments, read the existing value first so the
+             * operation is applied on top of the current entry rather than
+             * against a zero/uninitialized base. */
+            if (ms_compound) {
+                if (map_via_ptr) {
+                    /* Capture _mp early so _cur can reference the map field. */
+                    emitf(cg, "__auto_type _mp = ");
+                    emit_expression(cg, left->data.member.object);
+                    emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                          "void *_cur = ez_map_get(&_mp->%s, &_mk); "
+                          "if (!_cur) { ez_panic_code(\"P0081\", \"key not found in map\"); } ",
+                          safe_name(left->data.member.member));
+                } else {
+                    emitf(cg, "void *_cur = ez_map_get(&");
+                    emit_expression(cg, left);
+                    emitf(cg, ", &_mk); if (!_cur) { ez_panic_code(\"P0081\", \"key not found in map\"); } ");
+                }
+            }
             emitf(cg, "%s _mv = ", c_val);
-            emit_expression(cg, node->data.assign.value);
+            if (ms_compound) {
+                emitf(cg, "*(%s*)_cur %s (", c_val, ms_base_op);
+                emit_expression(cg, node->data.assign.value);
+                emit(cg, ")");
+            } else {
+                emit_expression(cg, node->data.assign.value);
+            }
             emit(cg, "; ");
             if (cg->loop_scope_depth > 0) {
                 if (ms_str_val) {
@@ -7279,12 +7381,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 }
             }
             if (map_via_ptr) {
-                /* Nil-check the pointer, then use -> to yield an lvalue */
-                emitf(cg, "{ __auto_type _mp = ");
-                emit_expression(cg, left->data.member.object);
-                emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
-                    "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
-                    ms_arena, safe_name(left->data.member.member));
+                if (ms_compound) {
+                    /* _mp was captured above; just set and close the outer block. */
+                    emitf(cg, "ez_map_set(%s, &_mp->%s, &_mk, &_mv); }\n",
+                        ms_arena, safe_name(left->data.member.member));
+                } else {
+                    /* Nil-check the pointer, then use -> to yield an lvalue. */
+                    emitf(cg, "{ __auto_type _mp = ");
+                    emit_expression(cg, left->data.member.object);
+                    emitf(cg, "; if (!_mp) { ez_panic_code(\"P0080\", \"nil pointer dereference\"); } "
+                        "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
+                        ms_arena, safe_name(left->data.member.member));
+                }
             } else {
                 emitf(cg, "ez_map_set(%s, &", ms_arena);
                 emit_expression(cg, left);
@@ -7528,7 +7636,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.assign.value);
                 emit(cg, "; if (!_dv) { ez_panic_code(\"P0078\", \"division by zero\"); } ");
                 if (!unsigned_op) {
-                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } ",
+                    emitf(cg, "if ((int64_t)*_tgt_ref == %s && _dv == -1) { ez_panic_code(\"P0079\", \"%s result is too large; value exceeds the range of this type\"); } ",
                         signed_min, opname);
                 }
                 emitf(cg, "*_tgt_ref %s= _dv; }\n", binop);
@@ -7997,7 +8105,15 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     AstNode *iter = node->data.for_stmt.iterable;
     if (iter && iter->kind == NODE_RANGE_EXPR) {
         /* for i in range(start, end) or range(start, end, step) */
-        const char *var = safe_name(node->data.for_stmt.var_name);
+        static int blank_for_counter = 0;
+        static char blank_for_buf[64];
+        const char *var;
+        if (strcmp(node->data.for_stmt.var_name, "_") == 0) {
+            snprintf(blank_for_buf, sizeof(blank_for_buf), "_ez_for_blank_%d", blank_for_counter++);
+            var = blank_for_buf;
+        } else {
+            var = safe_name(node->data.for_stmt.var_name);
+        }
 
         if (iter->data.range_expr.start) {
             /* range(start, end) or range(start, end, step) */

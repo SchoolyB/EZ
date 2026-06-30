@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 342 codes** (235 errors, 17 warnings, 90 panics)
+**Total: 348 codes** (240 errors, 17 warnings, 91 panics)
 
 ---
 
@@ -13,7 +13,7 @@
 |------|----------|-------------|
 | `E1003` | syntax | unclosed multi-line comment; add */ |
 | `E1005` | syntax | unclosed character; add a closing single quote |
-| `E1006` | syntax | invalid escape sequence in string; valid escapes are \\n \\t \\\\ \\\ |
+| `E1006` | syntax | invalid escape sequence in string; valid escapes are \\n \\t \\\\ \\\" and \\x |
 | `E1007` | syntax | invalid escape sequence in character |
 | `E1010` | syntax | invalid number format; hex (0x), octal (0o), or binary (0b) prefix must be followed by digits |
 | `E1011` | syntax | number cannot have consecutive underscores |
@@ -28,6 +28,7 @@
 | `E1020` | syntax | unexpected '|' character; use '||' for logical OR |
 | `E1021` | syntax | unclosed string; add a closing double quote |
 | `E1022` | syntax | unexpected character |
+| `E1023` | syntax | string literals cannot span multiple lines; use a raw string with backticks for multi-line text |
 | `E2001` | syntax | unexpected symbol |
 | `E2002` | syntax | missing symbol; expected a bracket, parenthesis, or keyword |
 | `E2010` | syntax | cannot use module '%s' before importing it; add 'import @%s' before the using statement |
@@ -76,6 +77,7 @@
 | `E2083` | syntax | enum variant '%s' cannot have both a payload and an explicit value |
 | `E2084` | syntax | blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result |
 | `E2085` | syntax | when statement already has a default branch; only one default is allowed |
+| `E2086` | syntax | '%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -88,7 +90,7 @@
 | `E3010` | types | struct '%s' has no field '%s' |
 | `E3011` | types | '%s' is a type, not a value; did you mean to declare a type? (e.g., mut x %s = ...) |
 | `E3012` | types | addr() needs a variable, field, or array element; the address of a value like 42 cannot be taken |
-| `E3013` | types | only structs have fields; .field is not valid on a number, string, or bool |
+| `E3013` | types | type does not support access via dot notation |
 | `E3015` | types | '%s' is a %s, not a function; it cannot be called |
 | `E3016` | types | cannot dereference non-pointer type '%s'; only ^T types can use ^ |
 | `E3017` | types | fmt.%s() cannot format value of type '%s'; use println() for composite types, or access individual fields |
@@ -114,7 +116,7 @@
 | `E3048` | types | operator '+' is not defined for strings; use string interpolation or fmt.format() instead |
 | `E3049` | types | cannot use '%s' on enum values; enums only support == and != comparisons |
 | `E3050` | types | array needs a type annotation; declare as [T] (e.g., mut x [int] = {1, 2, 3}) |
-| `E3051` | types | map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\ |
+| `E3051` | types | map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1}) |
 | `E3052` | types | too many elements in array initializer; declared size is %d, got %d |
 | `E3053` | types | type mismatch in array initializer; expected '%s', got '%s' |
 | `E3054` | types | mutable arrays cannot have a fixed size; remove the size or use 'const' (e.g., mut %s %.*s] = ...) |
@@ -185,6 +187,8 @@
 | `E3120` | types | pointer ordering comparisons are not supported; only == and != are allowed on pointers |
 | `E3121` | types | cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum |
 | `E3122` | safety | cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer |
+| `E3123` | iteration | for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count |
+| `E3124` | types | operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or != |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -227,6 +231,7 @@
 | `E5035` | naming | this name is reserved by a standard library module and cannot be redeclared |
 | `E5036` | usage | '%s' is a type, not a function; use cast(value, %s) to convert |
 | `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
+| `E5038` | usage | tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -369,6 +374,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0088` | io | io.append_file() cannot append to a directory |
 | `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
 | `P0090` | runtime | range step cannot be zero |
+| `P0091` | arithmetic | cannot convert float to uint; the value is negative, too large, or NaN |
 
 ---
 
@@ -393,4 +399,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-23 05:44:51 UTC*
+*Generated on 2026-06-30 04:48:38 UTC*

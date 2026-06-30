@@ -13,6 +13,20 @@
 
 #include <stdbool.h>
 
+/* Number of source-file slots in the diagnostic source cache.
+ * Slot 0 is the primary entry file (set via diag_set_source, never evicted).
+ * Slots 1+ are LRU-managed for imported files read on-demand. */
+#define DIAG_FILE_CACHE_SIZE 4
+
+typedef struct {
+    const char *path;
+    const char *source;
+    const char **line_offsets; /* line_offsets[i-1] = start of line i */
+    int line_count;
+    bool owned;                /* true if source was allocated by diag (disk read) */
+    unsigned int last_use;     /* LRU clock value; 0 = empty slot */
+} DiagSourceSlot;
+
 typedef enum {
     SEV_ERROR,
     SEV_WARNING,
@@ -36,9 +50,14 @@ typedef struct {
     int count;
     int cap;
 
-    /* Source file cache for reading lines */
-    const char *cached_file;
-    const char *cached_source;
+    /* Cached counts — incremented in diag_add for O(1) queries */
+    int error_count;
+    int warning_count;
+
+    /* Multi-slot source cache: slot 0 = entry file (caller-owned, never evicted);
+     * slots 1..DIAG_FILE_CACHE_SIZE-1 = LRU-managed disk-read files. */
+    DiagSourceSlot file_cache[DIAG_FILE_CACHE_SIZE];
+    unsigned int cache_clock;
 
     /* Options */
     bool use_color;

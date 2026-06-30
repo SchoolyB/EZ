@@ -44,7 +44,8 @@
     EZ_ERROR("E1019", "syntax", "unexpected '#' character; use '//' for comments") \
     EZ_ERROR("E1020", "syntax", "unexpected '|' character; use '||' for logical OR") \
     EZ_ERROR("E1021", "syntax", "unclosed string; add a closing double quote") \
-    EZ_ERROR("E1022", "syntax", "unexpected character")
+    EZ_ERROR("E1022", "syntax", "unexpected character") \
+    EZ_ERROR("E1023", "syntax", "string literals cannot span multiple lines; use a raw string with backticks for multi-line text")
 
 /* --- E2xxx: Understanding Your Code (Parser) --- */
 #define EZ_PARSER_ERRORS \
@@ -95,7 +96,8 @@
     EZ_ERROR("E2082", "syntax", "arrays of typed func signatures are not supported; use '[func]' or '[func, N]' with '()func_name' elements instead") \
     EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value") \
     EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result") \
-    EZ_ERROR("E2085", "syntax", "when statement already has a default branch; only one default is allowed")
+    EZ_ERROR("E2085", "syntax", "when statement already has a default branch; only one default is allowed") \
+    EZ_ERROR("E2086", "syntax", "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -111,7 +113,7 @@
     EZ_ERROR("E3010", "types", "struct '%s' has no field '%s'") \
     EZ_ERROR("E3011", "types", "'%s' is a type, not a value; did you mean to declare a type? (e.g., mut x %s = ...)") \
     EZ_ERROR("E3012", "types", "addr() needs a variable, field, or array element; the address of a value like 42 cannot be taken") \
-    EZ_ERROR("E3013", "types", "only structs have fields; .field is not valid on a number, string, or bool") \
+    EZ_ERROR("E3013", "types", "type does not support access via dot notation") \
     EZ_ERROR("E3015", "types", "'%s' is a %s, not a function; it cannot be called") \
     EZ_ERROR("E3016", "types", "cannot dereference non-pointer type '%s'; only ^T types can use ^") \
     EZ_ERROR("E3017", "types", "fmt.%s() cannot format value of type '%s'; use println() for composite types, or access individual fields") \
@@ -207,7 +209,9 @@
     EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'") \
     EZ_ERROR("E3120", "types", "pointer ordering comparisons are not supported; only == and != are allowed on pointers") \
     EZ_ERROR("E3121", "types", "cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum") \
-    EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer")
+    EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer") \
+    EZ_ERROR("E3123", "iteration", "for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count") \
+    EZ_ERROR("E3124", "types", "operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or !=")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -255,7 +259,8 @@
     EZ_ERROR("E5034", "usage", "named arguments are not supported for builtin function '%s'") \
     EZ_ERROR("E5035", "naming", "this name is reserved by a standard library module and cannot be redeclared") \
     EZ_ERROR("E5036", "usage", "'%s' is a type, not a function; use cast(value, %s) to convert") \
-    EZ_ERROR("E5037", "usage", "copy() cannot be applied to a pointer; dereference first with copy(p^)")
+    EZ_ERROR("E5037", "usage", "copy() cannot be applied to a pointer; dereference first with copy(p^)") \
+    EZ_ERROR("E5038", "usage", "tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
@@ -376,7 +381,8 @@
     EZ_PANIC("P0087", "io",         "io.write_file() cannot write to a directory") \
     EZ_PANIC("P0088", "io",         "io.append_file() cannot append to a directory") \
     EZ_PANIC("P0089", "io",         "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually") \
-    EZ_PANIC("P0090", "runtime",    "range step cannot be zero")
+    EZ_PANIC("P0090", "runtime",    "range step cannot be zero") \
+    EZ_PANIC("P0091", "arithmetic", "cannot convert float to uint; the value is negative, too large, or NaN")
 
 /* --- Warnings --- */
 #define EZ_WARNINGS \

@@ -1,0 +1,4 @@
+/* Error Test: P0091 - cast of negative float to uint panics at runtime */
+do main() {
+    println(cast(-3.5, uint))
+}

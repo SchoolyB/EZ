@@ -92,7 +92,7 @@ var installCmd = &cobra.Command{
 }
 
 var updateCmd = &cobra.Command{
-	Use:   "update [url]",
+	Use:   "update",
 	Short: "Check for updates and upgrade EZ",
 	Long: "Check for updates and upgrade EZ.\n\n" +
 		"Without flags, installs the latest stable release and prints a note " +
@@ -284,6 +284,9 @@ func reportCCompiler() (path, version, triple string) {
 	if out, err := exec.Command(cc, "-dumpmachine").Output(); err == nil {
 		triple = strings.TrimSpace(string(out))
 	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(path, home) {
+		path = "~" + strings.TrimPrefix(path, home)
+	}
 	return
 }
 
@@ -320,7 +323,7 @@ func printBuiltinsIndex() {
 		{"Control    ", []string{"exit", "panic", "assert"}},
 		{"Sleep      ", []string{"sleep_s", "sleep_ms", "sleep_ns"}},
 		{"Type casts ", []string{"int", "uint", "float", "string", "char", "byte", "bool", "cast"}},
-		{"Width casts", []string{"i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "i128", "i256", "u128", "u256"}},
+		{"Width casts", []string{"i128", "u128", "i256", "u256"}},
 		{"Memory     ", []string{"new", "ref", "addr", "copy"}},
 		{"Introspect ", []string{"len", "type_of", "size_of"}},
 		{"Misc       ", []string{"error", "range", "c_string", "to_char", "char_count", "here"}},
@@ -525,7 +528,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd)
+	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd, verifyCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
@@ -557,7 +560,8 @@ Flags:
 Use "ez [command] --help" for more information about a command.
 `)
 	})
-	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
+	updateCmd.Flags().Bool("confirm", false, "")
+	_ = updateCmd.Flags().MarkHidden("confirm")
 	updateCmd.Flags().Bool("pre", false, "Install the latest pre-release (alpha/beta/rc) instead of the latest stable")
 
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")

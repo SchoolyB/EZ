@@ -95,6 +95,11 @@ func runPz(cmd *cobra.Command, args []string) {
 		name = args[0]
 	}
 
+	if !isValidProjectName(name) {
+		fmt.Fprintln(os.Stderr, "error: project name must be a plain directory name with no path separators, '..' sequences, or absolute paths")
+		os.Exit(1)
+	}
+
 	validTemplates := map[string]bool{"basic": true, "cli": true, "lib": true, "multi": true, "server": true, "client": true}
 	if !validTemplates[template] {
 		fmt.Printf("Invalid template '%s'. Choose from: basic, cli, lib, multi, server, client\n", template)
@@ -126,6 +131,24 @@ func runPz(cmd *cobra.Command, args []string) {
 		fmt.Printf("\nDone! Run your project:\n")
 		fmt.Printf("  cd %s && ez main.ez\n", name)
 	}
+}
+
+// isValidProjectName returns true only when name is a plain single-element
+// directory name. Names containing path separators, parent references (..),
+// absolute paths, or home-directory shortcuts (~) are rejected so that
+// createProject cannot write or delete files outside the current directory.
+func isValidProjectName(name string) bool {
+	if name == "" {
+		return false
+	}
+	if filepath.IsAbs(name) || strings.HasPrefix(name, "~") {
+		return false
+	}
+	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
+		return false
+	}
+	cleaned := filepath.Clean(name)
+	return cleaned == name && cleaned != "." && cleaned != ".."
 }
 
 func promptForInput(prompt, defaultVal string) string {

@@ -49,7 +49,7 @@ HEADER
 grep '^ *EZ_ERROR("' "$CODES_FILE" | while IFS= read -r line; do
     code=$(echo "$line" | sed 's/.*EZ_ERROR("\([^"]*\)".*/\1/')
     category=$(echo "$line" | sed 's/.*EZ_ERROR("[^"]*", "\([^"]*\)".*/\1/')
-    desc=$(echo "$line" | sed 's/.*EZ_ERROR("[^"]*", "[^"]*", "\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*EZ_ERROR("[^"]*", "[^"]*", "\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 
@@ -67,7 +67,7 @@ WARN_HEADER
 grep '^ *EZ_WARNING("' "$CODES_FILE" | while IFS= read -r line; do
     code=$(echo "$line" | sed 's/.*EZ_WARNING("\([^"]*\)".*/\1/')
     category=$(echo "$line" | sed 's/.*EZ_WARNING("[^"]*", "\([^"]*\)".*/\1/')
-    desc=$(echo "$line" | sed 's/.*EZ_WARNING("[^"]*", "[^"]*", "\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*EZ_WARNING("[^"]*", "[^"]*", "\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 
@@ -87,7 +87,7 @@ PANIC_HEADER
 grep '^ *EZ_PANIC("' "$CODES_FILE" | while IFS= read -r line; do
     code=$(echo "$line" | sed 's/.*EZ_PANIC("\([^"]*\)".*/\1/')
     category=$(echo "$line" | sed 's/.*EZ_PANIC("[^"]*", *"\([^"]*\)".*/\1/')
-    desc=$(echo "$line" | sed 's/.*EZ_PANIC("[^"]*", *"[^"]*", *"\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*EZ_PANIC("[^"]*", *"[^"]*", *"\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 

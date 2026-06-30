@@ -200,7 +200,15 @@ EzString ez_builtin_input(EzArena *arena) {
         return ez_string_lit("");
     }
     size_t len = strlen(buf);
-    if (len > 0 && buf[len - 1] == '\n') len--;
+    if (len > 0 && buf[len - 1] == '\n') {
+        len--;
+    } else if (len == EZ_INPUT_BUF_SIZE - 1) {
+        /* Buffer filled without reaching a newline — drain the rest of the
+         * line so the next input() call reads the correct line. */
+        int c;
+        while ((c = getc(stdin)) != '\n' && c != EOF)
+            ;
+    }
     return ez_string_new(arena, buf, (int32_t)len);
 }
 
