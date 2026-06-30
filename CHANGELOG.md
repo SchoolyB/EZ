@@ -1,5 +1,55 @@
 # Changelog
 
+## [3.8.2](https://github.com/SchoolyB/EZ/compare/v3.8.1...v3.8.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* **cli:** cap update download at 256 MiB to prevent disk exhaustion ([#1980](https://github.com/SchoolyB/EZ/issues/1980)) ([2b14809](https://github.com/SchoolyB/EZ/commit/2b14809f18b3b382a3b345a635b7ac827438404c))
+* **cli:** redact home directory from C compiler path in ez report ([#1983](https://github.com/SchoolyB/EZ/issues/1983)) ([26eeeb0](https://github.com/SchoolyB/EZ/commit/26eeeb0cce7d71ae82704e5d029653d3068857a5))
+* **cli:** reject path traversal sequences in ez pz project name ([#1979](https://github.com/SchoolyB/EZ/issues/1979)) ([badd948](https://github.com/SchoolyB/EZ/commit/badd948405be3979cab3aeb95de96b9d06f6302a))
+* **cli:** remove unsupported sized integer/float types from ez man docs ([#1976](https://github.com/SchoolyB/EZ/issues/1976)) ([f660865](https://github.com/SchoolyB/EZ/commit/f660865924b59aa29c5a33ea48fcf9b0ae64f346))
+* **cli:** restrict update download URLs to trusted GitHub release origin ([#1978](https://github.com/SchoolyB/EZ/issues/1978)) ([599f8c2](https://github.com/SchoolyB/EZ/commit/599f8c2f839ded18f363556c4a6e4cb117c909fa))
+* **codegen:** cast dividend to int64_t in div/mod overflow check to silence Wtautological-constant-out-of-range-compare ([2b753be](https://github.com/SchoolyB/EZ/commit/2b753be1a4b138cfdfe55246960842077c95505f))
+* **codegen:** cast of negative float to uint/u64 now panics with P0091 ([#1964](https://github.com/SchoolyB/EZ/issues/1964)) ([37f4d51](https://github.com/SchoolyB/EZ/commit/37f4d519d5f377cb634e4ac282b6813f5af9b38a))
+* **codegen:** emit T * const for const pointer variables, not const T * ([#1937](https://github.com/SchoolyB/EZ/issues/1937)) ([381b662](https://github.com/SchoolyB/EZ/commit/381b6628d2a0b68269104a6fa4c4c1f3c4098310))
+* **codegen:** fixed-size array [T, N] with partial init now has length N ([#1965](https://github.com/SchoolyB/EZ/issues/1965)) ([9810873](https://github.com/SchoolyB/EZ/commit/9810873d12b81884e2d1863f5667bf7be702c09e))
+* **codegen:** map compound assignment now reads existing value before applying op ([#1971](https://github.com/SchoolyB/EZ/issues/1971)) ([c19d6e8](https://github.com/SchoolyB/EZ/commit/c19d6e8c8959b5b850bda4d42788809182ae5e49))
+* **codegen:** promote integer literals to double in [float]/[f32]/[f64] array literals ([#1963](https://github.com/SchoolyB/EZ/issues/1963)) ([c4c39b8](https://github.com/SchoolyB/EZ/commit/c4c39b8412462e1e7c8152a416e1f2f25f915246))
+* **codegen:** string(Error) now returns the error message instead of leaking C error ([#1977](https://github.com/SchoolyB/EZ/issues/1977)) ([72d3f2d](https://github.com/SchoolyB/EZ/commit/72d3f2d7a7c7a4d64bdfd481730a23057316626e))
+* consolidate reserved name lists into shared reserved.h ([#1954](https://github.com/SchoolyB/EZ/issues/1954)) ([a42a410](https://github.com/SchoolyB/EZ/commit/a42a41019a197e05dbd1bf3b15a69df03af3ab83))
+* **leaks:** print clear PASS/FAIL summary at end of make leaks output ([#1975](https://github.com/SchoolyB/EZ/issues/1975)) ([141b947](https://github.com/SchoolyB/EZ/commit/141b947b90d10ab539dc3ca8fec947f76e957998))
+* **lexer:** catch physical newline in string literal as E1023 ([#1959](https://github.com/SchoolyB/EZ/issues/1959)) ([683203b](https://github.com/SchoolyB/EZ/commit/683203b013b038ea2e041d3aa07f4857bc0d96f3))
+* **parser:** accept complex types in multi-return destructuring positions 2+ ([#1962](https://github.com/SchoolyB/EZ/issues/1962)) ([a2b0454](https://github.com/SchoolyB/EZ/commit/a2b0454d0eb523e95a154565627300a2caed7b7e))
+* **parser:** emit E2086 when in/not_in/!in has no left-hand value ([#1960](https://github.com/SchoolyB/EZ/issues/1960)) ([de90608](https://github.com/SchoolyB/EZ/commit/de906080604f2534a3cdeb30952a3e4eea3ae919))
+* **parser:** support blank identifier _ as for loop variable in range iteration ([#1972](https://github.com/SchoolyB/EZ/issues/1972)) ([3dc99b3](https://github.com/SchoolyB/EZ/commit/3dc99b3de1428de7cc4f7ccf64571288576caddd))
+* **runtime:** drain overlong input() lines to prevent stdin contamination ([#1981](https://github.com/SchoolyB/EZ/issues/1981)) ([0576927](https://github.com/SchoolyB/EZ/commit/057692798834c959f4b128fd0c2d3229dcb42b75))
+* **runtime:** use pre-addition overflow check in ez_string_concat to eliminate signed UB ([#1984](https://github.com/SchoolyB/EZ/issues/1984)) ([c1af77d](https://github.com/SchoolyB/EZ/commit/c1af77d7bbda0ea927467d02c10fda383001c419))
+* **scripts:** handle escaped quotes in error message extraction ([790e2cf](https://github.com/SchoolyB/EZ/commit/790e2cf079d895f3fe328a668c59aa21ca00a602))
+* **typechecker:** allow range(n, n) as empty sequence per spec start &lt;= end ([#1969](https://github.com/SchoolyB/EZ/issues/1969)) ([f4683f9](https://github.com/SchoolyB/EZ/commit/f4683f9e0415d69f55e756945301c2821f1e72c4))
+* **typechecker:** reject == / != on tagged enums with E3124 ([#1967](https://github.com/SchoolyB/EZ/issues/1967)) ([ce02e3e](https://github.com/SchoolyB/EZ/commit/ce02e3e714ef1caabe999ef044d4d1bf34552428))
+* **typechecker:** reject for_each with both positions as _ with E3123 ([#1966](https://github.com/SchoolyB/EZ/issues/1966)) ([7bda22b](https://github.com/SchoolyB/EZ/commit/7bda22b7103d037b3e3a1beefadbc49332641b44))
+* **typechecker:** reject tagged enum passed to print functions with E5038 ([#1968](https://github.com/SchoolyB/EZ/issues/1968)) ([d83c720](https://github.com/SchoolyB/EZ/commit/d83c720edf9a3bd92d384fb716d290be49357c97))
+* **typechecker:** replace misleading 'only structs' phrasing in E3013 messages ([b0d1695](https://github.com/SchoolyB/EZ/commit/b0d1695160eeee23de1f1130db04188a9610ca36))
+
+
+### Performance Improvements
+
+* **codegen:** collapse buf_append_indent loop into a single buf_appendn call ([#1953](https://github.com/SchoolyB/EZ/issues/1953)) ([b27f4ed](https://github.com/SchoolyB/EZ/commit/b27f4ede1fe8ddda1219e8253a384c696d3e9a1f))
+* **codegen:** eliminate double vsnprintf in emitf for short emissions ([#1952](https://github.com/SchoolyB/EZ/issues/1952)) ([aaa214d](https://github.com/SchoolyB/EZ/commit/aaa214d2866172055ce6a3227704125c9585a28d))
+* **codegen:** replace linear scan in is_c_keyword with bsearch ([#1956](https://github.com/SchoolyB/EZ/issues/1956)) ([d2ac0a2](https://github.com/SchoolyB/EZ/commit/d2ac0a2c246ac4eda91621f8a95b68259ffdb936))
+* **error:** add cached error/warning counters to DiagnosticList ([#1943](https://github.com/SchoolyB/EZ/issues/1943)) ([b7ac109](https://github.com/SchoolyB/EZ/commit/b7ac10985b2a1ae5ff15bc6404c8c8072005bac6))
+* **error:** build line-offset index in diag_set_source ([#1942](https://github.com/SchoolyB/EZ/issues/1942)) ([e0c5a5a](https://github.com/SchoolyB/EZ/commit/e0c5a5a7e2de5dde865c822935ae009a68f49476))
+* **error:** replace single-file source cache with 4-slot LRU cache ([#1947](https://github.com/SchoolyB/EZ/issues/1947)) ([48ee72e](https://github.com/SchoolyB/EZ/commit/48ee72e1a1bc974d51a01c8a748690b6526451f1))
+* **imports:** limit rewrite_labels outer pass to original main-program nodes ([#1946](https://github.com/SchoolyB/EZ/issues/1946)) ([22b8643](https://github.com/SchoolyB/EZ/commit/22b864314f522771f5d226c2612584b8aa841936))
+* **imports:** replace O(n) import-seen scan with FNV-1a open-addressing hash set ([#1951](https://github.com/SchoolyB/EZ/issues/1951)) ([8f5f9e2](https://github.com/SchoolyB/EZ/commit/8f5f9e2217fe4ef869b3db5801d20b2b86f0fdf4))
+* **imports:** replace while+rescan with a pending import queue ([#1945](https://github.com/SchoolyB/EZ/issues/1945)) ([b073b80](https://github.com/SchoolyB/EZ/commit/b073b80d6eb830af533d0f45de682889565cbb31))
+* **scan:** replace bubble sort in scan_ez_files with qsort ([#1944](https://github.com/SchoolyB/EZ/issues/1944)) ([1946c88](https://github.com/SchoolyB/EZ/commit/1946c888af092c5d2456947a02f9875121b9ea6d))
+* **typechecker:** replace O(n) scans in display name and enum helpers with bsearch ([#1948](https://github.com/SchoolyB/EZ/issues/1948)) ([ea19b7c](https://github.com/SchoolyB/EZ/commit/ea19b7cb70dc7c885c287b91d9f0f82c42e84acf))
+* **typechecker:** replace O(n) scans in fallible stdlib lookups with bsearch ([#1949](https://github.com/SchoolyB/EZ/issues/1949)) ([521246d](https://github.com/SchoolyB/EZ/commit/521246d2002ddb3d3af85f70f0f255ec07d6c0b0))
+* **typechecker:** sort stdlib lookup tables in typechecker_create ([#1955](https://github.com/SchoolyB/EZ/issues/1955)) ([b54a2f6](https://github.com/SchoolyB/EZ/commit/b54a2f67f3dd68883db645b4e0aa4784aef709b3))
+* **typechecker:** use stack buffer in levenshtein to avoid malloc on every call ([#1950](https://github.com/SchoolyB/EZ/issues/1950)) ([75f9ed4](https://github.com/SchoolyB/EZ/commit/75f9ed4d87b98f81baafedd2b8847cf349feba23))
+
 ## [3.8.1](https://github.com/SchoolyB/EZ/compare/v3.8.0...v3.8.1) (2026-06-23)
 
 
