@@ -1881,6 +1881,12 @@ static bool is_signed_int_type(const char *tn) {
            strcmp(tn, "i256") == 0;
 }
 
+static bool is_bigint_type(const char *tn) {
+    if (!tn) return false;
+    return strcmp(tn, "i128") == 0 || strcmp(tn, "u128") == 0 ||
+           strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0;
+}
+
 /* --- Literal value extraction --- */
 
 /* Try to extract a compile-time integer value from a literal expression.
@@ -2380,6 +2386,33 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "invalid operands: cannot use '%s' with %s and %s",
+                op_to_str(op), type_name(left), type_name(right));
+            diag_error_msg(tc->diag, "E3002", arena_strdup(tc->arena, msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
+        /* E3002: incompatible bigint operands. Bigint arithmetic and comparison
+         * functions (ez_i128_add_checked, ez_i128_eq, etc.) only accept their
+         * own struct type. The only cross-type bigint combinations that codegen
+         * can handle are i256+i128 and u256+u128 (the narrower type is widened).
+         * Everything else — mixed signedness or the wrong direction — leaks a
+         * C type error and must be caught here. */
+        if (!infix_errored &&
+            (op == TOK_PLUS || op == TOK_MINUS ||
+             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
+             op == TOK_EQ || op == TOK_NOT_EQ ||
+             op == TOK_LT || op == TOK_GT ||
+             op == TOK_LT_EQ || op == TOK_GT_EQ) &&
+            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
+            left->name && right->name &&
+            is_bigint_type(left->name) && is_bigint_type(right->name) &&
+            strcmp(left->name, right->name) != 0 &&
+            !(strcmp(left->name, "i256") == 0 && strcmp(right->name, "i128") == 0) &&
+            !(strcmp(left->name, "u256") == 0 && strcmp(right->name, "u128") == 0)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "invalid operands: cannot use '%s' with %s and %s; bigint types must match",
                 op_to_str(op), type_name(left), type_name(right));
             diag_error_msg(tc->diag, "E3002", arena_strdup(tc->arena, msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
