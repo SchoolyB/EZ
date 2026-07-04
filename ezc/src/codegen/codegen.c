@@ -1757,19 +1757,27 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
 
         /* Bitwise keyword operators → C bitwise operators */
-        if (op == TOK_BIT_AND || op == TOK_BIT_OR ||
-            op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
-            op == TOK_BIT_SHIFT_RIGHT) {
+        if (op == TOK_BIT_AND || op == TOK_BIT_OR || op == TOK_BIT_XOR) {
             const char *c_op = op_to_c_str(op);
-            bool is_shift = (op == TOK_BIT_SHIFT_LEFT ||
-                             op == TOK_BIT_SHIFT_RIGHT);
-            bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
             emit(cg, "(");
-            if (is_shift && left_is_literal) emit(cg, "(int64_t)");
             emit_expression(cg, node->data.infix.left);
             emitf(cg, " %s ", c_op);
             emit_expression(cg, node->data.infix.right);
             emit(cg, ")");
+            break;
+        }
+        /* Bit shift operators with runtime bounds check.
+         * A shift amount that is negative or >= 64 is undefined behavior
+         * in C. Capture the amount once, validate it, then shift. */
+        if (op == TOK_BIT_SHIFT_LEFT || op == TOK_BIT_SHIFT_RIGHT) {
+            const char *c_op = op_to_c_str(op);
+            bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
+            emit(cg, "({ int64_t _sa = (int64_t)(");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, "); if (_sa < 0 || _sa >= 64) { ez_panic_code(\"P0092\", \"shift amount %lld is out of range; must be in [0, 63]\", (long long)_sa); } (");
+            if (left_is_literal) emit(cg, "(int64_t)");
+            emit_expression(cg, node->data.infix.left);
+            emitf(cg, ") %s (int)_sa; })", c_op);
             break;
         }
 

@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 348 codes** (240 errors, 17 warnings, 91 panics)
+**Total: 349 codes** (240 errors, 17 warnings, 92 panics)
 
 ---
 
@@ -375,6 +375,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
 | `P0090` | runtime | range step cannot be zero |
 | `P0091` | arithmetic | cannot convert float to uint; the value is negative, too large, or NaN |
+| `P0092` | arithmetic | shift amount %lld is out of range; must be in [0, 63] |
 
 ---
 
@@ -399,4 +400,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-30 04:48:38 UTC*
+*Generated on 2026-07-04 23:29:40 UTC*
