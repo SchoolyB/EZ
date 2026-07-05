@@ -1,9 +1,9 @@
 /*
- * Error Test: E3004 - string index assignment not supported
+ * Error Test: E3004 - char assignment to string index not supported
  * Expected: strings are not element-assignable
  */
 
 do main() {
     mut s string = "hello"
-    s[0] = 5
+    s[0] = 'H'
 }

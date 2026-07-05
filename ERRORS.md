@@ -81,7 +81,7 @@
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
-| `E3004` | types | string index assignment requires a char value; got '%s' |
+| `E3004` | types | strings are not element-assignable; individual string characters cannot be modified by index |
 | `E3005` | types | cannot modify constant '%s'; declare with 'mut' to make it mutable |
 | `E3006` | types | too many variables; the function returns %d value(s) but variable %d was requested |
 | `E3007` | types | cannot negate type '%s'; only numeric types support negation |
@@ -401,4 +401,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-05 09:45:02 UTC*
+*Generated on 2026-07-05 09:53:42 UTC*

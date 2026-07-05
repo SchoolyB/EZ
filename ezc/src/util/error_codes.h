@@ -104,7 +104,7 @@
     EZ_ERROR("E3001", "types", "type mismatch; a value of one type is used where a different type is expected") \
     EZ_ERROR("E3002", "types", "this operator does not work on this type; for example, strings cannot be subtracted") \
     EZ_ERROR("E3003", "types", "invalid array index type; array indices must be integers") \
-    EZ_ERROR("E3004", "types", "string index assignment requires a char value; got '%s'") \
+    EZ_ERROR("E3004", "types", "strings are not element-assignable; individual string characters cannot be modified by index") \
     EZ_ERROR("E3005", "types", "cannot modify constant '%s'; declare with 'mut' to make it mutable") \
     EZ_ERROR("E3006", "types", "too many variables; the function returns %d value(s) but variable %d was requested") \
     EZ_ERROR("E3007", "types", "cannot negate type '%s'; only numeric types support negation") \

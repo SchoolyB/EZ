@@ -8589,16 +8589,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (const_name) {
             diag_error_codef(tc->diag, "E3005", NODE_FILE(tc, node), node->token.line, node->token.column, 0, const_name);
         }
-        /* E3004: string index assignment must be char */
-        if (target->kind == NODE_INDEX_EXPR && node->data.assign.value) {
+        /* E3004: string index assignment is not supported; strings are immutable
+         * sequences — individual characters cannot be modified by index.
+         * This fires regardless of the assigned value's type. */
+        if (target->kind == NODE_INDEX_EXPR) {
             EzType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
             if (indexed_t && indexed_t->kind == TK_STRING) {
-                EzType *val_t = resolve_expr(tc, node->data.assign.value);
-                if (val_t && val_t->kind != TK_UNKNOWN && val_t->kind != TK_CHAR) {
-                    diag_error_codef(tc->diag, "E3004",
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                        type_display_name(tc, val_t));
-                }
+                diag_error_code(tc->diag, "E3004",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
