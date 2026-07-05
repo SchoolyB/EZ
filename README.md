@@ -10,7 +10,7 @@
 <h3 align="center">Programming made EZ.</h3>
 
 <p align="center">
-  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Learn More About EZ</a>
+  <a href="STANDARD.md">Learn More About EZ</a>
 </p>
 
 <p align="center">
@@ -36,7 +36,10 @@ const User struct {
 }
 
 do main() {
-    mut u = User{name: "Marshall", age: 31}
+    mut u = new(User)^
+    u.name = "Marshall"
+    u.age = 31
+    
     println(json.stringify(u))
 }
 // Output: {"name":"Marshall","age":31}
@@ -50,8 +53,12 @@ do main() {
     if err != nil {
         eprintln("Failed: ${err}")
         exit(1)
+    } or len(content) == 0 {
+      println("No content found")
+      exit(1)
+    } otherwise {
+      println("Content found: ${content}")
     }
-    println(content)
 }
 ```
 
@@ -136,7 +143,7 @@ ez install 2.5.0       # pin to an exact version
 
 ## Learn More
 
-- [Official documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs)
+- [Language standard](STANDARD.md)
 - [Contributing guide](CONTRIBUTING.md)
 
 ## Tooling
