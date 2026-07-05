@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 348 codes** (240 errors, 17 warnings, 91 panics)
+**Total: 350 codes** (241 errors, 17 warnings, 92 panics)
 
 ---
 
@@ -81,7 +81,7 @@
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
-| `E3004` | types | string index assignment requires a char value; got '%s' |
+| `E3004` | types | strings are not element-assignable; individual string characters cannot be modified by index |
 | `E3005` | types | cannot modify constant '%s'; declare with 'mut' to make it mutable |
 | `E3006` | types | too many variables; the function returns %d value(s) but variable %d was requested |
 | `E3007` | types | cannot negate type '%s'; only numeric types support negation |
@@ -232,6 +232,7 @@
 | `E5036` | usage | '%s' is a type, not a function; use cast(value, %s) to convert |
 | `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
 | `E5038` | usage | tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first |
+| `E5039` | usage | constant expression overflows type '%s' |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -375,6 +376,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0089` | io | io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually |
 | `P0090` | runtime | range step cannot be zero |
 | `P0091` | arithmetic | cannot convert float to uint; the value is negative, too large, or NaN |
+| `P0092` | arithmetic | shift amount %lld is out of range; must be in [0, 63] |
 
 ---
 
@@ -399,4 +401,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-06-30 04:48:38 UTC*
+*Generated on 2026-07-05 10:13:49 UTC*

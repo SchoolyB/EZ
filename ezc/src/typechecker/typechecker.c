@@ -1881,6 +1881,12 @@ static bool is_signed_int_type(const char *tn) {
            strcmp(tn, "i256") == 0;
 }
 
+static bool is_bigint_type(const char *tn) {
+    if (!tn) return false;
+    return strcmp(tn, "i128") == 0 || strcmp(tn, "u128") == 0 ||
+           strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0;
+}
+
 /* --- Literal value extraction --- */
 
 /* Try to extract a compile-time integer value from a literal expression.
@@ -1907,6 +1913,86 @@ static bool try_get_literal_int(AstNode *node, int64_t *out) {
             if (node->data.infix.op == TOK_ASTERISK) { *out = lv * rv; return true; }
             if (node->data.infix.op == TOK_SLASH && rv != 0) { *out = lv / rv; return true; }
         }
+    }
+    return false;
+}
+
+/* Register a file-scope const integer value for later constant folding. */
+static void tc_register_const_int(TypeChecker *tc, const char *name, int64_t value) {
+    if (tc->const_int_count >= tc->const_int_cap) {
+        tc->const_int_cap = tc->const_int_cap ? tc->const_int_cap * 2 : 8;
+        tc->const_int_names = xrealloc(tc->const_int_names,
+            sizeof(const char *) * (size_t)tc->const_int_cap);
+        tc->const_int_values = xrealloc(tc->const_int_values,
+            sizeof(int64_t) * (size_t)tc->const_int_cap);
+    }
+    tc->const_int_names[tc->const_int_count] = name;
+    tc->const_int_values[tc->const_int_count] = value;
+    tc->const_int_count++;
+}
+
+/* Try to evaluate node as a compile-time integer constant.
+ * Handles integer literals, negated literals, label references to known
+ * file-scope const ints, and infix arithmetic.
+ *
+ * Returns true if the expression folded to *out with no overflow.
+ * Returns false if:
+ *   - any operand is not a known constant (*overflowed unchanged), or
+ *   - arithmetic overflowed int64 (*overflowed set to true).
+ */
+static bool tc_fold_const_int(TypeChecker *tc, AstNode *node,
+                               int64_t *out, bool *overflowed) {
+    if (!node) return false;
+    if (node->kind == NODE_INT_VALUE) {
+        /* overflow_u64 means the literal exceeds uint64 range entirely;
+         * overflow alone only means it exceeds int64 range (still valid
+         * for unsigned EZ types).  Only treat overflow_u64 as a hard
+         * failure here since we fold using the raw int64 bit pattern. */
+        if (node->data.int_value.overflow_u64) { *overflowed = true; return false; }
+        *out = node->data.int_value.value;
+        return true;
+    }
+    if (node->kind == NODE_PREFIX_EXPR && node->data.prefix.op == TOK_MINUS &&
+        node->data.prefix.right && node->data.prefix.right->kind == NODE_INT_VALUE) {
+        if (node->data.prefix.right->data.int_value.overflow_u64) { *overflowed = true; return false; }
+        *out = -node->data.prefix.right->data.int_value.value;
+        return true;
+    }
+    if (node->kind == NODE_LABEL) {
+        const char *name = node->data.label.value;
+        for (int i = 0; i < tc->const_int_count; i++) {
+            if (strcmp(tc->const_int_names[i], name) == 0) {
+                *out = tc->const_int_values[i];
+                return true;
+            }
+        }
+        return false;
+    }
+    if (node->kind == NODE_INFIX_EXPR) {
+        int64_t lv, rv;
+        bool l_ov = false, r_ov = false;
+        bool l_ok = tc_fold_const_int(tc, node->data.infix.left, &lv, &l_ov);
+        bool r_ok = tc_fold_const_int(tc, node->data.infix.right, &rv, &r_ov);
+        if (!l_ok || !r_ok) {
+            if (l_ov || r_ov) *overflowed = true;
+            return false;
+        }
+        TokenType op = node->data.infix.op;
+        int64_t result;
+        if (op == TOK_PLUS) {
+            if (__builtin_add_overflow(lv, rv, &result)) { *overflowed = true; return false; }
+            *out = result; return true;
+        }
+        if (op == TOK_MINUS) {
+            if (__builtin_sub_overflow(lv, rv, &result)) { *overflowed = true; return false; }
+            *out = result; return true;
+        }
+        if (op == TOK_ASTERISK) {
+            if (__builtin_mul_overflow(lv, rv, &result)) { *overflowed = true; return false; }
+            *out = result; return true;
+        }
+        if (op == TOK_SLASH && rv != 0) { *out = lv / rv; return true; }
+        if (op == TOK_PERCENT && rv != 0) { *out = lv % rv; return true; }
     }
     return false;
 }
@@ -2380,6 +2466,33 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             char msg[EZ_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "invalid operands: cannot use '%s' with %s and %s",
+                op_to_str(op), type_name(left), type_name(right));
+            diag_error_msg(tc->diag, "E3002", arena_strdup(tc->arena, msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
+        /* E3002: incompatible bigint operands. Bigint arithmetic and comparison
+         * functions (ez_i128_add_checked, ez_i128_eq, etc.) only accept their
+         * own struct type. The only cross-type bigint combinations that codegen
+         * can handle are i256+i128 and u256+u128 (the narrower type is widened).
+         * Everything else — mixed signedness or the wrong direction — leaks a
+         * C type error and must be caught here. */
+        if (!infix_errored &&
+            (op == TOK_PLUS || op == TOK_MINUS ||
+             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
+             op == TOK_EQ || op == TOK_NOT_EQ ||
+             op == TOK_LT || op == TOK_GT ||
+             op == TOK_LT_EQ || op == TOK_GT_EQ) &&
+            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
+            left->name && right->name &&
+            is_bigint_type(left->name) && is_bigint_type(right->name) &&
+            strcmp(left->name, right->name) != 0 &&
+            !(strcmp(left->name, "i256") == 0 && strcmp(right->name, "i128") == 0) &&
+            !(strcmp(left->name, "u256") == 0 && strcmp(right->name, "u128") == 0)) {
+            char msg[EZ_MSG_BUF_SIZE];
+            snprintf(msg, sizeof(msg),
+                "invalid operands: cannot use '%s' with %s and %s; bigint types must match",
                 op_to_str(op), type_name(left), type_name(right));
             diag_error_msg(tc->diag, "E3002", arena_strdup(tc->arena, msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -7257,6 +7370,42 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_code(tc->diag, "E5013",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* Track file-scope const integer values for constant folding in later
+         * declarations.  Also detect overflow in const arithmetic expressions:
+         * codegen emits runtime overflow-check wrappers (ez_add_check etc.)
+         * which are not valid as C file-scope initializers.  The typechecker
+         * must evaluate and reject overflowing expressions before codegen runs.
+         * E5039: constant expression overflows the declared integer type. */
+        if (tc->func_depth == 0 && !node->data.var_decl.mutable &&
+            node->data.var_decl.type_name && node->data.var_decl.value) {
+            const char *tn = node->data.var_decl.type_name;
+            /* Only track signed integer types in the const table.  Unsigned
+             * types (uint, u64, u8…) can hold values that do not fit in
+             * int64_t, so folding them with signed arithmetic would produce
+             * wrong results.  Unsigned overflow detection is left to a
+             * separate check; for now we just ensure the codegen fix applies
+             * (in_const_decl suppresses the runtime wrapper). */
+            bool is_signed_int_type =
+                strcmp(tn, "int") == 0 || strcmp(tn, "i64") == 0 ||
+                strcmp(tn, "i8") == 0 || strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0;
+            if (is_signed_int_type) {
+                int64_t folded = 0;
+                bool overflowed = false;
+                bool ok = tc_fold_const_int(tc, node->data.var_decl.value, &folded, &overflowed);
+                if (ok) {
+                    /* Expression is a valid compile-time constant.  Register
+                     * the value so later const declarations can reference it. */
+                    tc_register_const_int(tc, node->data.var_decl.name, folded);
+                } else if (overflowed) {
+                    char msg[EZ_MSG_BUF_SIZE];
+                    snprintf(msg, sizeof(msg),
+                        "constant expression overflows type '%s'", tn);
+                    diag_error_msg(tc->diag, "E5039",
+                        arena_strdup(tc->arena, msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
+            }
+        }
         /* E3038: void cannot be used as variable type */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "void") == 0) {
             diag_error_msg(tc->diag, "E3038",
@@ -8440,16 +8589,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (const_name) {
             diag_error_codef(tc->diag, "E3005", NODE_FILE(tc, node), node->token.line, node->token.column, 0, const_name);
         }
-        /* E3004: string index assignment must be char */
-        if (target->kind == NODE_INDEX_EXPR && node->data.assign.value) {
+        /* E3004: string index assignment is not supported; strings are immutable
+         * sequences — individual characters cannot be modified by index.
+         * This fires regardless of the assigned value's type. */
+        if (target->kind == NODE_INDEX_EXPR) {
             EzType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
             if (indexed_t && indexed_t->kind == TK_STRING) {
-                EzType *val_t = resolve_expr(tc, node->data.assign.value);
-                if (val_t && val_t->kind != TK_UNKNOWN && val_t->kind != TK_CHAR) {
-                    diag_error_codef(tc->diag, "E3004",
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                        type_display_name(tc, val_t));
-                }
+                diag_error_code(tc->diag, "E3004",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 

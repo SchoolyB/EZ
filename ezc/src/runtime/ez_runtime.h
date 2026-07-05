@@ -320,6 +320,15 @@ static inline uint64_t ez_ucast_check(int64_t v, uint64_t max_val,
     return (uint64_t)v;
 }
 
+/* Safe uint64 → int64 conversion: panics if value exceeds INT64_MAX */
+static inline int64_t ez_uint_to_int_check(uint64_t v, const char *file, int line) {
+    (void)file; (void)line;
+    if (v > (uint64_t)9223372036854775807LL)
+        ez_panic_code("P0018", "cast to int failed; value %llu is outside the valid range (0 to 9223372036854775807)",
+            (unsigned long long)v);
+    return (int64_t)v;
+}
+
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     (void)file; (void)line;

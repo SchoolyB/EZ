@@ -1,0 +1,13 @@
+/*
+ * Panic Test: P0092 - shift amount out of range
+ *
+ * Shifting by a negative amount is undefined behavior in C. EZ must
+ * validate the shift amount at runtime and panic instead of silently
+ * producing a wrong result.
+ */
+
+do main() {
+    mut amount int = -1
+    mut result int = 1 bit_shift_left amount
+    println(result)
+}

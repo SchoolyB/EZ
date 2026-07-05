@@ -1,0 +1,15 @@
+/*
+ * Pass Test: const declarations with arithmetic expressions
+ * File-scope const declarations can reference other const variables
+ * in arithmetic expressions without triggering a C compilation error.
+ */
+
+const BASE int = 10
+const STEP int = 3
+const NEXT int = BASE + STEP
+const PRODUCT int = BASE * STEP
+
+do main() {
+    println(NEXT)
+    println(PRODUCT)
+}

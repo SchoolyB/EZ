@@ -174,6 +174,14 @@ typedef struct {
     /* Arena for diagnostic message strings — replaces per-message strdup */
     Arena *arena;
 
+    /* Evaluated values of file-scope const integer declarations.
+     * Used to constant-fold expressions in subsequent const initializers
+     * and to detect overflow before codegen runs. */
+    const char **const_int_names;
+    int64_t *const_int_values;
+    int const_int_count;
+    int const_int_cap;
+
 } TypeChecker;
 
 /* Create and run the type checker */

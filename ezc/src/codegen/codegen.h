@@ -121,6 +121,11 @@ typedef struct {
      * after each call. */
     void *pending_call_typed_sig;
 
+    /* True while emitting the initializer of a file-scope const declaration.
+     * Prevents runtime overflow-check wrappers (ez_add_check etc.) from being
+     * emitted as C file-scope initializers, which C does not allow. */
+    bool in_const_decl;
+
     /* Stack of open per-scope scratch arenas (if / for_each / while /
      * loop). Each entry holds the exact C identifiers emitted at scope
      * entry so any early-exit path (return, or_return-desugared return)

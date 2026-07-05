@@ -1757,19 +1757,27 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
 
         /* Bitwise keyword operators → C bitwise operators */
-        if (op == TOK_BIT_AND || op == TOK_BIT_OR ||
-            op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
-            op == TOK_BIT_SHIFT_RIGHT) {
+        if (op == TOK_BIT_AND || op == TOK_BIT_OR || op == TOK_BIT_XOR) {
             const char *c_op = op_to_c_str(op);
-            bool is_shift = (op == TOK_BIT_SHIFT_LEFT ||
-                             op == TOK_BIT_SHIFT_RIGHT);
-            bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
             emit(cg, "(");
-            if (is_shift && left_is_literal) emit(cg, "(int64_t)");
             emit_expression(cg, node->data.infix.left);
             emitf(cg, " %s ", c_op);
             emit_expression(cg, node->data.infix.right);
             emit(cg, ")");
+            break;
+        }
+        /* Bit shift operators with runtime bounds check.
+         * A shift amount that is negative or >= 64 is undefined behavior
+         * in C. Capture the amount once, validate it, then shift. */
+        if (op == TOK_BIT_SHIFT_LEFT || op == TOK_BIT_SHIFT_RIGHT) {
+            const char *c_op = op_to_c_str(op);
+            bool left_is_literal = node->data.infix.left->kind == NODE_INT_VALUE;
+            emit(cg, "({ int64_t _sa = (int64_t)(");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, "); if (_sa < 0 || _sa >= 64) { ez_panic_code(\"P0092\", \"shift amount %lld is out of range; must be in [0, 63]\", (long long)_sa); } (");
+            if (left_is_literal) emit(cg, "(int64_t)");
+            emit_expression(cg, node->data.infix.left);
+            emitf(cg, ") %s (int)_sa; })", c_op);
             break;
         }
 
@@ -1915,8 +1923,10 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        /* Runtime division/modulo by zero check */
-        if (op == TOK_SLASH || op == TOK_PERCENT) {
+        /* Runtime division/modulo by zero check.
+         * GNU statement expressions are not valid as C file-scope initializers,
+         * so skip the runtime check when inside a const declaration. */
+        if (!cg->in_const_decl && (op == TOK_SLASH || op == TOK_PERCENT)) {
             bool is_float_div = (lt && lt->kind == TK_FLOAT) || (rt && rt->kind == TK_FLOAT);
             if (is_float_div) {
                 /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
@@ -2007,7 +2017,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         else if (op == TOK_MINUS) op_fn = "ez_sized_sub_check";
                         else if (op == TOK_ASTERISK) op_fn = "ez_sized_mul_check";
                     }
-                    if (op_fn) {
+                    if (op_fn && !cg->in_const_decl) {
                         emitf(cg, "%s(", op_fn);
                         emit_expression(cg, node->data.infix.left);
                         emit(cg, ", ");
@@ -2033,7 +2043,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (op == TOK_MINUS) fn = "ez_sub_check";
                     else if (op == TOK_ASTERISK) fn = "ez_mul_check";
                 }
-                if (fn) {
+                if (fn && !cg->in_const_decl) {
                     emitf(cg, "%s(", fn);
                     emit_expression(cg, node->data.infix.left);
                     emit(cg, ", ");
@@ -2654,6 +2664,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, "(%s)ez_cast_check(", ez_type_to_c_cg(cg, target));
                 emit_expression(cg, val);
                 emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", smin, smax, target, node->token.line);
+            } else if ((strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0) &&
+                       val_kind == TK_INT) {
+                /* signed int → uint/u64: panic if value is negative */
+                emitf(cg, "(uint64_t)ez_ucast_check((int64_t)(");
+                emit_expression(cg, val);
+                emitf(cg, "), 18446744073709551615ULL, \"%s\", __FILE__, %d)", target, node->token.line);
+            } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) &&
+                       val_kind == TK_UINT &&
+                       val_t && val_t->name &&
+                       (strcmp(val_t->name, "uint") == 0 || strcmp(val_t->name, "u64") == 0)) {
+                /* uint/u64 → int/i64: panic if value exceeds INT64_MAX */
+                emitf(cg, "(int64_t)ez_uint_to_int_check((uint64_t)(");
+                emit_expression(cg, val);
+                emitf(cg, "), __FILE__, %d)", node->token.line);
             } else {
                 emitf(cg, "((%s)(", ez_type_to_c_cg(cg, target));
                 emit_expression(cg, val);
@@ -7032,6 +7056,13 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         emit(cg, " = ");
         cg->current_var_name = node->data.var_decl.name;
         cg->current_var_type = node->data.var_decl.type_name;
+        /* Signal to emit_expression that we are inside a file-scope const
+         * initializer.  Overflow-check wrappers (ez_add_check etc.) are
+         * runtime function calls; C rejects them as file-scope initializers.
+         * The typechecker has already verified no overflow for such exprs. */
+        bool prev_in_const_decl = cg->in_const_decl;
+        if (cg->indent == 0 && !node->data.var_decl.mutable)
+            cg->in_const_decl = true;
         /* Bigint literal zero: emit zero constant instead of plain 0 */
         if (type_name && is_bigint_type(type_name) &&
             node->data.var_decl.value->kind == NODE_INT_VALUE &&
@@ -7144,6 +7175,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (!emit_narrowing_cast(cg, type_name, node->data.var_decl.value, node->token.line)) {
             emit_expression(cg, node->data.var_decl.value);
         }
+        cg->in_const_decl = prev_in_const_decl;
         cg->current_var_name = NULL;
         cg->current_var_type = NULL;
     } else {
@@ -8150,7 +8182,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 emitf(cg, "for (int64_t %s = ", var);
                 emit_expression(cg, iter->data.range_expr.start);
                 emitf(cg, "; _ez_step_%d > 0 ? %s < _ez_end_%d : %s > _ez_end_%d", svc, var, svc, var, svc);
-                emitf(cg, "; %s += _ez_step_%d", var, svc);
+                emitf(cg, "; %s = ez_add_check(%s, _ez_step_%d, __FILE__, %d)", var, var, svc, node->token.line);
             } else if (zero_step) {
                 /* P0090: literal zero step always panics; emit panic then a dead loop */
                 emit(cg, "ez_panic_code(\"P0090\", \"range step cannot be zero\");\n");
@@ -8163,8 +8195,9 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, iter->data.range_expr.end);
                 emitf(cg, "; %s", var);
                 if (iter->data.range_expr.step) {
-                    emit(cg, " += ");
+                    emitf(cg, " = ez_add_check(%s, ", var);
                     emit_expression(cg, iter->data.range_expr.step);
+                    emitf(cg, ", __FILE__, %d)", node->token.line);
                 } else {
                     emit(cg, "++");
                 }
