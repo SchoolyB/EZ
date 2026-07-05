@@ -2662,6 +2662,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, "(%s)ez_cast_check(", ez_type_to_c_cg(cg, target));
                 emit_expression(cg, val);
                 emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", smin, smax, target, node->token.line);
+            } else if ((strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0) &&
+                       val_kind == TK_INT) {
+                /* signed int → uint/u64: panic if value is negative */
+                emitf(cg, "(uint64_t)ez_ucast_check((int64_t)(");
+                emit_expression(cg, val);
+                emitf(cg, "), 18446744073709551615ULL, \"%s\", __FILE__, %d)", target, node->token.line);
+            } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) &&
+                       val_kind == TK_UINT &&
+                       val_t && val_t->name &&
+                       (strcmp(val_t->name, "uint") == 0 || strcmp(val_t->name, "u64") == 0)) {
+                /* uint/u64 → int/i64: panic if value exceeds INT64_MAX */
+                emitf(cg, "(int64_t)ez_uint_to_int_check((uint64_t)(");
+                emit_expression(cg, val);
+                emitf(cg, "), __FILE__, %d)", node->token.line);
             } else {
                 emitf(cg, "((%s)(", ez_type_to_c_cg(cg, target));
                 emit_expression(cg, val);
