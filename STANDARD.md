@@ -131,7 +131,8 @@ f32   f64
 
 **Operators and values:**
 ```
-cast         false       in          not_in      range
+bit_and      bit_not     bit_or      bit_shift_left   bit_shift_right
+bit_xor      cast        false       in          not_in      range
 true
 ```
 
@@ -152,6 +153,8 @@ true
 - `&` — address-of (used internally)
 - `@` — module prefix in imports (`import @math`)
 - `#` — attribute prefix (`#doc`, `#flags`, `#strict`)
+
+Bitwise operations use keyword syntax (`bit_and`, `bit_or`, etc.) because `^` and `&` are already used for pointer types and address-of. See [Section 5.2.7](#527-bitwise-operators).
 
 ### 2.7 Literals
 
@@ -700,7 +703,7 @@ Type inference works with:
 4. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
 5. **Multiple return values** - Each variable's type is inferred from the corresponding return type
 
-> **Note:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
+> 💡 **Flip's Tip:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
 
 ```ez
 // Inferred from literals
@@ -1002,19 +1005,68 @@ x++  // x is now 6
 x--  // x is now 5
 ```
 
+#### 5.2.7 Bitwise Operators
+
+EZ uses keyword operators for bitwise operations. Symbol alternatives (`&`, `^`, `|`) are unavailable because `^` is the pointer type and dereference sigil and `&` is the address-of operator.
+
+| Operator | Syntax | Description | Operand Types |
+|----------|--------|-------------|---------------|
+| `bit_and` | `a bit_and b` | Bitwise AND | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_or` | `a bit_or b` | Bitwise OR | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_xor` | `a bit_xor b` | Bitwise XOR | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_not` | `bit_not a` | Bitwise NOT (complement) | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_shift_left` | `a bit_shift_left n` | Left shift by `n` bits | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_shift_right` | `a bit_shift_right n` | Right shift by `n` bits | `int`, `uint`, `byte`, `char`, sized integer types |
+
+`bit_not` is a prefix operator. All others are infix operators. Results have the same type as the operands.
+
+```ez
+// Basic operations
+mut a int = 0b1010
+mut b int = 0b1100
+
+println(a bit_and b)          // 8  (0b1000)
+println(a bit_or  b)          // 14 (0b1110)
+println(a bit_xor b)          // 6  (0b0110)
+println(bit_not a)            // -11 (bitwise complement)
+println(1 bit_shift_left  3)  // 8
+println(16 bit_shift_right 1) // 8
+```
+
+A common use is flag manipulation with named constants:
+
+```ez
+const READ  int = 0b001
+const WRITE int = 0b010
+const EXEC  int = 0b100
+
+mut perms int = READ bit_or WRITE   // set READ and WRITE flags
+
+if perms bit_and READ == READ {
+    println("readable")
+}
+if perms bit_and EXEC == 0 {
+    println("not executable")
+}
+
+perms = perms bit_xor WRITE         // clear WRITE flag
+```
+
 ### 5.3 Operator Precedence
 
 From highest to lowest precedence:
 
 1. Parentheses: `()`
-2. Unary: `!`, `-` (negation)
+2. Prefix/Unary: `!`, `-` (negation), `bit_not`
 3. Multiplicative: `*`, `/`, `%`
 4. Additive: `+`, `-`
-5. Comparison: `<`, `>`, `<=`, `>=`
-6. Equality: `==`, `!=`
-7. Logical AND: `&&`
-8. Logical OR: `||`
-9. Membership: `in`, `not_in`
+5. Shift: `bit_shift_left`, `bit_shift_right`
+6. Membership: `in`, `not_in`
+7. Comparison: `<`, `>`, `<=`, `>=`
+8. Bitwise: `bit_and`, `bit_or`, `bit_xor`
+9. Equality: `==`, `!=`
+10. Logical AND: `&&`
+11. Logical OR: `||`
 
 ### 5.4 Index Expressions
 
