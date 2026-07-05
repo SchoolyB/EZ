@@ -131,6 +131,28 @@ do main() {
         failed += 1
     }
 
+    // Function-style: uint(i128) positive value
+    mut l i128 = i128(888)
+    mut lu uint = uint(l)
+    if lu == 888 {
+        println("  [PASS] uint(i128) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uint(i128): got ${lu}")
+        failed += 1
+    }
+
+    // Function-style: uint(i256) positive value
+    mut m i256 = i256(777)
+    mut mu uint = uint(m)
+    if mu == 777 {
+        println("  [PASS] uint(i256) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uint(i256): got ${mu}")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
 

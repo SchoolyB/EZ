@@ -3752,7 +3752,9 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             const char *src_bi = resolve_bigint_type(cg, carg);
             if (src_bi) {
                 const char *src_pfx = bigint_prefix(src_bi);
-                const char *to_suffix = (strcmp(src_bi, "u128") == 0 || strcmp(src_bi, "u256") == 0) ? "u64" : "i64";
+                bool src_unsigned = (strcmp(src_bi, "u128") == 0 || strcmp(src_bi, "u256") == 0);
+                bool dst_unsigned = (strcmp(func, "uint") == 0);
+                const char *to_suffix = (src_unsigned || dst_unsigned) ? "u64" : "i64";
                 emitf(cg, "((%s)%s_to_%s(", cast_type, src_pfx, to_suffix);
                 emit_expression(cg, carg);
                 emit(cg, "))");
