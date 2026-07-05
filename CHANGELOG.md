@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.8.3](https://github.com/SchoolyB/EZ/compare/v3.8.2...v3.8.3) (2026-07-05)
+
+
+### Bug Fixes
+
+* add range checks to cast between int/uint and i64/u64 ([#2026](https://github.com/SchoolyB/EZ/issues/2026)) ([fab59e3](https://github.com/SchoolyB/EZ/commit/fab59e342590eeb5ca71a67670233068f302fc36))
+* add runtime panic for invalid bit shift amounts ([#2025](https://github.com/SchoolyB/EZ/issues/2025)) ([37afcb3](https://github.com/SchoolyB/EZ/commit/37afcb34c51c4d151105689f35420406c8b5a423))
+* emit E5039 for const expression overflow, suppress C error ([#2028](https://github.com/SchoolyB/EZ/issues/2028)) ([1c517f1](https://github.com/SchoolyB/EZ/commit/1c517f1073e5a6e1714b3d7dbb08c9df164f0be8))
+* overflow-check range loop step increment ([#2027](https://github.com/SchoolyB/EZ/issues/2027)) ([248316f](https://github.com/SchoolyB/EZ/commit/248316f996f004857b8b6efbb6a9ba49e10e401d))
+* reject incompatible bigint types in arithmetic and comparison ([#2004](https://github.com/SchoolyB/EZ/issues/2004)) ([ab27912](https://github.com/SchoolyB/EZ/commit/ab27912ac303e574124722ec07e02193e28d55e3))
+* reject string index assignment with E3004 instead of leaking C error ([#2005](https://github.com/SchoolyB/EZ/issues/2005)) ([594dd13](https://github.com/SchoolyB/EZ/commit/594dd1351b270fd2fc675221ef9405a9b62df768))
+
 ## [3.8.2](https://github.com/SchoolyB/EZ/compare/v3.8.1...v3.8.2) (2026-06-30)
 
 
