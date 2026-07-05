@@ -8172,7 +8172,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 emitf(cg, "for (int64_t %s = ", var);
                 emit_expression(cg, iter->data.range_expr.start);
                 emitf(cg, "; _ez_step_%d > 0 ? %s < _ez_end_%d : %s > _ez_end_%d", svc, var, svc, var, svc);
-                emitf(cg, "; %s += _ez_step_%d", var, svc);
+                emitf(cg, "; %s = ez_add_check(%s, _ez_step_%d, __FILE__, %d)", var, var, svc, node->token.line);
             } else if (zero_step) {
                 /* P0090: literal zero step always panics; emit panic then a dead loop */
                 emit(cg, "ez_panic_code(\"P0090\", \"range step cannot be zero\");\n");
@@ -8185,8 +8185,9 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, iter->data.range_expr.end);
                 emitf(cg, "; %s", var);
                 if (iter->data.range_expr.step) {
-                    emit(cg, " += ");
+                    emitf(cg, " = ez_add_check(%s, ", var);
                     emit_expression(cg, iter->data.range_expr.step);
+                    emitf(cg, ", __FILE__, %d)", node->token.line);
                 } else {
                     emit(cg, "++");
                 }
