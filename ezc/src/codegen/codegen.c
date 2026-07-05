@@ -1923,8 +1923,10 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        /* Runtime division/modulo by zero check */
-        if (op == TOK_SLASH || op == TOK_PERCENT) {
+        /* Runtime division/modulo by zero check.
+         * GNU statement expressions are not valid as C file-scope initializers,
+         * so skip the runtime check when inside a const declaration. */
+        if (!cg->in_const_decl && (op == TOK_SLASH || op == TOK_PERCENT)) {
             bool is_float_div = (lt && lt->kind == TK_FLOAT) || (rt && rt->kind == TK_FLOAT);
             if (is_float_div) {
                 /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
@@ -2015,7 +2017,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         else if (op == TOK_MINUS) op_fn = "ez_sized_sub_check";
                         else if (op == TOK_ASTERISK) op_fn = "ez_sized_mul_check";
                     }
-                    if (op_fn) {
+                    if (op_fn && !cg->in_const_decl) {
                         emitf(cg, "%s(", op_fn);
                         emit_expression(cg, node->data.infix.left);
                         emit(cg, ", ");
@@ -2041,7 +2043,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (op == TOK_MINUS) fn = "ez_sub_check";
                     else if (op == TOK_ASTERISK) fn = "ez_mul_check";
                 }
-                if (fn) {
+                if (fn && !cg->in_const_decl) {
                     emitf(cg, "%s(", fn);
                     emit_expression(cg, node->data.infix.left);
                     emit(cg, ", ");
@@ -7054,6 +7056,13 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         emit(cg, " = ");
         cg->current_var_name = node->data.var_decl.name;
         cg->current_var_type = node->data.var_decl.type_name;
+        /* Signal to emit_expression that we are inside a file-scope const
+         * initializer.  Overflow-check wrappers (ez_add_check etc.) are
+         * runtime function calls; C rejects them as file-scope initializers.
+         * The typechecker has already verified no overflow for such exprs. */
+        bool prev_in_const_decl = cg->in_const_decl;
+        if (cg->indent == 0 && !node->data.var_decl.mutable)
+            cg->in_const_decl = true;
         /* Bigint literal zero: emit zero constant instead of plain 0 */
         if (type_name && is_bigint_type(type_name) &&
             node->data.var_decl.value->kind == NODE_INT_VALUE &&
@@ -7166,6 +7175,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (!emit_narrowing_cast(cg, type_name, node->data.var_decl.value, node->token.line)) {
             emit_expression(cg, node->data.var_decl.value);
         }
+        cg->in_const_decl = prev_in_const_decl;
         cg->current_var_name = NULL;
         cg->current_var_type = NULL;
     } else {

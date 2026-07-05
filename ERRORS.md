@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 349 codes** (240 errors, 17 warnings, 92 panics)
+**Total: 350 codes** (241 errors, 17 warnings, 92 panics)
 
 ---
 
@@ -232,6 +232,7 @@
 | `E5036` | usage | '%s' is a type, not a function; use cast(value, %s) to convert |
 | `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
 | `E5038` | usage | tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first |
+| `E5039` | usage | constant expression overflows type '%s' |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .ez files |
@@ -400,4 +401,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-04 23:29:40 UTC*
+*Generated on 2026-07-05 09:45:02 UTC*
