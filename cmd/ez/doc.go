@@ -56,6 +56,16 @@ func generateDocs(args []string, outputPath string) {
 
 	output := generateMarkdown(entries)
 
+	// Warn when --output resolves to a path outside the working directory.
+	if cwd, err := os.Getwd(); err == nil {
+		if abs, err := filepath.Abs(outputPath); err == nil {
+			rel, err := filepath.Rel(cwd, abs)
+			if err != nil || strings.HasPrefix(rel, "..") {
+				fmt.Printf("Warning: output path '%s' is outside the current directory\n", outputPath)
+			}
+		}
+	}
+
 	// Make sure the parent directory exists when --output points at a
 	// nested path like docs/API.md.
 	if dir := filepath.Dir(outputPath); dir != "" && dir != "." {
