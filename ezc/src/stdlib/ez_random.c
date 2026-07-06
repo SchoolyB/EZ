@@ -90,12 +90,3 @@ EzArray ez_random_sample(EzArena *arena, EzArray *arr, int32_t n) {
     return shuffled;
 }
 
-EzString ez_random_hex(EzArena *arena, int64_t length) {
-    ensure_seed();
-    char *hex = ez_arena_alloc(arena, (size_t)length + 1);
-    for (int64_t i = 0; i < length; i++) {
-        snprintf(hex + i, 2, "%x", rand() % 16);
-    }
-    hex[length] = '\0';
-    return (EzString){ hex, (int32_t)length };
-}
