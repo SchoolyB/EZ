@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.4](https://github.com/SchoolyB/EZ/compare/v3.8.3...v3.8.4) (2026-07-06)
+
+
+### Bug Fixes
+
+* add missing ez_i128_to_u64 and range-check all wide-to-scalar casts ([#2029](https://github.com/SchoolyB/EZ/issues/2029), [#2030](https://github.com/SchoolyB/EZ/issues/2030)) ([f6a45ae](https://github.com/SchoolyB/EZ/commit/f6a45aea00c87753a01b916b1f1946c99923c68a))
+
 ## [3.8.3](https://github.com/SchoolyB/EZ/compare/v3.8.2...v3.8.3) (2026-07-05)
 
 
