@@ -2614,18 +2614,40 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, val);
                     emit(cg, "))");
                 } else if (!target_is_bi && src_bi) {
-                    /* wide → scalar: use to_i64 / to_u64 */
+                    /* wide → scalar: range-checked extraction to int64/uint64,
+                     * with additional narrow-range check for sub-64-bit targets */
                     bool dst_unsigned = (strcmp(target, "uint") == 0 || strcmp(target, "u64") == 0 ||
                         strcmp(target, "u8") == 0 || strcmp(target, "byte") == 0 ||
                         strcmp(target, "u16") == 0 || strcmp(target, "u32") == 0);
                     const char *bp = bigint_prefix(src_bi);
-                    if (dst_unsigned) {
+
+                    /* Determine if an additional narrow range check is needed */
+                    const char *nmin = NULL, *nmax = NULL;
+                    bool narrow_unsigned = false;
+                    if (strcmp(target, "i8") == 0)  { nmin = "-128";          nmax = "127"; }
+                    else if (strcmp(target, "i16") == 0) { nmin = "-32768";   nmax = "32767"; }
+                    else if (strcmp(target, "i32") == 0) { nmin = "-2147483648LL"; nmax = "2147483647LL"; }
+                    else if (strcmp(target, "u8") == 0 || strcmp(target, "byte") == 0) { narrow_unsigned = true; nmax = "255"; }
+                    else if (strcmp(target, "u16") == 0) { narrow_unsigned = true; nmax = "65535"; }
+                    else if (strcmp(target, "u32") == 0) { narrow_unsigned = true; nmax = "4294967295ULL"; }
+
+                    if (nmax && narrow_unsigned) {
+                        emitf(cg, "(%s)ez_ucast_check((int64_t)%s_to_u64(", ez_type_to_c_cg(cg, target), bp);
+                        emit_expression(cg, val);
+                        emitf(cg, "), %s, \"%s\", __FILE__, %d)", nmax, target, node->token.line);
+                    } else if (nmax) {
+                        emitf(cg, "(%s)ez_cast_check(%s_to_i64(", ez_type_to_c_cg(cg, target), bp);
+                        emit_expression(cg, val);
+                        emitf(cg, "), %s, %s, \"%s\", __FILE__, %d)", nmin, nmax, target, node->token.line);
+                    } else if (dst_unsigned) {
                         emitf(cg, "(%s)%s_to_u64(", ez_type_to_c_cg(cg, target), bp);
+                        emit_expression(cg, val);
+                        emit(cg, ")");
                     } else {
                         emitf(cg, "(%s)%s_to_i64(", ez_type_to_c_cg(cg, target), bp);
+                        emit_expression(cg, val);
+                        emit(cg, ")");
                     }
-                    emit_expression(cg, val);
-                    emit(cg, ")");
                 } else {
                     /* wide → wide: use cross-type constructors */
                     if (strcmp(src_bi, "i128") == 0 && strcmp(target, "u128") == 0)
@@ -3730,7 +3752,9 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             const char *src_bi = resolve_bigint_type(cg, carg);
             if (src_bi) {
                 const char *src_pfx = bigint_prefix(src_bi);
-                const char *to_suffix = (strcmp(src_bi, "u128") == 0 || strcmp(src_bi, "u256") == 0) ? "u64" : "i64";
+                bool src_unsigned = (strcmp(src_bi, "u128") == 0 || strcmp(src_bi, "u256") == 0);
+                bool dst_unsigned = (strcmp(func, "uint") == 0);
+                const char *to_suffix = (src_unsigned || dst_unsigned) ? "u64" : "i64";
                 emitf(cg, "((%s)%s_to_%s(", cast_type, src_pfx, to_suffix);
                 emit_expression(cg, carg);
                 emit(cg, "))");

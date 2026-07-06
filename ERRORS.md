@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 350 codes** (241 errors, 17 warnings, 92 panics)
+**Total: 358 codes** (241 errors, 17 warnings, 100 panics)
 
 ---
 
@@ -377,6 +377,14 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0090` | runtime | range step cannot be zero |
 | `P0091` | arithmetic | cannot convert float to uint; the value is negative, too large, or NaN |
 | `P0092` | arithmetic | shift amount %lld is out of range; must be in [0, 63] |
+| `P0093` | arithmetic | cast from i128 failed; value is outside the representable range of int64 |
+| `P0094` | arithmetic | cast from i128 failed; value is negative or outside the representable range of uint64 |
+| `P0095` | arithmetic | cast from u128 failed; value exceeds the representable range of int64 |
+| `P0096` | arithmetic | cast from u128 failed; value exceeds the representable range of uint64 |
+| `P0097` | arithmetic | cast from i256 failed; value is outside the representable range of int64 |
+| `P0098` | arithmetic | cast from i256 failed; value is negative or outside the representable range of uint64 |
+| `P0099` | arithmetic | cast from u256 failed; value exceeds the representable range of int64 |
+| `P0100` | arithmetic | cast from u256 failed; value exceeds the representable range of uint64 |
 
 ---
 
@@ -401,4 +409,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-05 10:13:49 UTC*
+*Generated on 2026-07-06 11:01:47 UTC*

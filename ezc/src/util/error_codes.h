@@ -384,7 +384,15 @@
     EZ_PANIC("P0089", "io",         "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually") \
     EZ_PANIC("P0090", "runtime",    "range step cannot be zero") \
     EZ_PANIC("P0091", "arithmetic", "cannot convert float to uint; the value is negative, too large, or NaN") \
-    EZ_PANIC("P0092", "arithmetic", "shift amount %lld is out of range; must be in [0, 63]")
+    EZ_PANIC("P0092", "arithmetic", "shift amount %lld is out of range; must be in [0, 63]") \
+    EZ_PANIC("P0093", "arithmetic", "cast from i128 failed; value is outside the representable range of int64") \
+    EZ_PANIC("P0094", "arithmetic", "cast from i128 failed; value is negative or outside the representable range of uint64") \
+    EZ_PANIC("P0095", "arithmetic", "cast from u128 failed; value exceeds the representable range of int64") \
+    EZ_PANIC("P0096", "arithmetic", "cast from u128 failed; value exceeds the representable range of uint64") \
+    EZ_PANIC("P0097", "arithmetic", "cast from i256 failed; value is outside the representable range of int64") \
+    EZ_PANIC("P0098", "arithmetic", "cast from i256 failed; value is negative or outside the representable range of uint64") \
+    EZ_PANIC("P0099", "arithmetic", "cast from u256 failed; value exceeds the representable range of int64") \
+    EZ_PANIC("P0100", "arithmetic", "cast from u256 failed; value exceeds the representable range of uint64")
 
 /* --- Warnings --- */
 #define EZ_WARNINGS \

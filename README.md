@@ -54,21 +54,38 @@ do main() {
         eprintln("Failed: ${err}")
         exit(1)
     } or len(content) == 0 {
-      println("No content found")
-      exit(1)
+        println("No content found")
+        exit(1)
     } otherwise {
-      println("Content found: ${content}")
+        println("Content found: ${content}")
     }
+}
+```
+
+```ez
+do main() {
+    mut score int = 82
+    mut grade char
+
+    when score {
+        is range(90, 101) { grade = 'A' }
+        is range(80, 90)  { grade = 'B' }
+        is range(70, 80)  { grade = 'C' }
+        is range(60, 70)  { grade = 'D' }
+        default           { grade = 'F' }
+    }
+
+    println("Your grade is a ${grade}")
 }
 ```
 
 ---
 
-## What makes EZ different
+## Why EZ?
 
-- **Readable syntax** — `for_each`, `as_long_as`, `otherwise`, `when`/`is`, `do function_name()`. Code that reads like it runs.
-- **Ample Standard Library** — `@strings`, `@arrays`, `@maps`, `@json` `@http`, `@server`, and more!
-- **Compiles to C** — native speed, single binary, no runtime, no VM.
+- **Readable syntax** — `for_each`, `as_long_as`, `if`/`or`/`otherwise`, `when`/`is`, `in`/`not_in`, `or_return`, `ensure`, `bit_and`/`bit_or`/`bit_xor`.
+- **Versatility through simplicity** — Scripts, microservices, CLI tools, or a project where you want to learn systems programming fundamentals EZ is designed for you!
+- **A compiler that works with the programmer** — Clear error messages, a builtin formatter, live reloading, builtin docs via `ez man`. You should never have to wonder what went wrong or where.
 
 ---
 

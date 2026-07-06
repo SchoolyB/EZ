@@ -113,7 +113,7 @@ const        do          enum        import      mut
 new          private     struct      use*        using
 ```
 
-> 💡 **Flip's Tip:** `*use` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
+> 💡 **Flip's Tip:** `use*` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
 
 **Types (reserved names):**
 ```
@@ -131,7 +131,8 @@ f32   f64
 
 **Operators and values:**
 ```
-cast         false       in          not_in      range
+bit_and      bit_not     bit_or      bit_shift_left   bit_shift_right
+bit_xor      cast        false       in          not_in      range
 true
 ```
 
@@ -152,6 +153,8 @@ true
 - `&` — address-of (used internally)
 - `@` — module prefix in imports (`import @math`)
 - `#` — attribute prefix (`#doc`, `#flags`, `#strict`)
+
+Bitwise operations use keyword syntax (`bit_and`, `bit_or`, etc.) because `^` and `&` are already used for pointer types and address-of. See [Section 5.2.7](#527-bitwise-operators).
 
 ### 2.7 Literals
 
@@ -700,7 +703,7 @@ Type inference works with:
 4. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
 5. **Multiple return values** - Each variable's type is inferred from the corresponding return type
 
-> **Note:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
+> 💡 **Flip's Tip:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
 
 ```ez
 // Inferred from literals
@@ -801,6 +804,9 @@ Constants are declared using the `const` keyword:
 const PI float = 3.14159
 const MAX_SIZE int = 100
 const origin = Point{x: 0, y: 0}
+```
+
+### 4.3 Mutability
 
 The `mut` keyword allows modification and **ensures the value itself is mutable**:
 
@@ -1002,19 +1008,68 @@ x++  // x is now 6
 x--  // x is now 5
 ```
 
+#### 5.2.7 Bitwise Operators
+
+EZ uses keyword operators for bitwise operations. Symbol alternatives (`&`, `^`, `|`) are unavailable because `^` is the pointer type and dereference sigil and `&` is the address-of operator.
+
+| Operator | Syntax | Description | Operand Types |
+|----------|--------|-------------|---------------|
+| `bit_and` | `a bit_and b` | Bitwise AND | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_or` | `a bit_or b` | Bitwise OR | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_xor` | `a bit_xor b` | Bitwise XOR | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_not` | `bit_not a` | Bitwise NOT (complement) | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_shift_left` | `a bit_shift_left n` | Left shift by `n` bits | `int`, `uint`, `byte`, `char`, sized integer types |
+| `bit_shift_right` | `a bit_shift_right n` | Right shift by `n` bits | `int`, `uint`, `byte`, `char`, sized integer types |
+
+`bit_not` is a prefix operator. All others are infix operators. Results have the same type as the operands.
+
+```ez
+// Basic operations
+mut a int = 0b1010
+mut b int = 0b1100
+
+println(a bit_and b)          // 8  (0b1000)
+println(a bit_or  b)          // 14 (0b1110)
+println(a bit_xor b)          // 6  (0b0110)
+println(bit_not a)            // -11 (bitwise complement)
+println(1 bit_shift_left  3)  // 8
+println(16 bit_shift_right 1) // 8
+```
+
+A common use is flag manipulation with named constants:
+
+```ez
+const READ  int = 0b001
+const WRITE int = 0b010
+const EXEC  int = 0b100
+
+mut perms int = READ bit_or WRITE   // set READ and WRITE flags
+
+if perms bit_and READ == READ {
+    println("readable")
+}
+if perms bit_and EXEC == 0 {
+    println("not executable")
+}
+
+perms = perms bit_xor WRITE         // clear WRITE flag
+```
+
 ### 5.3 Operator Precedence
 
 From highest to lowest precedence:
 
 1. Parentheses: `()`
-2. Unary: `!`, `-` (negation)
+2. Prefix/Unary: `!`, `-` (negation), `bit_not`
 3. Multiplicative: `*`, `/`, `%`
 4. Additive: `+`, `-`
-5. Comparison: `<`, `>`, `<=`, `>=`
-6. Equality: `==`, `!=`
-7. Logical AND: `&&`
-8. Logical OR: `||`
-9. Membership: `in`, `not_in`
+5. Shift: `bit_shift_left`, `bit_shift_right`
+6. Membership: `in`, `not_in`
+7. Comparison: `<`, `>`, `<=`, `>=`
+8. Bitwise: `bit_and`, `bit_or`, `bit_xor`
+9. Equality: `==`, `!=`
+10. Logical AND: `&&`
+11. Logical OR: `||`
 
 ### 5.4 Index Expressions
 
@@ -1355,6 +1410,8 @@ By default, parameters are passed by value and cannot modify the caller's variab
 do double(x int) -> int {
     return x * 2
 }
+
+#### 7.2.2 Mutable Parameters
 
 Mutable parameters work with:
 - Primitive types
@@ -2243,7 +2300,7 @@ import "./c.ez"         // Error: 'c' is reserved
 
 ## 9. Standard Library
 
-The EZ standard library consists of 26 modules plus built-in functions that require no import.
+The EZ standard library consists of 27 modules plus built-in functions that require no import.
 
 ### 9.1 Built-in Functions
 
@@ -3234,6 +3291,35 @@ Formatted output and string formatting functions.
 
 > 💡 **Flip's Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
 
+#### Format Specifiers
+
+Format strings use C-style `%` specifiers:
+
+| Specifier | Type | Description |
+|-----------|------|-------------|
+| `%d`, `%i` | `int` | Signed decimal integer |
+| `%u` | `uint` | Unsigned decimal integer |
+| `%f` | `float` | Decimal floating-point |
+| `%e` | `float` | Scientific notation |
+| `%g` | `float` | Shorter of `%f` or `%e` |
+| `%s` | `string` | String |
+| `%c` | `char` | Single character |
+| `%x` | `int` | Hexadecimal (lowercase) |
+| `%o` | `int` | Octal |
+| `%%` | — | Literal `%` |
+
+Width, precision, and flags (`-`, `+`, `0`, `#`) follow standard C printf conventions. `%d` and `%u` are automatically widened to `%lld`/`%llu` for EZ's 64-bit integer types. Composite types (structs, arrays, maps) are not supported — use `println` for those.
+
+```ez
+import @fmt
+
+mut score int = 42
+mut x int = 7
+fmt.printf("%-10s %5d\n", "score", score)  // "score         42"
+fmt.printf("%08.2f\n", 3.14159)            // "00003.14"
+mut s string = fmt.sprintf("x = %d", x)   // "x = 7"
+```
+
 #### Padding
 
 | Function | Signature | Description |
@@ -3407,12 +3493,13 @@ for_each line in lines {
 }
 // results lives until its scope ends
 // each iteration's other temporaries are freed
+```
 
-### 11.4 Reference Semantics
+### 11.2 Reference Semantics
 
 Composite types (arrays, maps) have reference semantics for assignment but value semantics for function parameters (unless the parameter is declared mutable).
 
-### 11.5 Deep Copy
+### 11.3 Deep Copy
 
 The `copy()` function creates a deep copy of any value, including nested structures:
 
@@ -3422,7 +3509,7 @@ mut duplicate = copy(original)
 duplicate.age = 31  // original.age is still 30
 ```
 
-### 11.6 Zero Values
+### 11.4 Zero Values
 
 The `new()` function allocates a zero-initialized struct in the current scope and returns a pointer to it:
 
@@ -3437,7 +3524,7 @@ The `new()` function allocates a zero-initialized struct in the current scope an
 | `map[K:V]` | `{}` |
 | struct | All fields zero-initialized |
 
-### 11.7 Scoped Blocks
+### 11.5 Scoped Blocks
 
 Three block types create memory scopes:
 
@@ -3447,7 +3534,7 @@ Three block types create memory scopes:
 
 Nested scopes work correctly; a loop inside an if inside a function creates three scope levels, each cleaning up independently.
 
-### 11.8 Manual Control
+### 11.6 Manual Control
 
 The `@mem` module provides explicit arena control for power users who need it:
 
@@ -3463,7 +3550,7 @@ mem.destroy(scratch)
 
 Most users never import the `@mem` module. The automatic scope model handles their allocations.
 
-### 11.9 Memory Safety
+### 11.7 Memory Safety
 
 EZ is **not memory safe** in the way that Rust or similar languages are. However, the scope-based memory model prevents many common memory errors automatically, and the compiler catches several more at compile time.
 
@@ -3506,7 +3593,7 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 
 For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
 
-### 11.10 Under the Hood
+### 11.8 Under the Hood
 
 EZ's scope-based memory model is built on **arena allocators**. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in one operation.
 

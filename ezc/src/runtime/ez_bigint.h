@@ -68,21 +68,62 @@ static inline ez_u256 ez_u256_from_u64(uint64_t v) {
     return r;
 }
 
-/* --- Size Casting --- */
+/* --- Size Casting (range-checked) --- */
 
 static inline int64_t ez_i128_to_i64(ez_i128 a) {
+    if (a.hi != ((int64_t)a.lo >> 63)) {
+        ez_panic_code("P0093", "cast from i128 failed; value is outside the representable range of int64");
+    }
+    return (int64_t)a.lo;
+}
+
+static inline uint64_t ez_i128_to_u64(ez_i128 a) {
+    if (a.hi != 0) {
+        ez_panic_code("P0094", "cast from i128 failed; value is negative or outside the representable range of uint64");
+    }
+    return a.lo;
+}
+
+static inline int64_t ez_u128_to_i64(ez_u128 a) {
+    if (a.hi != 0 || a.lo > (uint64_t)INT64_MAX) {
+        ez_panic_code("P0095", "cast from u128 failed; value exceeds the representable range of int64");
+    }
     return (int64_t)a.lo;
 }
 
 static inline uint64_t ez_u128_to_u64(ez_u128 a) {
+    if (a.hi != 0) {
+        ez_panic_code("P0096", "cast from u128 failed; value exceeds the representable range of uint64");
+    }
     return a.lo;
 }
 
 static inline int64_t ez_i256_to_i64(ez_i256 a) {
+    uint64_t sign_ext = (uint64_t)((int64_t)a.w[0] >> 63);
+    if (a.w[1] != sign_ext || a.w[2] != sign_ext || a.w[3] != sign_ext) {
+        ez_panic_code("P0097", "cast from i256 failed; value is outside the representable range of int64");
+    }
+    return (int64_t)a.w[0];
+}
+
+static inline uint64_t ez_i256_to_u64(ez_i256 a) {
+    if (a.w[1] != 0 || a.w[2] != 0 || a.w[3] != 0) {
+        ez_panic_code("P0098", "cast from i256 failed; value is negative or outside the representable range of uint64");
+    }
+    return a.w[0];
+}
+
+static inline int64_t ez_u256_to_i64(ez_u256 a) {
+    if (a.w[1] != 0 || a.w[2] != 0 || a.w[3] != 0 || a.w[0] > (uint64_t)INT64_MAX) {
+        ez_panic_code("P0099", "cast from u256 failed; value exceeds the representable range of int64");
+    }
     return (int64_t)a.w[0];
 }
 
 static inline uint64_t ez_u256_to_u64(ez_u256 a) {
+    if (a.w[1] != 0 || a.w[2] != 0 || a.w[3] != 0) {
+        ez_panic_code("P0100", "cast from u256 failed; value exceeds the representable range of uint64");
+    }
     return a.w[0];
 }
 
