@@ -41,6 +41,26 @@ do main() {
     println("  [PASS] HttpResponse from server.json()")
     passed += 1
 
+    // Test 5: server.redirect() produces HttpResponse with status
+    mut redir HttpResponse = server.redirect(302, "http://example.com/new")
+    if redir.status == 302 {
+        println("  [PASS] server.redirect() produces HttpResponse with correct status")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] server.redirect() status wrong")
+        failed += 1
+    }
+
+    // Test 6: non-200 status codes are accepted
+    mut not_found HttpResponse = server.text(404, "not found")
+    if not_found.status == 404 {
+        println("  [PASS] server.text(404, ...) produces correct status")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] server.text(404, ...) status wrong")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
