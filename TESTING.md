@@ -77,12 +77,12 @@ make test-asan
 
 ---
 
-## Go Tooling Tests (94 tests total)
+## Go Tooling Tests
 
 The Go CLI (`ez`) has unit tests for the packages it uses:
 
-- `cmd/ez` (84 tests) — updater semver parsing/comparison (parseSemver, compareSemver, isNewerVersion, pickLatestPrerelease), exact-version install validation (exactSemverRE, normalizeTag)
-- `internal/ezc` (10 tests) — compiler binary lookup (statFile, Find EZ_COMPILER_PATH override behavior)
+- `cmd/ez` updater semver parsing/comparison (parseSemver, compareSemver, isNewerVersion, pickLatestPrerelease), exact-version install validation (exactSemverRE, normalizeTag)
+- `internal/ezc` — compiler binary lookup (statFile, Find EZ_COMPILER_PATH override behavior)
 
 ```bash
 make test-go
@@ -102,11 +102,11 @@ This builds the compiler, then runs unit tests, e2e tests, integration tests, an
 
 ## CI
 
-All tests run automatically on push to `main` and `v3.0.0` via GitHub Actions:
+All tests run automatically on push to `main` via GitHub Actions:
 
 | Platform | Compiler | Sanitizers | Go Tooling |
 |----------|:--------:|:----------:|:----------:|
-| Ubuntu   | unit + e2e + integration | UBSan + ASan | lineeditor |
-| macOS    | unit + e2e + integration | UBSan | lineeditor |
+| Ubuntu   | unit + e2e + integration | UBSan + ASan |
+| macOS    | unit + e2e + integration | UBSan |
 
 CI workflow: `.github/workflows/ci.yml`
