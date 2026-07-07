@@ -302,9 +302,23 @@ static const char *parse_complex_type(Parser *p) {
             return type_str;
         } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "map") == 0 &&
                    peek_token_is(p, TOK_LBRACKET)) {
-            /* Array of maps: [map[K:V]] */
+            /* Array of maps: [map[K:V]] or fixed-size [map[K:V], N] */
             const char *elem = parse_complex_type(p);
             if (!elem) return NULL;
+            if (peek_token_is(p, TOK_COMMA)) {
+                next_token(p); /* skip , */
+                next_token(p); /* size */
+                if (!cur_token_is(p, TOK_INT)) {
+                    diag_error_code(p->diag, "E2025", p->file, p->cur_token.line, p->cur_token.column, 0);
+                }
+                const char *sz = p->cur_token.literal;
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                size_t elen = strlen(elem), szlen = strlen(sz);
+                size_t ts_len = elen + szlen + 4;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "[%s,%s]", elem, sz);
+                return type_str;
+            }
             if (!expect_peek(p, TOK_RBRACKET)) return NULL;
             size_t ts_len = strlen(elem) + 3;
             char *type_str = arena_alloc(p->arena, ts_len);

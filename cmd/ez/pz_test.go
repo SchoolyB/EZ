@@ -6,6 +6,26 @@ import (
 	"testing"
 )
 
+// fakeStdin replaces os.Stdin with a reader containing the given input for the
+// duration of the test, then restores the original stdin.
+func fakeStdin(t *testing.T, input string) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	orig := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = orig
+		r.Close()
+	})
+	if _, err := w.WriteString(input); err != nil {
+		t.Fatalf("write to pipe: %v", err)
+	}
+	w.Close()
+}
+
 func TestResolveTemplate(t *testing.T) {
 	cases := []struct {
 		template   string
@@ -95,11 +115,13 @@ func TestCreateProject_ExistingDirErrors(t *testing.T) {
 
 func TestCreateProject_Force(t *testing.T) {
 	dir := t.TempDir()
-	// First creation
+	// First creation (dir already exists — confirm deletion)
+	fakeStdin(t, "y\n")
 	if err := createProject(dir, "basic", false, true, ""); err != nil {
 		t.Fatalf("first createProject: %v", err)
 	}
-	// Force overwrite
+	// Force overwrite (dir exists again — confirm deletion)
+	fakeStdin(t, "y\n")
 	if err := createProject(dir, "cli", false, true, ""); err != nil {
 		t.Fatalf("forced createProject: %v", err)
 	}

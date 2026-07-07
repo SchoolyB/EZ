@@ -220,39 +220,6 @@ do main() {
         failed += 1
     }
 
-    // ==================== random.random_hex ====================
-    println("  -- random.random_hex --")
-
-    // Test 18: random_hex returns correct length
-    mut hex1 string = random.random_hex(16)
-    if len(hex1) == 16 {
-        println("  [PASS] random.random_hex(16) returns 16 chars")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] random.random_hex(16): got ${len(hex1)} chars")
-        failed += 1
-    }
-
-    // Test 19: random_hex produces unique values
-    mut hex2 string = random.random_hex(16)
-    if hex1 != hex2 {
-        println("  [PASS] random.random_hex() produces unique values")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] random.random_hex() produced same value twice")
-        failed += 1
-    }
-
-    // Test 20: random_hex with different lengths
-    mut hex_short string = random.random_hex(4)
-    if len(hex_short) == 4 {
-        println("  [PASS] random.random_hex(4) returns 4 chars")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] random.random_hex(4): got ${len(hex_short)} chars")
-        failed += 1
-    }
-
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")

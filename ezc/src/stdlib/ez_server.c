@@ -23,6 +23,34 @@
 #define EZ_HTTP_METHOD_BUF          16
 #define EZ_HTTP_PATH_BUF_SERVER     2048
 
+static const char *http_reason_phrase(int status) {
+    switch (status) {
+        case 200: return "OK";
+        case 201: return "Created";
+        case 204: return "No Content";
+        case 301: return "Moved Permanently";
+        case 302: return "Found";
+        case 303: return "See Other";
+        case 304: return "Not Modified";
+        case 307: return "Temporary Redirect";
+        case 308: return "Permanent Redirect";
+        case 400: return "Bad Request";
+        case 401: return "Unauthorized";
+        case 403: return "Forbidden";
+        case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
+        case 409: return "Conflict";
+        case 410: return "Gone";
+        case 422: return "Unprocessable Entity";
+        case 429: return "Too Many Requests";
+        case 500: return "Internal Server Error";
+        case 501: return "Not Implemented";
+        case 502: return "Bad Gateway";
+        case 503: return "Service Unavailable";
+        default:  return "Unknown";
+    }
+}
+
 /* Global arena for server allocations */
 static EzArena *server_arena = NULL;
 
@@ -279,19 +307,36 @@ static void *handle_connection(void *arg) {
     }
 
     char resp_buf[EZ_SERVER_BUF_SIZE];
-    int resp_len = snprintf(resp_buf, sizeof(resp_buf),
-        "HTTP/1.1 %d OK\r\n"
-        "Content-Type: %.*s\r\n"
-        "Content-Length: %d\r\n"
-        "%s"
-        "Connection: close\r\n"
-        "\r\n"
-        "%.*s",
-        (int)resp.status,
-        (int)resp.content_type.len, resp.content_type.data,
-        (int)resp.body.len,
-        cors_hdrs,
-        (int)resp.body.len, resp.body.data);
+    int resp_len;
+    int status = (int)resp.status;
+    bool is_redirect = (status >= 300 && status < 400 && resp.body.len > 0);
+
+    if (is_redirect) {
+        resp_len = snprintf(resp_buf, sizeof(resp_buf),
+            "HTTP/1.1 %d %s\r\n"
+            "Location: %.*s\r\n"
+            "Content-Length: 0\r\n"
+            "%s"
+            "Connection: close\r\n"
+            "\r\n",
+            status, http_reason_phrase(status),
+            (int)resp.body.len, resp.body.data,
+            cors_hdrs);
+    } else {
+        resp_len = snprintf(resp_buf, sizeof(resp_buf),
+            "HTTP/1.1 %d %s\r\n"
+            "Content-Type: %.*s\r\n"
+            "Content-Length: %d\r\n"
+            "%s"
+            "Connection: close\r\n"
+            "\r\n"
+            "%.*s",
+            status, http_reason_phrase(status),
+            (int)resp.content_type.len, resp.content_type.data,
+            (int)resp.body.len,
+            cors_hdrs,
+            (int)resp.body.len, resp.body.data);
+    }
 
     size_t send_len = (resp_len > 0 && (size_t)resp_len < sizeof(resp_buf))
         ? (size_t)resp_len : sizeof(resp_buf) - 1;

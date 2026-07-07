@@ -956,7 +956,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     /* random (variable args) */
     {"random", "rand_float", 0, 2}, {"random", "rand_int", 1, 2},
     {"random", "rand_bool", 0, 0}, {"random", "rand_byte", 0, 0},
-    {"random", "rand_char", 0, 2}, {"random", "random_hex", 1, 1},
+    {"random", "rand_char", 0, 2},
     {"random", "choice", 1, 1}, {"random", "shuffle", 1, 1},
     {"random", "sample", 2, 2}, {"random", "seed", 1, 1},
     /* sqlite */
@@ -1586,7 +1586,7 @@ static const UsingFunc _using_funcs[] = {
     /* random (arg-dependent choice/shuffle/sample handled by special case) */
     {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
     {"rand_bool","random",TK_BOOL},{"rand_byte","random",TK_INT},
-    {"rand_char","random",TK_INT},{"random_hex","random",TK_STRING},
+    {"rand_char","random",TK_INT},
     {"seed","random",TK_VOID},
     /* encoding */
     {"base64_encode","encoding",TK_STRING},{"base64_decode","encoding",TK_STRING},
@@ -3684,8 +3684,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     } else {
                         result = &TYPE_INT;
                     }
-                } else if (strcmp(mfn, "random_hex") == 0) result = &TYPE_STRING;
-                else if (strcmp(mfn, "seed") == 0) result = &TYPE_VOID;
+                } else if (strcmp(mfn, "seed") == 0) result = &TYPE_VOID;
                 else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;

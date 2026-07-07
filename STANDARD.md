@@ -2726,7 +2726,6 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 | `rand_byte` | `() -> byte` | Random byte [0, 255] |
 | `rand_char` | `() -> char` | Random printable char |
 | `rand_char` | `(min char, max char) -> char` | Random char in range |
-| `random_hex` | `(length int) -> string` | Cryptographically secure random hex |
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n int) -> [T]` | Return n unique random elements |

@@ -18,6 +18,8 @@ import (
 //go:embed templates
 var templatesFS embed.FS
 
+var errPzCancelled = fmt.Errorf("pz cancelled")
+
 // quickRefBlock is prepended to the entry file of a scaffolded project
 // when `ez pz -c` is used. Keep it short — a dense EZ 3.0 cheat sheet,
 // not a tutorial.
@@ -115,7 +117,9 @@ func runPz(cmd *cobra.Command, args []string) {
 	}
 
 	if err := createProject(name, template, comments, force, serverType); err != nil {
-		fmt.Printf("Error: %v\n", err)
+		if err != errPzCancelled {
+			fmt.Printf("Error: %v\n", err)
+		}
 		return
 	}
 
@@ -166,6 +170,15 @@ func createProject(name, template string, comments, force bool, serverType strin
 	if _, err := os.Stat(name); err == nil {
 		if !force {
 			return fmt.Errorf("directory '%s' already exists (use --force to overwrite)", name)
+		}
+		fmt.Printf("Directory '%s' already exists and will be permanently deleted.\n", name)
+		fmt.Printf("Delete '%s/' and continue? (y/N): ", name)
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Cancelled.")
+			return errPzCancelled
 		}
 		os.RemoveAll(name)
 	}

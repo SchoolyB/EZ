@@ -69,18 +69,6 @@
  *@end
  */
 
-/*@man random_hex
- *@module random
- *@group Generation
- *@sig random_hex(length int) -> string
- *@desc Returns a cryptographically secure random lowercase hex string of the given length.
- *@example
- *   import @random
- *   mut token string = random.random_hex(32)
- *   println(token)
- *@end
- */
-
 /*@man choice
  *@module random
  *@group Arrays
@@ -145,8 +133,5 @@ EzArray ez_random_sample(EzArena *arena, EzArray *arr, int32_t n);
 
 /* Explicit seeding */
 void ez_random_seed(int64_t value);
-
-/* Random hex string */
-EzString ez_random_hex(EzArena *arena, int64_t length);
 
 #endif

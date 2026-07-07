@@ -1,0 +1,11 @@
+const ROUTES [map[string:string], 2] = {
+    {"path": "/home", "method": "GET"},
+    {"path": "/login", "method": "POST"}
+}
+
+do main() {
+    println(ROUTES[0]["path"])
+    println(ROUTES[0]["method"])
+    println(ROUTES[1]["path"])
+    println(ROUTES[1]["method"])
+}

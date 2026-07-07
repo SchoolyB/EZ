@@ -87,6 +87,7 @@ EzString ez_crypto_sha256(EzArena *arena, EzString data) {
 #define I(x,y,z) ((y)^((x)|(~(z))))
 #define ROTL(x,n) (((x)<<(n))|((x)>>(32-(n))))
 
+/* WARNING: MD5 is cryptographically broken. See ez_crypto.h for details. */
 EzString ez_crypto_md5(EzArena *arena, EzString data) {
     uint32_t a0=0x67452301, b0=0xefcdab89, c0=0x98badcfe, d0=0x10325476;
     static const uint32_t s[64] = {

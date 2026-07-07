@@ -4823,12 +4823,6 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ", _ri, __FILE__, __LINE__); })");
         return true;
     }
-    if (strcmp(func, "random_hex") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_random_hex(ez_default_arena, ");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
     if (strcmp(func, "seed") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_random_seed(");
         emit_expression(cg, node->data.call.args[0]);
@@ -5824,7 +5818,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"get_or_default","maps"},{"is_equal","maps"},
                 /* @random */
                 {"rand_float","random"},{"rand_int","random"},{"rand_bool","random"},
-                {"rand_byte","random"},{"rand_char","random"},{"random_hex","random"},
+                {"rand_byte","random"},{"rand_char","random"},
                 {"choice","random"},{"shuffle","random"},{"sample","random"},{"seed","random"},
                 /* @encoding */
                 {"base64_encode","encoding"},{"base64_decode","encoding"},
