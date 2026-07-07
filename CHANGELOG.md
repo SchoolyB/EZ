@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.8.5](https://github.com/SchoolyB/EZ/compare/v3.8.4...v3.8.5) (2026-07-07)
+
+
+### Bug Fixes
+
+* correct lower bound in uint-to-int cast error message ([178bcf3](https://github.com/SchoolyB/EZ/commit/178bcf388a51f0c4de690481259182aa7d34f66b))
+* emit correct HTTP reason phrase and Location header for redirects ([611016e](https://github.com/SchoolyB/EZ/commit/611016ec0ee64f1a3bddced58d4d28b3d8a6ae04))
+* improve compiler parsing, HTTP behavior, and CLI safety ([67e1e56](https://github.com/SchoolyB/EZ/commit/67e1e564ccc49575ef6f59facef091ed95893bb5))
+* parse fixed-size array of maps type annotation [map[K:V], N] ([1b183d1](https://github.com/SchoolyB/EZ/commit/1b183d16cab357b796e6c86f1c73c8a266f9f89b))
+* prompt for confirmation before ez pz --force deletes existing directory ([d34a65c](https://github.com/SchoolyB/EZ/commit/d34a65cd5e856085b5ace77923e43f2f9dedd3cd))
+* warn when ez doc --output writes outside the current directory ([83adb16](https://github.com/SchoolyB/EZ/commit/83adb1661159d57bddfc0dcc0a8a030b18d60b3a))
+
 ## [3.8.4](https://github.com/SchoolyB/EZ/compare/v3.8.3...v3.8.4) (2026-07-06)
 
 
