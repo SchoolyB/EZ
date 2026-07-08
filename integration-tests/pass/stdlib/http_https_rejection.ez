@@ -1,0 +1,29 @@
+import @http
+
+do main() {
+    mut methods int = 0
+
+    mut _, get_err = http.get("https://example.com")
+    if get_err != nil { methods += 1 }
+
+    mut _, post_err = http.post("https://example.com", "body")
+    if post_err != nil { methods += 1 }
+
+    mut _, put_err = http.put("https://example.com", "body")
+    if put_err != nil { methods += 1 }
+
+    mut _, del_err = http.delete("https://example.com")
+    if del_err != nil { methods += 1 }
+
+    mut _, head_err = http.head("https://example.com")
+    if head_err != nil { methods += 1 }
+
+    mut _, patch_err = http.patch("https://example.com", "body")
+    if patch_err != nil { methods += 1 }
+
+    if methods != 6 {
+        panic("expected all 6 https:// calls to return an error, got ${methods}")
+    }
+
+    println("ALL TESTS PASSED")
+}

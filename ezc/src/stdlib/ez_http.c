@@ -39,8 +39,7 @@ static bool parse_url(const char *url, char *host, size_t host_sz,
     if (strncmp(p, "http://", 7) == 0) {
         p += 7;
     } else if (strncmp(p, "https://", 8) == 0) {
-        /* HTTPS not supported yet */
-        p += 8;
+        return false;
     } else {
         return false;
     }
@@ -157,10 +156,16 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     char url_buf[EZ_HTTP_URL_BUF];
     http_cstr(url, url_buf, sizeof(url_buf));
 
+    if (strncmp(url_buf, "https://", 8) == 0) {
+        const char *detail = "https:// is not supported; use http://";
+        err_resp.body = ez_string_new(arena, detail, (int32_t)strlen(detail));
+        return err_resp;
+    }
+
     char host[EZ_HTTP_HOST_BUF], path[EZ_HTTP_PATH_BUF];
     int port;
     if (!parse_url(url_buf, host, sizeof(host), &port, path, sizeof(path))) {
-        const char *detail = "invalid URL: missing scheme (expected http:// or https://)";
+        const char *detail = "invalid URL: expected http:// scheme";
         err_resp.body = ez_string_new(arena, detail, (int32_t)strlen(detail));
         return err_resp;
     }
