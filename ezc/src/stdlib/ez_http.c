@@ -19,7 +19,7 @@
 #define EZ_HTTP_URL_BUF         4096
 #define EZ_HTTP_HOST_BUF        256
 #define EZ_HTTP_PATH_BUF        2048
-#define EZ_HTTP_REQ_BUF         8192
+#define EZ_HTTP_HDR_BUF         4096
 #define EZ_HTTP_RESP_BUF        1048576
 #define EZ_HTTP_MIN_RESP_LEN    12
 
@@ -181,22 +181,21 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     /* Set 10s timeout */
     ez_net_set_timeout(sock, EZ_HTTP_TIMEOUT_MS);
 
-    /* Build request */
-    char req[EZ_HTTP_REQ_BUF];
-    int req_len;
+    /* Build headers — body is sent separately to avoid truncation */
+    char hdr[EZ_HTTP_HDR_BUF];
+    int hdr_len;
 
     if (body.data && body.len > 0) {
-        req_len = snprintf(req, sizeof(req),
+        hdr_len = snprintf(hdr, sizeof(hdr),
             "%s %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-Length: %d\r\n"
             "Content-Type: application/x-www-form-urlencoded\r\n"
             "Connection: close\r\n"
-            "\r\n"
-            "%.*s",
-            method, path, host, (int)body.len, (int)body.len, body.data);
+            "\r\n",
+            method, path, host, (int)body.len);
     } else {
-        req_len = snprintf(req, sizeof(req),
+        hdr_len = snprintf(hdr, sizeof(hdr),
             "%s %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Connection: close\r\n"
@@ -204,11 +203,18 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
             method, path, host);
     }
 
-    /* Send — cap at actual buffer size to avoid OOB read on truncation */
-    int32_t send_len = (req_len > 0 && (size_t)req_len < sizeof(req))
-        ? (int32_t)req_len : (int32_t)(sizeof(req) - 1);
-    EzString req_str = {req, send_len};
-    ez_net_send(sock, req_str);
+    if (hdr_len <= 0 || (size_t)hdr_len >= sizeof(hdr)) {
+        ez_net_close(sock);
+        const char *detail = "request URL or path too long";
+        err_resp.body = ez_string_new(arena, detail, (int32_t)strlen(detail));
+        return err_resp;
+    }
+
+    EzString hdr_str = {hdr, (int32_t)hdr_len};
+    ez_net_send(sock, hdr_str);
+    if (body.data && body.len > 0) {
+        ez_net_send(sock, body);
+    }
 
     /* Receive response (up to 1MB) — heap-allocated to avoid stack overflow */
     char *resp_buf = malloc(EZ_HTTP_RESP_BUF);

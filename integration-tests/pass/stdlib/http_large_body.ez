@@ -1,0 +1,31 @@
+/*
+ * http_large_body.ez - Verify http.post sends bodies larger than the old 8KB buffer limit.
+ * Requires network access to httpbun.com.
+ */
+
+import @http
+import @strings
+
+do main() {
+    mut pass int = 0
+    mut fail int = 0
+
+    // Build a body larger than the old 8192-byte request buffer
+    // 300 * 36 = 10800 bytes — well above the old 8KB limit
+    mut chunk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    mut body = strings.repeat(chunk, 300)
+
+    mut resp, err = http.post("http://httpbun.com/post", body)
+    if err != nil {
+        println("FAIL: unexpected error: ${err}")
+        fail += 1
+    } otherwise {
+        if resp.status == 200 { pass += 1 } otherwise { fail += 1 }
+        // httpbun echoes the body in the response JSON under "data"
+        if strings.contains(resp.body, chunk) { pass += 1 } otherwise { fail += 1 }
+    }
+
+    println("http large body: ${pass} passed, ${fail} failed")
+    if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
+}
