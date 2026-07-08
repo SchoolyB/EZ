@@ -108,6 +108,11 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
 }
 
 void ez_server_cors(EzRouter *r, EzString origin) {
+    for (int32_t i = 0; i < origin.len; i++) {
+        if (origin.data[i] == '\r' || origin.data[i] == '\n') {
+            ez_panic_code("P0101", "server.cors: origin contains CR or LF — HTTP header injection is not allowed");
+        }
+    }
     EzArena *a = get_server_arena();
     char *o = ez_arena_alloc(a, origin.len + 1);
     memcpy(o, origin.data, origin.len);
