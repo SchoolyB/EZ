@@ -143,6 +143,7 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
  */
 /* Start listening — blocks until killed */
 void ez_server_listen(int64_t port, EzRouter *r);
+void ez_server_listen_host(int64_t port, EzString host, EzRouter *r);
 
 /*@man cors
  *@module server

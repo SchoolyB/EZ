@@ -936,7 +936,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"http", "get", 1, 1}, {"http", "delete", 1, 1}, {"http", "head", 1, 1},
     {"http", "post", 2, 2}, {"http", "put", 2, 2}, {"http", "patch", 2, 2},
     /* net */
-    {"net", "connect", 2, 2}, {"net", "listen", 1, 1},
+    {"net", "connect", 2, 2}, {"net", "listen", 1, 2},
     {"net", "accept", 1, 1}, {"net", "send", 2, 2},
     {"net", "receive", 2, 2}, {"net", "close", 1, 1},
     {"net", "set_timeout", 2, 2}, {"net", "resolve", 1, 1},
@@ -1037,7 +1037,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"fmt", "float_sci", 1, 1},
     /* server */
     {"server", "add_router", 0, 0}, {"server", "add_route", 4, 4},
-    {"server", "listen", 2, 2}, {"server", "cors", 2, 2},
+    {"server", "listen", 2, 3}, {"server", "cors", 2, 2},
     {"server", "use", 2, 2}, {"server", "text", 2, 2},
     {"server", "json", 2, 2}, {"server", "html", 2, 2},
     {"server", "redirect", 2, 2},
@@ -1186,6 +1186,8 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"sqlite", "open", 0, ARG_STRING},
     /* server: listen(router, port int) — catch non-int port before it reaches C */
     {"server", "listen", 1, ARG_INT},
+    {"server", "listen", 2, ARG_STRING},
+    {"net", "listen", 1, ARG_INT},
     {"server", "text", 1, ARG_STRING},
     {"server", "json", 1, ARG_STRING},
     {"server", "html", 1, ARG_STRING},

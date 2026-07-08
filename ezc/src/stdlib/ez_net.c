@@ -182,12 +182,61 @@ EzResult_socket ez_net_dial_result(EzArena *arena, EzString host, int64_t port) 
     return r;
 }
 
+EzSocket ez_net_listen_host(EzArena *arena, EzString host, int64_t port) {
+    (void)arena;
+    EzSocket sock = {-1};
+
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return sock;
+
+    int opt = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    char host_buf[EZ_NET_HOST_BUF];
+    net_cstr(host, host_buf, sizeof(host_buf));
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons((uint16_t)port);
+
+    if (inet_pton(AF_INET, host_buf, &addr.sin_addr) != 1) {
+        close(fd);
+        return sock;
+    }
+
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        close(fd);
+        return sock;
+    }
+
+    if (listen(fd, EZ_NET_LISTEN_BACKLOG) != 0) {
+        close(fd);
+        return sock;
+    }
+
+    sock.fd = fd;
+    return sock;
+}
+
 EzResult_socket ez_net_listen_result(EzArena *arena, int64_t port) {
     EzResult_socket r;
     r.v0 = ez_net_listen(arena, port);
     if (r.v0.fd < 0) {
         r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot listen on port %lld",
             (long long)port));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_socket ez_net_listen_host_result(EzArena *arena, EzString host, int64_t port) {
+    EzResult_socket r;
+    r.v0 = ez_net_listen_host(arena, host, port);
+    if (r.v0.fd < 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot listen on %.*s:%lld",
+            host.len, host.data, (long long)port));
     } else {
         r.v1 = NULL;
     }

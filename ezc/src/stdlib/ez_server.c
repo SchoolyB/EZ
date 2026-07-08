@@ -368,6 +368,51 @@ static void *handle_connection(void *arg) {
     return NULL;
 }
 
+void ez_server_listen_host(int64_t port, EzString host, EzRouter *r) {
+    EzArena *arena = get_server_arena();
+    EzSocket listener = ez_net_listen_host(arena, host, port);
+    if (listener.fd < 0) {
+        fprintf(stderr, "server: failed to listen on %.*s:%d\n", host.len, host.data, (int)port);
+        return;
+    }
+
+    printf("EZ server listening on %.*s:%d\n", host.len, host.data, (int)port);
+    fflush(stdout);
+
+    while (1) {
+        EzSocket client = ez_net_accept(arena, listener);
+        if (client.fd < 0) continue;
+
+        int32_t prev = ez_atomic_add32(&active_connections, 1);
+        if (prev >= EZ_SERVER_MAX_CONNECTIONS) {
+            ez_atomic_sub32(&active_connections, 1);
+            const char *r503 = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            send(client.fd, r503, strlen(r503), 0);
+            close(client.fd);
+            continue;
+        }
+
+        ConnCtx *ctx = malloc(sizeof(ConnCtx));
+        if (!ctx) {
+            ez_atomic_sub32(&active_connections, 1);
+            close(client.fd);
+            continue;
+        }
+        ctx->client_fd = client.fd;
+        ctx->router = r;
+
+        pthread_t thread;
+        if (pthread_create(&thread, NULL, handle_connection, ctx) != 0) {
+            ez_atomic_sub32(&active_connections, 1);
+            fprintf(stderr, "server: failed to create thread\n");
+            free(ctx);
+            close(client.fd);
+            continue;
+        }
+        pthread_detach(thread);
+    }
+}
+
 void ez_server_listen(int64_t port, EzRouter *r) {
     EzArena *arena = get_server_arena();
     EzSocket listener = ez_net_listen(arena, port);

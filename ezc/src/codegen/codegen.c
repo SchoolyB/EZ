@@ -4292,6 +4292,17 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 3) {
+        /* EZ: server.listen(router, port, host)  →  C: ez_server_listen_host(port, host, &router) */
+        emit(cg, "ez_server_listen_host(");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "text") == 0 && node->data.call.arg_count == 2) {
         emit(cg, "ez_server_text(");
         emit_expression(cg, node->data.call.args[0]);
@@ -4434,6 +4445,15 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 1) {
         emitf(cg, "ez_net_listen%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
+        /* EZ: net.listen(host, port)  →  C: ez_net_listen_host(arena, host, port) */
+        emitf(cg, "ez_net_listen_host%s(ez_default_arena, ", is_multi_var ? "_result" : "");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
