@@ -99,6 +99,45 @@ for dir in "$TEST_DIR"/pass/multi-file/*/; do
     fi
 done
 
+# pz template tests — single files
+if [ -d "$TEST_DIR/pass/pz" ]; then
+    echo ""
+    printf "${BOLD}PZ template tests:${NC}\n"
+    for test_file in "$TEST_DIR"/pass/pz/*.ez; do
+        if [ -f "$test_file" ]; then
+            test_name=$(basename "$test_file" .ez)
+            if output=$("$EZ_BIN" "$test_file" 2>&1); then
+                if echo "$output" | grep -q "SOME TESTS FAILED"; then
+                    fail "pz/$test_name" "(assertions failed)"
+                else
+                    pass "pz/$test_name"
+                fi
+            else
+                fail "pz/$test_name" "(execution error)"
+            fi
+        fi
+    done
+
+    # pz template tests — multi-file
+    for dir in "$TEST_DIR"/pass/pz/*/; do
+        if [ -d "$dir" ]; then
+            dir_name=$(basename "$dir")
+            main_file=$(find "$dir" -name "main.ez" | head -1)
+            if [ -n "$main_file" ]; then
+                if output=$("$EZ_BIN" "$main_file" 2>&1); then
+                    if echo "$output" | grep -q "SOME TESTS FAILED"; then
+                        fail "pz/$dir_name" "(assertions failed)"
+                    else
+                        pass "pz/$dir_name"
+                    fi
+                else
+                    fail "pz/$dir_name" "(execution error)"
+                fi
+            fi
+        fi
+    done
+fi
+
 # Stress tests — core
 if [ -d "$TEST_DIR/pass/stress/core" ]; then
     echo ""

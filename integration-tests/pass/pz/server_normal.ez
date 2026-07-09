@@ -1,0 +1,45 @@
+// pz template: server (normal)
+// server.listen() is not called — it blocks. Handlers and router setup are
+// exercised directly to verify the template compiles and routes correctly.
+
+import @server
+import @json
+
+do home(req HttpRequest) -> HttpResponse {
+    return server.html(200, "<h1>Welcome to EZ!</h1>")
+}
+
+do health(req HttpRequest) -> HttpResponse {
+    mut data map[string:string] = {"status": "ok"}
+    return server.json(200, json.encode(data))
+}
+
+do api_status(req HttpRequest) -> HttpResponse {
+    mut data map[string:string] = {
+        "version": "1.0.0",
+        "status": "running"
+    }
+    return server.json(200, json.encode(data))
+}
+
+do main() {
+    mut router = server.add_router()
+
+    server.add_route(router, "GET", "/", ()home)
+    server.add_route(router, "GET", "/health", ()health)
+    server.add_route(router, "GET", "/api/status", ()api_status)
+
+    mut html_resp HttpResponse = server.html(200, "<h1>Welcome to EZ!</h1>")
+    mut json_resp HttpResponse = server.json(200, "{\"status\": \"ok\"}")
+
+    if html_resp.status != 200 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    }
+    if json_resp.status != 200 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    }
+
+    println("Server running on http://localhost:8080")
+}

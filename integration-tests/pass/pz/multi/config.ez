@@ -1,0 +1,15 @@
+// config.ez - Application configuration.
+
+const Config struct {
+    name string
+    version string
+    debug bool
+}
+
+do get_config() -> Config {
+    return Config{
+        name: "MyApp",
+        version: "1.0.0",
+        debug: false
+    }
+}
