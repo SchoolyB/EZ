@@ -1,0 +1,16 @@
+import @os
+
+do main() {
+    // seq 1 2000 generates ~8 KB of output, enough to trigger buffer growth
+    mut code, stdout, _, ok = os.exec("seq", {"1", "2000"})
+    if !ok || code != 0 {
+        println("SOME TESTS FAILED: exec failed (ok=${ok}, code=${code})")
+        exit(1)
+    }
+    if len(stdout) < 4096 {
+        println("SOME TESTS FAILED: expected >4096 bytes, got ${len(stdout)}")
+        exit(1)
+    }
+
+    println("All exec large output tests passed (${len(stdout)} bytes captured)")
+}

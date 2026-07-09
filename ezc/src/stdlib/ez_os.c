@@ -10,11 +10,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <errno.h>
 
 #define EZ_HOSTNAME_BUF 256
+#define EZ_EXEC_OUTPUT_MAX (64 * 1024 * 1024) /* 64 MiB per stream */
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -146,6 +148,7 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
     int out_fd = stdout_pipe[0];
     int err_fd = stderr_pipe[0];
     bool out_done = false, err_done = false;
+    bool truncated = false;
 
     while (!out_done || !err_done) {
         fd_set fds;
@@ -159,6 +162,11 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
             ssize_t n = read(out_fd, buf, sizeof(buf));
             if (n <= 0) {
                 out_done = true;
+            } else if (out_total + (size_t)n > EZ_EXEC_OUTPUT_MAX) {
+                kill(pid, SIGKILL);
+                out_done = true;
+                err_done = true;
+                truncated = true;
             } else {
                 if (out_total + (size_t)n > out_cap) {
                     size_t new_cap = out_cap * 2 + (size_t)n;
@@ -176,6 +184,11 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
             ssize_t n = read(err_fd, buf, sizeof(buf));
             if (n <= 0) {
                 err_done = true;
+            } else if (err_total + (size_t)n > EZ_EXEC_OUTPUT_MAX) {
+                kill(pid, SIGKILL);
+                out_done = true;
+                err_done = true;
+                truncated = true;
             } else {
                 if (err_total + (size_t)n > err_cap) {
                     size_t new_cap = err_cap * 2 + (size_t)n;
@@ -204,7 +217,7 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
     }
 
     /* exit_code 127 means execvp failed (command not found / bad path) */
-    if (exit_code == 127) return fail;
+    if (exit_code == 127 || truncated) return fail;
 
     EzString stdout_str = ez_string_new(arena, out_buf, (int32_t)out_total);
     EzString stderr_str = ez_string_new(arena, err_buf, (int32_t)err_total);
