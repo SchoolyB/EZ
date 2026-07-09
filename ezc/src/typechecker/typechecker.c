@@ -1448,8 +1448,9 @@ static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
     Param *params = func_decl->data.func_decl.params;
 
     /* Build reordered args array sized to param_count. */
-    AstNode **new_args = xmalloc(sizeof(AstNode *) * (param_count > 0 ? param_count : 1));
-    memset(new_args, 0, sizeof(AstNode *) * (param_count > 0 ? param_count : 1));
+    size_t new_args_size = sizeof(AstNode *) * (size_t)(param_count > 0 ? param_count : 1);
+    AstNode **new_args = arena_alloc(tc->arena, new_args_size);
+    memset(new_args, 0, new_args_size);
 
     /* Copy positional args into their slots */
     int positional_count = 0;
@@ -1483,7 +1484,6 @@ static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
             diag_error_msg(tc->diag, "E5031", arena_strdup(tc->arena, msg),
                 NODE_FILE(tc, node), node->data.call.args[i]->token.line,
                 node->data.call.args[i]->token.column, 0);
-            free(new_args);
             return;
         }
         if (new_args[slot]) {
@@ -1495,7 +1495,6 @@ static void tc_resolve_named_args(TypeChecker *tc, AstNode *node,
             diag_error_msg(tc->diag, "E5032", arena_strdup(tc->arena, msg),
                 NODE_FILE(tc, node), node->data.call.args[i]->token.line,
                 node->data.call.args[i]->token.column, 0);
-            free(new_args);
             return;
         }
         new_args[slot] = node->data.call.args[i];
