@@ -10994,41 +10994,40 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     /* SourceLocation is always registered: the here() builtin returns it
      * and is available without any import. */
     {
-        static const char *src_loc_fields[] = {"file", "line", "column"};
-        static EzType *src_loc_types[3];
-        src_loc_types[0] = &TYPE_STRING;
-        src_loc_types[1] = &TYPE_INT;
-        src_loc_types[2] = &TYPE_INT;
-        register_struct(tc, "SourceLocation", "SourceLocation", src_loc_fields, src_loc_types, 3);
+        const char **fnames = xmalloc(sizeof(const char *) * 3);
+        EzType **ftypes = xmalloc(sizeof(EzType *) * 3);
+        fnames[0] = "file"; fnames[1] = "line"; fnames[2] = "column";
+        ftypes[0] = &TYPE_STRING; ftypes[1] = &TYPE_INT; ftypes[2] = &TYPE_INT;
+        register_struct(tc, "SourceLocation", "SourceLocation", fnames, ftypes, 3);
     }
 
     /* Register stdlib struct types scoped to their module imports */
     if (tc_is_imported_module(tc, "server") || tc_is_imported_module(tc, "http")) {
-        static const char *resp_fields[] = {"status", "body", "headers"};
-        static EzType *resp_types[3];
-        resp_types[0] = &TYPE_INT;
-        resp_types[1] = &TYPE_STRING;
-        resp_types[2] = type_from_name("map[string:string]");
-        register_struct(tc, "HttpResponse", "HttpResponse", resp_fields, resp_types, 3);
+        const char **fnames = xmalloc(sizeof(const char *) * 3);
+        EzType **ftypes = xmalloc(sizeof(EzType *) * 3);
+        fnames[0] = "status"; fnames[1] = "body"; fnames[2] = "headers";
+        ftypes[0] = &TYPE_INT; ftypes[1] = &TYPE_STRING; ftypes[2] = type_from_name("map[string:string]");
+        register_struct(tc, "HttpResponse", "HttpResponse", fnames, ftypes, 3);
     }
 
     if (tc_is_imported_module(tc, "server")) {
-        static const char *req_fields[] = {"method", "path", "body", "query", "headers", "params"};
-        static EzType *req_types[6];
-        req_types[0] = &TYPE_STRING;
-        req_types[1] = &TYPE_STRING;
-        req_types[2] = &TYPE_STRING;
-        req_types[3] = type_from_name("map[string:string]");
-        req_types[4] = type_from_name("map[string:string]");
-        req_types[5] = type_from_name("map[string:string]");
-        register_struct(tc, "HttpRequest", "HttpRequest", req_fields, req_types, 6);
+        const char **fnames = xmalloc(sizeof(const char *) * 6);
+        EzType **ftypes = xmalloc(sizeof(EzType *) * 6);
+        fnames[0] = "method"; fnames[1] = "path"; fnames[2] = "body";
+        fnames[3] = "query"; fnames[4] = "headers"; fnames[5] = "params";
+        ftypes[0] = &TYPE_STRING; ftypes[1] = &TYPE_STRING; ftypes[2] = &TYPE_STRING;
+        ftypes[3] = type_from_name("map[string:string]");
+        ftypes[4] = type_from_name("map[string:string]");
+        ftypes[5] = type_from_name("map[string:string]");
+        register_struct(tc, "HttpRequest", "HttpRequest", fnames, ftypes, 6);
     }
 
     if (tc_is_imported_module(tc, "uuid")) {
-        static const char *uuid_fields[] = {"value"};
-        static EzType *uuid_types[1];
-        uuid_types[0] = &TYPE_STRING;
-        register_struct(tc, "UUID", "UUID", uuid_fields, uuid_types, 1);
+        const char **fnames = xmalloc(sizeof(const char *) * 1);
+        EzType **ftypes = xmalloc(sizeof(EzType *) * 1);
+        fnames[0] = "value";
+        ftypes[0] = &TYPE_STRING;
+        register_struct(tc, "UUID", "UUID", fnames, ftypes, 1);
     }
 
     /* Collect 'using' and 'import and use' module names */
