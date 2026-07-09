@@ -6995,8 +6995,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Struct.func → lookup as Struct_func */
                     ref_struct_name = obj->data.label.value;
                     ref_member_name = member;
-                    char *prefixed = xmalloc(strlen(obj->data.label.value) + strlen(member) + 2);
-                    sprintf(prefixed, "%s_%s", obj->data.label.value, member);
+                    char prefixed[EZ_MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", obj->data.label.value, member);
                     ref_name = prefixed;
                 }
             }
@@ -8494,10 +8494,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     rname = fref->data.label.value;
                 } else if (fref->kind == NODE_MEMBER_EXPR &&
                            fref->data.member.object->kind == NODE_LABEL) {
-                    char *prefixed = xmalloc(
-                        strlen(fref->data.member.object->data.label.value) +
-                        strlen(fref->data.member.member) + 2);
-                    sprintf(prefixed, "%s_%s",
+                    char prefixed[EZ_MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s",
                         fref->data.member.object->data.label.value,
                         fref->data.member.member);
                     rname = prefixed;
@@ -10811,9 +10809,9 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
                 /* Register with prefixed name: StructName_funcName */
-                char *prefixed = xmalloc(strlen(stmt->data.struct_decl.name) +
-                    strlen(fn->data.func_decl.name) + 2);
-                sprintf(prefixed, "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
+                char buf[EZ_MSG_BUF_SIZE];
+                snprintf(buf, sizeof(buf), "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
+                const char *prefixed = arena_strdup(tc->arena, buf);
                 register_func(tc, prefixed, ptypes, pc, rtypes, rc);
                 tc->funcs[tc->func_count - 1].is_private = fn->data.func_decl.is_private;
                 finalize_generic_sig(&tc->funcs[tc->func_count - 1], fn);
