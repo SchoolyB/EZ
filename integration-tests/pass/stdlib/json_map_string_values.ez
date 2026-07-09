@@ -1,0 +1,40 @@
+import @json
+
+do main() {
+    // digit-prefixed string must be quoted, not emitted as a raw number
+    mut m1 map[string:string] = {"v": "25"}
+    if json.encode(m1) != "{\"v\":\"25\"}" {
+        println("SOME TESTS FAILED: digit-prefixed value not quoted")
+        exit(1)
+    }
+
+    // negative number string must be quoted
+    mut m2 map[string:string] = {"v": "-1"}
+    if json.encode(m2) != "{\"v\":\"-1\"}" {
+        println("SOME TESTS FAILED: negative-prefixed value not quoted")
+        exit(1)
+    }
+
+    // "true" string must be quoted
+    mut m3 map[string:string] = {"v": "true"}
+    if json.encode(m3) != "{\"v\":\"true\"}" {
+        println("SOME TESTS FAILED: literal true not quoted")
+        exit(1)
+    }
+
+    // "false" string must be quoted
+    mut m4 map[string:string] = {"v": "false"}
+    if json.encode(m4) != "{\"v\":\"false\"}" {
+        println("SOME TESTS FAILED: literal false not quoted")
+        exit(1)
+    }
+
+    // "null" string must be quoted
+    mut m5 map[string:string] = {"v": "null"}
+    if json.encode(m5) != "{\"v\":\"null\"}" {
+        println("SOME TESTS FAILED: literal null not quoted")
+        exit(1)
+    }
+
+    println("All JSON map string value tests passed")
+}

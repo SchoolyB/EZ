@@ -21,33 +21,40 @@
 size_t json_escaped_len(EzString s) {
     size_t n = 2; /* opening + closing quote */
     for (int32_t i = 0; i < s.len; i++) {
-        char c = s.data[i];
-        if (c == '"' || c == '\\' || c == '\n' || c == '\t') n += 2;
+        unsigned char c = (unsigned char)s.data[i];
+        if (c == '"' || c == '\\') n += 2;
+        else if (c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t') n += 2;
+        else if (c < 0x20) n += 6; /* \uXXXX */
         else n += 1;
     }
     return n;
 }
 
 void json_append_escaped(char *buf, int *pos, EzString s) {
+    static const char hex[] = "0123456789abcdef";
     buf[(*pos)++] = '"';
     for (int32_t i = 0; i < s.len; i++) {
-        char c = s.data[i];
+        unsigned char c = (unsigned char)s.data[i];
         if (c == '"') { buf[(*pos)++] = '\\'; buf[(*pos)++] = '"'; }
         else if (c == '\\') { buf[(*pos)++] = '\\'; buf[(*pos)++] = '\\'; }
+        else if (c == '\b') { buf[(*pos)++] = '\\'; buf[(*pos)++] = 'b'; }
+        else if (c == '\f') { buf[(*pos)++] = '\\'; buf[(*pos)++] = 'f'; }
         else if (c == '\n') { buf[(*pos)++] = '\\'; buf[(*pos)++] = 'n'; }
+        else if (c == '\r') { buf[(*pos)++] = '\\'; buf[(*pos)++] = 'r'; }
         else if (c == '\t') { buf[(*pos)++] = '\\'; buf[(*pos)++] = 't'; }
-        else buf[(*pos)++] = c;
+        else if (c < 0x20) {
+            buf[(*pos)++] = '\\'; buf[(*pos)++] = 'u';
+            buf[(*pos)++] = '0'; buf[(*pos)++] = '0';
+            buf[(*pos)++] = hex[c >> 4]; buf[(*pos)++] = hex[c & 0xf];
+        }
+        else buf[(*pos)++] = (char)c;
     }
     buf[(*pos)++] = '"';
 }
 
-/* Helper: byte length of a map[string:string] value in JSON output. */
+/* Helper: byte length of a map[string:string] value in JSON output.
+ * All string values are always quoted — never infer JSON types from content. */
 static size_t json_map_val_len(EzString *val) {
-    if (val->len > 0 && (isdigit((unsigned char)val->data[0]) || val->data[0] == '-'))
-        return (size_t)val->len;
-    if (val->len == 4 && memcmp(val->data, "true", 4) == 0) return 4;
-    if (val->len == 5 && memcmp(val->data, "false", 5) == 0) return 5;
-    if (val->len == 4 && memcmp(val->data, "null", 4) == 0) return 4;
     return json_escaped_len(*val);
 }
 
@@ -75,18 +82,7 @@ EzString ez_json_encode_map(EzArena *arena, EzMap *m) {
         EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        if (val->len > 0 && (isdigit((unsigned char)val->data[0]) || val->data[0] == '-')) {
-            memcpy(buf + pos, val->data, (size_t)val->len);
-            pos += val->len;
-        } else if (val->len == 4 && memcmp(val->data, "true", 4) == 0) {
-            memcpy(buf + pos, "true", 4); pos += 4;
-        } else if (val->len == 5 && memcmp(val->data, "false", 5) == 0) {
-            memcpy(buf + pos, "false", 5); pos += 5;
-        } else if (val->len == 4 && memcmp(val->data, "null", 4) == 0) {
-            memcpy(buf + pos, "null", 4); pos += 4;
-        } else {
-            json_append_escaped(buf, &pos, *val);
-        }
+        json_append_escaped(buf, &pos, *val);
         entry++;
     }
     buf[pos++] = '}';
