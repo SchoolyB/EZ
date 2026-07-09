@@ -9273,13 +9273,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 type_display_name(tc, cond_t));
         }
         Scope *if_outer = tc->current_scope;
-        tc->current_scope = scope_create(if_outer);
+        Scope *if_body = scope_create(if_outer);
+        tc->current_scope = if_body;
         check_block(tc, node->data.if_stmt.consequence);
         tc->current_scope = if_outer;
+        scope_destroy(if_body);
         if (node->data.if_stmt.alternative) {
-            tc->current_scope = scope_create(if_outer);
+            Scope *else_body = scope_create(if_outer);
+            tc->current_scope = else_body;
             check_statement(tc, node->data.if_stmt.alternative);
             tc->current_scope = if_outer;
+            scope_destroy(else_body);
         }
         break;
     }
@@ -9333,6 +9337,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         check_block(tc, node->data.for_stmt.body);
         tc->loop_depth--;
         tc->current_scope = outer;
+        scope_destroy(loop_scope);
         break;
     }
 
@@ -9377,6 +9382,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error_codef(tc->diag, "E3123", NODE_FILE(tc, node),
                     node->token.line, node->token.column, 0);
                 tc->current_scope = outer;
+                scope_destroy(loop_scope);
                 break;
             }
         }
@@ -9420,6 +9426,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         check_block(tc, node->data.for_each.body);
         tc->loop_depth--;
         tc->current_scope = outer;
+        scope_destroy(loop_scope);
         break;
     }
 
@@ -9877,6 +9884,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->using_module_count = prev_using_count;
         tc->func_depth--;
         tc->current_scope = outer;
+        scope_destroy(func_scope);
         break;
     }
 
@@ -10082,7 +10090,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
             Scope *case_outer = tc->current_scope;
-            tc->current_scope = scope_create(case_outer);
+            Scope *case_body = scope_create(case_outer);
+            tc->current_scope = case_body;
             /* Introduce pattern bindings into case scope */
             for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {
                 AstNode *val_i = node->data.when_stmt.cases[i].values[j];
@@ -10112,13 +10121,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             check_block(tc, node->data.when_stmt.cases[i].body);
             tc->current_scope = case_outer;
+            scope_destroy(case_body);
         }
         tc->expected_type = saved_when_expected;
         if (node->data.when_stmt.default_body) {
             Scope *def_outer = tc->current_scope;
-            tc->current_scope = scope_create(def_outer);
+            Scope *def_body = scope_create(def_outer);
+            tc->current_scope = def_body;
             check_block(tc, node->data.when_stmt.default_body);
             tc->current_scope = def_outer;
+            scope_destroy(def_body);
             /* W3006: empty default branch */
             if (node->data.when_stmt.default_body->data.block.count == 0) {
                 diag_warning(tc->diag, "W3006",
@@ -10910,6 +10922,7 @@ void typechecker_free(TypeChecker *tc) {
 
     typetable_free(tc->type_table);
     arena_destroy(tc->arena);
+    scope_destroy(tc->current_scope);
 
     free(tc);
 }
@@ -11227,6 +11240,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             tc->func_depth--;
             free(ret_types);
             free(ret_names);
+            scope_destroy(inst_scope);
 
             if (errs_after > errs_before && call_site) {
                 diag_error_codef(tc->diag, "E3058", NODE_FILE(tc, call_site), call_site->token.line, call_site->token.column, 0, func_display_name(fs), concrete);

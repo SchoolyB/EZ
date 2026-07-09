@@ -86,6 +86,13 @@ Symbol *scope_lookup(Scope *s, const char *name) {
     return NULL;
 }
 
+void scope_destroy(Scope *s) {
+    if (!s) return;
+    free(s->symbols);
+    free(s->hash);
+    free(s);
+}
+
 Symbol *scope_lookup_local(Scope *s, const char *name) {
     if (s->hash) {
         uint32_t mask = (uint32_t)(s->hash_cap - 1);
