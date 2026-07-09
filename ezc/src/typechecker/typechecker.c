@@ -2316,7 +2316,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             FuncSig *fs = find_func(tc, name);
             if (fs) fs->used = true;
             diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node), node->token.line, node->token.column, 0, name, name, name);
-        } else if ((result = tc_lookup_using_constant(tc, name))) {
+        } else if (tc_lookup_using_constant(tc, name)) {
+            result = tc_lookup_using_constant(tc, name);
         } else if (tc_is_builtin(name)) {
             EzType *bt = type_from_name(name);
             if (bt != &TYPE_UNKNOWN) {
@@ -6995,9 +6996,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Struct.func → lookup as Struct_func */
                     ref_struct_name = obj->data.label.value;
                     ref_member_name = member;
-                    char prefixed[EZ_MSG_BUF_SIZE];
-                    snprintf(prefixed, sizeof(prefixed), "%s_%s", obj->data.label.value, member);
-                    ref_name = prefixed;
+                    char buf[EZ_MSG_BUF_SIZE];
+                    snprintf(buf, sizeof(buf), "%s_%s", obj->data.label.value, member);
+                    ref_name = arena_strdup(tc->arena, buf);
                 }
             }
         }
@@ -8494,11 +8495,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     rname = fref->data.label.value;
                 } else if (fref->kind == NODE_MEMBER_EXPR &&
                            fref->data.member.object->kind == NODE_LABEL) {
-                    char prefixed[EZ_MSG_BUF_SIZE];
-                    snprintf(prefixed, sizeof(prefixed), "%s_%s",
+                    char buf[EZ_MSG_BUF_SIZE];
+                    snprintf(buf, sizeof(buf), "%s_%s",
                         fref->data.member.object->data.label.value,
                         fref->data.member.member);
-                    rname = prefixed;
+                    rname = arena_strdup(tc->arena, buf);
                 }
                 if (rname) {
                     Symbol *sym = scope_lookup_local(tc->current_scope,
