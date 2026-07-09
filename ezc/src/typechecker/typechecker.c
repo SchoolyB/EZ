@@ -332,9 +332,11 @@ static const char *enum_display_name(TypeChecker *tc, const char *name) {
  * module-prefixed internal names (e.g. lib_Foo vs objects_Foo) match
  * when they refer to the same user-defined type. */
 static bool tc_same_struct_type(TypeChecker *tc, const char *a, const char *b) {
+    if (a == b || strcmp(a, b) == 0) return true;
     return strcmp(struct_display_name(tc, a), struct_display_name(tc, b)) == 0;
 }
 static bool tc_same_enum_type(TypeChecker *tc, const char *a, const char *b) {
+    if (a == b || strcmp(a, b) == 0) return true;
     return strcmp(enum_display_name(tc, a), enum_display_name(tc, b)) == 0;
 }
 /* Compare array element type names accounting for module-prefixed struct
