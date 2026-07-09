@@ -10860,6 +10860,60 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 
 /* --- Public API --- */
 
+static void typetable_free(TypeTable *tt) {
+    if (!tt) return;
+    free(tt->nodes);
+    free(tt->types);
+    free(tt);
+}
+
+void typechecker_free(TypeChecker *tc) {
+    if (!tc) return;
+
+    for (int i = 0; i < tc->func_count; i++) {
+        free(tc->funcs[i].instantiations);
+        free(tc->funcs[i].instantiation_calls);
+    }
+    free(tc->funcs);
+    free(tc->funcs_sorted);
+
+    for (int i = 0; i < tc->struct_count; i++) {
+        free(tc->structs[i].field_names);
+        free(tc->structs[i].field_types);
+    }
+    free(tc->structs);
+    free(tc->structs_sorted);
+
+    free(tc->enum_names);
+    free(tc->enum_display_names);
+    free(tc->enum_is_string);
+    free(tc->enum_values);
+    free(tc->enum_payload_types);
+    free(tc->enum_payload_counts);
+    free(tc->enum_is_tagged);
+    free(tc->enum_names_sorted);
+
+    free(tc->imported_modules);
+    free(tc->import_files);
+    free(tc->import_lines);
+    free(tc->import_used);
+    free(tc->import_is_stdlib);
+
+    free(tc->using_modules);
+    free(tc->using_module_files);
+    free(tc->alias_names);
+    free(tc->alias_modules);
+
+    free(tc->destroyed_arenas);
+    free(tc->const_int_names);
+    free(tc->const_int_values);
+
+    typetable_free(tc->type_table);
+    arena_destroy(tc->arena);
+
+    free(tc);
+}
+
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
     /* Build sorted stdlib lookup tables once before any type-check begins. */
     static bool tables_built = false;

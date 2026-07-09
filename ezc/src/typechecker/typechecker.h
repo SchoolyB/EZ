@@ -187,6 +187,7 @@ typedef struct {
 /* Create and run the type checker */
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file);
 void typechecker_check(TypeChecker *tc, AstNode *program);
+void typechecker_free(TypeChecker *tc);
 
 /* Query the type table (used by codegen) */
 EzType *typetable_get(TypeTable *tt, AstNode *node);

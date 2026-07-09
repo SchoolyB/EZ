@@ -1544,6 +1544,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "ez: check completed in %.1fms\n", ms);
         }
         fprintf(stderr, "ez: %s: no errors\n", input_file);
+        typechecker_free(tc);
         diag_destroy(diag);
         arena_destroy(arena);
         free(source);
@@ -1576,6 +1577,7 @@ int main(int argc, char **argv) {
 
     if (!write_file(c_file, c_code)) {
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1586,6 +1588,7 @@ int main(int argc, char **argv) {
         /* Just print the C source */
         printf("%s", c_code);
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1601,6 +1604,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  On macOS: xcode-select --install\n");
         fprintf(stderr, "  On Ubuntu: sudo apt install gcc\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1618,6 +1622,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "    - /usr/local/lib/ezc/\n");
         fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1626,6 +1631,7 @@ int main(int argc, char **argv) {
     if (strchr(runtime_dir, '\'')) {
         fprintf(stderr, "ez: EZ_RUNTIME path must not contain single quotes\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1634,6 +1640,7 @@ int main(int argc, char **argv) {
     if (strchr(output_file, '\'')) {
         fprintf(stderr, "ez: output path must not contain single quotes\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1730,6 +1737,7 @@ int main(int argc, char **argv) {
     if (strlen(cmd) >= CMD_BUF_SIZE - 1) {
         fprintf(stderr, "ez: compile command too long (paths may be too deep)\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         diag_destroy(diag);
         arena_destroy(arena);
         free(source);
@@ -1795,6 +1803,7 @@ int main(int argc, char **argv) {
     }
 
     codegen_destroy(&cg);
+    typechecker_free(tc);
     diag_destroy(diag);
     arena_destroy(arena);
     free(source);
