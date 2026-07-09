@@ -1771,11 +1771,15 @@ int main(int argc, char **argv) {
     } else {
         unlink(c_file);
 
+        double total_ms = (double)(t_cc_end - t_start) / CLOCKS_PER_SEC * 1000.0;
+        if (!run_mode) {
+            fprintf(stdout, "\033[32mCompiled '\033[1m%s\033[22m' in %.0fms!\033[0m\n", out_base, total_ms);
+            fflush(stdout);
+        }
+
         if (show_time) {
             double frontend_ms = (double)(t_cc_start - t_start) / CLOCKS_PER_SEC * 1000.0;
             double cc_ms = (double)(t_cc_end - t_cc_start) / CLOCKS_PER_SEC * 1000.0;
-            double total_ms = (double)(t_cc_end - t_start) / CLOCKS_PER_SEC * 1000.0;
-            fprintf(stderr, "ez: compiled %s → %s (%.0fms)\n", input_file, output_file, total_ms);
             fprintf(stderr, "  frontend:  %.1fms (lex + parse + typecheck + codegen)\n", frontend_ms);
             fprintf(stderr, "  cc:        %.1fms (compile + link)\n", cc_ms);
         }
