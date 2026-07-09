@@ -10922,6 +10922,7 @@ void typechecker_free(TypeChecker *tc) {
     typetable_free(tc->type_table);
     arena_destroy(tc->arena);
     scope_destroy(tc->current_scope);
+    type_pool_reset();
 
     free(tc);
 }

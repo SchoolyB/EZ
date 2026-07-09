@@ -241,6 +241,49 @@ static EzFuncSig *parse_func_sig(const char *name) {
     return sig;
 }
 
+void type_pool_reset(void) {
+    for (int i = 0; i < type_pool_count; i++) {
+        EzType *t = &type_pool[i];
+        switch (t->kind) {
+        case TK_STRUCT:
+        case TK_ENUM:
+        case TK_ARRAY:
+        case TK_POINTER:
+            /* For ARRAY and POINTER, t->name == t->element_type (same heap
+             * pointer); free once via t->name. */
+            free((char *)t->name);
+            break;
+        case TK_MAP:
+            free((char *)t->name);
+            free((char *)t->key_type);
+            free((char *)t->value_type);
+            break;
+        case TK_FUNCTION:
+            free((char *)t->name);
+            if (t->func_sig) {
+                for (int j = 0; j < t->func_sig->param_count; j++)
+                    free((char *)t->func_sig->param_types[j]);
+                free(t->func_sig->param_types);
+                free(t->func_sig->param_mutable);
+                for (int j = 0; j < t->func_sig->return_count; j++)
+                    free((char *)t->func_sig->return_types[j]);
+                free(t->func_sig->return_types);
+                free(t->func_sig);
+            }
+            break;
+        default:
+            /* Builtin non-singleton pool entries: t->name is either a
+             * string literal (TK_ERROR → "Error", TK_UNKNOWN → "func")
+             * or a strdup'd name (i8, f32, u64, …).  Skip literal kinds. */
+            if (t->kind != TK_ERROR && t->kind != TK_UNKNOWN)
+                free((char *)t->name);
+            break;
+        }
+    }
+    type_pool_count = 0;
+    memset(type_hash_table, 0, sizeof(type_hash_table));
+}
+
 bool type_is_numeric(EzType *t) {
     return t->kind == TK_INT || t->kind == TK_UINT || t->kind == TK_FLOAT ||
            t->kind == TK_CHAR || t->kind == TK_BYTE;
