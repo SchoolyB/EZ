@@ -9573,6 +9573,11 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     char *ns_name = malloc(ns_len);
                     snprintf(ns_name, ns_len, "%s_%s", sn, fn_name);
                     fn->data.func_decl.name = ns_name;
+                    if (cg->ns_func_name_count >= cg->ns_func_name_cap) {
+                        cg->ns_func_name_cap = cg->ns_func_name_cap ? cg->ns_func_name_cap * 2 : 8;
+                        cg->ns_func_names = xrealloc(cg->ns_func_names, sizeof(char *) * cg->ns_func_name_cap);
+                    }
+                    cg->ns_func_names[cg->ns_func_name_count++] = ns_name;
 
                     if (cg->func_count >= cg->func_cap) {
                         cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
@@ -9752,4 +9757,7 @@ void codegen_destroy(CodeGen *cg) {
     free(cg->imported_modules);
     free(cg->c_headers);
     free(cg->scope_arenas);
+    for (int i = 0; i < cg->ns_func_name_count; i++)
+        free(cg->ns_func_names[i]);
+    free(cg->ns_func_names);
 }

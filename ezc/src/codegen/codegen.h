@@ -135,6 +135,12 @@ typedef struct {
     ScopeArena *scope_arenas;
     int scope_arena_count;
     int scope_arena_cap;
+
+    /* Heap-allocated "StructName_funcName" strings patched into AST nodes.
+     * Tracked here so codegen_destroy() can free them. */
+    char **ns_func_names;
+    int ns_func_name_count;
+    int ns_func_name_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);
