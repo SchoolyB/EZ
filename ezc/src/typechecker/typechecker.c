@@ -279,10 +279,21 @@ static void enum_ensure_sorted(TypeChecker *tc) {
     if (tc->enum_names_sorted_built) return;
     tc->enum_names_sorted = xrealloc(tc->enum_names_sorted,
         sizeof(const char *) * (size_t)tc->enum_count);
+    tc->enum_names_sorted_indices = xrealloc(tc->enum_names_sorted_indices,
+        sizeof(int) * (size_t)tc->enum_count);
     for (int i = 0; i < tc->enum_count; i++)
         tc->enum_names_sorted[i] = tc->enum_names[i];
     qsort(tc->enum_names_sorted, (size_t)tc->enum_count,
           sizeof(const char *), enum_name_str_cmp);
+    /* Build reverse mapping from sorted position to original index */
+    for (int s = 0; s < tc->enum_count; s++) {
+        for (int i = 0; i < tc->enum_count; i++) {
+            if (tc->enum_names[i] == tc->enum_names_sorted[s]) {
+                tc->enum_names_sorted_indices[s] = i;
+                break;
+            }
+        }
+    }
     tc->enum_names_sorted_built = true;
 }
 
@@ -293,9 +304,7 @@ static int find_enum_index(TypeChecker *tc, const char *name) {
     const char **hit = bsearch(&name, tc->enum_names_sorted,
         (size_t)tc->enum_count, sizeof(const char *), enum_name_str_cmp);
     if (!hit) return -1;
-    for (int i = 0; i < tc->enum_count; i++)
-        if (tc->enum_names[i] == *hit) return i;
-    return -1;
+    return tc->enum_names_sorted_indices[hit - tc->enum_names_sorted];
 }
 
 static bool is_enum_name(TypeChecker *tc, const char *name) {
@@ -10912,6 +10921,7 @@ void typechecker_free(TypeChecker *tc) {
     free(tc->enum_payload_counts);
     free(tc->enum_is_tagged);
     free(tc->enum_names_sorted);
+    free(tc->enum_names_sorted_indices);
 
     free(tc->imported_modules);
     free(tc->import_files);

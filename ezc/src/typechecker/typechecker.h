@@ -102,6 +102,7 @@ typedef struct {
     /* Sorted view of enum_names[] for O(log n) is_enum_name lookups.
      * Invalidated whenever a new enum is registered. */
     const char **enum_names_sorted;
+    int *enum_names_sorted_indices; /* parallel: original index in enum_names[] for each sorted entry */
     bool enum_names_sorted_built;
 
     /* Control flow tracking */
