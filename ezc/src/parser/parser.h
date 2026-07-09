@@ -23,6 +23,7 @@ typedef struct {
     DiagnosticList *diag;
     int depth;
     bool no_struct_literal; /* suppress struct literal parsing (RHS of in/not_in) */
+    bool in_interp;         /* true when parsing a ${...} sub-expression */
 
     /* Known struct names collected by a pre-scan so the parser can
      * distinguish struct literals (Point{x:1}) from identifiers

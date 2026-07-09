@@ -1,0 +1,5 @@
+do main() {
+    mut x int = 5
+    mut s string = "${x +}"
+    println(s)
+}
