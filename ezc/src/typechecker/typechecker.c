@@ -2288,8 +2288,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             FuncSig *fs = find_func(tc, name);
             if (fs) fs->used = true;
             diag_error_codef(tc->diag, "E3031", NODE_FILE(tc, node), node->token.line, node->token.column, 0, name, name, name);
-        } else if (tc_lookup_using_constant(tc, name)) {
-            result = tc_lookup_using_constant(tc, name);
+        } else if ((result = tc_lookup_using_constant(tc, name))) {
         } else if (tc_is_builtin(name)) {
             EzType *bt = type_from_name(name);
             if (bt != &TYPE_UNKNOWN) {
