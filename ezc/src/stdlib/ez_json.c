@@ -346,7 +346,9 @@ EzMap ez_json_decode(EzArena *arena, EzString text) {
  * const char *end) so each helper advances `*s` on success and leaves
  * it unspecified on failure. */
 
-static bool v_value(const char **s, const char *end);
+#define EZ_JSON_MAX_DEPTH 512
+
+static bool v_value(const char **s, const char *end, int depth);
 
 static void v_skip_ws(const char **s, const char *end) {
     while (*s < end && isspace((unsigned char)**s)) (*s)++;
@@ -420,14 +422,14 @@ static bool v_literal(const char **s, const char *end, const char *lit) {
     return true;
 }
 
-static bool v_array(const char **s, const char *end) {
+static bool v_array(const char **s, const char *end, int depth) {
     if (*s >= end || **s != '[') return false;
     (*s)++;
     v_skip_ws(s, end);
     if (*s < end && **s == ']') { (*s)++; return true; }
     for (;;) {
         v_skip_ws(s, end);
-        if (!v_value(s, end)) return false;
+        if (!v_value(s, end, depth + 1)) return false;
         v_skip_ws(s, end);
         if (*s >= end) return false;
         if (**s == ',') { (*s)++; continue; }
@@ -436,7 +438,7 @@ static bool v_array(const char **s, const char *end) {
     }
 }
 
-static bool v_object(const char **s, const char *end) {
+static bool v_object(const char **s, const char *end, int depth) {
     if (*s >= end || **s != '{') return false;
     (*s)++;
     v_skip_ws(s, end);
@@ -448,7 +450,7 @@ static bool v_object(const char **s, const char *end) {
         if (*s >= end || **s != ':') return false;
         (*s)++;
         v_skip_ws(s, end);
-        if (!v_value(s, end)) return false;
+        if (!v_value(s, end, depth + 1)) return false;
         v_skip_ws(s, end);
         if (*s >= end) return false;
         if (**s == ',') { (*s)++; continue; }
@@ -457,12 +459,13 @@ static bool v_object(const char **s, const char *end) {
     }
 }
 
-static bool v_value(const char **s, const char *end) {
+static bool v_value(const char **s, const char *end, int depth) {
+    if (depth > EZ_JSON_MAX_DEPTH) return false;
     v_skip_ws(s, end);
     if (*s >= end) return false;
     char c = **s;
-    if (c == '{') return v_object(s, end);
-    if (c == '[') return v_array(s, end);
+    if (c == '{') return v_object(s, end, depth);
+    if (c == '[') return v_array(s, end, depth);
     if (c == '"') return v_string_lit(s, end);
     if (c == '-' || (c >= '0' && c <= '9')) return v_number(s, end);
     if (c == 't') return v_literal(s, end, "true");
@@ -477,7 +480,7 @@ bool ez_json_is_valid(EzString text) {
     const char *end = s + text.len;
     v_skip_ws(&s, end);
     if (s >= end) return false;
-    if (!v_value(&s, end)) return false;
+    if (!v_value(&s, end, 0)) return false;
     v_skip_ws(&s, end);
     return s == end;
 }

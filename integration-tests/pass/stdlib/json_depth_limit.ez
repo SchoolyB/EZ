@@ -1,0 +1,30 @@
+import @json
+import @strings
+
+do main() {
+    // Deeply nested arrays must return false, not crash
+    mut open = strings.repeat("[", 5000)
+    mut close = strings.repeat("]", 5000)
+    mut deep_arr = "${open}1${close}"
+    if json.is_valid(deep_arr) {
+        println("SOME TESTS FAILED: deeply nested array should not be valid")
+        exit(1)
+    }
+
+    // Deeply nested objects must return false, not crash
+    mut obj_open = strings.repeat("{\"a\":", 5000)
+    mut obj_close = strings.repeat("}", 5000)
+    mut deep_obj = "${obj_open}1${obj_close}"
+    if json.is_valid(deep_obj) {
+        println("SOME TESTS FAILED: deeply nested object should not be valid")
+        exit(1)
+    }
+
+    // Shallow nesting must still be valid
+    if !json.is_valid("[[[[1]]]]") {
+        println("SOME TESTS FAILED: shallow nesting must be valid")
+        exit(1)
+    }
+
+    println("All JSON depth limit tests passed")
+}
