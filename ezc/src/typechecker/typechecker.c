@@ -1757,6 +1757,17 @@ static const UsingConst _using_consts[] = {
     {NULL,NULL,TK_UNKNOWN}
 };
 
+/* Find the index of a module name in tc->imported_modules[], or -1. */
+static int tc_find_import_index(TypeChecker *tc, const char *mod) {
+    const char *real = tc_resolve_alias(tc, mod);
+    for (int mi = 0; mi < tc->import_count; mi++) {
+        if (strcmp(tc->imported_modules[mi], mod) == 0 ||
+            strcmp(tc->imported_modules[mi], real) == 0)
+            return mi;
+    }
+    return -1;
+}
+
 /* Single-pass lookup: marks import used and returns the type (NULL = not found). */
 static EzType *tc_lookup_using_constant(TypeChecker *tc, const char *name) {
     for (int ui = 0; ui < tc->using_module_count; ui++) {
@@ -1765,13 +1776,8 @@ static EzType *tc_lookup_using_constant(TypeChecker *tc, const char *name) {
         for (int ci = 0; _using_consts[ci].name; ci++) {
             if (strcmp(name, _using_consts[ci].name) == 0 &&
                 strcmp(real_mod, _using_consts[ci].mod) == 0) {
-                for (int mi = 0; mi < tc->import_count; mi++) {
-                    if (strcmp(tc->imported_modules[mi], tc->using_modules[ui]) == 0 ||
-                        strcmp(tc->imported_modules[mi], real_mod) == 0) {
-                        tc->import_used[mi] = true;
-                        break;
-                    }
-                }
+                int mi = tc->using_module_import_indices[ui];
+                if (mi >= 0) tc->import_used[mi] = true;
                 switch (_using_consts[ci].ret) {
                 case TK_FLOAT: return &TYPE_FLOAT;
                 case TK_INT:   return &TYPE_INT;
@@ -9902,8 +9908,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     sizeof(const char *) * (size_t)tc->using_module_cap);
                 tc->using_module_files = xrealloc(tc->using_module_files,
                     sizeof(const char *) * (size_t)tc->using_module_cap);
+                tc->using_module_import_indices = xrealloc(tc->using_module_import_indices,
+                    sizeof(int) * (size_t)tc->using_module_cap);
             }
             tc->using_module_files[tc->using_module_count] = node->token.file;
+            tc->using_module_import_indices[tc->using_module_count] =
+                tc_find_import_index(tc, node->data.using_stmt.modules[j]);
             tc->using_modules[tc->using_module_count++] = node->data.using_stmt.modules[j];
         }
         break;
@@ -10911,6 +10921,7 @@ void typechecker_free(TypeChecker *tc) {
 
     free(tc->using_modules);
     free(tc->using_module_files);
+    free(tc->using_module_import_indices);
     free(tc->alias_names);
     free(tc->alias_modules);
 
@@ -11035,16 +11046,16 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                         sizeof(const char *) * (size_t)tc->using_module_cap);
                     tc->using_module_files = xrealloc(tc->using_module_files,
                         sizeof(const char *) * (size_t)tc->using_module_cap);
+                    tc->using_module_import_indices = xrealloc(tc->using_module_import_indices,
+                        sizeof(int) * (size_t)tc->using_module_cap);
                 }
                 tc->using_module_files[tc->using_module_count] = stmt->token.file;
-                tc->using_modules[tc->using_module_count++] = stmt->data.using_stmt.modules[j];
-                /* Mark the module as used */
-                for (int mi = 0; mi < tc->import_count; mi++) {
-                    if (strcmp(tc->imported_modules[mi], stmt->data.using_stmt.modules[j]) == 0) {
-                        tc->import_used[mi] = true;
-                        break;
-                    }
+                {
+                    int mi = tc_find_import_index(tc, stmt->data.using_stmt.modules[j]);
+                    tc->using_module_import_indices[tc->using_module_count] = mi;
+                    if (mi >= 0) tc->import_used[mi] = true;
                 }
+                tc->using_modules[tc->using_module_count++] = stmt->data.using_stmt.modules[j];
             }
         }
         if (stmt->kind == NODE_IMPORT_STMT && stmt->data.import_stmt.auto_use) {
@@ -11057,8 +11068,12 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                             sizeof(const char *) * (size_t)tc->using_module_cap);
                         tc->using_module_files = xrealloc(tc->using_module_files,
                             sizeof(const char *) * (size_t)tc->using_module_cap);
+                        tc->using_module_import_indices = xrealloc(tc->using_module_import_indices,
+                            sizeof(int) * (size_t)tc->using_module_cap);
                     }
                     tc->using_module_files[tc->using_module_count] = stmt->token.file;
+                    tc->using_module_import_indices[tc->using_module_count] =
+                        tc_find_import_index(tc, item->module);
                     tc->using_modules[tc->using_module_count++] = item->module;
                 }
             }

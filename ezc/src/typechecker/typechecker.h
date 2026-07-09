@@ -141,6 +141,7 @@ typedef struct {
     /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
     const char **using_module_files; /* parallel: source file each using came from (NULL = main) */
+    int *using_module_import_indices; /* parallel: index into imported_modules[], or -1 if not found */
     int using_module_count;
     int using_module_cap;
 
