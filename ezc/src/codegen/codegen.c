@@ -9737,6 +9737,7 @@ const char *codegen_result(CodeGen *cg) {
 
 void codegen_destroy(CodeGen *cg) {
     buf_destroy(&cg->output);
+    buf_destroy(&cg->global_init);
     free(cg->enum_names);
     free(cg->all_funcs);
     free(cg->funcs_by_name);
