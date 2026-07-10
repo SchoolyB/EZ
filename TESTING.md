@@ -14,13 +14,14 @@ make test
 
 The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-### Unit Tests (313 tests)
+### Unit Tests (338 tests)
 
 Unit tests validate individual compiler components:
 
 - **Lexer Tests** (`ezc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, operator disambiguation, and edge cases.
 - **Parser Tests** (`ezc/tests/test_parser.c` — 86 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, grouped params, compound assignments, and parser error codes.
 - **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 158 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, bigint types, and error code coverage.
+- **Util Tests** (`ezc/tests/test_util.c` — 25 tests): Arena allocator (create, alloc, alignment, multi-block, oversized, strdup/strndup), growable buffer (create, append, growth, formatting, indentation), and scope (lookup, define/update, hash rebuild, many symbols, immutability).
 
 ### End-to-End Tests (101 tests)
 
@@ -30,13 +31,14 @@ E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify
 
 ```bash
 # From repo root
-make test-unit        # unit tests (lexer + parser + typechecker)
+make test-unit        # unit tests (lexer + parser + typechecker + util)
 make test-e2e         # e2e codegen tests
 
 # Individual test suites (from ezc/)
 ./ezc/tests/test_lexer
 ./ezc/tests/test_parser
 ./ezc/tests/test_typechecker
+./ezc/tests/test_util
 ./ezc/tests/test_codegen
 ```
 
