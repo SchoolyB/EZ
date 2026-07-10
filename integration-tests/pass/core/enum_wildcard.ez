@@ -32,4 +32,7 @@ do main() {
     if pick(Color.RED, Color.BLUE, true) == Color.RED {
         println("pick pass")
     }
+
+    mut c2 = identity(Color.RED)
+    println("interp ${c2}")
 }
