@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing to EZ! This guide will help you get started.
 
-> **Platform note:** EZ v3.0 supports **macOS** and **Linux** only. Windows is not a supported contributor platform — you won't be able to build or test locally.
+> **Platform note:** EZ v3.0^ supports **macOS** and **Linux** only. Windows is not a supported contributor platform — you won't be able to build or test locally.
 
 Before you start coding, skim [`STANDARD.md`](./STANDARD.md) — the language specification. It's the canonical reference for syntax, types, and every stdlib module.
 
