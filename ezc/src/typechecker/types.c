@@ -488,13 +488,17 @@ EzType *type_from_name(const char *name) {
         }
     }
 
-    /* Uppercase = struct type, or module-prefixed: mod_Name */
+    /* Uppercase = enum or struct type, or module-prefixed: mod_Name */
     if (name[0] >= 'A' && name[0] <= 'Z') {
+        EzType *existing = pool_find(TK_ENUM, name);
+        if (existing) return existing;
         return type_struct(name);
     }
     {
         const char *us = strchr(name, '_');
         if (us && us[1] >= 'A' && us[1] <= 'Z') {
+            EzType *existing = pool_find(TK_ENUM, name);
+            if (existing) return existing;
             return type_struct(name);
         }
     }

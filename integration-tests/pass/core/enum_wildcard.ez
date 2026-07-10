@@ -1,0 +1,35 @@
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do identity(x ?) -> ? {
+    return x
+}
+
+do pick(a ?, b ?, flag bool) -> ? {
+    if flag {
+        return a
+    }
+    return b
+}
+
+do main() {
+    if identity(Color.RED) == Color.RED {
+        println("eq pass")
+    }
+
+    if identity(Color.RED) != Color.BLUE {
+        println("neq pass")
+    }
+
+    mut c = identity(Color.GREEN)
+    if c == Color.GREEN {
+        println("var pass")
+    }
+
+    if pick(Color.RED, Color.BLUE, true) == Color.RED {
+        println("pick pass")
+    }
+}
