@@ -9747,6 +9747,9 @@ void codegen_destroy(CodeGen *cg) {
     buf_destroy(&cg->output);
     buf_destroy(&cg->global_init);
     free(cg->enum_names);
+    free(cg->enum_is_string);
+    free(cg->enum_is_tagged);
+    free(cg->enum_decls);
     free(cg->all_funcs);
     free(cg->funcs_by_name);
     free(cg->ref_vars);

@@ -10597,7 +10597,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
         }
         int vc = stmt->data.enum_decl.value_count;
-        const char **vnames = xmalloc(sizeof(const char *) * (vc ? vc : 1));
+        const char **vnames = arena_alloc(tc->arena, sizeof(const char *) * (vc ? vc : 1));
         for (int j = 0; j < vc; j++) {
             vnames[j] = stmt->data.enum_decl.values[j].name;
         }
@@ -10606,13 +10606,13 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         const char ***pt = NULL;
         int *pc = NULL;
         if (vc > 0) {
-            pt = xmalloc(sizeof(const char **) * vc);
-            pc = xmalloc(sizeof(int) * vc);
+            pt = arena_alloc(tc->arena, sizeof(const char **) * vc);
+            pc = arena_alloc(tc->arena, sizeof(int) * vc);
             for (int j = 0; j < vc; j++) {
                 EnumVal *ev = &stmt->data.enum_decl.values[j];
                 pc[j] = ev->payload_count;
                 if (ev->payload_count > 0) {
-                    pt[j] = xmalloc(sizeof(const char *) * ev->payload_count);
+                    pt[j] = arena_alloc(tc->arena, sizeof(const char *) * ev->payload_count);
                     for (int k = 0; k < ev->payload_count; k++) {
                         pt[j][k] = ev->payload_types[k];
                     }
@@ -10643,8 +10643,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 diag_error_codef(tc->diag, "E2067", NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0, STRUCT_DISPLAY_NAME(stmt));
             }
             int fc = stmt->data.struct_decl.field_count;
-            const char **fnames = xmalloc(sizeof(const char *) * (fc ? fc : 1));
-            EzType **ftypes = xmalloc(sizeof(EzType *) * (fc ? fc : 1));
+            const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * (fc ? fc : 1));
+            EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * (fc ? fc : 1));
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = tc_type_from_name(tc, stmt->data.struct_decl.fields[j].type_name);
@@ -10800,12 +10800,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                 }
                 int pc = fn->data.func_decl.param_count;
-                EzType **ptypes = xmalloc(sizeof(EzType *) * (pc ? pc : 1));
+                EzType **ptypes = arena_alloc(tc->arena, sizeof(EzType *) * (pc ? pc : 1));
                 for (int k = 0; k < pc; k++) {
                     ptypes[k] = tc_type_from_name(tc, fn->data.func_decl.params[k].type_name);
                 }
                 int rc = fn->data.func_decl.return_type_count;
-                EzType **rtypes = xmalloc(sizeof(EzType *) * (rc ? rc : 1));
+                EzType **rtypes = arena_alloc(tc->arena, sizeof(EzType *) * (rc ? rc : 1));
                 for (int k = 0; k < rc; k++) {
                     rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
@@ -10823,14 +10823,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 
         if (stmt->kind == NODE_FUNC_DECL) {
             int pc = stmt->data.func_decl.param_count;
-            EzType **ptypes = xmalloc(sizeof(EzType *) * (pc ? pc : 1));
+            EzType **ptypes = arena_alloc(tc->arena, sizeof(EzType *) * (pc ? pc : 1));
             for (int j = 0; j < pc; j++) {
                 ptypes[j] = tc_type_from_name(tc, stmt->data.func_decl.params[j].type_name);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
-            EzType **rtypes = xmalloc(sizeof(EzType *) * (rc ? rc : 1));
+            EzType **rtypes = arena_alloc(tc->arena, sizeof(EzType *) * (rc ? rc : 1));
             for (int j = 0; j < rc; j++) {
                 rtypes[j] = tc_type_from_name(tc, stmt->data.func_decl.return_types[j]);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.return_types[j]);
@@ -10918,10 +10918,6 @@ void typechecker_free(TypeChecker *tc) {
     free(tc->funcs);
     free(tc->funcs_sorted);
 
-    for (int i = 0; i < tc->struct_count; i++) {
-        free(tc->structs[i].field_names);
-        free(tc->structs[i].field_types);
-    }
     free(tc->structs);
     free(tc->structs_sorted);
 
@@ -10929,6 +10925,7 @@ void typechecker_free(TypeChecker *tc) {
     free(tc->enum_display_names);
     free(tc->enum_is_string);
     free(tc->enum_values);
+    free(tc->enum_value_counts);
     free(tc->enum_payload_types);
     free(tc->enum_payload_counts);
     free(tc->enum_is_tagged);
@@ -10994,8 +10991,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     /* SourceLocation is always registered: the here() builtin returns it
      * and is available without any import. */
     {
-        const char **fnames = xmalloc(sizeof(const char *) * 3);
-        EzType **ftypes = xmalloc(sizeof(EzType *) * 3);
+        const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 3);
+        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 3);
         fnames[0] = "file"; fnames[1] = "line"; fnames[2] = "column";
         ftypes[0] = &TYPE_STRING; ftypes[1] = &TYPE_INT; ftypes[2] = &TYPE_INT;
         register_struct(tc, "SourceLocation", "SourceLocation", fnames, ftypes, 3);
@@ -11003,16 +11000,16 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     /* Register stdlib struct types scoped to their module imports */
     if (tc_is_imported_module(tc, "server") || tc_is_imported_module(tc, "http")) {
-        const char **fnames = xmalloc(sizeof(const char *) * 3);
-        EzType **ftypes = xmalloc(sizeof(EzType *) * 3);
+        const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 3);
+        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 3);
         fnames[0] = "status"; fnames[1] = "body"; fnames[2] = "headers";
         ftypes[0] = &TYPE_INT; ftypes[1] = &TYPE_STRING; ftypes[2] = type_from_name("map[string:string]");
         register_struct(tc, "HttpResponse", "HttpResponse", fnames, ftypes, 3);
     }
 
     if (tc_is_imported_module(tc, "server")) {
-        const char **fnames = xmalloc(sizeof(const char *) * 6);
-        EzType **ftypes = xmalloc(sizeof(EzType *) * 6);
+        const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 6);
+        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 6);
         fnames[0] = "method"; fnames[1] = "path"; fnames[2] = "body";
         fnames[3] = "query"; fnames[4] = "headers"; fnames[5] = "params";
         ftypes[0] = &TYPE_STRING; ftypes[1] = &TYPE_STRING; ftypes[2] = &TYPE_STRING;
@@ -11023,8 +11020,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     }
 
     if (tc_is_imported_module(tc, "uuid")) {
-        const char **fnames = xmalloc(sizeof(const char *) * 1);
-        EzType **ftypes = xmalloc(sizeof(EzType *) * 1);
+        const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 1);
+        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 1);
         fnames[0] = "value";
         ftypes[0] = &TYPE_STRING;
         register_struct(tc, "UUID", "UUID", fnames, ftypes, 1);
@@ -11120,8 +11117,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 const char *unprefixed = sn + prefix_len;
                 if (!is_struct_name(tc, unprefixed)) {
                     int fc = tc->structs[si].field_count;
-                    const char **fn = xmalloc(sizeof(const char *) * (fc ? fc : 1));
-                    EzType **ft = xmalloc(sizeof(EzType *) * (fc ? fc : 1));
+                    const char **fn = arena_alloc(tc->arena, sizeof(const char *) * (fc ? fc : 1));
+                    EzType **ft = arena_alloc(tc->arena, sizeof(EzType *) * (fc ? fc : 1));
                     memcpy(fn, tc->structs[si].field_names, sizeof(const char *) * fc);
                     memcpy(ft, tc->structs[si].field_types, sizeof(EzType *) * fc);
                     register_struct(tc, unprefixed, unprefixed, fn, ft, fc);
