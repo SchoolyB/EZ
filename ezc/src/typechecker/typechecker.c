@@ -8003,8 +8003,30 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     /* Extract element type name from "[byte]", "[i8]", "[u8, 3]", etc. */
                     char elem_type[EZ_TYPE_NAME_MAX] = {0};
                     const char *start = tn + 1;
-                    const char *end = strchr(start, ']');
-                    const char *comma = strchr(start, ',');
+                    /* Find the matching ']' for the outermost array bracket,
+                     * skipping nested brackets (e.g. map[K:V], [T]). */
+                    const char *end = NULL;
+                    {
+                        int depth = 0;
+                        for (const char *p = start; *p; p++) {
+                            if (*p == '[') depth++;
+                            else if (*p == ']') {
+                                if (depth == 0) { end = p; break; }
+                                depth--;
+                            }
+                        }
+                    }
+                    /* Find the top-level comma (fixed-size separator), ignoring
+                     * commas inside nested brackets. */
+                    const char *comma = NULL;
+                    {
+                        int depth = 0;
+                        for (const char *p = start; p < (end ? end : start + strlen(start)); p++) {
+                            if (*p == '[') depth++;
+                            else if (*p == ']') depth--;
+                            else if (*p == ',' && depth == 0) { comma = p; break; }
+                        }
+                    }
                     if (end) {
                         int elen = (int)((comma && comma < end ? comma : end) - start);
                         if (elen > 0 && elen < (int)sizeof(elem_type)) {
