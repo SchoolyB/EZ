@@ -1684,6 +1684,7 @@ int main(int argc, char **argv) {
     if (has_archive) {
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
+            "-Wno-tautological-compare "
             "-I'%s'/runtime -I'%s'/stdlib "
             "-o '%s' '%s' '%s' "
             "-lm -lpthread -Wl,-w 2>&1",
@@ -1722,6 +1723,7 @@ int main(int argc, char **argv) {
 
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
+            "-Wno-tautological-compare "
             "-I'%s'/runtime -I'%s'/stdlib "
             "-o '%s' '%s' %s"
             "-lm -lpthread -Wl,-w 2>&1",
