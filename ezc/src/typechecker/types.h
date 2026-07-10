@@ -81,4 +81,7 @@ const char *type_name(EzType *t);
 /* Resolve a type name string to an EzType */
 EzType *type_from_name(const char *name);
 
+/* Free all heap strings owned by pool entries and reset the pool */
+void type_pool_reset(void);
+
 #endif

@@ -1,0 +1,137 @@
+/*
+ * chained_stdlib_calls.ez - Test rvalue args to &-taking stdlib functions
+ *
+ * Ensures the compiler materialises rvalues into temporaries instead of
+ * emitting invalid C like &function_call().  Covers binary, bytes, arrays,
+ * maps, and strings chaining.
+ */
+
+import @binary
+import @bytes
+import @arrays
+import @maps
+import @strings
+
+do main() {
+    println("=== Chained Stdlib Calls ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // binary: decode(encode(...)) chains
+    mut val1 int = binary.decode_i64_le(binary.encode_i64_le(42))
+    if val1 == 42 {
+        println("  [PASS] binary round-trip i64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] binary round-trip i64: got ${val1}")
+        failed += 1
+    }
+
+    mut val2 int = binary.decode_i32_le(binary.encode_i32_le(100))
+    if val2 == 100 {
+        println("  [PASS] binary round-trip i32")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] binary round-trip i32: got ${val2}")
+        failed += 1
+    }
+
+    // bytes: to_string(from_string(...)) chain
+    mut s1 string = bytes.to_string(bytes.from_string("hello"))
+    if s1 == "hello" {
+        println("  [PASS] bytes round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes round-trip: got '${s1}'")
+        failed += 1
+    }
+
+    mut s2 string = bytes.to_hex(bytes.from_string("AB"))
+    if s2 == "4142" {
+        println("  [PASS] bytes to_hex chain")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes to_hex chain: got '${s2}'")
+        failed += 1
+    }
+
+    // arrays: append with chained source — append mutates, so split first
+    mut arr [string] = strings.split("a,b,c", ",")
+    arrays.append(arr, "d")
+    if len(arr) == 4 {
+        println("  [PASS] arrays append after split")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays append after split: got ${len(arr)}")
+        failed += 1
+    }
+
+    // arrays: concat with two chained sources (concat returns new array)
+    mut arr2 [string] = arrays.concat(strings.split("x,y", ","), strings.split("z,w", ","))
+    if len(arr2) == 4 {
+        println("  [PASS] arrays concat chained")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays concat chained: got ${len(arr2)}")
+        failed += 1
+    }
+
+    // maps: various operations
+    mut m map[string:int] = {"a": 1, "b": 2}
+
+    mut keys [string] = maps.get_keys(m)
+    if len(keys) == 2 {
+        println("  [PASS] maps get_keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps get_keys: got ${len(keys)}")
+        failed += 1
+    }
+
+    mut vals [int] = maps.get_values(m)
+    if len(vals) == 2 {
+        println("  [PASS] maps get_values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps get_values: got ${len(vals)}")
+        failed += 1
+    }
+
+    if maps.has_key(m, "a") == true {
+        println("  [PASS] maps has_key true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps has_key true")
+        failed += 1
+    }
+
+    if maps.has_key(m, "z") == false {
+        println("  [PASS] maps has_key false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps has_key false")
+        failed += 1
+    }
+
+    if maps.is_empty(m) == false {
+        println("  [PASS] maps is_empty false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps is_empty false")
+        failed += 1
+    }
+
+    if maps.contains_value(m, 1) == true {
+        println("  [PASS] maps contains_value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps contains_value")
+        failed += 1
+    }
+
+    println("")
+    println("${passed} passed, ${failed} failed out of ${passed + failed} tests")
+    if failed > 0 {
+        exit(1)
+    }
+}

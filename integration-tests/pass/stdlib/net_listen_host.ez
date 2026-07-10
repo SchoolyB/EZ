@@ -1,0 +1,20 @@
+import @net
+
+do main() {
+    mut pass int = 0
+    mut fail int = 0
+
+    // Bind to localhost only using the host parameter
+    mut listener, err = net.listen("127.0.0.1", 0)
+    if err == nil { pass += 1 } otherwise { fail += 1 }
+    net.close(listener)
+
+    // Bind to 0.0.0.0 explicitly
+    mut listener2, err2 = net.listen("0.0.0.0", 0)
+    if err2 == nil { pass += 1 } otherwise { fail += 1 }
+    net.close(listener2)
+
+    println("net.listen host: ${pass} passed, ${fail} failed")
+    if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
+}

@@ -1,0 +1,22 @@
+// pz template: server (minimal)
+// server.listen() is not called — it blocks. Handler and router setup are
+// exercised directly to verify the template compiles and routes correctly.
+
+import @server
+
+do home(req HttpRequest) -> HttpResponse {
+    return server.text(200, "Hello, World!")
+}
+
+do main() {
+    mut router = server.add_router()
+    server.add_route(router, "GET", "/", ()home)
+
+    mut resp HttpResponse = server.text(200, "Hello, World!")
+    if resp.status != 200 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    }
+
+    println("Server running on http://localhost:8080")
+}

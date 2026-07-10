@@ -1,0 +1,12 @@
+// app.ez - Core application logic.
+
+import "./config.ez"
+import "./utils.ez"
+
+do run() {
+    mut cfg = config.get_config()
+    println("Starting ${cfg.name}...")
+
+    mut message = utils.format_message("Application initialized")
+    println(message)
+}

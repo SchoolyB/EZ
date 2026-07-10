@@ -2407,6 +2407,10 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
                 else if (et->kind == TK_MAP) c_elem = "EzMap";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
+                else if (et->kind == TK_ENUM) {
+                    c_elem = cg_enum_is_string(cg, elem_tn)
+                        ? "EzString" : ez_type_to_c_cg(cg, elem_tn);
+                }
                 else if (et->kind == TK_POINTER) {
                     static char idx_ptr_buf[EZ_MSG_BUF_SIZE];
                     const char *pointee = et->element_type ? et->element_type : "void";
@@ -4047,18 +4051,40 @@ static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
     return true;
 }
 
+/* Helper: returns true when the expression is an lvalue whose address can be
+ * taken directly with &.  For rvalues (function calls, literals, etc.) we must
+ * materialise into a statement-expression temporary first. */
+static bool expr_is_lvalue(AstNode *expr) {
+    return expr->kind == NODE_LABEL ||
+           expr->kind == NODE_MEMBER_EXPR ||
+           expr->kind == NODE_INDEX_EXPR;
+}
+
+/* Emit &expr, materialising rvalues into a statement-expression temporary.
+ * `tmp` is the temp variable name (must be unique within the enclosing expr). */
+static void emit_addr_of(CodeGen *cg, AstNode *expr, const char *tmp) {
+    if (expr_is_lvalue(expr)) {
+        emit(cg, "&");
+        emit_expression(cg, expr);
+    } else {
+        emitf(cg, "({ __auto_type %s = ", tmp);
+        emit_expression(cg, expr);
+        emitf(cg, "; &%s; })", tmp);
+    }
+}
+
 /* --- @maps module --- */
 
 static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "get_keys") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_maps_get_keys(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_maps_get_keys(ez_default_arena, ");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "get_values") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_maps_get_values(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_maps_get_values(ez_default_arena, ");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ")");
         return true;
     }
@@ -4074,8 +4100,8 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
             c_key = ez_map_elem_c_type(cg, map_t->key_type);
         emitf(cg, "({ %s _hk = ", c_key);
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_maps_has_key(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_maps_has_key(");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ", &_hk); })");
         return true;
     }
@@ -4087,28 +4113,28 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
             c_key = ez_map_elem_c_type(cg, map_t->key_type);
         emitf(cg, "({ %s _rk = ", c_key);
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_map_remove(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_map_remove(");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ", &_rk); })");
         return true;
     }
     if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_map_clear(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_map_clear(");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_maps_is_empty(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_maps_is_empty(");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "merge") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_maps_merge(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &");
-        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "ez_maps_merge(ez_default_arena, ");
+        emit_addr_of(cg, node->data.call.args[0], "_m0");
+        emit(cg, ", ");
+        emit_addr_of(cg, node->data.call.args[1], "_m1");
         emit(cg, ")");
         return true;
     }
@@ -4116,10 +4142,10 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         EzType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         bool str_keys = map_t && map_t->key_type && strcmp(map_t->key_type, "string") == 0;
         bool str_values = map_t && map_t->value_type && strcmp(map_t->value_type, "string") == 0;
-        emit(cg, "ez_maps_is_equal(&");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &");
-        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "ez_maps_is_equal(");
+        emit_addr_of(cg, node->data.call.args[0], "_m0");
+        emit(cg, ", ");
+        emit_addr_of(cg, node->data.call.args[1], "_m1");
         emitf(cg, ", %s, %s)", str_keys ? "true" : "false", str_values ? "true" : "false");
         return true;
     }
@@ -4135,8 +4161,8 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         }
         emitf(cg, "({ %s _cv = ", c_val_type);
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_maps_contains_value(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_maps_contains_value(");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ", &_cv); })");
         return true;
     }
@@ -4144,8 +4170,8 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         /* get_or_default(m, key, default); lookup key, return default if missing */
         emit(cg, "({ __auto_type _gk = ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; void *_gv = ez_map_get(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; void *_gv = ez_map_get(");
+        emit_addr_of(cg, node->data.call.args[0], "_ma");
         emit(cg, ", &_gk); _gv ? *(__typeof__(");
         emit_expression(cg, node->data.call.args[2]);
         emit(cg, ") *)_gv : ");
@@ -4272,8 +4298,8 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "add_route") == 0 && node->data.call.arg_count == 4) {
-        emit(cg, "ez_server_route(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_server_route(");
+        emit_addr_of(cg, node->data.call.args[0], "_sa");
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ", ");
@@ -4287,8 +4313,19 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         /* EZ: server.listen(router, port)  →  C: ez_server_listen(port, &router) */
         emit(cg, "ez_server_listen(");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_addr_of(cg, node->data.call.args[0], "_sa");
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 3) {
+        /* EZ: server.listen(router, port, host)  →  C: ez_server_listen_host(port, host, &router) */
+        emit(cg, "ez_server_listen_host(");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ", ");
+        emit_addr_of(cg, node->data.call.args[0], "_sa");
         emit(cg, ")");
         return true;
     }
@@ -4325,16 +4362,16 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "cors") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_server_cors(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_server_cors(");
+        emit_addr_of(cg, node->data.call.args[0], "_sa");
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "use") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_server_use(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_server_use(");
+        emit_addr_of(cg, node->data.call.args[0], "_sa");
         emit(cg, ", (EzMiddleware)");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
@@ -4437,6 +4474,15 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
+        /* EZ: net.listen(host, port)  →  C: ez_net_listen_host(arena, host, port) */
+        emitf(cg, "ez_net_listen_host%s(ez_default_arena, ", is_multi_var ? "_result" : "");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "accept") == 0 && node->data.call.arg_count == 1) {
         emitf(cg, "ez_net_accept%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
@@ -4488,8 +4534,7 @@ static bool emit_bytes_call(CodeGen *cg, AstNode *node, const char *func) {
     emitf(cg, "ez_bytes_%s(", func);
     if (needs_arena || needs_arena_ptr) emit(cg, "ez_default_arena, ");
     if (needs_arena_ptr) {
-        emit(cg, "&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit_addr_of(cg, node->data.call.args[0], "_ba");
     } else {
         emit_expression(cg, node->data.call.args[0]);
     }
@@ -4513,8 +4558,11 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
         emitf(cg, "ez_binary_%s(", func);
     }
     if (is_encode) emit(cg, "ez_default_arena, ");
-    if (is_decode) emit(cg, "&");
-    emit_expression(cg, node->data.call.args[0]);
+    if (is_decode) {
+        emit_addr_of(cg, node->data.call.args[0], "_ba");
+    } else {
+        emit_expression(cg, node->data.call.args[0]);
+    }
     emit(cg, ")");
     return true;
 }
@@ -4789,14 +4837,14 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "shuffle") == 0) {
-        emit(cg, "ez_random_shuffle(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_random_shuffle(ez_default_arena, ");
+        emit_addr_of(cg, node->data.call.args[0], "_ra");
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "sample") == 0) {
-        emit(cg, "ez_random_sample(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_random_sample(ez_default_arena, ");
+        emit_addr_of(cg, node->data.call.args[0], "_ra");
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
@@ -4815,12 +4863,22 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
             else if (et->kind == TK_CHAR) c_elem = "int32_t";
             else if (et->kind == TK_BYTE) c_elem = "uint8_t";
             else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, arr_t->element_type);
+            else if (et->kind == TK_ENUM) {
+                c_elem = cg_enum_is_string(cg, arr_t->element_type)
+                    ? "EzString" : ez_type_to_c_cg(cg, arr_t->element_type);
+            }
         }
-        emit(cg, "({ int32_t _ri = ez_random_int_max(");
-        emit_expression(cg, node->data.call.args[0]);
-        emitf(cg, ".len); *(%s *)ez_array_get_ptr(&", c_elem);
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", _ri, __FILE__, __LINE__); })");
+        if (expr_is_lvalue(node->data.call.args[0])) {
+            emit(cg, "({ int32_t _ri = ez_random_int_max(");
+            emit_expression(cg, node->data.call.args[0]);
+            emitf(cg, ".len); *(%s *)ez_array_get_ptr(&", c_elem);
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", _ri, __FILE__, __LINE__); })");
+        } else {
+            emit(cg, "({ __auto_type _ra = ");
+            emit_expression(cg, node->data.call.args[0]);
+            emitf(cg, "; int32_t _ri = ez_random_int_max(_ra.len); *(%s *)ez_array_get_ptr(&_ra, _ri, __FILE__, __LINE__); })", c_elem);
+        }
         return true;
     }
     if (strcmp(func, "seed") == 0 && node->data.call.arg_count == 1) {
@@ -4853,9 +4911,17 @@ static void emit_array_arg_addr(CodeGen *cg, AstNode *arg) {
             return;
         }
     }
-    /* Default: take address of the expression directly */
-    emit(cg, "&");
-    emit_expression(cg, arg);
+    /* Default: take address of the expression directly.
+     * If the expression is an rvalue (e.g. a function call), materialise it
+     * into a statement-expression temporary so the generated C is valid. */
+    if (arg->kind == NODE_LABEL || arg->kind == NODE_MEMBER_EXPR || arg->kind == NODE_INDEX_EXPR) {
+        emit(cg, "&");
+        emit_expression(cg, arg);
+    } else {
+        emit(cg, "({ __auto_type _aa = ");
+        emit_expression(cg, arg);
+        emit(cg, "; &_aa; })");
+    }
 }
 
 static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -5201,8 +5267,19 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     emit_array_arg_addr(cg, node->data.call.args[0]);
     for (int i = 1; i < node->data.call.arg_count; i++) {
         emit(cg, ", ");
-        if (ref_args) emit(cg, "&");
-        emit_expression(cg, node->data.call.args[i]);
+        if (ref_args) {
+            AstNode *rarg = node->data.call.args[i];
+            if (rarg->kind == NODE_LABEL || rarg->kind == NODE_MEMBER_EXPR || rarg->kind == NODE_INDEX_EXPR) {
+                emit(cg, "&");
+                emit_expression(cg, rarg);
+            } else {
+                emit(cg, "({ __auto_type _aa = ");
+                emit_expression(cg, rarg);
+                emit(cg, "; &_aa; })");
+            }
+        } else {
+            emit_expression(cg, node->data.call.args[i]);
+        }
     }
     emit(cg, ")");
     return true;
@@ -8643,6 +8720,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_POINTER) c_elem = ez_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
+                else if (et->kind == TK_ENUM) {
+                    c_elem = cg_enum_is_string(cg, elem_tn)
+                        ? "EzString" : ez_type_to_c_cg(cg, elem_tn);
+                }
             }
 
             /* Snapshot the array length at loop start so appending during
@@ -9059,6 +9140,9 @@ CodeGen codegen_create(const char *file) {
     cg.scope_arenas = NULL;
     cg.scope_arena_count = 0;
     cg.scope_arena_cap = 0;
+    cg.ns_func_names = NULL;
+    cg.ns_func_name_count = 0;
+    cg.ns_func_name_cap = 0;
     return cg;
 }
 
@@ -9553,6 +9637,11 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     char *ns_name = malloc(ns_len);
                     snprintf(ns_name, ns_len, "%s_%s", sn, fn_name);
                     fn->data.func_decl.name = ns_name;
+                    if (cg->ns_func_name_count >= cg->ns_func_name_cap) {
+                        cg->ns_func_name_cap = cg->ns_func_name_cap ? cg->ns_func_name_cap * 2 : 8;
+                        cg->ns_func_names = xrealloc(cg->ns_func_names, sizeof(char *) * cg->ns_func_name_cap);
+                    }
+                    cg->ns_func_names[cg->ns_func_name_count++] = ns_name;
 
                     if (cg->func_count >= cg->func_cap) {
                         cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
@@ -9717,7 +9806,11 @@ const char *codegen_result(CodeGen *cg) {
 
 void codegen_destroy(CodeGen *cg) {
     buf_destroy(&cg->output);
+    buf_destroy(&cg->global_init);
     free(cg->enum_names);
+    free(cg->enum_is_string);
+    free(cg->enum_is_tagged);
+    free(cg->enum_decls);
     free(cg->all_funcs);
     free(cg->funcs_by_name);
     free(cg->ref_vars);
@@ -9731,4 +9824,7 @@ void codegen_destroy(CodeGen *cg) {
     free(cg->imported_modules);
     free(cg->c_headers);
     free(cg->scope_arenas);
+    for (int i = 0; i < cg->ns_func_name_count; i++)
+        free(cg->ns_func_names[i]);
+    free(cg->ns_func_names);
 }

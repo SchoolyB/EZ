@@ -9,12 +9,14 @@
 
 #include "ez_server.h"
 #include "ez_net.h"
+#include "../runtime/ez_atomic.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #define EZ_SERVER_BUF_SIZE          65536
 #define EZ_SERVER_REQUEST_ARENA     (64 * 1024)
@@ -22,6 +24,10 @@
 #define EZ_ROUTER_INITIAL_CAP       16
 #define EZ_HTTP_METHOD_BUF          16
 #define EZ_HTTP_PATH_BUF_SERVER     2048
+#define EZ_SERVER_MAX_CONNECTIONS   1024
+#define EZ_SERVER_READ_TIMEOUT_MS   30000
+
+static int32_t active_connections = 0;
 
 static const char *http_reason_phrase(int status) {
     switch (status) {
@@ -102,6 +108,11 @@ void ez_server_route(EzRouter *r, EzString method, EzString pattern,
 }
 
 void ez_server_cors(EzRouter *r, EzString origin) {
+    for (int32_t i = 0; i < origin.len; i++) {
+        if (origin.data[i] == '\r' || origin.data[i] == '\n') {
+            ez_panic_code("P0101", "server.cors: origin contains CR or LF — HTTP header injection is not allowed");
+        }
+    }
     EzArena *a = get_server_arena();
     char *o = ez_arena_alloc(a, origin.len + 1);
     memcpy(o, origin.data, origin.len);
@@ -237,6 +248,12 @@ static void *handle_connection(void *arg) {
     ConnCtx *ctx = (ConnCtx *)arg;
     EzArena *arena = ez_arena_create(EZ_SERVER_REQUEST_ARENA); /* 64KB per request */
 
+    /* Apply read timeout so slow or idle connections don't hold threads indefinitely */
+    struct timeval tv;
+    tv.tv_sec  = EZ_SERVER_READ_TIMEOUT_MS / 1000;
+    tv.tv_usec = (EZ_SERVER_READ_TIMEOUT_MS % 1000) * 1000;
+    setsockopt(ctx->client_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     /* Receive request data */
     char buf[EZ_SERVER_BUF_SIZE];
     ssize_t n = recv(ctx->client_fd, buf, sizeof(buf) - 1, 0);
@@ -245,6 +262,7 @@ static void *handle_connection(void *arg) {
         free(ctx);
         ez_arena_destroy(arena, __FILE__, __LINE__);
         free(arena);
+        ez_atomic_sub32(&active_connections, 1);
         return NULL;
     }
     buf[n] = '\0';
@@ -270,6 +288,7 @@ static void *handle_connection(void *arg) {
             free(ctx);
             ez_arena_destroy(arena, __FILE__, __LINE__);
             free(arena);
+            ez_atomic_sub32(&active_connections, 1);
             return NULL;
         }
 
@@ -345,7 +364,53 @@ static void *handle_connection(void *arg) {
     free(ctx);
     ez_arena_destroy(arena, __FILE__, __LINE__);
     free(arena);
+    ez_atomic_sub32(&active_connections, 1);
     return NULL;
+}
+
+void ez_server_listen_host(int64_t port, EzString host, EzRouter *r) {
+    EzArena *arena = get_server_arena();
+    EzSocket listener = ez_net_listen_host(arena, host, port);
+    if (listener.fd < 0) {
+        fprintf(stderr, "server: failed to listen on %.*s:%d\n", host.len, host.data, (int)port);
+        return;
+    }
+
+    printf("EZ server listening on %.*s:%d\n", host.len, host.data, (int)port);
+    fflush(stdout);
+
+    while (1) {
+        EzSocket client = ez_net_accept(arena, listener);
+        if (client.fd < 0) continue;
+
+        int32_t prev = ez_atomic_add32(&active_connections, 1);
+        if (prev >= EZ_SERVER_MAX_CONNECTIONS) {
+            ez_atomic_sub32(&active_connections, 1);
+            const char *r503 = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            send(client.fd, r503, strlen(r503), 0);
+            close(client.fd);
+            continue;
+        }
+
+        ConnCtx *ctx = malloc(sizeof(ConnCtx));
+        if (!ctx) {
+            ez_atomic_sub32(&active_connections, 1);
+            close(client.fd);
+            continue;
+        }
+        ctx->client_fd = client.fd;
+        ctx->router = r;
+
+        pthread_t thread;
+        if (pthread_create(&thread, NULL, handle_connection, ctx) != 0) {
+            ez_atomic_sub32(&active_connections, 1);
+            fprintf(stderr, "server: failed to create thread\n");
+            free(ctx);
+            close(client.fd);
+            continue;
+        }
+        pthread_detach(thread);
+    }
 }
 
 void ez_server_listen(int64_t port, EzRouter *r) {
@@ -363,13 +428,28 @@ void ez_server_listen(int64_t port, EzRouter *r) {
         EzSocket client = ez_net_accept(arena, listener);
         if (client.fd < 0) continue;
 
+        /* Reject incoming connection if at the thread cap */
+        int32_t prev = ez_atomic_add32(&active_connections, 1);
+        if (prev >= EZ_SERVER_MAX_CONNECTIONS) {
+            ez_atomic_sub32(&active_connections, 1);
+            const char *r503 = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            send(client.fd, r503, strlen(r503), 0);
+            close(client.fd);
+            continue;
+        }
+
         ConnCtx *ctx = malloc(sizeof(ConnCtx));
-        if (!ctx) { close(client.fd); continue; }
+        if (!ctx) {
+            ez_atomic_sub32(&active_connections, 1);
+            close(client.fd);
+            continue;
+        }
         ctx->client_fd = client.fd;
         ctx->router = r;
 
         pthread_t thread;
         if (pthread_create(&thread, NULL, handle_connection, ctx) != 0) {
+            ez_atomic_sub32(&active_connections, 1);
             fprintf(stderr, "server: failed to create thread\n");
             free(ctx);
             close(client.fd);

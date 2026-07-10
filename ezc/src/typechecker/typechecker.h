@@ -102,6 +102,7 @@ typedef struct {
     /* Sorted view of enum_names[] for O(log n) is_enum_name lookups.
      * Invalidated whenever a new enum is registered. */
     const char **enum_names_sorted;
+    int *enum_names_sorted_indices; /* parallel: original index in enum_names[] for each sorted entry */
     bool enum_names_sorted_built;
 
     /* Control flow tracking */
@@ -141,6 +142,7 @@ typedef struct {
     /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
     const char **using_module_files; /* parallel: source file each using came from (NULL = main) */
+    int *using_module_import_indices; /* parallel: index into imported_modules[], or -1 if not found */
     int using_module_count;
     int using_module_cap;
 
@@ -187,6 +189,7 @@ typedef struct {
 /* Create and run the type checker */
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file);
 void typechecker_check(TypeChecker *tc, AstNode *program);
+void typechecker_free(TypeChecker *tc);
 
 /* Query the type table (used by codegen) */
 EzType *typetable_get(TypeTable *tt, AstNode *node);

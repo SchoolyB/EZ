@@ -50,6 +50,7 @@ typedef struct Scope {
 } Scope;
 
 Scope *scope_create(Scope *parent);
+void scope_destroy(Scope *s);
 void scope_define(Scope *s, const char *name, EzType *type, bool mutable);
 Symbol *scope_lookup(Scope *s, const char *name);
 Symbol *scope_lookup_local(Scope *s, const char *name);

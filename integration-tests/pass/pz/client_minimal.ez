@@ -1,0 +1,14 @@
+// pz template: client (minimal)
+// Requires network access to httpbun.com.
+
+import @http
+
+do main() {
+    mut resp, err = http.get("http://httpbun.com/get")
+    if err != nil {
+        println("Request failed.")
+        exit(1)
+    }
+    println("Status: ${resp.status}")
+    println("Body: ${resp.body}")
+}

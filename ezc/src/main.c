@@ -1544,6 +1544,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "ez: check completed in %.1fms\n", ms);
         }
         fprintf(stderr, "ez: %s: no errors\n", input_file);
+        typechecker_free(tc);
         diag_destroy(diag);
         arena_destroy(arena);
         free(source);
@@ -1576,6 +1577,7 @@ int main(int argc, char **argv) {
 
     if (!write_file(c_file, c_code)) {
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1586,6 +1588,7 @@ int main(int argc, char **argv) {
         /* Just print the C source */
         printf("%s", c_code);
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1601,6 +1604,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  On macOS: xcode-select --install\n");
         fprintf(stderr, "  On Ubuntu: sudo apt install gcc\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1618,6 +1622,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "    - /usr/local/lib/ezc/\n");
         fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1626,6 +1631,7 @@ int main(int argc, char **argv) {
     if (strchr(runtime_dir, '\'')) {
         fprintf(stderr, "ez: EZ_RUNTIME path must not contain single quotes\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1634,6 +1640,7 @@ int main(int argc, char **argv) {
     if (strchr(output_file, '\'')) {
         fprintf(stderr, "ez: output path must not contain single quotes\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1677,6 +1684,7 @@ int main(int argc, char **argv) {
     if (has_archive) {
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
+            "-Wno-tautological-compare "
             "-I'%s'/runtime -I'%s'/stdlib "
             "-o '%s' '%s' '%s' "
             "-lm -lpthread -Wl,-w 2>&1",
@@ -1715,6 +1723,7 @@ int main(int argc, char **argv) {
 
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
+            "-Wno-tautological-compare "
             "-I'%s'/runtime -I'%s'/stdlib "
             "-o '%s' '%s' %s"
             "-lm -lpthread -Wl,-w 2>&1",
@@ -1730,6 +1739,7 @@ int main(int argc, char **argv) {
     if (strlen(cmd) >= CMD_BUF_SIZE - 1) {
         fprintf(stderr, "ez: compile command too long (paths may be too deep)\n");
         codegen_destroy(&cg);
+        typechecker_free(tc);
         diag_destroy(diag);
         arena_destroy(arena);
         free(source);
@@ -1763,11 +1773,15 @@ int main(int argc, char **argv) {
     } else {
         unlink(c_file);
 
+        double total_ms = (double)(t_cc_end - t_start) / CLOCKS_PER_SEC * 1000.0;
+        if (!run_mode) {
+            fprintf(stdout, "\033[32mCompiled '\033[1m%s\033[22m' in %.0fms!\033[0m\n", out_base, total_ms);
+            fflush(stdout);
+        }
+
         if (show_time) {
             double frontend_ms = (double)(t_cc_start - t_start) / CLOCKS_PER_SEC * 1000.0;
             double cc_ms = (double)(t_cc_end - t_cc_start) / CLOCKS_PER_SEC * 1000.0;
-            double total_ms = (double)(t_cc_end - t_start) / CLOCKS_PER_SEC * 1000.0;
-            fprintf(stderr, "ez: compiled %s → %s (%.0fms)\n", input_file, output_file, total_ms);
             fprintf(stderr, "  frontend:  %.1fms (lex + parse + typecheck + codegen)\n", frontend_ms);
             fprintf(stderr, "  cc:        %.1fms (compile + link)\n", cc_ms);
         }
@@ -1795,6 +1809,7 @@ int main(int argc, char **argv) {
     }
 
     codegen_destroy(&cg);
+    typechecker_free(tc);
     diag_destroy(diag);
     arena_destroy(arena);
     free(source);

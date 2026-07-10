@@ -28,6 +28,7 @@ EzString ez_net_recv(EzArena *arena, EzSocket sock, int64_t max_bytes);
 
 /* TCP server */
 EzSocket ez_net_listen(EzArena *arena, int64_t port);
+EzSocket ez_net_listen_host(EzArena *arena, EzString host, int64_t port);
 EzSocket ez_net_accept(EzArena *arena, EzSocket listener);
 
 /* Socket options */
@@ -41,6 +42,7 @@ typedef struct { EzSocket v0; EzError *v1; } EzResult_socket;
 
 EzResult_socket ez_net_dial_result(EzArena *arena, EzString host, int64_t port);
 EzResult_socket ez_net_listen_result(EzArena *arena, int64_t port);
+EzResult_socket ez_net_listen_host_result(EzArena *arena, EzString host, int64_t port);
 EzResult_socket ez_net_accept_result(EzArena *arena, EzSocket listener);
 EzResult_int ez_net_send_result(EzArena *arena, EzSocket sock, EzString data);
 EzResult_string ez_net_recv_result(EzArena *arena, EzSocket sock, int64_t max_bytes);

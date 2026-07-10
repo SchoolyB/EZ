@@ -4,7 +4,7 @@
 <h1 align="center">EZ</h1>
 
 <p align="center">
-  A compiled language that's actually approachable. Compiles to C, ships a single binary, reads like pseudocode.
+  A compiled language that's actually approachable!
 </p>
 
 <h3 align="center">Programming made EZ.</h3>

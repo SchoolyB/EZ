@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 358 codes** (241 errors, 17 warnings, 100 panics)
+**Total: 359 codes** (241 errors, 17 warnings, 101 panics)
 
 ---
 
@@ -385,6 +385,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0098` | arithmetic | cast from i256 failed; value is negative or outside the representable range of uint64 |
 | `P0099` | arithmetic | cast from u256 failed; value exceeds the representable range of int64 |
 | `P0100` | arithmetic | cast from u256 failed; value exceeds the representable range of uint64 |
+| `P0101` | server | server.cors: origin contains CR or LF — HTTP header injection is not allowed |
 
 ---
 
@@ -409,4 +410,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-06 11:01:47 UTC*
+*Generated on 2026-07-10 08:15:03 UTC*

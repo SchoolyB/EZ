@@ -1,0 +1,15 @@
+// Library entry point. Public functions declared here are accessible
+// to anything that imports this file; internal helpers live under
+// ./internal/ and are called via the `helpers` namespace.
+
+import "./internal/helpers.ez"
+
+#doc("greet returns a greeting message for the given name.")
+do greet(name string) -> string {
+    return helpers.format_greeting(name)
+}
+
+#doc("add returns the sum of two integers.")
+do add(a int, b int) -> int {
+    return a + b
+}

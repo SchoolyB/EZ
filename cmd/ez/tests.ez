@@ -1,9 +1,10 @@
 /*
- * tests.ez - EZ language verification test suite (#1975)
+ * tests.ez - EZ language verification test suite
  *
  * Covers: primitives, strings, control flow, loops, functions,
  * structs, enums, arrays, maps, casting, pointers, @math, @strings,
- * @arrays, @maps, @json, @time, @random, @encoding.
+ * @arrays, @maps, @json, @time, @random, @encoding, @fmt, @strconv,
+ * @crypto, @regex, @binary, @bytes, @uuid, @mem.
  *
  * Every test prints [PASS] or [FAIL] with the actual value on failure.
  * Exits non-zero if any assertion fails.
@@ -13,7 +14,7 @@
  *   ./ezc/ezc cmd/ez/tests.ez -o /tmp/out && /tmp/out
  */
 
-import @math, @strings, @arrays, @maps, @json, @time, @random, @encoding
+import @math, @strings, @arrays, @maps, @json, @time, @random, @encoding, @fmt, @strconv, @crypto, @regex, @binary, @bytes, @uuid, @mem
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
@@ -1242,6 +1243,422 @@ do main() {
         println("  [FAIL] hex_decode: expected \"hi\", got \"${hexd}\"")
         failed++
     }
+
+    // =========================================================================
+    println("")
+    println("=== 20. @fmt ===")
+    // =========================================================================
+
+    mut fmt1 string = fmt.sprintf("%d + %d = %d", 1, 2, 3)
+    if fmt1 == "1 + 2 = 3" {
+        println("  [PASS] fmt.sprintf(\"%d + %d = %d\", 1, 2, 3) = \"1 + 2 = 3\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] fmt.sprintf: expected \"1 + 2 = 3\", got \"${fmt1}\"")
+        failed++
+    }
+
+    mut fmt2 string = fmt.pad_left("hi", 5, '0')
+    if fmt2 == "000hi" {
+        println("  [PASS] fmt.pad_left(\"hi\", 5, '0') = \"000hi\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] fmt.pad_left: expected \"000hi\", got \"${fmt2}\"")
+        failed++
+    }
+
+    mut fmt3 string = fmt.pad_right("hi", 5, '.')
+    if fmt3 == "hi..." {
+        println("  [PASS] fmt.pad_right(\"hi\", 5, '.') = \"hi...\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] fmt.pad_right: expected \"hi...\", got \"${fmt3}\"")
+        failed++
+    }
+
+    mut fmt4 string = fmt.center("hi", 6, '-')
+    if fmt4 == "--hi--" {
+        println("  [PASS] fmt.center(\"hi\", 6, '-') = \"--hi--\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] fmt.center: expected \"--hi--\", got \"${fmt4}\"")
+        failed++
+    }
+
+    mut fmt5 string = fmt.float_fixed(3.14159, 2)
+    if fmt5 == "3.14" {
+        println("  [PASS] fmt.float_fixed(3.14159, 2) = \"3.14\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] fmt.float_fixed: expected \"3.14\", got \"${fmt5}\"")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 21. @strconv ===")
+    // =========================================================================
+
+    mut sc1 string = strconv.from_int(42)
+    if sc1 == "42" {
+        println("  [PASS] strconv.from_int(42) = \"42\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.from_int: expected \"42\", got \"${sc1}\"")
+        failed++
+    }
+
+    mut sc2 string = strconv.from_float(3.14)
+    if strings.starts_with(sc2, "3.14") {
+        println("  [PASS] strconv.from_float(3.14) starts with \"3.14\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.from_float: expected starts with \"3.14\", got \"${sc2}\"")
+        failed++
+    }
+
+    mut sc3 string = strconv.from_bool(true)
+    if sc3 == "true" {
+        println("  [PASS] strconv.from_bool(true) = \"true\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.from_bool: expected \"true\", got \"${sc3}\"")
+        failed++
+    }
+
+    mut sc4 int, _ = strconv.to_int("123")
+    if sc4 == 123 {
+        println("  [PASS] strconv.to_int(\"123\") = 123")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.to_int: expected 123, got ${sc4}")
+        failed++
+    }
+
+    mut sc5 float, _ = strconv.to_float("2.5")
+    if sc5 == 2.5 {
+        println("  [PASS] strconv.to_float(\"2.5\") = 2.5")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.to_float: expected 2.5, got ${sc5}")
+        failed++
+    }
+
+    mut sc6 bool, _ = strconv.to_bool("true")
+    if sc6 {
+        println("  [PASS] strconv.to_bool(\"true\") = true")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.to_bool: expected true")
+        failed++
+    }
+
+    if strconv.is_numeric("3.14") {
+        println("  [PASS] strconv.is_numeric(\"3.14\") = true")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.is_numeric(\"3.14\"): expected true")
+        failed++
+    }
+
+    if strconv.is_integer("42") {
+        println("  [PASS] strconv.is_integer(\"42\") = true")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.is_integer(\"42\"): expected true")
+        failed++
+    }
+
+    if !strconv.is_numeric("abc") {
+        println("  [PASS] strconv.is_numeric(\"abc\") = false")
+        passed++
+    } otherwise {
+        println("  [FAIL] strconv.is_numeric(\"abc\"): expected false")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 22. @crypto ===")
+    // =========================================================================
+
+    mut sha string = crypto.sha256("hello")
+    if sha == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" {
+        println("  [PASS] crypto.sha256(\"hello\") = known hash")
+        passed++
+    } otherwise {
+        println("  [FAIL] crypto.sha256: got \"${sha}\"")
+        failed++
+    }
+
+    mut md string = crypto.md5("hello")
+    if md == "5d41402abc4b2a76b9719d911017c592" {
+        println("  [PASS] crypto.md5(\"hello\") = known hash")
+        passed++
+    } otherwise {
+        println("  [FAIL] crypto.md5: got \"${md}\"")
+        failed++
+    }
+
+    mut rhex string = crypto.random_hex(16)
+    if len(rhex) == 16 {
+        println("  [PASS] len(crypto.random_hex(16)) = 16")
+        passed++
+    } otherwise {
+        println("  [FAIL] crypto.random_hex(16): expected len 16, got ${len(rhex)}")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 23. @regex ===")
+    // =========================================================================
+
+    if regex.is_valid("[a-z]+") {
+        println("  [PASS] regex.is_valid(\"[a-z]+\") = true")
+        passed++
+    } otherwise {
+        println("  [FAIL] regex.is_valid(\"[a-z]+\"): expected true")
+        failed++
+    }
+
+    if regex.is_match("[0-9]+", "abc123") {
+        println("  [PASS] regex.is_match(\"[0-9]+\", \"abc123\") = true")
+        passed++
+    } otherwise {
+        println("  [FAIL] regex.is_match: expected true")
+        failed++
+    }
+
+    mut rfind string, _ = regex.find("[0-9]+", "abc123def")
+    if rfind == "123" {
+        println("  [PASS] regex.find(\"[0-9]+\", \"abc123def\") = \"123\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] regex.find: expected \"123\", got \"${rfind}\"")
+        failed++
+    }
+
+    mut rrepl string, _ = regex.replace("[0-9]", "a1b2c3", "X")
+    if rrepl == "aXbXcX" {
+        println("  [PASS] regex.replace(\"[0-9]\", \"a1b2c3\", \"X\") = \"aXbXcX\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] regex.replace: expected \"aXbXcX\", got \"${rrepl}\"")
+        failed++
+    }
+
+    mut rsplit [string], _ = regex.split(",", "a,b,c")
+    if len(rsplit) == 3 {
+        println("  [PASS] regex.split(\",\", \"a,b,c\") → len = 3")
+        passed++
+    } otherwise {
+        println("  [FAIL] regex.split: expected len 3, got ${len(rsplit)}")
+        failed++
+    }
+
+    mut rfall [string], _ = regex.find_all("[0-9]+", "a1b22c333")
+    if len(rfall) == 3 {
+        println("  [PASS] regex.find_all(\"[0-9]+\", \"a1b22c333\") → len = 3")
+        passed++
+    } otherwise {
+        println("  [FAIL] regex.find_all: expected len 3, got ${len(rfall)}")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 24. @binary ===")
+    // =========================================================================
+
+    mut bin1_enc [byte] = binary.encode_i64_le(42)
+    mut bin1 int = binary.decode_i64_le(bin1_enc)
+    if bin1 == 42 {
+        println("  [PASS] binary roundtrip i64_le(42) = 42")
+        passed++
+    } otherwise {
+        println("  [FAIL] binary i64_le roundtrip: expected 42, got ${bin1}")
+        failed++
+    }
+
+    mut bin2_enc [byte] = binary.encode_i64_be(-999)
+    mut bin2 int = binary.decode_i64_be(bin2_enc)
+    if bin2 == -999 {
+        println("  [PASS] binary roundtrip i64_be(-999) = -999")
+        passed++
+    } otherwise {
+        println("  [FAIL] binary i64_be roundtrip: expected -999, got ${bin2}")
+        failed++
+    }
+
+    mut bin3_enc [byte] = binary.encode_f64_le(3.14)
+    mut bin3 float = binary.decode_f64_le(bin3_enc)
+    if bin3 == 3.14 {
+        println("  [PASS] binary roundtrip f64_le(3.14) = 3.14")
+        passed++
+    } otherwise {
+        println("  [FAIL] binary f64_le roundtrip: expected 3.14, got ${bin3}")
+        failed++
+    }
+
+    if len(bin1_enc) == 8 {
+        println("  [PASS] len(binary.encode_i64_le(42)) = 8")
+        passed++
+    } otherwise {
+        println("  [FAIL] encode_i64_le size: expected 8, got ${len(bin1_enc)}")
+        failed++
+    }
+
+    if len(bin2_enc) == 8 {
+        println("  [PASS] len(binary.encode_i64_be(-999)) = 8")
+        passed++
+    } otherwise {
+        println("  [FAIL] encode_i64_be size: expected 8, got ${len(bin2_enc)}")
+        failed++
+    }
+
+    if len(bin3_enc) == 8 {
+        println("  [PASS] len(binary.encode_f64_le(3.14)) = 8")
+        passed++
+    } otherwise {
+        println("  [FAIL] encode_f64_le size: expected 8, got ${len(bin3_enc)}")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 25. @bytes ===")
+    // =========================================================================
+
+    mut by1_bytes [byte] = bytes.from_string("hello")
+    mut by1 string = bytes.to_string(by1_bytes)
+    if by1 == "hello" {
+        println("  [PASS] bytes.to_string(bytes.from_string(\"hello\")) = \"hello\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] bytes roundtrip string: expected \"hello\", got \"${by1}\"")
+        failed++
+    }
+
+    mut by2_bytes [byte] = bytes.from_string("AB")
+    mut by2 string = bytes.to_hex(by2_bytes)
+    if by2 == "4142" {
+        println("  [PASS] bytes.to_hex(bytes.from_string(\"AB\")) = \"4142\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] bytes.to_hex: expected \"4142\", got \"${by2}\"")
+        failed++
+    }
+
+    mut by3_a [byte] = bytes.from_string("test")
+    mut by3_hex string = bytes.to_hex(by3_a)
+    mut by3_b [byte] = bytes.from_hex(by3_hex)
+    mut by3 string = bytes.to_string(by3_b)
+    if by3 == "test" {
+        println("  [PASS] bytes hex roundtrip \"test\" = \"test\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] bytes hex roundtrip: expected \"test\", got \"${by3}\"")
+        failed++
+    }
+
+    mut by4_bytes [byte] = bytes.from_string("hello")
+    mut by4 string = bytes.to_base64(by4_bytes)
+    if by4 == "aGVsbG8=" {
+        println("  [PASS] bytes.to_base64(bytes.from_string(\"hello\")) = \"aGVsbG8=\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] bytes.to_base64: expected \"aGVsbG8=\", got \"${by4}\"")
+        failed++
+    }
+
+    mut by5_bytes [byte] = bytes.from_base64("aGVsbG8=")
+    mut by5 string = bytes.to_string(by5_bytes)
+    if by5 == "hello" {
+        println("  [PASS] bytes.to_string(bytes.from_base64(\"aGVsbG8=\")) = \"hello\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] bytes.from_base64 roundtrip: expected \"hello\", got \"${by5}\"")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 26. @uuid ===")
+    // =========================================================================
+
+    mut uid1 = uuid.generate()
+    if uuid.is_valid(uuid.to_string(uid1)) {
+        println("  [PASS] uuid.is_valid(uuid.to_string(uuid.generate())) = true")
+        passed++
+    } otherwise {
+        println("  [FAIL] uuid.is_valid on generated uuid: expected true")
+        failed++
+    }
+
+    mut uid1_str string = uuid.to_string(uid1)
+    if len(uid1_str) == 36 {
+        println("  [PASS] len(uuid.to_string(uuid.generate())) = 36")
+        passed++
+    } otherwise {
+        println("  [FAIL] uuid string length: expected 36, got ${len(uid1_str)}")
+        failed++
+    }
+
+    mut uid_compact string = uuid.generate_compact(uid1)
+    if len(uid_compact) == 32 {
+        println("  [PASS] len(uuid.generate_compact(...)) = 32")
+        passed++
+    } otherwise {
+        println("  [FAIL] uuid compact length: expected 32, got ${len(uid_compact)}")
+        failed++
+    }
+
+    mut nil_str string = uuid.to_string(uuid.NIL_UUID)
+    if nil_str == "00000000-0000-0000-0000-000000000000" {
+        println("  [PASS] uuid.to_string(uuid.NIL_UUID) = \"00000000-0000-0000-0000-000000000000\"")
+        passed++
+    } otherwise {
+        println("  [FAIL] uuid.NIL_UUID: expected \"00000000-0000-0000-0000-000000000000\", got \"${nil_str}\"")
+        failed++
+    }
+
+    if !uuid.is_valid("not-a-uuid") {
+        println("  [PASS] uuid.is_valid(\"not-a-uuid\") = false")
+        passed++
+    } otherwise {
+        println("  [FAIL] uuid.is_valid(\"not-a-uuid\"): expected false")
+        failed++
+    }
+
+    // =========================================================================
+    println("")
+    println("=== 27. @mem ===")
+    // =========================================================================
+
+    mut arena1 = mem.arena(4096)
+    mut usage1 int = mem.usage(arena1)
+    if usage1 >= 0 {
+        println("  [PASS] mem.usage(arena) >= 0 after creation")
+        passed++
+    } otherwise {
+        println("  [FAIL] mem.usage: expected >= 0, got ${usage1}")
+        failed++
+    }
+
+    mem.reset(arena1)
+    mut usage2 int = mem.usage(arena1)
+    if usage2 == 0 {
+        println("  [PASS] mem.usage(arena) == 0 after reset")
+        passed++
+    } otherwise {
+        println("  [FAIL] mem.usage after reset: expected 0, got ${usage2}")
+        failed++
+    }
+
+    mem.destroy(arena1)
+    println("  [PASS] mem.arena → usage → reset → destroy lifecycle")
+    passed++
 
     // =========================================================================
     println("")

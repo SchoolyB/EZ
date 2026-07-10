@@ -131,7 +131,7 @@ src/vendor/sqlite3.o: src/vendor/sqlite3.c
 -include $(OBJ:.o=.d) $(RT_OBJ:.o=.d)
 
 clean:
-	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) $(OBJ:.o=.d) $(RT_OBJ:.o=.d) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen tests/*_san
+	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) $(OBJ:.o=.d) $(RT_OBJ:.o=.d) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_util tests/test_codegen tests/*_san
 
 install: build
 	install -d /usr/local/bin
@@ -160,10 +160,13 @@ tests/test_parser: tests/test_parser.c $(TEST_DEPS)
 tests/test_typechecker: tests/test_typechecker.c $(TEST_DEPS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
 
+tests/test_util: tests/test_util.c src/util/arena.o src/util/buf.o src/typechecker/scope.o src/typechecker/types.o src/util/error.o src/util/error_codes.o
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+
 tests/test_codegen: tests/test_codegen.c
 	$(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200809L $(INCLUDES) -o $@ $< $(LDFLAGS)
 
-test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser tests/test_typechecker
+test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_util
 	@echo ""
 	@echo "=== Lexer Tests ==="
 	@./tests/test_lexer
@@ -171,6 +174,8 @@ test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser tests/test_typechecke
 	@./tests/test_parser
 	@echo "=== Type Checker Tests ==="
 	@./tests/test_typechecker
+	@echo "=== Util Tests ==="
+	@./tests/test_util
 
 test-e2e: build tests/test_codegen
 	@echo ""
@@ -202,7 +207,10 @@ test-ubsan:
 	@echo "=== UBSan Type Checker Tests ==="
 	@$(CC) $(UBSAN_FLAGS) $(INCLUDES) -o tests/test_typechecker_san tests/test_typechecker.c $(TEST_SRC_FILES) $(LDFLAGS)
 	@./tests/test_typechecker_san
-	@rm -f tests/test_lexer_san tests/test_parser_san tests/test_typechecker_san
+	@echo "=== UBSan Util Tests ==="
+	@$(CC) $(UBSAN_FLAGS) $(INCLUDES) -o tests/test_util_san tests/test_util.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_util_san
+	@rm -f tests/test_lexer_san tests/test_parser_san tests/test_typechecker_san tests/test_util_san
 	@echo ""
 	@echo "All UBSan tests passed — no undefined behavior detected."
 
@@ -215,7 +223,10 @@ test-asan:
 	@./tests/test_parser_san
 	@$(CC) $(ASAN_FLAGS) $(INCLUDES) -o tests/test_typechecker_san tests/test_typechecker.c $(TEST_SRC_FILES) $(LDFLAGS)
 	@./tests/test_typechecker_san
-	@rm -f tests/test_lexer_san tests/test_parser_san tests/test_typechecker_san
+	@echo "=== ASan+UBSan Util Tests ==="
+	@$(CC) $(ASAN_FLAGS) $(INCLUDES) -o tests/test_util_san tests/test_util.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_util_san
+	@rm -f tests/test_lexer_san tests/test_parser_san tests/test_typechecker_san tests/test_util_san
 	@echo ""
 	@echo "All ASan+UBSan tests passed — no memory errors or undefined behavior."
 

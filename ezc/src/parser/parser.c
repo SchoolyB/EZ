@@ -642,6 +642,7 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
                         expr_lexer->column = p->cur_token.column + 1 + (int)(expr_start - raw);
                 }
                 Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
+                expr_parser->in_interp = true;
                 /* Inherit struct names from parent so interpolated expressions
                  * can recognize struct literals. */
                 expr_parser->struct_names = p->struct_names;
@@ -1051,8 +1052,11 @@ static AstNode *parse_prefix(Parser *p) {
         /* Skip generic error for ILLEGAL tokens; the lexer already emitted a specific diagnostic */
         if (p->cur_token.type != TOK_ILLEGAL) {
             char buf[EZ_MSG_BUF_SIZE];
-            snprintf(buf, sizeof(buf), "unexpected token '%s'",
-                token_type_name(p->cur_token.type));
+            if (p->cur_token.type == TOK_EOF && p->in_interp)
+                snprintf(buf, sizeof(buf), "unexpected end of interpolation expression");
+            else
+                snprintf(buf, sizeof(buf), "unexpected token '%s'",
+                    token_type_name(p->cur_token.type));
             diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, buf),
                 p->file, p->cur_token.line, p->cur_token.column, 0);
         }
