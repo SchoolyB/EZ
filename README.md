@@ -208,3 +208,14 @@ Thank you to everyone who has contributed to EZ!
 <a href="https://github.com/mvanhorn"><img src="https://github.com/mvanhorn.png" width="50" height="50" alt="mvanhorn"/></a>
 <a href="https://github.com/kas2804"><img src="https://github.com/kas2804.png" width="50" height="50" alt="kas2804"/></a>
 <a href="https://github.com/su-s2008"><img src="https://github.com/su-s2008.png" width="50" height="50" alt="su-s2008"/></a>
+
+### Emit generated C
+
+Use `--emit-c` to print the generated C translation unit instead of building a binary.
+Pair with `-o` to write the C source to a file:
+
+```bash
+ez build main.ez --emit-c -o main.c
+```
+
+This is useful for inspecting the compiler backend output or feeding the C into another toolchain.
