@@ -92,8 +92,9 @@ EzType *type_array(const char *elem_type) {
     if (existing) return existing;
     EzType *t = type_alloc();
     t->kind = TK_ARRAY;
-    t->element_type = elem_type;
-    t->name = elem_type; /* simplified */
+    const char *dup = strdup(elem_type);
+    t->element_type = dup;
+    t->name = dup;
     pool_insert(TK_ARRAY, t->name, t);
     return t;
 }
@@ -436,7 +437,9 @@ EzType *type_from_name(const char *name) {
             /* Strip ",N" suffix for fixed-size arrays like [string,3] */
             char *comma = strchr(elem, ',');
             if (comma) *comma = '\0';
-            return type_array(elem);
+            EzType *arr = type_array(elem);
+            free(elem);
+            return arr;
         }
     }
 

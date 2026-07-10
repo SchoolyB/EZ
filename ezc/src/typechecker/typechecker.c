@@ -6676,12 +6676,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
         EzType *t = type_alloc();
         t->kind = TK_MAP;
-        t->name = "map";
+        t->name = strdup("map");
         if (node->data.map_value.count > 0) {
             EzType *kt = typetable_get(tc->type_table, node->data.map_value.keys[0]);
             EzType *vt = typetable_get(tc->type_table, node->data.map_value.values[0]);
-            t->key_type = kt ? type_name(kt) : "unknown";
-            t->value_type = vt ? type_name(vt) : "unknown";
+            t->key_type = strdup(kt ? type_name(kt) : "unknown");
+            t->value_type = strdup(vt ? type_name(vt) : "unknown");
         }
         result = t;
         break;
@@ -6863,7 +6863,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
         EzType *rt = type_alloc();
         rt->kind = TK_INT;
-        rt->name = "Range<int>";
+        rt->name = strdup("Range<int>");
         result = rt;
         break;
     }
@@ -11119,10 +11119,12 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             if (strncmp(sn, prefix, prefix_len) == 0) {
                 const char *unprefixed = sn + prefix_len;
                 if (!is_struct_name(tc, unprefixed)) {
-                    register_struct(tc, unprefixed, unprefixed,
-                        tc->structs[si].field_names,
-                        tc->structs[si].field_types,
-                        tc->structs[si].field_count);
+                    int fc = tc->structs[si].field_count;
+                    const char **fn = xmalloc(sizeof(const char *) * (fc ? fc : 1));
+                    EzType **ft = xmalloc(sizeof(EzType *) * (fc ? fc : 1));
+                    memcpy(fn, tc->structs[si].field_names, sizeof(const char *) * fc);
+                    memcpy(ft, tc->structs[si].field_types, sizeof(EzType *) * fc);
+                    register_struct(tc, unprefixed, unprefixed, fn, ft, fc);
                 }
             }
         }
