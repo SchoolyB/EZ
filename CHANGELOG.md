@@ -1,5 +1,47 @@
 # Changelog
 
+## [3.8.6](https://github.com/SchoolyB/EZ/compare/v3.8.5...v3.8.6) (2026-07-10)
+
+
+### Bug Fixes
+
+* add depth limit to json.is_valid to prevent stack overflow on deeply nested input ([#2020](https://github.com/SchoolyB/EZ/issues/2020)) ([0914ab7](https://github.com/SchoolyB/EZ/commit/0914ab70c955166ed93e90f760b4fc2760c55563))
+* add optional host parameter to net.listen() and server.listen() to allow interface-specific binding ([#2017](https://github.com/SchoolyB/EZ/issues/2017)) ([63e84e6](https://github.com/SchoolyB/EZ/commit/63e84e6e37d01f6fd33be293064711f2a96b883e))
+* add scope_destroy() to release scope memory at all typechecker call sites ([b6a1ac6](https://github.com/SchoolyB/EZ/commit/b6a1ac6a680402b8debe9b4d7f1812a594641147))
+* add type_pool_reset() to free heap strings from type pool on shutdown ([f9ef806](https://github.com/SchoolyB/EZ/commit/f9ef806a08b0338d0d6766e86adf1456f650e1d9))
+* add typechecker_free() and typetable_free() to release typechecker memory ([dce12dc](https://github.com/SchoolyB/EZ/commit/dce12dc12ab8fb72bec24c79f06b6e9da6d9fc2a))
+* cap HTTP server at 1024 concurrent connections and apply 30s read timeout per connection ([#2011](https://github.com/SchoolyB/EZ/issues/2011)) ([7d2d30d](https://github.com/SchoolyB/EZ/commit/7d2d30d29b2a81cd139dddd4ec8a60c509408d46))
+* cap os.exec stdout/stderr collection at 64 MiB per stream to prevent memory exhaustion ([#2010](https://github.com/SchoolyB/EZ/issues/2010)) ([ae9b26d](https://github.com/SchoolyB/EZ/commit/ae9b26db48c628769a33671682a73e39de62c7b6))
+* correct element type parsing for nested bracket types in array initializers ([2b61fff](https://github.com/SchoolyB/EZ/commit/2b61fff149f65a6a4ad6bc9e714ef0f43d0c3272))
+* free global_init buffer in codegen_destroy() ([6b9ea93](https://github.com/SchoolyB/EZ/commit/6b9ea93349af0dca1700660d2bdbdee50841aae4))
+* heap-allocate builtin struct field arrays to prevent free-of-static crash ([60e273b](https://github.com/SchoolyB/EZ/commit/60e273bb9a4c32d241604f3164beb9efff162c6c))
+* initialize ns_func_names fields in codegen_create to prevent garbage free ([1ab0464](https://github.com/SchoolyB/EZ/commit/1ab0464c95d21b36884fb5745b0fc58d4944fa64))
+* json.encode always quotes map[string:string] values, escape all control chars ([#2019](https://github.com/SchoolyB/EZ/issues/2019)) ([c490066](https://github.com/SchoolyB/EZ/commit/c490066a89efd5224aede9e83487c3b9f40aa828))
+* reject CORS origins containing CR or LF to prevent HTTP header injection (P0101) ([#2009](https://github.com/SchoolyB/EZ/issues/2009)) ([3188d1d](https://github.com/SchoolyB/EZ/commit/3188d1d7ab7b176136ae71ecc5532d0087b743e8))
+* reject https:// URLs in http module with explicit error instead of silent plaintext fallback ([#2007](https://github.com/SchoolyB/EZ/issues/2007)) ([b25c633](https://github.com/SchoolyB/EZ/commit/b25c633b6812c83b3d92c526d4a2acfff4609f6a))
+* repair result-clobbering NULL and dangling stack pointers in typechecker ([#2040](https://github.com/SchoolyB/EZ/issues/2040), [#2045](https://github.com/SchoolyB/EZ/issues/2045)) ([e74831a](https://github.com/SchoolyB/EZ/commit/e74831a2218effa27963f1924316f3890bdfc90e))
+* report 'unexpected end of interpolation expression' instead of EOF in ${...} sub-parser ([#2018](https://github.com/SchoolyB/EZ/issues/2018)) ([ef0369d](https://github.com/SchoolyB/EZ/commit/ef0369d46d8806bd43127dadb5803935a93402d6))
+* resolve rvalue address-of bug in stdlib codegen ([#2053](https://github.com/SchoolyB/EZ/issues/2053), [#2052](https://github.com/SchoolyB/EZ/issues/2052)) ([2657125](https://github.com/SchoolyB/EZ/commit/2657125851c6e9b75bcccc6b3463071999570557))
+* resolve string enum element type in array indexing and iteration ([1a0956a](https://github.com/SchoolyB/EZ/commit/1a0956a2fb21c16bb3871a2774411c1e779f7a07))
+* resolve wildcard-returned enums as TK_ENUM instead of TK_STRUCT ([#2054](https://github.com/SchoolyB/EZ/issues/2054)) ([a90e756](https://github.com/SchoolyB/EZ/commit/a90e756db0e24193af8c65173ee010613c6481d1))
+* send HTTP request headers and body separately to remove 8KB body size limit ([#2013](https://github.com/SchoolyB/EZ/issues/2013)) ([8df4f3e](https://github.com/SchoolyB/EZ/commit/8df4f3edfbb94298d3bb67b937bc8aff03983121))
+* strdup type_array inputs and resolve remaining free-of-non-heap crashes ([ca7aa46](https://github.com/SchoolyB/EZ/commit/ca7aa46dffcc595affb2cf3b5e24f991ae73d4a8))
+* track and free struct-namespaced function name strings in codegen ([480c807](https://github.com/SchoolyB/EZ/commit/480c80772fc1de968ec7511e1067514b0c80377d))
+* use arena allocation for named-arg reorder buffer in tc_resolve_named_args() ([58cc8b4](https://github.com/SchoolyB/EZ/commit/58cc8b4aad74b134fec8db07566a8b30472e50c7))
+* use correct C type for integer enum array element access ([bb62a4a](https://github.com/SchoolyB/EZ/commit/bb62a4a37b72b85bc7fd00bda908b5456d9195d2))
+* use lvalue check in addr-of wrapping to preserve mutation semantics ([#2053](https://github.com/SchoolyB/EZ/issues/2053), [#2052](https://github.com/SchoolyB/EZ/issues/2052)) ([c8becba](https://github.com/SchoolyB/EZ/commit/c8becbaf1d4e5f61c0ec77ed195aa9cd32f6caa3))
+
+
+### Performance Improvements
+
+* add early-out for equal names in tc_same_enum_type and tc_same_struct_type ([#2043](https://github.com/SchoolyB/EZ/issues/2043)) ([79d9dc3](https://github.com/SchoolyB/EZ/commit/79d9dc3e73d0e92f6b25b60e3921c0bd4cadc11a))
+* add parallel index array to find_enum_index to eliminate O(n) scan after bsearch ([#2042](https://github.com/SchoolyB/EZ/issues/2042)) ([963cbfc](https://github.com/SchoolyB/EZ/commit/963cbfca6da9f3bc3f69bd85bd02295cf7b4ac0d))
+* cache tc_lookup_using_constant result to avoid double call ([#2040](https://github.com/SchoolyB/EZ/issues/2040)) ([180d0d7](https://github.com/SchoolyB/EZ/commit/180d0d794fc002cade869c814b34f38a116dd86c))
+* eliminate O(n) inner loop in tc_lookup_using_constant via pre-computed import index ([#2041](https://github.com/SchoolyB/EZ/issues/2041)) ([ce92138](https://github.com/SchoolyB/EZ/commit/ce921380d323f847601c8cb8c343fb544db9a964))
+* fix several remaining memory leaks in typechecker and codegen ([5f513eb](https://github.com/SchoolyB/EZ/commit/5f513eb055c4511cea4da502c80f9fb974d77bcf))
+* replace 202 unconditional stack diagnostic buffers with arena allocation via tc_fmt helper ([#2044](https://github.com/SchoolyB/EZ/issues/2044)) ([287ec00](https://github.com/SchoolyB/EZ/commit/287ec00c0a1a618770de997617e0efa3df3ba274))
+* replace strlen+sprintf heap allocs with snprintf into stack buffer in name-mangling paths ([#2045](https://github.com/SchoolyB/EZ/issues/2045)) ([1ee7731](https://github.com/SchoolyB/EZ/commit/1ee77310ecb043954076183602dcc228b0817d9b))
+
 ## [3.8.5](https://github.com/SchoolyB/EZ/compare/v3.8.4...v3.8.5) (2026-07-07)
 
 
