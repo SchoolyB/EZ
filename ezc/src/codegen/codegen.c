@@ -2408,7 +2408,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_MAP) c_elem = "EzMap";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_ENUM) {
-                    c_elem = cg_enum_is_string(cg, elem_tn) ? "EzString" : "int64_t";
+                    c_elem = cg_enum_is_string(cg, elem_tn)
+                        ? "EzString" : ez_type_to_c_cg(cg, elem_tn);
                 }
                 else if (et->kind == TK_POINTER) {
                     static char idx_ptr_buf[EZ_MSG_BUF_SIZE];
@@ -4863,7 +4864,8 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
             else if (et->kind == TK_BYTE) c_elem = "uint8_t";
             else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, arr_t->element_type);
             else if (et->kind == TK_ENUM) {
-                c_elem = cg_enum_is_string(cg, arr_t->element_type) ? "EzString" : "int64_t";
+                c_elem = cg_enum_is_string(cg, arr_t->element_type)
+                    ? "EzString" : ez_type_to_c_cg(cg, arr_t->element_type);
             }
         }
         if (expr_is_lvalue(node->data.call.args[0])) {
@@ -8719,7 +8721,8 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
                 else if (et->kind == TK_ENUM) {
-                    c_elem = cg_enum_is_string(cg, elem_tn) ? "EzString" : "int64_t";
+                    c_elem = cg_enum_is_string(cg, elem_tn)
+                        ? "EzString" : ez_type_to_c_cg(cg, elem_tn);
                 }
             }
 
