@@ -9079,6 +9079,9 @@ CodeGen codegen_create(const char *file) {
     cg.scope_arenas = NULL;
     cg.scope_arena_count = 0;
     cg.scope_arena_cap = 0;
+    cg.ns_func_names = NULL;
+    cg.ns_func_name_count = 0;
+    cg.ns_func_name_cap = 0;
     return cg;
 }
 
