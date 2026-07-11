@@ -102,9 +102,9 @@ The following words are reserved and may not be used as identifiers:
 **Control flow:**
 ```
 as_long_as   break       continue    default
-ensure       for         for_each    if          is
-loop         or          or_return   otherwise   return
-when         while
+else         ensure      for         for_each    if
+is           loop        or          or_return   otherwise
+return       when        while
 ```
 
 **Declarations:**
@@ -135,6 +135,15 @@ bit_and      bit_not     bit_or      bit_shift_left   bit_shift_right
 bit_xor      cast        false       in          not_in      range
 true
 ```
+
+#### Syntax Aliases
+
+Some keywords have shorter or more familiar aliases. Both forms are identical and produce the same token:
+
+| Alias   | Canonical      | Purpose              |
+|---------|----------------|----------------------|
+| `else`  | `otherwise`    | Default branch       |
+| `while` | `as_long_as`   | Condition loop       |
 
 ### 2.6 Operators and Punctuation
 
@@ -1151,6 +1160,10 @@ if x < 0 {
 The `or` keyword introduces additional conditions (similar to `else if` in other languages).
 
 The `otherwise` keyword introduces the default case (similar to `else`).
+
+`else` is an alias for `otherwise`. Both are valid, user's choice.
+
+> 💡 **Flip's Tip:** `else` and `otherwise` are identical. Pick whichever reads more naturally to you and stick with it.
 
 ### 6.3 Loop Statements
 

@@ -29,6 +29,7 @@ static const KeywordEntry keywords[] = {
     {"continue",    TOK_CONTINUE},
     {"default",     TOK_DEFAULT},
     {"do",          TOK_DO},
+    {"else",        TOK_OTHERWISE},
     {"ensure",      TOK_ENSURE},
     {"enum",        TOK_ENUM},
     {"false",       TOK_FALSE},
