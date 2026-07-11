@@ -974,7 +974,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"time", "to_iso", 1, 1}, {"time", "date", 1, 1}, {"time", "to_clock", 1, 1},
     {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1}, {"time", "diff", 2, 2},
     /* os */
-    {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2},
+    {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2}, {"os", "unset_env", 1, 1},
     {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
     {"os", "hostname", 0, 0}, {"os", "pid", 0, 0},
     {"os", "current_os", 0, 0}, {"os", "arch", 0, 0},
@@ -1660,7 +1660,7 @@ static const UsingFunc _using_funcs[] = {
     {"normalize","io",TK_STRING},
     /* os */
     {"args","os",TK_ARRAY},{"get_env","os",TK_STRING},
-    {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
+    {"set_env","os",TK_VOID},{"unset_env","os",TK_VOID},{"current_dir","os",TK_STRING},
     {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
     {"current_os","os",TK_INT},{"pid","os",TK_INT},
     {"exec","os",TK_BOOL},
@@ -4139,7 +4139,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "set_env") == 0) {
+                } else if (strcmp(mfn, "set_env") == 0 || strcmp(mfn, "unset_env") == 0) {
                     result = &TYPE_VOID;
                 } else if (strcmp(mfn, "exec") == 0) {
                     result = &TYPE_BOOL;

@@ -3006,6 +3006,7 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 |----------|-----------|-------------|
 | `get_env` | `(name string) -> string` | Get environment variable |
 | `set_env` | `(name string, value string)` | Set environment variable |
+| `unset_env` | `(name string)` | Remove environment variable |
 
 #### System Information
 

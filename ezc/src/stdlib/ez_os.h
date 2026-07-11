@@ -53,6 +53,21 @@ EzString ez_os_get_env(EzArena *arena, EzString name);
 /* os.set_env(name, value) */
 void ez_os_set_env(EzString name, EzString value);
 
+/*@man unset_env
+ *@module os
+ *@group Environment
+ *@sig unset_env(name string)
+ *@desc Removes the environment variable with the given name from the current process. Does nothing if the variable is not set.
+ *@example
+ *   import @os
+ *   os.set_env("MY_VAR", "hello")
+ *   os.unset_env("MY_VAR")
+ *   println(os.get_env("MY_VAR"))  // ""
+ *@end
+ */
+/* os.unset_env(name) — remove environment variable */
+void ez_os_unset_env(EzString name);
+
 /*@man current_dir
  *@module os
  *@group System

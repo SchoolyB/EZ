@@ -5348,6 +5348,12 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "unset_env") == 0) {
+        emit(cg, "ez_os_unset_env(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "exec") == 0) {
         emit(cg, "ez_os_exec(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
@@ -5965,7 +5971,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"path_join","io"},{"dirname","io"},{"basename","io"},
                 {"extension","io"},{"normalize","io"},
                 /* @os */
-                {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
+                {"args","os"},{"get_env","os"},{"set_env","os"},{"unset_env","os"},{"current_dir","os"},
                 {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
                 {"exec","os"},
                 /* @time */
