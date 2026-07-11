@@ -3829,7 +3829,7 @@ The `ez` command-line tool provides the following commands:
 | `ez fmt <path>` | Format source files |
 | `ez doc <path>` | Generate documentation from `#doc` attributes |
 | `ez pz <name>` | Scaffold a new project |
-| `ez man <name>` | Show documentation for builtins and stdlib |
+| `ez man <name>` | Show documentation for builtins, stdlib, and language reference |
 | `ez report` | Print system info for bug reports |
 | `ez update` | Check for updates and upgrade |
 | `ez install <version>` | Install a specific version by exact semver |
@@ -3993,7 +3993,7 @@ ez pz                          # interactive mode
 
 ### 13.8 `ez man`
 
-Show documentation for builtin functions, stdlib modules, and stdlib types.
+Show documentation for builtin functions, stdlib modules, stdlib types, and language reference (keywords, types, symbols, attributes).
 
 ```
 ez man [name]
@@ -4006,6 +4006,11 @@ ez man [name]
 | `<module>` | List all functions and types in a stdlib module. |
 | `<name>` | Show documentation for a specific function or type. |
 | `<module>.<name>` | Qualified lookup to resolve ambiguity. |
+| `lang` | Overview of all language reference categories. |
+| `keywords` | List all keywords by category. |
+| `types` | List all types by category. |
+| `symbols` | List all symbols. |
+| `attributes` | List all attributes. |
 
 ```bash
 ez man
@@ -4013,9 +4018,16 @@ ez man builtins
 ez man math
 ez man println
 ez man strings.contains
+ez man lang
+ez man keywords
+ez man struct
+ez man i8
+ez man flags
 ```
 
 > 💡 **Flip's Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `ez` sees them. Use the name alone: `ez man println`, not `ez man println()`.
+
+> 💡 **Flip's Tip:** For attributes, omit the `#` prefix — the shell treats `#` as a comment. Use `ez man flags`, not `ez man #flags`.
 
 ### 13.9 `ez report`
 
