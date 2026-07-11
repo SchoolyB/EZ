@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - arrays.insert_at() index must be int
+ * Expected: E3001 error
+ */
+
+import @arrays
+
+do main() {
+    mut names [string] = {"hello", "world"}
+    arrays.insert_at(names, "bad", "value")
+}

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - arrays.remove_at() index must be int
+ * Expected: E3001 error
+ */
+
+import @arrays
+
+do main() {
+    mut names [string] = {"hello", "world"}
+    arrays.remove_at(names, names[0])
+}

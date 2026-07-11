@@ -3940,6 +3940,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
+                /* E3001: arrays.remove_at/insert_at index must be int */
+                if ((strcmp(mfn, "remove_at") == 0 && node->data.call.arg_count >= 2) ||
+                    (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 2)) {
+                    AstNode *idx_node = node->data.call.args[1];
+                    EzType *idx_t = resolve_expr(tc, idx_node);
+                    if (idx_t && idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind)) {
+                        char *msg = NULL;
+                        msg = tc_fmt(tc,
+                            "arrays.%s() expects an int index, got %s",
+                            mfn, type_name(idx_t));
+                        diag_error_msg(tc->diag, "E3001", msg,
+                            NODE_FILE(tc, idx_node), idx_node->token.line, idx_node->token.column, 0);
+                    }
+                }
                 /* E9002: arrays.sum/min/max require numeric array */
                 if ((strcmp(mfn, "sum") == 0 || strcmp(mfn, "min") == 0 ||
                      strcmp(mfn, "max") == 0) && node->data.call.arg_count > 0) {
