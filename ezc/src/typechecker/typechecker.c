@@ -2661,7 +2661,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* String + string: reject with helpful message */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) && op == TOK_PLUS) {
-            diag_error_code(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "use string interpolation \"${a}${b}\" or fmt.format() to combine strings");
             infix_errored = true;
         }
 
@@ -5602,8 +5603,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     msg = tc_fmt(tc,
                         "cannot convert %s to %s; only numeric types, strings, and bools can be converted",
                         type_name(src_t), fn_name);
-                    diag_error_msg(tc->diag, "E3043", msg,
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    diag_error_help(tc->diag, "E3043", msg,
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        "only numeric, enum, and string conversions are supported");
                 }
                 if (strcmp(fn_name, "byte") == 0)
                     result = &TYPE_BYTE;
@@ -7053,8 +7055,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 msg = tc_fmt(tc,
                     "cannot cast '%s' to '%s'",
                     tn, node->data.cast.target_type);
-                diag_error_msg(tc->diag, "E3043", msg,
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                diag_error_help(tc->diag, "E3043", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "only primitive-to-primitive casts are supported (e.g. cast(x, int), cast(x, string))");
             }
         }
         result = dst_t;
@@ -7648,7 +7651,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* E3059: maps cannot be declared const */
         if (!node->data.var_decl.mutable && node->data.var_decl.type_name &&
             strncmp(node->data.var_decl.type_name, "map[", 4) == 0) {
-            diag_error_code(tc->diag, "E3059", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3059", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "change 'const' to 'mut'; use a struct for fixed key-value data");
         }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
@@ -7668,11 +7672,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
             strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
             if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
-                diag_error_code(tc->diag, "E3050",
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                diag_error_code_help(tc->diag, "E3050",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "add a type annotation, e.g. mut x [int] = {1, 2, 3}");
             } else if (node->data.var_decl.value->kind == NODE_MAP_VALUE) {
-                diag_error_code(tc->diag, "E3051",
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                diag_error_code_help(tc->diag, "E3051",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "add a type annotation, e.g. mut x [string:int] = {\"a\": 1}");
             }
         }
 
@@ -7699,13 +7705,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 tn = node->data.var_decl.type_name;
             }
             if (node->data.var_decl.mutable && has_size) {
-                diag_error_codef(tc->diag, "E3054", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
-                    (int)(size_comma - tn), tn);
+                char *msg = tc_fmt(tc, "mutable array '%s' cannot have a fixed size '%.*s'",
+                    VAR_DISPLAY_NAME(node), (int)(size_comma - tn), tn);
+                diag_error_help(tc->diag, "E3054", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "use 'const' for fixed-size arrays, or remove the size for a dynamic 'mut' array");
             } else if (!node->data.var_decl.mutable && !has_size) {
-                diag_error_codef(tc->diag, "E3055", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
-                    (int)(strlen(tn) - 2), tn + 1,
-                    node->data.var_decl.value && node->data.var_decl.value->kind == NODE_ARRAY_VALUE
-                        ? node->data.var_decl.value->data.array_value.count : 0);
+                char *msg = tc_fmt(tc, "const array '%s' of type [%.*s] must have a fixed size",
+                    VAR_DISPLAY_NAME(node), (int)(strlen(tn) - 2), tn + 1);
+                diag_error_help(tc->diag, "E3055", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "add a size: const name [type, N] = {...}, or use 'mut' for a dynamic array");
             }
         }
 
@@ -9323,9 +9333,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         char full[EZ_MSG_BUF_SIZE];
                         const char *display_obj = struct_display_name(tc, obj_name);
                         snprintf(full, sizeof(full), "%s.%s()", display_obj, mem_name);
-                        diag_error_codef(tc->diag, "E5011",
+                        char *msg = tc_fmt(tc, "return value of '%s' is not used", full);
+                        diag_error_help(tc->diag, "E5011", msg,
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                            full);
+                            "assign the result to a variable, or use 'mut _ = ...' to discard it");
                     }
                     is_side_effect = true; /* already handled */
                 }
@@ -9333,9 +9344,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (!is_side_effect && fn_name) {
                 char full[EZ_MSG_BUF_SIZE];
                 snprintf(full, sizeof(full), "%s()", fn_name);
-                diag_error_codef(tc->diag, "E5011",
+                char *msg = tc_fmt(tc, "return value of '%s' is not used", full);
+                diag_error_help(tc->diag, "E5011", msg,
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                    full);
+                    "assign the result to a variable, or use 'mut _ = ...' to discard it");
             }
         }
         /* : double-free detection for mem.destroy() */
@@ -9750,7 +9762,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                 }
                 if (prev_has_default) {
-                    diag_error_codef(tc->diag, "E2039", NODE_FILE(tc, node), node->token.line, node->token.column, 0, p->name);
+                    char *msg = tc_fmt(tc, "required parameter '%s' follows a parameter with a default value", p->name);
+                    diag_error_help(tc->diag, "E2039", msg,
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        "move all parameters with default values to the end of the parameter list");
                 }
             }
             /* E3119: fixed-size array in function parameter */
@@ -9767,8 +9782,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     char elem[EZ_MSG_BUF_SIZE];
                     int elem_len = (int)(size_comma - tn - 1);
                     snprintf(elem, sizeof(elem), "%.*s", elem_len, tn + 1);
-                    diag_error_codef(tc->diag, "E3119", NODE_FILE(tc, node),
-                        node->token.line, node->token.column, 0, elem, tn, p->name);
+                    char *msg = tc_fmt(tc, "fixed-size array type '%s' is not allowed in function parameter '%s'; use [%s] instead",
+                        tn, p->name, elem);
+                    diag_error_help(tc->diag, "E3119", msg,
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        "use a dynamic array type instead, e.g. [int] without a size");
                 }
             }
             EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
