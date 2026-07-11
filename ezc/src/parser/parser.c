@@ -279,6 +279,20 @@ static const char *parse_complex_type(Parser *p) {
                 next_token(p);
             }
             const char *inner = read_type_name(p);
+            if (peek_token_is(p, TOK_COLON)) {
+                /* Last bracket was map shorthand: [[K:V]] = [map[K:V]] */
+                depth--;
+                next_token(p); /* skip : */
+                next_token(p); /* value type */
+                const char *val_type = parse_complex_type(p);
+                if (!val_type) return NULL;
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                size_t klen = strlen(inner), vlen = strlen(val_type);
+                size_t map_len = klen + vlen + 7;
+                char *map_str = arena_alloc(p->arena, map_len);
+                snprintf(map_str, map_len, "map[%s:%s]", inner, val_type);
+                inner = map_str;
+            }
             for (int d = 0; d < depth; d++) {
                 if (!expect_peek(p, TOK_RBRACKET)) return NULL;
             }
@@ -331,7 +345,19 @@ static const char *parse_complex_type(Parser *p) {
             return NULL;
         } else {
             const char *elem = read_type_name(p);
-            if (peek_token_is(p, TOK_COMMA)) {
+            if (peek_token_is(p, TOK_COLON)) {
+                /* Map shorthand: [K:V] → normalized to "map[K:V]" */
+                next_token(p); /* skip : */
+                next_token(p); /* value type */
+                const char *val_type = parse_complex_type(p);
+                if (!val_type) return NULL;
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                size_t klen = strlen(elem), vlen = strlen(val_type);
+                size_t ts_len = klen + vlen + 7;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "map[%s:%s]", elem, val_type);
+                return type_str;
+            } else if (peek_token_is(p, TOK_COMMA)) {
                 /* Fixed-size array: [int, 3] */
                 next_token(p); /* skip , */
                 next_token(p); /* size */

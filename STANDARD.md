@@ -145,6 +145,8 @@ Some keywords have shorter or more familiar aliases. Both forms are identical an
 | `else`  | `otherwise`    | Default branch       |
 | `while` | `as_long_as`   | Condition loop       |
 
+> 💡 **Flip's Tip:** The `map` keyword is optional in type position — `[string:int]` and `map[string:int]` are identical. The parser normalizes both to the same canonical form.
+
 ### 2.6 Operators and Punctuation
 
 ```
@@ -446,22 +448,33 @@ Array indexing is zero-based. Accessing an index outside the valid range produce
 
 #### 3.2.2 Maps
 
-Maps are unordered collections of key-value pairs.
+Maps are unordered collections of key-value pairs. The `map` keyword is optional — `[K:V]` and `map[K:V]` are identical:
 
 ```ez
-mut ages map[string:int] = {
+mut ages [string:int] = {
     "alice": 30,
     "bob": 25
 }
-mut empty map[string:int] = {:}  // Empty map
+mut empty [string:int] = {:}  // Empty map
+
+// Long form is also valid:
+mut scores map[string:int] = {"math": 95}
 ```
 
 > 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array; the colon is the tell!
 
 ```ez
 mut arr [int] = {}       // Empty array
-mut m map[string:int] = {:}  // Empty map
+mut m [string:int] = {:}  // Empty map
 ```
+
+**Bracket disambiguation:**
+
+| Syntax    | Meaning                   | Example                   |
+|-----------|---------------------------|---------------------------|
+| `[T]`     | Dynamic array of `T`      | `[int]`                   |
+| `[T,N]`   | Fixed-size array of `T`   | `[int,3]`                 |
+| `[K:V]`   | Map from `K` to `V`       | `[string:int]`            |
 
 Maps must be declared with `mut`. Declaring a map with `const` is a compile-time error. If the keys are known at compile time, use a struct instead.
 

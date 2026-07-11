@@ -139,7 +139,7 @@
     EZ_ERROR("E3048", "types", "operator '+' is not defined for strings; use string interpolation or fmt.format() instead") \
     EZ_ERROR("E3049", "types", "cannot use '%s' on enum values; enums only support == and != comparisons") \
     EZ_ERROR("E3050", "types", "array needs a type annotation; declare as [T] (e.g., mut x [int] = {1, 2, 3})") \
-    EZ_ERROR("E3051", "types", "map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})") \
+    EZ_ERROR("E3051", "types", "map needs a type annotation; declare as [K:V] or map[K:V] (e.g., mut x [string:int] = {\"a\": 1})") \
     EZ_ERROR("E3052", "types", "too many elements in array initializer; declared size is %d, got %d") \
     EZ_ERROR("E3053", "types", "type mismatch in array initializer; expected '%s', got '%s'") \
     EZ_ERROR("E3054", "types", "mutable arrays cannot have a fixed size; remove the size or use 'const' (e.g., mut %s %.*s] = ...)") \
