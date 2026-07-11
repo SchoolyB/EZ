@@ -918,7 +918,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "to_upper", 1, 1}, {"strings", "to_lower", 1, 1},
     {"strings", "is_empty", 1, 1}, {"strings", "contains", 2, 2},
     {"strings", "starts_with", 2, 2}, {"strings", "ends_with", 2, 2},
-    {"strings", "index_of", 2, 2}, {"strings", "count", 2, 2},
+    {"strings", "index_of", 2, 2}, {"strings", "last_index_of", 2, 2}, {"strings", "count", 2, 2},
     {"strings", "trim", 1, 1}, {"strings", "trim_left", 1, 1},
     {"strings", "trim_right", 1, 1}, {"strings", "replace", 3, 3},
     {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
@@ -1146,13 +1146,15 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "to_upper", 0, ARG_STRING}, {"strings", "to_lower", 0, ARG_STRING},
     {"strings", "is_empty", 0, ARG_STRING}, {"strings", "contains", 0, ARG_STRING},
     {"strings", "starts_with", 0, ARG_STRING}, {"strings", "ends_with", 0, ARG_STRING},
-    {"strings", "index_of", 0, ARG_STRING}, {"strings", "count", 0, ARG_STRING},
+    {"strings", "index_of", 0, ARG_STRING}, {"strings", "last_index_of", 0, ARG_STRING},
+    {"strings", "count", 0, ARG_STRING},
     {"strings", "trim", 0, ARG_STRING}, {"strings", "trim_left", 0, ARG_STRING},
     {"strings", "trim_right", 0, ARG_STRING}, {"strings", "replace", 0, ARG_STRING},
     {"strings", "repeat", 0, ARG_STRING}, {"strings", "reverse", 0, ARG_STRING},
     {"strings", "split", 0, ARG_STRING}, {"strings", "slice", 0, ARG_STRING},
     {"strings", "contains", 1, ARG_STRING}, {"strings", "starts_with", 1, ARG_STRING},
     {"strings", "ends_with", 1, ARG_STRING}, {"strings", "index_of", 1, ARG_STRING},
+    {"strings", "last_index_of", 1, ARG_STRING},
     {"strings", "count", 1, ARG_STRING}, {"strings", "replace", 1, ARG_STRING},
     {"strings", "replace", 2, ARG_STRING}, {"strings", "split", 1, ARG_STRING},
     {"strings", "repeat", 1, ARG_INT},
@@ -1563,7 +1565,7 @@ static const UsingFunc _using_funcs[] = {
     {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
     {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     {"char_at","strings",TK_CHAR},
-    {"index_of","strings",TK_INT},{"count","strings",TK_INT},
+    {"index_of","strings",TK_INT},{"last_index_of","strings",TK_INT},{"count","strings",TK_INT},
     {"split","strings",TK_ARRAY},
     {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
     {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
@@ -3632,6 +3634,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "char_at") == 0) {
                     result = &TYPE_CHAR;
                 } else if (strcmp(mfn, "index_of") == 0 ||
+                           strcmp(mfn, "last_index_of") == 0 ||
                            strcmp(mfn, "count") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "split") == 0) {

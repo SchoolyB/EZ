@@ -123,6 +123,19 @@ bool ez_strings_ends_with(EzString s, EzString suffix);
  */
 int64_t ez_strings_index_of(EzString s, EzString sub);
 
+/*@man last_index_of
+ *@module strings
+ *@group Query
+ *@sig last_index_of(s string, sub string) -> int
+ *@desc Returns the byte index of the last occurrence of sub in s, or -1 if not found.
+ *@example
+ *   import @strings
+ *   println(strings.last_index_of("hello world hello", "hello"))
+ *   println(strings.last_index_of("hello world", "xyz"))
+ *@end
+ */
+int64_t ez_strings_last_index_of(EzString s, EzString sub);
+
 /*@man count
  *@module strings
  *@group Query

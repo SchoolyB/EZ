@@ -5861,7 +5861,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"trim_left","strings"},{"trim_right","strings"},{"replace","strings"},
                 {"repeat","strings"},{"reverse","strings"},{"slice","strings"},
                 {"join","strings"},{"contains","strings"},{"starts_with","strings"},
-                {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},
+                {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},{"last_index_of","strings"},
                 {"count","strings"},{"split","strings"},
                 {"char_at","strings"},
                 {"is_alpha","strings"},{"is_digit","strings"},{"is_alnum","strings"},

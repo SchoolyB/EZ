@@ -73,6 +73,15 @@ int64_t ez_strings_index_of(EzString s, EzString sub) {
     return -1;
 }
 
+int64_t ez_strings_last_index_of(EzString s, EzString sub) {
+    if (sub.len == 0) return s.len;
+    if (sub.len > s.len) return -1;
+    for (int32_t i = s.len - sub.len; i >= 0; i--) {
+        if (memcmp(s.data + i, sub.data, (size_t)sub.len) == 0) return i;
+    }
+    return -1;
+}
+
 int64_t ez_strings_count(EzString s, EzString sub) {
     if (sub.len == 0) return 0;
     int64_t count = 0;

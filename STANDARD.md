@@ -2557,6 +2557,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
 | `index_of` | `(s string, sub string) -> int` | First index of substring |
+| `last_index_of` | `(s string, sub string) -> int` | Last index of substring (-1 if not found) |
 | `count` | `(s string, sub string) -> int` | Count occurrences |
 
 #### Classification Functions
