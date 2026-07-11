@@ -32,6 +32,12 @@ EzSpinLock ez_atomic_mod_spinlock(void) {
     return result;
 }
 
+void ez_atomic_mod_spinlock_destroy(EzSpinLock lk) {
+    if (lk._internal) {
+        free(lk._internal);
+    }
+}
+
 void ez_atomic_mod_spin_lock(EzSpinLock lk) {
     if (lk._internal) {
         ez_spin_lock((int32_t *)lk._internal);

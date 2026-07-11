@@ -1050,7 +1050,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"atomic", "add", 2, 2}, {"atomic", "sub", 2, 2},
     {"atomic", "exchange", 2, 2}, {"atomic", "cas", 3, 3},
     {"atomic", "and", 2, 2}, {"atomic", "or", 2, 2}, {"atomic", "xor", 2, 2},
-    {"atomic", "spinlock", 0, 0}, {"atomic", "spin_lock", 1, 1},
+    {"atomic", "spinlock", 0, 0}, {"atomic", "spinlock_destroy", 1, 1},
+    {"atomic", "spin_lock", 1, 1},
     {"atomic", "spin_trylock", 1, 1}, {"atomic", "spin_unlock", 1, 1},
     {"atomic", "fence", 0, 0},
     /* fmt */
@@ -1742,7 +1743,8 @@ static const UsingFunc _using_funcs[] = {
     {"add","atomic",TK_INT},{"sub","atomic",TK_INT},
     {"exchange","atomic",TK_INT},{"cas","atomic",TK_BOOL},
     {"and","atomic",TK_INT},{"or","atomic",TK_INT},{"xor","atomic",TK_INT},
-    {"spinlock","atomic",TK_UNKNOWN},{"spin_lock","atomic",TK_VOID},
+    {"spinlock","atomic",TK_UNKNOWN},{"spinlock_destroy","atomic",TK_VOID},
+    {"spin_lock","atomic",TK_VOID},
     {"spin_trylock","atomic",TK_BOOL},{"spin_unlock","atomic",TK_VOID},
     {"fence","atomic",TK_VOID},
     /* channels */
@@ -4240,7 +4242,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_struct("SpinLock"); /* EzSpinLock; opaque */
                 } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "fence") == 0 ||
                            strcmp(mfn, "spin_lock") == 0 ||
-                           strcmp(mfn, "spin_unlock") == 0) {
+                           strcmp(mfn, "spin_unlock") == 0 ||
+                           strcmp(mfn, "spinlock_destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);

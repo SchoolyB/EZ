@@ -5771,7 +5771,8 @@ static bool emit_atomic_call(CodeGen *cg, AstNode *node, const char *func) {
     /* Single-argument functions: load, spin_lock, spin_unlock, spin_trylock */
     if (node->data.call.arg_count == 1) {
         if (strcmp(func, "load") == 0 || strcmp(func, "spin_lock") == 0 ||
-            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0) {
+            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0 ||
+            strcmp(func, "spinlock_destroy") == 0) {
             emitf(cg, "ez_atomic_mod_%s(", func);
             emit_expression(cg, node->data.call.args[0]);
             emit(cg, ")");
@@ -6028,7 +6029,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* @atomic */
                 {"load","atomic"},{"store","atomic"},{"add","atomic"},{"sub","atomic"},
                 {"exchange","atomic"},{"cas","atomic"},{"and","atomic"},{"or","atomic"},
-                {"xor","atomic"},{"spinlock","atomic"},{"spin_lock","atomic"},
+                {"xor","atomic"},{"spinlock","atomic"},{"spinlock_destroy","atomic"},{"spin_lock","atomic"},
                 {"spin_trylock","atomic"},{"spin_unlock","atomic"},{"fence","atomic"},
                 /* @channels */
                 {"open","channels"},{"send","channels"},{"receive","channels"},{"close","channels"},

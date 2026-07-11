@@ -32,6 +32,7 @@ int64_t ez_atomic_mod_xor(int64_t *ptr, int64_t val);
 
 /* Spinlock */
 EzSpinLock ez_atomic_mod_spinlock(void);
+void       ez_atomic_mod_spinlock_destroy(EzSpinLock lk);
 void       ez_atomic_mod_spin_lock(EzSpinLock lk);
 bool       ez_atomic_mod_spin_trylock(EzSpinLock lk);
 void       ez_atomic_mod_spin_unlock(EzSpinLock lk);
