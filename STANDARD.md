@@ -2061,6 +2061,77 @@ mut y = first({"a", "b"})     // ? binds to string
 - All subsequent `?` parameters and the return type must be consistent with that binding
 - If the return type uses `?`, at least one parameter must also use `?` to provide the binding
 
+### 7.10 Type Parameters (`<?>`)
+
+The `<?>` annotation allows a function parameter to accept a struct type name rather than a value. This enables reusable constructors and type-aware utility functions.
+
+```ez
+const Point struct {
+    x int
+    y int
+}
+
+do make(T <?>) -> ^? {
+    return new(T)
+}
+
+mut p = make(Point)    // allocates a new Point, returns ^Point
+```
+
+The type parameter `T` is resolved at each call site using the same monomorphization pipeline as value wildcards (`?`). The compiler generates a specialized function for each concrete type used.
+
+#### Where `T` can be used inside the function body
+
+A type parameter name is valid in these positions:
+
+| Usage | Example | Result |
+|-------|---------|--------|
+| `new(T)` | `new(T)` | Heap-allocates an instance of `T` |
+| Struct literal | `T{x: 1, y: 2}` | Constructs a stack instance of `T` |
+| `size_of(T)` | `size_of(T)` | Returns the size of `T` in bytes |
+
+#### Return type inference
+
+The return type uses `?` the same way as value wildcards. `-> ^?` resolves to a pointer to the type argument, `-> ?` resolves to the type argument itself:
+
+```ez
+do make(T <?>) -> ^? {
+    return new(T)
+}
+
+do make_stack(T <?>) -> ? {
+    return T{}
+}
+
+mut p = make(Point)          // -> ^Point
+mut s = make_stack(Point)    // -> Point
+```
+
+#### Restrictions
+
+**No mixing type and value parameters (E2087):**
+
+Type parameters and value parameters cannot appear in the same function signature:
+
+```ez
+do bad(T <?>, x int) -> ^? {     // Error E2087
+    return new(T)
+}
+```
+
+**Only struct types allowed (E3127, E3128):**
+
+Only struct type names may be passed as type arguments. Enums, primitives, and expressions are rejected:
+
+```ez
+const Color enum { RED, GREEN, BLUE }
+
+mut p = make(Point)    // OK — Point is a struct
+mut c = make(Color)    // Error E3127 — Color is not a struct
+mut x = make(int)      // Error E3127 — int is not a struct
+mut y = make(1 + 2)    // Error E3128 — not a type name
+```
+
 ---
 
 ## 8. Modules
