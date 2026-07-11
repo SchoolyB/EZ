@@ -968,7 +968,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"time", "hour", 1, 1}, {"time", "minute", 1, 1}, {"time", "second", 1, 1},
     {"time", "weekday", 1, 1}, {"time", "format", 2, 2},
     {"time", "to_iso", 1, 1}, {"time", "date", 1, 1}, {"time", "to_clock", 1, 1},
-    {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1},
+    {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1}, {"time", "diff", 2, 2},
     /* os */
     {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2},
     {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
@@ -1649,7 +1649,7 @@ static const UsingFunc _using_funcs[] = {
     {"exec","os",TK_BOOL},
     /* time */
     {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
-    {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
+    {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},{"diff","time",TK_INT},
     {"year","time",TK_INT},{"month","time",TK_INT},{"day","time",TK_INT},
     {"hour","time",TK_INT},{"minute","time",TK_INT},{"second","time",TK_INT},
     {"weekday","time",TK_INT},
@@ -3669,7 +3669,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "now") == 0 || strcmp(mfn, "now_ms") == 0 ||
                            strcmp(mfn, "now_ns") == 0 || strcmp(mfn, "tick") == 0 ||
-                           strcmp(mfn, "elapsed_ms") == 0 ||
+                           strcmp(mfn, "elapsed_ms") == 0 || strcmp(mfn, "diff") == 0 ||
                            strcmp(mfn, "year") == 0 || strcmp(mfn, "month") == 0 ||
                            strcmp(mfn, "day") == 0 || strcmp(mfn, "hour") == 0 ||
                            strcmp(mfn, "minute") == 0 || strcmp(mfn, "second") == 0 ||

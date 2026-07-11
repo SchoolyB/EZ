@@ -2738,6 +2738,12 @@ Unless noted otherwise, all math functions accept `int`, `float`, and sized nume
 | `date` | `(timestamp int) -> string` | Date (YYYY-MM-DD) |
 | `to_clock` | `(timestamp int) -> string` | Time (HH:MM:SS) |
 
+#### Arithmetic
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `diff` | `(t1 int, t2 int) -> int` | Difference in seconds (t2 - t1); negative if t1 is after t2 |
+
 #### Performance Timing
 
 | Function | Signature | Description |

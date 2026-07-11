@@ -57,6 +57,8 @@ EzString ez_time_to_clock(EzArena *arena, int64_t ts) {
     return ez_time_format(arena, ez_string_lit("%H:%M:%S"), ts);
 }
 
+int64_t ez_time_diff(int64_t t1, int64_t t2) { return t2 - t1; }
+
 int64_t ez_time_tick(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

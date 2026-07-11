@@ -5925,7 +5925,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"exec","os"},
                 /* @time */
                 {"now","time"},{"now_ms","time"},{"now_ns","time"},{"tick","time"},
-                {"elapsed_ms","time"},{"year","time"},{"month","time"},{"day","time"},
+                {"elapsed_ms","time"},{"diff","time"},{"year","time"},{"month","time"},{"day","time"},
                 {"hour","time"},{"minute","time"},{"second","time"},{"weekday","time"},
                 {"format","time"},{"to_iso","time"},{"date","time"},{"to_clock","time"},
                 /* @uuid */
