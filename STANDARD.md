@@ -604,6 +604,8 @@ const Direction enum {
 
 > 💡 **Flip's Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number.
 
+> 💡 **Flip's Tip:** If you genuinely need to compare an enum value against an integer, use `cast()` to bridge the gap: `if cast(Direction.NORTH, int) == 0 { ... }`. You can also cast the other way: `cast(0, Direction)`.
+
 **Flags enums** (powers of 2, annotated with `#flags`):
 
 ```ez
