@@ -97,7 +97,8 @@
     EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value") \
     EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result") \
     EZ_ERROR("E2085", "syntax", "when statement already has a default branch; only one default is allowed") \
-    EZ_ERROR("E2086", "syntax", "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range")
+    EZ_ERROR("E2086", "syntax", "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range") \
+    EZ_ERROR("E2087", "syntax", "type parameters (<?>) cannot be mixed with value parameters in the same function")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -213,7 +214,9 @@
     EZ_ERROR("E3123", "iteration", "for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count") \
     EZ_ERROR("E3124", "types", "operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or !=") \
     EZ_ERROR("E3125", "types", "'%s' is not a compile-time integer constant; array size must be a const int/uint value") \
-    EZ_ERROR("E3126", "types", "array size must be greater than zero; '%s' resolves to %d")
+    EZ_ERROR("E3126", "types", "array size must be greater than zero; '%s' resolves to %d") \
+    EZ_ERROR("E3127", "types", "type parameter expects a struct type name, but '%s' is not a struct; only struct types can be passed as type arguments") \
+    EZ_ERROR("E3128", "types", "type parameter expects a struct type name, but got a non-type expression; pass a struct type name like 'MyStruct'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

@@ -1541,8 +1541,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     case NODE_STRUCT_VALUE: {
         /* Struct literal: (EzStruct_Name){.field = value, ...} */
-        /* Resolve unprefixed struct names from 'import and use' */
+        /* Resolve ? → concrete binding for type params */
         const char *sname = node->data.struct_value.name;
+        if (strcmp(sname, "?") == 0 && cg->wildcard_binding) {
+            sname = cg->wildcard_binding;
+        }
+        /* Resolve unprefixed struct names from 'import and use' */
         if (sname[0] >= 'A' && sname[0] <= 'Z') {
             bool found = false;
             for (int si = 0; si < cg->struct_decl_count; si++) {
@@ -2719,6 +2723,10 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
          * zero-filled EzMap/EzArray has key_size/value_size/elem_size = 0
          * and operations on them silently fail. */
         const char *sname = node->data.new_expr.type_name;
+        /* Resolve ? → concrete binding for type params */
+        if (strcmp(sname, "?") == 0 && cg->wildcard_binding) {
+            sname = cg->wildcard_binding;
+        }
         const char *c_type = ez_type_to_c_cg(cg, sname);
         AstNode *sdecl = find_struct_decl(cg, sname);
         bool needs_init = false;
@@ -6419,6 +6427,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             int ac = node->data.call.arg_count;
             int cc = pc < ac ? pc : ac;
             for (int pi = 0; pi < cc && !binding; pi++) {
+                /* Type parameter: binding is the arg label directly */
+                if (target_func->data.func_decl.params[pi].is_type_param) {
+                    if (node->data.call.args[pi]->kind == NODE_LABEL) {
+                        binding = node->data.call.args[pi]->data.label.value;
+                    }
+                    continue;
+                }
                 const char *ptn = target_func->data.func_decl.params[pi].type_name;
                 if (!ptn || !strchr(ptn, '?')) continue;
                 EzType *at = cg->type_table
@@ -6676,6 +6691,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
         emit(cg, "({ ");
         for (int i = 0; i < node->data.call.arg_count; i++) {
+            if (target_func->data.func_decl.params[i].is_type_param) continue;
             const char *pname = target_func->data.func_decl.params[i].name;
             const char *ptn = target_func->data.func_decl.params[i].type_name;
             const char *c_ty = ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t";
@@ -6686,13 +6702,18 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
         emit(cg, saved_fn);
         emit(cg, "(");
-        for (int i = 0; i < total_args; i++) {
-            if (i > 0) emit(cg, ", ");
-            if (i < node->data.call.arg_count) {
-                const char *pname = target_func->data.func_decl.params[i].name;
-                emitf(cg, "%s", pname ? safe_name(pname) : "_arg");
-            } else {
-                emit_expression(cg, target_func->data.func_decl.params[i].default_value);
+        {
+            bool df_first = true;
+            for (int i = 0; i < total_args; i++) {
+                if (target_func->data.func_decl.params[i].is_type_param) continue;
+                if (!df_first) emit(cg, ", ");
+                df_first = false;
+                if (i < node->data.call.arg_count) {
+                    const char *pname = target_func->data.func_decl.params[i].name;
+                    emitf(cg, "%s", pname ? safe_name(pname) : "_arg");
+                } else {
+                    emit_expression(cg, target_func->data.func_decl.params[i].default_value);
+                }
             }
         }
         emit(cg, "); })");
@@ -6700,8 +6721,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     emit(cg, "(");
+    bool first_arg = true;
     for (int i = 0; i < total_args; i++) {
-        if (i > 0) emit(cg, ", ");
+        /* Skip type params — erased in C */
+        if (target_func && i < target_func->data.func_decl.param_count &&
+            target_func->data.func_decl.params[i].is_type_param) continue;
+        if (!first_arg) emit(cg, ", ");
+        first_arg = false;
 
         if (i < node->data.call.arg_count) {
             /* Provided argument */
@@ -8544,10 +8570,13 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         emitf(cg, "static %s ", func_return_type(cg, node));
         emitf(cg, "ez_fn_%s(", node->data.func_decl.name);
 
-        /* Parameters */
+        /* Parameters — skip type params (erased in C) */
+        bool first_param = true;
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
-            if (i > 0) emit(cg, ", ");
             Param *param = &node->data.func_decl.params[i];
+            if (param->is_type_param) continue;
+            if (!first_param) emit(cg, ", ");
+            first_param = false;
             if (param->mutable) {
                 emitf(cg, "%s *%s", ez_type_to_c_cg(cg,param->type_name), safe_name(param->name));
             } else {
@@ -8555,7 +8584,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
             }
         }
 
-        if (node->data.func_decl.param_count == 0) {
+        if (first_param) {
             emit(cg, "void");
         }
         emit(cg, ")");
@@ -9772,17 +9801,22 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             emitf(cg, "static %s ", func_return_type(cg, stmt));
             if (has_wc) stmt->data.func_decl.name = orig_name;
             emitf(cg, "ez_fn_%s(", emit_name);
-            for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
-                if (j > 0) emit(cg, ", ");
-                Param *param = &stmt->data.func_decl.params[j];
-                if (param->mutable) {
-                    emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
-                } else {
-                    emit(cg, ez_type_to_c_cg(cg,param->type_name));
+            {
+                bool fwd_first = true;
+                for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
+                    Param *param = &stmt->data.func_decl.params[j];
+                    if (param->is_type_param) continue;
+                    if (!fwd_first) emit(cg, ", ");
+                    fwd_first = false;
+                    if (param->mutable) {
+                        emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
+                    } else {
+                        emit(cg, ez_type_to_c_cg(cg,param->type_name));
+                    }
                 }
-            }
-            if (stmt->data.func_decl.param_count == 0) {
-                emit(cg, "void");
+                if (fwd_first) {
+                    emit(cg, "void");
+                }
             }
             emit(cg, ");\n");
             cg->wildcard_binding = saved_binding;

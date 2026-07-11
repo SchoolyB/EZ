@@ -2365,6 +2365,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_LABEL: {
         const char *name = node->data.label.value;
 
+        /* Type parameter name (e.g. T) — resolve as unknown during main
+         * pass, or as the concrete binding during re-check.
+         * Also handle "?" which is the rewritten form of T. */
+        if (tc->type_param_name &&
+            (strcmp(name, tc->type_param_name) == 0 ||
+             strcmp(name, "?") == 0)) {
+            if (tc->type_param_binding) {
+                result = type_from_name(tc->type_param_binding);
+            } else {
+                result = &TYPE_UNKNOWN;
+            }
+            break;
+        }
+
         /* Type names used as values are caught downstream; they won't match
          * any variable in scope, and functions like new(), mem.make(), and casts
          * legitimately take type names as arguments. */
@@ -5288,6 +5302,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "size_of") == 0) {
+                /* Rewrite size_of(T) → size_of(?) when T is a type param */
+                if (node->data.call.arg_count == 1 &&
+                    node->data.call.args[0]->kind == NODE_LABEL &&
+                    tc->type_param_name &&
+                    strcmp(node->data.call.args[0]->data.label.value,
+                           tc->type_param_name) == 0) {
+                    node->data.call.args[0]->data.label.value = "?";
+                }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_char") == 0) {
                 if (node->data.call.arg_count != 2) {
@@ -5750,6 +5772,39 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
                         for (int ai = 0; ai < cc; ai++) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
+                            /* Type parameter (<?>) — binding comes from the label
+                             * (a struct name), not from resolve_expr. */
+                            if (sig->decl->data.func_decl.params[ai].is_type_param) {
+                                if (node->data.call.args[ai]->kind != NODE_LABEL) {
+                                    diag_error_code(tc->diag, "E3128",
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                }
+                                const char *arg_label = node->data.call.args[ai]->data.label.value;
+                                /* Must not be a variable in scope */
+                                if (scope_lookup(tc->current_scope, arg_label)) {
+                                    diag_error_code(tc->diag, "E3128",
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                }
+                                /* Must be a struct name */
+                                if (!is_struct_name(tc, arg_label)) {
+                                    diag_error_codef(tc->diag, "E3127",
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0,
+                                        arg_label);
+                                    continue;
+                                }
+                                if (!generic_binding) {
+                                    generic_binding = (char *)arg_label;
+                                }
+                                continue;
+                            }
                             EzType *at = resolve_expr(tc, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
                             /* E3100: struct/enum type name passed as a value argument */
@@ -5831,6 +5886,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     int check_count = node->data.call.arg_count < sig->param_count
                         ? node->data.call.arg_count : sig->param_count;
                     for (int ai = 0; ai < check_count; ai++) {
+                        /* Skip type parameters — no value to type-check */
+                        if (sig->decl && sig->decl->kind == NODE_FUNC_DECL &&
+                            ai < sig->decl->data.func_decl.param_count &&
+                            sig->decl->data.func_decl.params[ai].is_type_param)
+                            continue;
                         EzType *param_t = sig->param_types[ai];
                         /* Set expected_type for implicit enum resolution */
                         EzType *saved_expected = tc->expected_type;
@@ -6818,6 +6878,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_STRUCT_VALUE: {
         const char *sname = node->data.struct_value.name;
+        /* Type parameter: rewrite T → "?" so codegen can substitute */
+        if (tc->type_param_name && strcmp(sname, tc->type_param_name) == 0) {
+            node->data.struct_value.name = "?";
+            sname = "?";
+        }
+        if (strcmp(sname, "?") == 0) {
+            /* During re-check with a binding, validate with concrete struct */
+            if (tc->type_param_binding) {
+                sname = tc->type_param_binding;
+            } else {
+                /* Main pass — skip field validation, return unknown */
+                for (int i = 0; i < node->data.struct_value.count; i++)
+                    resolve_expr(tc, node->data.struct_value.field_values[i]);
+                result = &TYPE_UNKNOWN;
+                break;
+            }
+        }
         tc_mark_type_module_used(tc, sname);
         StructInfo *si = find_struct(tc, sname);
         /* E4016: reject undefined/unimported struct types in struct literals */
@@ -7078,18 +7155,34 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_NEW_EXPR:
-        tc_mark_type_module_used(tc, node->data.new_expr.type_name);
-        if (!is_struct_name(tc, node->data.new_expr.type_name)) {
-            char *msg = NULL;
-            msg = tc_fmt(tc,
-                "new() requires a struct type, but '%s' is not a struct",
-                node->data.new_expr.type_name);
-            diag_error_msg(tc->diag, "E3041", msg,
-                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+    case NODE_NEW_EXPR: {
+        const char *new_type = node->data.new_expr.type_name;
+        /* Type parameter: rewrite T → "?" so codegen can substitute */
+        if (tc->type_param_name && strcmp(new_type, tc->type_param_name) == 0) {
+            node->data.new_expr.type_name = "?";
+            new_type = "?";
         }
-        result = type_pointer(node->data.new_expr.type_name);
+        if (strcmp(new_type, "?") == 0) {
+            /* During re-check with a binding, validate the concrete type */
+            if (tc->type_param_binding) {
+                result = type_pointer(tc->type_param_binding);
+            } else {
+                result = type_pointer("?");
+            }
+        } else {
+            tc_mark_type_module_used(tc, new_type);
+            if (!is_struct_name(tc, new_type)) {
+                char *msg = NULL;
+                msg = tc_fmt(tc,
+                    "new() requires a struct type, but '%s' is not a struct",
+                    new_type);
+                diag_error_msg(tc->diag, "E3041", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            result = type_pointer(new_type);
+        }
         break;
+    }
 
     case NODE_FUNC_REF: {
         /* Validate that the referenced function exists.
@@ -9713,6 +9806,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* Define parameters in function scope, check for duplicates */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
             Param *p = &node->data.func_decl.params[i];
+            /* Type parameter (<?>) — not a variable; just record the name
+             * so the body can recognise T in type positions. */
+            if (p->is_type_param) {
+                tc->type_param_name = p->name;
+                continue;
+            }
             /* E2038: reserved type name as parameter name */
             if (is_reserved_type_name(p->name)) {
                 char *msg = NULL;
@@ -10084,6 +10183,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_main_return_suppressed = saved_main_suppressed;
         tc->current_func_is_main = saved_is_main;
         tc->using_module_count = prev_using_count;
+        tc->type_param_name = NULL;
+        tc->type_param_binding = NULL;
         tc->func_depth--;
         tc->current_scope = outer;
         scope_destroy(func_scope);
@@ -11391,6 +11492,12 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
             for (int pi = 0; pi < decl->data.func_decl.param_count; pi++) {
                 Param *p = &decl->data.func_decl.params[pi];
+                /* Type parameter — not a variable; set binding for body re-check */
+                if (p->is_type_param) {
+                    tc->type_param_name = p->name;
+                    tc->type_param_binding = concrete;
+                    continue;
+                }
                 char *sub = substitute_wildcard(p->type_name, concrete);
                 EzType *pt = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
                 scope_define(inst_scope, p->name, pt, p->mutable);
@@ -11447,6 +11554,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             tc->current_return_count = prev_ret_count;
             tc->current_has_named_returns = prev_named;
             tc->current_return_names = prev_return_names;
+            tc->type_param_name = NULL;
+            tc->type_param_binding = NULL;
             tc->current_scope = outer_scope;
             tc->func_depth--;
             free(ret_types);

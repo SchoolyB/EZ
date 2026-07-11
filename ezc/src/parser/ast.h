@@ -71,6 +71,7 @@ typedef struct {
     const char *name;
     const char *type_name;
     bool mutable;
+    bool is_type_param;    /* true when declared with <?> syntax */
     AstNode *default_value;
 } Param;
 

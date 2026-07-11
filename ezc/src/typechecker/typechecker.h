@@ -173,6 +173,12 @@ typedef struct {
      * Cleared after use to prevent stale context. */
     EzType *expected_type;
 
+    /* Type-level generic parameters (<?> syntax).
+     * type_param_name is the parameter name (e.g. "T") during body check.
+     * type_param_binding is the concrete struct name during re-check. */
+    const char *type_param_name;
+    const char *type_param_binding;
+
     /* Arena for diagnostic message strings — replaces per-message strdup */
     Arena *arena;
 
