@@ -99,6 +99,36 @@ do main() {
         failed += 1
     }
 
+    // time.diff(t1, t2) returns t2 - t1
+    mut diff1 int = time.diff(100, 200)
+    if diff1 == 100 {
+        println("  [PASS] diff positive")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] diff positive: got ${diff1}")
+        failed += 1
+    }
+
+    // time.diff returns negative when t1 > t2
+    mut diff2 int = time.diff(200, 100)
+    if diff2 == -100 {
+        println("  [PASS] diff negative")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] diff negative: got ${diff2}")
+        failed += 1
+    }
+
+    // time.diff with equal timestamps
+    mut diff3 int = time.diff(now, now)
+    if diff3 == 0 {
+        println("  [PASS] diff zero")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] diff zero: got ${diff3}")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
