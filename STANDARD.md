@@ -3597,9 +3597,18 @@ Runtime errors include location information (file, line, column).
 
 ## 11. Memory Model
 
-### 11.1 Memory Management
+### 11.1 Automatic Scope-Based Arena Management (ASBAM)
 
-EZ uses **scope-based automatic memory management**. When a block of code ends, whether a function body, a loop iteration, or a conditional block, any memory it created is freed. If a value needs to survive because it escapes the scope, EZ handles it automatically.
+EZ uses **Automatic Scope-Based Arena Management (ASBAM)**, a memory management model that combines arena allocators with scope-driven lifecycle control and automatic escape detection. There is no garbage collector, no reference counting, and no ownership annotations. The compiler infers everything from scope structure.
+
+ASBAM is built on four principles:
+
+1. **Arena allocation** — memory is allocated from arena regions and freed in bulk, not per-object. There is no per-allocation overhead.
+2. **Scope-driven lifecycle** — every scope boundary (function, loop iteration, conditional block) defines a memory region. When the scope ends, its region is reclaimed in a single operation.
+3. **Automatic escape detection** — when a value created inside a scope is stored somewhere that outlives that scope, the compiler automatically deep-copies it to the outer scope's arena before the inner arena is reclaimed.
+4. **Dual-arena separation** — two arenas serve distinct roles: a default arena for scope-bound temporaries, and a heap arena for persistent allocations via `new()`.
+
+When a block of code ends, whether a function body, a loop iteration, or a conditional block, any memory it created is freed. If a value needs to survive because it escapes the scope, ASBAM handles it automatically.
 
 ```ez
 do process(name string) {
@@ -3678,11 +3687,11 @@ mem.reset(scratch)
 mem.destroy(scratch)
 ```
 
-Most users never import the `@mem` module. The automatic scope model handles their allocations.
+Most users never import the `@mem` module. ASBAM handles their allocations.
 
 ### 11.7 Memory Safety
 
-EZ is **not memory safe** in the way that Rust or similar languages are. However, the scope-based memory model prevents many common memory errors automatically, and the compiler catches several more at compile time.
+EZ is **memory safe by default**. ASBAM prevents common memory errors automatically, and the compiler catches several more at compile time. Memory safety is not unconditionally guaranteed — opting into the `@mem` module or unsynchronized threading introduces hazards that the programmer is responsible for. But for programs that stay within EZ's defaults, memory safety holds without annotations or manual management.
 
 **Compile-time checked:**
 
@@ -3692,7 +3701,7 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 | Cross-scope pointer assignment | Warning when a pointer in an outer scope is assigned from `addr()` of a value in an inner scope |
 | Double-free on `@mem` arenas | Straight-line double `mem.destroy()` on the same variable is rejected |
 
-**Prevented by the scope model:**
+**Prevented by ASBAM:**
 
 | Hazard | How |
 |--------|-----|
@@ -3721,20 +3730,20 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 | Data races | Multiple threads accessing shared data without `sync.lock()` |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
+For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, ASBAM combined with compile-time checks and runtime panics provides practical safety without annotations or manual memory management.
 
 ### 11.8 Under the Hood
 
-EZ's scope-based memory model is built on **arena allocators**. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in one operation.
+ASBAM is implemented using arena allocators. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in a single O(1) operation.
 
-#### Program Startup
+#### Dual-Arena Architecture
 
-Every EZ program starts with two arenas:
+Every EZ program starts with two arenas, and each thread gets its own independent pair:
 
-- **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out.
-- **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped. This is why pointers returned by `new()` are always valid until the program exits.
+- **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out. When a scope ends, this arena is either watermark-reset (void functions, blocks) or destroyed entirely (non-void functions).
+- **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped or reset. This is why pointers returned by `new()` are always valid until the program exits.
 
-Each thread gets its own pair of arenas, so multithreaded programs do not contend over memory.
+The per-thread isolation means multithreaded programs never contend over memory allocation.
 
 #### How Scopes Work
 
