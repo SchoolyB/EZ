@@ -5836,6 +5836,20 @@ static bool emit_channels_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "try_send") == 0) {
+        emit(cg, "ez_channels_try_send(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "try_receive") == 0) {
+        emit(cg, "ez_channels_try_receive(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     return false;
 }
 
@@ -6033,6 +6047,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"spin_trylock","atomic"},{"spin_unlock","atomic"},{"fence","atomic"},
                 /* @channels */
                 {"open","channels"},{"send","channels"},{"receive","channels"},{"close","channels"},
+                {"try_send","channels"},{"try_receive","channels"},
                 /* @server */
                 {"add_router","server"},{"add_route","server"},{"listen","server"},
                 {"cors","server"},{"use","server"},{"text","server"},{"json","server"},

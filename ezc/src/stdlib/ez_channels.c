@@ -79,6 +79,42 @@ int64_t ez_channels_receive(EzChannel handle) {
     return value;
 }
 
+bool ez_channels_try_send(EzChannel handle, int64_t value) {
+    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+    if (!ch || ch->closed) return false;
+
+    pthread_mutex_lock(&ch->mutex);
+    if (ch->count == ch->capacity || ch->closed) {
+        pthread_mutex_unlock(&ch->mutex);
+        return false;
+    }
+    ch->buffer[ch->tail] = value;
+    ch->tail = (ch->tail + 1) % ch->capacity;
+    ch->count++;
+    pthread_cond_signal(&ch->not_empty);
+    pthread_mutex_unlock(&ch->mutex);
+    return true;
+}
+
+EzChannelTryRecv ez_channels_try_receive(EzChannel handle) {
+    EzChannelTryRecv result = {0, false};
+    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+    if (!ch) return result;
+
+    pthread_mutex_lock(&ch->mutex);
+    if (ch->count == 0) {
+        pthread_mutex_unlock(&ch->mutex);
+        return result;
+    }
+    result.v0 = ch->buffer[ch->head];
+    ch->head = (ch->head + 1) % ch->capacity;
+    ch->count--;
+    result.v1 = true;
+    pthread_cond_signal(&ch->not_full);
+    pthread_mutex_unlock(&ch->mutex);
+    return result;
+}
+
 void ez_channels_close(EzChannel handle) {
     EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
     if (!ch) return;

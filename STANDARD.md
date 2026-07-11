@@ -3346,6 +3346,8 @@ Message passing between threads. Compiler-only feature; requires POSIX threads.
 | `send` | `(ch Channel, value)` | Send a value into a channel |
 | `receive` | `(ch Channel) -> T` | Receive a value from a channel |
 | `close` | `(ch Channel)` | Close a channel |
+| `try_send` | `(ch Channel, value int) -> bool` | Non-blocking send; returns false if full |
+| `try_receive` | `(ch Channel) -> (int, bool)` | Non-blocking receive; returns value and success |
 
 ### 9.25 Memory Module (`@mem`)
 

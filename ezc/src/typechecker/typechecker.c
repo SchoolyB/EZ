@@ -1045,6 +1045,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     /* channels */
     {"channels", "open", 1, 1}, {"channels", "send", 2, 2},
     {"channels", "receive", 1, 1}, {"channels", "close", 1, 1},
+    {"channels", "try_send", 2, 2}, {"channels", "try_receive", 1, 1},
     /* atomic */
     {"atomic", "load", 1, 1}, {"atomic", "store", 2, 2},
     {"atomic", "add", 2, 2}, {"atomic", "sub", 2, 2},
@@ -1750,6 +1751,7 @@ static const UsingFunc _using_funcs[] = {
     /* channels */
     {"open","channels",TK_UNKNOWN},{"send","channels",TK_VOID},
     {"receive","channels",TK_INT},{"close","channels",TK_VOID},
+    {"try_send","channels",TK_BOOL},{"try_receive","channels",TK_INT},
     /* server */
     {"add_router","server",TK_UNKNOWN},{"add_route","server",TK_VOID},
     {"listen","server",TK_VOID},{"cors","server",TK_VOID},
@@ -4252,10 +4254,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "channels") == 0) {
                 if (strcmp(mfn, "open") == 0) {
                     result = type_struct("Channel"); /* EzChannel; opaque */
-                } else if (strcmp(mfn, "receive") == 0) {
+                } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "try_receive") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "send") == 0 || strcmp(mfn, "close") == 0) {
                     result = &TYPE_VOID;
+                } else if (strcmp(mfn, "try_send") == 0) {
+                    result = &TYPE_BOOL;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -8726,6 +8730,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             rt[3] = &TYPE_BOOL;
                             sym->ret_types = rt;
                             sym->ret_count = 4;
+                        }
+                    }
+                    /* channels.try_receive returns (int, bool) */
+                    if (strcmp(mod, "channels") == 0 && strcmp(mfn, "try_receive") == 0) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            EzType **rt = xmalloc(sizeof(EzType *) * 2);
+                            rt[0] = &TYPE_INT;
+                            rt[1] = &TYPE_BOOL;
+                            sym->ret_types = rt;
+                            sym->ret_count = 2;
                         }
                     }
                 }
