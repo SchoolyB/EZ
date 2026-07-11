@@ -2532,6 +2532,8 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `map` | `(arr [T], ()transform) -> [T]` | Returns a new array with `transform` applied to each element. `transform` must be `(T) -> T`. |
 | `filter` | `(arr [T], ()predicate) -> [T]` | Returns a new array containing only elements for which `predicate` returns true. `predicate` must be `(T) -> bool`. |
 | `reduce` | `(arr [T], initial T, ()accumulator) -> T` | Reduces the array to a single value by applying `accumulator(acc, element)` for each element, starting with `initial`. `accumulator` must be `(T, T) -> T`. |
+| `any` | `(arr [T], ()predicate) -> bool` | Returns true if at least one element satisfies `predicate`. `predicate` must be `(T) -> bool`. Returns false on an empty array. |
+| `all` | `(arr [T], ()predicate) -> bool` | Returns true if every element satisfies `predicate`. `predicate` must be `(T) -> bool`. Returns true on an empty array. |
 
 ### 9.3 Strings Module (`@strings`)
 

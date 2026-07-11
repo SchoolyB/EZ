@@ -992,6 +992,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"arrays", "remove", 2, 2},
     {"arrays", "map", 2, 2}, {"arrays", "filter", 2, 2},
     {"arrays", "reduce", 3, 3},
+    {"arrays", "any", 2, 2}, {"arrays", "all", 2, 2},
     /* bytes */
     {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
     {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
@@ -1616,6 +1617,7 @@ static const UsingFunc _using_funcs[] = {
     {"index_of","arrays",TK_INT},
     {"is_empty","arrays",TK_BOOL},{"contains","arrays",TK_BOOL},
     {"is_equal","arrays",TK_BOOL},
+    {"any","arrays",TK_BOOL},{"all","arrays",TK_BOOL},
     /* maps (arg-dependent get_keys/get_values handled by special case) */
     {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
     {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
@@ -3824,7 +3826,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "arrays") == 0) {
                 if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0 ||
-                    strcmp(mfn, "is_equal") == 0) {
+                    strcmp(mfn, "is_equal") == 0 ||
+                    strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "get_sum") == 0 ||
                            strcmp(mfn, "get_min") == 0 || strcmp(mfn, "get_max") == 0 ||
@@ -4008,7 +4011,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 /* E9003/E9004: map/filter/reduce callback validation */
                 if ((strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0 ||
-                     strcmp(mfn, "reduce") == 0) && node->data.call.arg_count >= 2) {
+                     strcmp(mfn, "reduce") == 0 ||
+                     strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) && node->data.call.arg_count >= 2) {
                     /* Determine which arg is the callback */
                     int cb_idx = (strcmp(mfn, "reduce") == 0) ? 2 : 1;
                     if (cb_idx < node->data.call.arg_count) {
@@ -4044,20 +4048,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                                 NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                                 mfn, "map callback must return a value");
                                         }
-                                    } else if (strcmp(mfn, "filter") == 0) {
+                                    } else if (strcmp(mfn, "filter") == 0 ||
+                                               strcmp(mfn, "any") == 0 ||
+                                               strcmp(mfn, "all") == 0) {
                                         if (cb_fs->param_count != 1) {
                                             char *msg = NULL;
                                             msg = tc_fmt(tc,
-                                                "filter callback must take 1 parameter, got %d",
-                                                cb_fs->param_count);
+                                                "%s callback must take 1 parameter, got %d",
+                                                mfn, cb_fs->param_count);
                                             diag_error_codef(tc->diag, "E9004",
                                                 NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                                 mfn, msg);
                                         } else if (cb_fs->return_count < 1 ||
                                                    cb_fs->return_types[0]->kind != TK_BOOL) {
+                                            char *msg = NULL;
+                                            msg = tc_fmt(tc,
+                                                "%s callback must return bool", mfn);
                                             diag_error_codef(tc->diag, "E9004",
                                                 NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, "filter callback must return bool");
+                                                mfn, msg);
                                         }
                                     } else { /* reduce */
                                         if (cb_fs->param_count != 2) {

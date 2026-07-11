@@ -5241,6 +5241,32 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emitf(cg, "if (_f_fn(_f_v)) { ez_arrays_append(ez_default_arena, &_f_res, &_f_v); } } _f_res; })");
         return true;
     }
+    if (strcmp(func, "any") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _a_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; bool (*_a_fn)(%s) = (void *)", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; bool _a_res = false; ");
+        emitf(cg, "for (int32_t _a_i = 0; _a_i < _a_src.len; _a_i++) { ");
+        emitf(cg, "if (_a_fn(((%s *)_a_src.data)[_a_i])) { _a_res = true; break; } } _a_res; })", c_elem);
+        return true;
+    }
+    if (strcmp(func, "all") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _l_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; bool (*_l_fn)(%s) = (void *)", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; bool _l_res = true; ");
+        emitf(cg, "for (int32_t _l_i = 0; _l_i < _l_src.len; _l_i++) { ");
+        emitf(cg, "if (!_l_fn(((%s *)_l_src.data)[_l_i])) { _l_res = false; break; } } _l_res; })", c_elem);
+        return true;
+    }
     if (strcmp(func, "reduce") == 0 && node->data.call.arg_count == 3) {
         EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
@@ -5898,6 +5924,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"index_of","arrays"},{"is_empty","arrays"},{"contains","arrays"},
                 {"is_equal","arrays"},
                 {"map","arrays"},{"filter","arrays"},{"reduce","arrays"},
+                {"any","arrays"},{"all","arrays"},
                 /* @maps */
                 {"has_key","maps"},{"keys","maps"},{"values","maps"},{"get_keys","maps"},
                 {"get_values","maps"},{"remove_key","maps"},{"clear","maps"},

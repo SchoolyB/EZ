@@ -5,6 +5,8 @@
 
 import @arrays
 
+do is_even(x int) -> bool { return x % 2 == 0 }
+
 do main() {
     println("=== Arrays Module Test ===")
     mut passed int = 0
@@ -304,6 +306,46 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] get_max: expected 9, got ${max_val}")
+        failed += 1
+    }
+
+    // any - at least one even
+    mut any_arr [int] = {1, 3, 4, 7}
+    if arrays.any(any_arr, ()is_even) == true {
+        println("  [PASS] any (true)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] any (true)")
+        failed += 1
+    }
+
+    // any - none match
+    mut any_arr2 [int] = {1, 3, 5, 7}
+    if arrays.any(any_arr2, ()is_even) == false {
+        println("  [PASS] any (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] any (false)")
+        failed += 1
+    }
+
+    // all - all even
+    mut all_arr [int] = {2, 4, 6}
+    if arrays.all(all_arr, ()is_even) == true {
+        println("  [PASS] all (true)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] all (true)")
+        failed += 1
+    }
+
+    // all - not all even
+    mut all_arr2 [int] = {2, 4, 5}
+    if arrays.all(all_arr2, ()is_even) == false {
+        println("  [PASS] all (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] all (false)")
         failed += 1
     }
 
