@@ -190,6 +190,14 @@ EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep) {
 }
 
 
+char ez_strings_char_at(EzString s, int64_t index) {
+    if (index < 0 || index >= s.len) {
+        ez_panic_code("P0082", "string index %d out of bounds (length %d)",
+                      (int)index, (int)s.len);
+    }
+    return s.data[index];
+}
+
 bool ez_strings_is_alpha(char c)      { return isalpha((unsigned char)c) != 0; }
 bool ez_strings_is_digit(char c)      { return isdigit((unsigned char)c) != 0; }
 bool ez_strings_is_alnum(char c)      { return isalnum((unsigned char)c) != 0; }

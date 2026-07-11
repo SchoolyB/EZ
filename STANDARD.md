@@ -2542,6 +2542,12 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `to_upper` | `(s string) -> string` | Convert to uppercase |
 | `to_lower` | `(s string) -> string` | Convert to lowercase |
 
+#### Access Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `char_at` | `(s string, index int) -> char` | Character at byte index; panics if out of bounds |
+
 #### Query Functions
 
 | Function | Signature | Description |

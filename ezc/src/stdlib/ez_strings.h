@@ -222,6 +222,19 @@ EzArray ez_strings_split(EzArena *arena, EzString s, EzString sep);
  */
 EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep);
 
+/*@man char_at
+ *@module strings
+ *@group Access
+ *@sig char_at(s string, index int) -> char
+ *@desc Returns the character at the given byte index. Panics if the index is out of bounds.
+ *@example
+ *   import @strings
+ *   println(strings.char_at("hello", 0))
+ *   println(strings.char_at("hello", 4))
+ *@end
+ */
+char ez_strings_char_at(EzString s, int64_t index);
+
 /*@man is_alpha
  *@module strings
  *@group Classification
