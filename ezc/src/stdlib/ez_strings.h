@@ -274,6 +274,33 @@ EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep);
  */
 char ez_strings_char_at(EzString s, int64_t index);
 
+/*@man to_chars
+ *@module strings
+ *@group Conversion
+ *@sig to_chars(s string) -> [char]
+ *@desc Converts a string to an array of its individual characters.
+ *@example
+ *   import @strings
+ *   mut chars [char] = strings.to_chars("hello")
+ *   println(chars[0])
+ *@end
+ */
+EzArray ez_strings_to_chars(EzArena *arena, EzString s);
+
+/*@man from_chars
+ *@module strings
+ *@group Conversion
+ *@sig from_chars(chars [char]) -> string
+ *@desc Converts an array of characters back into a string.
+ *@example
+ *   import @strings
+ *   mut chars [char] = strings.to_chars("hello")
+ *   mut s string = strings.from_chars(chars)
+ *   println(s)
+ *@end
+ */
+EzString ez_strings_from_chars(EzArena *arena, EzArray *chars);
+
 /*@man is_alpha
  *@module strings
  *@group Classification

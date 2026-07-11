@@ -927,6 +927,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
     {"strings", "slice", 3, 3},
     {"strings", "char_at", 2, 2},
+    {"strings", "to_chars", 1, 1}, {"strings", "from_chars", 1, 1},
     {"strings", "is_alpha", 1, 1}, {"strings", "is_digit", 1, 1},
     {"strings", "is_alnum", 1, 1}, {"strings", "is_whitespace", 1, 1},
     {"strings", "is_upper", 1, 1}, {"strings", "is_lower", 1, 1},
@@ -1166,6 +1167,7 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "slice", 1, ARG_INT}, {"strings", "slice", 2, ARG_INT},
     {"strings", "join", 0, ARG_ARRAY}, {"strings", "join", 1, ARG_STRING},
     {"strings", "char_at", 0, ARG_STRING}, {"strings", "char_at", 1, ARG_INT},
+    {"strings", "to_chars", 0, ARG_STRING}, {"strings", "from_chars", 0, ARG_ARRAY},
     {"strings", "is_alpha", 0, ARG_CHAR}, {"strings", "is_digit", 0, ARG_CHAR},
     {"strings", "is_alnum", 0, ARG_CHAR}, {"strings", "is_whitespace", 0, ARG_CHAR},
     {"strings", "is_upper", 0, ARG_CHAR}, {"strings", "is_lower", 0, ARG_CHAR},
@@ -1572,6 +1574,7 @@ static const UsingFunc _using_funcs[] = {
     {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
     {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     {"char_at","strings",TK_CHAR},
+    {"to_chars","strings",TK_ARRAY},{"from_chars","strings",TK_STRING},
     {"index_of","strings",TK_INT},{"last_index_of","strings",TK_INT},{"count","strings",TK_INT},
     {"split","strings",TK_ARRAY},
     {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
@@ -3640,6 +3643,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "char_at") == 0) {
                     result = &TYPE_CHAR;
+                } else if (strcmp(mfn, "to_chars") == 0) {
+                    result = type_array("char");
+                } else if (strcmp(mfn, "from_chars") == 0) {
+                    result = &TYPE_STRING;
                 } else if (strcmp(mfn, "index_of") == 0 ||
                            strcmp(mfn, "last_index_of") == 0 ||
                            strcmp(mfn, "count") == 0) {

@@ -2592,6 +2592,13 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `join` | `(arr [string], sep string) -> string` | Join array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
 
+#### Conversion Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `to_chars` | `(s string) -> [char]` | Convert string to char array |
+| `from_chars` | `(chars [char]) -> string` | Convert char array to string |
+
 ### 9.4 Maps Module (`@maps`)
 
 | Function | Signature | Description |

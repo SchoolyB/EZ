@@ -5407,11 +5407,17 @@ static bool emit_strings_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "replace") == 0 ||
         strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
         strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
-        strcmp(func, "join") == 0);
+        strcmp(func, "join") == 0 ||
+        strcmp(func, "to_chars") == 0 || strcmp(func, "from_chars") == 0);
 
     emitf(cg, "ez_strings_%s(", func);
     if (needs_arena) {
         emit(cg, "ez_default_arena, ");
+    }
+    if (strcmp(func, "from_chars") == 0) {
+        emit_addr_of(cg, node->data.call.args[0], "_ca");
+        emit(cg, ")");
+        return true;
     }
     for (int i = 0; i < node->data.call.arg_count; i++) {
         if (i > 0) emit(cg, ", ");
@@ -5866,7 +5872,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"join","strings"},{"contains","strings"},{"starts_with","strings"},
                 {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},{"last_index_of","strings"},
                 {"count","strings"},{"split","strings"},
-                {"char_at","strings"},
+                {"char_at","strings"},{"to_chars","strings"},{"from_chars","strings"},
                 {"is_alpha","strings"},{"is_digit","strings"},{"is_alnum","strings"},
                 {"is_whitespace","strings"},{"is_upper","strings"},{"is_lower","strings"},
                 /* @math */

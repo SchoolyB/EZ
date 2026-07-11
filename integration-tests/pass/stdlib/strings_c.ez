@@ -259,6 +259,36 @@ do main() {
         failed += 1
     }
 
+    // to_chars
+    mut chars2 [char] = strings.to_chars("abc")
+    if len(chars2) == 3 && chars2[0] == 'a' && chars2[1] == 'b' && chars2[2] == 'c' {
+        println("  [PASS] to_chars")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_chars")
+        failed += 1
+    }
+
+    // from_chars
+    mut back string = strings.from_chars(chars2)
+    if back == "abc" {
+        println("  [PASS] from_chars")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_chars: expected 'abc', got '${back}'")
+        failed += 1
+    }
+
+    // to_chars empty string
+    mut empty_chars [char] = strings.to_chars("")
+    if len(empty_chars) == 0 {
+        println("  [PASS] to_chars (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_chars (empty)")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
