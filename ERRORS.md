@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 359 codes** (241 errors, 17 warnings, 101 panics)
+**Total: 361 codes** (243 errors, 17 warnings, 101 panics)
 
 ---
 
@@ -39,7 +39,7 @@
 | `E2015` | syntax | duplicate field '%s' in struct literal; field can only be initialized once |
 | `E2016` | syntax | enum '%s' has no values; an enum must have at least one value |
 | `E2017` | syntax | stray comma; remove the extra ',' |
-| `E2025` | syntax | expected integer for array size; the second value in [type, size] must be a positive integer |
+| `E2025` | syntax | expected integer or constant for array size; the second value in [type, size] must be a positive integer or a const integer identifier |
 | `E2036` | syntax | imports must be at the top of the file, not inside a function |
 | `E2037` | syntax | duplicate function name in struct; each function must have a unique name |
 | `E2038` | syntax | reserved name for struct or enum; this name is used by the language |
@@ -189,6 +189,8 @@
 | `E3122` | safety | cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer |
 | `E3123` | iteration | for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count |
 | `E3124` | types | operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or != |
+| `E3125` | types | '%s' is not a compile-time integer constant; array size must be a const int/uint value |
+| `E3126` | types | array size must be greater than zero; '%s' resolves to %d |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -410,4 +412,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-11 06:44:29 UTC*
+*Generated on 2026-07-11 07:03:19 UTC*

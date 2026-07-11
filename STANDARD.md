@@ -437,6 +437,13 @@ const a [int, 5] = {1, 2, 3}           // OK (3 of 5 slots used, remaining zero-
 const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error: 6 values exceeds size of 5
 ```
 
+The size specifier `N` may also be a compile-time integer constant of any integer type (`int`, `uint`, `i8`–`i64`, `u8`–`u64`). The constant must be declared before the array and must resolve to a value greater than zero.
+
+```ez
+const SIZE int = 4
+const buf [byte, SIZE] = {0x01, 0x02, 0x03, 0x04}
+```
+
 **Multi-dimensional arrays**:
 
 ```ez

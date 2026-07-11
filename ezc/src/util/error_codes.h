@@ -59,7 +59,7 @@
     EZ_ERROR("E2015", "syntax", "duplicate field '%s' in struct literal; field can only be initialized once") \
     EZ_ERROR("E2016", "syntax", "enum '%s' has no values; an enum must have at least one value") \
     EZ_ERROR("E2017", "syntax", "stray comma; remove the extra ','") \
-    EZ_ERROR("E2025", "syntax", "expected integer for array size; the second value in [type, size] must be a positive integer") \
+    EZ_ERROR("E2025", "syntax", "expected integer or constant for array size; the second value in [type, size] must be a positive integer or a const integer identifier") \
     EZ_ERROR("E2036", "syntax", "imports must be at the top of the file, not inside a function") \
     EZ_ERROR("E2037", "syntax", "duplicate function name in struct; each function must have a unique name") \
     EZ_ERROR("E2038", "syntax", "reserved name for struct or enum; this name is used by the language") \
@@ -211,7 +211,9 @@
     EZ_ERROR("E3121", "types", "cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum") \
     EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer") \
     EZ_ERROR("E3123", "iteration", "for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count") \
-    EZ_ERROR("E3124", "types", "operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or !=")
+    EZ_ERROR("E3124", "types", "operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or !=") \
+    EZ_ERROR("E3125", "types", "'%s' is not a compile-time integer constant; array size must be a const int/uint value") \
+    EZ_ERROR("E3126", "types", "array size must be greater than zero; '%s' resolves to %d")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

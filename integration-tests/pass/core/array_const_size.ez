@@ -1,0 +1,54 @@
+// Test: compile-time integer constants as fixed-size array size specifiers
+
+const N int = 5
+const arr [int, N] = {1, 2, 3, 4, 5}
+
+const W uint = 4
+const arr2 [string, W] = {"a", "b", "c", "d"}
+
+const M int = 2
+const arr3 [bool, M] = {true, false}
+
+// Partial init (triggers W3003 with resolved size)
+const P int = 4
+const partial [int, P] = {10, 20}
+
+// Mixed: literal and const sizes in same program
+const literal [int, 3] = {100, 200, 300}
+
+do main() {
+    // Basic const int size
+    if arr[0] == 1 && arr[4] == 5 {
+        println("  [PASS] const int size")
+    } else {
+        println("  [FAIL] const int size")
+    }
+
+    // const uint size
+    if arr2[0] == "a" && arr2[3] == "d" {
+        println("  [PASS] const uint size")
+    } else {
+        println("  [FAIL] const uint size")
+    }
+
+    // Another const int size
+    if arr3[0] == true && arr3[1] == false {
+        println("  [PASS] const int size (bool array)")
+    } else {
+        println("  [FAIL] const int size (bool array)")
+    }
+
+    // Partial init with const size
+    if partial[0] == 10 && partial[1] == 20 && partial[2] == 0 && partial[3] == 0 {
+        println("  [PASS] partial init with const size")
+    } else {
+        println("  [FAIL] partial init with const size")
+    }
+
+    // Literal size still works alongside const sizes
+    if literal[0] == 100 && literal[2] == 300 {
+        println("  [PASS] literal size alongside const size")
+    } else {
+        println("  [FAIL] literal size alongside const size")
+    }
+}

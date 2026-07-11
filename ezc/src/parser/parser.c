@@ -322,7 +322,7 @@ static const char *parse_complex_type(Parser *p) {
             if (peek_token_is(p, TOK_COMMA)) {
                 next_token(p); /* skip , */
                 next_token(p); /* size */
-                if (!cur_token_is(p, TOK_INT)) {
+                if (!cur_token_is(p, TOK_INT) && !cur_token_is(p, TOK_IDENT)) {
                     diag_error_code(p->diag, "E2025", p->file, p->cur_token.line, p->cur_token.column, 0);
                 }
                 const char *sz = p->cur_token.literal;
@@ -358,10 +358,10 @@ static const char *parse_complex_type(Parser *p) {
                 snprintf(type_str, ts_len, "map[%s:%s]", elem, val_type);
                 return type_str;
             } else if (peek_token_is(p, TOK_COMMA)) {
-                /* Fixed-size array: [int, 3] */
+                /* Fixed-size array: [int, 3] or [int, SIZE] */
                 next_token(p); /* skip , */
                 next_token(p); /* size */
-                if (!cur_token_is(p, TOK_INT)) {
+                if (!cur_token_is(p, TOK_INT) && !cur_token_is(p, TOK_IDENT)) {
                     diag_error_code(p->diag, "E2025", p->file, p->cur_token.line, p->cur_token.column, 0);
                 }
                 const char *sz = p->cur_token.literal;

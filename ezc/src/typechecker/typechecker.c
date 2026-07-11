@@ -1960,6 +1960,86 @@ static void tc_register_const_int(TypeChecker *tc, const char *name, int64_t val
     tc->const_int_count++;
 }
 
+/* Resolve a non-numeric array size identifier in a fixed-size array type
+ * string like "[int,SIZE]".  If the size field is already numeric this is
+ * a no-op.  Otherwise the name is looked up in const_int_names/values and
+ * the type string on the var_decl node is rewritten to its numeric form
+ * so that downstream code (E3052/W3003, codegen extract_array_size) sees
+ * only numeric size strings.
+ *
+ * Emits E3125 if the identifier is not a known const int.
+ * Emits E3126 if the resolved value is <= 0. */
+static void tc_resolve_array_size(TypeChecker *tc, AstNode *node) {
+    const char *tn = node->data.var_decl.type_name;
+    /* Find the top-level comma separating element type from size. */
+    const char *size_comma = NULL;
+    int depth = 0;
+    for (const char *c = tn; *c; c++) {
+        if (*c == '(' || *c == '[') depth++;
+        else if (*c == ')' || *c == ']') depth--;
+        else if (*c == ',' && depth == 1) { size_comma = c; break; }
+    }
+    if (!size_comma) return; /* no size field */
+
+    /* Extract the size substring: after comma, before closing ']' */
+    const char *size_start = size_comma + 1;
+    const char *rbracket = strrchr(tn, ']');
+    if (!rbracket || rbracket <= size_start) return;
+    size_t sz_len = (size_t)(rbracket - size_start);
+    char size_buf[256];
+    if (sz_len >= sizeof(size_buf)) return;
+    memcpy(size_buf, size_start, sz_len);
+    size_buf[sz_len] = '\0';
+
+    /* If already numeric, nothing to resolve. */
+    char *endp = NULL;
+    long val = strtol(size_buf, &endp, 10);
+    if (endp && *endp == '\0') {
+        (void)val;
+        return;
+    }
+
+    /* Look up the identifier in the const int table. */
+    bool found = false;
+    int64_t resolved = 0;
+    for (int i = 0; i < tc->const_int_count; i++) {
+        if (strcmp(tc->const_int_names[i], size_buf) == 0) {
+            resolved = tc->const_int_values[i];
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        char *msg = tc_fmt(tc,
+            "'%s' is not a compile-time integer constant; array size must be a const int/uint value",
+            size_buf);
+        diag_error_msg(tc->diag, "E3125", msg,
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        return;
+    }
+    if (resolved <= 0) {
+        char *msg = tc_fmt(tc,
+            "array size must be greater than zero; '%s' resolves to %d",
+            size_buf, (int)resolved);
+        diag_error_msg(tc->diag, "E3126", msg,
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        return;
+    }
+
+    /* Rewrite the type string with the resolved numeric value.
+     * e.g. "[int,SIZE]" → "[int,5]" */
+    size_t prefix_len = (size_t)(size_comma + 1 - tn);
+    char num_buf[32];
+    int num_len = snprintf(num_buf, sizeof(num_buf), "%d", (int)resolved);
+    size_t new_len = prefix_len + (size_t)num_len + 2; /* +1 for ']' +1 for '\0' */
+    char *new_tn = arena_alloc(tc->arena, new_len);
+    memcpy(new_tn, tn, prefix_len);
+    memcpy(new_tn + prefix_len, num_buf, (size_t)num_len);
+    new_tn[prefix_len + (size_t)num_len] = ']';
+    new_tn[prefix_len + (size_t)num_len + 1] = '\0';
+    node->data.var_decl.type_name = new_tn;
+}
+
 /* Try to evaluate node as a compile-time integer constant.
  * Handles integer literals, negated literals, label references to known
  * file-scope const ints, and infix arithmetic.
@@ -7407,16 +7487,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (tc->func_depth == 0 && !node->data.var_decl.mutable &&
             node->data.var_decl.type_name && node->data.var_decl.value) {
             const char *tn = node->data.var_decl.type_name;
-            /* Only track signed integer types in the const table.  Unsigned
-             * types (uint, u64, u8…) can hold values that do not fit in
-             * int64_t, so folding them with signed arithmetic would produce
-             * wrong results.  Unsigned overflow detection is left to a
-             * separate check; for now we just ensure the codegen fix applies
-             * (in_const_decl suppresses the runtime wrapper). */
-            bool is_signed_int_type =
+            /* Track integer types (signed and unsigned) in the const table.
+             * Unsigned values that fit in int64_t are stored as-is; this
+             * covers practical array-size use cases.  Full uint64 overflow
+             * detection is left to a separate check; for now we just ensure
+             * the codegen fix applies (in_const_decl suppresses the runtime
+             * wrapper). */
+            bool is_int_type =
                 strcmp(tn, "int") == 0 || strcmp(tn, "i64") == 0 ||
-                strcmp(tn, "i8") == 0 || strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0;
-            if (is_signed_int_type) {
+                strcmp(tn, "i8") == 0 || strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0 ||
+                strcmp(tn, "uint") == 0 || strcmp(tn, "u64") == 0 ||
+                strcmp(tn, "u8") == 0 || strcmp(tn, "u16") == 0 || strcmp(tn, "u32") == 0;
+            if (is_int_type) {
                 int64_t folded = 0;
                 bool overflowed = false;
                 bool ok = tc_fold_const_int(tc, node->data.var_decl.value, &folded, &overflowed);
@@ -7575,6 +7657,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 else if (*c == ',' && depth == 1) { size_comma = c; break; }
             }
             bool has_size = size_comma != NULL;
+            /* Resolve const identifier sizes (e.g. "[int,SIZE]" → "[int,5]")
+             * before the mut/const checks so downstream code always sees
+             * numeric type strings. */
+            if (has_size) {
+                tc_resolve_array_size(tc, node);
+                /* Re-read type_name — tc_resolve_array_size may have rewritten it. */
+                tn = node->data.var_decl.type_name;
+            }
             if (node->data.var_decl.mutable && has_size) {
                 diag_error_codef(tc->diag, "E3054", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
                     (int)(size_comma - tn), tn);
