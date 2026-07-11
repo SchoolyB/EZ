@@ -920,7 +920,9 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "starts_with", 2, 2}, {"strings", "ends_with", 2, 2},
     {"strings", "index_of", 2, 2}, {"strings", "last_index_of", 2, 2}, {"strings", "count", 2, 2},
     {"strings", "trim", 1, 1}, {"strings", "trim_left", 1, 1},
-    {"strings", "trim_right", 1, 1}, {"strings", "replace", 3, 3},
+    {"strings", "trim_right", 1, 1},
+    {"strings", "remove_prefix", 2, 2}, {"strings", "remove_suffix", 2, 2},
+    {"strings", "replace", 3, 3},
     {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
     {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
     {"strings", "slice", 3, 3},
@@ -1149,7 +1151,10 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "index_of", 0, ARG_STRING}, {"strings", "last_index_of", 0, ARG_STRING},
     {"strings", "count", 0, ARG_STRING},
     {"strings", "trim", 0, ARG_STRING}, {"strings", "trim_left", 0, ARG_STRING},
-    {"strings", "trim_right", 0, ARG_STRING}, {"strings", "replace", 0, ARG_STRING},
+    {"strings", "trim_right", 0, ARG_STRING},
+    {"strings", "remove_prefix", 0, ARG_STRING}, {"strings", "remove_prefix", 1, ARG_STRING},
+    {"strings", "remove_suffix", 0, ARG_STRING}, {"strings", "remove_suffix", 1, ARG_STRING},
+    {"strings", "replace", 0, ARG_STRING},
     {"strings", "repeat", 0, ARG_STRING}, {"strings", "reverse", 0, ARG_STRING},
     {"strings", "split", 0, ARG_STRING}, {"strings", "slice", 0, ARG_STRING},
     {"strings", "contains", 1, ARG_STRING}, {"strings", "starts_with", 1, ARG_STRING},
@@ -1556,7 +1561,9 @@ static const UsingFunc _using_funcs[] = {
     /* strings */
     {"to_upper","strings",TK_STRING},{"to_lower","strings",TK_STRING},
     {"trim","strings",TK_STRING},{"trim_left","strings",TK_STRING},
-    {"trim_right","strings",TK_STRING},{"replace","strings",TK_STRING},
+    {"trim_right","strings",TK_STRING},
+    {"remove_prefix","strings",TK_STRING},{"remove_suffix","strings",TK_STRING},
+    {"replace","strings",TK_STRING},
     {"repeat","strings",TK_STRING},{"reverse","strings",TK_STRING},
     {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
     {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
@@ -3641,7 +3648,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_array("string");
                 } else if (strcmp(mfn, "to_upper") == 0 || strcmp(mfn, "to_lower") == 0 ||
                            strcmp(mfn, "trim") == 0 || strcmp(mfn, "trim_left") == 0 ||
-                           strcmp(mfn, "trim_right") == 0 || strcmp(mfn, "replace") == 0 ||
+                           strcmp(mfn, "trim_right") == 0 ||
+                           strcmp(mfn, "remove_prefix") == 0 || strcmp(mfn, "remove_suffix") == 0 ||
+                           strcmp(mfn, "replace") == 0 ||
                            strcmp(mfn, "repeat") == 0 || strcmp(mfn, "reverse") == 0 ||
                            strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0) {
                     result = &TYPE_STRING;

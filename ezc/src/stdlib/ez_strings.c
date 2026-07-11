@@ -98,6 +98,18 @@ bool ez_strings_is_empty(EzString s) {
     return s.len == 0;
 }
 
+EzString ez_strings_remove_prefix(EzArena *arena, EzString s, EzString prefix) {
+    if (prefix.len > s.len || memcmp(s.data, prefix.data, (size_t)prefix.len) != 0) return s;
+    int32_t new_len = s.len - prefix.len;
+    return ez_string_new(arena, s.data + prefix.len, new_len);
+}
+
+EzString ez_strings_remove_suffix(EzArena *arena, EzString s, EzString suffix) {
+    if (suffix.len > s.len || memcmp(s.data + s.len - suffix.len, suffix.data, (size_t)suffix.len) != 0) return s;
+    int32_t new_len = s.len - suffix.len;
+    return ez_string_new(arena, s.data, new_len);
+}
+
 EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString new_s) {
     if (old_s.len == 0) return s;
     /* Count occurrences to size the buffer */

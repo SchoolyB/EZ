@@ -5402,7 +5402,9 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_strings_call(CodeGen *cg, AstNode *node, const char *func) {
     bool needs_arena = (strcmp(func, "to_upper") == 0 || strcmp(func, "to_lower") == 0 ||
         strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
-        strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
+        strcmp(func, "trim_right") == 0 ||
+        strcmp(func, "remove_prefix") == 0 || strcmp(func, "remove_suffix") == 0 ||
+        strcmp(func, "replace") == 0 ||
         strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
         strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
         strcmp(func, "join") == 0);
@@ -5858,7 +5860,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             static const struct { const char *func; const char *mod; } func_to_mod[] = {
                 /* @strings */
                 {"to_upper","strings"},{"to_lower","strings"},{"trim","strings"},
-                {"trim_left","strings"},{"trim_right","strings"},{"replace","strings"},
+                {"trim_left","strings"},{"trim_right","strings"},
+                {"remove_prefix","strings"},{"remove_suffix","strings"},{"replace","strings"},
                 {"repeat","strings"},{"reverse","strings"},{"slice","strings"},
                 {"join","strings"},{"contains","strings"},{"starts_with","strings"},
                 {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},{"last_index_of","strings"},

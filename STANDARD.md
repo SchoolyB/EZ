@@ -2578,6 +2578,8 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `trim` | `(s string) -> string` | Trim whitespace |
 | `trim_left` | `(s string) -> string` | Trim left whitespace |
 | `trim_right` | `(s string) -> string` | Trim right whitespace |
+| `remove_prefix` | `(s string, prefix string) -> string` | Remove prefix if present, otherwise return unchanged |
+| `remove_suffix` | `(s string, suffix string) -> string` | Remove suffix if present, otherwise return unchanged |
 | `replace` | `(s string, old string, new string) -> string` | Replace all occurrences |
 | `repeat` | `(s string, count int) -> string` | Repeat string |
 | `reverse` | `(s string) -> string` | Reverse string |

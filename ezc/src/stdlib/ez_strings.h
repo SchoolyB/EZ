@@ -161,6 +161,32 @@ int64_t ez_strings_count(EzString s, EzString sub);
  */
 bool ez_strings_is_empty(EzString s);
 
+/*@man remove_prefix
+ *@module strings
+ *@group Transformation
+ *@sig remove_prefix(s string, prefix string) -> string
+ *@desc Returns s with the given prefix removed. If s does not start with prefix, it is returned unchanged.
+ *@example
+ *   import @strings
+ *   println(strings.remove_prefix("hello world", "hello "))
+ *   println(strings.remove_prefix("hello world", "xyz"))
+ *@end
+ */
+EzString ez_strings_remove_prefix(EzArena *arena, EzString s, EzString prefix);
+
+/*@man remove_suffix
+ *@module strings
+ *@group Transformation
+ *@sig remove_suffix(s string, suffix string) -> string
+ *@desc Returns s with the given suffix removed. If s does not end with suffix, it is returned unchanged.
+ *@example
+ *   import @strings
+ *   println(strings.remove_suffix("hello world", " world"))
+ *   println(strings.remove_suffix("hello world", "xyz"))
+ *@end
+ */
+EzString ez_strings_remove_suffix(EzArena *arena, EzString s, EzString suffix);
+
 /*@man replace
  *@module strings
  *@group Transformation
