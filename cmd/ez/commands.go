@@ -652,7 +652,7 @@ Use "ez [command] --help" for more information about a command.
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
 	buildCmd.Flags().MarkHidden("verbose")
-	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
+	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source to a file (no binary). Uses -o for output path, or defaults to <input>.c")
 	buildCmd.Flags().Bool("time", false, "Show compilation timing")
 	buildCmd.Flags().Bool("no-color", false, "Disable colored output")
 	rootCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
