@@ -4401,45 +4401,57 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_multi_var = is_result_temp(cg->current_var_name);
     const char *sfx = is_multi_var ? "_result" : "";
-    if (strcmp(func, "get") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "get") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_http_get%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "post") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "post") == 0 && node->data.call.arg_count == 3) {
         emitf(cg, "ez_http_post%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[2]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "put") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "put") == 0 && node->data.call.arg_count == 3) {
         emitf(cg, "ez_http_put%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[2]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "delete") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "delete") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_http_delete%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "head") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "head") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_http_head%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "patch") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "patch") == 0 && node->data.call.arg_count == 3) {
         emitf(cg, "ez_http_patch%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[2]);
         emit(cg, ")");
         return true;
     }

@@ -147,7 +147,7 @@ static EzHttpResponse parse_response(EzArena *arena, const char *data, int data_
 
 /* Core HTTP request function */
 static EzHttpResponse do_request(EzArena *arena, const char *method,
-                                  EzString url, EzString body) {
+                                  EzString url, EzString body, EzMap *custom_headers) {
     EzHttpResponse err_resp;
     err_resp.status = 0;
     err_resp.body = (EzString){"", 0};
@@ -191,16 +191,34 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
             "Host: %s\r\n"
             "Content-Length: %d\r\n"
             "Content-Type: application/x-www-form-urlencoded\r\n"
-            "Connection: close\r\n"
-            "\r\n",
+            "Connection: close\r\n",
             method, path, host, (int)body.len);
     } else {
         hdr_len = snprintf(hdr, sizeof(hdr),
             "%s %s HTTP/1.1\r\n"
             "Host: %s\r\n"
-            "Connection: close\r\n"
-            "\r\n",
+            "Connection: close\r\n",
             method, path, host);
+    }
+
+    /* Append custom headers */
+    if (custom_headers && custom_headers->count > 0) {
+        for (int32_t i = 0; i < custom_headers->order_len; i++) {
+            int32_t slot = custom_headers->order[i];
+            if (slot < 0) continue;
+            EzString *k = (EzString *)ez_map_key_at(custom_headers, slot);
+            EzString *v = (EzString *)ez_map_value_at(custom_headers, slot);
+            if (!k || !v) continue;
+            int n = snprintf(hdr + hdr_len, sizeof(hdr) - (size_t)hdr_len,
+                "%.*s: %.*s\r\n", (int)k->len, k->data, (int)v->len, v->data);
+            if (n > 0) hdr_len += n;
+        }
+    }
+
+    /* Terminate headers */
+    if ((size_t)hdr_len + 2 < sizeof(hdr)) {
+        hdr[hdr_len++] = '\r';
+        hdr[hdr_len++] = '\n';
     }
 
     if (hdr_len <= 0 || (size_t)hdr_len >= sizeof(hdr)) {
@@ -238,28 +256,28 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     return result;
 }
 
-EzHttpResponse ez_http_get(EzArena *arena, EzString url) {
-    return do_request(arena, "GET", url, (EzString){"", 0});
+EzHttpResponse ez_http_get(EzArena *arena, EzString url, EzMap *headers) {
+    return do_request(arena, "GET", url, (EzString){"", 0}, headers);
 }
 
-EzHttpResponse ez_http_post(EzArena *arena, EzString url, EzString body) {
-    return do_request(arena, "POST", url, body);
+EzHttpResponse ez_http_post(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+    return do_request(arena, "POST", url, body, headers);
 }
 
-EzHttpResponse ez_http_put(EzArena *arena, EzString url, EzString body) {
-    return do_request(arena, "PUT", url, body);
+EzHttpResponse ez_http_put(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+    return do_request(arena, "PUT", url, body, headers);
 }
 
-EzHttpResponse ez_http_delete(EzArena *arena, EzString url) {
-    return do_request(arena, "DELETE", url, (EzString){"", 0});
+EzHttpResponse ez_http_delete(EzArena *arena, EzString url, EzMap *headers) {
+    return do_request(arena, "DELETE", url, (EzString){"", 0}, headers);
 }
 
-EzHttpResponse ez_http_head(EzArena *arena, EzString url) {
-    return do_request(arena, "HEAD", url, (EzString){"", 0});
+EzHttpResponse ez_http_head(EzArena *arena, EzString url, EzMap *headers) {
+    return do_request(arena, "HEAD", url, (EzString){"", 0}, headers);
 }
 
-EzHttpResponse ez_http_patch(EzArena *arena, EzString url, EzString body) {
-    return do_request(arena, "PATCH", url, body);
+EzHttpResponse ez_http_patch(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+    return do_request(arena, "PATCH", url, body, headers);
 }
 
 /* _result variants — status==0 indicates connection/request failure */
@@ -276,26 +294,26 @@ static EzResult_http http_result(EzArena *arena, EzHttpResponse resp, const char
     return r;
 }
 
-EzResult_http ez_http_get_result(EzArena *arena, EzString url) {
-    return http_result(arena, ez_http_get(arena, url), "GET", url);
+EzResult_http ez_http_get_result(EzArena *arena, EzString url, EzMap *headers) {
+    return http_result(arena, ez_http_get(arena, url, headers), "GET", url);
 }
 
-EzResult_http ez_http_post_result(EzArena *arena, EzString url, EzString body) {
-    return http_result(arena, ez_http_post(arena, url, body), "POST", url);
+EzResult_http ez_http_post_result(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+    return http_result(arena, ez_http_post(arena, url, body, headers), "POST", url);
 }
 
-EzResult_http ez_http_put_result(EzArena *arena, EzString url, EzString body) {
-    return http_result(arena, ez_http_put(arena, url, body), "PUT", url);
+EzResult_http ez_http_put_result(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+    return http_result(arena, ez_http_put(arena, url, body, headers), "PUT", url);
 }
 
-EzResult_http ez_http_delete_result(EzArena *arena, EzString url) {
-    return http_result(arena, ez_http_delete(arena, url), "DELETE", url);
+EzResult_http ez_http_delete_result(EzArena *arena, EzString url, EzMap *headers) {
+    return http_result(arena, ez_http_delete(arena, url, headers), "DELETE", url);
 }
 
-EzResult_http ez_http_head_result(EzArena *arena, EzString url) {
-    return http_result(arena, ez_http_head(arena, url), "HEAD", url);
+EzResult_http ez_http_head_result(EzArena *arena, EzString url, EzMap *headers) {
+    return http_result(arena, ez_http_head(arena, url, headers), "HEAD", url);
 }
 
-EzResult_http ez_http_patch_result(EzArena *arena, EzString url, EzString body) {
-    return http_result(arena, ez_http_patch(arena, url, body), "PATCH", url);
+EzResult_http ez_http_patch_result(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+    return http_result(arena, ez_http_patch(arena, url, body, headers), "PATCH", url);
 }

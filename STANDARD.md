@@ -3052,12 +3052,12 @@ HTTP client for making requests. Currently supports HTTP only.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> HttpResponse` | GET request |
-| `post` | `(url string, body string) -> HttpResponse` | POST request |
-| `put` | `(url string, body string) -> HttpResponse` | PUT request |
-| `patch` | `(url string, body string) -> HttpResponse` | PATCH request |
-| `delete` | `(url string) -> HttpResponse` | DELETE request |
-| `head` | `(url string) -> HttpResponse` | HEAD request |
+| `get` | `(url string, headers map[string:string]) -> HttpResponse` | GET request |
+| `post` | `(url string, body string, headers map[string:string]) -> HttpResponse` | POST request |
+| `put` | `(url string, body string, headers map[string:string]) -> HttpResponse` | PUT request |
+| `patch` | `(url string, body string, headers map[string:string]) -> HttpResponse` | PATCH request |
+| `delete` | `(url string, headers map[string:string]) -> HttpResponse` | DELETE request |
+| `head` | `(url string, headers map[string:string]) -> HttpResponse` | HEAD request |
 
 Error-returning variants: `get`, `post`, `put`, `delete`, `head`, `patch`
 

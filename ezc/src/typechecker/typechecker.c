@@ -959,8 +959,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"csv", "read_file", 1, 1}, {"csv", "write_file", 2, 2},
     {"csv", "headers", 1, 1},
     /* http */
-    {"http", "get", 1, 1}, {"http", "delete", 1, 1}, {"http", "head", 1, 1},
-    {"http", "post", 2, 2}, {"http", "put", 2, 2}, {"http", "patch", 2, 2},
+    {"http", "get", 2, 2}, {"http", "delete", 2, 2}, {"http", "head", 2, 2},
+    {"http", "post", 3, 3}, {"http", "put", 3, 3}, {"http", "patch", 3, 3},
     /* net */
     {"net", "connect", 2, 2}, {"net", "listen", 1, 2},
     {"net", "accept", 1, 1}, {"net", "send", 2, 2},
@@ -1214,6 +1214,13 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"csv", "parse", 0, ARG_STRING},
     {"csv", "read_file", 0, ARG_STRING}, {"csv", "write_file", 0, ARG_STRING},
     {"csv", "headers", 0, ARG_ARRAY},
+    /* http: url is string, body is string, headers is map */
+    {"http", "get", 0, ARG_STRING}, {"http", "get", 1, ARG_MAP},
+    {"http", "delete", 0, ARG_STRING}, {"http", "delete", 1, ARG_MAP},
+    {"http", "head", 0, ARG_STRING}, {"http", "head", 1, ARG_MAP},
+    {"http", "post", 0, ARG_STRING}, {"http", "post", 1, ARG_STRING}, {"http", "post", 2, ARG_MAP},
+    {"http", "put", 0, ARG_STRING}, {"http", "put", 1, ARG_STRING}, {"http", "put", 2, ARG_MAP},
+    {"http", "patch", 0, ARG_STRING}, {"http", "patch", 1, ARG_STRING}, {"http", "patch", 2, ARG_MAP},
     /* bytes */
     {"bytes", "from_string", 0, ARG_STRING}, {"bytes", "from_hex", 0, ARG_STRING},
     {"bytes", "from_base64", 0, ARG_STRING}, {"bytes", "to_string", 0, ARG_ARRAY},
