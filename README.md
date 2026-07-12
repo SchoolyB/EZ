@@ -129,6 +129,7 @@ make install
 |---------|-------------|---------|
 | `ez <file>` | Compile and run | `ez main.ez` |
 | `ez build <file> -o <name>` | Compile to a distributable binary | `ez build main.ez -o myapp` |
+| `ez build <file> --emit-c` | Emit generated C source to a file (no binary) | `ez build main.ez --emit-c` |
 | `ez check <file>` | Type check without compiling | `ez check main.ez` |
 | `ez watch <file>` | Watch for changes, re-run on save | `ez watch main.ez` |
 | `ez fmt <path>` | Format `.ez` source files in place | `ez fmt .` or `ez fmt ./...` |

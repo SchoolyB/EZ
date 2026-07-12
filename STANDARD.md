@@ -3873,7 +3873,7 @@ ez build <file.ez> [flags]
 | Flag | Description |
 |------|-------------|
 | `-o, --output <name>` | Output binary name. Defaults to the input filename without `.ez`. |
-| `--emit-c` | Emit the generated C source file without compiling to a binary. |
+| `--emit-c` | Emit the generated C source to a file without compiling to a binary. No binary is produced. Uses `-o` for the output path, or defaults to `<input>.c` (e.g., `main.ez` → `main.c`). |
 | `--time` | Show compilation timing. |
 | `-q, --quiet <codes>` | Suppress warnings. |
 | `--no-color` | Disable colored output. |
@@ -3881,6 +3881,7 @@ ez build <file.ez> [flags]
 ```bash
 ez build main.ez -o myapp
 ez build main.ez --emit-c
+ez build main.ez --emit-c -o output.c
 ez build main.ez --time -q all
 ```
 
