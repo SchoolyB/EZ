@@ -1228,6 +1228,8 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"server", "json", 1, ARG_STRING},
     {"server", "html", 1, ARG_STRING},
     {"server", "redirect", 1, ARG_STRING},
+    /* channels: value arg must be int */
+    {"channels", "send", 1, ARG_INT}, {"channels", "try_send", 1, ARG_INT},
     /* math: numeric argument required for all single-arg functions */
     {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
     {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},

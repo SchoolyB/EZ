@@ -368,6 +368,14 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         if (cg && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
             resolved = resolve_unprefixed_name(cg, type_name);
         }
+        /* Module-qualified opaque types: mod_Type → strip prefix and
+         * re-resolve so opaque mappings (Channel→EzChannel etc.) apply. */
+        const char *mod_us = strchr(resolved, '_');
+        if (mod_us && mod_us[1] >= 'A' && mod_us[1] <= 'Z') {
+            const char *base = mod_us + 1;
+            const char *mapped = ez_type_to_c_cg(cg, base);
+            if (mapped != base) return mapped;
+        }
         if (cg && codegen_is_enum(cg, resolved)) {
             snprintf(buf, sizeof(buf), "EzEnum_%s", resolved);
         } else {

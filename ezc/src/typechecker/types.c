@@ -499,6 +499,19 @@ EzType *type_from_name(const char *name) {
         if (us && us[1] >= 'A' && us[1] <= 'Z') {
             EzType *existing = pool_find(TK_ENUM, name);
             if (existing) return existing;
+            /* Normalize module-qualified stdlib opaque types: e.g.
+             * channels_Channel → Channel so they match the canonical
+             * type returned by stdlib call handlers. */
+            static const char *stdlib_opaque[] = {
+                "Thread", "Mutex", "SpinLock", "Channel", "Socket",
+                "Listener", "Database", "Router", "HttpRequest",
+                "HttpResponse", "UUID", "Arena", "SourceLocation", NULL
+            };
+            const char *base = us + 1;
+            for (int i = 0; stdlib_opaque[i]; i++) {
+                if (strcmp(base, stdlib_opaque[i]) == 0)
+                    return type_struct(base);
+            }
             return type_struct(name);
         }
     }
