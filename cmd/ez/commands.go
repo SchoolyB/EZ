@@ -319,6 +319,7 @@ func printManUsage() {
 	fmt.Println("  ez man attributes        list all attributes")
 	fmt.Println()
 	fmt.Println("  Note: for attributes, omit the # prefix (e.g. ez man flags, not ez man #flags)")
+	fmt.Println("  Note: for functions, omit the () suffix (e.g. ez man math.sqrt, not ez man math.sqrt())")
 }
 
 func printBuiltinsIndex() {
@@ -419,6 +420,8 @@ func printStdlibModuleIndex(module string) {
 		}
 		fmt.Printf("  %s  %s\n", g.Label, strings.Join(labels, "  "))
 	}
+	fmt.Println()
+	fmt.Println("  Tip: omit the () when looking up functions (e.g. ez man " + module + "." + groups[0].Names[0] + ")")
 }
 
 func printLangIndex() {
