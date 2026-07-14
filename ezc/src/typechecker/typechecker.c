@@ -8476,13 +8476,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym) {
-                            EzType **rt = xmalloc(sizeof(EzType *) * 4);
+                            // EzType **rt = xmalloc(sizeof(EzType *) * 4);
+                            EzType **rt = xmalloc(sizeof(EzType *) * 3);
                             rt[0] = &TYPE_INT;
                             rt[1] = &TYPE_STRING;
-                            rt[2] = &TYPE_STRING;
-                            rt[3] = &TYPE_BOOL;
+                            // rt[2] = &TYPE_STRING;
+                            // rt[3] = &TYPE_BOOL;
+                            rt[2] = &TYPE_BOOL;
                             sym->ret_types = rt;
-                            sym->ret_count = 4;
+                            // sym->ret_count = 4;
+                            sym->ret_count = 3;
                         }
                     }
                 }

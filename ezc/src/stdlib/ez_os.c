@@ -96,7 +96,8 @@ int64_t ez_os_pid(void) {
 }
 
 EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
-    EzOsExecResult fail = {0, ez_string_lit(""), ez_string_lit(""), false};
+    // EzOsExecResult fail = {0, ez_string_lit(""), ez_string_lit(""), false};
+    EzOsExecResult fail = {0, ez_string_lit(""), false};
 
     /* Build null-terminated argv: argv[0] = cmd, argv[1..n] = args, argv[n+1] = NULL */
     int argc = 1 + args.len;
@@ -221,7 +222,8 @@ EzOsExecResult ez_os_exec(EzArena *arena, EzString cmd, EzArray args) {
 
     EzString stdout_str = ez_string_new(arena, out_buf, (int32_t)out_total);
     EzString stderr_str = ez_string_new(arena, err_buf, (int32_t)err_total);
-    EzOsExecResult r = {(int64_t)exit_code, stdout_str, stderr_str, true};
+    // EzOsExecResult r = {(int64_t)exit_code, stdout_str, stderr_str, true};
+    EzOsExecResult r = {(int64_t)exit_code, stderr_str, true};
     return r;
 }
 
