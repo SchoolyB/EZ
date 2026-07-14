@@ -1735,7 +1735,7 @@ int main(int argc, char **argv) {
             "stdlib/ez_regex.c",    "stdlib/ez_server.c",   "stdlib/ez_sqlite.c",
             "stdlib/ez_strings.c",  "stdlib/ez_sync.c",     "stdlib/ez_atomic.c",
             "stdlib/ez_threads.c",
-            "stdlib/ez_time.c",     "stdlib/ez_uuid.c",
+            "stdlib/ez_time.c",     "stdlib/ez_uuid.c", "stdlib/ez_strconv.c"
         };
         char srcs[CMD_BUF_SIZE];
         int off = 0;
