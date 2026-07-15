@@ -2894,10 +2894,10 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `exec` | `(cmd string, args [string]) -> (int, string, bool)` | Run a subprocess. Returns `(exit_code, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout is inherited and passes through to the terminal; only stderr is captured. POSIX only. |
+| `exec` | `(cmd string, args [string]) -> (int, string, string, bool)` | Run a subprocess. Returns `(exit_code, stdout, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout and stderr are captured. POSIX only. |
 
 ```ez
-mut code, stderr, ok = os.exec("ls", {"-l", "/tmp"})
+mut code, stdout, stderr, ok = os.exec("ls", {"-l", "/tmp"})
 if !ok {
     println("failed to launch")
 }
