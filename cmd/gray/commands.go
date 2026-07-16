@@ -1,3 +1,10 @@
+// commands.go — Defines all Cobra subcommands (build, check, update, doc,
+// fmt, pz, watch, man, report, verify, version) and the root command wiring.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import (
@@ -21,7 +28,7 @@ var checkCmd = &cobra.Command{
 		info, statErr := os.Stat(args[0])
 		isDir := statErr == nil && info.IsDir()
 		if !isDir && !strings.HasSuffix(args[0], ".gray") {
-			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .gray file\n", args[0])
+			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid Grayscale source file — expected a .gray file\n", args[0])
 			os.Exit(1)
 		}
 		var extraArgs []string
@@ -46,7 +53,7 @@ var buildCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if !strings.HasSuffix(args[0], ".gray") {
-			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .gray file\n", args[0])
+			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid Grayscale source file — expected a .gray file\n", args[0])
 			os.Exit(1)
 		}
 		output, _ := cmd.Flags().GetString("output")
@@ -93,8 +100,8 @@ var installCmd = &cobra.Command{
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Check for updates and upgrade EZ",
-	Long: "Check for updates and upgrade EZ.\n\n" +
+	Short: "Check for updates and upgrade Grayscale",
+	Long: "Check for updates and upgrade Grayscale.\n\n" +
 		"Without flags, installs the latest stable release and prints a note " +
 		"if a newer pre-release is available.\n\n" +
 		"With --pre, installs the latest pre-release (alpha, beta, or rc).",
@@ -121,7 +128,7 @@ var versionCmd = &cobra.Command{
 var docCmd = &cobra.Command{
 	Use:   "doc <path>",
 	Short: "Generate documentation from #doc attributes",
-	Long: `Generate markdown documentation from #doc attributes in EZ source files.
+	Long: `Generate markdown documentation from #doc attributes in Grayscale source files.
 
 Examples:
   gray doc .              Generate docs for current directory (no recursion)
@@ -255,7 +262,7 @@ func reportCPUModel() string {
 	return "unknown"
 }
 
-// reportCCompiler resolves the C compiler ezc will actually invoke
+// reportCCompiler resolves the C compiler grayc will actually invoke
 // (honouring $CC, else the first of clang/gcc/cc on PATH) and returns
 // its resolved path, first line of --version output, and target triple.
 func reportCCompiler() (path, version, triple string) {
@@ -291,7 +298,7 @@ func reportCCompiler() (path, version, triple string) {
 }
 
 func printManUsage() {
-	fmt.Println("ez man — builtin, stdlib, and language reference documentation")
+	fmt.Println("gray man — builtin, stdlib, and language reference documentation")
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  gray man builtins          list all builtins")
@@ -323,7 +330,7 @@ func printManUsage() {
 }
 
 func printBuiltinsIndex() {
-	fmt.Println("Builtins  (ez man <name> for details)")
+	fmt.Println("Builtins  (gray man <name> for details)")
 	fmt.Println(strings.Repeat("─", 50))
 	groups := []struct {
 		label string
@@ -402,11 +409,11 @@ func printStdlibEntry(name string, entry StdlibManEntry) {
 func printStdlibModuleIndex(module string) {
 	groups, ok := stdlibModuleGroups[module]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "ez: no documentation for module '%s'\n", module)
+		fmt.Fprintf(os.Stderr, "gray: no documentation for module '%s'\n", module)
 		fmt.Fprintf(os.Stderr, "    try: gray man\n")
 		os.Exit(1)
 	}
-	fmt.Printf("module: %s  (ez man <name> for details)\n", module)
+	fmt.Printf("module: %s  (gray man <name> for details)\n", module)
 	fmt.Println(strings.Repeat("─", 50))
 	for _, g := range groups {
 		var labels []string
@@ -425,7 +432,7 @@ func printStdlibModuleIndex(module string) {
 }
 
 func printLangIndex() {
-	fmt.Println("Language Reference  (ez man <category> for details)")
+	fmt.Println("Language Reference  (gray man <category> for details)")
 	fmt.Println(strings.Repeat("─", 50))
 	for _, cat := range []string{"keywords", "types", "symbols", "attributes"} {
 		groups := langCategories[cat]
@@ -440,11 +447,11 @@ func printLangIndex() {
 func printLangCategoryIndex(category string) {
 	groups, ok := langCategories[category]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "ez: no language reference category '%s'\n", category)
+		fmt.Fprintf(os.Stderr, "gray: no language reference category '%s'\n", category)
 		fmt.Fprintf(os.Stderr, "    try: gray man lang\n")
 		os.Exit(1)
 	}
-	fmt.Printf("lang: %s  (ez man <name> for details)\n", category)
+	fmt.Printf("lang: %s  (gray man <name> for details)\n", category)
 	fmt.Println(strings.Repeat("─", 50))
 	for _, g := range groups {
 		fmt.Printf("  %s  %s\n", g.Label, strings.Join(g.Names, "  "))
@@ -531,7 +538,7 @@ var manCmd = &cobra.Command{
 			return
 		}
 		if len(matchEntries) > 1 {
-			fmt.Fprintf(os.Stderr, "ez: '%s' exists in multiple modules. Use a qualified name:\n", name)
+			fmt.Fprintf(os.Stderr, "gray: '%s' exists in multiple modules. Use a qualified name:\n", name)
 			for _, k := range matchKeys {
 				fmt.Fprintf(os.Stderr, "    gray man %s\n", k)
 			}
@@ -557,7 +564,7 @@ var manCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Fprintf(os.Stderr, "ez: no documentation for '%s'\n", name)
+		fmt.Fprintf(os.Stderr, "gray: no documentation for '%s'\n", name)
 		fmt.Fprintf(os.Stderr, "    try: gray man builtins  or  gray man lang\n")
 		os.Exit(1)
 	},
@@ -570,7 +577,7 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			fmt.Printf("%sVersion: %s\n\nRun 'ez help' for usage.\n", asciiBanner, Version)
+			fmt.Printf("%sVersion: %s\n\nRun 'gray help' for usage.\n", asciiBanner, Version)
 			return nil
 		}
 		if !strings.HasSuffix(args[0], ".gray") {
@@ -617,7 +624,7 @@ func init() {
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
-	// Custom help for root only: hide -h (users have `ez help`) and -v (use `ez version`)
+	// Custom help for root only: hide -h (users have `gray help`) and -v (use `gray version`)
 	defaultHelp := rootCmd.HelpFunc()
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		if cmd != rootCmd {
@@ -642,7 +649,7 @@ Flags:
   -q, --quiet string   Suppress warnings ('all' or comma-separated codes like W1001,W1002)
       --no-color       Disable colored output
 
-Use "ez [command] --help" for more information about a command.
+Use "gray [command] --help" for more information about a command.
 `)
 	})
 	updateCmd.Flags().Bool("confirm", false, "")

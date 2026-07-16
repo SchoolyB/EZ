@@ -1,7 +1,12 @@
-package main
-
+// verify.go — Built-in verification test suite ("gray verify"). Embeds
+// a Grayscale test program and runs it through the compiler to confirm
+// the installation is working correctly.
+//
+// Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
+package main
 
 import (
 	_ "embed"
@@ -16,9 +21,9 @@ import (
 var verifyTestSrc []byte
 
 // runVerify writes the embedded tests.gray to a temp file, compiles and runs it
-// with ezc, then reports pass/fail. Returns the exit code (0 = pass).
+// with grayc, then reports pass/fail. Returns the exit code (0 = pass).
 func runVerify() int {
-	tmp, err := os.CreateTemp("", "ez-verify-*.gray")
+	tmp, err := os.CreateTemp("", "gray-verify-*.gray")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: could not create temp file: %v\n", err)
 		return 1

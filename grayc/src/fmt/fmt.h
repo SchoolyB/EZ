@@ -1,12 +1,15 @@
 /*
- * fmt.h - Grayscale source formatter
+ * fmt.h — Public interface for the Grayscale source formatter. Declares the
+ * gray_fmt_source function that re-indents Grayscale source files while
+ * preserving all content verbatim.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_FMT_H
-#define EZC_FMT_H
+#ifndef GRAYC_FMT_H
+#define GRAYC_FMT_H
 
 #include <stdio.h>
 

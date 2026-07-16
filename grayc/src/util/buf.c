@@ -1,5 +1,10 @@
 /*
- * buf.c - Growable string buffer for code emission
+ * buf.c — Growable string buffer implementation used by the code generator
+ * to build C source output via append, formatted append, and indentation.
+ *
+ * Author:  Marshall A Burns (@SchoolyB)
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
  */
 
 #include "buf.h"
@@ -16,7 +21,7 @@ static void buf_grow(Buf *b, size_t needed) {
     }
     b->data = realloc(b->data, new_cap);
     if (!b->data) {
-        fprintf(stderr, "ezc: out of memory\n");
+        fprintf(stderr, "grayc: out of memory\n");
         exit(1);
     }
     b->cap = new_cap;
@@ -26,7 +31,7 @@ Buf buf_create(size_t initial_cap) {
     Buf b;
     b.data = malloc(initial_cap);
     if (!b.data) {
-        fprintf(stderr, "ezc: out of memory\n");
+        fprintf(stderr, "grayc: out of memory\n");
         exit(1);
     }
     b.data[0] = '\0';

@@ -1,14 +1,8 @@
 /*
- * reserved.h - Canonical reserved name lists for the Grayscale compiler
+ * reserved.h — Canonical sorted lists of reserved identifiers (type names,
+ * builtins, stdlib modules, stdlib structs) that the user may not shadow.
  *
- * Single authoritative source for every identifier the user may not shadow:
- * reserved type names, builtin function names, stdlib module names, and
- * stdlib struct names reserved by the runtime. Both the parser and typechecker
- * include this header so that additions require a single change.
- *
- * Every array must remain sorted in strcmp order (ASCII: digits, uppercase,
- * lowercase) for bsearch to work correctly.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

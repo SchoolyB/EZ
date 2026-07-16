@@ -101,16 +101,16 @@ go version
 make build
 
 # Verify it works — scaffold a throwaway project and run it
-./ez pz /tmp/hello-ez && ./ez /tmp/hello-ez/main.ez
+./gray pz /tmp/hello-ez && ./gray /tmp/hello-gray/main.gray
 ```
 
-> **Iterating on the compiler?** When you edit anything under `ezc/src/` and rebuild locally, you need to tell the `ez` wrapper to use your *local* `ezc` binary instead of the system-installed one. Set `EZ_COMPILER_PATH=./ezc/ezc` on every command while iterating:
+> **Iterating on the compiler?** When you edit anything under `grayc/src/` and rebuild locally, you need to tell the `gray` wrapper to use your *local* `ezc` binary instead of the system-installed one. Set `GRAY_COMPILER_PATH=./grayc/grayc` on every command while iterating:
 >
 > ```bash
-> EZ_COMPILER_PATH=./ezc/ezc ./ez /tmp/hello-ez/main.ez
+> GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/hello-gray/main.gray
 > ```
 >
-> Without this, you'll silently run against whatever `ezc` is installed on your system and wonder why your changes had no effect.
+> Without this, you'll silently run against whatever `grayc` is installed on your system and wonder why your changes had no effect.
 
 ### Makefile Commands
 
@@ -140,18 +140,18 @@ Source Code → Lexer → Parser → Type Checker → Code Gen → C Compiler �
   (.ez)      tokens    AST     validated AST    .c file    cc/gcc       native
 ```
 
-All compiler stages live in `ezc/src/`:
+All compiler stages live in `grayc/src/`:
 
-1. **Lexer** (`ezc/src/lexer/`) — Reads source text and produces tokens.
-2. **Parser** (`ezc/src/parser/`) — Turns tokens into an Abstract Syntax Tree (AST).
-3. **Type Checker** (`ezc/src/typechecker/`) — Walks the AST and validates types, catches errors before compilation.
-4. **Code Generator** (`ezc/src/codegen/`) — Translates the AST into C source code.
-5. **Runtime** (`ezc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
-6. **Stdlib** (`ezc/src/stdlib/`) — Standard library modules compiled into `libezrt.a`.
+1. **Lexer** (`grayc/src/lexer/`) — Reads source text and produces tokens.
+2. **Parser** (`grayc/src/parser/`) — Turns tokens into an Abstract Syntax Tree (AST).
+3. **Type Checker** (`grayc/src/typechecker/`) — Walks the AST and validates types, catches errors before compilation.
+4. **Code Generator** (`grayc/src/codegen/`) — Translates the AST into C source code.
+5. **Runtime** (`grayc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
+6. **Stdlib** (`grayc/src/stdlib/`) — Standard library modules compiled into `libgrayrt.a`.
 
-The `ez` CLI (`cmd/ez/`) is a Go tooling wrapper that invokes the compiler for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
+The `ez` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
 
-**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `ezc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (REPL, watch, etc.), you work in the Go code under `cmd/ez/`.
+**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (REPL, watch, etc.), you work in the Go code under `cmd/gray/`.
 
 ---
 
@@ -160,17 +160,17 @@ The `ez` CLI (`cmd/ez/`) is a Go tooling wrapper that invokes the compiler for c
 The fastest way to iterate on a change:
 
 ```bash
-# 1. Edit a file (e.g., ezc/src/stdlib/ez_strings.c)
+# 1. Edit a file (e.g., grayc/src/stdlib/gray_strings.c)
 
 # 2. Rebuild
 make build
 
 # 3. Test with a quick .ez file (scaffolded via the project templates)
-./ez pz /tmp/hello-ez
-EZ_COMPILER_PATH=./ezc/ezc ./ez /tmp/hello-ez/main.ez
+./gray pz /tmp/hello-ez
+GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/hello-gray/main.gray
 
 # Or test with the REPL
-EZ_COMPILER_PATH=./ezc/ezc ./ez repl
+GRAY_COMPILER_PATH=./grayc/grayc ./gray repl
 ```
 
 This is a great way to quickly validate your change while developing. When your feature is working, make sure to add proper tests before submitting your PR (see [Writing Tests](#writing-tests)).
@@ -181,24 +181,24 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 
 #### C Implementation
 
-- [ ] `ezc/src/stdlib/ez_<module>.h` — declare the C function and add a `@man` block following the existing format
-- [ ] `ezc/src/stdlib/ez_<module>.c` — implement it
+- [ ] `grayc/src/stdlib/gray_<module>.h` — declare the C function and add a `@man` block following the existing format
+- [ ] `grayc/src/stdlib/gray_<module>.c` — implement it
 
-#### Typechecker (`ezc/src/typechecker/typechecker.c`) — 4 locations
+#### Typechecker (`grayc/src/typechecker/typechecker.c`) — 4 locations
 
 - [ ] **Return type block** — find the `strcmp(mod, "<module>")` section and register what the function returns
 - [ ] **`stdlib_arg_table[]`** — add `{"module", "fn", min_args, max_args}` for arg count validation
 - [ ] **`stdlib_arg_type_table[]`** — add `{"module", "fn", arg_index, ARG_TYPE}` entries for arg type validation
 - [ ] **`_using_funcs[]`** — add `{"fn", "module", TK_RETURNTYPE}` so the `using` keyword resolves this function
 
-#### Codegen (`ezc/src/codegen/codegen.c`)
+#### Codegen (`grayc/src/codegen/codegen.c`)
 
 - [ ] Emit the C call in `emit_<module>_call()`
 
 #### Docs
 
 - [ ] `STANDARD.md` — add the function to the module's table in the language spec
-- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cmd/ez/stdlib_man_data.go`
+- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cmd/gray/stdlib_man_data.go`
 
 #### Build
 
@@ -212,15 +212,15 @@ PRs that add user-facing functionality without completing this checklist will no
 
 ```
 EZ/
-├── cmd/ez/              # Go CLI tooling wrapper
+├── cmd/gray/              # Go CLI tooling wrapper
 │   ├── main.go          # Entry point, version
 │   ├── commands.go      # Subcommand definitions
-│   ├── repl.go          # Interactive REPL (backed by ezc)
+│   ├── repl.go          # Interactive REPL (backed by grayc)
 │   ├── watch.go         # File watcher
 │   ├── doc.go           # Documentation generator
 │   ├── pz.go            # Project scaffolding
 │   └── update.go        # Self-update
-├── internal/ezc/        # Go wrapper for invoking ezc binary
+├── internal/grayc/        # Go wrapper for invoking grayc binary
 ├── pkg/                 # Go packages (tooling only)
 │   └── lineeditor/      # REPL line editor
 ├── ezc/                 # EZ compiler (C)
@@ -233,21 +233,21 @@ EZ/
 │   └── tests/           # Unit, e2e, integration tests
 ├── integration-tests/   # End-to-end test suite
 ├── STANDARD.md          # Language specification
-└── Makefile             # Build commands (builds both ez + ezc)
+└── Makefile             # Build commands (builds both gray + grayc)
 ```
 
 ### Key Files for Common Tasks
 
 | Task | Where to Look |
 |------|---------------|
-| Add a stdlib function | `ezc/src/stdlib/` + wire in `ezc/src/codegen/codegen.c` |
-| Change syntax/grammar | `ezc/src/parser/parser.c` + `ezc/src/parser/ast.h` |
-| Add a new keyword/token | `ezc/src/lexer/lexer.c` + `ezc/src/lexer/token.h` |
-| Modify type checking | `ezc/src/typechecker/typechecker.c` |
-| Change code generation | `ezc/src/codegen/codegen.c` |
-| Add/modify error codes | `ezc/src/util/error_codes.h` |
-| Improve CLI tooling | `cmd/ez/*.go` |
-| Add a new language feature | Parser → Typechecker → Codegen (all in `ezc/src/`) |
+| Add a stdlib function | `grayc/src/stdlib/` + wire in `grayc/src/codegen/codegen.c` |
+| Change syntax/grammar | `grayc/src/parser/parser.c` + `grayc/src/parser/ast.h` |
+| Add a new keyword/token | `grayc/src/lexer/lexer.c` + `grayc/src/lexer/token.h` |
+| Modify type checking | `grayc/src/typechecker/typechecker.c` |
+| Change code generation | `grayc/src/codegen/codegen.c` |
+| Add/modify error codes | `grayc/src/util/error_codes.h` |
+| Improve CLI tooling | `cmd/gray/*.go` |
+| Add a new language feature | Parser → Typechecker → Codegen (all in `grayc/src/`) |
 | Add stdlib/builtin docs | `@man` block in header + run generation script (see below) |
 
 ---
@@ -268,7 +268,7 @@ This builds the compiler, then runs unit tests, e2e tests, integration tests, an
 make test-unit        # C unit tests (lexer, parser, typechecker)
 make test-e2e         # End-to-end codegen tests
 make test-integration # Integration tests (pass + fail .ez programs)
-make test-go          # Go unit tests (lineeditor, CLI, ezc wrapper)
+make test-go          # Go unit tests (lineeditor, CLI, grayc wrapper)
 make test-ubsan       # UBSan sanitizer tests
 make test-asan        # ASan+UBSan tests (Linux recommended)
 ```
@@ -283,10 +283,10 @@ New features and bug fixes should include tests. The type of test depends on wha
 
 ### Unit Tests (C)
 
-For compiler internals. Run from `ezc/`:
+For compiler internals. Run from `grayc/`:
 
 ```bash
-cd ezc
+cd grayc
 make test-unit          # lexer, parser, typechecker tests
 make test-e2e           # full compilation pipeline tests
 ```
@@ -347,21 +347,21 @@ For more details, see `TESTING.md`.
 
 ## Code Style
 
-### Go code (`cmd/ez/`, `pkg/`, `internal/`)
+### Go code (`cmd/gray/`, `pkg/`, `internal/`)
 
 - Run `gofmt` before committing
 - Follow standard Go conventions
 - Keep functions focused and readable
 
-### C code (`ezc/src/`)
+### C code (`grayc/src/`)
 
-- The repo ships a `.clang-format` under `ezc/` — run `clang-format -i` on files you touch
+- The repo ships a `.clang-format` under `grayc/` — run `clang-format -i` on files you touch
 - Match the style of the surrounding code; the compiler is consistent throughout
 
 ### General
 
 - Add comments only for non-obvious logic — don't explain what the code already says
-- When adding error codes, register them in `ezc/src/util/error_codes.h` (the canonical source). After adding or changing codes, run `scripts/generate_errors.sh` to regenerate `ERRORS.md` for the docs site.
+- When adding error codes, register them in `grayc/src/util/error_codes.h` (the canonical source). After adding or changing codes, run `scripts/generate_errors.sh` to regenerate `ERRORS.md` for the docs site.
 - When adding any user-facing stdlib function, builtin, constant, or type: add `@man` blocks to the header, update `STANDARD.md`, and run the appropriate generation script (`scripts/generate_stdlib_man.sh` or `scripts/generate_builtins_man.sh`). See [Adding a Stdlib Function, Builtin, Constant, or Type](#adding-a-stdlib-function-builtin-constant-or-type) for the full checklist.
 
 ---
@@ -389,13 +389,13 @@ type(scope): short description
 
 | Scope | Area |
 |-------|------|
-| `lexer` | Tokenization (`ezc/src/lexer/`) |
-| `parser` | Parsing / AST construction (`ezc/src/parser/`) |
-| `typechecker` | Static type checking (`ezc/src/typechecker/`) |
-| `codegen` | C code generation (`ezc/src/codegen/`) |
-| `runtime` | Runtime library (`ezc/src/runtime/`) |
-| `stdlib` | Standard library (`ezc/src/stdlib/`) — optionally nested, e.g. `stdlib/strings` |
-| `cli` | Go CLI wrapper (`cmd/ez/`) |
+| `lexer` | Tokenization (`grayc/src/lexer/`) |
+| `parser` | Parsing / AST construction (`grayc/src/parser/`) |
+| `typechecker` | Static type checking (`grayc/src/typechecker/`) |
+| `codegen` | C code generation (`grayc/src/codegen/`) |
+| `runtime` | Runtime library (`grayc/src/runtime/`) |
+| `stdlib` | Standard library (`grayc/src/stdlib/`) — optionally nested, e.g. `stdlib/strings` |
+| `cli` | Go CLI wrapper (`cmd/gray/`) |
 | `tests` | Test additions or test infrastructure |
 | `docs` | Documentation only |
 | `ci` | GitHub Actions, release workflows |

@@ -1,3 +1,11 @@
+// watch_test.go — Tests for the file watcher covering main-function
+// detection, import scanning, directory file collection, main-file
+// discovery, and path shortening utilities.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import (
@@ -74,7 +82,7 @@ func TestScanImports_NonexistentFile(t *testing.T) {
 	}
 }
 
-func TestCollectEzFilesInDir(t *testing.T) {
+func TestCollectGrayFilesInDir(t *testing.T) {
 	dir := t.TempDir()
 	sub := filepath.Join(dir, "sub")
 	os.Mkdir(sub, 0o755)
@@ -84,7 +92,7 @@ func TestCollectEzFilesInDir(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "notes.txt"), []byte(""), 0o644)
 	os.WriteFile(filepath.Join(sub, "c.gray"), []byte(""), 0o644)
 
-	files := collectEzFilesInDir(dir)
+	files := collectGrayFilesInDir(dir)
 	var names []string
 	for _, f := range files {
 		names = append(names, filepath.Base(f))
@@ -93,7 +101,7 @@ func TestCollectEzFilesInDir(t *testing.T) {
 
 	want := []string{"a.gray", "b.gray", "c.gray"}
 	if len(names) != len(want) {
-		t.Fatalf("collectEzFilesInDir got %v, want %v", names, want)
+		t.Fatalf("collectGrayFilesInDir got %v, want %v", names, want)
 	}
 	for i, w := range want {
 		if names[i] != w {
@@ -180,7 +188,7 @@ func TestCollectFilesToWatch_LocalImport(t *testing.T) {
 		t.Fatalf("expected 2 files, got %v", names)
 	}
 	if names[0] != "main.gray" || names[1] != "util.gray" {
-		t.Errorf("got %v, want [main.gray util.ez]", names)
+		t.Errorf("got %v, want [main.gray util.gray]", names)
 	}
 }
 

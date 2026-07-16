@@ -35,24 +35,24 @@ help:
 	@echo "  make test-asan        - Run ASan+UBSan sanitizer tests (Linux recommended)"
 
 # ===== Test targets =====
-# Delegate compiler tests to ezc/Makefile; Go tests run from the root.
+# Delegate compiler tests to grayc/Makefile; Go tests run from the root.
 
 test: build
 	@echo ""
 	@echo "=== Go Unit Tests ==="
 	$(GO) test -v -count=1 ./cmd/gray/... ./internal/grayc/...
 	@echo ""
-	@$(MAKE) -C ezc test-unit
-	@$(MAKE) -C ezc test-e2e
+	@$(MAKE) -C grayc test-unit
+	@$(MAKE) -C grayc test-e2e
 	@bash scripts/run_tests.sh
 	@echo ""
 	@echo "All test suites completed."
 
 test-unit:
-	@$(MAKE) -C ezc test-unit
+	@$(MAKE) -C grayc test-unit
 
 test-e2e: build
-	@$(MAKE) -C ezc test-e2e
+	@$(MAKE) -C grayc test-e2e
 
 test-integration: build
 	@bash scripts/run_tests.sh
@@ -63,13 +63,13 @@ test-go: stubs
 	$(GO) test -v -count=1 ./cmd/gray/... ./internal/grayc/...
 
 test-ubsan:
-	@$(MAKE) -C ezc test-ubsan
+	@$(MAKE) -C grayc test-ubsan
 
 test-asan:
-	@$(MAKE) -C ezc test-asan
+	@$(MAKE) -C grayc test-asan
 
 leaks:
-	@$(MAKE) -C ezc leaks
+	@$(MAKE) -C grayc leaks
 
 # Create zero-length embed stubs. go:embed directives in
 # internal/grayc/embedded.go require these files to exist at `go build`
@@ -84,18 +84,18 @@ stubs:
 	@test -f $(EMBED_DIR)/src/runtime/.stub || : > $(EMBED_DIR)/src/runtime/.stub
 	@test -f $(EMBED_DIR)/src/stdlib/.stub || : > $(EMBED_DIR)/src/stdlib/.stub
 
-# Single-binary build (#1461): compile the C compiler first, stage the
+# Single-binary build: compile the C compiler first, stage the
 # artifacts into internal/grayc/runtime/ so go:embed picks them up, then
 # build the Go CLI. The final `gray` binary contains `grayc` + `libgrayrt.a`
 # as embedded assets and extracts them on first use to ~/.gray/runtime/.
 build: stubs
 	@echo "Building compiler..."
-	@$(MAKE) -C ezc build
+	@$(MAKE) -C grayc build
 	@echo "Staging embedded runtime assets..."
-	@cp ezc/grayc $(EMBED_DIR)/grayc
-	@cp ezc/libgrayrt.a $(EMBED_DIR)/libgrayrt.a
-	@cp ezc/src/runtime/*.h ezc/src/runtime/*.c $(EMBED_DIR)/src/runtime/
-	@cp ezc/src/stdlib/*.h ezc/src/stdlib/*.c $(EMBED_DIR)/src/stdlib/
+	@cp grayc/grayc $(EMBED_DIR)/grayc
+	@cp grayc/libgrayrt.a $(EMBED_DIR)/libgrayrt.a
+	@cp grayc/src/runtime/*.h grayc/src/runtime/*.c $(EMBED_DIR)/src/runtime/
+	@cp grayc/src/stdlib/*.h grayc/src/stdlib/*.c $(EMBED_DIR)/src/stdlib/
 	@echo "Building gray CLI (with embedded runtime)..."
 	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gray
 	@echo ""
@@ -128,7 +128,7 @@ install: build
 uninstall:
 	@echo "Uninstalling Grayscale..."
 	@rm -f $(INSTALL_PATH)/$(BINARY_NAME)
-	@# Remove standalone ezc from prior install layouts (#1461)
+	@# Remove standalone grayc from prior install layouts
 	@rm -f $(INSTALL_PATH)/grayc
 	@echo "Grayscale uninstalled"
 
@@ -139,6 +139,5 @@ clean:
 	@# Embed assets are gitignored — delete entirely, not truncate
 	@rm -f $(EMBED_DIR)/grayc $(EMBED_DIR)/libgrayrt.a
 	@rm -rf $(EMBED_DIR)/src
-	@$(MAKE) -C ezc clean
+	@$(MAKE) -C grayc clean
 	@echo "Clean complete"
-

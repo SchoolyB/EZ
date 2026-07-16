@@ -1,9 +1,8 @@
 /*
- * constants.h - Shared compiler constants
+ * constants.h — Shared numeric constants referenced across multiple
+ * compiler stages, including diagnostic buffer sizes and time conversions.
  *
- * Only for values referenced by multiple compilation stages.
- * File-local constants belong in their respective .c files.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

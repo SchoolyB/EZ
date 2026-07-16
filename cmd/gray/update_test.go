@@ -1,3 +1,10 @@
+// update_test.go — Tests for semver parsing, comparison, pre-release
+// ordering, version range filtering, and release body changelog extraction.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import "testing"

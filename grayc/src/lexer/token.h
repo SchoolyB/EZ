@@ -1,11 +1,15 @@
 /*
+ * token.h — Token type enumeration and Token struct for the Grayscale lexer.
+ * Defines all token kinds (operators, keywords, literals, delimiters) and
+ * the lookup interface for resolving identifiers to keyword tokens.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_TOKEN_H
-#define EZC_TOKEN_H
+#ifndef GRAYC_TOKEN_H
+#define GRAYC_TOKEN_H
 
 #include <stdbool.h>
 

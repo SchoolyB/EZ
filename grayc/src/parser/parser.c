@@ -1,5 +1,9 @@
 /*
+ * parser.c — Recursive descent parser for Grayscale. Transforms the token
+ * stream from the lexer into an abstract syntax tree using Pratt parsing
+ * for expressions and precedence-based operator handling.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

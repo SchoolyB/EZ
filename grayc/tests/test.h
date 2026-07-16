@@ -1,12 +1,14 @@
 /*
- * test.h - Minimal C test framework
+ * test.h — Minimal C test framework providing ASSERT macros, RUN_TEST
+ * dispatch, and pass/fail result reporting for grayc unit tests.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_TEST_H
-#define EZC_TEST_H
+#ifndef GRAYC_TEST_H
+#define GRAYC_TEST_H
 
 #include <stdio.h>
 #include <string.h>

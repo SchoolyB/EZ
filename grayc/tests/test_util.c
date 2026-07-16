@@ -1,6 +1,8 @@
 /*
- * test_util.c - Unit tests for arena, buf, and scope utilities
+ * test_util.c — Unit tests for the arena allocator, growable buffer,
+ * and scope/symbol-table utilities.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -185,8 +187,8 @@ static void test_scope_empty_lookup(void) {
 
 static void test_scope_define_update(void) {
     Scope *s = scope_create(NULL);
-    EzType *t_int = type_from_name("int");
-    EzType *t_str = type_from_name("string");
+    GrayType *t_int = type_from_name("int");
+    GrayType *t_str = type_from_name("string");
     scope_define(s, "x", t_int, true);
     scope_define(s, "x", t_str, false);
     Symbol *sym = scope_lookup(s, "x");
@@ -199,7 +201,7 @@ static void test_scope_define_update(void) {
 
 static void test_scope_hash_rebuild(void) {
     Scope *s = scope_create(NULL);
-    EzType *t = type_from_name("int");
+    GrayType *t = type_from_name("int");
     char names[12][16];
     for (int i = 0; i < 12; i++) {
         snprintf(names[i], sizeof(names[i]), "var_%d", i);
@@ -217,7 +219,7 @@ static void test_scope_hash_rebuild(void) {
 
 static void test_scope_many_symbols(void) {
     Scope *s = scope_create(NULL);
-    EzType *t = type_from_name("int");
+    GrayType *t = type_from_name("int");
     char names[60][16];
     for (int i = 0; i < 60; i++) {
         snprintf(names[i], sizeof(names[i]), "sym_%d", i);
@@ -234,7 +236,7 @@ static void test_scope_many_symbols(void) {
 
 static void test_scope_destroy(void) {
     Scope *s = scope_create(NULL);
-    EzType *t = type_from_name("int");
+    GrayType *t = type_from_name("int");
     scope_define(s, "a", t, true);
     scope_define(s, "b", t, false);
     scope_define(s, "c", t, true);
@@ -245,7 +247,7 @@ static void test_scope_destroy(void) {
 
 static void test_scope_immutable(void) {
     Scope *s = scope_create(NULL);
-    EzType *t = type_from_name("int");
+    GrayType *t = type_from_name("int");
     scope_define(s, "constant", t, false);
     Symbol *sym = scope_lookup(s, "constant");
     ASSERT_NOT_NULL(sym);

@@ -1,6 +1,8 @@
 /*
- * test_lexer.c - Unit tests for the EZC lexer
+ * test_lexer.c — Unit tests for the grayc lexer, covering tokenization
+ * of literals, operators, keywords, comments, and edge cases.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -437,8 +439,6 @@ static void test_keyword_blank(void) {
     ASSERT_EQ(next(l).type, TOK_BLANK);
 }
 
-/* test_hash_enum_attr removed — #enum attribute was dead code,
- * stripped entirely in #1513. TOK_ENUM_ATTR no longer exists. */
 
 /* --- Column tracking --- */
 
@@ -649,7 +649,6 @@ int main(void) {
     RUN_TEST(test_keyword_range);
     RUN_TEST(test_keyword_use);
     RUN_TEST(test_keyword_blank);
-    /* test_hash_enum_attr removed (#1513) */
 
     /* Column tracking */
     RUN_TEST(test_column_tracking);

@@ -1,3 +1,10 @@
+// commands_test.go — Tests for CLI command helpers including bug-report
+// output, man page rendering, and builtin/stdlib documentation display.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import (
@@ -58,8 +65,8 @@ func TestReportCCompiler_CCNotFound(t *testing.T) {
 
 func TestPrintManUsage(t *testing.T) {
 	out := captureStdout(t, printManUsage)
-	if !strings.Contains(out, "ez man") {
-		t.Errorf("printManUsage output missing 'ez man': %q", out)
+	if !strings.Contains(out, "gray man") {
+		t.Errorf("printManUsage output missing 'gray man': %q", out)
 	}
 	if !strings.Contains(out, "builtins") {
 		t.Errorf("printManUsage output missing 'builtins': %q", out)

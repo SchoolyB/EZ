@@ -1,11 +1,14 @@
 /*
+ * lexer.h — Public interface for the Grayscale lexer. Defines the Lexer
+ * struct and functions for creating a lexer and advancing through tokens.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_LEXER_H
-#define EZC_LEXER_H
+#ifndef GRAYC_LEXER_H
+#define GRAYC_LEXER_H
 
 #include "token.h"
 #include "../util/arena.h"

@@ -1,15 +1,14 @@
 /*
- * error.h - Compiler diagnostic system
+ * error.h — Public interface for the compiler diagnostic system, providing
+ * structured error/warning reporting with source context and help text.
  *
- * Provides structured error/warning reporting with source context,
- * span underlines, colored output, and help text.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_ERROR_H
-#define EZC_ERROR_H
+#ifndef GRAYC_ERROR_H
+#define GRAYC_ERROR_H
 
 #include <stdbool.h>
 
@@ -134,7 +133,7 @@ int diag_warning_count(DiagnosticList *dl);
 /* Render all diagnostics to stderr */
 void diag_print_all(DiagnosticList *dl);
 
-/* Print summary line: "ezc: 2 errors, 1 warning" */
+/* Print summary line: "grayc: 2 errors, 1 warning" */
 void diag_print_summary(DiagnosticList *dl);
 
 #endif

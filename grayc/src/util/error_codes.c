@@ -1,11 +1,8 @@
 /*
- * error_codes.c - Runtime lookup for error/warning messages
+ * error_codes.c — Runtime lookup for error and warning messages, backed
+ * by the registry in error_codes.h via sorted binary search.
  *
- * The registry in error_codes.h is the single source of truth for both
- * ERRORS.md (via scripts/generate_errors.sh) and the messages shown to
- * users at compile time. gray_error_message() performs the string-keyed
- * lookup so emission sites never hold their own copy of the text.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

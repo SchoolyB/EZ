@@ -1,11 +1,15 @@
 /*
+ * parser.h — Public interface for the Grayscale parser. Defines the Parser
+ * struct and functions for creating a parser from a lexer and producing an
+ * AST program node from the token stream.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_PARSER_H
-#define EZC_PARSER_H
+#ifndef GRAYC_PARSER_H
+#define GRAYC_PARSER_H
 
 #include "ast.h"
 #include "../lexer/lexer.h"

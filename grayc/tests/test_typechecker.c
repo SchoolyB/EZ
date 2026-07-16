@@ -1,6 +1,8 @@
 /*
- * test_typechecker.c - Unit tests for the EZC type checker
+ * test_typechecker.c — Unit tests for the grayc type checker, validating
+ * type inference, type errors, and expression type resolution.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -26,7 +28,7 @@ static TypeTable *check(const char *input) {
 }
 
 /* Helper: parse, type check, and get the type of the first expression in main */
-static EzType *expr_type(const char *expr_code) {
+static GrayType *expr_type(const char *expr_code) {
     char buf[512];
     snprintf(buf, sizeof(buf),
         "do main() { mut _result = %s }", expr_code);
@@ -116,13 +118,13 @@ static void test_type_from_name_primitives(void) {
 }
 
 static void test_type_from_name_array(void) {
-    EzType *t = type_from_name("[int]");
+    GrayType *t = type_from_name("[int]");
     ASSERT_EQ(t->kind, TK_ARRAY);
     ASSERT_STR_EQ(t->element_type, "int");
 }
 
 static void test_type_from_name_struct(void) {
-    EzType *t = type_from_name("Person");
+    GrayType *t = type_from_name("Person");
     ASSERT_EQ(t->kind, TK_STRUCT);
     ASSERT_STR_EQ(t->name, "Person");
 }
@@ -139,73 +141,73 @@ static void test_type_is_numeric(void) {
 /* --- Expression Type Resolution --- */
 
 static void test_resolve_int_literal(void) {
-    EzType *t = expr_type("42");
+    GrayType *t = expr_type("42");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_INT);
 }
 
 static void test_resolve_float_literal(void) {
-    EzType *t = expr_type("3.14");
+    GrayType *t = expr_type("3.14");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_FLOAT);
 }
 
 static void test_resolve_string_literal(void) {
-    EzType *t = expr_type("\"hello\"");
+    GrayType *t = expr_type("\"hello\"");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_STRING);
 }
 
 static void test_resolve_bool_literal(void) {
-    EzType *t = expr_type("true");
+    GrayType *t = expr_type("true");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_nil(void) {
-    EzType *t = expr_type("nil");
+    GrayType *t = expr_type("nil");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_NIL);
 }
 
 static void test_resolve_arithmetic(void) {
-    EzType *t = expr_type("1 + 2");
+    GrayType *t = expr_type("1 + 2");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_INT);
 }
 
 static void test_resolve_float_arithmetic(void) {
-    EzType *t = expr_type("1.0 + 2");
+    GrayType *t = expr_type("1.0 + 2");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_FLOAT);
 }
 
 static void test_resolve_comparison(void) {
-    EzType *t = expr_type("1 < 2");
+    GrayType *t = expr_type("1 < 2");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_logical(void) {
-    EzType *t = expr_type("true && false");
+    GrayType *t = expr_type("true && false");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_negation(void) {
-    EzType *t = expr_type("-42");
+    GrayType *t = expr_type("-42");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_INT);
 }
 
 static void test_resolve_not(void) {
-    EzType *t = expr_type("!true");
+    GrayType *t = expr_type("!true");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_array_literal(void) {
-    EzType *t = expr_type("{1, 2, 3}");
+    GrayType *t = expr_type("{1, 2, 3}");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_ARRAY);
 }
@@ -226,19 +228,19 @@ static void test_resolve_typed_var(void) {
 /* --- Builtin Function Types --- */
 
 static void test_resolve_len(void) {
-    EzType *t = expr_type("len(\"hello\")");
+    GrayType *t = expr_type("len(\"hello\")");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_INT);
 }
 
 static void test_resolve_type_of(void) {
-    EzType *t = expr_type("type_of(42)");
+    GrayType *t = expr_type("type_of(42)");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_STRING);
 }
 
 static void test_resolve_to_float(void) {
-    EzType *t = expr_type("float(42)");
+    GrayType *t = expr_type("float(42)");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_FLOAT);
 }
@@ -274,19 +276,19 @@ static void test_resolve_func_return(void) {
 /* --- Pointer Type Tests --- */
 
 static void test_type_from_name_pointer(void) {
-    EzType *t = type_from_name("^int");
+    GrayType *t = type_from_name("^int");
     ASSERT_EQ(t->kind, TK_POINTER);
     ASSERT_STR_EQ(t->element_type, "int");
 }
 
 static void test_type_pointer_constructor(void) {
-    EzType *t = type_pointer("Person");
+    GrayType *t = type_pointer("Person");
     ASSERT_EQ(t->kind, TK_POINTER);
     ASSERT_STR_EQ(t->element_type, "Person");
 }
 
 static void test_resolve_addr(void) {
-    EzType *t = expr_type("addr(42)");
+    GrayType *t = expr_type("addr(42)");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_POINTER);
 }
@@ -334,7 +336,7 @@ static void test_error_deref_non_pointer(void) {
 }
 
 static void test_resolve_map_type(void) {
-    EzType *t = expr_type("{\"a\": 1}");
+    GrayType *t = expr_type("{\"a\": 1}");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_MAP);
 }
@@ -348,7 +350,7 @@ static void test_resolve_string_enum(void) {
 }
 
 static void test_type_from_name_map(void) {
-    EzType *t = type_from_name("map[string:int]");
+    GrayType *t = type_from_name("map[string:int]");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_MAP);
 }
@@ -944,44 +946,44 @@ static void test_warning_W3003_partial_array_init(void) {
 /* --- Additional typechecker coverage --- */
 
 static void test_resolve_char_literal(void) {
-    EzType *t = expr_type("'A'");
+    GrayType *t = expr_type("'A'");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_CHAR);
 }
 
 static void test_resolve_modulo(void) {
-    EzType *t = expr_type("10 % 3");
+    GrayType *t = expr_type("10 % 3");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_INT);
 }
 
 
 static void test_resolve_equality(void) {
-    EzType *t = expr_type("1 == 1");
+    GrayType *t = expr_type("1 == 1");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_inequality(void) {
-    EzType *t = expr_type("1 != 2");
+    GrayType *t = expr_type("1 != 2");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_or_logic(void) {
-    EzType *t = expr_type("true || false");
+    GrayType *t = expr_type("true || false");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_string_comparison(void) {
-    EzType *t = expr_type("\"a\" == \"b\"");
+    GrayType *t = expr_type("\"a\" == \"b\"");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_BOOL);
 }
 
 static void test_resolve_float_negation(void) {
-    EzType *t = expr_type("-3.14");
+    GrayType *t = expr_type("-3.14");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_FLOAT);
 }
@@ -1017,13 +1019,13 @@ static void test_scope_local_only(void) {
 }
 
 static void test_type_from_name_bigint(void) {
-    EzType *t1 = type_from_name("i128");
+    GrayType *t1 = type_from_name("i128");
     ASSERT_NOT_NULL(t1);
-    EzType *t2 = type_from_name("u128");
+    GrayType *t2 = type_from_name("u128");
     ASSERT_NOT_NULL(t2);
-    EzType *t3 = type_from_name("i256");
+    GrayType *t3 = type_from_name("i256");
     ASSERT_NOT_NULL(t3);
-    EzType *t4 = type_from_name("u256");
+    GrayType *t4 = type_from_name("u256");
     ASSERT_NOT_NULL(t4);
 }
 

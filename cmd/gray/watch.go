@@ -1,3 +1,11 @@
+// watch.go — File watcher for live development ("gray watch"). Monitors
+// a source file or directory for changes and automatically re-runs the
+// program with debounced filesystem event handling.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import (
@@ -139,7 +147,7 @@ func watchDirectory(dirPath string, compilerArgs []string) {
 	}
 	defer watcher.Close()
 
-	filesToWatch := collectEzFilesInDir(dirPath)
+	filesToWatch := collectGrayFilesInDir(dirPath)
 
 	for _, f := range filesToWatch {
 		if err := watcher.Add(f); err != nil {
@@ -172,7 +180,7 @@ func watchDirectory(dirPath string, compilerArgs []string) {
 					timer.Stop()
 				}
 				timer = time.AfterFunc(debounceInterval, func() {
-					newFilesToWatch := collectEzFilesInDir(dirPath)
+					newFilesToWatch := collectGrayFilesInDir(dirPath)
 					for _, f := range newFilesToWatch {
 						watcher.Add(f)
 					}
@@ -207,7 +215,7 @@ func collectFilesToWatch(mainFile string) []string {
 		if !strings.HasSuffix(resolved, ".gray") {
 			// Could be a directory module
 			if info, err := os.Stat(resolved); err == nil && info.IsDir() {
-				dirFiles := collectEzFilesInDir(resolved)
+				dirFiles := collectGrayFilesInDir(resolved)
 				for _, f := range dirFiles {
 					if _, ok := seen[f]; !ok {
 						files = append(files, f)
@@ -260,8 +268,8 @@ func scanImports(filePath string) []string {
 	return imports
 }
 
-// collectEzFilesInDir recursively collects all .gray files in a directory
-func collectEzFilesInDir(dir string) []string {
+// collectGrayFilesInDir recursively collects all .gray files in a directory
+func collectGrayFilesInDir(dir string) []string {
 	var files []string
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -277,13 +285,13 @@ func collectEzFilesInDir(dir string) []string {
 
 // findMainFile finds the .gray file containing do main() in a directory
 func findMainFile(dir string) (string, error) {
-	ezFiles := collectEzFilesInDir(dir)
-	if len(ezFiles) == 0 {
+	grayFiles := collectGrayFilesInDir(dir)
+	if len(grayFiles) == 0 {
 		return "", fmt.Errorf("no .gray files found in %s", dir)
 	}
 
 	var mainFiles []string
-	for _, filePath := range ezFiles {
+	for _, filePath := range grayFiles {
 		if hasMainFunction(filePath) {
 			mainFiles = append(mainFiles, filePath)
 		}
@@ -320,7 +328,7 @@ func hasMainFunction(filePath string) bool {
 	return false
 }
 
-// executeFile runs the given file via ezc and prints output
+// executeFile runs the given file via grayc and prints output
 func executeFile(filename string, compilerArgs []string) {
 	timestamp := time.Now().Format("15:04:05")
 	fmt.Printf("[%s] Running %s...\n", timestamp, shortPath(filename))

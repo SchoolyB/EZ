@@ -1,6 +1,8 @@
 /*
- * test_parser.c - Unit tests for the EZC parser
+ * test_parser.c — Unit tests for the grayc parser, verifying AST
+ * construction from declarations, expressions, and control flow.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

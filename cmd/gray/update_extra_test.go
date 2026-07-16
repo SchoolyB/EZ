@@ -1,3 +1,11 @@
+// update_extra_test.go — Supplementary update tests covering version range
+// logic, stable/pre-release picker functions, archive path sanitization,
+// VersionInfo derivation, and dev-build detection.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import (
@@ -125,7 +133,7 @@ func TestSanitizeArchivePath_ValidFilesLandInsideDest(t *testing.T) {
 	dir := t.TempDir()
 	// Even if the raw filename contains directory traversal characters,
 	// filepath.Base strips them; the result must land inside destDir.
-	path, err := sanitizeArchivePath(dir, "../../sneaky/ez")
+	path, err := sanitizeArchivePath(dir, "../../sneaky/gray")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

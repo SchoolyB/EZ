@@ -1,7 +1,12 @@
-package main
-
+// fmt.go — Source formatter for .gray files ("gray fmt"). Normalizes
+// indentation, trailing whitespace, blank-line runs, and EOF newlines,
+// with a --check mode for CI gating.
+//
+// Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
+package main
 
 import (
 	"fmt"
@@ -12,12 +17,12 @@ import (
 	"github.com/grayscale-lang/grayscale/internal/grayc"
 )
 
-// formatEZSource applies text-level normalizations to EZ source bytes:
+// formatGraySource applies text-level normalizations to Grayscale source bytes:
 //   - trailing whitespace stripped from each line
 //   - leading tabs expanded to 4 spaces each
 //   - runs of more than 2 consecutive blank lines collapsed to 2
 //   - exactly one trailing newline at EOF
-func formatEZSource(src []byte) []byte {
+func formatGraySource(src []byte) []byte {
 	lines := strings.Split(string(src), "\n")
 
 	// Expand leading tabs and strip trailing whitespace on each line.
@@ -73,7 +78,7 @@ func collectFmtFiles(args []string) []string {
 	add := func(p string) {
 		ap, err := filepath.Abs(p)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ez fmt: cannot resolve %s: %v\n", p, err)
+			fmt.Fprintf(os.Stderr, "gray fmt: cannot resolve %s: %v\n", p, err)
 			return
 		}
 		if _, ok := seen[ap]; ok {
@@ -103,14 +108,14 @@ func collectFmtFiles(args []string) []string {
 
 		info, err := os.Stat(arg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ez fmt: %v\n", err)
+			fmt.Fprintf(os.Stderr, "gray fmt: %v\n", err)
 			continue
 		}
 
 		if info.IsDir() {
 			entries, err := os.ReadDir(arg)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "ez fmt: %v\n", err)
+				fmt.Fprintf(os.Stderr, "gray fmt: %v\n", err)
 				continue
 			}
 			for _, e := range entries {
@@ -121,7 +126,7 @@ func collectFmtFiles(args []string) []string {
 		} else if strings.HasSuffix(arg, ".gray") {
 			add(arg)
 		} else {
-			fmt.Fprintf(os.Stderr, "ez fmt: '%s' is not a .gray file or directory\n", arg)
+			fmt.Fprintf(os.Stderr, "gray fmt: '%s' is not a .gray file or directory\n", arg)
 		}
 	}
 	return files
@@ -132,7 +137,7 @@ func collectFmtFiles(args []string) []string {
 func runFmt(args []string, checkMode bool) int {
 	files := collectFmtFiles(args)
 	if len(files) == 0 {
-		fmt.Println("ez fmt: no .gray files found")
+		fmt.Println("gray fmt: no .gray files found")
 		return 0
 	}
 
@@ -142,16 +147,16 @@ func runFmt(args []string, checkMode bool) int {
 	for _, path := range files {
 		orig, err := os.ReadFile(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ez fmt: %v\n", err)
+			fmt.Fprintf(os.Stderr, "gray fmt: %v\n", err)
 			exit = 1
 			continue
 		}
 
 		if checkMode {
 			// Copy to temp, format it, compare
-			tmp, err := os.CreateTemp("", "ez-fmt-check-*.gray")
+			tmp, err := os.CreateTemp("", "gray-fmt-check-*.gray")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "ez fmt: %v\n", err)
+				fmt.Fprintf(os.Stderr, "gray fmt: %v\n", err)
 				exit = 1
 				continue
 			}
@@ -164,7 +169,7 @@ func runFmt(args []string, checkMode bool) int {
 			formatted, err := os.ReadFile(tmpName)
 			os.Remove(tmpName)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "ez fmt: %v\n", err)
+				fmt.Fprintf(os.Stderr, "gray fmt: %v\n", err)
 				exit = 1
 				continue
 			}
@@ -180,13 +185,13 @@ func runFmt(args []string, checkMode bool) int {
 		// Normal mode: format in place
 		code, err := grayc.Fmt(path)
 		if err != nil || code != 0 {
-			fmt.Fprintf(os.Stderr, "ez fmt: failed to format '%s'\n", path)
+			fmt.Fprintf(os.Stderr, "gray fmt: failed to format '%s'\n", path)
 			exit = 1
 			continue
 		}
 		after, err := os.ReadFile(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ez fmt: %v\n", err)
+			fmt.Fprintf(os.Stderr, "gray fmt: %v\n", err)
 			exit = 1
 			continue
 		}
@@ -197,7 +202,7 @@ func runFmt(args []string, checkMode bool) int {
 	}
 
 	if !checkMode && changed == 0 {
-		fmt.Printf("ez fmt: %d file(s) checked, already formatted\n", len(files))
+		fmt.Printf("gray fmt: %d file(s) checked, already formatted\n", len(files))
 	}
 	return exit
 }

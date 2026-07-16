@@ -1,7 +1,11 @@
-package main
-
+// pz.go — Project scaffolding command ("gray pz"). Creates new Grayscale
+// projects from embedded templates with optional quick-reference comments.
+//
+// Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
+package main
 
 import (
 	"bufio"
@@ -21,9 +25,9 @@ var templatesFS embed.FS
 var errPzCancelled = fmt.Errorf("pz cancelled")
 
 // quickRefBlock is prepended to the entry file of a scaffolded project
-// when `ez pz -c` is used. Keep it short — a dense EZ 3.0 cheat sheet,
+// when `gray pz -c` is used. Keep it short — a dense Grayscale cheat sheet,
 // not a tutorial.
-const quickRefBlock = `// EZ 3.0 Quick Reference
+const quickRefBlock = `// Grayscale Quick Reference
 // ---------------------
 // Variables:        mut x int = 5          mut x = 5          (inferred)
 // Constants:        const PI float = 3.14
@@ -40,8 +44,8 @@ const quickRefBlock = `// EZ 3.0 Quick Reference
 
 var pzCmd = &cobra.Command{
 	Use:   "pz [project-name]",
-	Short: "Scaffold a new EZ project",
-	Long: `Scaffold a new EZ project with templates.
+	Short: "Scaffold a new Grayscale project",
+	Long: `Scaffold a new Grayscale project with templates.
 
 Examples:
   gray pz                      Interactive mode

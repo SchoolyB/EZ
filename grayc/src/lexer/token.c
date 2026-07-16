@@ -1,6 +1,9 @@
 /*
- * token.c - Token type definitions and keyword lookup
+ * token.c — Token type definitions and keyword lookup. Contains the sorted
+ * keyword table with binary search for identifier-to-keyword resolution, and
+ * the token_type_name function for human-readable token descriptions.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

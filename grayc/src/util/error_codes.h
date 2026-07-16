@@ -1,21 +1,14 @@
 /*
- * error_codes.h - Centralized error code registry for Grayscale
+ * error_codes.h — Single source of truth for all compiler error, warning,
+ * and panic codes, used by both the compiler and ERRORS.md generation.
  *
- * This is the SINGLE SOURCE OF TRUTH for all error and warning codes.
- * The scripts/generate_errors.sh script reads this file to produce ERRORS.md.
- *
- * IMPORTANT: Every code listed here MUST be emitted somewhere in the compiler
- * source. Do not add codes that are not actually used.
- *
- * Format: GRAY_ERROR(code, category, description)
- *         GRAY_WARNING(code, category, description)
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_ERROR_CODES_H
-#define EZC_ERROR_CODES_H
+#ifndef GRAYC_ERROR_CODES_H
+#define GRAYC_ERROR_CODES_H
 
 /* --- E1xxx: Reading Your Code (Lexer) ---
  *
@@ -225,7 +218,7 @@
     GRAY_ERROR("E4003", "names", "variable '%s' already declared in this scope (line %d)") \
     GRAY_ERROR("E4004", "names", "function '%s' already declared") \
     GRAY_ERROR("E4005", "names", "module '%s' has no function named '%s'") \
-    GRAY_ERROR("E4006", "names", "name '%s' uses reserved prefix (gray_, _gray_, Ez); these are reserved for the compiler") \
+    GRAY_ERROR("E4006", "names", "name '%s' uses reserved prefix (gray_, _gray_, Gray); these are reserved for the compiler") \
     GRAY_ERROR("E4007", "names", "a type with this name already exists; each struct and enum must have a unique name") \
     GRAY_ERROR("E4008", "names", "main() cannot have parameters or a return type; it must be declared as do main() { }") \
     GRAY_ERROR("E4012", "names", "variable '%s' shadows a type definition with the same name") \
@@ -272,7 +265,7 @@
 #define GRAY_IMPORT_ERRORS \
     GRAY_ERROR("E6001", "imports", "unknown module '@%s'") \
     GRAY_ERROR("E6002", "imports", "cannot find file or directory '%s'") \
-    GRAY_ERROR("E6003", "imports", "directory '%s' contains no .ez files") \
+    GRAY_ERROR("E6003", "imports", "directory '%s' contains no .gray files") \
     GRAY_ERROR("E6004", "imports", "cannot import own module directory") \
     GRAY_ERROR("E6008", "imports", "'%s.%s' is a module constant and cannot be assigned to")
 

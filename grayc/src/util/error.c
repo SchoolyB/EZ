@@ -1,6 +1,8 @@
 /*
- * error.c - Compiler diagnostic system
+ * error.c — Compiler diagnostic system for reporting errors, warnings,
+ * and notes with source context, span underlines, and colored output.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -379,7 +381,7 @@ void diag_print_summary(DiagnosticList *dl) {
 
     if (errors == 0 && warnings == 0) return;
 
-    fprintf(stderr, "%sez:%s ", col(dl, COL_BOLD), col(dl, COL_RESET));
+    fprintf(stderr, "%sgrayscale:%s ", col(dl, COL_BOLD), col(dl, COL_RESET));
 
     if (errors > 0) {
         fprintf(stderr, "%s%s%d error%s%s",

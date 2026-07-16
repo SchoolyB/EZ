@@ -1,9 +1,14 @@
 /*
- * buf.h - Growable string buffer for code emission
+ * buf.h — Public interface for the growable string buffer used by the
+ * code generator to emit C source output.
+ *
+ * Author:  Marshall A Burns (@SchoolyB)
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_BUF_H
-#define EZC_BUF_H
+#ifndef GRAYC_BUF_H
+#define GRAYC_BUF_H
 
 #include <stddef.h>
 

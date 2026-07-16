@@ -1,7 +1,11 @@
-package main
-
+// main.go — Entry point for the gray CLI. Bootstraps the root Cobra
+// command and provides version display with remote release lookups.
+//
+// Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
+package main
 
 import (
 	"bytes"
@@ -58,7 +62,7 @@ func getVersionString() string {
 
 	// Fetch remote release info. Use /releases so both channels are
 	// reachable — /releases/latest hides pre-releases entirely and was
-	// the reason `ez version` reported "Latest: v2.0.0" to people on
+	// the reason `gray version` reported "Latest: v2.0.0" to people on
 	// 3.0.0-alpha dev builds.
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()

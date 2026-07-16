@@ -1,3 +1,11 @@
+// pz_test.go — Tests for the project scaffolding command, including
+// template resolution, project creation, comment injection, and
+// force-overwrite behavior across all supported templates.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package main
 
 import (
@@ -100,7 +108,7 @@ func TestCreateProject_WithComments(t *testing.T) {
 		t.Fatal("main.gray is empty")
 	}
 	// Quick-ref block must be prepended
-	if string(data[:len("// EZ 3.0")]) != "// EZ 3.0" {
+	if string(data[:len("// Grayscale")]) != "// Grayscale" {
 		t.Errorf("quick-ref block not prepended; file starts with %q", string(data[:20]))
 	}
 }

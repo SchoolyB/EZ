@@ -1,11 +1,15 @@
 /*
+ * ast.h — Abstract syntax tree node definitions for the Grayscale compiler.
+ * Declares the NodeKind enum, the AstNode union struct, and supporting types
+ * for parameters, struct fields, enum variants, and import items.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_AST_H
-#define EZC_AST_H
+#ifndef GRAYC_AST_H
+#define GRAYC_AST_H
 
 #include "../lexer/token.h"
 #include "../util/arena.h"

@@ -1,5 +1,9 @@
 /*
+ * lexer.c — Lexical analysis for Grayscale source code. Scans input text
+ * character-by-character to produce a stream of tokens including operators,
+ * keywords, literals, and string interpolations.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

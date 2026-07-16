@@ -1,5 +1,10 @@
 /*
- * arena.c - Compiler-internal arena allocator
+ * arena.c — Block-based arena allocator for compiler-internal memory,
+ * providing bump allocation with bulk free on compilation finish.
+ *
+ * Author:  Marshall A Burns (@SchoolyB)
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
  */
 
 #include "arena.h"
@@ -12,7 +17,7 @@
 static ArenaBlock *arena_block_create(size_t size) {
     ArenaBlock *block = malloc(sizeof(ArenaBlock) + size);
     if (!block) {
-        fprintf(stderr, "ezc: out of memory\n");
+        fprintf(stderr, "grayc: out of memory\n");
         exit(1);
     }
     block->next = NULL;
@@ -24,7 +29,7 @@ static ArenaBlock *arena_block_create(size_t size) {
 Arena *arena_create(size_t initial_size) {
     Arena *a = malloc(sizeof(Arena));
     if (!a) {
-        fprintf(stderr, "ezc: out of memory\n");
+        fprintf(stderr, "grayc: out of memory\n");
         exit(1);
     }
     a->default_block_size = initial_size;

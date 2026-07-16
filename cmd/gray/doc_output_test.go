@@ -1,7 +1,12 @@
-package main
-
+// doc_output_test.go — Tests for the documentation generator covering
+// default output path fallback, custom --output paths, and automatic
+// parent directory creation.
+//
+// Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
+package main
 
 import (
 	"os"
@@ -10,9 +15,9 @@ import (
 	"testing"
 )
 
-// writeEZSource writes a tiny .gray source file with one documented
+// writeGraySource writes a tiny .gray source file with one documented
 // function so generateDocs has at least one entry to emit.
-func writeEZSource(t *testing.T, dir string) string {
+func writeGraySource(t *testing.T, dir string) string {
 	t.Helper()
 	src := `module main
 
@@ -47,7 +52,7 @@ func runFromTempDir(t *testing.T, dir string, fn func()) {
 
 func TestGenerateDocs_DefaultOutputPathUnchanged(t *testing.T) {
 	dir := t.TempDir()
-	src := writeEZSource(t, dir)
+	src := writeGraySource(t, dir)
 
 	runFromTempDir(t, dir, func() {
 		// Empty outputPath must fall back to DOCS.md in cwd, matching
@@ -66,7 +71,7 @@ func TestGenerateDocs_DefaultOutputPathUnchanged(t *testing.T) {
 
 func TestGenerateDocs_RespectsCustomOutputPath(t *testing.T) {
 	dir := t.TempDir()
-	src := writeEZSource(t, dir)
+	src := writeGraySource(t, dir)
 	custom := filepath.Join(dir, "api-reference.md")
 
 	generateDocs([]string{src}, custom)
@@ -88,7 +93,7 @@ func TestGenerateDocs_RespectsCustomOutputPath(t *testing.T) {
 
 func TestGenerateDocs_CreatesParentDirectories(t *testing.T) {
 	dir := t.TempDir()
-	src := writeEZSource(t, dir)
+	src := writeGraySource(t, dir)
 	nested := filepath.Join(dir, "build", "docs", "API.md")
 
 	generateDocs([]string{src}, nested)

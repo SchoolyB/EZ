@@ -1,6 +1,9 @@
 /*
- * fmt.c - Grayscale source formatter
+ * fmt.c — Grayscale source formatter implementation. Lexes the source to
+ * build a per-line indentation depth table based on brace nesting, then
+ * re-emits each original line with corrected leading whitespace.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

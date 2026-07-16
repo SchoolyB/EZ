@@ -1,7 +1,12 @@
-package main
-
+// update.go — Implements self-update, version installation, and release
+// management. Handles semver parsing, GitHub release fetching, changelog
+// formatting, archive extraction, and binary replacement.
+//
+// Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
+package main
 
 import (
 	"archive/tar"
@@ -126,7 +131,7 @@ func parseVersion(v string) (major, minor, patch int) {
 
 // exactSemverRE matches a fully-qualified semver string (with optional
 // leading 'v' and optional pre-release / build-metadata suffixes). Used
-// by `ez install` to reject partial versions like "2.5".
+// by `gray install` to reject partial versions like "2.5".
 var exactSemverRE = regexp.MustCompile(
 	`^v?\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?(\+[0-9A-Za-z][0-9A-Za-z.-]*)?$`)
 
@@ -367,7 +372,7 @@ func fetchAllReleases(ctx context.Context) ([]GitHubRelease, error) {
 
 // pickLatestPrerelease scans a release list (as returned by /releases) and
 // returns the pre-release with the highest semver ordering, or nil if no
-// pre-releases are present. Used both by `ez update --pre` to pick a
+// pre-releases are present. Used both by `gray update --pre` to pick a
 // target and by the default `gray update` path to decide whether to print
 // the nudge about a newer pre-release.
 func pickLatestPrerelease(releases []GitHubRelease) *GitHubRelease {
@@ -691,7 +696,7 @@ func pickLatestStable(releases []GitHubRelease) *GitHubRelease {
 }
 
 // printUpdateStatus prints the Installed / Latest stable / Latest
-// pre-release block in the same column layout as `ez version`, with a
+// pre-release block in the same column layout as `gray version`, with a
 // yellow ← marker on whichever channel line is newer than the installed
 // build. Either remote tag may be empty if the fetch was partial.
 func printUpdateStatus(vi VersionInfo, latestStable, latestPre string) {
@@ -718,7 +723,7 @@ func printUpdateStatus(vi VersionInfo, latestStable, latestPre string) {
 	if latestPre != "" {
 		fmt.Printf("Latest pre-release:  %s", latestPre)
 		if compareSemver(latestPre, Version) > 0 {
-			fmt.Print("  \033[33m← run 'ez update --pre'\033[0m")
+			fmt.Print("  \033[33m← run 'gray update --pre'\033[0m")
 		} else if compareSemver(latestPre, Version) == 0 {
 			fmt.Print("  \033[33m← up to date\033[0m")
 		}
@@ -736,7 +741,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 			os.Exit(1)
 		}
 		fmt.Println("Successfully updated!")
-		fmt.Println("Restart your terminal or run `ez version` to verify.")
+		fmt.Println("Restart your terminal or run `gray version` to verify.")
 		return
 	}
 
@@ -778,7 +783,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 	// refuses rather than silently downgrading to stable or auto-tracking
 	// the pre-release channel — either would surprise the user.
 	if vi.Channel == "pre-release" && !pre {
-		fmt.Println("\nYou're on a pre-release. 'ez update' only advances stable installs.")
+		fmt.Println("\nYou're on a pre-release. 'gray update' only advances stable installs.")
 		fmt.Println("  • Newer pre-release:   gray update --pre")
 		if latestStableTag != "" {
 			fmt.Printf("  • Switch to stable:    gray install %s\n", strings.TrimPrefix(latestStableTag, "v"))
@@ -872,7 +877,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 	} else {
 		fmt.Println("\nSuccessfully updated!")
 	}
-	fmt.Println("Restart your terminal or run `ez version` to verify.")
+	fmt.Println("Restart your terminal or run `gray version` to verify.")
 	promptAndVerify()
 }
 
@@ -895,7 +900,7 @@ func runInstall(version string) {
 	}
 	if !exactSemverRE.MatchString(version) {
 		fmt.Printf("error: '%s' is not a fully-qualified semver\n", version)
-		fmt.Println("ez install requires an exact version like '2.5.0' or '3.0.0-beta.2'")
+		fmt.Println("gray install requires an exact version like '2.5.0' or '3.0.0-beta.2'")
 		fmt.Println("partial versions, ranges, and shorthand are not accepted")
 		os.Exit(1)
 	}
@@ -924,7 +929,7 @@ func runInstall(version string) {
 		fmt.Printf("\nerror: version '%s' was not found in the release list\n", version)
 		// Show up to five nearest versions by semver ordering, centred on
 		// the requested slot. Gives the user something to retry with
-		// without a separate `ez list` command.
+		// without a separate `gray list` command.
 		type tagged struct {
 			tag string
 			pre bool
@@ -996,7 +1001,7 @@ func runInstall(version string) {
 
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
 	fmt.Println("\nSuccessfully installed!")
-	fmt.Println("Restart your terminal or run `ez version` to verify.")
+	fmt.Println("Restart your terminal or run `gray version` to verify.")
 	promptAndVerify()
 }
 
@@ -1026,7 +1031,7 @@ func getAssetName() string {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
 
-	name := fmt.Sprintf("ez-%s-%s", osName, arch)
+	name := fmt.Sprintf("gray-%s-%s", osName, arch)
 	if runtime.GOOS == "windows" {
 		name += ".zip"
 	} else {
@@ -1127,7 +1132,7 @@ func doInstall(downloadURL, execPath string) error {
 	}
 
 	// Create temp directory for extraction
-	tmpDir, err := os.MkdirTemp("", "ez-update-*")
+	tmpDir, err := os.MkdirTemp("", "gray-update-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -1191,8 +1196,8 @@ func doInstall(downloadURL, execPath string) error {
 	os.Remove(backupPath)
 
 	// Post-#1461: release archives ship a single binary; the compiler and
-	// runtime are embedded inside `ez`. No side-car files to copy. The
-	// archive extractor still whitelists `ezc`/`libgrayrt.a` so older
+	// runtime are embedded inside `gray`. No side-car files to copy. The
+	// archive extractor still whitelists `grayc`/`libgrayrt.a` so older
 	// archives stay installable, but they're ignored on the output side.
 
 	return nil
@@ -1224,7 +1229,7 @@ func sanitizeArchivePath(destDir, filename string) (string, error) {
 	}
 
 	// Ensure the destination path starts with the destination directory
-	// Add separator to prevent matching partial directory names (e.g., /tmp/ez vs /tmp/ez-malicious)
+	// Add separator to prevent matching partial directory names (e.g., /tmp/gray vs /tmp/gray-malicious)
 	if !strings.HasPrefix(absDestPath, absDestDir+string(filepath.Separator)) && absDestPath != absDestDir {
 		return "", fmt.Errorf("path traversal detected: %s", filename)
 	}
@@ -1232,7 +1237,7 @@ func sanitizeArchivePath(destDir, filename string) (string, error) {
 	return destPath, nil
 }
 
-// extractTarGz extracts ez, ezc, and libgrayrt.a from a .tar.gz archive
+// extractTarGz extracts gray, grayc, and libgrayrt.a from a .tar.gz archive
 func extractTarGz(archivePath, destDir string) (string, error) {
 	file, err := os.Open(archivePath)
 	if err != nil {
@@ -1248,7 +1253,7 @@ func extractTarGz(archivePath, destDir string) (string, error) {
 
 	tr := tar.NewReader(gzr)
 	wantFiles := map[string]bool{"gray": true, "gray.exe": true, "grayc": true, "libgrayrt.a": true}
-	var ezBinaryPath string
+	var grayBinaryPath string
 
 	for {
 		header, err := tr.Next()
@@ -1280,17 +1285,17 @@ func extractTarGz(archivePath, destDir string) (string, error) {
 		outFile.Close()
 
 		if name == "gray" || name == "gray.exe" {
-			ezBinaryPath = destPath
+			grayBinaryPath = destPath
 		}
 	}
 
-	if ezBinaryPath == "" {
-		return "", fmt.Errorf("ez binary not found in archive")
+	if grayBinaryPath == "" {
+		return "", fmt.Errorf("gray binary not found in archive")
 	}
-	return ezBinaryPath, nil
+	return grayBinaryPath, nil
 }
 
-// extractZip extracts ez, ezc, and libgrayrt.a from a .zip archive
+// extractZip extracts gray, grayc, and libgrayrt.a from a .zip archive
 func extractZip(archivePath, destDir string) (string, error) {
 	r, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -1299,7 +1304,7 @@ func extractZip(archivePath, destDir string) (string, error) {
 	defer r.Close()
 
 	wantFiles := map[string]bool{"gray": true, "gray.exe": true, "grayc": true, "libgrayrt.a": true}
-	var ezBinaryPath string
+	var grayBinaryPath string
 
 	for _, f := range r.File {
 		name := filepath.Base(f.Name)
@@ -1331,14 +1336,14 @@ func extractZip(archivePath, destDir string) (string, error) {
 		}
 
 		if name == "gray" || name == "gray.exe" {
-			ezBinaryPath = destPath
+			grayBinaryPath = destPath
 		}
 	}
 
-	if ezBinaryPath == "" {
-		return "", fmt.Errorf("ez binary not found in archive")
+	if grayBinaryPath == "" {
+		return "", fmt.Errorf("gray binary not found in archive")
 	}
-	return ezBinaryPath, nil
+	return grayBinaryPath, nil
 }
 
 // copyFile copies a file from src to dst

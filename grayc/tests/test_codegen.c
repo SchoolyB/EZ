@@ -1,9 +1,8 @@
 /*
- * test_codegen.c - End-to-end tests for EZC code generation
+ * test_codegen.c — End-to-end tests for grayc code generation that compile
+ * Grayscale snippets, run the resulting binaries, and verify output.
  *
- * Each test compiles a Grayscale snippet, runs the resulting binary,
- * and checks the output.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -22,8 +21,8 @@ static char *compile_and_run(const char *gray_source) {
     static char output[4096];
     char gray_file[128], bin_file[128];
 
-    snprintf(gray_file, sizeof(gray_file), "/tmp/ezc_e2e_%d.gray", test_num);
-    snprintf(bin_file, sizeof(bin_file), "/tmp/ezc_e2e_%d", test_num);
+    snprintf(gray_file, sizeof(gray_file), "/tmp/grayc_e2e_%d.gray", test_num);
+    snprintf(bin_file, sizeof(bin_file), "/tmp/grayc_e2e_%d", test_num);
 
     /* Write source */
     FILE *f = fopen(gray_file, "w");
@@ -33,7 +32,7 @@ static char *compile_and_run(const char *gray_source) {
 
     /* Compile */
     char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", gray_file, bin_file);
+    snprintf(cmd, sizeof(cmd), "./grayc %s -o %s 2>/dev/null", gray_file, bin_file);
     if (system(cmd) != 0) {
         unlink(gray_file);
         return NULL;
@@ -651,10 +650,10 @@ static void test_e2e_default_params(void) {
         "}\n"
         "do main() {\n"
         "    println(greet())\n"
-        "    println(greet(\"EZC\"))\n"
+        "    println(greet(\"grayc\"))\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "Hello, World!\nHello, EZC!");
+    ASSERT_STR_EQ(out, "Hello, World!\nHello, grayc!");
 }
 
 static void test_e2e_in_operator(void) {
@@ -991,8 +990,8 @@ static void test_e2e_div_zero(void) {
     /* Compile and run — should panic, not crash silently */
     test_num++;
     char gray_file[128], bin_file[128];
-    snprintf(gray_file, sizeof(gray_file), "/tmp/ezc_e2e_%d.gray", test_num);
-    snprintf(bin_file, sizeof(bin_file), "/tmp/ezc_e2e_%d", test_num);
+    snprintf(gray_file, sizeof(gray_file), "/tmp/grayc_e2e_%d.gray", test_num);
+    snprintf(bin_file, sizeof(bin_file), "/tmp/grayc_e2e_%d", test_num);
 
     const char *src =
         ""
@@ -1008,7 +1007,7 @@ static void test_e2e_div_zero(void) {
     fclose(f);
 
     char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", gray_file, bin_file);
+    snprintf(cmd, sizeof(cmd), "./grayc %s -o %s 2>/dev/null", gray_file, bin_file);
     if (system(cmd) != 0) {
         unlink(gray_file);
         _test_fail++;
@@ -1416,14 +1415,14 @@ static void test_e2e_const_values(void) {
         ""
         "do main() {\n"
         "  const PI float = 3.14\n"
-        "  const NAME string = \"EZ\"\n"
+        "  const NAME string = \"Grayscale\"\n"
         "  const FLAG bool = true\n"
         "  println(PI)\n"
         "  println(NAME)\n"
         "  println(FLAG)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3.14\nEZ\ntrue");
+    ASSERT_STR_EQ(out, "3.14\nGrayscale\ntrue");
 }
 
 /* ===== Empty Containers ===== */
@@ -1590,9 +1589,9 @@ static void test_e2e_atomic(void) {
 }
 
 int main(void) {
-    /* Must run from the ezc/ directory */
-    if (access("./ezc", X_OK) != 0) {
-        fprintf(stderr, "test_codegen: must run from the ezc/ directory\n");
+    /* Must run from the grayc/ directory */
+    if (access("./grayc", X_OK) != 0) {
+        fprintf(stderr, "test_codegen: must run from the grayc/ directory\n");
         return 1;
     }
 

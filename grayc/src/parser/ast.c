@@ -1,6 +1,9 @@
 /*
- * ast.c - AST node construction helpers
+ * ast.c — AST node construction helpers. Provides the ast_alloc function
+ * for arena-allocating and zero-initializing new AST nodes with a given
+ * kind and source token.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

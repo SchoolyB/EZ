@@ -1,12 +1,14 @@
 /*
- * arena.h - Compiler-internal arena allocator
+ * arena.h — Public interface for the block-based arena allocator used to
+ * allocate AST nodes, strings, and other compiler data structures.
  *
- * Used for allocating AST nodes, strings, and other compiler data.
- * All memory is freed in one shot when compilation of a file finishes.
+ * Author:  Marshall A Burns (@SchoolyB)
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_ARENA_H
-#define EZC_ARENA_H
+#ifndef GRAYC_ARENA_H
+#define GRAYC_ARENA_H
 
 #include <stddef.h>
 
