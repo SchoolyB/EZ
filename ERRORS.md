@@ -1,6 +1,6 @@
-# EZ Error Code Reference
+# Grayscale Error Code Reference
 
-> Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
+> Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
 **Total: 364 codes** (246 errors, 17 warnings, 101 panics)
@@ -199,7 +199,7 @@
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
 | `E4004` | names | function '%s' already declared |
 | `E4005` | names | module '%s' has no function named '%s' |
-| `E4006` | names | name '%s' uses reserved prefix (ez_, _ez_, Ez); these are reserved for the compiler |
+| `E4006` | names | name '%s' uses reserved prefix (gray_, _gray_, Gray); these are reserved for the compiler |
 | `E4007` | names | a type with this name already exists; each struct and enum must have a unique name |
 | `E4008` | names | main() cannot have parameters or a return type; it must be declared as do main() { } |
 | `E4012` | names | variable '%s' shadows a type definition with the same name |
@@ -240,7 +240,7 @@
 | `E5039` | usage | constant expression overflows type '%s' |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
-| `E6003` | imports | directory '%s' contains no .ez files |
+| `E6003` | imports | directory '%s' contains no .gray files |
 | `E6004` | imports | cannot import own module directory |
 | `E6008` | imports | '%s.%s' is a module constant and cannot be assigned to |
 | `E7004` | stdlib | function argument must be an integer, not a float |

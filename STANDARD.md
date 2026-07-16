@@ -1,8 +1,8 @@
-# The EZ Programming Language Standard
+# The Grayscale Programming Language Standard
 
 > **Notice**
 >
-> This specification is a living document and subject to change as the language evolves. For tutorials and usage guidance, see the official EZ documentation at [https://schoolyb.github.io/EZ-Language-Webapp/docs](https://schoolyb.github.io/EZ-Language-Webapp/docs)
+> This specification is a living document and subject to change as the language evolves. For tutorials and usage guidance, see the official Grayscale documentation at [https://schoolyb.github.io/EZ-Language-Webapp/docs](https://schoolyb.github.io/EZ-Language-Webapp/docs)
 
 ---
 
@@ -26,19 +26,13 @@
 
 ## 1. Introduction
 
-<p align="center">
-  <img src="images/Flip.png" alt="Flip - EZ Mascot" width="200">
-</p>
-
-> 💡 Throughout this document, tips and callouts are provided by **Flip**, the official mascot of EZ.
-
 ### 1.1 Purpose
 
-This document defines the EZ programming language. It serves as the authoritative reference for the language's syntax, semantics, and behavior. Implementations of EZ must conform to this specification.
+This document defines the Grayscale programming language. It serves as the authoritative reference for the language's syntax, semantics, and behavior. Implementations of Grayscale must conform to this specification.
 
 ### 1.2 Overview
 
-EZ is a statically-typed programming language that compiles to native binaries via the EZ compiler. Inspired by C, Odin, Rust, and Go. The language emphasizes:
+Grayscale is a statically-typed programming language that compiles to native binaries via the Grayscale compiler. Inspired by C, Odin, Rust, and Go. The language emphasizes:
 
 - **Simplicity**: A minimal set of orthogonal features
 - **Clarity**: Explicit syntax that reads naturally
@@ -50,7 +44,7 @@ EZ is a statically-typed programming language that compiles to native binaries v
 
 ### 2.1 Source Encoding
 
-EZ source files must be encoded in UTF-8. However, identifiers are restricted to ASCII characters.
+Grayscale source files must be encoded in UTF-8. However, identifiers are restricted to ASCII characters.
 
 ### 2.2 Line Terminators
 
@@ -58,25 +52,25 @@ Line terminators are the ASCII line feed character (LF, U+000A) or the ASCII car
 
 ### 2.3 Comments
 
-EZ supports two forms of comments:
+Grayscale supports two forms of comments:
 
 **Single-line comments** begin with `//` and extend to the end of the line:
 
-```ez
+```gray
 // This is a single-line comment
 mut x int = 42  // inline comment
 ```
 
 **Multi-line comments** begin with `/*` and end with `*/`:
 
-```ez
+```gray
 /* This is a
    multi-line comment */
 ```
 
 Multi-line comments can also be used inline within a statement:
 
-```ez
+```gray
 mut x int = /* default value */ 10
 ```
 
@@ -113,7 +107,7 @@ const        do          enum        import      mut
 new          private     struct      use*        using
 ```
 
-> 💡 **Flip's Tip:** `use*` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
+> 💡 **Tip:** `use*` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
 
 **Types (reserved names):**
 ```
@@ -145,7 +139,7 @@ Some keywords have shorter or more familiar aliases. Both forms are identical an
 | `else`  | `otherwise`    | Default branch       |
 | `while` | `as_long_as`   | Condition loop       |
 
-> 💡 **Flip's Tip:** The `map` keyword is optional in type position — `[string:int]` and `map[string:int]` are identical. The parser normalizes both to the same canonical form.
+> 💡 **Tip:** The `map` keyword is optional in type position — `[string:int]` and `map[string:int]` are identical. The parser normalizes both to the same canonical form.
 
 ### 2.6 Operators and Punctuation
 
@@ -200,7 +194,7 @@ Escape sequences:
 
 String interpolation allows embedding expressions within strings:
 
-```ez
+```gray
 mut name string = "World"
 mut greeting string = "Hello, ${name}!"  // "Hello, World!"
 ```
@@ -215,7 +209,7 @@ Raw strings:
 - May span multiple lines
 - Cannot contain backticks (no escape mechanism)
 
-```ez
+```gray
 mut path string = `C:\Users\test\file.txt`
 mut pattern string = `\d+\.\d+`
 mut multi string = `line1
@@ -241,7 +235,7 @@ The literal `nil` represents the absence of a value.
 
 ## 3. Types
 
-EZ is statically typed. Every variable and expression has a type known at check time.
+Grayscale is statically typed. Every variable and expression has a type known at check time.
 
 ### 3.1 Primitive Types
 
@@ -249,7 +243,7 @@ EZ is statically typed. Every variable and expression has a type known at check 
 
 The `int` type represents a 64-bit signed integer. Arithmetic operations use checked arithmetic; overflow or underflow produces a runtime panic rather than silent wrapping.
 
-```ez
+```gray
 mut small int = 42
 mut large int = 9223372036854775807  // Max 64-bit signed value
 ```
@@ -258,7 +252,7 @@ mut large int = 9223372036854775807  // Max 64-bit signed value
 
 The `uint` type represents a 64-bit unsigned integer. Like `int`, arithmetic is overflow-checked with a runtime panic on overflow.
 
-```ez
+```gray
 mut count uint = 100
 mut big uint = 18446744073709551615  // Max 64-bit unsigned value
 ```
@@ -271,14 +265,14 @@ The `float` type represents 64-bit IEEE 754 double-precision floating-point numb
 
 Division by zero with floating-point operands produces a runtime panic. However, special IEEE 754 values (`NaN`, `Infinity`, `-Infinity`) can appear through stdlib math functions (e.g., edge cases in trigonometric or logarithmic functions). Use `math.is_nan()`, `math.is_infinite()`, and `math.is_finite()` to check for these values.
 
-```ez
+```gray
 mut pi float = 3.14159
 mut negative float = -2.5
 ```
 
 Integer values are implicitly promoted to `float` when the target type is `float`, `f32`, or `f64`. This applies to variable declarations, assignments, function arguments, map literal values, and return statements:
 
-```ez
+```gray
 mut x float = 5       // 5.0
 mut y f64 = 1          // 1.0
 x = 42                 // 42.0
@@ -292,14 +286,14 @@ The `string` type represents a UTF-8 encoded byte sequence. String indexing (`st
 
 For ASCII strings, one byte equals one character, so indexing works as expected:
 
-```ez
+```gray
 mut greeting string = "Hello, World!"
 mut first_char char = greeting[0]  // 'H'
 ```
 
 For multi-byte UTF-8 strings, individual bytes may not form complete characters:
 
-```ez
+```gray
 mut s string = "日本語"
 println(len(s))         // 9 (byte length, not 3 characters)
 println(char_count(s))  // 3 (Unicode character count)
@@ -312,7 +306,7 @@ Use `to_char()` to access characters by codepoint index and `char_count()` to ge
 
 The `bool` type has exactly two values: `true` and `false`.
 
-```ez
+```gray
 mut flag bool = true
 mut result bool = 10 > 5  // true
 ```
@@ -321,7 +315,7 @@ mut result bool = 10 > 5  // true
 
 The `char` type represents a single character.
 
-```ez
+```gray
 mut letter char = 'A'
 mut newline char = '\n'
 ```
@@ -332,7 +326,7 @@ Characters can be converted to their integer code point using `int()`.
 
 The `byte` type represents an 8-bit unsigned integer with values from 0 to 255.
 
-```ez
+```gray
 mut b byte = 0xFF  // 255
 mut c byte = 128   // decimal also works
 ```
@@ -341,7 +335,7 @@ Assigning a value outside the range 0-255 to a `byte` is a check-time error.
 
 #### 3.1.8 Sized Integer Types
 
-EZ provides fixed-width integer types for precise control over integer size:
+Grayscale provides fixed-width integer types for precise control over integer size:
 
 | Type | Width | Signed | Range |
 |------|-------|--------|-------|
@@ -358,7 +352,7 @@ Use `cast` for sized type conversions: `cast(value, i32)`, `cast(value, u16)`.
 
 #### 3.1.9 Wide Integer Types (`i128`, `u128`, `i256`, `u256`)
 
-EZ provides portable wide integer types backed by struct-based arithmetic (no compiler extensions required):
+Grayscale provides portable wide integer types backed by struct-based arithmetic (no compiler extensions required):
 
 | Type | Width | Signed | `size_of` |
 |------|-------|--------|-----------|
@@ -369,7 +363,7 @@ EZ provides portable wide integer types backed by struct-based arithmetic (no co
 
 Wide integers support all standard arithmetic (`+`, `-`, `*`, `/`, `%`) and comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`). Values are constructed using the type name as a function:
 
-```ez
+```gray
 mut a i128 = i128(42)
 mut b i128 = i128(100)
 mut c i128 = a + b          // i128 addition
@@ -394,7 +388,7 @@ The pointer type `^Type` represents a memory address pointing to a value of `Typ
 | `addr(x)` | Get the address of `x` |
 | `p^` | Dereference pointer `p` |
 
-```ez
+```gray
 mut x int = 42
 mut p ^int = addr(x)
 println(p)   // 0x16d1ab9f8, prints the address as hex
@@ -407,9 +401,9 @@ Printing a pointer value (`println(p)`, `print(p)`, etc.) outputs the address in
 
 Dereferencing a `nil` pointer causes a runtime panic.
 
-> 💡 **Flip's Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value, handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
+> 💡 **Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value, handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
 
-> 💡 **Flip's Tip:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts. For example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
+> 💡 **Tip:** The dot operator (`.`) automatically dereferences pointers to structs. If `p` is a `^MyStruct`, writing `p.field` is equivalent to `p^.field`. This auto-dereference applies to field access and struct function calls but does **not** apply in other contexts. For example, `println(p)` prints the address, and `return p` returns the pointer itself. Use explicit `p^` when you need the pointee value rather than field access.
 
 ### 3.2 Composite Types
 
@@ -419,34 +413,34 @@ Arrays are ordered collections of elements of the same type.
 
 **Dynamic arrays** have variable length:
 
-```ez
+```gray
 mut numbers [int] = {1, 2, 3, 4, 5}
 mut empty [string] = {}
 ```
 
 **Fixed-size arrays** have a length specified at declaration:
 
-```ez
+```gray
 const fixed [int, 3] = {10, 20, 30}
 ```
 
 Fixed-size arrays must be declared with `const`. Providing fewer values than the declared size is permitted; providing more values than the declared size is an error.
 
-```ez
+```gray
 const a [int, 5] = {1, 2, 3}           // OK (3 of 5 slots used, remaining zero-initialized)
 const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error: 6 values exceeds size of 5
 ```
 
 The size specifier `N` may also be a compile-time integer constant of any integer type (`int`, `uint`, `i8`–`i64`, `u8`–`u64`). The constant must be declared before the array and must resolve to a value greater than zero.
 
-```ez
+```gray
 const SIZE int = 4
 const buf [byte, SIZE] = {0x01, 0x02, 0x03, 0x04}
 ```
 
 **Multi-dimensional arrays**:
 
-```ez
+```gray
 mut matrix [[int]] = {{1, 2}, {3, 4}}
 mut cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}
 ```
@@ -457,7 +451,7 @@ Array indexing is zero-based. Accessing an index outside the valid range produce
 
 Maps are unordered collections of key-value pairs. The `map` keyword is optional — `[K:V]` and `map[K:V]` are identical:
 
-```ez
+```gray
 mut ages [string:int] = {
     "alice": 30,
     "bob": 25
@@ -468,9 +462,9 @@ mut empty [string:int] = {:}  // Empty map
 mut scores map[string:int] = {"math": 95}
 ```
 
-> 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array; the colon is the tell!
+> 💡 **Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array; the colon is the tell!
 
-```ez
+```gray
 mut arr [int] = {}       // Empty array
 mut m [string:int] = {:}  // Empty map
 ```
@@ -493,7 +487,7 @@ Accessing a key that does not exist produces a runtime error.
 
 Structs are user-defined composite types with named fields.
 
-```ez
+```gray
 const Point struct {
     x int
     y int
@@ -506,13 +500,13 @@ const Person struct {
 }
 ```
 
-> 💡 **Flip's Tip:** Struct and enum declarations must be at the top level of a file, never inside a function or block. Fields must be on separate lines; semicolons are not allowed. This is intentional. Unlike functions and control flow, structs and enums define *types*, not logic. Types belong where they are visible, nameable, and reusable. Burying a type inside a function makes it invisible to the rest of your program and harder to find when reading code.
+> 💡 **Tip:** Struct and enum declarations must be at the top level of a file, never inside a function or block. Fields must be on separate lines; semicolons are not allowed. This is intentional. Unlike functions and control flow, structs and enums define *types*, not logic. Types belong where they are visible, nameable, and reusable. Burying a type inside a function makes it invisible to the rest of your program and harder to find when reading code.
 
 #### Recursive Structs
 
 A struct may reference itself through a **pointer field**. Value-type self-reference is rejected at compile time.
 
-```ez
+```gray
 const Node struct {
     val  int
     next ^Node   // OK: pointer field
@@ -527,7 +521,7 @@ const Bad struct {
 
 To traverse a recursive struct, dot notation automatically dereferences pointer fields with no explicit `^` required. The `^` suffix is also accepted if preferred:
 
-```ez
+```gray
 mut a = new(Node)
 mut b = new(Node)
 a.val  = 1
@@ -543,7 +537,7 @@ Mutual recursion through pointer fields is supported. Both structs must use poin
 
 Struct instantiation uses named field syntax:
 
-```ez
+```gray
 mut origin Point = Point{x: 0, y: 0}
 mut p Point = Point{}  // Zero-initialized: x=0, y=0
 ```
@@ -552,7 +546,7 @@ mut p Point = Point{}  // Zero-initialized: x=0, y=0
 
 Struct fields may specify a default value using `= expr` after the type. When a struct is created with `new()` or a struct literal that omits a field, the default value is used instead of zero-initialization.
 
-```ez
+```gray
 const Config struct {
     host string = "localhost"
     port int = 8080
@@ -567,7 +561,7 @@ do main() {
 
 Grouped fields share the same default:
 
-```ez
+```gray
 const Point struct {
     x, y int = 0
     z int = 1
@@ -580,7 +574,7 @@ Fields without a default value remain zero-initialized when omitted.
 
 Fields are accessed using dot notation:
 
-```ez
+```gray
 mut x_value int = origin.x
 origin.x = 10  // Modification (if variable is mut)
 ```
@@ -591,7 +585,7 @@ Enums define a type with a fixed set of named values.
 
 **Integer enums** (default, auto-incrementing from 0):
 
-```ez
+```gray
 const Direction enum {
     NORTH    // 0
     EAST     // 1
@@ -600,15 +594,15 @@ const Direction enum {
 }
 ```
 
-> 💡 **Flip's Tip:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
+> 💡 **Tip:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
 
-> 💡 **Flip's Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number.
+> 💡 **Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number.
 
-> 💡 **Flip's Tip:** If you genuinely need to compare an enum value against an integer, use `cast()` to bridge the gap: `if cast(Direction.NORTH, int) == 0 { ... }`. You can also cast the other way: `cast(0, Direction)`.
+> 💡 **Tip:** If you genuinely need to compare an enum value against an integer, use `cast()` to bridge the gap: `if cast(Direction.NORTH, int) == 0 { ... }`. You can also cast the other way: `cast(0, Direction)`.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
-```ez
+```gray
 #flags
 const Permissions enum {
     READ      // 1
@@ -619,7 +613,7 @@ const Permissions enum {
 
 Enum values are accessed using dot notation:
 
-```ez
+```gray
 mut dir = Direction.NORTH
 mut status = Status.TODO
 ```
@@ -628,7 +622,7 @@ mut status = Status.TODO
 
 When the expected enum type is known from context, you can use the shorthand `.VARIANT` instead of the full `EnumName.VARIANT`. The compiler resolves the enum type automatically.
 
-```ez
+```gray
 // Variable declaration with type annotation
 mut dir Direction = .NORTH
 
@@ -666,7 +660,7 @@ The full `EnumName.VARIANT` form is always valid and is required when no type co
 
 Enum variants can carry associated data (payloads), making the enum a tagged union. A variant's payload is declared with positional types in parentheses:
 
-```ez
+```gray
 const Shape enum {
     Circle(float)
     Rect(float, float)
@@ -680,7 +674,7 @@ An enum becomes a tagged union if ANY variant has a payload. Variants without pa
 
 Tagged enum values are constructed by calling the variant with arguments:
 
-```ez
+```gray
 mut s Shape = Shape.Circle(3.14)
 mut r Shape = Shape.Rect(10.0, 20.0)
 mut p Shape = Shape.Point
@@ -688,7 +682,7 @@ mut p Shape = Shape.Point
 
 The implicit selector syntax also works with tagged constructors:
 
-```ez
+```gray
 mut s Shape = .Circle(3.14)
 ```
 
@@ -696,7 +690,7 @@ mut s Shape = .Circle(3.14)
 
 Use pattern destructuring in `when/is` to extract payload values. Use the fully-qualified form:
 
-```ez
+```gray
 when shape {
     is Shape.Circle(radius) {
         println("Circle with radius ${radius}")
@@ -712,7 +706,7 @@ when shape {
 
 The implicit selector form (dot-prefix) also works:
 
-```ez
+```gray
 when shape {
     is .Circle(r) { println("radius: ${r}") }
     is .Rect(w, h) { println("${w}x${h}") }
@@ -724,7 +718,7 @@ The number of bindings in a pattern must match the variant's payload count. `#st
 
 ### 3.3 Type Inference
 
-EZ is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.
+Grayscale is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.
 
 Type inference works with:
 
@@ -734,9 +728,9 @@ Type inference works with:
 4. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
 5. **Multiple return values** - Each variable's type is inferred from the corresponding return type
 
-> 💡 **Flip's Tip:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
+> 💡 **Tip:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
 
-```ez
+```gray
 // Inferred from literals
 mut x = 42                    // Inferred: int
 mut name = "Alice"            // Inferred: string
@@ -772,13 +766,13 @@ mut quotient, remainder = divide(10, 3)  // Both inferred: int
 
 Explicit type annotations are never required but can be used for clarity or documentation.
 
-> 💡 **Flip's Tip:** You don't need to write the type if the compiler can figure it out, but adding it never hurts for readability.
+> 💡 **Tip:** You don't need to write the type if the compiler can figure it out, but adding it never hurts for readability.
 
 ### 3.4 Type Conversions
 
 Explicit type conversions are performed using type constructors:
 
-```ez
+```gray
 mut i int = int('A')       // 65 - char to int (code point)
 mut f float = float(42)    // 42.0 - int to float
 mut s string = string(123) // "123" - int to string
@@ -791,7 +785,7 @@ Conversions that would lose information or are invalid produce check-time or run
 
 The `cast` keyword provides explicit type conversion for values and arrays:
 
-```ez
+```gray
 mut small u8 = cast(42, u8)
 mut truncated int = cast(3.7, int)     // 3
 mut text string = cast(123, string)    // "123"
@@ -799,14 +793,14 @@ mut text string = cast(123, string)    // "123"
 
 For array conversions, `cast` converts each element to the target element type:
 
-```ez
+```gray
 mut ints [int] = {1, 2, 3}
 mut bytes [u8] = cast(ints, [u8])
 ```
 
 Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
-> 💡 **Flip's Tip:** `cast` truncates floats to integers, it does not round. `cast(3.9, int)` gives `3`, not `4`.
+> 💡 **Tip:** `cast` truncates floats to integers, it does not round. `cast(3.9, int)` gives `3`, not `4`.
 
 ---
 
@@ -816,7 +810,7 @@ Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
 Variables are declared using the `mut` keyword:
 
-```ez
+```gray
 mut count int = 0
 mut name string = "Alice"
 mut items [int] = {1, 2, 3}
@@ -831,7 +825,7 @@ Variables declared with `mut`:
 
 Constants are declared using the `const` keyword:
 
-```ez
+```gray
 const PI float = 3.14159
 const MAX_SIZE int = 100
 const origin = Point{x: 0, y: 0}
@@ -841,7 +835,7 @@ const origin = Point{x: 0, y: 0}
 
 The `mut` keyword allows modification and **ensures the value itself is mutable**:
 
-```ez
+```gray
 mut arr [int] = {1, 2, 3}
 arr[0] = 10  // OK
 arr = {4, 5, 6}  // OK
@@ -849,7 +843,7 @@ arr = {4, 5, 6}  // OK
 
 When assigning from a function return or other source, `mut` automatically makes the value mutable. There is no need to use `copy()` to obtain a mutable version:
 
-```ez
+```gray
 do get_data() -> [int] {
     return {1, 2, 3}
 }
@@ -867,7 +861,7 @@ Variables and constants are block-scoped. A block is delimited by braces `{}`.
 
 Inner scopes may declare variables that shadow outer scope variables:
 
-```ez
+```gray
 mut x int = 10
 if true {
     mut x int = 20  // Shadows outer x
@@ -884,7 +878,7 @@ if true {
 
 Some functions return a `(T, Error)` tuple; these are **fallible functions**. They require destructuring. Assigning the result to a single variable panics at runtime if the function fails; the compiler enforces destructuring to make the choice explicit:
 
-```ez
+```gray
 // Correct: handle the error
 mut content, err = io.read_file("data.txt")
 if err != nil {
@@ -902,7 +896,7 @@ mut content = io.read_file("data.txt")  // error: use destructuring for fallible
 
 The blank identifier `_` discards a return value you don't need:
 
-```ez
+```gray
 // Discard the second return value
 mut value, _ = get_pair()
 
@@ -918,7 +912,7 @@ The blank identifier:
 - Can be used multiple times in the same assignment
 - Works with both `mut` and `const` declarations
 
-> 💡 **Flip's Tip:** Use `_` to make it clear you are intentionally ignoring a value. It documents your intent right in the code.
+> 💡 **Tip:** Use `_` to make it clear you are intentionally ignoring a value. It documents your intent right in the code.
 
 ---
 
@@ -928,7 +922,7 @@ The blank identifier:
 
 #### 5.1.1 Array Literals
 
-```ez
+```gray
 {1, 2, 3}
 {"a", "b", "c"}
 {}   // Empty array (not to be confused with {:} which is an empty map)
@@ -936,7 +930,7 @@ The blank identifier:
 
 All elements in an array literal must be the same type. Mixed-type literals are rejected at compile time:
 
-```ez
+```gray
 {1, "two", 3}   // error: mixed types in array literal
 ```
 
@@ -946,7 +940,7 @@ See [Section 3.2.2](#322-maps) for map literal syntax, including the `{:}` empty
 
 #### 5.1.3 Struct Literals
 
-```ez
+```gray
 Point{x: 10, y: 20}
 Person{name: "Alice", age: 30, active: true}
 Point{}  // Zero-initialized
@@ -1008,7 +1002,7 @@ Logical AND and OR use short-circuit evaluation: the right operand is not evalua
 | `not_in` | Non-membership test |
 | `!in` | Non-membership test (shorthand for `not_in`) |
 
-```ez
+```gray
 if 3 in numbers { ... }
 if "key" not_in map { ... }
 if x in range(0, 10) { ... }
@@ -1033,7 +1027,7 @@ if 10 !in range(0, 10) { ... }  // Shorthand for not_in
 | `++` | Post-increment |
 | `--` | Post-decrement |
 
-```ez
+```gray
 mut x int = 5
 x++  // x is now 6
 x--  // x is now 5
@@ -1041,7 +1035,7 @@ x--  // x is now 5
 
 #### 5.2.7 Bitwise Operators
 
-EZ uses keyword operators for bitwise operations. Symbol alternatives (`&`, `^`, `|`) are unavailable because `^` is the pointer type and dereference sigil and `&` is the address-of operator.
+Grayscale uses keyword operators for bitwise operations. Symbol alternatives (`&`, `^`, `|`) are unavailable because `^` is the pointer type and dereference sigil and `&` is the address-of operator.
 
 | Operator | Syntax | Description | Operand Types |
 |----------|--------|-------------|---------------|
@@ -1054,7 +1048,7 @@ EZ uses keyword operators for bitwise operations. Symbol alternatives (`&`, `^`,
 
 `bit_not` is a prefix operator. All others are infix operators. Results have the same type as the operands.
 
-```ez
+```gray
 // Basic operations
 mut a int = 0b1010
 mut b int = 0b1100
@@ -1069,7 +1063,7 @@ println(16 bit_shift_right 1) // 8
 
 A common use is flag manipulation with named constants:
 
-```ez
+```gray
 const READ  int = 0b001
 const WRITE int = 0b010
 const EXEC  int = 0b100
@@ -1104,7 +1098,7 @@ From highest to lowest precedence:
 
 ### 5.4 Index Expressions
 
-```ez
+```gray
 mut arr [int] = {10, 20, 30}
 mut val int = arr[1]  // 20
 arr[0] = 100  // Modification
@@ -1118,7 +1112,7 @@ mut v int = m["a"]  // 1
 
 ### 5.5 Member Expressions
 
-```ez
+```gray
 mut p Point = Point{x: 10, y: 20}
 mut x int = p.x  // 10
 p.y = 30  // Modification
@@ -1128,7 +1122,7 @@ mut status int = Direction.NORTH  // Enum access
 
 ### 5.6 Call Expressions
 
-```ez
+```gray
 mut sum int = add(1, 2)
 mut greeting string = greet("World")
 println("Hello!")
@@ -1136,7 +1130,7 @@ println("Hello!")
 
 ### 5.7 Range Expressions
 
-```ez
+```gray
 range(0, 10)       // 0, 1, 2, ..., 9  (increment)
 range(0, 10, 2)    // 0, 2, 4, 6, 8    (increment)
 range(10, 0, -1)   // 10, 9, 8, ..., 1 (decrement)
@@ -1159,7 +1153,7 @@ Ranges are inclusive of the start value and exclusive of the end value.
 
 Any expression can be used as a statement:
 
-```ez
+```gray
 println("Hello")
 counter++
 do_something()
@@ -1169,7 +1163,7 @@ do_something()
 
 #### 6.2.1 If Statements
 
-```ez
+```gray
 if x < 0 {
     println("negative")
 } or x == 0 {
@@ -1185,13 +1179,13 @@ The `otherwise` keyword introduces the default case (similar to `else`).
 
 `else` is an alias for `otherwise`. Both are valid, user's choice.
 
-> 💡 **Flip's Tip:** `else` and `otherwise` are identical. Pick whichever reads more naturally to you and stick with it.
+> 💡 **Tip:** `else` and `otherwise` are identical. Pick whichever reads more naturally to you and stick with it.
 
 ### 6.3 Loop Statements
 
 #### 6.3.1 For Loops
 
-```ez
+```gray
 for i in range(0, 10) {
     println("${i}")
 }
@@ -1207,7 +1201,7 @@ for (i in range(0, 10)) {
 
 Use the blank identifier `_` to iterate by count without needing the loop variable:
 
-```ez
+```gray
 for _ in range(0, 5) {
     // body runs 5 times; loop counter is discarded
 }
@@ -1217,7 +1211,7 @@ for _ in range(0, 5) {
 
 #### 6.3.2 For-Each Loops
 
-```ez
+```gray
 mut items [string] = {"a", "b", "c"}
 for_each item in items {
     println(item)
@@ -1226,7 +1220,7 @@ for_each item in items {
 
 An optional index variable can precede the value variable, separated by a comma:
 
-```ez
+```gray
 for_each i, item in items {
     println("${i}: ${item}")
 }
@@ -1235,7 +1229,7 @@ for_each i, item in items {
 
 The index variable is always of type `int` and is zero-based. It works with both arrays and strings:
 
-```ez
+```gray
 for_each i, ch in "hello" {
     println("${i}: ${ch}")
 }
@@ -1243,14 +1237,14 @@ for_each i, ch in "hello" {
 
 The blank identifier `_` can be used in either position:
 
-```ez
+```gray
 for_each _, item in items { ... }   // discard index (same as no index)
 for_each i, _ in items { ... }     // index only, discard value
 ```
 
 **Map iteration** is also supported. With two variables, the first is the key and the second is the value:
 
-```ez
+```gray
 mut ages map[string:int] = {"alice": 30, "bob": 25}
 for_each k, v in ages {
     println("${k}: ${v}")
@@ -1264,15 +1258,15 @@ for_each key in ages {
 
 Map iteration order is undefined (maps are unordered).
 
-> 💡 **Flip's Tip:** Never rely on map iteration order. It is different every run by design.
+> 💡 **Tip:** Never rely on map iteration order. It is different every run by design.
 
 **Mutation during iteration:**
 
 - **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe; new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
 - **Maps:** Modifying a map during `for_each` (inserting or deleting keys) is not allowed and will panic at runtime. Read the map freely, but do not mutate it until the loop completes.
 
-> 💡 **Flip's Tip:** You can iterate over an inline array literal directly — no variable needed:
-> ```ez
+> 💡 **Tip:** You can iterate over an inline array literal directly — no variable needed:
+> ```gray
 > for_each item in {"a", "b", "c"} {
 >     println(item)
 > }
@@ -1283,9 +1277,9 @@ Map iteration order is undefined (maps are unordered).
 
 `while` is an alias for `as_long_as`. Both are valid, user's choice.
 
-> 💡 **Flip's Tip:** `while` and `as_long_as` are identical. Pick whichever reads more naturally to you and stick with it.
+> 💡 **Tip:** `while` and `as_long_as` are identical. Pick whichever reads more naturally to you and stick with it.
 
-```ez
+```gray
 mut count int = 0
 as_long_as count < 10 {
     count++
@@ -1301,7 +1295,7 @@ while count < 10 {
 
 The `loop` statement creates an infinite loop that runs until explicitly terminated with `break` or `return`:
 
-```ez
+```gray
 loop {
     mut input string = input()
     if input == "quit" {
@@ -1317,7 +1311,7 @@ loop {
 
 The `break` statement terminates the innermost enclosing loop:
 
-```ez
+```gray
 for i in range(0, 100) {
     if i == 5 {
         break
@@ -1329,7 +1323,7 @@ for i in range(0, 100) {
 
 The `continue` statement skips to the next iteration of the innermost enclosing loop:
 
-```ez
+```gray
 for i in range(0, 10) {
     if i % 2 == 0 {
         continue
@@ -1342,7 +1336,7 @@ for i in range(0, 10) {
 
 The `return` statement exits the current function, optionally returning a value:
 
-```ez
+```gray
 do add(a int, b int) -> int {
     return a + b
 }
@@ -1355,7 +1349,7 @@ do greet() {
 
 ### 6.5 When Statements (Pattern Matching)
 
-```ez
+```gray
 when x {
     is 1 { println("one") }
     is 2, 3 { println("two or three") }
@@ -1368,7 +1362,7 @@ when x {
 
 **Strict mode** requires all possible values to be handled:
 
-```ez
+```gray
 #strict
 when direction {
     is Direction.NORTH { ... }
@@ -1386,7 +1380,7 @@ An empty `default {}` branch emits a warning. Unmatched values are silently igno
 
 The `ensure` statement specifies a function to call when the enclosing function exits (whether normally or via early return):
 
-```ez
+```gray
 do process_file() {
     ensure cleanup()
     // ... do work ...
@@ -1401,7 +1395,7 @@ do process_file() {
 
 The `or_return` keyword provides error propagation shorthand for functions that return `(T, Error)` tuples:
 
-```ez
+```gray
 do load() -> (string, Error) {
     // Bare or_return: propagates the error with zero values
     mut content = read_file("data.txt") or_return
@@ -1421,7 +1415,7 @@ When the call returns a non-nil error, `or_return` immediately returns from the 
 
 ### 7.1 Function Declarations
 
-```ez
+```gray
 do add(a int, b int) -> int {
     return a + b
 }
@@ -1441,7 +1435,7 @@ do process() {
 
 By default, parameters are passed by value and cannot modify the caller's variables:
 
-```ez
+```gray
 do double(x int) -> int {
     return x * 2
 }
@@ -1458,7 +1452,7 @@ Mutable parameters work with:
 
 Multiple parameters of the same type can be grouped:
 
-```ez
+```gray
 do add(a, b int) -> int {
     return a + b
 }
@@ -1474,7 +1468,7 @@ do swap(&a, &b int) {
 
 Parameters can have default values. Default values are supported for all primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`):
 
-```ez
+```gray
 do greet(name string = "World") -> string {
     return "Hello, ${name}!"
 }
@@ -1485,7 +1479,7 @@ greet("Alice")  // "Hello, Alice!"
 
 Multiple parameters may have defaults. When calling, arguments fill left-to-right and any remaining parameters use their defaults:
 
-```ez
+```gray
 do connect(host string, port int = 8080, verbose bool = false) {
     if verbose {
         println("Connecting to ${host}:${port}")
@@ -1499,7 +1493,7 @@ connect("localhost", 3000, true)  // port=3000, verbose=true
 
 Default parameters must appear after non-default parameters. A required parameter cannot follow a parameter with a default value:
 
-```ez
+```gray
 do foo(a int = 10, b int) {}   // error: required parameter cannot follow a default parameter
 do bar(a int, b int = 10) {}   // OK: required first, then default
 ```
@@ -1508,7 +1502,7 @@ do bar(a int, b int = 10) {}   // OK: required first, then default
 
 When calling a function, arguments can be passed by name using `name: value` syntax. This lets callers provide arguments in any order and skip over defaulted parameters to target specific ones:
 
-```ez
+```gray
 do connect(host string, port int = 8080, verbose bool = false) {
     if verbose {
         println("Connecting to ${host}:${port}")
@@ -1524,14 +1518,14 @@ connect("localhost", verbose: true)        // positional + named mix
 
 - Positional arguments must come before named arguments. Once a named argument appears, all remaining arguments must also be named:
 
-```ez
+```gray
 add(1, b: 2)     // OK: positional first, then named
 add(a: 1, 2)     // error: positional argument after named argument
 ```
 
 - Named arguments must match a parameter name in the function signature exactly. Unknown names are rejected:
 
-```ez
+```gray
 do add(a int, b int) -> int { return a + b }
 
 add(a: 1, c: 2)  // error: unknown parameter name 'c' in call to 'add'
@@ -1539,13 +1533,13 @@ add(a: 1, c: 2)  // error: unknown parameter name 'c' in call to 'add'
 
 - A parameter cannot be provided both positionally and by name:
 
-```ez
+```gray
 add(1, a: 2)      // error: parameter 'a' is already provided positionally
 ```
 
 - Named arguments work with struct functions. For instance dispatch, the self parameter is implicit — only name the non-self parameters:
 
-```ez
+```gray
 const Vec struct {
     x int
     y int
@@ -1562,7 +1556,7 @@ mut also = Vec.scale(self: v, factor: 5)  // static dispatch: name all params
 
 - Named arguments are **not supported** for built-in functions (`println`, `len`, `cast`, etc.) or standard library module functions (`strings.to_upper`, `math.sqrt`, etc.):
 
-```ez
+```gray
 println(value: "hello")           // error: named arguments not supported
 strings.to_upper(s: "hello")      // error: named arguments not supported
 ```
@@ -1571,14 +1565,14 @@ strings.to_upper(s: "hello")      // error: named arguments not supported
 
 #### 7.3.1 Single Return Value
 
-```ez
+```gray
 do square(x int) -> int {
     return x * x
 }
 ```
 
-> 💡 **Flip's Tip:** If a function returns `^Type`, you can dereference at the call site with `^` to get the value directly without storing the pointer:
-> ```ez
+> 💡 **Tip:** If a function returns `^Type`, you can dereference at the call site with `^` to get the value directly without storing the pointer:
+> ```gray
 > do something() -> ^Foo {
 >     mut f = new(Foo)
 >     return f
@@ -1592,7 +1586,7 @@ do square(x int) -> int {
 
 #### 7.3.2 Multiple Return Values
 
-```ez
+```gray
 do divide(a, b int) -> (int, int) {
     return a / b, a % b
 }
@@ -1602,7 +1596,7 @@ mut quotient, remainder = divide(17, 5)
 
 #### 7.3.3 Error Returns
 
-```ez
+```gray
 do parse(s string) -> (int, Error) {
     if s == "" {
         return 0, error("empty string")
@@ -1620,7 +1614,7 @@ if err != nil {
 
 Return values can be given names to document what each position in the return tuple represents. Named return values are **labels only**; they do not implicitly declare variables in the function body. The programmer must explicitly declare any variables they use:
 
-```ez
+```gray
 do divide(a, b int) -> (quotient int, remainder int) {
     mut quotient int = a / b
     mut remainder int = a % b
@@ -1632,7 +1626,7 @@ mut q, r = divide(17, 5)  // q=3, r=2
 
 Named returns support grouped types (multiple names sharing one type):
 
-```ez
+```gray
 do get_info() -> (name, city string, age int) {
     mut name string = "Alice"
     mut city string = "NYC"
@@ -1641,11 +1635,11 @@ do get_info() -> (name, city string, age int) {
 }
 ```
 
-Named return values must be enclosed in parentheses. The names serve as documentation for callers and tooling (e.g., `ez doc`) but have no effect on the function's scope or variable declarations.
+Named return values must be enclosed in parentheses. The names serve as documentation for callers and tooling (e.g., `gray doc`) but have no effect on the function's scope or variable declarations.
 
 **Restriction:** Wildcard types (`?`) cannot be used in named return positions. Since `?` resolves to a different concrete type at each call site, the name adds no useful documentation. Use an unnamed return instead:
 
-```ez
+```gray
 // Error: wildcard type '?' cannot be named
 do first(arr [?]) -> (result ?) { ... }
 
@@ -1657,7 +1651,7 @@ do first(arr [?]) -> ? { ... }
 
 Functions without a return type return no value:
 
-```ez
+```gray
 do print_greeting() {
     println("Hello!")
 }
@@ -1667,8 +1661,8 @@ do print_greeting() {
 
 By default, all functions and constants are public. The `private` keyword restricts access to the declaring module:
 
-```ez
-// mathlib/mathlib.ez — module name comes from directory
+```gray
+// mathlib/mathlib.gray — module name comes from directory
 
 private const MAX_ITERATIONS int = 1000
 
@@ -1685,7 +1679,7 @@ do factorial(n int) -> int {
 
 Private members cannot be accessed from other modules:
 
-```ez
+```gray
 import "./mathlib"
 mathlib.factorial(5)          // OK - public
 // mathlib.validate(5)        // error: private function
@@ -1696,7 +1690,7 @@ mathlib.factorial(5)          // OK - public
 
 Attributes are annotations prefixed with `#` that modify declaration behavior. Attributes are placed on the line(s) immediately before a declaration, one attribute per line:
 
-```ez
+```gray
 #doc("A person with a name and age")
 #json
 const Person struct {
@@ -1717,16 +1711,16 @@ const Person struct {
 
 | Attribute | Applies To | Description |
 |-----------|------------|-------------|
-| `#doc("...")` | functions, structs, enums | Documentation metadata, used by `ez doc` |
+| `#doc("...")` | functions, structs, enums | Documentation metadata, used by `gray doc` |
 | `#json` | structs | Enables JSON serialization for the struct |
 | `#flags` | enums | Marks enum as a bitflag set (values are powers of 2) |
 | `#strict` | `when` blocks | Requires all enum variants to be handled |
 
 #### 7.5.1 `#doc` Attribute
 
-The `#doc` attribute adds documentation metadata to functions, structs, and enums. Used by the `ez doc` command to generate documentation.
+The `#doc` attribute adds documentation metadata to functions, structs, and enums. Used by the `gray doc` command to generate documentation.
 
-```ez
+```gray
 #doc("Adds two integers and returns the sum")
 do add(a int, b int) -> int {
     return a + b
@@ -1743,7 +1737,7 @@ const Point struct {
 
 The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically, with no field tags, no manual encoding/decoding calls, and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.stringify()`.
 
-```ez
+```gray
 import @json
 
 #json
@@ -1775,7 +1769,7 @@ do main() {
 
 A function reference is a value that holds a pointer to a named function. Function references are created with `()` prefix syntax or `ref()` and must always be bound to a `const`:
 
-```ez
+```gray
 do double(n int) -> int { return n * 2 }
 
 // ()func_name: implicit syntax (type is inferred)
@@ -1794,7 +1788,7 @@ const h func(int) -> int = ()double
 
 Call a func reference variable the same way you call a function:
 
-```ez
+```gray
 const f = ()double
 f(5)          // 10, call through variable
 ()double(5)   // 10, inline: create reference and call immediately
@@ -1806,7 +1800,7 @@ f(5)          // 10, call through variable
 
 When a function accepts another function as an argument, declare the parameter with a full typed `func` signature. This enables the compiler to check argument and return types at call sites:
 
-```ez
+```gray
 // Single param
 do apply(x int, f func(int) -> int) -> int {
     return f(x)
@@ -1842,7 +1836,7 @@ Inside the function body, call through the parameter the same way: `f(x)`.
 
 Bare `func` is a valid type in arrays, maps, and struct fields. Elements are untyped function pointers; the cast is reconstructed from context at each call site:
 
-```ez
+```gray
 import @arrays
 
 do double(n int) -> int { return n * 2 }
@@ -1872,7 +1866,7 @@ Typed func signatures as an array element type (e.g. `[func(int)->int]`) are not
 
 Struct fields can hold func references. Use a typed `func` signature for the field type to get compile-time argument checking:
 
-```ez
+```gray
 const Wrapper struct {
     f func(int) -> int
 }
@@ -1894,7 +1888,7 @@ do main() {
 
 Func references compare by pointer equality. Two references to the same function are equal; references to different functions are not:
 
-```ez
+```gray
 const f = ()double
 const g = ()double
 const h = ()triple
@@ -1904,7 +1898,7 @@ if f != h { println("different") }  // different
 
 #### 7.6.6 Restrictions
 
-> 💡 **Flip's Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own `do` function if you need to pass them as a callback.
+> 💡 **Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own `do` function if you need to pass them as a callback.
 
 | Operation | Result |
 |-----------|--------|
@@ -1930,7 +1924,7 @@ Rules:
 
 Functions can be declared inside struct blocks as namespaced free functions:
 
-```ez
+```gray
 const Point struct {
     x int
     y int
@@ -1964,7 +1958,7 @@ Rules:
 
 When a struct function takes the struct (or a pointer to it) as its first parameter, callers can use the instance form `instance.func(...)` instead of writing the type name. The compiler rewrites the call as `Type.func(instance, ...)`:
 
-```ez
+```gray
 const Vec struct {
     x int
     y int
@@ -1994,11 +1988,11 @@ Chained struct function calls (`a.f().g()`) are not supported. Assign each inter
 
 ### 7.8 Function Scope
 
-All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
+All functions in Grayscale are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
 
 Storing a reference to an existing function in a local variable is not the same as declaring a function and is perfectly valid:
 
-```ez
+```gray
 do double(n int) -> int { return n * 2 }
 
 do main() {
@@ -2011,7 +2005,7 @@ do main() {
 
 The `?` type is a wildcard placeholder that enables generic-style functions. When used in a function's parameter types, `?` is bound to the concrete type of the argument at each call site. The return type can also use `?` to propagate the bound type.
 
-```ez
+```gray
 do identity(x ?) -> ? {
     return x
 }
@@ -2022,7 +2016,7 @@ mut b = identity("hello")   // ? binds to string, returns string
 
 All `?` placeholders in a function signature bind to the same concrete type:
 
-```ez
+```gray
 do pick_first(a ?, b ?) -> ? {
     return a
 }
@@ -2033,7 +2027,7 @@ pick_first(1, "hello")    // Error: conflicting bindings for ?
 
 Wildcard types also work with composite types in parameters and returns:
 
-```ez
+```gray
 do first(arr [?]) -> ? {
     return arr[0]
 }
@@ -2067,7 +2061,7 @@ mut y = first({"a", "b"})     // ? binds to string
 
 The `<?>` annotation allows a function parameter to accept a struct type name rather than a value. This enables reusable constructors and type-aware utility functions.
 
-```ez
+```gray
 const Point struct {
     x int
     y int
@@ -2096,7 +2090,7 @@ A type parameter name is valid in these positions:
 
 The return type uses `?` the same way as value wildcards. `-> ^?` resolves to a pointer to the type argument, `-> ?` resolves to the type argument itself:
 
-```ez
+```gray
 do make(T <?>) -> ^? {
     return new(T)
 }
@@ -2115,7 +2109,7 @@ mut s = make_stack(Point)    // -> Point
 
 Type parameters and value parameters cannot appear in the same function signature:
 
-```ez
+```gray
 do bad(T <?>, x int) -> ^? {     // Error E2087
     return new(T)
 }
@@ -2125,7 +2119,7 @@ do bad(T <?>, x int) -> ^? {     // Error E2087
 
 Only struct type names may be passed as type arguments. Enums, primitives, and expressions are rejected:
 
-```ez
+```gray
 const Color enum { RED, GREEN, BLUE }
 
 mut p = make(Point)    // OK — Point is a struct
@@ -2140,65 +2134,65 @@ mut y = make(1 + 2)    // Error E3128 — not a type name
 
 ### 8.1 Module Identity
 
-Module identity is determined by the filesystem; there are no `module` declarations. A file's module name is its filename minus the `.ez` extension. A directory's module name is its directory name.
+Module identity is determined by the filesystem; there are no `module` declarations. A file's module name is its filename minus the `.gray` extension. A directory's module name is its directory name.
 
 ```
 project/
-  main.ez              ← entry point
-  helpers.ez           ← module "helpers"
-  utils.ez             ← module "utils"
+  main.gray              ← entry point
+  helpers.gray           ← module "helpers"
+  utils.gray             ← module "utils"
   models/
-    user.ez            ← ┐
-    task.ez            ← ┘ merge into module "models"
+    user.gray            ← ┐
+    task.gray            ← ┘ merge into module "models"
     internal/
-      cache.ez         ← separate module "internal"
+      cache.gray         ← separate module "internal"
 ```
 
-Directory imports merge all top-level `.ez` files in that directory into a single namespace under the directory's name. Subdirectories are **not** included; they are separate modules that must be imported independently. Hidden files (names starting with `.`) are excluded from directory scans.
+Directory imports merge all top-level `.gray` files in that directory into a single namespace under the directory's name. Subdirectories are **not** included; they are separate modules that must be imported independently. Hidden files (names starting with `.`) are excluded from directory scans.
 
-All relative import paths are resolved relative to the **entry point file's directory**, not the importing file's directory. This means a file inside `models/` that uses `import "./shared.ez"` resolves relative to the project root (where `main.ez` lives), not relative to `models/`.
+All relative import paths are resolved relative to the **entry point file's directory**, not the importing file's directory. This means a file inside `models/` that uses `import "./shared.gray"` resolves relative to the project root (where `main.gray` lives), not relative to `models/`.
 
 ### 8.2 Imports
 
 **Standard library imports** are prefixed with `@`:
 
-```ez
+```gray
 import @arrays, @maps, @strings
 ```
 
 **Local imports** use relative string paths. The compiler resolves them in order:
 
-1. If the path ends in `.ez`, import that file directly.
-2. If the path has no extension, try appending `.ez`. If a file exists, import it.
-3. If the path (without extension) is a directory, scan it for all `.ez` files and merge them into one module.
+1. If the path ends in `.gray`, import that file directly.
+2. If the path has no extension, try appending `.gray`. If a file exists, import it.
+3. If the path (without extension) is a directory, scan it for all `.gray` files and merge them into one module.
 4. If none of the above match, the import is rejected as unresolvable.
 
-```ez
-import "./helpers.ez"      // explicit file import
-import "./helpers"          // resolves to helpers.ez (file) or helpers/ (directory)
-import "./models"           // models/ directory, all .ez files merge
+```gray
+import "./helpers.gray"      // explicit file import
+import "./helpers"          // resolves to helpers.gray (file) or helpers/ (directory)
+import "./models"           // models/ directory, all .gray files merge
 ```
 
-When both `helpers.ez` and a `helpers/` directory exist, the file takes priority.
+When both `helpers.gray` and a `helpers/` directory exist, the file takes priority.
 
-If a directory contains no `.ez` files, it is an error.
+If a directory contains no `.gray` files, it is an error.
 
 **Import aliasing:**
 
-```ez
+```gray
 import m @math              // use m.sqrt() instead of math.sqrt()
 import mymod "./server"     // use mymod.handle() instead of server.handle()
 ```
 
 **Multiple imports** can be comma-separated:
 
-```ez
+```gray
 import @math, "./helpers", "./models"
 ```
 
 **Collision detection:** If two different imports resolve to the same module name, it is an error. The user must alias one to disambiguate:
 
-```ez
+```gray
 // Error: both resolve to module name "utils"
 import "./utils", "./lib/utils"
 
@@ -2208,9 +2202,9 @@ import "./utils", lib_utils "./lib/utils"
 
 **Directory import semantics:**
 
-When a directory is imported, all `.ez` files within it are merged into a single module namespace (the directory name). The following rules apply:
+When a directory is imported, all `.gray` files within it are merged into a single module namespace (the directory name). The following rules apply:
 
-- Files within the directory may import each other via relative paths (e.g., `import "./types.ez"`). These sibling cross-references are resolved internally and do not create separate namespaces; all symbols remain under the directory's namespace.
+- Files within the directory may import each other via relative paths (e.g., `import "./types.gray"`). These sibling cross-references are resolved internally and do not create separate namespaces; all symbols remain under the directory's namespace.
 - Transitive imports inside directory files resolve relative to the importing file's location, not the entry file.
 - If a file inside a directory imports its own parent directory (self-referential import), it is rejected.
 - If a directory import is followed by a direct import of a file already in that directory, the compiler warns that the import is redundant; the directory namespace should be used instead.
@@ -2222,20 +2216,20 @@ When a directory is imported, all `.ez` files within it are merged into a single
 
 The `import and use` syntax combines importing and using in a single statement:
 
-```ez
+```gray
 import and use @arrays
 ```
 
 This is equivalent to:
 
-```ez
+```gray
 import @arrays
 using arrays
 ```
 
 Multiple modules can be combined:
 
-```ez
+```gray
 import and use @arrays, @strings
 ```
 
@@ -2245,7 +2239,7 @@ The `using` declaration brings module members into scope for unqualified access.
 
 **File scope:** all functions in the file can use unqualified access:
 
-```ez
+```gray
 import @strings
 using strings
 
@@ -2260,7 +2254,7 @@ do shout(s string) -> string {
 
 **Function scope:** only that function can use unqualified access:
 
-```ez
+```gray
 import @strings
 
 do main() {
@@ -2275,7 +2269,7 @@ do shout(s string) -> string {
 
 Multiple modules can be listed:
 
-```ez
+```gray
 using arrays, strings
 ```
 
@@ -2283,14 +2277,14 @@ using arrays, strings
 
 Without `using`, module members are accessed with dot notation:
 
-```ez
+```gray
 import @math
 math.sqrt(16.0)
 ```
 
 With `using`:
 
-```ez
+```gray
 import @math
 using math
 sqrt(16.0)
@@ -2298,24 +2292,24 @@ sqrt(16.0)
 
 ### 8.6 C Interop
 
-EZ can import C headers and call C functions directly using the `c` prefix:
+Grayscale can import C headers and call C functions directly using the `c` prefix:
 
 #### Importing C Headers
 
-```ez
+```gray
 import c"stdio.h"           // system header → #include <stdio.h>
 import c"./mylib.h"         // local header  → #include "./mylib.h"
 ```
 
 System headers (no `./` or `../` prefix) emit angle-bracket includes. Local headers emit quoted includes. Multiple C imports can be comma-separated:
 
-```ez
+```gray
 import c"stdio.h", c"stdlib.h", c"string.h"
 ```
 
-C imports can be mixed with EZ imports on separate lines:
+C imports can be mixed with Grayscale imports on separate lines:
 
-```ez
+```gray
 import @math
 import c"stdio.h"
 ```
@@ -2324,7 +2318,7 @@ import c"stdio.h"
 
 All C functions are accessed via the `c.` prefix:
 
-```ez
+```gray
 import c"stdio.h"
 
 do main() {
@@ -2337,7 +2331,7 @@ do main() {
 
 C constants and macros are accessed with the same `c.` prefix:
 
-```ez
+```gray
 import c"stdio.h"
 
 do main() {
@@ -2348,7 +2342,7 @@ do main() {
 
 #### Type Mapping
 
-| EZ type | C type | Notes |
+| Grayscale type | C type | Notes |
 |---|---|---|
 | `int` | `int64_t` | Use `i32` for C `int` |
 | `uint` | `uint64_t` | Use `u32` for C `unsigned int` |
@@ -2357,13 +2351,13 @@ do main() {
 | `float` | `double` | Use `f32` for C `float` |
 | `bool` | `bool` | Exact match |
 | `byte` | `uint8_t` | Exact match |
-| `char` | `int32_t` | EZ uses 32-bit for Unicode |
+| `char` | `int32_t` | Grayscale uses 32-bit for Unicode |
 | `string` | `char*` | Auto-converted when passed to C functions |
 | `^T` | `T*` | Direct pointer mapping |
 
-**String conversion:** EZ strings are automatically converted to `char*` when passed to C functions. To convert a C `char*` return value back to an EZ string, use the `c_string()` builtin:
+**String conversion:** Grayscale strings are automatically converted to `char*` when passed to C functions. To convert a C `char*` return value back to a Grayscale string, use the `c_string()` builtin:
 
-```ez
+```gray
 import c"stdlib.h"
 
 do main() {
@@ -2372,9 +2366,9 @@ do main() {
 }
 ```
 
-**Return types:** C function return types are inferred by the C compiler. If EZ needs to know the type (e.g., for `println`), add a type annotation:
+**Return types:** C function return types are inferred by the C compiler. If Grayscale needs to know the type (e.g., for `println`), add a type annotation:
 
-```ez
+```gray
 import c"math.h"
 
 do main() {
@@ -2385,28 +2379,28 @@ do main() {
 
 #### Restrictions
 
-The following EZ types cannot be passed to C functions:
+The following Grayscale types cannot be passed to C functions:
 
 - `i128`, `i256`, `u128`, `u256` — C has no 128/256-bit integer types
-- Arrays and maps — EZ-specific types with no C equivalent
-- EZ structs — pass individual fields instead
+- Arrays and maps — Grayscale-specific types with no C equivalent
+- Grayscale structs — pass individual fields instead
 
 C structs returned from C functions can be passed back to other C functions via `__auto_type` inference.
 
 #### Reserved Name
 
-The module name `c` is reserved for C interop. Files named `c.ez` must use an explicit alias:
+The module name `c` is reserved for C interop. Files named `c.gray` must use an explicit alias:
 
-```ez
-import myc "./c.ez"    // OK, aliased
-import "./c.ez"         // Error: 'c' is reserved
+```gray
+import myc "./c.gray"    // OK, aliased
+import "./c.gray"         // Error: 'c' is reserved
 ```
 
 ---
 
 ## 9. Standard Library
 
-The EZ standard library consists of 27 modules plus built-in functions that require no import.
+The Grayscale standard library consists of 27 modules plus built-in functions that require no import.
 
 ### 9.1 Built-in Functions
 
@@ -2441,7 +2435,7 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `len` | `(collection) -> int` | Length of array, map, or string (byte length for strings, not character count) |
-| `type_of` | `(value T) -> string` | Returns the EZ type name as a string (e.g. `"int"`, `"uint"`, `"float"`, `"string"`, `"i128"`, `"u256"`). Accepts any type. |
+| `type_of` | `(value T) -> string` | Returns the Grayscale type name as a string (e.g. `"int"`, `"uint"`, `"float"`, `"string"`, `"i128"`, `"u256"`). Accepts any type. |
 | `size_of` | `(Type) -> int` | Size of type in bytes |
 | `copy` | `(value T) -> T` | Create deep copy. Accepts any type. |
 | `new` | `(Type) -> ^Type` | Allocate zero-initialized struct on arena |
@@ -2455,14 +2449,14 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `cast` | `(value T, Type) -> Type` | Explicit type conversion |
 | `to_char` | `(s string, index int) -> int` | Return the Unicode codepoint at character position `index` (not byte position). Panics if index is out of bounds. |
 | `char_count` | `(s string) -> int` | Return the number of Unicode characters (codepoints) in a string. Unlike `len()`, which returns byte count, `char_count()` counts decoded UTF-8 characters. |
-| `c_string` | `(ptr ^u8) -> string` | Convert a C `char*` return value to an EZ string (for C interop) |
+| `c_string` | `(ptr ^u8) -> string` | Convert a C `char*` return value to a Grayscale string (for C interop) |
 | `embed` | `(path string) -> string` | Read a file at compile time and return its contents as a string literal baked into the binary |
 
 **Reference behavior with `ref()`:**
 
 The `ref()` function creates a reference to an existing value. The mutability of the reference depends on the variable declaration:
 
-```ez
+```gray
 mut arr [int] = {1, 2, 3}
 
 // mut ref is mutable - can modify through the reference
@@ -2494,7 +2488,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 `assert()` checks a condition at runtime. If the condition is `false`, the program terminates immediately with error code `P0075` and prints `"panic[P0075]: assertion failed"` to stderr. An optional second argument provides a message appended to the output.
 
-```ez
+```gray
 assert(x > 0, "x must be positive")
 assert(len(items) > 0, "list cannot be empty")
 assert(connected)  // message is optional
@@ -2527,7 +2521,7 @@ The path is resolved relative to the directory of the source file containing the
 
 `embed()` is valid at file scope (as a `const` initializer) or inside a function body.
 
-```ez
+```gray
 // Embed a file at file scope, baked into the binary at compile time
 const LICENSE string = embed("../../LICENSE")
 const DEFAULT_CONFIG string = embed("config/defaults.json")
@@ -2539,7 +2533,7 @@ do main() {
 }
 ```
 
-> 💡 **Flip's Tip:** The embedded file is read once during compilation. Changes to the file after compilation have no effect on the binary. The compiler resolves the path relative to the `.ez` source file, not the current working directory when running `ezc`.
+> 💡 **Tip:** The embedded file is read once during compilation. Changes to the file after compilation have no effect on the binary. The compiler resolves the path relative to the `.gray` source file, not the current working directory when running `grayc`.
 
 ### 9.2 Arrays Module (`@arrays`)
 
@@ -2927,7 +2921,7 @@ Error-returning variant: `decode`
 | `is_absolute` | `(path string) -> bool` | Check if path is absolute |
 | `normalize` | `(path string) -> string` | Clean and normalize path |
 
-```ez
+```gray
 mut p string = io.path_join({"/home", "user", "docs"})  // "/home/user/docs"
 mut q string = io.path_join({"a/b", "/abs"})            // "/abs", absolute replaces
 ```
@@ -2956,7 +2950,7 @@ Most functions that can fail have an error-returning variant usable via multi-va
 | `walk` | `([string], Error)` |
 | `glob` | `([string], Error)` |
 
-```ez
+```gray
 // Always use destructuring; single-variable assignment is a compile error
 mut content, err = io.read_file("data.txt")
 if err != nil {
@@ -2986,15 +2980,15 @@ mut sz, err = io.file_size("data.txt")
 
 All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `csv.read_file`, `csv.write_file`, and `sqlite.open`) are resolved relative to the **current working directory** of the process, the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
 
-```ez
+```gray
 // Given project layout:
 //   project/
-//     main.ez
-//     src/cli.ez
+//     main.gray
+//     src/cli.gray
 //     data/config.json
 
-// Running from project/:  ez main.ez
-// All of these resolve from project/, regardless of which .ez file calls them:
+// Running from project/:  gray main.gray
+// All of these resolve from project/, regardless of which .gray file calls them:
 io.read_file("data/config.json")      // project/data/config.json
 io.read_file("./data/config.json")    // same thing
 io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
@@ -3027,7 +3021,7 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 |----------|-----------|-------------|
 | `exec` | `(cmd string, args [string]) -> (int, string, string, bool)` | Run a subprocess. Returns `(exit_code, stdout, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout and stderr are captured. POSIX only. |
 
-```ez
+```gray
 mut code, stdout, stderr, ok = os.exec("ls", {"-l", "/tmp"})
 if !ok {
     println("failed to launch")
@@ -3186,9 +3180,9 @@ SQLite database access for persistent storage.
 
 Error-returning variants: `open`, `exec`, `query` — always use destructuring.
 
-> 💡 **Flip's Tip:** Parameterized queries (`?` placeholders) are not supported. Build your SQL strings directly. Always sanitize any user-supplied values before interpolating them into SQL.
+> 💡 **Tip:** Parameterized queries (`?` placeholders) are not supported. Build your SQL strings directly. Always sanitize any user-supplied values before interpolating them into SQL.
 
-```ez
+```gray
 import @sqlite
 
 mut db, err = sqlite.open("myapp.db")
@@ -3244,7 +3238,7 @@ Every handler receives an `HttpRequest` struct:
 | `params` | `map[string:string]` | Path parameters (from `:param` segments) |
 | `body` | `string` | Raw request body |
 
-```ez
+```gray
 import @server
 
 do home(req HttpRequest) -> HttpResponse {
@@ -3324,7 +3318,7 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `current` | `() -> int` | Same as `get_id`; alternate spelling |
 | `yield` | `()` | Hint the scheduler to run another runnable thread |
 | `sleep` | `(ms int)` | Sleep the current thread for `ms` milliseconds |
-| `thread_count` | `() -> int` | Number of live threads spawned through this module (excludes main and non-EZ threads) |
+| `thread_count` | `() -> int` | Number of live threads spawned through this module (excludes main and non-Grayscale threads) |
 
 ### 9.23 Sync Module (`@sync`)
 
@@ -3421,7 +3415,7 @@ Formatted output and string formatting functions.
 | `sprintfln` | `(format string, ...args T) -> string` | Return formatted string with trailing newline |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
 
-> 💡 **Flip's Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
+> 💡 **Tip:** `eprintln` and `eprint` are builtins, not fmt module functions. Use them without an import.
 
 #### Format Specifiers
 
@@ -3440,9 +3434,9 @@ Format strings use C-style `%` specifiers:
 | `%o` | `int` | Octal |
 | `%%` | — | Literal `%` |
 
-Width, precision, and flags (`-`, `+`, `0`, `#`) follow standard C printf conventions. `%d` and `%u` are automatically widened to `%lld`/`%llu` for EZ's 64-bit integer types. Composite types (structs, arrays, maps) are not supported — use `println` for those.
+Width, precision, and flags (`-`, `+`, `0`, `#`) follow standard C printf conventions. `%d` and `%u` are automatically widened to `%lld`/`%llu` for Grayscale's 64-bit integer types. Composite types (structs, arrays, maps) are not supported — use `println` for those.
 
-```ez
+```gray
 import @fmt
 
 mut score int = 42
@@ -3552,7 +3546,7 @@ Constants can be used qualified (`strconv.BASE_16`) or bare after `import and us
 
 The `Error` type represents an error condition. Errors are created with the `error()` function:
 
-```ez
+```gray
 mut err Error = error("something went wrong")
 ```
 
@@ -3562,7 +3556,7 @@ Functions that may fail return a `(T, Error)` tuple; these are fallible function
 
 Functions that may fail conventionally return a tuple with the result and an Error:
 
-```ez
+```gray
 do read_file(path string) -> (string, Error) {
     if !file_exists(path) {
         return "", error("file not found")
@@ -3575,7 +3569,7 @@ do read_file(path string) -> (string, Error) {
 
 Errors are checked by comparing to `nil`:
 
-```ez
+```gray
 mut content, err = read_file("data.txt")
 if err != nil {
     println("Error: ${err}")
@@ -3601,7 +3595,7 @@ Runtime errors include location information (file, line, column).
 
 ### 11.1 Automatic Scope-Based Arena Management (ASBAM)
 
-EZ uses **Automatic Scope-Based Arena Management (ASBAM)**, a memory management model that combines arena allocators with scope-driven lifecycle control and automatic escape detection. There is no garbage collector, no reference counting, and no ownership annotations. The compiler infers everything from scope structure.
+Grayscale uses **Automatic Scope-Based Arena Management (ASBAM)**, a memory management model that combines arena allocators with scope-driven lifecycle control and automatic escape detection. There is no garbage collector, no reference counting, and no ownership annotations. The compiler infers everything from scope structure.
 
 ASBAM is built on four principles:
 
@@ -3612,7 +3606,7 @@ ASBAM is built on four principles:
 
 When a block of code ends, whether a function body, a loop iteration, or a conditional block, any memory it created is freed. If a value needs to survive because it escapes the scope, ASBAM handles it automatically.
 
-```ez
+```gray
 do process(name string) {
     mut upper = strings.to_upper(name)    // allocated in this scope
     mut parts = strings.split(upper, ",") // allocated in this scope
@@ -3623,9 +3617,9 @@ do process(name string) {
 
 No imports, no annotations, no cleanup calls.
 
-When a value is stored somewhere that outlives the current scope, EZ copies it to the outer scope:
+When a value is stored somewhere that outlives the current scope, Grayscale copies it to the outer scope:
 
-```ez
+```gray
 mut results [string] = {}
 
 for_each line in lines {
@@ -3644,7 +3638,7 @@ Composite types (arrays, maps) have reference semantics for assignment but value
 
 The `copy()` function creates a deep copy of any value, including nested structures:
 
-```ez
+```gray
 mut original = Person{name: "Alice", age: 30}
 mut duplicate = copy(original)
 duplicate.age = 31  // original.age is still 30
@@ -3679,7 +3673,7 @@ Nested scopes work correctly; a loop inside an if inside a function creates thre
 
 The `@mem` module provides explicit arena control for power users who need it:
 
-```ez
+```gray
 import @mem
 
 mut scratch = mem.arena(4096)
@@ -3693,11 +3687,11 @@ Most users never import the `@mem` module. ASBAM handles their allocations.
 
 ### 11.7 Memory Safety
 
-EZ is **memory safe by default**. ASBAM prevents common memory errors automatically, and the compiler catches several more at compile time. Memory safety is not unconditionally guaranteed — opting into the `@mem` module or unsynchronized threading introduces hazards that the programmer is responsible for. But for programs that stay within EZ's defaults, memory safety holds without annotations or manual management.
+Grayscale is **memory safe by default**. ASBAM prevents common memory errors automatically, and the compiler catches several more at compile time. Memory safety is not unconditionally guaranteed — opting into the `@mem` module or unsynchronized threading introduces hazards that the programmer is responsible for. But for programs that stay within Grayscale's defaults, memory safety holds without annotations or manual management.
 
 **Compile-time checked:**
 
-| Hazard | EZ Behavior |
+| Hazard | Grayscale Behavior |
 |--------|-------------|
 | Returning address of local variable | `addr()` of a local cannot appear in a return statement |
 | Cross-scope pointer assignment | Warning when a pointer in an outer scope is assigned from `addr()` of a value in an inner scope |
@@ -3714,7 +3708,7 @@ EZ is **memory safe by default**. ASBAM prevents common memory errors automatica
 
 **Runtime-checked (safe by default):**
 
-| Hazard | EZ Behavior |
+| Hazard | Grayscale Behavior |
 |--------|-------------|
 | Nil pointer dereference | Runtime panic |
 | Array out-of-bounds | Runtime panic |
@@ -3732,7 +3726,7 @@ EZ is **memory safe by default**. ASBAM prevents common memory errors automatica
 | Data races | Multiple threads accessing shared data without `sync.lock()` |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, ASBAM combined with compile-time checks and runtime panics provides practical safety without annotations or manual memory management.
+For most Grayscale programs, those that don't use the `@mem` module, raw pointers, or threading, ASBAM combined with compile-time checks and runtime panics provides practical safety without annotations or manual memory management.
 
 ### 11.8 Under the Hood
 
@@ -3740,7 +3734,7 @@ ASBAM is implemented using arena allocators. An arena is a block of memory that 
 
 #### Dual-Arena Architecture
 
-Every EZ program starts with two arenas, and each thread gets its own independent pair:
+Every Grayscale program starts with two arenas, and each thread gets its own independent pair:
 
 - **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out. When a scope ends, this arena is either watermark-reset (void functions, blocks) or destroyed entirely (non-void functions).
 - **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped or reset. This is why pointers returned by `new()` are always valid until the program exits.
@@ -3759,7 +3753,7 @@ Functions that accept mutable reference parameters (`&`) skip scoping entirely a
 
 Conditional blocks (`if`, `otherwise`) and loop iterations (`for`, `for_each`) each get their own arena. For loops, a new arena is created and destroyed on **every iteration**, which is why temporaries inside a loop never accumulate regardless of how many iterations run.
 
-When a value created inside a scoped block needs to survive — for example, appending to an outer array inside a loop — EZ automatically copies it to the outer scope's arena before the inner arena is destroyed.
+When a value created inside a scoped block needs to survive — for example, appending to an outer array inside a loop — Grayscale automatically copies it to the outer scope's arena before the inner arena is destroyed.
 
 #### Early Exits
 
@@ -3775,7 +3769,7 @@ Arenas start at a fixed size but are not limited by it. If an allocation exceeds
 
 ### 12.1 Program Structure
 
-An EZ program consists of one or more source files that are compiled to a native binary by the EZ compiler. Each file may contain:
+An Grayscale program consists of one or more source files that are compiled to a native binary by the Grayscale compiler. Each file may contain:
 
 1. Import declarations
 2. Using declarations
@@ -3783,9 +3777,9 @@ An EZ program consists of one or more source files that are compiled to a native
 
 ### 12.2 Entry Point
 
-Every EZ program must define a `main` function with no parameters and no return value:
+Every Grayscale program must define a `main` function with no parameters and no return value:
 
-```ez
+```gray
 do main() {
     // Program starts here
 }
@@ -3801,7 +3795,7 @@ Expressions are evaluated left-to-right. Function arguments are evaluated before
 
 Short-circuit evaluation applies to `&&` and `||`:
 
-```ez
+```gray
 // If a is false, b() is not called
 if a && b() { ... }
 
@@ -3820,77 +3814,77 @@ A program terminates when:
 
 ## 13. CLI Commands
 
-The `ez` command-line tool provides the following commands:
+The `gray` command-line tool provides the following commands:
 
 | Command | Description |
 |---------|-------------|
-| `ez <file.ez>` | Compile and run a source file |
-| `ez build <file.ez>` | Compile to a distributable binary |
-| `ez check <file.ez>` | Type-check without compiling |
-| `ez watch <file.ez>` | Watch for changes and re-run on save |
-| `ez fmt <path>` | Format source files |
-| `ez doc <path>` | Generate documentation from `#doc` attributes |
-| `ez pz <name>` | Scaffold a new project |
-| `ez man <name>` | Show documentation for builtins, stdlib, and language reference |
-| `ez report` | Print system info for bug reports |
-| `ez update` | Check for updates and upgrade |
-| `ez install <version>` | Install a specific version by exact semver |
-| `ez version` | Show version information |
+| `gray <file.gray>` | Compile and run a source file |
+| `gray build <file.gray>` | Compile to a distributable binary |
+| `gray check <file.gray>` | Type-check without compiling |
+| `gray watch <file.gray>` | Watch for changes and re-run on save |
+| `gray fmt <path>` | Format source files |
+| `gray doc <path>` | Generate documentation from `#doc` attributes |
+| `gray pz <name>` | Scaffold a new project |
+| `gray man <name>` | Show documentation for builtins, stdlib, and language reference |
+| `gray report` | Print system info for bug reports |
+| `gray update` | Check for updates and upgrade |
+| `gray install <version>` | Install a specific version by exact semver |
+| `gray version` | Show version information |
 
 ### Global Flags
 
-These flags are available on `ez <file>`, `build`, `check`, and `watch`:
+These flags are available on `gray <file>`, `build`, `check`, and `watch`:
 
 | Flag | Description |
 |------|-------------|
 | `-q, --quiet <codes>` | Suppress warnings. Use `all` to suppress all, or a comma-separated list of codes (e.g. `W1001,W1003`). |
 | `--no-color` | Disable colored diagnostic output. |
 
-### 13.1 `ez <file.ez>`
+### 13.1 `gray <file.gray>`
 
 Compile and run a source file in one step.
 
 ```
-ez <file.ez> [flags] [-- args...]
+gray <file.gray> [flags] [-- args...]
 ```
 
 Arguments after `--` are forwarded to the compiled program.
 
 ```bash
-ez main.ez
-ez main.ez -q all
-ez main.ez -- --port 8080
+gray main.gray
+gray main.gray -q all
+gray main.gray -- --port 8080
 ```
 
-### 13.2 `ez build`
+### 13.2 `gray build`
 
 Compile a source file to a native binary.
 
 ```
-ez build <file.ez> [flags]
+gray build <file.gray> [flags]
 ```
 
 | Flag | Description |
 |------|-------------|
-| `-o, --output <name>` | Output binary name. Defaults to the input filename without `.ez`. |
-| `--emit-c` | Emit the generated C source to a file without compiling to a binary. No binary is produced. Uses `-o` for the output path, or defaults to `<input>.c` (e.g., `main.ez` → `main.c`). |
+| `-o, --output <name>` | Output binary name. Defaults to the input filename without `.gray`. |
+| `--emit-c` | Emit the generated C source to a file without compiling to a binary. No binary is produced. Uses `-o` for the output path, or defaults to `<input>.c` (e.g., `main.gray` → `main.c`). |
 | `--time` | Show compilation timing. |
 | `-q, --quiet <codes>` | Suppress warnings. |
 | `--no-color` | Disable colored output. |
 
 ```bash
-ez build main.ez -o myapp
-ez build main.ez --emit-c
-ez build main.ez --emit-c -o output.c
-ez build main.ez --time -q all
+gray build main.gray -o myapp
+gray build main.gray --emit-c
+gray build main.gray --emit-c -o output.c
+gray build main.gray --time -q all
 ```
 
-### 13.3 `ez check`
+### 13.3 `gray check`
 
 Type-check a file or project without compiling. Returns a non-zero exit code if errors are found.
 
 ```
-ez check <file.ez | directory> [flags]
+gray check <file.gray | directory> [flags]
 ```
 
 | Flag | Description |
@@ -3898,16 +3892,16 @@ ez check <file.ez | directory> [flags]
 | `-q, --quiet <codes>` | Suppress warnings. |
 
 ```bash
-ez check main.ez
-ez check src/
+gray check main.gray
+gray check src/
 ```
 
-### 13.4 `ez watch`
+### 13.4 `gray watch`
 
 Watch a file or directory for changes and re-run on save. Automatically discovers and watches imported files.
 
 ```
-ez watch <file.ez | directory> [flags]
+gray watch <file.gray | directory> [flags]
 ```
 
 | Flag | Description |
@@ -3915,19 +3909,19 @@ ez watch <file.ez | directory> [flags]
 | `-q, --quiet <codes>` | Suppress warnings. |
 | `--no-color` | Disable colored output. |
 
-When watching a directory, EZ finds the file containing `main()` and watches all `.ez` files in the directory.
+When watching a directory, Grayscale finds the file containing `main()` and watches all `.gray` files in the directory.
 
 ```bash
-ez watch main.ez
-ez watch src/
+gray watch main.gray
+gray watch src/
 ```
 
-### 13.5 `ez fmt`
+### 13.5 `gray fmt`
 
-Format `.ez` source files in place. Normalizes indentation to 4 spaces, removes trailing whitespace, ensures a final newline, and collapses runs of more than 2 blank lines.
+Format `.gray` source files in place. Normalizes indentation to 4 spaces, removes trailing whitespace, ensures a final newline, and collapses runs of more than 2 blank lines.
 
 ```
-ez fmt <path> [flags]
+gray fmt <path> [flags]
 ```
 
 | Flag | Description |
@@ -3938,43 +3932,43 @@ Supported path patterns:
 
 | Pattern | Scope |
 |---------|-------|
-| `file.ez` | Single file |
-| `dir` | All `.ez` files in directory (non-recursive) |
-| `./...` or `dir/...` | Recursive walk for all `.ez` files |
+| `file.gray` | Single file |
+| `dir` | All `.gray` files in directory (non-recursive) |
+| `./...` or `dir/...` | Recursive walk for all `.gray` files |
 
 ```bash
-ez fmt main.ez
-ez fmt src/
-ez fmt ./...
-ez fmt --check ./...
+gray fmt main.gray
+gray fmt src/
+gray fmt ./...
+gray fmt --check ./...
 ```
 
-### 13.6 `ez doc`
+### 13.6 `gray doc`
 
 Generate markdown documentation from `#doc` attributes in source files.
 
 ```
-ez doc <path> [flags]
+gray doc <path> [flags]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `-o, --output <path>` | Output file path. Defaults to `DOCS.md`. |
 
-Supports the same path patterns as `ez fmt` (single file, directory, `./...` recursive).
+Supports the same path patterns as `gray fmt` (single file, directory, `./...` recursive).
 
 ```bash
-ez doc main.ez
-ez doc ./...
-ez doc src/ -o API.md
+gray doc main.gray
+gray doc ./...
+gray doc src/ -o API.md
 ```
 
-### 13.7 `ez pz`
+### 13.7 `gray pz`
 
-Scaffold a new EZ project.
+Scaffold a new Grayscale project.
 
 ```
-ez pz [project-name] [flags]
+gray pz [project-name] [flags]
 ```
 
 | Flag | Description |
@@ -3984,22 +3978,22 @@ ez pz [project-name] [flags]
 | `-c, --comments` | Include a quick-reference comment block in the entry file. |
 | `-f, --force` | Overwrite an existing directory. |
 
-Running `ez pz` with no arguments enters interactive mode, which prompts for the project name, template, and options.
+Running `gray pz` with no arguments enters interactive mode, which prompts for the project name, template, and options.
 
 ```bash
-ez pz myapp
-ez pz myapp -t cli
-ez pz myapi -t server -s minimal
-ez pz myapp -t basic -c
-ez pz                          # interactive mode
+gray pz myapp
+gray pz myapp -t cli
+gray pz myapi -t server -s minimal
+gray pz myapp -t basic -c
+gray pz                          # interactive mode
 ```
 
-### 13.8 `ez man`
+### 13.8 `gray man`
 
 Show documentation for builtin functions, stdlib modules, stdlib types, and language reference (keywords, types, symbols, attributes).
 
 ```
-ez man [name]
+gray man [name]
 ```
 
 | Argument | Result |
@@ -4016,38 +4010,38 @@ ez man [name]
 | `attributes` | List all attributes. |
 
 ```bash
-ez man
-ez man builtins
-ez man math
-ez man println
-ez man strings.contains
-ez man lang
-ez man keywords
-ez man struct
-ez man i8
-ez man flags
+gray man
+gray man builtins
+gray man math
+gray man println
+gray man strings.contains
+gray man lang
+gray man keywords
+gray man struct
+gray man i8
+gray man flags
 ```
 
-> 💡 **Flip's Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `ez` sees them. Use the name alone: `ez man println`, not `ez man println()`.
+> 💡 **Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `ez` sees them. Use the name alone: `gray man println`, not `gray man println()`.
 
-> 💡 **Flip's Tip:** For attributes, omit the `#` prefix — the shell treats `#` as a comment. Use `ez man flags`, not `ez man #flags`.
+> 💡 **Tip:** For attributes, omit the `#` prefix — the shell treats `#` as a comment. Use `gray man flags`, not `gray man #flags`.
 
-### 13.9 `ez report`
+### 13.9 `gray report`
 
 Print system information for filing bug reports.
 
 ```
-ez report
+gray report
 ```
 
-Output includes EZ version, commit hash, OS, CPU, RAM, C compiler version, and target triple.
+Output includes Grayscale version, commit hash, OS, CPU, RAM, C compiler version, and target triple.
 
-### 13.10 `ez update`
+### 13.10 `gray update`
 
 Check for updates and upgrade to a newer version.
 
 ```
-ez update [flags]
+gray update [flags]
 ```
 
 | Flag | Description |
@@ -4055,31 +4049,31 @@ ez update [flags]
 | `--pre` | Install the latest pre-release (alpha/beta/rc) instead of latest stable. |
 
 ```bash
-ez update
-ez update --pre
+gray update
+gray update --pre
 ```
 
-### 13.11 `ez install`
+### 13.11 `gray install`
 
-Install a specific EZ version by exact semver, replacing the current installation. Supports downgrades and pre-release tags.
+Install a specific Grayscale version by exact semver, replacing the current installation. Supports downgrades and pre-release tags.
 
 ```
-ez install <version>
+gray install <version>
 ```
 
 ```bash
-ez install 3.0.0
-ez install 3.1.0-beta.2
+gray install 3.0.0
+gray install 3.1.0-beta.2
 ```
 
-### 13.12 `ez version`
+### 13.12 `gray version`
 
 Show the installed version, build commit, build timestamp, and whether newer versions are available.
 
 ```
-ez version
+gray version
 ```
 
 ---
 
-*This document is the authoritative specification for the EZ programming language.*
+*This document is the authoritative specification for the Grayscale programming language.*

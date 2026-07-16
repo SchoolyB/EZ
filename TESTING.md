@@ -1,4 +1,4 @@
-# EZ Language Testing Guide
+# Grayscale Language Testing Guide
 
 ## Quick Start
 
@@ -12,20 +12,20 @@ make test
 
 ## Compiler Tests
 
-The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
+The Grayscale compiler has a comprehensive test suite written in C, located in `grayc/tests/`.
 
 ### Unit Tests (338 tests)
 
 Unit tests validate individual compiler components:
 
-- **Lexer Tests** (`ezc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, operator disambiguation, and edge cases.
-- **Parser Tests** (`ezc/tests/test_parser.c` — 86 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, grouped params, compound assignments, and parser error codes.
-- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 158 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, bigint types, and error code coverage.
-- **Util Tests** (`ezc/tests/test_util.c` — 25 tests): Arena allocator (create, alloc, alignment, multi-block, oversized, strdup/strndup), growable buffer (create, append, growth, formatting, indentation), and scope (lookup, define/update, hash rebuild, many symbols, immutability).
+- **Lexer Tests** (`grayc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, operator disambiguation, and edge cases.
+- **Parser Tests** (`grayc/tests/test_parser.c` — 86 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, grouped params, compound assignments, and parser error codes.
+- **Typechecker Tests** (`grayc/tests/test_typechecker.c` — 158 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, bigint types, and error code coverage.
+- **Util Tests** (`grayc/tests/test_util.c` — 25 tests): Arena allocator (create, alloc, alignment, multi-block, oversized, strdup/strndup), growable buffer (create, append, growth, formatting, indentation), and scope (lookup, define/update, hash rebuild, many symbols, immutability).
 
 ### End-to-End Tests (101 tests)
 
-E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify output. Covers variables, control flow, functions, data structures, string features, structs, enums, maps, pointers, runtime checks, and more.
+E2E tests (`grayc/tests/test_codegen.c`) compile Grayscale programs, run them, and verify output. Covers variables, control flow, functions, data structures, string features, structs, enums, maps, pointers, runtime checks, and more.
 
 **Running:**
 
@@ -34,17 +34,17 @@ E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify
 make test-unit        # unit tests (lexer + parser + typechecker + util)
 make test-e2e         # e2e codegen tests
 
-# Individual test suites (from ezc/)
-./ezc/tests/test_lexer
-./ezc/tests/test_parser
-./ezc/tests/test_typechecker
-./ezc/tests/test_util
-./ezc/tests/test_codegen
+# Individual test suites (from grayc/)
+./grayc/tests/test_lexer
+./grayc/tests/test_parser
+./grayc/tests/test_typechecker
+./grayc/tests/test_util
+./grayc/tests/test_codegen
 ```
 
 ### Integration Tests
 
-Integration tests compile and run `.ez` programs end-to-end through the full compiler pipeline.
+Integration tests compile and run `.gray` programs end-to-end through the full compiler pipeline.
 
 **Structure:**
 
@@ -82,10 +82,10 @@ make test-asan
 
 ## Go Tooling Tests
 
-The Go CLI (`ez`) has unit tests for the packages it uses:
+The Go CLI (`gray`) has unit tests for the packages it uses:
 
-- `cmd/ez` — updater semver parsing/comparison and exact-version install validation.
-- `internal/ezc` — compiler binary lookup and `EZ_COMPILER_PATH` override behavior.
+- `cmd/gray` — updater semver parsing/comparison and exact-version install validation.
+- `internal/grayc` — compiler binary lookup and `GRAY_COMPILER_PATH` override behavior.
 
 ```bash
 make test-go
