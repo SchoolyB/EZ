@@ -1,8 +1,8 @@
 /*
- * func_param_call.ez - Calling a func-typed parameter with correct
+ * func_param_call.gray - Calling a func-typed parameter with correct
  * return type propagation for struct, int, and string returns.
  *
- * Regression for #1507 (bug reported during hunt): calling a func
+ * calling a func
  * parameter that returned a struct emitted (int64_t (*)(...))f
  * instead of (StructType (*)(...))f. The typechecker now pushes
  * the declared target type onto the call node's typetable entry so

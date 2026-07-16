@@ -1,5 +1,5 @@
 /*
- * math_float_returns.ez - Test math functions return float for float args (#1312)
+ * math_float_returns.gray - Test math functions return float for float args
  *
  * Verifies that math.abs, min, max, clamp, neg return float when
  * given float arguments instead of truncating to int.

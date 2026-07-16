@@ -1,5 +1,5 @@
 /*
- * using_modules.ez - Test 'using' keyword with non-std modules
+ * using_modules.gray - Test 'using' keyword with non-std modules
  */
 
 import @strings, @math

@@ -1,7 +1,7 @@
 /*
- * func_array_struct_ref.ez - Struct-namespaced function refs in [func] arrays
+ * func_array_struct_ref.gray - Struct-namespaced function refs in [func] arrays
  *
- * Regression for #1458 (commit 18845b6): struct-namespaced func refs
+ * struct-namespaced func refs
  * stored in a [func] array literal lost their return type identity when
  * called via a constant index. typechecker now tracks the originating
  * referenced function per literal element (Symbol::func_array_refs), so

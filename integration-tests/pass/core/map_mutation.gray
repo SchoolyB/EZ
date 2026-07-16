@@ -1,5 +1,5 @@
 /*
- * map_mutation.ez - Test map mutation operations
+ * map_mutation.gray - Test map mutation operations
  *
  * Covers: add key, update key, delete key, overwrite,
  * check after mutation, string and int keys.

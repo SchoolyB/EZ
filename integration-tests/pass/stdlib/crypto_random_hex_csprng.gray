@@ -1,5 +1,5 @@
 /*
- * Test: crypto.random_hex CSPRNG replacement (#1648)
+ * Test: crypto.random_hex CSPRNG replacement
  * - length=0 returns empty string
  * - odd and even lengths produce correct character counts
  * - repeated calls produce different values (CSPRNG quality)

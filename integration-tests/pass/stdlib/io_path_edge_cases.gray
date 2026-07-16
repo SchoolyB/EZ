@@ -1,5 +1,5 @@
 /*
- * Test: io path function edge cases (#1446)
+ * Test: io path function edge cases
  * Verifies fixes for dotfile extension, trailing-slash dirname, absolute path_join
  */
 

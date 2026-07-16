@@ -1,5 +1,5 @@
 /*
- * nested_array_foreach.ez - Test for_each over nested arrays (#1306)
+ * nested_array_foreach.gray - Test for_each over nested arrays
  *
  * Verifies that for_each correctly types inner elements as arrays
  * when iterating over [[int]], [[string]], and [[[int]]].

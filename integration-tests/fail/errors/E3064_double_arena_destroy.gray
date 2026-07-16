@@ -1,7 +1,7 @@
 /*
  * Error Test: E3064 - double mem.destroy() on the same arena
  *
- * Feature #1521: compile-time detection of straight-line double
+ * compile-time detection of straight-line double
  * destroy on the same variable.
  */
 

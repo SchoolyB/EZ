@@ -1,7 +1,7 @@
 /*
  * Error Test: E3031 - bare function name used as value
  *
- * Regression for #1475: `mut x = foo` where `foo` is a declared
+ * `mut x = foo` where `foo` is a declared
  * function previously fell through resolve_expr's NODE_LABEL handler
  * (scope lookup missed, no other category matched) and emitted the
  * function name as a raw C identifier. Now caught at typecheck time

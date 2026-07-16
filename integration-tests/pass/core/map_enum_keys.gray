@@ -1,7 +1,7 @@
 /*
- * map_enum_keys.ez - Maps keyed by enum types
+ * map_enum_keys.gray - Maps keyed by enum types
  *
- * Regression for #1444 (commit 3dd0a6d): enum keys were rejected at
+ * enum keys were rejected at
  * index time with "expected 'Color', got 'int'" because enum members
  * resolve as int. Enums are int-backed and hash fine; the typechecker
  * now accepts int expressions against an enum-typed key in

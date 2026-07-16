@@ -1,5 +1,5 @@
 /*
- * here_builtin.ez - Test the here() builtin and SourceLocation type
+ * here_builtin.gray - Test the here() builtin and SourceLocation type
  *
  * Verifies that here() returns a SourceLocation struct with the
  * file, line, and column of the here() call itself, and that the

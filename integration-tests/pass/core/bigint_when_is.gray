@@ -1,5 +1,5 @@
 /*
- * bigint_when_is.ez - Test wide integers in when/is blocks (#1804)
+ * bigint_when_is.gray - Test wide integers in when/is blocks
  *
  * Covers: i128, u128, i256, u256 as when subjects, arithmetic
  * expressions in is arms, default branch.
@@ -24,7 +24,7 @@ do classify_u128(n u128) -> string {
 }
 
 do main() {
-    println("=== Wide Integer when/is Test (#1804) ===")
+    println("=== Wide Integer when/is Test ===")
     mut passed int = 0
     mut failed int = 0
 

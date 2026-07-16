@@ -1,5 +1,5 @@
 /*
- * random_choice.ez - Test random.choice() with concrete types (#1308)
+ * random_choice.gray - Test random.choice() with concrete types
  *
  * Verifies that random.choice() compiles and runs correctly for
  * int, string, and float arrays now that __auto_type is replaced

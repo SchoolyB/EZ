@@ -1,5 +1,5 @@
 /*
- * bigint.ez - Test i128, u128, i256, u256 wide integer types
+ * bigint.gray - Test i128, u128, i256, u256 wide integer types
  */
 
 

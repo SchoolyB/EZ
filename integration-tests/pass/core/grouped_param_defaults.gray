@@ -1,6 +1,6 @@
 /*
- * grouped_param_defaults.ez - Test that default values backfill across grouped params
- * Verifies fix for #1823: a, b string = "X" → both default to "X"
+ * grouped_param_defaults.gray - Test that default values backfill across grouped params
+ * a, b string = "X" → both default to "X"
  */
 
 do two_defaults(a, b string = "hello") -> string {

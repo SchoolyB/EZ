@@ -1,6 +1,6 @@
 /*
- * grouped_params.ez - Test grouped parameter syntax (a, b int → both get int)
- * Verifies backfill works correctly after #1401 parser fix.
+ * grouped_params.gray - Test grouped parameter syntax (a, b int → both get int)
+ * Verifies backfill works correctly after parser fix.
  */
 
 do add(a, b int) -> int {

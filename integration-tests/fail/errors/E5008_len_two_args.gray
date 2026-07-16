@@ -1,7 +1,7 @@
 /*
  * Error Test: E5008 - len() called with too many arguments
  *
- * Regression for #1490: arity check rejects len() with more than
+ * arity check rejects len() with more than
  * one argument.
  */
 

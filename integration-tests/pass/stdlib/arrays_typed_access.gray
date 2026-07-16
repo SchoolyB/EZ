@@ -1,5 +1,5 @@
 /*
- * arrays_typed_access.ez - Integration test for arrays.get_first / get_last /
+ * arrays_typed_access.gray - Integration test for arrays.get_first / get_last /
  * remove_first / remove_last across all element types.
  *
  * Covers: int, uint, float, bool, byte, char, string,
@@ -194,14 +194,14 @@ do main() {
     }
 
     // --- string ---
-    mut as [string] = {"hello", "world", "ez"}
+    mut as [string] = {"hello", "world", "gray"}
     if arrays.get_first(as) == "hello" {
         passed += 1
     } otherwise {
         println("FAIL: get_first string")
         failed += 1
     }
-    if arrays.get_last(as) == "ez" {
+    if arrays.get_last(as) == "gray" {
         passed += 1
     } otherwise {
         println("FAIL: get_last string")
@@ -215,7 +215,7 @@ do main() {
         failed += 1
     }
     mut rl_str string = arrays.remove_last(as)
-    if rl_str == "ez" && len(as) == 1 {
+    if rl_str == "gray" && len(as) == 1 {
         passed += 1
     } otherwise {
         println("FAIL: remove_last string")

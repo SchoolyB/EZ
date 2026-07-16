@@ -1,7 +1,6 @@
 /*
  * Tests function reference invocation with mutable (&) parameter
  * Verifies that [func] vars correctly pass-through & param mutations
- * Regression for #1494
  */
 
 do modify(&x int) {

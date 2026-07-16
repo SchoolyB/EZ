@@ -1,5 +1,5 @@
 /*
- * uuid_c.ez - Integration test for uuid module (compiler)
+ * uuid_c.gray - Integration test for uuid module (compiler)
  */
 
 import @uuid

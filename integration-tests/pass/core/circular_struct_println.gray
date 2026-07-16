@@ -3,7 +3,7 @@
  *
  * Verifies that println does not segfault when printing a struct that
  * participates in a circular value-type reference chain. Previously crashed
- * in emit_value_print due to missing cycle detection. (#1784)
+ * in emit_value_print due to missing cycle detection.
  *
  * The cyclic portion of the print output is rendered as StructName{...}
  * to break the cycle gracefully.

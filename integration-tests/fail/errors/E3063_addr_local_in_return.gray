@@ -1,7 +1,7 @@
 /*
  * Error Test: E3063 - cannot return addr() of a local variable
  *
- * Feature #1521: the local's memory is freed when the function
+ * the local's memory is freed when the function
  * returns, so the pointer would dangle.
  */
 

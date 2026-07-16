@@ -1,5 +1,5 @@
 /*
- * strings_char_classification.ez - Integration test for strings char classification functions
+ * strings_char_classification.gray - Integration test for strings char classification functions
  */
 
 import @strings

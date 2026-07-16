@@ -1,5 +1,5 @@
 /*
- * main.ez - Test private visibility
+ * main.gray - Test private visibility
  *
  * Tests:
  *   - Public functions are accessible via module prefix
@@ -7,7 +7,7 @@
  *   - Private functions/constants are NOT exported (tested separately in fail tests)
  */
 
-import "./lib.ez"
+import "./lib.gray"
 
 
 do main() {

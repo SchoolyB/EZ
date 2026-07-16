@@ -1,5 +1,5 @@
 /*
- * main.ez - Test cross-module struct-namespaced functions
+ * main.gray - Test cross-module struct-namespaced functions
  *
  * Tests:
  *   - geometry.Vec2.create() — module.Struct.function() triple chain
@@ -7,7 +7,7 @@
  *   - Private functions stay private across modules
  */
 
-import "./geometry.ez"
+import "./geometry.gray"
 
 
 do main() {

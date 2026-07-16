@@ -1,4 +1,4 @@
-import h "./lib.ez"
+import h "./lib.gray"
 
 do main() {
     mut result string = h.greet("Alias")

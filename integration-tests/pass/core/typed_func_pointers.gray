@@ -1,6 +1,6 @@
 /*
- * typed-func-pointers.ez - Test function pointer calls with properly
- * typed arguments (#1324).
+ * typed-func-pointers.gray - Test function pointer calls with properly
+ * typed arguments.
  */
 
 

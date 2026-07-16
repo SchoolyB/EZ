@@ -1,5 +1,5 @@
 /*
- * range-expressions.ez - Test range() in various contexts (for, if/in, when/is)
+ * range-expressions.gray - Test range() in various contexts (for, if/in, when/is)
  */
 
 

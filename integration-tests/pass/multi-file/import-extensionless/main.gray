@@ -1,6 +1,6 @@
 /*
  * Test: extensionless file import
- * import "./helpers" resolves to helpers.ez
+ * import "./helpers" resolves to helpers.gray
  */
 import "./helpers"
 

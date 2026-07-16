@@ -1,5 +1,5 @@
 /*
- * main.ez - Test cross-module nested struct initialization
+ * main.gray - Test cross-module nested struct initialization
  *
  * Bug: When creating a struct from another module that has nested struct fields,
  * the nested structs were not being initialized (left as NIL), causing
@@ -7,7 +7,7 @@
  */
 
 
-import lib "./types.ez"
+import lib "./types.gray"
 
 
 do main() {

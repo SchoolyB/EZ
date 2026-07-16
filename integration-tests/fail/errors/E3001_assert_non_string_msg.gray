@@ -1,7 +1,6 @@
 /*
  * Error Test: E3001 - assert() with non-string message
  * Expected: E3001 "assert() message must be a string"
- * Covers: #1591
  */
 
 do main() {

@@ -1,5 +1,5 @@
 /*
- * stress_bitwise.ez - Stress test for bitwise operators
+ * stress_bitwise.gray - Stress test for bitwise operators
  *
  * Covers: edge values, all types, large shifts, deep chains,
  *         bitwise in function returns, bitwise in conditionals,

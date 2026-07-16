@@ -1,5 +1,5 @@
 /*
- * const_multi_return.ez - Test const keyword with multi-return functions
+ * const_multi_return.gray - Test const keyword with multi-return functions
  *
  * Tests that:
  * - const a, b = func() syntax works

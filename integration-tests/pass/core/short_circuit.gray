@@ -1,5 +1,5 @@
 /*
- * short_circuit.ez - Test short-circuit evaluation of && and ||
+ * short_circuit.gray - Test short-circuit evaluation of && and ||
  */
 
 

@@ -1,7 +1,6 @@
 /*
  * Error Test: E3027 - const passed to mutable (&) param of struct function
  * Expected: "cannot pass constant to mutable parameter" error
- * Regression for #1494
  */
 
 const Util struct {

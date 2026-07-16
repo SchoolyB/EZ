@@ -3,7 +3,7 @@
  * Expected: "module not found"
  */
 
-import "./nonexistent_module.ez"
+import "./nonexistent_module.gray"
 
 do main() {
     println("test")

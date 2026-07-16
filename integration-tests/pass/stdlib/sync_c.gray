@@ -1,5 +1,5 @@
 /*
- * sync_c.ez - Integration test for the sync module (compiler)
+ * sync_c.gray - Integration test for the sync module (compiler)
  *
  * Covers: mutex(), lock, unlock, destroy
  */

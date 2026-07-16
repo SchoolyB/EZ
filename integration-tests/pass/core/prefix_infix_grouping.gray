@@ -1,5 +1,5 @@
 /*
- * prefix_infix_grouping.ez - Test prefix operator grouping with infix (#1326)
+ * prefix_infix_grouping.gray - Test prefix operator grouping with infix
  *
  * Verifies that !(a && b), !(a || b), and negation of infix expressions
  * correctly group the entire infix expression, not just the first operand.

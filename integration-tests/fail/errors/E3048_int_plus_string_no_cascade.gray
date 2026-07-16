@@ -1,7 +1,7 @@
 /*
  * Error Test: E3048 - int + string produces exactly one error
  *
- * Regression for #1488: string-in-arithmetic errors now collapse
+ * string-in-arithmetic errors now collapse
  * the infix result to TK_UNKNOWN so the var_decl type check
  * doesn't re-report the same mistake as an assignment mismatch.
  */

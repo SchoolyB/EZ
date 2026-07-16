@@ -1,5 +1,5 @@
 /*
- * functions.ez - Test function definitions, parameters, returns, mutable params
+ * functions.gray - Test function definitions, parameters, returns, mutable params
  */
 
 import @arrays

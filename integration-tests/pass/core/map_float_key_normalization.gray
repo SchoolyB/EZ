@@ -1,14 +1,14 @@
 /*
- * map_float_key_normalization.ez - +0.0/-0.0 collide and NaN keys dedup.
+ * map_float_key_normalization.gray - +0.0/-0.0 collide and NaN keys dedup.
  *
- * Before the fix, ez_map hashed and compared float keys bytewise. That
+ * Before the fix, gray_map hashed and compared float keys bytewise. That
  * made +0.0 and -0.0 land in different buckets even though they compare
  * equal under == and IEEE 754, and any two NaNs with different bit
  * patterns lived in different buckets too. Map now tags float keys with
  * a key_kind and normalizes -0.0 to +0.0 and NaN to a canonical quiet
  * NaN before hash/compare.
  *
- * Also exercises that ez_map_copy and maps.merge propagate the kind so
+ * Also exercises that gray_map_copy and maps.merge propagate the kind so
  * the normalization survives a copy or a merge.
  */
 

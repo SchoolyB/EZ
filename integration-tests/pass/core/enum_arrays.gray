@@ -1,5 +1,5 @@
 /*
- * enum_arrays.ez - Test integer and string enum arrays (#1801, #1802)
+ * enum_arrays.gray - Test integer and string enum arrays
  *
  * Covers: declaring enum arrays, accessing elements, iterating,
  * reassigning elements, and passing enum arrays to functions.
@@ -29,7 +29,7 @@ do count_north(dirs [Direction], n int) -> int {
 }
 
 do main() {
-    println("=== Enum Arrays Test (#1801, #1802) ===")
+    println("=== Enum Arrays Test ===")
     mut passed int = 0
     mut failed int = 0
 

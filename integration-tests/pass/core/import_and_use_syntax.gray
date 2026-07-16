@@ -1,5 +1,5 @@
 /*
- * import_and_use_syntax.ez - Test 'import and use @module' syntax
+ * import_and_use_syntax.gray - Test 'import and use @module' syntax
  */
 
 import and use @strings, @math

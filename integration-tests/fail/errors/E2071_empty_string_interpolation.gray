@@ -1,7 +1,7 @@
 /*
  * Error Test: E2071 - empty string interpolation ${}
  *
- * Regression for #1484: `"value: ${}"` used to produce
+ * `"value: ${}"` used to produce
  * "unexpected token 'EOF'" anchored at line 1:1 of the file,
  * because the empty expression text was handed to a fresh
  * sub-parser that hit EOF with stale position tracking. Parser

@@ -1,4 +1,4 @@
-import "./models.ez"
+import "./models.gray"
 
 do main() {
     mut p = new(models.Person)

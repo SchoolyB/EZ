@@ -1,5 +1,5 @@
 /*
- * Error Test: crypto.random_hex panics on negative length (#1648)
+ * Error Test: crypto.random_hex panics on negative length
  * Expected: runtime panic
  */
 

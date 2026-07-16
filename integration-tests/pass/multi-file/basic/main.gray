@@ -1,5 +1,5 @@
 /*
- * main.ez - Entry point for multi-file test
+ * main.gray - Entry point for multi-file test
  *
  * Tests:
  *   - Importing local modules from same directory
@@ -9,8 +9,8 @@
  */
 
 import @arrays, @time
-import and use "./models.ez"
-import "./utils.ez"
+import and use "./models.gray"
+import "./utils.gray"
 
 /* Test result tracking */
 const TestResult struct {
@@ -70,7 +70,7 @@ do test_models_module() -> TestResult {
     println("  Creating Task struct...")
     mut task models.Task = models.Task{
         id: 1,
-        title: "Learn EZ",
+        title: "Learn Grayscale",
         description: "Complete the tutorial",
         priority: models.Priority.HIGH,
         status: models.Status.TODO,

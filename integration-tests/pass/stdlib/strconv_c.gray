@@ -1,5 +1,5 @@
 /*
- * Test: strconv module - string/type conversions (#1603)
+ * Test: strconv module - string/type conversions
  * Verifies all 10 strconv functions work correctly.
  */
 

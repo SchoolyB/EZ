@@ -1,7 +1,7 @@
 /*
- * grouped_struct_fields.ez - Comma-grouped struct field declarations
+ * grouped_struct_fields.gray - Comma-grouped struct field declarations
  *
- * Regression for #1495 — struct fields sharing a type via comma syntax
+ * struct fields sharing a type via comma syntax
  * (e.g. `x, y, z float`) were not registered correctly.
  */
 

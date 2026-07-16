@@ -1,7 +1,7 @@
 /*
- * server_http_types.ez - Test HttpRequest/HttpResponse type registration
+ * server_http_types.gray - Test HttpRequest/HttpResponse type registration
  * Covers: HttpRequest struct registered, codegen C type mapping,
- *         types scoped to server/http imports (#1585)
+ *         types scoped to server/http imports
  * NOTE: Does not call server.listen() since that blocks.
  */
 

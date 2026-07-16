@@ -1,8 +1,8 @@
 /*
- * Error Test: E6003 - directory import with no .ez files
- * Expected: "directory contains no .ez files" error
+ * Error Test: E6003 - directory import with no .gray files
+ * Expected: "directory contains no .gray files" error
  *
- * Uses the empty_dir/ directory which has no .ez files
+ * Uses the empty_dir/ directory which has no .gray files
  */
 
 import "./empty_dir"

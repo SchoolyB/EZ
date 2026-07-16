@@ -1,5 +1,5 @@
 /*
- * raw_string_multiline.ez - Test raw strings with embedded newlines
+ * raw_string_multiline.gray - Test raw strings with embedded newlines
  *
  * Covers: multi-line raw strings, no escape processing, no interpolation
  */

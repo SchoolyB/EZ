@@ -1,5 +1,5 @@
 /*
- * typeof_stdlib_returns.ez - Test type_of() for stdlib function returns
+ * typeof_stdlib_returns.gray - Test type_of() for stdlib function returns
  *
  * Verifies that random.choice(), maps.get_keys/values, and range()
  * return correctly resolved types for type_of().

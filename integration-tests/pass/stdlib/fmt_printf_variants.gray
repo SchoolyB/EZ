@@ -1,6 +1,6 @@
 /*
- * fmt_printf_variants.ez - Integration tests for printfln, eprintf, eprintfln, sprintfln
- * Tests the new formatted output variants added in #1838.
+ * fmt_printf_variants.gray - Integration tests for printfln, eprintf, eprintfln, sprintfln
+ * Tests the new formatted output variants added.
  */
 
 import @fmt

@@ -1,5 +1,5 @@
 /*
- * lib.ez - Library with private function
+ * lib.gray - Library with private function
  */
 
 private do secret() -> string {

@@ -1,7 +1,7 @@
 /*
- * wildcard_interpolation.ez - Wildcard (?) params in string interpolation
+ * wildcard_interpolation.gray - Wildcard (?) params in string interpolation
  *
- * Regression for #1584 — when a wildcard-typed parameter was used inside
+ * when a wildcard-typed parameter was used inside
  * "${x}", codegen defaulted to TK_INT and emitted (long long)(x), causing
  * C compiler errors for non-integer types like string, float, bool.
  */

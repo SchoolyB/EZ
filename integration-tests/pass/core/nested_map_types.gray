@@ -1,7 +1,7 @@
 /*
- * nested_map_types.ez - Nested map types in collection annotations
+ * nested_map_types.gray - Nested map types in collection annotations
  *
- * Regression for #1464 — parser + codegen support for map[...] nested
+ * parser + codegen support for map[...] nested
  * inside collection type annotations: arrays of maps, maps of maps,
  * and element access on nested container types.
  */

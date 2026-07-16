@@ -1,15 +1,14 @@
 /*
- * map_wide_numeric_keys.ez - 'in', has_key, remove_key for f32/f64 and
+ * map_wide_numeric_keys.gray - 'in', has_key, remove_key for f32/f64 and
  * bigint (i128/u128/i256/u256) map keys.
  *
- * Regression for the #1430 follow-up (commit d7c050d):
- *   - 'in'/'!in' used ez_type_to_c_cg → emitted 'float _ik' (4-byte) against
- *     a double-sized (8-byte) storage slot for f32, and 'ez_i128 _ik = 1'
+ *   - 'in'/'!in' used gray_type_to_c_cg → emitted 'float _ik' (4-byte) against
+ *     a double-sized (8-byte) storage slot for f32, and 'gray_i128 _ik = 1'
  *     (C compile error) for bigint keys.
  *   - has_key / remove_key used __auto_type, which picks the C type of the
  *     argument expression rather than the map's declared key storage width.
  *
- * These are the three sites the follow-up routed through ez_map_elem_c_type.
+ * These are the three sites the follow-up routed through gray_map_elem_c_type.
  * This test exercises each site for every wide numeric key type.
  */
 

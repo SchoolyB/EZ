@@ -1,7 +1,7 @@
 /*
  * Error Test: E3002 - division by literal float zero
  *
- * Regression for #1474: float literal 0.0 divisor is also statically
+ * float literal 0.0 divisor is also statically
  * caught, matching the integer shape.
  */
 

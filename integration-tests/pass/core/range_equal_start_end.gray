@@ -1,5 +1,5 @@
 /*
- * range_equal_start_end.ez - range(n, n) produces zero iterations (empty sequence)
+ * range_equal_start_end.gray - range(n, n) produces zero iterations (empty sequence)
  */
 
 do main() {

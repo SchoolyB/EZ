@@ -1,9 +1,9 @@
 /*
- * map_non_standard_keys_ops.ez - 'in' operator and function params for
+ * map_non_standard_keys_ops.gray - 'in' operator and function params for
  * bool/char/byte/float key maps.
  *
- * Complements map_non_standard_keys.ez (#1430). The original fix patched
- * five map codegen sites to use ez_map_elem_c_type for the key; this test
+ * Complements map_non_standard_keys.gray. The original fix patched
+ * five map codegen sites to use gray_map_elem_c_type for the key; this test
  * exercises the remaining user-visible paths for those key types: the
  * 'in'/'!in' membership operator and passing such maps through function
  * calls (which re-emits key types at the call boundary).

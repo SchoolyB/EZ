@@ -2,7 +2,7 @@
  * Error Test: E3057 - struct type cannot be used as a map key
  * Expected: clean rejection at var_decl time (not a misleading cascade)
  *
- * Regression for #1444: struct keys previously tripped downstream errors
+ * struct keys previously tripped downstream errors
  * like "struct 'Point' has no field 'y'". Now rejected up-front.
  */
 

@@ -1,5 +1,5 @@
 /*
- * Test: io module directory and file operations (#1446)
+ * Test: io module directory and file operations
  * Tests make_dir, make_dir_all, copy_file, move_file, remove_dir, remove_dir_all
  */
 
@@ -10,7 +10,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: make_dir creates a directory
-    mut ok, _ = io.make_dir("/tmp/ez_test_dir_1446")
+    mut ok, _ = io.make_dir("/tmp/gray_test_dir_1446")
     if ok == true {
         println("  [PASS] make_dir creates directory")
         passed += 1
@@ -20,7 +20,7 @@ do main() {
     }
 
     // Test 2: is_directory confirms it exists
-    if io.is_directory("/tmp/ez_test_dir_1446") == true {
+    if io.is_directory("/tmp/gray_test_dir_1446") == true {
         println("  [PASS] is_directory confirms created dir")
         passed += 1
     } otherwise {
@@ -29,7 +29,7 @@ do main() {
     }
 
     // Test 3: remove_dir removes it
-    mut rm, _ = io.remove_dir("/tmp/ez_test_dir_1446")
+    mut rm, _ = io.remove_dir("/tmp/gray_test_dir_1446")
     if rm == true {
         println("  [PASS] remove_dir removes directory")
         passed += 1
@@ -39,7 +39,7 @@ do main() {
     }
 
     // Test 4: make_dir_all creates nested directories
-    mut ok2, _ = io.make_dir_all("/tmp/ez_test_1446/a/b/c")
+    mut ok2, _ = io.make_dir_all("/tmp/gray_test_1446/a/b/c")
     if ok2 == true {
         println("  [PASS] make_dir_all creates nested dirs")
         passed += 1
@@ -49,8 +49,8 @@ do main() {
     }
 
     // Test 5: write a file then copy it
-    mut _, _ = io.write_file("/tmp/ez_test_1446/a/test.txt", "hello")
-    mut cp, _ = io.copy_file("/tmp/ez_test_1446/a/test.txt", "/tmp/ez_test_1446/a/b/test_copy.txt")
+    mut _, _ = io.write_file("/tmp/gray_test_1446/a/test.txt", "hello")
+    mut cp, _ = io.copy_file("/tmp/gray_test_1446/a/test.txt", "/tmp/gray_test_1446/a/b/test_copy.txt")
     if cp == true {
         println("  [PASS] copy_file succeeds")
         passed += 1
@@ -60,7 +60,7 @@ do main() {
     }
 
     // Test 6: verify copied file content
-    mut content, _ = io.read_file("/tmp/ez_test_1446/a/b/test_copy.txt")
+    mut content, _ = io.read_file("/tmp/gray_test_1446/a/b/test_copy.txt")
     if content == "hello" {
         println("  [PASS] copied file has correct content")
         passed += 1
@@ -70,7 +70,7 @@ do main() {
     }
 
     // Test 7: move_file
-    mut mv, _ = io.move_file("/tmp/ez_test_1446/a/b/test_copy.txt", "/tmp/ez_test_1446/a/b/c/moved.txt")
+    mut mv, _ = io.move_file("/tmp/gray_test_1446/a/b/test_copy.txt", "/tmp/gray_test_1446/a/b/c/moved.txt")
     if mv == true {
         println("  [PASS] move_file succeeds")
         passed += 1
@@ -80,7 +80,7 @@ do main() {
     }
 
     // Test 8: verify moved file exists and original is gone
-    if io.file_exists("/tmp/ez_test_1446/a/b/c/moved.txt") == true {
+    if io.file_exists("/tmp/gray_test_1446/a/b/c/moved.txt") == true {
         println("  [PASS] moved file exists at new location")
         passed += 1
     } otherwise {
@@ -89,7 +89,7 @@ do main() {
     }
 
     // Test 9: remove_dir_all cleans up everything
-    mut rma, _ = io.remove_dir_all("/tmp/ez_test_1446")
+    mut rma, _ = io.remove_dir_all("/tmp/gray_test_1446")
     if rma == true {
         println("  [PASS] remove_dir_all cleans up nested dirs")
         passed += 1
@@ -99,7 +99,7 @@ do main() {
     }
 
     // Test 10: confirm cleanup
-    if io.file_exists("/tmp/ez_test_1446") == false {
+    if io.file_exists("/tmp/gray_test_1446") == false {
         println("  [PASS] directory fully removed")
         passed += 1
     } otherwise {

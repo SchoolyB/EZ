@@ -1,5 +1,5 @@
 /*
- * Test: returning pointer from function with struct return type (#1524)
+ * Test: returning pointer from function with struct return type
  * Verifies that returning a pointer value when the function signature
  * expects a struct by value works correctly with the typetable guard.
  */

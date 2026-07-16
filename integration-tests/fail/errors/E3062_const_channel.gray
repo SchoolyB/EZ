@@ -1,7 +1,7 @@
 /*
  * Error Test: E3062 - const on a channel handle
  *
- * Regression for #1480: channels are inherently stateful (send/receive
+ * channels are inherently stateful (send/receive
  * mutate internal state), so const is a semantic lie. Rejected at
  * var_decl time.
  */

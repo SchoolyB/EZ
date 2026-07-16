@@ -1,5 +1,5 @@
 /*
- * typeof_sized_types.ez - Test type_of() returns sized type names
+ * typeof_sized_types.gray - Test type_of() returns sized type names
  */
 
 

@@ -1,7 +1,7 @@
 /*
- * function_scoped_using.ez - using statement inside function bodies
+ * function_scoped_using.gray - using statement inside function bodies
  *
- * Regression for #1519 follow-up (c84eaa2): function-scoped `using`
+ * function-scoped `using`
  * was silently ignored. Now NODE_USING_STMT is handled in both
  * check_statement and emit_statement, adding the module to the
  * using_modules list when encountered mid-body.

@@ -1,10 +1,10 @@
 /*
- * map_copy.ez - copy() builtin on maps is a deep copy
+ * map_copy.gray - copy() builtin on maps is a deep copy
  *
- * Regression for #1440 (commit 5cd75ce): copy() on maps fell through to
- * a plain value-copy of the EzMap struct, sharing keys/values/states/order
+ * copy() on maps fell through to
+ * a plain value-copy of the GrayMap struct, sharing keys/values/states/order
  * pointers with the original — so mutations to the "copy" wrote into the
- * source. New ez_map_copy allocates fresh backing arrays.
+ * source. New gray_map_copy allocates fresh backing arrays.
  */
 
 do main() {

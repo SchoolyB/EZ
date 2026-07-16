@@ -1,5 +1,5 @@
 /*
- * uint_precision.ez - uint carries the full UINT64_MAX range end-to-end.
+ * uint_precision.gray - uint carries the full UINT64_MAX range end-to-end.
  *
  * Prior to the fix, uint mapped to uint64_t in storage but every surrounding
  * path (parser overflow detection, print routing, to_string) went through

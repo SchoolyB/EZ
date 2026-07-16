@@ -1,7 +1,6 @@
 /*
  * Error Test: E7015 - len() on a struct value
  *
- * Regression for #1490 (bug I reported this session as bug 30).
  * len(p) where p is a struct used to pass the typechecker and
  * leak to clang as "no member named 'len' in struct". Typechecker
  * now rejects any non-string / non-array / non-map receiver.

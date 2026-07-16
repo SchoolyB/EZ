@@ -1,5 +1,5 @@
 /*
- * Test: net module _result variants for error handling (#1547)
+ * Test: net module _result variants for error handling
  * Tests resolve, connect, and listen with multi-var destructuring.
  */
 

@@ -1,4 +1,4 @@
-import "./types.ez"
+import "./types.gray"
 
 do main() {
     mut passed int = 0

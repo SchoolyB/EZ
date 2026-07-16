@@ -1,5 +1,5 @@
 /*
- * c_interop.ez - Test C interop via import c"header.h"
+ * c_interop.gray - Test C interop via import c"header.h"
  *
  * Covers: calling C functions, accessing C constants,
  * multiple C header imports.

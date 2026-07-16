@@ -1,5 +1,5 @@
 /*
- * nested_struct_init.ez - Test nested struct initialization with new() and literals
+ * nested_struct_init.gray - Test nested struct initialization with new() and literals
  */
 
 

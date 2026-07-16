@@ -1,5 +1,5 @@
 /*
- * Error Test: encoding.url_decode panics on invalid percent-escape (#1651)
+ * Error Test: encoding.url_decode panics on invalid percent-escape
  * Expected: runtime panic
  */
 

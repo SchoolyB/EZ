@@ -1,5 +1,5 @@
 /*
- * ensure_many.ez - functions that register more than 32 ensures.
+ * ensure_many.gray - functions that register more than 32 ensures.
  *
  * collect_ensures used to write into a fixed 32-entry stack array and
  * silently drop everything past the cap. The fix replaced the buffer

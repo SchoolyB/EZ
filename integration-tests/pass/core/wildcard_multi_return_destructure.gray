@@ -1,5 +1,5 @@
 /*
- * wildcard_multi_return_destructure.ez - Destructuring a generic function
+ * wildcard_multi_return_destructure.gray - Destructuring a generic function
  * whose return type carries '?' in multiple slots.
  *
  * Before the fix, `mut a, b = pair(42)` left the temp's slot types as

@@ -1,5 +1,5 @@
 /*
- * string_interpolation.ez - Test string interpolation edge cases
+ * string_interpolation.gray - Test string interpolation edge cases
  */
 
 
@@ -13,13 +13,13 @@ do main() {
     mut failed int = 0
 
     // Test 1: basic variable interpolation
-    mut name string = "EZ"
+    mut name string = "Grayscale"
     mut greeting string = "Hello, ${name}!"
-    if greeting == "Hello, EZ!" {
+    if greeting == "Hello, Grayscale!" {
         println("  [PASS] basic variable interpolation")
         passed += 1
     } otherwise {
-        println("  [FAIL] expected 'Hello, EZ!', got '${greeting}'")
+        println("  [FAIL] expected 'Hello, Grayscale!', got '${greeting}'")
         failed += 1
     }
 

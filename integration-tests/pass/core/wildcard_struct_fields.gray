@@ -1,7 +1,7 @@
 /*
- * wildcard_struct_fields.ez - Generic structs via wildcard ? fields.
+ * wildcard_struct_fields.gray - Generic structs via wildcard ? fields.
  *
- * Feature #1520: struct fields can use ? as their type, enabling
+ * struct fields can use ? as their type, enabling
  * monomorphised struct instantiations per concrete binding at each
  * struct literal usage site. All ? fields in one struct bind to the
  * same concrete type per instantiation.

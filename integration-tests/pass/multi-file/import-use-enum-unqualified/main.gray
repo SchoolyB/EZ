@@ -1,4 +1,4 @@
-import and use "./models.ez"
+import and use "./models.gray"
 
 do main() {
     mut passed int = 0

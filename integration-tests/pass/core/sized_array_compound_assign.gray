@@ -1,5 +1,5 @@
 /*
- * Test: sized-type array element compound assignment (#1529)
+ * Test: sized-type array element compound assignment
  * Verifies that +=, -=, *= on sized-type array elements produce
  * correct values with overflow-checked arithmetic.
  */

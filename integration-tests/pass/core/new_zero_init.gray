@@ -1,5 +1,5 @@
 /*
- * Test: new() returns zero-initialized struct fields (#1539)
+ * Test: new() returns zero-initialized struct fields
  * Verifies that arena-allocated structs via new() have all fields
  * at their zero values (0, "", false) instead of garbage.
  */

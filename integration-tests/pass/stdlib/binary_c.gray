@@ -1,5 +1,5 @@
 /*
- * binary_c.ez - Comprehensive integration test for @binary (compiler)
+ * binary_c.gray - Comprehensive integration test for @binary (compiler)
  * Tests: encode/decode round-trips for 8/16/32/64-bit signed+unsigned,
  *        little-endian and big-endian, floats LE+BE
  * NOT TESTED: 128/256-bit (requires bigint literal support)

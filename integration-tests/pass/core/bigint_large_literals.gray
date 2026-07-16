@@ -1,5 +1,5 @@
 /*
- * bigint_large_literals.ez - Test large literal parsing for bigint types (#1331)
+ * bigint_large_literals.gray - Test large literal parsing for bigint types
  *
  * Verifies that integer literals exceeding int64 max are accepted for
  * i128/u128/i256/u256 types and parsed via from_decimal() constructors.

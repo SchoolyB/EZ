@@ -1,7 +1,6 @@
 /*
  * Tests struct function with mutable (&) parameter
  * Verifies that struct functions can mutate arguments passed by reference
- * Regression for #1494
  */
 
 const Util struct {

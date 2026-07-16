@@ -1,5 +1,5 @@
 /*
- * string_enum_support.ez - Test string enum support (#1801)
+ * string_enum_support.gray - Test string enum support
  *
  * Covers: string enum in arrays, when/is blocks, comparison between
  * two enum values, comparison with string literals, assignment to
@@ -33,7 +33,7 @@ do describe(s string) -> string {
 }
 
 do main() {
-    println("=== String Enum Support Test (#1801) ===")
+    println("=== String Enum Support Test ===")
     mut passed int = 0
     mut failed int = 0
 

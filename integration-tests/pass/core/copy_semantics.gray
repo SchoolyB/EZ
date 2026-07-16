@@ -1,5 +1,5 @@
 /*
- * copy_semantics.ez - Test copy-by-default and ref() builtin (#661)
+ * copy_semantics.gray - Test copy-by-default and ref() builtin
  *
  * Tests that:
  * - Assignment copies by default for structs, arrays, maps
@@ -19,7 +19,7 @@ const Nested struct {
 }
 
 do main() {
-    println("=== Copy Semantics Test (#661) ===")
+    println("=== Copy Semantics Test ===")
     mut passed int = 0
     mut failed int = 0
 

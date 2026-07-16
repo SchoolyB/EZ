@@ -1,5 +1,5 @@
 /*
- * mylib.ez - Test module for type inference from user-defined modules
+ * mylib.gray - Test module for type inference from user-defined modules
  */
 
 do get_value() -> u64 {

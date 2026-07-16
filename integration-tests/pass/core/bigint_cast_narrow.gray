@@ -1,5 +1,5 @@
 /*
- * bigint_cast_narrow.ez - Test cast() from wide integer types to narrow scalar types.
+ * bigint_cast_narrow.gray - Test cast() from wide integer types to narrow scalar types.
  *
  * Covers valid narrowing casts that fit within the target range: i128/u128/i256/u256
  * to i8, i16, i32, i64, u8, u16, u32, u64.

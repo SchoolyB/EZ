@@ -1,7 +1,7 @@
 /*
  * Panic Test: P0092 - shift amount out of range
  *
- * Shifting by a negative amount is undefined behavior in C. EZ must
+ * Shifting by a negative amount is undefined behavior in C. Grayscale must
  * validate the shift amount at runtime and panic instead of silently
  * producing a wrong result.
  */

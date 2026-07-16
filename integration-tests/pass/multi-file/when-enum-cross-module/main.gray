@@ -1,10 +1,10 @@
 /*
- * Test: cross-module enum values in when/is branches (#1523)
+ * Test: cross-module enum values in when/is branches
  * Verifies that imported enum member access (defs.Color.RED) works
  * correctly in when/is patterns after label rewriting.
  */
 
-import "./defs.ez"
+import "./defs.gray"
 
 do main() {
     mut passed int = 0

@@ -1,5 +1,5 @@
 /*
- * const_ref.ez - Test const ref creates read-only view
+ * const_ref.gray - Test const ref creates read-only view
  *
  * Tests that:
  * - mut ref allows modification (existing behavior)

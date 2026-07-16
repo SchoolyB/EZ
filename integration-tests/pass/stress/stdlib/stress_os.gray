@@ -1,7 +1,7 @@
 /* Stress test: @os — system info functions
  * Expected: all tests pass
  * Note: os.get_env() multi-return and os.current_dir() have codegen
- *       tuple destructuring issues — tested via existing os.ez instead.
+ *       tuple destructuring issues — tested via existing os.gray instead.
  */
 
 import @os
@@ -24,7 +24,7 @@ do main() {
     passed += 1
 
     // set_env (void)
-    os.set_env("EZ_STRESS_VAR", "hello_ez")
+    os.set_env("GRAY_STRESS_VAR", "hello_gray")
     println("  [PASS] set_env — no crash")
     passed += 1
 

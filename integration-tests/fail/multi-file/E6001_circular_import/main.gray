@@ -3,7 +3,7 @@
  * Expected: "circular import"
  */
 
-import "./module_a.ez"
+import "./module_a.gray"
 
 do main() {
     println("test")

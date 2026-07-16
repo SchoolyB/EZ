@@ -1,5 +1,5 @@
-import "./geo.ez"
-import "./color.ez"
+import "./geo.gray"
+import "./color.gray"
 
 do main() {
     mut g = geo.Point{x: 1, y: 2}

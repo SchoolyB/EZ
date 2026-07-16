@@ -1,7 +1,7 @@
 /*
  * Error Test: E3061 - struct contains itself by value directly
  *
- * Regression for #1489: used to leak to clang as "field has
+ * used to leak to clang as "field has
  * incomplete type". Typechecker now walks struct field types at
  * registration time and catches direct by-value self-reference
  * with a message pointing the user at the '^T' form.

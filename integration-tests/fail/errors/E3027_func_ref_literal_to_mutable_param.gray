@@ -1,7 +1,6 @@
 /*
  * Error Test: E3027 - literal passed to mutable (&) param via function reference
  * Expected: "cannot pass a literal or expression to mutable parameter" error
- * Regression for #1494
  */
 
 do modify(&x int) {

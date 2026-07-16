@@ -1,5 +1,5 @@
 /* Test: Named return values with explicit variable declarations
- * Regression test for #1280 — verifies that functions with named
+ * verifies that functions with named
  * return values work correctly when variables are explicitly declared.
  * Expected: all tests pass
  */

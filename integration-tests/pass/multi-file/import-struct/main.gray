@@ -1,4 +1,4 @@
-import "./shapes.ez"
+import "./shapes.gray"
 
 do main() {
     mut passed int = 0

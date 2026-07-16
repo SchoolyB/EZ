@@ -1,5 +1,5 @@
 /*
- * Error Test: E3043 - bool() with invalid source type (#1702)
+ * Error Test: E3043 - bool() with invalid source type
  * Expected: E3043 cannot convert string to bool
  */
 

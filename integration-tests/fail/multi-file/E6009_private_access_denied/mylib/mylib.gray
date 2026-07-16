@@ -1,5 +1,5 @@
 /*
- * mylib.ez - Library with private variable
+ * mylib.gray - Library with private variable
  */
 
 private mut private_var int = 42

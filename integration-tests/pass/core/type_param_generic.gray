@@ -1,7 +1,7 @@
 /*
- * type_param_generic.ez - Type-level generic parameters via <?> syntax
+ * type_param_generic.gray - Type-level generic parameters via <?> syntax
  *
- * Tests for #1797: passing struct type names as arguments using <?>
+ * passing struct type names as arguments using <?>
  * type parameters, enabling reusable constructors like make(T).
  */
 

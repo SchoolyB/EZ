@@ -1,6 +1,6 @@
 /*
- * addr-pointer-type.ez - Test that addr() returns a proper pointer type
- * that can be assigned to ^T variables and dereferenced (#1299).
+ * addr-pointer-type.gray - Test that addr() returns a proper pointer type
+ * that can be assigned to ^T variables and dereferenced.
  */
 
 

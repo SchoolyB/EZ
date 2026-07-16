@@ -1,5 +1,5 @@
 /*
- * octal_literals.ez - Test octal integer literals with 0o prefix
+ * octal_literals.gray - Test octal integer literals with 0o prefix
  */
 
 

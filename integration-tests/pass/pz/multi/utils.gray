@@ -1,4 +1,4 @@
-// utils.ez - Internal utilities shared across the application.
+// utils.gray - Internal utilities shared across the application.
 
 do format_message(msg string) -> string {
     return "[INFO] ${msg}"

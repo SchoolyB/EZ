@@ -1,7 +1,7 @@
 /*
- * when_is_branch_scope.ez - Each is/default branch has its own scope
+ * when_is_branch_scope.gray - Each is/default branch has its own scope
  *
- * Regression for #1560: when/is branches shared a single scope,
+ * when/is branches shared a single scope,
  * causing false E4003 when the same variable name was declared in
  * multiple mutually exclusive branches.
  */

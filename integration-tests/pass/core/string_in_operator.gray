@@ -1,6 +1,6 @@
 /*
- * string_in_operator.ez - Test 'in' operator for string containment
- * Covers: char in string, string in string, !in variants (#1589, #1590)
+ * string_in_operator.gray - Test 'in' operator for string containment
+ * Covers: char in string, string in string, !in variants
  */
 
 do main() {

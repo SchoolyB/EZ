@@ -1,5 +1,5 @@
 /*
- * channels_c.ez - Integration test for the channels module (compiler)
+ * channels_c.gray - Integration test for the channels module (compiler)
  *
  * Covers: open, send, receive, close, try_send, try_receive
  */

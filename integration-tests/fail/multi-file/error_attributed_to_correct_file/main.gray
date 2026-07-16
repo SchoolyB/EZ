@@ -1,9 +1,9 @@
 /*
- * Error Test: #1491 - errors in imported modules attributed to correct file
- * Expected: error points at lib.ez, NOT main.ez
+ * Error Test: - errors in imported modules attributed to correct file
+ * Expected: error points at lib.gray, NOT main.gray
  */
 
-import "./lib.ez"
+import "./lib.gray"
 
 do main() {
     println("${lib.add(1, 2)}")

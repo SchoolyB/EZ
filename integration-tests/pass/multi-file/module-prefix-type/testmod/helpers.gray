@@ -1,5 +1,5 @@
 /*
- * helpers.ez - Helper functions with module-prefixed return types
+ * helpers.gray - Helper functions with module-prefixed return types
  */
 
 do make_hero() -> testmod.Hero {

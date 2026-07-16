@@ -1,6 +1,6 @@
 /*
- * c-keyword-mangling.ez - Test that EZ variables and struct fields named
- * after C keywords compile and work correctly (#1302).
+ * c-keyword-mangling.gray - Test that Grayscale variables and struct fields named
+ * after C keywords compile and work correctly.
  */
 
 

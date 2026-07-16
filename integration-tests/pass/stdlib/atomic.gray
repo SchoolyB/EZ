@@ -1,5 +1,5 @@
 /*
- * atomic.ez - Test the atomic module (lock-free operations)
+ * atomic.gray - Test the atomic module (lock-free operations)
  *
  * Covers: store, load, add, sub, exchange, cas, fence, spinlock
  */

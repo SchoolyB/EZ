@@ -2,7 +2,7 @@
  * Error Test: E3001 - wrong argument type when calling a func-typed variable
  * Expected: parameter-type mismatch error
  *
- * Regression for #1437: calls through a func variable previously skipped
+ * calls through a func variable previously skipped
  * parameter-type checks.
  */
 

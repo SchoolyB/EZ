@@ -3,7 +3,7 @@
  *
  * Mixing bigint types with different signedness (i128 + u128) or the wrong
  * width direction (i128 + i256) must be caught by the typechecker before
- * codegen runs. The bigint arithmetic functions (ez_i128_add_checked, etc.)
+ * codegen runs. The bigint arithmetic functions (gray_i128_add_checked, etc.)
  * only accept their own struct type.
  */
 

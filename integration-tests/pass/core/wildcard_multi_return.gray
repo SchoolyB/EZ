@@ -1,9 +1,9 @@
 /*
- * wildcard_multi_return.ez - Wildcard functions with named returns.
+ * wildcard_multi_return.gray - Wildcard functions with named returns.
  *
- * Regression for #1508 (bug reported during hunt): the monomorphiser
- * applied the binding suffix to the EzMulti struct name, producing
- * EzMulti_pair__int which didn't exist. multi_base_name() now strips
+ * the monomorphiser
+ * applied the binding suffix to the GrayMulti struct name, producing
+ * GrayMulti_pair__int which didn't exist. multi_base_name() now strips
  * the suffix so all instantiations share the one-time typedef.
  */
 

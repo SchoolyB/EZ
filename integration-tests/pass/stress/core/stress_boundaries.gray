@@ -94,7 +94,7 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] long string — len ${len(long_str)}") failed += 1 }
 
-    // Long identifier (EZ allows long names)
+    // Long identifier (Grayscale allows long names)
     mut this_is_a_very_long_variable_name_that_tests_the_compilers_ability_to_handle_long_identifiers int = 42
     if this_is_a_very_long_variable_name_that_tests_the_compilers_ability_to_handle_long_identifiers == 42 {
         println("  [PASS] long identifier (93 chars)")

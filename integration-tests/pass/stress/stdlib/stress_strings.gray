@@ -71,8 +71,8 @@ do main() {
     } otherwise { println("  [FAIL] index_of not found — got ${idx2}") failed += 1 }
 
     // replace
-    mut replaced string = strings.replace("hello world", "world", "EZ")
-    if replaced == "hello EZ" {
+    mut replaced string = strings.replace("hello world", "world", "Grayscale")
+    if replaced == "hello Grayscale" {
         println("  [PASS] replace")
         passed += 1
     } otherwise { println("  [FAIL] replace — got '${replaced}'") failed += 1 }

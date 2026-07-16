@@ -1,6 +1,6 @@
 /*
  * Error Test: E3001 - struct type mismatch in struct field assignment
- * Regression test for #1790: assigning a wrong struct type to a struct field
+ * assigning a wrong struct type to a struct field
  * via dot-access was silently accepted by the typechecker.
  * Expected: E3001
  */

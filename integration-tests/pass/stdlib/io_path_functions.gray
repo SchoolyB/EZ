@@ -1,5 +1,5 @@
 /*
- * Test: io module path manipulation functions (#1446)
+ * Test: io module path manipulation functions
  * Tests path_join, dirname, basename, extension, is_absolute, normalize
  */
 
@@ -90,12 +90,12 @@ do main() {
     }
 
     // Test 7: is_absolute with relative path
-    mut rel bool = io.is_absolute("src/main.ez")
+    mut rel bool = io.is_absolute("src/main.gray")
     if rel == false {
-        println("  [PASS] is_absolute(\"src/main.ez\") = false")
+        println("  [PASS] is_absolute(\"src/main.gray\") = false")
         passed += 1
     } otherwise {
-        println("  [FAIL] is_absolute(\"src/main.ez\"): expected false")
+        println("  [FAIL] is_absolute(\"src/main.gray\"): expected false")
         failed += 1
     }
 

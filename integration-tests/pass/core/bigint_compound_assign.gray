@@ -1,11 +1,11 @@
 /*
- * bigint_compound_assign.ez - Test compound assignment operators on wide integers (#1806)
+ * bigint_compound_assign.gray - Test compound assignment operators on wide integers
  *
  * Covers: +=, -=, *=, /=, %= on i128, u128, i256, u256.
  */
 
 do main() {
-    println("=== Wide Integer Compound Assignment Test (#1806) ===")
+    println("=== Wide Integer Compound Assignment Test ===")
     mut passed int = 0
     mut failed int = 0
 

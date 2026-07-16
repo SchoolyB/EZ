@@ -1,9 +1,9 @@
-// main.ez - Demo entry point that exercises the library.
+// main.gray - Demo entry point that exercises the library.
 //
-// This is a throwaway driver so `ez main.ez` runs something you can
-// see. A real consumer would import ./lib.ez from their own project.
+// This is a throwaway driver so `gray main.gray` runs something you can
+// see. A real consumer would import ./lib.gray from their own project.
 
-import "./lib.ez"
+import "./lib.gray"
 
 do main() {
     println(lib.greet("World"))

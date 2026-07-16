@@ -1,5 +1,5 @@
 /*
- * arrays.ez - Test @arrays standard library with PROPER ASSERTIONS
+ * arrays.gray - Test @arrays standard library with PROPER ASSERTIONS
  *
  * This file replaces the broken tests that auto-passed without validation.
  * Every test now compares expected vs actual values.

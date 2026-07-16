@@ -1,4 +1,4 @@
-import "./secret.ez"
+import "./secret.gray"
 
 do main() {
     mut result int = secret.visible()

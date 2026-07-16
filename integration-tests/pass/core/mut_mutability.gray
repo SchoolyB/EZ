@@ -1,5 +1,5 @@
 /*
- * mut_mutability.ez - Test that mut automatically makes function returns mutable
+ * mut_mutability.gray - Test that mut automatically makes function returns mutable
  */
 
 import @arrays

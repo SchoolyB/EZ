@@ -1,5 +1,5 @@
 /*
- * struct_functions.ez - Test struct-namespaced free functions
+ * struct_functions.gray - Test struct-namespaced free functions
  *
  * Tests:
  *   - Functions declared inside struct blocks

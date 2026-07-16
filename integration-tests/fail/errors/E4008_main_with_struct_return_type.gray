@@ -1,7 +1,7 @@
 /*
  * Error Test: E4008 - main declared with a user-defined struct return type
  *
- * Regression for #1482: struct return types on main are rejected at
+ * struct return types on main are rejected at
  * E4008 without cascading into struct-specific checks.
  */
 

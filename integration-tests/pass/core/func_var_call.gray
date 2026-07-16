@@ -1,7 +1,7 @@
 /*
- * func_var_call.ez - Calls through func-typed variables
+ * func_var_call.gray - Calls through func-typed variables
  *
- * Regression for #1437 (commit 2a35462): func-typed variables now carry
+ * func-typed variables now carry
  * their referenced function, so calls through them are validated for arity
  * and parameter types AND propagate the real return type instead of
  * unknown. This test confirms correct calls still work end-to-end and that

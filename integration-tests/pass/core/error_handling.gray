@@ -1,5 +1,5 @@
 /*
- * error_handling.ez - Test error type with nil returns
+ * error_handling.gray - Test error type with nil returns
  */
 
 
@@ -37,7 +37,7 @@ do main() {
         failed += 1
     }
 
-    // Test 2: failed parse with error type  
+    // Test 2: failed parse with error type
     mut val2, err2 = parse_int("bad")
     if err2 != nil && val2 == 0 {
         println("  [PASS] parse_int failure returns error")

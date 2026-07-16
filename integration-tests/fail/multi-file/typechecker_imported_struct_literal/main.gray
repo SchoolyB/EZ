@@ -2,7 +2,7 @@
 // Test: Invalid field name in imported struct literal
 // Expected: E4003 - struct has no field 'valu'
 
-import lib"./lib.ez"
+import lib"./lib.gray"
 
 do main() {
     // ERROR: 'valu' is not a valid field of Item (typo)

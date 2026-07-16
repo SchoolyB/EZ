@@ -1,5 +1,5 @@
 /*
- * Test: json module _result variant for error handling (#1547)
+ * Test: json module _result variant for error handling
  * Verifies multi-var destructuring works for json.decode.
  */
 

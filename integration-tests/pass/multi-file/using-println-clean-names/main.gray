@@ -1,4 +1,4 @@
-import "./types.ez"
+import "./types.gray"
 using types
 
 do main() {

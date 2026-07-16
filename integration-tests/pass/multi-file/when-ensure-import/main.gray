@@ -1,10 +1,10 @@
 /*
- * Test: when/ensure in imported module after label rewriting (#1523)
+ * Test: when/ensure in imported module after label rewriting
  * Verifies that imported functions containing when statements and
  * ensure statements work correctly after multi-file label rewriting.
  */
 
-import "./defs.ez"
+import "./defs.gray"
 
 do with_ensure() -> string {
     ensure defs.do_cleanup()

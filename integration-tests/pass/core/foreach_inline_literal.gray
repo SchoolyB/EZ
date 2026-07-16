@@ -1,5 +1,5 @@
 /*
- * foreach_inline_literal.ez - Test for_each over inline array literals
+ * foreach_inline_literal.gray - Test for_each over inline array literals
  *
  * Covers: string literal, int literal, index form with literal
  */

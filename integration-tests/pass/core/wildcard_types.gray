@@ -1,16 +1,9 @@
 /*
- * wildcard_types.ez - Wildcard (?) types in function signatures
+ * wildcard_types.gray - Wildcard (?) types in function signatures
  *
- * Regression for #1443 — the 4-slice wildcard-types landing:
- *   - 0cbcb58 parser accepts ? in fn signatures
- *   - 3d216da typechecker instantiates wildcards at call sites
- *   - 79501dd codegen monomorphises a specialized C fn per call site
- *   - 6da2488 typechecker re-checks generic bodies per instantiation
- *
- * Covers the scenarios called out in the issue body: param wildcards,
- * return wildcards, [?] element wildcards, mixed-type instantiations,
- * same-function reuse with different concrete types, and inference
- * through longer expressions.
+ * Covers param wildcards, return wildcards, [?] element wildcards,
+ * mixed-type instantiations, same-function reuse with different
+ * concrete types, and inference through longer expressions.
  */
 
 do first(arr [?]) -> ? {
@@ -42,7 +35,7 @@ do contains(arr [?], target ?) -> bool {
     return false
 }
 
-// --- map wildcard helpers (#1463) ---
+// --- map wildcard helpers ---
 
 do get_or(m map[string:?], k string, fallback ?) -> ? {
     if k in m { return m[k] }
@@ -172,7 +165,7 @@ do main() {
         failed += 1
     }
 
-    // -- map[K:?] with concrete key and wildcard value — #1463 --
+    // -- map[K:?] with concrete key and wildcard value --
     mut ages map[string:int] = {"alice": 30, "bob": 25}
     if get_or(ages, "alice", 0) == 30 && get_or(ages, "zoe", 99) == 99 {
         println("  [PASS] get_or on map[string:int]")
@@ -192,7 +185,7 @@ do main() {
         failed += 1
     }
 
-    // -- map[?:V] with wildcard key and concrete value — #1463 comment --
+    // -- map[?:V] with wildcard key and concrete value --
     mut prices map[string:int] = {"apple": 5}
     mut weights map[int:int] = {42: 7}
     if has_key(prices, "apple") && !has_key(prices, "pear") &&
@@ -225,8 +218,8 @@ do main() {
         failed += 1
     }
 
-    // -- narrow value types through ez_map_elem_c_type routing --
-    // The fix routes ez_map_elem_c_type's input through cg_effective_type_str
+    // -- narrow value types through gray_map_elem_c_type routing --
+    // The fix routes gray_map_elem_c_type's input through cg_effective_type_str
     // so that narrow types (float/bool/char/byte) don't fall back to int64_t.
     mut float_m map[string:float] = {"pi": 3.14}
     mut flag_m map[string:bool] = {"on": true, "off": false}

@@ -1,5 +1,5 @@
 /*
- * string_indexing.ez - Test direct string indexing with s[i] syntax
+ * string_indexing.gray - Test direct string indexing with s[i] syntax
  */
 
 

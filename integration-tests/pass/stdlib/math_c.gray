@@ -1,5 +1,5 @@
 /*
- * math_c.ez - Comprehensive integration test for @math (compiler)
+ * math_c.gray - Comprehensive integration test for @math (compiler)
  * Tests ALL documented functions and constants in the math module.
  */
 
@@ -412,7 +412,7 @@ do main() {
     }
 
     // is_nan - use 0.0/0.0 trick won't work due to div-by-zero panic, use INF - INF
-    // Actually we can't easily produce NaN in EZ without a math function that returns it
+    // Actually we can't easily produce NaN in Grayscale without a math function that returns it
     // Let's just test the false case
     if math.is_nan(1.0) == false && math.is_nan(math.INF) == false {
         println("  [PASS] is_nan")

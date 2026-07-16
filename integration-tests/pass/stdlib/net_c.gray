@@ -1,5 +1,5 @@
 /*
- * net_c.ez - Integration test for @net (compiler)
+ * net_c.gray - Integration test for @net (compiler)
  */
 
 import @net

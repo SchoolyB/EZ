@@ -1,5 +1,5 @@
 /*
- * Test: bool() builtin conversion (#1702)
+ * Test: bool() builtin conversion
  * bool(0) -> false, bool(nonzero) -> true
  */
 

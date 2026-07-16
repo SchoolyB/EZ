@@ -1,6 +1,6 @@
 /*
  * Test: type_of() for stdlib return types
- * Tests that stdlib functions return correct EZ type names
+ * Tests that stdlib functions return correct Grayscale type names
  */
 
 import @random

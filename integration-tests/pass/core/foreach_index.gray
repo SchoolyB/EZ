@@ -1,5 +1,5 @@
 /*
- * foreach_index.ez - Test for_each with index variable
+ * foreach_index.gray - Test for_each with index variable
  *
  * Covers: index + value, discard index with _, discard value with _,
  * index on string iteration, nested for_each with index.

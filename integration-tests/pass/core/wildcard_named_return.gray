@@ -1,7 +1,7 @@
 /*
- * wildcard_named_return.ez - Wildcard return types in multi-return functions
+ * wildcard_named_return.gray - Wildcard return types in multi-return functions
  *
- * Regression for #1502 / #1557: wildcard types cannot be used in named
+ * wildcard types cannot be used in named
  * return positions (E3082). Wildcard returns must be unnamed. This test
  * verifies that unnamed wildcard returns work correctly across different
  * type bindings.

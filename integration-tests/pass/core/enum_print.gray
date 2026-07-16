@@ -1,5 +1,5 @@
 /*
- * enum-print.ez - Test printing enum-typed variables (#1300)
+ * enum-print.gray - Test printing enum-typed variables
  *
  * Verifies that enum variables print as their integer values
  * instead of empty struct representations like "Color{}".

@@ -3,7 +3,7 @@
  * Expected: error about reserved module name
  */
 
-import "./c.ez"
+import "./c.gray"
 
 do main() {
     println("should not compile")

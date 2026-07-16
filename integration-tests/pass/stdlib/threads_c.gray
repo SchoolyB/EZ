@@ -1,5 +1,5 @@
 /*
- * threads_c.ez - Integration test for @threads (compiler)
+ * threads_c.gray - Integration test for @threads (compiler)
  */
 
 import @threads

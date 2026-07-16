@@ -1,7 +1,7 @@
 /*
- * pointer_array_field_index.ez
- * Regression test for #1787: indexing into an array field through a struct
- * pointer (ptr.arrayField[i]) generated invalid C — EZ_ARRAY_GET received a
+ * pointer_array_field_index.gray
+ * indexing into an array field through a struct
+ * pointer (ptr.arrayField[i]) generated invalid C — GRAY_ARRAY_GET received a
  * GCC statement expression rvalue and could not take its address.
  * Both auto-deref (b.items[i]) and explicit deref (b^.items[i]) are covered.
  */

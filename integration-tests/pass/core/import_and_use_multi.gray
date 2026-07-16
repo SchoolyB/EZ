@@ -1,5 +1,5 @@
 /*
- * import_and_use_multi.ez - Test import and use with multiple modules
+ * import_and_use_multi.gray - Test import and use with multiple modules
  *
  * Covers: unqualified access to functions from multiple modules
  * imported on a single line.

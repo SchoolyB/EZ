@@ -1,5 +1,5 @@
 /*
- * or_return.ez - Test or_return error propagation
+ * or_return.gray - Test or_return error propagation
  *
  * Covers: bare or_return, or_return with fallback values,
  * chained or_return, successful path (no error).

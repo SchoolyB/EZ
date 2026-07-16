@@ -1,5 +1,5 @@
 /*
- * strict_when_exhaustive.ez - Test #strict when with all variants covered
+ * strict_when_exhaustive.gray - Test #strict when with all variants covered
  *
  * Covers: exhaustive matching, default branch as catch-all.
  */

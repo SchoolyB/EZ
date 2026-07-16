@@ -1,5 +1,5 @@
 /*
- * libB.ez - Test module B
+ * libB.gray - Test module B
  */
 
 do multiply(a int, b int) -> int {

@@ -1,5 +1,5 @@
 /*
- * regex_c.ez - Integration test for @regex (compiler)
+ * regex_c.gray - Integration test for @regex (compiler)
  */
 
 import @regex

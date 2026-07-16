@@ -1,5 +1,5 @@
 /*
- * array_copy_by_default.ez - Test array copy-by-default semantics
+ * array_copy_by_default.gray - Test array copy-by-default semantics
  *
  * Verifies that array assignment creates deep copies, not shallow
  * references. Modifying the copy should not affect the original.

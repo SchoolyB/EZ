@@ -1,7 +1,7 @@
 /*
- * func_ref_array.ez - Arrays of function references [func]
+ * func_ref_array.gray - Arrays of function references [func]
  *
- * Regression for #1439. Three landed fixes combined:
+ * Three landed fixes combined:
  *   - 9fee3f9: emit void* for [func] array element storage
  *   - 7be1a1a: function-pointer cast on index-call and element assign
  *   - 1a3e7c6: typechecker resolves non-label/member call targets so the

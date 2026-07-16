@@ -1,7 +1,7 @@
 /*
  * Error Test: E3041 - func-typed variable in string interpolation
  *
- * Regression for #1499: "${f}" where f is a func-typed variable
+ * "${f}" where f is a func-typed variable
  * holding a function reference used to leak to clang. Typechecker
  * now rejects with a hint to call the function or format its result.
  * func resolves as TK_UNKNOWN with name "func", so the check keys

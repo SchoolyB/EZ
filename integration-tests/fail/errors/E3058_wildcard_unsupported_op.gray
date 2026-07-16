@@ -2,7 +2,7 @@
  * Error Test: E3058 - wildcard instantiation fails when concrete type
  * doesn't support an operator used in the generic body.
  *
- * Per #1443 spec: "the compiler must error at the call site, not inside
+ * "the compiler must error at the call site, not inside
  * the wildcard function." This verifies the body re-check emits the
  * instantiation-failure error pointing at the offending call.
  *

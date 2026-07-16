@@ -1,5 +1,5 @@
 /*
- * Test: regex.find_all on empty input returns exactly 1 match (#1646)
+ * Test: regex.find_all on empty input returns exactly 1 match
  * The OOB read that fabricated a second element is fixed.
  */
 

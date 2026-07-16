@@ -1,7 +1,7 @@
 /*
  * Error Test: E4016 - HttpRequest not available with only @http import
  * Expected: E4016 "undefined type 'HttpRequest'"
- * Covers: HttpRequest scoped to server module only (#1585)
+ * Covers: HttpRequest scoped to server module only
  */
 
 import @http

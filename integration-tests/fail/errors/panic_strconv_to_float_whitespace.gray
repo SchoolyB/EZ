@@ -1,5 +1,5 @@
 /*
- * Error Test: strconv.to_float panics on leading whitespace (#1649)
+ * Error Test: strconv.to_float panics on leading whitespace
  * Expected: runtime panic
  */
 

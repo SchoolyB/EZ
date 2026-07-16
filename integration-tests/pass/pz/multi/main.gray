@@ -1,11 +1,11 @@
-// main.ez - Application entry point.
+// main.gray - Application entry point.
 // Multi-file layout:
-//   main.ez    entry point
-//   app.ez     core application logic
-//   config.ez  configuration
-//   utils.ez   shared helpers
+//   main.gray    entry point
+//   app.gray     core application logic
+//   config.gray  configuration
+//   utils.gray   shared helpers
 
-import "./app.ez"
+import "./app.gray"
 
 do main() {
     app.run()

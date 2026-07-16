@@ -1,4 +1,4 @@
-import "./deep/nested/util.ez"
+import "./deep/nested/util.gray"
 
 do main() {
     mut result string = util.deep_func()

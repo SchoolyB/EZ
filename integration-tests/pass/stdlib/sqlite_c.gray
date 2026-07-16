@@ -1,5 +1,5 @@
 /*
- * sqlite_c.ez - Integration test for @sqlite (compiler)
+ * sqlite_c.gray - Integration test for @sqlite (compiler)
  */
 
 import @sqlite

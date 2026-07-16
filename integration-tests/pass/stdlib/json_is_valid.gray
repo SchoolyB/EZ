@@ -1,5 +1,5 @@
 /*
- * json_is_valid.ez - Regression test for #1498.
+ * json_is_valid.gray - Test json.is_valid recursive-descent validator
  *
  * json.is_valid used to peek at the first non-whitespace character
  * and dispatch on its category — anything starting with a
@@ -17,7 +17,7 @@
 import @json
 
 do main() {
-    println("=== JSON is_valid Regression (#1498) ===")
+    println("=== JSON is_valid Test ===")
     mut passed int = 0
     mut failed int = 0
 

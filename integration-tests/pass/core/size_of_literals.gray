@@ -1,12 +1,12 @@
 /*
- * size_of_literals.ez - Test size_of on literal expressions (#1809)
+ * size_of_literals.gray - Test size_of on literal expressions
  *
  * Covers: size_of applied to int, float, bool, string, char literals.
  * size_of should return the C sizeof of the underlying type.
  */
 
 do main() {
-    println("=== size_of Literals Test (#1809) ===")
+    println("=== size_of Literals Test ===")
     mut passed int = 0
     mut failed int = 0
 

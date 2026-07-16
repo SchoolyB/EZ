@@ -1,5 +1,5 @@
 /*
- * maps_c.ez - Integration test for @maps (compiler)
+ * maps_c.gray - Integration test for @maps (compiler)
  */
 
 import @maps

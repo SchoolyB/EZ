@@ -1,5 +1,5 @@
 /*
- * function_references.ez - Test first-class function references with () prefix
+ * function_references.gray - Test first-class function references with () prefix
  */
 
 import @arrays

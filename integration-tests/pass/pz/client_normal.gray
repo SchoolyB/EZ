@@ -13,7 +13,7 @@ do main() {
     println("GET Status: ${resp.status}")
     println("GET Body: ${resp.body}")
 
-    mut payload map[string:string] = {"title": "Hello from EZ!", "body": "This is a test post."}
+    mut payload map[string:string] = {"title": "Hello from Grayscale!", "body": "This is a test post."}
     mut post_resp, post_err = http.post("http://httpbun.com/post", json.encode(payload))
     if post_err != nil {
         println("POST failed.")

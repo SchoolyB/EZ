@@ -1,5 +1,5 @@
 /*
- * ensure_statement.ez - Test ensure (deferred cleanup) statement
+ * ensure_statement.gray - Test ensure (deferred cleanup) statement
  */
 
 import @io

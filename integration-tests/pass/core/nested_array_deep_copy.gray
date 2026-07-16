@@ -1,10 +1,10 @@
 /*
- * nested_array_deep_copy.ez - copy() and copy-on-assign are deep for
+ * nested_array_deep_copy.gray - copy() and copy-on-assign are deep for
  * nested array types.
  *
- * Regression for #1465 (commits fcf957a + e041dbe): ez_array_copy is a
+ * gray_array_copy is a
  * flat memcpy of element slots, so an outer [[T]] copy shared every
- * inner EzArray's backing storage with the source. The fix routes
+ * inner GrayArray's backing storage with the source. The fix routes
  * three sites through emit_deep_copy_expr:
  *   1. copy(arr) builtin
  *   2. mut x [T] = y var_decl with a label initializer
@@ -72,7 +72,7 @@ do main() {
         failed += 1
     }
 
-    // -- leaf element is a string: ez_array_copy is already deep enough --
+    // -- leaf element is a string: gray_array_copy is already deep enough --
     mut strs [[string]] = {{"a", "b"}, {"c"}}
     mut strs_copy [[string]] = copy(strs)
     strs_copy[0][0] = "X"

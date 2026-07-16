@@ -1,5 +1,5 @@
 /*
- * libA.ez - Test module A
+ * libA.gray - Test module A
  */
 
 do greet(name string) -> string {

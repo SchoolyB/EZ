@@ -1,5 +1,5 @@
 /*
- * large-integers.ez - Test i128/u128 and other large integer types
+ * large-integers.gray - Test i128/u128 and other large integer types
  * Tests parsing and arithmetic for integers beyond int64 range
  */
 

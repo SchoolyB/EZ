@@ -1,6 +1,6 @@
 /*
- * bigint-overflow-checks.ez - Test that bigint checked arithmetic
- * works correctly within bounds (#1320).
+ * bigint-overflow-checks.gray - Test that bigint checked arithmetic
+ * works correctly within bounds.
  *
  * Verifies that overflow-checked add/sub/mul for i128, u128, i256, u256
  * produce correct results when values are within valid range.

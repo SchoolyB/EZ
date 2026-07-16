@@ -1,7 +1,7 @@
 /*
- * struct_func_type_safety.ez - Correct struct types pass validation.
+ * struct_func_type_safety.gray - Correct struct types pass validation.
  *
- * Regression for #1599: struct-to-struct mismatch was not caught.
+ * struct-to-struct mismatch was not caught.
  * This verifies that correct struct types continue to work.
  */
 

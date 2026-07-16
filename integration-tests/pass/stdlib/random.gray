@@ -1,5 +1,5 @@
 /*
- * random.ez - Test @random standard library
+ * random.gray - Test @random standard library
  */
 
 import @random

@@ -1,5 +1,5 @@
 /*
- * E5016_const_struct_modification.ez
+ * E5016_const_struct_modification.gray
  * Tests that modifying a const struct field fails with E5016
  */
 

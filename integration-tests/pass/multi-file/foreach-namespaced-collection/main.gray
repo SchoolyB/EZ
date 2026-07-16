@@ -4,7 +4,7 @@
  * This tests that for_each correctly parses lib.Items as a collection
  * when an import uses namespace prefix (import lib"..." without and use).
  */
-import lib "./testlib/lib.ez"
+import lib "./testlib/lib.gray"
 
 
 do main() {

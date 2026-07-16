@@ -1,7 +1,6 @@
 /*
  * Error Test: E3001 - range() with non-integer argument
  * Expected: E3001 "range() start argument must be an integer type"
- * Covers: #1591
  */
 
 do main() {

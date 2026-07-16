@@ -1,7 +1,7 @@
 /*
  * Test for_each with same-module array constants
  */
-import "./testmod.ez"
+import "./testmod.gray"
 
 
 do main() {

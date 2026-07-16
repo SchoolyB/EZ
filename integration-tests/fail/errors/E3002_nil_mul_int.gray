@@ -1,7 +1,7 @@
 /*
  * Error Test: E3002 - nil used as operand of '*'
  *
- * Regression for #1487: the check covers every binary operator
+ * the check covers every binary operator
  * except '==' and '!=', so nil rejection should fire on '*' as
  * well as '+'.
  */

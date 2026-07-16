@@ -1,7 +1,7 @@
 /*
  * Error Test: E3062 - const on a thread handle
  *
- * Regression for #1480: thread handles are inherently stateful
+ * thread handles are inherently stateful
  * (join mutates internal state).
  */
 

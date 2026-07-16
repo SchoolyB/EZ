@@ -1,7 +1,7 @@
 /*
- * main.ez - Test module-prefixed types in return annotations
+ * main.gray - Test module-prefixed types in return annotations
  */
-import "./testmod.ez"
+import "./testmod.gray"
 
 
 do main() {

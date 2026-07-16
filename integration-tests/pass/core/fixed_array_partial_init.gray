@@ -1,5 +1,5 @@
 /*
- * fixed_array_partial_init.ez - Fixed-size arrays with fewer than N elements
+ * fixed_array_partial_init.gray - Fixed-size arrays with fewer than N elements
  *
  * A [T, N] array initialized with fewer than N elements must have length N.
  * Slots beyond the initialized range must be zero-valued and accessible.

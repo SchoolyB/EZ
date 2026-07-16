@@ -1,5 +1,5 @@
 /*
- * Test: map for_each iteration with mutation guard (#1544)
+ * Test: map for_each iteration with mutation guard
  * Verifies that normal map for_each iteration works correctly.
  */
 

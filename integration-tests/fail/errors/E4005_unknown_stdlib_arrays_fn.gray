@@ -1,7 +1,7 @@
 /*
  * Error Test: E4005 - typo'd call on the @arrays stdlib module
  *
- * Regression for #1497: same bug class as the @strings case,
+ * same bug class as the @strings case,
  * different module.
  */
 

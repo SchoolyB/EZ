@@ -1,7 +1,7 @@
 /*
- * scope_memory_if_blocks.ez - if/otherwise block scoping
+ * scope_memory_if_blocks.gray - if/otherwise block scoping
  *
- * Feature #1521: per-block arenas for if/otherwise/or chains
+ * per-block arenas for if/otherwise/or chains
  * so temporaries inside conditional blocks are freed on block exit.
  * Values escaping to outer-scope variables are copied via the
  * existing escape machinery.

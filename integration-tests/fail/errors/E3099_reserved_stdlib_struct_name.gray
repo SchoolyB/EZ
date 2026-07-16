@@ -1,7 +1,7 @@
 /*
  * Error Test: E3099 - reserved stdlib type name used as struct name
- * Regression test for #1791: naming a user struct with any of the 10 reserved
- * stdlib opaque type names caused a silent C compilation failure with no EZ
+ * naming a user struct with any of the 10 reserved
+ * stdlib opaque type names caused a silent C compilation failure with no Grayscale
  * diagnostic. Expected: E3099
  */
 

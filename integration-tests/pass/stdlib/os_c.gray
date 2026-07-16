@@ -1,5 +1,5 @@
 /*
- * os_c.ez - Integration test for @os (compiler)
+ * os_c.gray - Integration test for @os (compiler)
  */
 
 import @os
@@ -110,7 +110,7 @@ do main() {
     }
 
     // exec: stderr capture — ls on a nonexistent path writes to stderr
-    mut code4, _, stderr4, ok4 = os.exec("ls", {"/nonexistent_ez_test_path_xyz"})
+    mut code4, _, stderr4, ok4 = os.exec("ls", {"/nonexistent_gray_test_path_xyz"})
     if ok4 && code4 != 0 && len(stderr4) > 0 {
         println("  [PASS] exec stderr capture (captured ${len(stderr4)} bytes)")
         passed += 1
@@ -120,7 +120,7 @@ do main() {
     }
 
     // exec: launch failure — command not found returns ok=false
-    mut code5, _, _, ok5 = os.exec("this_cmd_does_not_exist_ez", {})
+    mut code5, _, _, ok5 = os.exec("this_cmd_does_not_exist_grayscale", {})
     if !ok5 {
         println("  [PASS] exec launch failure (ok=false)")
         passed += 1

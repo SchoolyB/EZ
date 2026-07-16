@@ -90,7 +90,7 @@ do main() {
 
     // Note: range(5, 0, -1) and range(0, 0) are rejected by typechecker
     // with E9005 (start must be < end). Reverse ranges are tested in
-    // integration-tests/pass/core/when_range_negative_step.ez
+    // integration-tests/pass/core/when_range_negative_step.gray
 
     // Summary
     println("")

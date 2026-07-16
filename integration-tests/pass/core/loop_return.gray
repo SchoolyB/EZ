@@ -1,5 +1,5 @@
 /*
- * loop_return.ez - Test return inside loop recognized as valid return path
+ * loop_return.gray - Test return inside loop recognized as valid return path
  *
  * Covers: loop with return, loop with conditional return,
  * while with return, for with return.

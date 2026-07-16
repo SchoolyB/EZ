@@ -1,5 +1,5 @@
 /*
- * cast_conversions.ez - Test cast() conversion functions (#1329)
+ * cast_conversions.gray - Test cast() conversion functions
  *
  * Verifies that cast() dispatches to proper conversion functions
  * for string/bool/float/int conversions instead of raw C casts.

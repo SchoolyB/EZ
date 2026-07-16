@@ -1,8 +1,7 @@
 /*
- * struct_deep_copy.ez - copy() on structs and struct-containing shapes
+ * struct_deep_copy.gray - copy() on structs and struct-containing shapes
  * performs a deep copy of collection-typed fields.
  *
- * Regression for #1466 (commits 9b055bd + a366112):
  *   - 9b055bd: TK_STRUCT branch in copy() deep-copies direct array/map
  *     fields instead of falling through to a bitwise C struct copy.
  *   - a366112: unified recursive deep-copy emitter covers transitive
@@ -11,7 +10,7 @@
  *
  * Three user-observable independence probes. A fourth gap — map[K:Struct]
  * where Struct holds a collection — is correct internally (verified by
- * reading the generated C during QA) but not observable from EZ user
+ * reading the generated C during QA) but not observable from Grayscale user
  * code today because map reads return struct copies, so mutations can't
  * propagate back to the backing storage for an independence check
  * without additional ref semantics.

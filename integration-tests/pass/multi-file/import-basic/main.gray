@@ -1,4 +1,4 @@
-import "./lib.ez"
+import "./lib.gray"
 
 do main() {
     mut result string = lib.greet("World")

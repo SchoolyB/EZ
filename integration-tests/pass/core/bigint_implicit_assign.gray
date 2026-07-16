@@ -1,12 +1,12 @@
 /*
- * bigint_implicit_assign.ez - Test implicit scalar→wide integer assignment (#1805)
+ * bigint_implicit_assign.gray - Test implicit scalar→wide integer assignment
  *
  * Covers: assigning integer literals and int/uint variables directly to
  * i128/u128/i256/u256 declared variables without explicit constructor.
  */
 
 do main() {
-    println("=== Wide Integer Implicit Assignment Test (#1805) ===")
+    println("=== Wide Integer Implicit Assignment Test ===")
     mut passed int = 0
     mut failed int = 0
 

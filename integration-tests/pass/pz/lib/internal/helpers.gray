@@ -1,4 +1,4 @@
-// helpers.ez - Internal helper functions.
+// helpers.gray - Internal helper functions.
 // Implementation details that aren't part of the library's public API.
 
 do format_greeting(name string) -> string {

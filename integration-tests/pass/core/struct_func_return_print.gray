@@ -1,5 +1,5 @@
 /*
- * struct_func_return_print.ez - Test println with struct function return values (#1595)
+ * struct_func_return_print.gray - Test println with struct function return values
  *
  * Verifies that resolve_print_suffix() correctly determines the return type
  * of struct functions so println() dispatches to the right print function.

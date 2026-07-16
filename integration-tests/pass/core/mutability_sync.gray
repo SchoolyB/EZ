@@ -1,5 +1,5 @@
 /*
- * mutability_sync.ez - Test mut/const mutability sync
+ * mutability_sync.gray - Test mut/const mutability sync
  *
  * Tests that:
  * - mut variables have mutable values (can modify arrays, maps, structs)

@@ -1,5 +1,5 @@
 /*
- * Test: #json struct stringify with escaping and exact sizing (#1522)
+ * Test: #json struct stringify with escaping and exact sizing
  * Verifies that json.stringify() properly escapes special characters
  * in string fields and handles various field types correctly.
  */

@@ -1,5 +1,5 @@
 /*
- * crypto_c.ez - Integration test for @crypto (compiler)
+ * crypto_c.gray - Integration test for @crypto (compiler)
  */
 
 import @crypto

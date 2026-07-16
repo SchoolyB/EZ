@@ -1,5 +1,5 @@
 /*
- * csv_c.ez - Comprehensive integration test for @csv (compiler)
+ * csv_c.gray - Comprehensive integration test for @csv (compiler)
  * Tests: parse, encode, write_file, read_file
  */
 
@@ -62,7 +62,7 @@ do main() {
     }
 
     // write_file + read_file round trip
-    mut test_path string = "/tmp/ez_csv_test.csv"
+    mut test_path string = "/tmp/gray_csv_test.csv"
     mut write_content string = "id,name,score\n1,Alice,95\n2,Bob,87\n3,Charlie,92"
     mut _, _ = io.write_file(test_path, write_content)
 
@@ -94,7 +94,7 @@ do main() {
     }
 
     // write_file test
-    mut out_path string = "/tmp/ez_csv_write_test.csv"
+    mut out_path string = "/tmp/gray_csv_write_test.csv"
     mut data [string] = {"hello", "world", "test"}
     mut write_ok, _ = csv.write_file(out_path, data)
     if write_ok == true {

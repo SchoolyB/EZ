@@ -1,5 +1,5 @@
 /*
- * Test: regex module _result variants for error handling (#1547)
+ * Test: regex module _result variants for error handling
  * Verifies multi-var destructuring works for regex.find, find_all, replace, split.
  */
 

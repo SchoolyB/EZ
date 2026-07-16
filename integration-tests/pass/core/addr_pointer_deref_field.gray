@@ -1,6 +1,6 @@
 /*
- * addr_pointer_deref_field.ez
- * Regression test for #1785: addr(p^.field) and addr(p.field) where p is a
+ * addr_pointer_deref_field.gray
+ * addr(p^.field) and addr(p.field) where p is a
  * pointer generated invalid C — the field access produced a GCC statement
  * expression (rvalue) and &(rvalue) is illegal in C.
  * Covers explicit deref form (p^.field) and auto-deref form (p.field).

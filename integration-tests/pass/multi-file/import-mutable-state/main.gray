@@ -1,4 +1,4 @@
-import "./state.ez"
+import "./state.gray"
 
 do main() {
     state.increment()

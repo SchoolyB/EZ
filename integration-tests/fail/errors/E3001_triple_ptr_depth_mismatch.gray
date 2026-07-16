@@ -1,7 +1,7 @@
 /*
  * Error Test: E3001 - returning ^^^int from a -> ^int function
  *
- * Regression for #1514: same check at deeper nesting.
+ * same check at deeper nesting.
  */
 
 do bad() -> ^int {

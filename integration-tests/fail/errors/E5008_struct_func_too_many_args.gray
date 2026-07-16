@@ -1,7 +1,7 @@
 /*
  * Error Test: E5008 - struct function called with too many arguments
  * Expected: E5008 "function 'Math.zero' expects 0 argument(s), got 2"
- * Covers: struct function arg count validation (#1587)
+ * Covers: struct function arg count validation
  */
 
 const Math struct {

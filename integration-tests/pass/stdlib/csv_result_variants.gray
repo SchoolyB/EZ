@@ -1,5 +1,5 @@
 /*
- * Test: csv module _result variants for error handling (#1547)
+ * Test: csv module _result variants for error handling
  * Verifies multi-var destructuring works for csv.read_file and csv.write_file.
  */
 
@@ -11,7 +11,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: csv.read_file error on nonexistent file
-    mut data, err = csv.read_file("/tmp/ez_nonexistent_csv_1547.csv")
+    mut data, err = csv.read_file("/tmp/gray_nonexistent_csv_1547.csv")
     if err != nil {
         println("  [PASS] csv.read_file error caught on nonexistent file")
         passed += 1
@@ -21,8 +21,8 @@ do main() {
     }
 
     // Test 2: csv.read_file success
-    mut _, _ = io.write_file("/tmp/ez_csv_test_1547.csv", "name,age\nAlice,30\nBob,25")
-    mut data2, err2 = csv.read_file("/tmp/ez_csv_test_1547.csv")
+    mut _, _ = io.write_file("/tmp/gray_csv_test_1547.csv", "name,age\nAlice,30\nBob,25")
+    mut data2, err2 = csv.read_file("/tmp/gray_csv_test_1547.csv")
     if err2 == nil {
         println("  [PASS] csv.read_file success on valid CSV")
         passed += 1
@@ -42,7 +42,7 @@ do main() {
     }
 
     // Cleanup
-    mut _, _ = io.delete_file("/tmp/ez_csv_test_1547.csv")
+    mut _, _ = io.delete_file("/tmp/gray_csv_test_1547.csv")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

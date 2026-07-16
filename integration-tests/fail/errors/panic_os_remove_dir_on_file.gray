@@ -7,12 +7,12 @@ import @io
 
 do main() {
     // Create a mut file first
-    mut ok, werr = io.write_file("ez_test_e7019_temp.txt", "test")
+    mut ok, werr = io.write_file("gray_test_e7019_temp.txt", "test")
 
     // Try to remove it with remove_dir (should fail - it's a file, not a dir)
-    mut rok, rerr = io.remove_dir("ez_test_e7019_temp.txt")
+    mut rok, rerr = io.remove_dir("gray_test_e7019_temp.txt")
     // Clean up
-    mut dok, derr = io.delete_file("ez_test_e7019_temp.txt")
+    mut dok, derr = io.delete_file("gray_test_e7019_temp.txt")
 
     if rerr != nil {
         panic("${rerr}")

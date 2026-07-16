@@ -1,8 +1,8 @@
 /*
- * struct_func_private_access.ez - Private struct functions are callable
+ * struct_func_private_access.gray - Private struct functions are callable
  * from within the same struct but not from outside.
  *
- * Regression for #1599: private modifier was not enforced.
+ * private modifier was not enforced.
  */
 
 const Calculator struct {

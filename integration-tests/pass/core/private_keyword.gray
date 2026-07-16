@@ -1,5 +1,5 @@
 /*
- * private_keyword.ez - Test private keyword functionality
+ * private_keyword.gray - Test private keyword functionality
  *
  * Verifies private functions and constants work within the same file,
  * including struct-level private functions called by public ones.

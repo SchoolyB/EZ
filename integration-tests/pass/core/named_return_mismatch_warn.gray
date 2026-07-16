@@ -1,8 +1,8 @@
 /* Test: Named return values — matching and mismatched variable names
- * Related to #1238 — E3080 enforces that returned variables must match
+ * E3080 enforces that returned variables must match
  * the named return identifiers. This test verifies correct behavior
  * when variable names match the named returns.
- * Note: W2011 warning not yet implemented (#1552)
+ * Note: W2011 warning not yet implemented
  */
 
 

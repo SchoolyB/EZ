@@ -1,5 +1,5 @@
 /*
- * bigint-interpolation.ez - Test string interpolation with bigint types (#1325)
+ * bigint-interpolation.gray - Test string interpolation with bigint types
  *
  * Verifies that i128, u128, i256, u256 values can be used directly
  * in string interpolation via their to_string functions.

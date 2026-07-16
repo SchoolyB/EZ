@@ -1,6 +1,6 @@
 /*
- * wildcard_composite_unifier.ez - wildcard '?' unifier recurses into nested
- * composite types (issue #1652).
+ * wildcard_composite_unifier.gray - wildcard '?' unifier recurses into nested
+ * composite types.
  *
  * Previously bind_wildcard only stripped a single layer, so [[?]], [map[...]], etc.
  * all failed with E3001. The fix makes the unifier fully recursive.

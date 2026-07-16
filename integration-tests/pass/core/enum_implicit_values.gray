@@ -1,8 +1,8 @@
 /*
- * enum_implicit_values.ez - Enum implicit values continue from
+ * enum_implicit_values.gray - Enum implicit values continue from
  * the last explicit value.
  *
- * Regression for #1511: implicit entries used the 0-based position
+ * implicit entries used the 0-based position
  * index (`= j`) instead of continuing from the previous explicit
  * value. `PENDING = 10, ACTIVE` gave ACTIVE = 1 instead of 11.
  */

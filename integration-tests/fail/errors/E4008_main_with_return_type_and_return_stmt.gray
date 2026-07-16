@@ -1,7 +1,7 @@
 /*
  * Error Test: E4008 - main declared with a return type + matching return
  *
- * Regression for #1482: used to fire E4008 alongside E3006 ("cannot
+ * used to fire E4008 alongside E3006 ("cannot
  * return a value from a void function") when the body actually had a
  * return statement. Both errors are now suppressed after E4008.
  */

@@ -1,7 +1,7 @@
 /*
  * Error Test: E3002 - modulo by literal integer zero
  *
- * Regression for #1474: the fix covers both '/' and '%' operators.
+ * the fix covers both '/' and '%' operators.
  */
 
 do main() {

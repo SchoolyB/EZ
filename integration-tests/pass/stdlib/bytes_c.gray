@@ -1,5 +1,5 @@
 /*
- * bytes_c.ez - Integration test for @bytes (compiler)
+ * bytes_c.gray - Integration test for @bytes (compiler)
  */
 
 import @bytes

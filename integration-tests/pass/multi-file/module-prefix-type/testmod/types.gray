@@ -1,5 +1,5 @@
 /*
- * types.ez - Type definitions for module prefix test
+ * types.gray - Type definitions for module prefix test
  */
 
 const Hero struct {

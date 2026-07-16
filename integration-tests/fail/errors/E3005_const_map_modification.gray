@@ -1,5 +1,5 @@
 /*
- * E5016_const_map_modification.ez
+ * E5016_const_map_modification.gray
  * Tests that modifying a const map fails with E5016
  */
 

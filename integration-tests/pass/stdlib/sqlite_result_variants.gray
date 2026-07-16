@@ -1,5 +1,5 @@
 /*
- * Test: sqlite module _result variants for error handling (#1547)
+ * Test: sqlite module _result variants for error handling
  * Verifies multi-var destructuring works for sqlite.open, exec, query.
  */
 
@@ -11,7 +11,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: sqlite.open success
-    mut db, err = sqlite.open("/tmp/ez_sqlite_result_1547.db")
+    mut db, err = sqlite.open("/tmp/gray_sqlite_result_1547.db")
     if err == nil {
         println("  [PASS] sqlite.open success with destructuring")
         passed += 1
@@ -62,7 +62,7 @@ do main() {
     }
 
     // Cleanup
-    mut _, _ = io.delete_file("/tmp/ez_sqlite_result_1547.db")
+    mut _, _ = io.delete_file("/tmp/gray_sqlite_result_1547.db")
 
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

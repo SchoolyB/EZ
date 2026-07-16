@@ -1,5 +1,5 @@
 /*
- * import_alias.ez - Test import aliasing with alias@module syntax
+ * import_alias.gray - Test import aliasing with alias@module syntax
  */
 
 import str@strings, m@math

@@ -1,7 +1,6 @@
 /*
- * int-uint-implicit-conv.ez - Test implicit int-to-uint conversion
+ * int-uint-implicit-conv.gray - Test implicit int-to-uint conversion
  * for literals, comparisons, variable assignments, and struct fields.
- * Verifies fix for #1310.
  */
 
 
@@ -70,7 +69,7 @@ do main() {
         failed += 1
     }
 
-    // Test 6: Assign int literal to byte variable (#1321)
+    // Test 6: Assign int literal to byte variable
     mut h byte = 65
     if h == 65 {
         println("  [PASS] assign int literal to byte var")

@@ -1,22 +1,22 @@
 /*
- * lib.ez - Library with private and public functions
+ * lib.gray - Library with private and public functions
  * Tests that private functions are not exported
  */
 
-// Private function - should NOT be accessible from main.ez
+// Private function - should NOT be accessible from main.gray
 private do internal_helper() -> string {
     return "internal"
 }
 
-// Private constant - should NOT be accessible from main.ez
+// Private constant - should NOT be accessible from main.gray
 private const SECRET_KEY string = "abc123"
 
-// Public function - SHOULD be accessible from main.ez
+// Public function - SHOULD be accessible from main.gray
 do get_greeting(name string) -> string {
     // Can call private function internally
     mut prefix string = internal_helper()
     return "${prefix}: Hello, ${name}"
 }
 
-// Public constant - SHOULD be accessible from main.ez
+// Public constant - SHOULD be accessible from main.gray
 const VERSION string = "1.0.0"

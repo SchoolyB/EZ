@@ -1,5 +1,5 @@
 /*
- * range_negative_step_for.ez - Test for loops with negative step range (#1327)
+ * range_negative_step_for.gray - Test for loops with negative step range
  *
  * Verifies that range(start, end, negative_step) correctly iterates
  * in reverse in for loops, with proper codegen and typechecker support.

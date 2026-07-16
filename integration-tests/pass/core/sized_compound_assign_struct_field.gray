@@ -1,5 +1,5 @@
 /*
- * Test: sized-type compound assignment on struct pointer fields (#1529)
+ * Test: sized-type compound assignment on struct pointer fields
  * Verifies that +=, -=, *= work correctly on struct pointer fields
  * with the typeof-based double-evaluation prevention.
  */

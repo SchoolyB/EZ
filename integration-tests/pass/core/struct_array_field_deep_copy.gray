@@ -1,6 +1,6 @@
 /*
- * struct_array_field_deep_copy.ez
- * Regression test for #1789: array fields read from a struct were not
+ * struct_array_field_deep_copy.gray
+ * array fields read from a struct were not
  * deep-copied on assignment — the new variable shared backing storage with
  * the original struct field. Mutating the copy corrupted the original.
  * Covers primitive element types and struct element types.

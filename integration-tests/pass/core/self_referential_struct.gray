@@ -1,5 +1,5 @@
 /*
- * self_referential_struct.ez - Test structs with pointer fields to their own type
+ * self_referential_struct.gray - Test structs with pointer fields to their own type
  * Verifies forward declarations allow linked list / tree patterns
  */
 

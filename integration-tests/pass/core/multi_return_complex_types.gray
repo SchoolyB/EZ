@@ -1,5 +1,5 @@
 /*
- * multi_return_complex_types.ez - Complex type annotations in multi-return destructuring
+ * multi_return_complex_types.gray - Complex type annotations in multi-return destructuring
  *
  * Verifies that positions 2+ in multi-variable destructuring accept the
  * same complex types that position 1 does: arrays, pointers, and maps.

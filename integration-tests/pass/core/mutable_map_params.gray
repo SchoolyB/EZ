@@ -1,5 +1,5 @@
 /*
- * mutable_map_params.ez - Test mutable map element parameters (#1332)
+ * mutable_map_params.gray - Test mutable map element parameters
  *
  * Verifies that passing map elements (m["key"]) as mutable parameters
  * uses the map accessor instead of the array accessor.

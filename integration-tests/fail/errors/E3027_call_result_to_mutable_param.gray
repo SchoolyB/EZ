@@ -1,7 +1,6 @@
 /*
  * Error Test: E3027 - function call result passed to mutable (&) parameter
  * Expected: "cannot pass a literal or expression to mutable parameter" error
- * Regression for #1493
  */
 
 do get_val() -> int {

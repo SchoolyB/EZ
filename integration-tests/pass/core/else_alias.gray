@@ -1,5 +1,5 @@
 /*
- * else_alias.ez - else as alias for otherwise
+ * else_alias.gray - else as alias for otherwise
  *
  * `else` is a syntax alias for `otherwise`.
  * Both keywords produce the same token, so they are interchangeable.
@@ -27,7 +27,7 @@ do main() {
     }
 
     // -- mixing else with or (else acts as otherwise) --
-    mut name string = "EZ"
+    mut name string = "Grayscale"
     if name == "Go" {
         failed += 1
     } or name == "Rust" {

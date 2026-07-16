@@ -1,5 +1,5 @@
 /*
- * structs.ez - Test struct definitions and usage
+ * structs.gray - Test struct definitions and usage
  */
 
 import @arrays

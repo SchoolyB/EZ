@@ -1,7 +1,7 @@
 /*
- * container_compound_assign.ez - Arrays/maps with compound assignment
+ * container_compound_assign.gray - Arrays/maps with compound assignment
  *
- * Regression for #1467 — compiler segfaulted when a function contained
+ * compiler segfaulted when a function contained
  * both an array or map declaration and a compound assignment operator
  * (+=, -=, etc.) in the same scope.
  */

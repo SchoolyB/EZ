@@ -1,4 +1,4 @@
-import and use mylib "./lib.ez"
+import and use mylib "./lib.gray"
 
 do main() {
     mut a string = greet("Both")

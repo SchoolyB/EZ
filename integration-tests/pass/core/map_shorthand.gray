@@ -1,5 +1,5 @@
 /*
- * map_shorthand.ez - Test [K:V] shorthand syntax for maps
+ * map_shorthand.gray - Test [K:V] shorthand syntax for maps
  */
 
 import @maps

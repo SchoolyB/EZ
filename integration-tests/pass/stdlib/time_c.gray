@@ -1,5 +1,5 @@
 /*
- * time_c.ez - Integration test for @time (compiler)
+ * time_c.gray - Integration test for @time (compiler)
  */
 
 import @time

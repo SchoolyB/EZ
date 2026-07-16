@@ -1,5 +1,5 @@
 /*
- * var_type_inference.ez - Test variable-to-variable type inference (#1322)
+ * var_type_inference.gray - Test variable-to-variable type inference
  *
  * Verifies that declaring a variable via another variable (e.g. mut p2 = p)
  * correctly propagates the source type instead of defaulting to int.

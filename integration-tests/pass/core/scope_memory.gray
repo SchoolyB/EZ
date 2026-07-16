@@ -1,7 +1,7 @@
 /*
- * scope_memory.ez - Scope-based memory management basics
+ * scope_memory.gray - Scope-based memory management basics
  *
- * Feature #1521 phase 1: void functions save/restore the arena
+ * phase 1: void functions save/restore the arena
  * watermark so temporaries are freed on exit. Non-void functions
  * use per-function arenas with return-value escape so temporaries
  * are freed but the return value survives.

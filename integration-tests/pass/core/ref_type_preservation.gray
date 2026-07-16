@@ -1,5 +1,5 @@
 /*
- * ref_type_preservation.ez - Test ref() preserves array/map types (#1330)
+ * ref_type_preservation.gray - Test ref() preserves array/map types
  *
  * Verifies that ref() on arrays and maps preserves the full type so
  * indexing, len(), and comparison work on the reference variable.

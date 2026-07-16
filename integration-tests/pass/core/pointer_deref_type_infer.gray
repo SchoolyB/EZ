@@ -1,6 +1,6 @@
 /*
- * pointer_deref_type_infer.ez
- * Regression test for #1786: `mut x = ptr^` should infer the struct type,
+ * pointer_deref_type_infer.gray
+ * `mut x = ptr^` should infer the struct type,
  * not int64_t. Previously, NODE_POSTFIX_EXPR was missing from the codegen
  * inferred-type dispatch, causing all pointer dereference assignments without
  * an explicit type annotation to be emitted as int64_t.

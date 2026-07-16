@@ -1,5 +1,5 @@
 /*
- * or_return_fallback.ez - Test or_return with custom fallback values (#1808)
+ * or_return_fallback.gray - Test or_return with custom fallback values
  *
  * Covers: or_return with explicit fallback returning all N return values,
  * bare or_return error propagation, and successful path unaffected.
@@ -36,7 +36,7 @@ do caller_str_fallback(fail bool) -> (string, Error) {
 }
 
 do main() {
-    println("=== or_return Fallback Test (#1808) ===")
+    println("=== or_return Fallback Test ===")
     mut passed int = 0
     mut failed int = 0
 

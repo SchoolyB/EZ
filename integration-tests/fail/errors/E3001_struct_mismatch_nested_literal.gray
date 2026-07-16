@@ -1,6 +1,6 @@
 /*
  * Error Test: E3001 - struct type mismatch in nested struct literal
- * Regression test for #1790: assigning a wrong struct type as a field value
+ * assigning a wrong struct type as a field value
  * in a struct literal was silently accepted by the typechecker.
  * Expected: E3001
  */

@@ -4,9 +4,8 @@
  * Verifies that the compiler does not segfault when a multi-return function
  * returns a struct involved in a circular value-type reference chain.
  * Previously crashed in emit_struct_deep_copy / type_needs_deep_copy due to
- * missing cycle detection. (#1784)
+ * missing cycle detection.
  *
- * Covers:
  *  - Two-way cycle: Parent has [Child], Child has Parent value
  *  - Three-way cycle: Alpha has [Beta], Beta has Gamma, Gamma has Alpha
  *  - Default param with circular struct multi-return (original user report)

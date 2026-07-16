@@ -1,5 +1,5 @@
 /*
- * pointer_collections.ez - Test arrays and maps with pointer types
+ * pointer_collections.gray - Test arrays and maps with pointer types
  *
  * Covers: [^Struct], map[string:^Struct]
  */

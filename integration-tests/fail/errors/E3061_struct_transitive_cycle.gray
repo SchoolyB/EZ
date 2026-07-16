@@ -1,7 +1,7 @@
 /*
  * Error Test: E3061 - struct cycle A -> B -> A by value
  *
- * Regression for #1489: transitive by-value cycles used to leak
+ * transitive by-value cycles used to leak
  * to clang the same way direct self-reference did. DFS-based
  * detector now catches cycles of arbitrary depth and names the
  * intermediate field type in the diagnostic.

@@ -1,7 +1,6 @@
 /*
  * Tests for_each iteration over arrays of pointers [^T]
  * Verifies correct element type dispatch in codegen
- * Regression for #1510
  */
 
 const Node struct {

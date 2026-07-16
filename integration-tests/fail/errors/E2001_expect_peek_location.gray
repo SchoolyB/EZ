@@ -1,7 +1,6 @@
 /*
  * Error Test: E2001 - missing closing parenthesis
  * Expected: error points at current token where ')' should be
- * Verifies #1374 fix: expect_peek points at the right spot
  */
 
 do main() {

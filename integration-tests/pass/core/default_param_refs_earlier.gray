@@ -1,9 +1,9 @@
 /*
- * default_param_refs_earlier.ez - Default values that reference an earlier
+ * default_param_refs_earlier.gray - Default values that reference an earlier
  * parameter must compile cleanly.
  *
  * Before the fix, the default expression was inline-pasted into the
- * caller's scope, so `f(10)` emitted `ez_fn_f(10, a + 1)` and clang
+ * caller's scope, so `f(10)` emitted `gray_fn_f(10, a + 1)` and clang
  * errored on `a`. The call now wraps in a statement expression that
  * binds earlier args to named locals.
  */

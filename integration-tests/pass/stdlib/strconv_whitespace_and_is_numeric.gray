@@ -1,5 +1,5 @@
 /*
- * Test: strconv whitespace rejection and is_numeric digit requirement (#1649)
+ * Test: strconv whitespace rejection and is_numeric digit requirement
  * - to_int/to_uint/to_float result variants return errors on leading whitespace
  * - is_numeric returns false for strings with no digits (e.g. ".", "-.", "+.")
  */

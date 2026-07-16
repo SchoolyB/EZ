@@ -1,7 +1,7 @@
 /*
  * Error Test: E4016 - undefined type without import
  * Expected: E4016 "undefined type 'HttpRequest'"
- * Covers: HTTP types scoped to imports, E4016 error (#1585)
+ * Covers: HTTP types scoped to imports, E4016 error
  */
 
 do handler(req HttpRequest) -> HttpResponse {

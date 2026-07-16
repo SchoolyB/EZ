@@ -1,5 +1,5 @@
 /*
- * fmt_formatting.ez - Integration tests for @fmt formatting functions
+ * fmt_formatting.gray - Integration tests for @fmt formatting functions
  * Tests: format, pad_left, pad_right, center,
  *        int_to_hex, int_to_binary, int_to_octal,
  *        float_fixed, float_sci

@@ -1,11 +1,11 @@
 /*
  * imported_struct_enum_field - Struct with enum field imported cross-module
  *
- * Regression for #1492 — struct literal in imported module's factory failed
+ * struct literal in imported module's factory failed
  * with 'expected types_Color, got types_Color' when struct has an enum field.
  */
 
-import "./types.ez"
+import "./types.gray"
 
 do main() {
     mut s types.Swatch = types.make_swatch("apple", types.Color.RED)

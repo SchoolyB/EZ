@@ -9,10 +9,10 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    mut test_path string = "/tmp/ez_stress_io_test.txt"
+    mut test_path string = "/tmp/gray_stress_io_test.txt"
 
     // write_file
-    mut w_ok, _ = io.write_file(test_path, "hello from EZ")
+    mut w_ok, _ = io.write_file(test_path, "hello from Grayscale")
     if w_ok {
         println("  [PASS] write_file")
         passed += 1
@@ -20,7 +20,7 @@ do main() {
 
     // read_file
     mut content, _ = io.read_file(test_path)
-    if content == "hello from EZ" {
+    if content == "hello from Grayscale" {
         println("  [PASS] read_file round-trip")
         passed += 1
     } otherwise { println("  [FAIL] read_file") failed += 1 }

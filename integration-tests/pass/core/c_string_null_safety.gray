@@ -1,13 +1,13 @@
 /*
- * c_string_null_safety.ez - c_string() handles NULL without crashing.
+ * c_string_null_safety.gray - c_string() handles NULL without crashing.
  *
- * c_string used to lower to ez_string_lit(ptr) which calls strlen()
- * with no NULL check. The fix routes it through ez_c_string_dup,
+ * c_string used to lower to gray_string_lit(ptr) which calls strlen()
+ * with no NULL check. The fix routes it through gray_c_string_dup,
  * which returns "" for NULL.
  *
  * getenv on a name that is never set returns NULL on every conforming
  * platform, so it's the simplest source of a NULL char* available
- * from EZ-only code.
+ * from Grayscale-only code.
  */
 
 import c "stdlib.h"
@@ -17,7 +17,7 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    mut ptr = c.getenv("EZ_TEST_DEFINITELY_NOT_SET_VAR_8729")
+    mut ptr = c.getenv("GRAY_TEST_DEFINITELY_NOT_SET_VAR_8729")
     mut s string = c_string(ptr)
     if s == "" {
         println("  [PASS] c_string(NULL) returns empty string")

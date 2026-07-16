@@ -2,7 +2,7 @@
 // Test: Invalid struct field access with imported type
 // Expected: E4003 - struct has no field 'valu'
 
-import lib"./lib.ez"
+import lib"./lib.gray"
 
 do main() {
     mut item = lib.Item{ name: "Test", value: 100 }

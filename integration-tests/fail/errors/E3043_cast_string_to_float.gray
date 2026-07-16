@@ -1,5 +1,5 @@
 /*
- * Error Test: E3043 - cast string to float is not allowed (#1807)
+ * Error Test: E3043 - cast string to float is not allowed
  * Expected: "cannot cast 'string' to 'float'"
  */
 

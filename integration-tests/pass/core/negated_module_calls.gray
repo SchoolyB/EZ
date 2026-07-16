@@ -1,9 +1,9 @@
 /*
- * negated_module_calls.ez - Test !module.func() codegen (#1309)
+ * negated_module_calls.gray - Test !module.func() codegen
  *
  * Verifies that negated module-qualified calls generate valid C.
  * Previously, !regex.is_valid(), !strings.contains(), etc. emitted
- * raw module.func() dot-access in C instead of ez_module_func().
+ * raw module.func() dot-access in C instead of gray_module_func().
  */
 
 import @strings

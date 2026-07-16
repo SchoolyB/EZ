@@ -1,7 +1,7 @@
 /*
  * Error Test: E5008 - len() called with no arguments
  *
- * Regression for #1490: arity check now fires when len() is called
+ * arity check now fires when len() is called
  * with 0 arguments.
  */
 

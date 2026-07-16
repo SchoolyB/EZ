@@ -1,5 +1,5 @@
 /*
- * maps.ez - Test map types and operations
+ * maps.gray - Test map types and operations
  */
 
 import @maps

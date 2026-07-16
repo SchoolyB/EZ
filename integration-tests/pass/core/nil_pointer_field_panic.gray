@@ -1,5 +1,5 @@
 /*
- * Test: nil-guarded pointer field read access (#1528)
+ * Test: nil-guarded pointer field read access
  * Verifies that reading fields from a valid pointer works correctly
  * after the nil-guard codegen change.
  */

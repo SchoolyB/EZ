@@ -1,19 +1,19 @@
 /*
  * Test: mixed import styles in one statement
- * Combines explicit .ez, extensionless, and directory imports
+ * Combines explicit .gray, extensionless, and directory imports
  */
-import "./constants.ez", "./helpers", "./services"
+import "./constants.gray", "./helpers", "./services"
 
 do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: explicit .ez import
+    // Test 1: explicit .gray import
     if constants.MAX == 999 {
-        println("  [PASS] explicit .ez import")
+        println("  [PASS] explicit .gray import")
         passed += 1
     } otherwise {
-        println("  [FAIL] explicit .ez import")
+        println("  [FAIL] explicit .gray import")
         failed += 1
     }
 

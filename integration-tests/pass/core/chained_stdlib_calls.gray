@@ -1,5 +1,5 @@
 /*
- * chained_stdlib_calls.ez - Test rvalue args to &-taking stdlib functions
+ * chained_stdlib_calls.gray - Test rvalue args to &-taking stdlib functions
  *
  * Ensures the compiler materialises rvalues into temporaries instead of
  * emitting invalid C like &function_call().  Covers binary, bytes, arrays,

@@ -1,6 +1,6 @@
 /*
  * Test: E9006 - Cannot modify array during for_each iteration
- * Expected: Runtime panic from arrays.append (delegates to ez_array_push,
+ * Expected: Runtime panic from arrays.append (delegates to gray_array_push,
  * which carries the iteration guard at the runtime level).
  */
 

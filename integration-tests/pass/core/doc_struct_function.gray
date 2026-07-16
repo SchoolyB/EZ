@@ -1,7 +1,7 @@
 /*
- * doc_struct_function.ez - #doc attribute on struct functions
+ * doc_struct_function.gray - #doc attribute on struct functions
  *
- * Regression for #1518: #doc on a function inside a struct body
+ * #doc on a function inside a struct body
  * leaked to the generated C as a field name. Parser now skips the
  * attribute and any parenthesised args before the do declaration.
  */

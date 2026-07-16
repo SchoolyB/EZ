@@ -1,7 +1,7 @@
 /*
  * Error Test: E3036 - integer range overflow on dereferenced pointer field
  *
- * Regression for #1515: `p^.age = 1000` where age is u8 wasn't
+ * `p^.age = 1000` where age is u8 wasn't
  * checked. The fix walks through the postfix deref to the underlying
  * struct's field type.
  */

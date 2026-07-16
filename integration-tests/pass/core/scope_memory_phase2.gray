@@ -1,7 +1,7 @@
 /*
- * scope_memory_phase2.ez - Phase 2 scope-based memory management
+ * scope_memory_phase2.gray - Phase 2 scope-based memory management
  *
- * Feature #1521 phase 2: per-iteration loop arenas with escape-copy
+ * phase 2: per-iteration loop arenas with escape-copy
  * for values that outlive the loop body, non-void function arenas
  * with return-value escape, and nested loop support.
  *

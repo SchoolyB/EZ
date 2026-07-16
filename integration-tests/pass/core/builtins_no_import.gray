@@ -1,5 +1,5 @@
 /*
- * builtins_no_import.ez - Test builtins work without any imports
+ * builtins_no_import.gray - Test builtins work without any imports
  *
  * Verifies that true builtins (exit, panic, assert, sleep, input,
  * len, type_of, size_of, copy, new, ref, addr, range, cast)

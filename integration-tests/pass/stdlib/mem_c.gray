@@ -1,5 +1,5 @@
 /*
- * mem_c.ez - Integration test for @mem (compiler)
+ * mem_c.gray - Integration test for @mem (compiler)
  */
 
 import @mem

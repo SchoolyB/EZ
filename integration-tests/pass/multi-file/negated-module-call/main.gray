@@ -1,11 +1,11 @@
 /*
- * main.ez - Test negated user module-qualified calls (#1309)
+ * main.gray - Test negated user module-qualified calls
  *
  * Verifies that !userModule.func() generates valid C for
  * user-defined modules, not just stdlib modules.
  */
 
-import "./checks.ez"
+import "./checks.gray"
 
 do main() {
     println("=== Negated User Module Calls ===")

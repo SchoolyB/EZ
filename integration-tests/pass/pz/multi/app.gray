@@ -1,7 +1,7 @@
-// app.ez - Core application logic.
+// app.gray - Core application logic.
 
-import "./config.ez"
-import "./utils.ez"
+import "./config.gray"
+import "./utils.gray"
 
 do run() {
     mut cfg = config.get_config()

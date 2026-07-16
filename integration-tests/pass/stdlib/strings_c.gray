@@ -1,5 +1,5 @@
 /*
- * strings_c.ez - Integration test for @strings (compiler)
+ * strings_c.gray - Integration test for @strings (compiler)
  */
 
 import @strings

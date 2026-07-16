@@ -1,5 +1,5 @@
 /*
- * random_c.ez - Integration test for @random (compiler)
+ * random_c.gray - Integration test for @random (compiler)
  */
 
 import @random

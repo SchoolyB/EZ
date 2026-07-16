@@ -1,5 +1,5 @@
 /*
- * default_param_enum_inference.ez
+ * default_param_enum_inference.gray
  * Test that parameter type can be omitted when default value is an enum member.
  */
 

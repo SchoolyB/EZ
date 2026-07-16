@@ -1,6 +1,6 @@
 /*
- * sized-int-overflow-checks.ez - Test that sized integer arithmetic
- * within bounds works correctly (#1317).
+ * sized-int-overflow-checks.gray - Test that sized integer arithmetic
+ * within bounds works correctly.
  */
 
 

@@ -3,7 +3,7 @@
  * Expected: "internal" or "cannot import"
  */
 
-import "./somemod/internal/secret.ez"
+import "./somemod/internal/secret.gray"
 
 do main() {
     println("test")

@@ -1,7 +1,6 @@
 /*
  * Error Test: E3013 - return with too many values
  * Expected: E3013 wrong number of return values
- * Covers: #1588
  */
 
 do pair() -> (int, int) {

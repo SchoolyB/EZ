@@ -1,7 +1,7 @@
 /*
  * Error Test: E2070 - wildcard '?' as a struct field name
  *
- * Regression for the #1481 follow-up (9d175d9): struct field name
+ * struct field name
  * slots previously read cur_token.literal without filtering
  * TOK_QUESTION, so `?` leaked to the generated C struct field
  * identifier. Parser now emits E2070 at the field-name read site.

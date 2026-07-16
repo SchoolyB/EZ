@@ -1,7 +1,6 @@
 /*
  * Error Test: E3001 - sleep_ms() with non-integer argument
  * Expected: E3001 "sleep_ms() expects an integer argument"
- * Covers: #1591
  */
 
 do main() {

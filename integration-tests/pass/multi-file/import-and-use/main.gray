@@ -1,4 +1,4 @@
-import and use "./lib.ez"
+import and use "./lib.gray"
 
 do main() {
     mut result string = greet("Unqualified")

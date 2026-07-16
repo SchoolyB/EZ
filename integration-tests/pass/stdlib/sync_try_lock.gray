@@ -1,6 +1,6 @@
 /*
- * sync_try_lock.ez - Test sync.try_lock() non-blocking lock
- * Covers: sync.try_lock() wired + return type fixed (void->bool) in #1580
+ * sync_try_lock.gray - Test sync.try_lock() non-blocking lock
+ * Covers: sync.try_lock() wired + return type fixed (void->bool)
  */
 
 import @sync

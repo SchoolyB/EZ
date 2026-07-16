@@ -1,5 +1,5 @@
 /*
- * server_c.ez - Integration test for @server (compiler)
+ * server_c.gray - Integration test for @server (compiler)
  * NOTE: Does not call server.listen() since that blocks.
  * Tests router creation and response helpers only.
  */

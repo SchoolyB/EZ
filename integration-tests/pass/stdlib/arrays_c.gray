@@ -1,5 +1,5 @@
 /*
- * arrays_c.ez - Comprehensive integration test for @arrays (compiler)
+ * arrays_c.gray - Comprehensive integration test for @arrays (compiler)
  * Tests ALL documented functions in the arrays module.
  */
 

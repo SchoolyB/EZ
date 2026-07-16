@@ -1,7 +1,7 @@
 /*
  * Error Test: E3001 - returning ^^int from a -> ^int function
  *
- * Regression for #1514: both sides are TK_POINTER so the kind
+ * both sides are TK_POINTER so the kind
  * check passed, but the pointer depths differ. Typechecker now
  * compares element_type strings to catch the mismatch.
  */

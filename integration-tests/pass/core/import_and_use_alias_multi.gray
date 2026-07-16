@@ -1,5 +1,5 @@
 /*
- * import_and_use_alias_multi.ez - Test import and use with aliases
+ * import_and_use_alias_multi.gray - Test import and use with aliases
  *
  * Covers: both unqualified and alias-qualified access when using
  * import and use with aliases on multiple modules.

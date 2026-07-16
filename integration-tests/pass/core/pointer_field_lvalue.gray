@@ -1,5 +1,5 @@
 /*
- * Test: pointer field assignment with nil-guard (#1531)
+ * Test: pointer field assignment with nil-guard
  * Verifies that writing to pointer fields (p.x = val) works correctly
  * with the nil-guarded codegen path.
  */

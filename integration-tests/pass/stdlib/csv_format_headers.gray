@@ -1,6 +1,6 @@
 /*
- * csv_format_headers.ez - Test csv.encode() and csv.headers()
- * Covers: csv.encode() + csv.headers() wired in #1580
+ * csv_format_headers.gray - Test csv.encode() and csv.headers()
+ * Covers: csv.encode() + csv.headers() wired
  */
 
 import @csv

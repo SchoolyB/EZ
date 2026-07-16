@@ -1,5 +1,5 @@
 /*
- * json_c.ez - Comprehensive integration test for @json (compiler)
+ * json_c.gray - Comprehensive integration test for @json (compiler)
  * Tests: encode, is_valid, pretty_print
  * Note: decode returns dynamic type — limited testing available
  */

@@ -1,5 +1,5 @@
 /*
- * bitwise_operators.ez — Integration test for all six bitwise keyword operators.
+ * bitwise_operators.gray — Integration test for all six bitwise keyword operators.
  *
  * Covers: bit_and, bit_or, bit_xor, bit_not, bit_shift_left, bit_shift_right
  * Types: int, uint, byte, char

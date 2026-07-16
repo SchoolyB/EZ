@@ -1,9 +1,9 @@
 /*
- * main.ez - Test type inference for user-defined module function return types
+ * main.gray - Test type inference for user-defined module function return types
  *
  */
 
-import and use lib"./mylib.ez"
+import and use lib"./mylib.gray"
 
 do needs_u64(v u64) {
     println("Got u64: ${v}")

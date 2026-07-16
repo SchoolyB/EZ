@@ -1,5 +1,5 @@
 /*
- * using_new_stdlib.ez - Test new stdlib functions via 'using' directive
+ * using_new_stdlib.gray - Test new stdlib functions via 'using' directive
  *
  * Verifies that recently added functions (regex.is_valid, math float
  * variants) work through 'using' without module prefix.

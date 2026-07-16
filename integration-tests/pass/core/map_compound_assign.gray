@@ -1,5 +1,5 @@
 /*
- * map_compound_assign.ez - Compound assignment operators on map values
+ * map_compound_assign.gray - Compound assignment operators on map values
  *
  * Covers: +=, -=, *=, /=, %= on existing map entries.
  * Each operation must read the stored value before applying the operator.

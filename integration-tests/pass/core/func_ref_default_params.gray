@@ -1,8 +1,8 @@
 /*
- * func_ref_default_params.ez - Function references respect default
+ * func_ref_default_params.gray - Function references respect default
  * parameter values at reduced arity.
  *
- * Regression for #1503 (bug reported during hunt): `f(5)` where
+ * `f(5)` where
  * `f = ()add` and add has `b int = 10` fired E5008 "expects 2
  * arguments, got 1". The typechecker now computes min_arity from
  * params without defaults, and codegen builds the function-pointer

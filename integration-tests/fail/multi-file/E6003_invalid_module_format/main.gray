@@ -3,7 +3,7 @@
  * Expected: "invalid" or "module" or "format"
  */
 
-import "./badmodule.ez"
+import "./badmodule.gray"
 
 do main() {
     println("test")

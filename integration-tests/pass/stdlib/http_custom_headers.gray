@@ -1,5 +1,5 @@
 /*
- * http_custom_headers.ez - Verify custom headers are sent with requests
+ * http_custom_headers.gray - Verify custom headers are sent with requests
  * Requires network access to httpbun.com
  */
 
@@ -10,7 +10,7 @@ do main() {
     mut fail int = 0
 
     // GET with custom headers
-    mut headers map[string:string] = {"X-Custom-Header": "hello-ez", "Accept": "application/json"}
+    mut headers map[string:string] = {"X-Custom-Header": "hello-gray", "Accept": "application/json"}
     mut resp, err = http.get("http://httpbun.com/headers", headers)
     if err != nil {
         println("FAIL: unexpected error: ${err}")

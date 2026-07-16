@@ -1,7 +1,7 @@
 /*
- * copy_semantics_ref.ez - Test ref() and copy() builtins (#661)
+ * copy_semantics_ref.gray - Test ref() and copy() builtins
  *
- * Split from copy_semantics.ez to run the passing subset in ezc.
+ * Split from copy_semantics.gray to run the passing subset in grayc.
  * Array copy-by-default (Test 2 in original) is excluded — that
  * requires copy-by-default semantics not yet in the compiler.
  */

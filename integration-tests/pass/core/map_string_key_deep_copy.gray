@@ -1,13 +1,13 @@
 /*
- * map_string_key_deep_copy.ez - string keys in returned maps are deep-copied
+ * map_string_key_deep_copy.gray - string keys in returned maps are deep-copied
  *
- * Regression for the bug where ez_map_copy shallow-copied EzString key
+ * Regression for the bug where gray_map_copy shallow-copied GrayString key
  * structs without duplicating the underlying character data.  When a
  * map[string:K] was returned from a function its _func_arena was freed,
  * leaving the key data pointers dangling.
  *
- * Fix: ez_map_copy now calls ez_string_new for every occupied slot when
- * key_kind == EZ_MAP_KEY_STRING; emit_map_deep_copy does the same in the
+ * Fix: gray_map_copy now calls gray_string_new for every occupied slot when
+ * key_kind == GRAY_MAP_KEY_STRING; emit_map_deep_copy does the same in the
  * full iteration path.
  */
 

@@ -1,5 +1,5 @@
 /*
- * Test: sized-type compound assignment correctness (#1529)
+ * Test: sized-type compound assignment correctness
  * Verifies that +=, -=, *= on sized types produce correct results.
  */
 

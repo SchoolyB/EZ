@@ -1,5 +1,5 @@
 /*
- * handler.ez - Processes structs from another module
+ * handler.gray - Processes structs from another module
  */
 
 import lib"../library"

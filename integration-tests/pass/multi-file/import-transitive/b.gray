@@ -1,3 +1,3 @@
-import "./deepmod.ez"
+import "./deepmod.gray"
 
 do from_b() -> string { return deepmod.from_c() }

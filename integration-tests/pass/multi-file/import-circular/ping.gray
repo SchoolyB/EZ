@@ -1,4 +1,4 @@
-import "./pong.ez"
+import "./pong.gray"
 
 do do_ping() -> string { return "ping" }
 do ping_pong() -> string { return "${do_ping()}-${pong.do_pong()}" }

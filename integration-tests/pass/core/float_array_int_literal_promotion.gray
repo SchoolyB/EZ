@@ -1,5 +1,5 @@
 /*
- * float_array_int_literal_promotion.ez
+ * float_array_int_literal_promotion.gray
  * Integer literals in [float], [f32], and [f64] array literals must be
  * promoted to double, not stored as raw int64_t bit patterns.
  */

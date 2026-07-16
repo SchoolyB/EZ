@@ -1,4 +1,4 @@
-import "./ping.ez"
+import "./ping.gray"
 
 do main() {
     mut result string = ping.ping_pong()

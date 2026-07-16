@@ -1,8 +1,8 @@
 /*
- * map_non_standard_keys.ez - Maps with bool, char, byte, and float keys
+ * map_non_standard_keys.gray - Maps with bool, char, byte, and float keys
  *
- * Regression test for issue #1430: map codegen only handled string and int
- * keys. bool/char/byte/float keys passed typechecking but emitted EzString
+ * map codegen only handled string and int
+ * keys. bool/char/byte/float keys passed typechecking but emitted GrayString
  * as the C key type, causing compile errors or runtime key-not-found panics.
  */
 

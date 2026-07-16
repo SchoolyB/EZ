@@ -1,5 +1,5 @@
 /* Test: Functions returning 9+ values (up to 16)
- * Regression test for #1279 — codegen emitted invalid C when return
+ * codegen emitted invalid C when return
  * type/name arrays exceeded the old capacity of 8.
  * Expected: all tests pass
  */

@@ -1,5 +1,5 @@
 /*
- * import_alias_multi.ez - Test aliased multi-import
+ * import_alias_multi.gray - Test aliased multi-import
  *
  * Covers: multiple modules imported on one line with aliases,
  * accessed via alias prefix.

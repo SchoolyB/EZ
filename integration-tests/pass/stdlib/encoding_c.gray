@@ -1,5 +1,5 @@
 /*
- * encoding_c.ez - Comprehensive integration test for @encoding (compiler)
+ * encoding_c.gray - Comprehensive integration test for @encoding (compiler)
  * Tests ALL functions: base64_encode, base64_decode, hex_encode, hex_decode,
  *                      url_encode, url_decode
  */
@@ -32,9 +32,9 @@ do main() {
     }
 
     // base64 round-trip with different data
-    mut b64_2 string = encoding.base64_encode("EZ lang")
+    mut b64_2 string = encoding.base64_encode("Grayscale lang")
     mut b64_dec2 string = encoding.base64_decode(b64_2)
-    if b64_dec2 == "EZ lang" {
+    if b64_dec2 == "Grayscale lang" {
         println("  [PASS] base64 round-trip")
         passed += 1
     } otherwise {

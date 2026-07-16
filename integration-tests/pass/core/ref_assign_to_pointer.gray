@@ -1,5 +1,5 @@
 /* Test: ref() variable assigned to ^T pointer without auto-deref
- * Regression test for #1248 — codegen was auto-dereferencing ref
+ * codegen was auto-dereferencing ref
  * variables when assigning to explicit ^T pointer targets.
  * Expected: all tests pass
  */

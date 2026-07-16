@@ -1,5 +1,5 @@
 /*
- * Test: compound assignment on array elements (#1529)
+ * Test: compound assignment on array elements
  * Verifies that +=, -=, *= on array-indexed elements produce
  * correct read-modify-write behavior.
  */

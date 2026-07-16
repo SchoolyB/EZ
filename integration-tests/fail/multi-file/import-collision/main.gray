@@ -1,5 +1,5 @@
-import "./lib/server.ez"
-import "./utils/server.ez"
+import "./lib/server.gray"
+import "./utils/server.gray"
 
 do main() {
     server.start()

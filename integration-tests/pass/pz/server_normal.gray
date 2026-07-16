@@ -6,7 +6,7 @@ import @server
 import @json
 
 do home(req HttpRequest) -> HttpResponse {
-    return server.html(200, "<h1>Welcome to EZ!</h1>")
+    return server.html(200, "<h1>Welcome to Grayscale!</h1>")
 }
 
 do health(req HttpRequest) -> HttpResponse {
@@ -29,7 +29,7 @@ do main() {
     server.add_route(router, "GET", "/health", ()health)
     server.add_route(router, "GET", "/api/status", ()api_status)
 
-    mut html_resp HttpResponse = server.html(200, "<h1>Welcome to EZ!</h1>")
+    mut html_resp HttpResponse = server.html(200, "<h1>Welcome to Grayscale!</h1>")
     mut json_resp HttpResponse = server.json(200, "{\"status\": \"ok\"}")
 
     if html_resp.status != 200 {

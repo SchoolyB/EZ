@@ -1,5 +1,5 @@
 /*
- * Test: codegen paths protected by crash guards (#1532-#1536)
+ * Test: codegen paths protected by crash guards
  * Exercises the code paths where NULL guards were added:
  * return statements, struct func pointer calls, and func ref lookups.
  */

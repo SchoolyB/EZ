@@ -1,5 +1,5 @@
 /*
- * raw_strings.ez - Test raw string literals using backticks
+ * raw_strings.gray - Test raw string literals using backticks
  */
 
 import @strings

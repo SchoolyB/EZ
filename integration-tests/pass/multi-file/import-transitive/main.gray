@@ -1,4 +1,4 @@
-import "./a.ez"
+import "./a.gray"
 
 do main() {
     mut result string = a.from_a()

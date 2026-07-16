@@ -1,5 +1,5 @@
 /*
- * io_single_var.ez - Test io.read_file with explicit typed assignment (#1313)
+ * io_single_var.gray - Test io.read_file with explicit typed assignment
  *
  * Verifies that io.read_file() works with explicit typed single-var
  * assignment (mut content string = io.read_file(...)).

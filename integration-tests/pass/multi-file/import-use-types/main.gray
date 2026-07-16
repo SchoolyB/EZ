@@ -1,11 +1,11 @@
 /*
  * import-use-types - Unqualified type access via import and use
  *
- * Regression for #1519: struct types from imported modules weren't
+ * struct types from imported modules weren't
  * brought into scope by import and use. Fixed in b9c9752.
  */
 
-import and use "./shapes.ez"
+import and use "./shapes.gray"
 
 do main() {
     mut p Point = make_point(3, 4)

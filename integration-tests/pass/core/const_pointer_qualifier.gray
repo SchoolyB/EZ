@@ -1,5 +1,5 @@
 /*
- * const_pointer_qualifier.ez - const pointer emits T * const, not const T *
+ * const_pointer_qualifier.gray - const pointer emits T * const, not const T *
  *
  * A const pointer variable cannot be reassigned, but the data it points
  * to is mutable. The generated C must use T * const (const pointer to

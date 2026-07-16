@@ -1,12 +1,12 @@
 import @io
 
 do read_missing_file() -> (string, Error) {
-    mut content = io.read_file("/tmp/_ez_no_such_file_1893.txt") or_return
+    mut content = io.read_file("/tmp/_gray_no_such_file_1893.txt") or_return
     return content, nil
 }
 
 do read_real_file() -> (string, Error) {
-    mut content = io.read_file("/tmp/_ez_or_return_test_1893.txt") or_return
+    mut content = io.read_file("/tmp/_gray_or_return_test_1893.txt") or_return
     return content, nil
 }
 
@@ -25,7 +25,7 @@ do main() {
     }
 
     // Test 2: or_return passes value on success
-    mut _, we = io.write_file("/tmp/_ez_or_return_test_1893.txt", "hello from test")
+    mut _, we = io.write_file("/tmp/_gray_or_return_test_1893.txt", "hello from test")
     mut c2, e2 = read_real_file()
     if e2 == nil {
         if c2 == "hello from test" {

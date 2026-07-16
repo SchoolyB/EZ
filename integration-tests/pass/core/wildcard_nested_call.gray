@@ -1,10 +1,10 @@
 /*
- * wildcard_nested_call.ez - A wildcard function calling another
+ * wildcard_nested_call.gray - A wildcard function calling another
  * wildcard function propagates the concrete binding.
  *
- * Regression for #1506 (bug reported during hunt): `double(x ?) ->
+ * `double(x ?) ->
  * ? { return add(x, x) }` where `add` is also generic emitted
- * `ez_fn_add__unknown` because the inner call's binding wasn't
+ * `gray_fn_add__unknown` because the inner call's binding wasn't
  * resolved through the outer's active binding. Fixed in both the
  * typechecker (re-check pass bypass + unknown rejection) and
  * codegen (wildcard_binding fallback for inner calls).

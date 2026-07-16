@@ -1,7 +1,7 @@
 /*
  * Error Test: E3002 - division by -0.0 literal
  *
- * Regression for #1474: the fix explicitly handles -0.0 via
+ * the fix explicitly handles -0.0 via
  * NODE_PREFIX_EXPR over NODE_FLOAT_VALUE so the negation doesn't
  * hide the literal zero from the check.
  */

@@ -1,7 +1,7 @@
 /*
  * Error Test: E3001 - int literal returned from function with enum return type
  *
- * Regression for #1472: the return-statement type-mismatch check used
+ * the return-statement type-mismatch check used
  * to allow int literals through a function whose declared return type
  * was an enum. Now rejected so callers can trust the enum contract.
  */

@@ -1,5 +1,5 @@
 /*
- * encoding_high_bit_url_encode.ez - url_encode on high-bit (>127) bytes.
+ * encoding_high_bit_url_encode.gray - url_encode on high-bit (>127) bytes.
  *
  * url_encode used to call isalnum on a signed char. For inputs whose
  * high bit was set (e.g. UTF-8 continuation bytes) that is undefined

@@ -1,5 +1,5 @@
 /*
- * bigint_cast.ez - Test cast() to and from wide integer types (#1803)
+ * bigint_cast.gray - Test cast() to and from wide integer types
  *
  * Covers: cast(bigint, int), cast(bigint, uint), cast(bigint, float),
  * cast(int, i128), cast(int, u256), cast(float, i128), cross-width
@@ -7,7 +7,7 @@
  */
 
 do main() {
-    println("=== Wide Integer cast() Test (#1803) ===")
+    println("=== Wide Integer cast() Test ===")
     mut passed int = 0
     mut failed int = 0
 

@@ -1,13 +1,13 @@
 /*
- * random_big_struct_shuffle.ez - shuffle/sample on >64-byte elements.
+ * random_big_struct_shuffle.gray - shuffle/sample on >64-byte elements.
  *
- * ez_random_shuffle used to use a fixed char tmp[64] as the swap
+ * gray_random_shuffle used to use a fixed char tmp[64] as the swap
  * scratch slot. Any element type larger than 64 bytes (12+ ints, big
  * structs) made memcpy(tmp, data + i*es, es) read past the stack
  * buffer. The fix sizes scratch by result.elem_size on the arena.
  *
  * Big is intentionally 96 bytes (12 int64 fields) so it exceeds the
- * old 64-byte cap. random.sample also goes through ez_random_shuffle,
+ * old 64-byte cap. random.sample also goes through gray_random_shuffle,
  * so a sample call exercises the same path.
  */
 

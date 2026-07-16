@@ -3,7 +3,7 @@
  * Expected: "cannot access private member from outside module"
  */
 
-import "./mylib.ez"
+import "./mylib.gray"
 
 
 do main() {

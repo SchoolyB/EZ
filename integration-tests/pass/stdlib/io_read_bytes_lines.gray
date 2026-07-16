@@ -9,7 +9,7 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    mut test_file string = "/tmp/ez_io_readtest.txt"
+    mut test_file string = "/tmp/gray_io_readtest.txt"
     mut _, _ = io.write_file(test_file, "line1\nline2\nline3")
 
     // Test 1: read_bytes returns correct byte count
@@ -33,7 +33,7 @@ do main() {
     }
 
     // Test 3: read_bytes_result error on nonexistent file
-    mut bdata2, berr2 = io.read_bytes("/tmp/ez_nonexistent_bytes.txt")
+    mut bdata2, berr2 = io.read_bytes("/tmp/gray_nonexistent_bytes.txt")
     if berr2 != nil {
         println("  [PASS] read_bytes_result: error on nonexistent file")
         passed += 1
@@ -72,7 +72,7 @@ do main() {
     }
 
     // Test 7: read_lines_result error on nonexistent file
-    mut ldata2, lerr2 = io.read_lines("/tmp/ez_nonexistent_lines.txt")
+    mut ldata2, lerr2 = io.read_lines("/tmp/gray_nonexistent_lines.txt")
     if lerr2 != nil {
         println("  [PASS] read_lines_result: error on nonexistent file")
         passed += 1
@@ -101,7 +101,7 @@ do main() {
     }
 
     // Test 10: file_size_result error on nonexistent
-    mut sz2, szerr2 = io.file_size("/tmp/ez_nonexistent_size.txt")
+    mut sz2, szerr2 = io.file_size("/tmp/gray_nonexistent_size.txt")
     if szerr2 != nil {
         println("  [PASS] file_size_result: error on nonexistent file")
         passed += 1
@@ -111,7 +111,7 @@ do main() {
     }
 
     // Test 11: glob_result finds files
-    mut gfiles, gerr = io.glob("/tmp/ez_io_readtest*")
+    mut gfiles, gerr = io.glob("/tmp/gray_io_readtest*")
     if gerr == nil {
         println("  [PASS] glob_result: no error on valid pattern")
         passed += 1

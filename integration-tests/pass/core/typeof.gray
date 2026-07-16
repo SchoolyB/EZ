@@ -1,6 +1,6 @@
 /*
  * Test: type_of() builtin function
- * Tests that type_of() returns correct EZ type names
+ * Tests that type_of() returns correct Grayscale type names
  */
 
 import @mem

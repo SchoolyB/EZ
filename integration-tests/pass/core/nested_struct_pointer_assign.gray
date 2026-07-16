@@ -1,5 +1,5 @@
 /*
- * Test: nested struct member assignment through pointer (#1529, #1544)
+ * Test: nested struct member assignment through pointer
  * Verifies that assignment to nested struct fields through a pointer works.
  */
 

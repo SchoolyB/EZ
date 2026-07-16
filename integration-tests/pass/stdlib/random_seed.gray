@@ -1,6 +1,6 @@
 /*
- * random_seed.ez - Test random.seed() explicit seeding
- * Covers: random.seed(int) wired in #1580
+ * random_seed.gray - Test random.seed() explicit seeding
+ * Covers: random.seed(int) wired
  */
 
 import @random

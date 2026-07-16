@@ -1,7 +1,6 @@
 /*
  * Tests pointer-to-pointer (^^T) type support
  * Verifies parser handles nested ^ and codegen emits correct C types
- * Regression for #1504
  */
 
 const Point struct {

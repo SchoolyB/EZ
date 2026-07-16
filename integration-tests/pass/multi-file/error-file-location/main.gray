@@ -1,7 +1,7 @@
 /*
  * Test that errors in multi-file modules show correct file location
  */
-import "./utils.ez"
+import "./utils.gray"
 
 
 do main() {

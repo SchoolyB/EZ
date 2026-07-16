@@ -1,5 +1,5 @@
 /*
- * import_syntax_variants.ez - Test all import syntax variants
+ * import_syntax_variants.gray - Test all import syntax variants
  *
  * Covers: inline multi-import, aliased import, import and use,
  * import and use with alias, and combinations.

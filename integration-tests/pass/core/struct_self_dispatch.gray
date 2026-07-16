@@ -1,7 +1,6 @@
 /*
- * struct_self_dispatch.ez - Instance dispatch for &self struct methods.
+ * struct_self_dispatch.gray - Instance dispatch for &self struct methods.
  *
- * Regression for #1509 (bug reported during hunt):
  *   - `c.increment()` fired E4001 "C interop requires header" because
  *     the variable was named "c", colliding with the C-interop check.
  *   - `counter.increment()` fired E3042 "struct functions must be

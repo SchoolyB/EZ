@@ -1,5 +1,5 @@
-import lib_server "./lib/server.ez"
-import util_server "./utils/server.ez"
+import lib_server "./lib/server.gray"
+import util_server "./utils/server.gray"
 
 do main() {
     mut a string = lib_server.start()

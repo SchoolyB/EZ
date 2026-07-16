@@ -3,7 +3,7 @@
  * Expected: "cannot modify" (error in imported module should be caught)
  */
 
-import lib"./mylib.ez"
+import lib"./mylib.gray"
 
 
 do main() {

@@ -1,5 +1,5 @@
 /*
- * channels_param_type_c.ez - Test channels.Channel as function parameter type
+ * channels_param_type_c.gray - Test channels.Channel as function parameter type
  *
  * Covers: module-qualified Channel type in params, inferred receive type
  */

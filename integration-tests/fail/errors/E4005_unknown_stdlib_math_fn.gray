@@ -1,7 +1,6 @@
 /*
  * Error Test: E4005 - typo'd call on the @math stdlib module
  *
- * Regression for #1497.
  */
 
 import @math

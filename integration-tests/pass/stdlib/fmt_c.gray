@@ -1,5 +1,5 @@
 /*
- * fmt_c.ez - Comprehensive integration test for @fmt (compiler)
+ * fmt_c.gray - Comprehensive integration test for @fmt (compiler)
  * Tests all implemented fmt module functions.
  * NOT IMPLEMENTED: printf, sprintf, format
  */

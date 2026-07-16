@@ -1,7 +1,7 @@
 /*
- * import_and_use.ez - Unqualified access via import and use / using.
+ * import_and_use.gray - Unqualified access via import and use / using.
  *
- * Regression for #1519: import and use only brought stdlib functions
+ * import and use only brought stdlib functions
  * into scope. Constants (PI, E), types, and usage tracking were all
  * broken. Fixed in b9c9752.
  *

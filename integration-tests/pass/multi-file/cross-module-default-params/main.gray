@@ -1,4 +1,4 @@
-import "./utils.ez"
+import "./utils.gray"
 using utils
 
 do main() {

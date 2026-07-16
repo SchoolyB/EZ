@@ -1,5 +1,5 @@
 /*
- * foreach_optional_parens.ez - Test optional parentheses in for_each (#1328)
+ * foreach_optional_parens.gray - Test optional parentheses in for_each
  *
  * Verifies that for_each accepts both parenthesized and non-parenthesized
  * clause syntax, consistent with all other control flow constructs.

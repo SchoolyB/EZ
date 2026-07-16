@@ -1,5 +1,5 @@
 /*
- * Test: strconv module _result variants for error handling (#1603)
+ * Test: strconv module _result variants for error handling
  * Verifies multi-var destructuring works for all fallible strconv functions.
  */
 

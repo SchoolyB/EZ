@@ -3,7 +3,7 @@
  * Expected: error message shows "Foo" not "utils_Foo"
  */
 
-import "./utils.ez"
+import "./utils.gray"
 using utils
 
 do main() {

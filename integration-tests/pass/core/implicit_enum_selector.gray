@@ -1,5 +1,5 @@
 /*
- * implicit_enum_selector.ez - Test .VARIANT shorthand syntax
+ * implicit_enum_selector.gray - Test .VARIANT shorthand syntax
  * Tests implicit enum selector resolution in all supported contexts.
  */
 

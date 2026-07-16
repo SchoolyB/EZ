@@ -1,8 +1,8 @@
 /*
- * main.ez - Entry point that imports a directory module
+ * main.gray - Entry point that imports a directory module
  */
 
-import "./server.ez"
+import "./server.gray"
 
 
 /* Test result tracking */

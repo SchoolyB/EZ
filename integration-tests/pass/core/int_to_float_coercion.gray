@@ -1,7 +1,7 @@
 /*
- * int_to_float_coercion.ez - Implicit int → float promotion.
+ * int_to_float_coercion.gray - Implicit int → float promotion.
  *
- * Feature #1433: integer literals and int-typed values assigned to
+ * integer literals and int-typed values assigned to
  * float/f32/f64 variables, struct fields, map values, and return
  * positions are accepted without explicit casts. C handles the
  * promotion natively.

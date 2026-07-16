@@ -1,5 +1,5 @@
 /*
- * Test: strconv module base parameter for to_int/to_uint (#1603)
+ * Test: strconv module base parameter for to_int/to_uint
  * Verifies base conversion with constants and raw int values.
  */
 

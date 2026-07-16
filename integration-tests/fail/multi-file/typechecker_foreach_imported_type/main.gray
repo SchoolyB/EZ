@@ -3,7 +3,7 @@
 // Expected: E4003 - struct has no field 'valu'
 
 import and use @arrays
-import lib"./lib.ez"
+import lib"./lib.gray"
 
 do main() {
     mut items [lib.Item]

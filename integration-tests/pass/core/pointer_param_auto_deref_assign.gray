@@ -1,5 +1,5 @@
 /*
- * Test: field assignment through a pointer parameter auto-derefs correctly (#1653)
+ * Test: field assignment through a pointer parameter auto-derefs correctly
  *
  * b.v = x where b is ^Struct was mis-identified as modifying the pointer b
  * itself (E3005). It should be equivalent to b^.v = x — mutating the field
