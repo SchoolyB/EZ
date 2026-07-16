@@ -2499,9 +2499,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             bool map_is_rvalue = (node->data.index_expr.left->kind == NODE_INDEX_EXPR ||
                 node->data.index_expr.left->kind == NODE_CALL_EXPR);
             if (!map_is_rvalue && node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
+                AstNode *obj = node->data.index_expr.left->data.member.object;
                 EzType *obj_t = cg->type_table
-                    ? typetable_get(cg->type_table, node->data.index_expr.left->data.member.object) : NULL;
+                    ? typetable_get(cg->type_table, obj) : NULL;
                 if (obj_t && obj_t->kind == TK_POINTER) map_is_rvalue = true;
+                if (obj->kind == NODE_POSTFIX_EXPR && obj->data.postfix.op == TOK_CARET)
+                    map_is_rvalue = true;
             }
             if (map_is_rvalue) {
                 emitf(cg, "({ EzMap _mt = ");
