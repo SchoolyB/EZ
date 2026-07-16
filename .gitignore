@@ -8,14 +8,14 @@
 *.a
 *.d
 /gray
-/ezc/grayc
-/ezc/libgrayrt.a
-/ezc/tests/test_lexer
-/ezc/tests/test_parser
-/ezc/tests/test_typechecker
-/ezc/tests/test_codegen
-/ezc/tests/*_san
-/ezc/tests/*_asan
+/grayc/grayc
+/grayc/libgrayrt.a
+/grayc/tests/test_lexer
+/grayc/tests/test_parser
+/grayc/tests/test_typechecker
+/grayc/tests/test_codegen
+/grayc/tests/*_san
+/grayc/tests/*_asan
 *.dSYM/
 
 # Build directories
@@ -69,14 +69,12 @@ tmp/
 # Block any Mach-O / ELF binaries accidentally placed at repo root
 # (catch-all for stray compiled outputs)
 *_c
-!/ezc/src/**/*.c
-!/ezc/src/**/*.h
+!/grayc/src/**/*.c
+!/grayc/src/**/*.h
 
 # Project specific
 context/
 *.txt
-*.ezdb
-
 # Ignore JSON files
 *.json
 
