@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3040 - channels.try_receive single capture
+ * Expected: "returns 2 values"
+ */
+
+import @channels
+
+do main() {
+    mut ch = channels.open(1)
+    channels.send(ch, 1)
+    mut val int = channels.try_receive(ch)  // ERROR: returns 2 values
+    println(val)
+    channels.close(ch)
+}

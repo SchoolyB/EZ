@@ -7965,6 +7965,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         diag_error_codef(tc->diag, "E3089", NODE_FILE(tc, node),
                             node->token.line, node->token.column, 0,
                             call_name, call_name, call_name);
+                    } else if (call_mod && strcmp(call_mod, "channels") == 0 &&
+                               strcmp(call_name, "try_receive") == 0) {
+                        diag_error_codef(tc->diag, "E3040", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0,
+                            call_name, 2, call_name);
                     }
                 }
             }
