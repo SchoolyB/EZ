@@ -1137,7 +1137,7 @@ static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
  * expected types so we can catch type mismatches before they leak to C.
  * ARG_ANY means no validation (the function accepts mixed types). */
 typedef enum {
-    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR
+    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR, ARG_CHANNEL
 } ExpectedArgKind;
 
 typedef struct {
@@ -1236,7 +1236,10 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"server", "html", 1, ARG_STRING},
     {"server", "redirect", 1, ARG_STRING},
     /* channels: value arg must be int */
-    {"channels", "send", 1, ARG_INT}, {"channels", "try_send", 1, ARG_INT},
+    {"channels", "send", 0, ARG_CHANNEL}, {"channels", "send", 1, ARG_INT},
+    {"channels", "receive", 0, ARG_CHANNEL}, {"channels", "close", 0, ARG_CHANNEL},
+    {"channels", "try_send", 0, ARG_CHANNEL}, {"channels", "try_send", 1, ARG_INT},
+    {"channels", "try_receive", 0, ARG_CHANNEL},
     /* math: numeric argument required for all single-arg functions */
     {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
     {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
@@ -1282,6 +1285,8 @@ static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
     case ARG_NUMBER: return actual->kind == TK_INT || actual->kind == TK_UINT ||
                             actual->kind == TK_BYTE || actual->kind == TK_FLOAT;
     case ARG_CHAR:   return actual->kind == TK_CHAR;
+    case ARG_CHANNEL: return actual->kind == TK_STRUCT &&
+                             actual->name && strcmp(actual->name, "Channel") == 0;
     }
     return true;
 }
@@ -1297,6 +1302,7 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     case ARG_ANY:    return "any";
     case ARG_NUMBER: return "number";
     case ARG_CHAR:   return "char";
+    case ARG_CHANNEL: return "Channel";
     }
     return "unknown";
 }

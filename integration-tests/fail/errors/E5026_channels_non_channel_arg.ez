@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5026 - channels non-Channel first argument
+ * Expected: "expects Channel as argument 1"
+ */
+
+import @channels
+
+do main() {
+    mut x int = 5
+    channels.send(x, 10)  // ERROR: first arg must be Channel
+}
