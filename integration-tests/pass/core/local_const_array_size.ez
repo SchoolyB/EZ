@@ -1,0 +1,11 @@
+const G int = 3
+
+do main() {
+    const N int = 5
+    const arr [int, N] = {1, 2, 3, 4, 5}
+    println(arr[0])
+    println(arr[4])
+
+    const global_arr [int, G] = {10, 20, 30}
+    println(global_arr[2])
+}

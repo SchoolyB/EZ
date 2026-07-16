@@ -7637,13 +7637,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_code(tc->diag, "E5013",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
-        /* Track file-scope const integer values for constant folding in later
-         * declarations.  Also detect overflow in const arithmetic expressions:
-         * codegen emits runtime overflow-check wrappers (ez_add_check etc.)
-         * which are not valid as C file-scope initializers.  The typechecker
-         * must evaluate and reject overflowing expressions before codegen runs.
+        /* Track const integer values for constant folding in later
+         * declarations (e.g. fixed-size array sizes).  Also detect overflow
+         * in const arithmetic expressions: codegen emits runtime
+         * overflow-check wrappers (ez_add_check etc.) which are not valid
+         * as C file-scope initializers.  The typechecker must evaluate and
+         * reject overflowing expressions before codegen runs.
          * E5039: constant expression overflows the declared integer type. */
-        if (tc->func_depth == 0 && !node->data.var_decl.mutable &&
+        if (!node->data.var_decl.mutable &&
             node->data.var_decl.type_name && node->data.var_decl.value) {
             const char *tn = node->data.var_decl.type_name;
             /* Track integer types (signed and unsigned) in the const table.
