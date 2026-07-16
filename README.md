@@ -86,6 +86,7 @@ do main() {
 - **Readable syntax** — `for_each`, `as_long_as`, `if`/`or`/`otherwise`, `when`/`is`, `in`/`not_in`, `or_return`, `ensure`, `bit_and`/`bit_or`/`bit_xor`.
 - **Versatility through simplicity** — Scripts, microservices, CLI tools, or a project where you want to learn systems programming fundamentals EZ is designed for you!
 - **A compiler that works with the programmer** — Clear error messages, a builtin formatter, live reloading, builtin docs via `ez man`. You should never have to wonder what went wrong or where.
+- **Safe by default** — Automatic Scope-Based Arena Management (ASBAM) for memory, bounds-checked arrays, overflow-checked math, nil protection, no pointer arithmetic. The guardrails are on unless you explicitly take them off with the `@mem` stdlib module
 
 ---
 
@@ -128,6 +129,7 @@ make install
 |---------|-------------|---------|
 | `ez <file>` | Compile and run | `ez main.ez` |
 | `ez build <file> -o <name>` | Compile to a distributable binary | `ez build main.ez -o myapp` |
+| `ez build <file> --emit-c` | Emit generated C source to a file (no binary) | `ez build main.ez --emit-c` |
 | `ez check <file>` | Type check without compiling | `ez check main.ez` |
 | `ez watch <file>` | Watch for changes, re-run on save | `ez watch main.ez` |
 | `ez fmt <path>` | Format `.ez` source files in place | `ez fmt .` or `ez fmt ./...` |

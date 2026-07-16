@@ -2,23 +2,24 @@ import @http
 
 do main() {
     mut methods int = 0
+    mut headers map[string:string] = {:}
 
-    mut _, get_err = http.get("https://example.com")
+    mut _, get_err = http.get("https://example.com", headers)
     if get_err != nil { methods += 1 }
 
-    mut _, post_err = http.post("https://example.com", "body")
+    mut _, post_err = http.post("https://example.com", "body", headers)
     if post_err != nil { methods += 1 }
 
-    mut _, put_err = http.put("https://example.com", "body")
+    mut _, put_err = http.put("https://example.com", "body", headers)
     if put_err != nil { methods += 1 }
 
-    mut _, del_err = http.delete("https://example.com")
+    mut _, del_err = http.delete("https://example.com", headers)
     if del_err != nil { methods += 1 }
 
-    mut _, head_err = http.head("https://example.com")
+    mut _, head_err = http.head("https://example.com", headers)
     if head_err != nil { methods += 1 }
 
-    mut _, patch_err = http.patch("https://example.com", "body")
+    mut _, patch_err = http.patch("https://example.com", "body", headers)
     if patch_err != nil { methods += 1 }
 
     if methods != 6 {

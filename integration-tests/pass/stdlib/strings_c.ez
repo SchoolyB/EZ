@@ -179,6 +179,116 @@ do main() {
         failed += 1
     }
 
+    // char_at
+    mut ch char = strings.char_at("hello", 1)
+    if ch == 'e' {
+        println("  [PASS] char_at")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char_at: expected 'e', got '${ch}'")
+        failed += 1
+    }
+
+    // char_at last character
+    mut ch2 char = strings.char_at("hello", 4)
+    if ch2 == 'o' {
+        println("  [PASS] char_at last")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char_at last: expected 'o', got '${ch2}'")
+        failed += 1
+    }
+
+    // last_index_of
+    mut lidx int = strings.last_index_of("hello world hello", "hello")
+    if lidx == 12 {
+        println("  [PASS] last_index_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] last_index_of: expected 12, got ${lidx}")
+        failed += 1
+    }
+
+    // last_index_of not found
+    mut lidx2 int = strings.last_index_of("hello", "xyz")
+    if lidx2 == -1 {
+        println("  [PASS] last_index_of (not found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] last_index_of (not found): expected -1, got ${lidx2}")
+        failed += 1
+    }
+
+    // remove_prefix
+    mut rp string = strings.remove_prefix("hello world", "hello ")
+    if rp == "world" {
+        println("  [PASS] remove_prefix")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_prefix: expected 'world', got '${rp}'")
+        failed += 1
+    }
+
+    // remove_prefix no match
+    mut rp2 string = strings.remove_prefix("hello world", "xyz")
+    if rp2 == "hello world" {
+        println("  [PASS] remove_prefix (no match)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_prefix (no match): expected 'hello world', got '${rp2}'")
+        failed += 1
+    }
+
+    // remove_suffix
+    mut rs string = strings.remove_suffix("hello world", " world")
+    if rs == "hello" {
+        println("  [PASS] remove_suffix")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_suffix: expected 'hello', got '${rs}'")
+        failed += 1
+    }
+
+    // remove_suffix no match
+    mut rs2 string = strings.remove_suffix("hello world", "xyz")
+    if rs2 == "hello world" {
+        println("  [PASS] remove_suffix (no match)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_suffix (no match): expected 'hello world', got '${rs2}'")
+        failed += 1
+    }
+
+    // to_chars
+    mut chars2 [char] = strings.to_chars("abc")
+    if len(chars2) == 3 && chars2[0] == 'a' && chars2[1] == 'b' && chars2[2] == 'c' {
+        println("  [PASS] to_chars")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_chars")
+        failed += 1
+    }
+
+    // from_chars
+    mut back string = strings.from_chars(chars2)
+    if back == "abc" {
+        println("  [PASS] from_chars")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_chars: expected 'abc', got '${back}'")
+        failed += 1
+    }
+
+    // to_chars empty string
+    mut empty_chars [char] = strings.to_chars("")
+    if len(empty_chars) == 0 {
+        println("  [PASS] to_chars (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_chars (empty)")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {

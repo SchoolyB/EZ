@@ -1585,8 +1585,37 @@ int main(int argc, char **argv) {
     }
 
     if (emit_c_only) {
-        /* Just print the C source */
-        printf("%s", c_code);
+        /* Determine C output filename */
+        const char *c_out = NULL;
+        char *c_out_default = NULL;
+        if (output_file && output_file != default_output) {
+            /* Explicit -o provided */
+            c_out = output_file;
+        } else {
+            /* Derive from input: foo.ez -> foo.c */
+            const char *sl = strrchr(input_file, '/');
+            const char *base = sl ? sl + 1 : input_file;
+            size_t blen = strlen(base);
+            if (blen > 3 && strcmp(base + blen - 3, ".ez") == 0)
+                blen -= 3;
+            c_out_default = malloc(blen + 3);
+            memcpy(c_out_default, base, blen);
+            memcpy(c_out_default + blen, ".c", 3);
+            c_out = c_out_default;
+        }
+
+        if (!write_file(c_out, c_code)) {
+            fprintf(stderr, "ez: failed to write C output: %s\n", c_out);
+            free(c_out_default);
+            codegen_destroy(&cg);
+            typechecker_free(tc);
+            arena_destroy(arena);
+            free(source);
+            free(default_output);
+            return 1;
+        }
+        printf("Generated: %s\n", c_out);
+        free(c_out_default);
         codegen_destroy(&cg);
         typechecker_free(tc);
         arena_destroy(arena);
@@ -1706,7 +1735,7 @@ int main(int argc, char **argv) {
             "stdlib/ez_regex.c",    "stdlib/ez_server.c",   "stdlib/ez_sqlite.c",
             "stdlib/ez_strings.c",  "stdlib/ez_sync.c",     "stdlib/ez_atomic.c",
             "stdlib/ez_threads.c",
-            "stdlib/ez_time.c",     "stdlib/ez_uuid.c",
+            "stdlib/ez_time.c",     "stdlib/ez_uuid.c", "stdlib/ez_strconv.c"
         };
         char srcs[CMD_BUF_SIZE];
         int off = 0;

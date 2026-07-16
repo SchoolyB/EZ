@@ -1,0 +1,46 @@
+/*
+ * type_param_generic.ez - Type-level generic parameters via <?> syntax
+ *
+ * Tests for #1797: passing struct type names as arguments using <?>
+ * type parameters, enabling reusable constructors like make(T).
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+const Color struct {
+    r int
+    g int
+    b int
+}
+
+do make(T <?>) -> ^? {
+    return new(T)
+}
+
+do make_size(T <?>) -> int {
+    return size_of(T)
+}
+
+do main() {
+    mut p = make(Point)
+    p^.x = 10
+    p^.y = 20
+    println(p^.x)
+    println(p^.y)
+
+    mut c = make(Color)
+    c^.r = 255
+    c^.g = 128
+    c^.b = 0
+    println(c^.r)
+    println(c^.g)
+    println(c^.b)
+
+    const ps = make_size(Point)
+    const cs = make_size(Color)
+    println(ps > 0)
+    println(cs > 0)
+}

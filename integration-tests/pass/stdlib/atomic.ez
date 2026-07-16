@@ -93,6 +93,11 @@ do main() {
         failed += 1
     }
 
+    // spinlock_destroy (no crash, frees malloc'd memory)
+    atomic.spinlock_destroy(lk)
+    println("  [PASS] spinlock_destroy")
+    passed += 1
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")

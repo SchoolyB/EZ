@@ -102,9 +102,9 @@ The following words are reserved and may not be used as identifiers:
 **Control flow:**
 ```
 as_long_as   break       continue    default
-ensure       for         for_each    if          is
-loop         or          or_return   otherwise   return
-when         while
+else         ensure      for         for_each    if
+is           loop        or          or_return   otherwise
+return       when        while
 ```
 
 **Declarations:**
@@ -135,6 +135,17 @@ bit_and      bit_not     bit_or      bit_shift_left   bit_shift_right
 bit_xor      cast        false       in          not_in      range
 true
 ```
+
+#### Syntax Aliases
+
+Some keywords have shorter or more familiar aliases. Both forms are identical and produce the same token:
+
+| Alias   | Canonical      | Purpose              |
+|---------|----------------|----------------------|
+| `else`  | `otherwise`    | Default branch       |
+| `while` | `as_long_as`   | Condition loop       |
+
+> 💡 **Flip's Tip:** The `map` keyword is optional in type position — `[string:int]` and `map[string:int]` are identical. The parser normalizes both to the same canonical form.
 
 ### 2.6 Operators and Punctuation
 
@@ -426,6 +437,13 @@ const a [int, 5] = {1, 2, 3}           // OK (3 of 5 slots used, remaining zero-
 const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error: 6 values exceeds size of 5
 ```
 
+The size specifier `N` may also be a compile-time integer constant of any integer type (`int`, `uint`, `i8`–`i64`, `u8`–`u64`). The constant must be declared before the array and must resolve to a value greater than zero.
+
+```ez
+const SIZE int = 4
+const buf [byte, SIZE] = {0x01, 0x02, 0x03, 0x04}
+```
+
 **Multi-dimensional arrays**:
 
 ```ez
@@ -437,22 +455,33 @@ Array indexing is zero-based. Accessing an index outside the valid range produce
 
 #### 3.2.2 Maps
 
-Maps are unordered collections of key-value pairs.
+Maps are unordered collections of key-value pairs. The `map` keyword is optional — `[K:V]` and `map[K:V]` are identical:
 
 ```ez
-mut ages map[string:int] = {
+mut ages [string:int] = {
     "alice": 30,
     "bob": 25
 }
-mut empty map[string:int] = {:}  // Empty map
+mut empty [string:int] = {:}  // Empty map
+
+// Long form is also valid:
+mut scores map[string:int] = {"math": 95}
 ```
 
 > 💡 **Flip's Tip:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array; the colon is the tell!
 
 ```ez
 mut arr [int] = {}       // Empty array
-mut m map[string:int] = {:}  // Empty map
+mut m [string:int] = {:}  // Empty map
 ```
+
+**Bracket disambiguation:**
+
+| Syntax    | Meaning                   | Example                   |
+|-----------|---------------------------|---------------------------|
+| `[T]`     | Dynamic array of `T`      | `[int]`                   |
+| `[T,N]`   | Fixed-size array of `T`   | `[int,3]`                 |
+| `[K:V]`   | Map from `K` to `V`       | `[string:int]`            |
 
 Maps must be declared with `mut`. Declaring a map with `const` is a compile-time error. If the keys are known at compile time, use a struct instead.
 
@@ -574,6 +603,8 @@ const Direction enum {
 > 💡 **Flip's Tip:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
 
 > 💡 **Flip's Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number.
+
+> 💡 **Flip's Tip:** If you genuinely need to compare an enum value against an integer, use `cast()` to bridge the gap: `if cast(Direction.NORTH, int) == 0 { ... }`. You can also cast the other way: `cast(0, Direction)`.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -1151,6 +1182,10 @@ if x < 0 {
 The `or` keyword introduces additional conditions (similar to `else if` in other languages).
 
 The `otherwise` keyword introduces the default case (similar to `else`).
+
+`else` is an alias for `otherwise`. Both are valid, user's choice.
+
+> 💡 **Flip's Tip:** `else` and `otherwise` are identical. Pick whichever reads more naturally to you and stick with it.
 
 ### 6.3 Loop Statements
 
@@ -2028,6 +2063,77 @@ mut y = first({"a", "b"})     // ? binds to string
 - All subsequent `?` parameters and the return type must be consistent with that binding
 - If the return type uses `?`, at least one parameter must also use `?` to provide the binding
 
+### 7.10 Type Parameters (`<?>`)
+
+The `<?>` annotation allows a function parameter to accept a struct type name rather than a value. This enables reusable constructors and type-aware utility functions.
+
+```ez
+const Point struct {
+    x int
+    y int
+}
+
+do make(T <?>) -> ^? {
+    return new(T)
+}
+
+mut p = make(Point)    // allocates a new Point, returns ^Point
+```
+
+The type parameter `T` is resolved at each call site using the same monomorphization pipeline as value wildcards (`?`). The compiler generates a specialized function for each concrete type used.
+
+#### Where `T` can be used inside the function body
+
+A type parameter name is valid in these positions:
+
+| Usage | Example | Result |
+|-------|---------|--------|
+| `new(T)` | `new(T)` | Heap-allocates an instance of `T` |
+| Struct literal | `T{x: 1, y: 2}` | Constructs a stack instance of `T` |
+| `size_of(T)` | `size_of(T)` | Returns the size of `T` in bytes |
+
+#### Return type inference
+
+The return type uses `?` the same way as value wildcards. `-> ^?` resolves to a pointer to the type argument, `-> ?` resolves to the type argument itself:
+
+```ez
+do make(T <?>) -> ^? {
+    return new(T)
+}
+
+do make_stack(T <?>) -> ? {
+    return T{}
+}
+
+mut p = make(Point)          // -> ^Point
+mut s = make_stack(Point)    // -> Point
+```
+
+#### Restrictions
+
+**No mixing type and value parameters (E2087):**
+
+Type parameters and value parameters cannot appear in the same function signature:
+
+```ez
+do bad(T <?>, x int) -> ^? {     // Error E2087
+    return new(T)
+}
+```
+
+**Only struct types allowed (E3127, E3128):**
+
+Only struct type names may be passed as type arguments. Enums, primitives, and expressions are rejected:
+
+```ez
+const Color enum { RED, GREEN, BLUE }
+
+mut p = make(Point)    // OK — Point is a struct
+mut c = make(Color)    // Error E3127 — Color is not a struct
+mut x = make(int)      // Error E3127 — int is not a struct
+mut y = make(1 + 2)    // Error E3128 — not a type name
+```
+
 ---
 
 ## 8. Modules
@@ -2499,6 +2605,8 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `map` | `(arr [T], ()transform) -> [T]` | Returns a new array with `transform` applied to each element. `transform` must be `(T) -> T`. |
 | `filter` | `(arr [T], ()predicate) -> [T]` | Returns a new array containing only elements for which `predicate` returns true. `predicate` must be `(T) -> bool`. |
 | `reduce` | `(arr [T], initial T, ()accumulator) -> T` | Reduces the array to a single value by applying `accumulator(acc, element)` for each element, starting with `initial`. `accumulator` must be `(T, T) -> T`. |
+| `any` | `(arr [T], ()predicate) -> bool` | Returns true if at least one element satisfies `predicate`. `predicate` must be `(T) -> bool`. Returns false on an empty array. |
+| `all` | `(arr [T], ()predicate) -> bool` | Returns true if every element satisfies `predicate`. `predicate` must be `(T) -> bool`. Returns true on an empty array. |
 
 ### 9.3 Strings Module (`@strings`)
 
@@ -2509,6 +2617,12 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `to_upper` | `(s string) -> string` | Convert to uppercase |
 | `to_lower` | `(s string) -> string` | Convert to lowercase |
 
+#### Access Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `char_at` | `(s string, index int) -> char` | Character at byte index; panics if out of bounds |
+
 #### Query Functions
 
 | Function | Signature | Description |
@@ -2518,6 +2632,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
 | `index_of` | `(s string, sub string) -> int` | First index of substring |
+| `last_index_of` | `(s string, sub string) -> int` | Last index of substring (-1 if not found) |
 | `count` | `(s string, sub string) -> int` | Count occurrences |
 
 #### Classification Functions
@@ -2538,6 +2653,8 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `trim` | `(s string) -> string` | Trim whitespace |
 | `trim_left` | `(s string) -> string` | Trim left whitespace |
 | `trim_right` | `(s string) -> string` | Trim right whitespace |
+| `remove_prefix` | `(s string, prefix string) -> string` | Remove prefix if present, otherwise return unchanged |
+| `remove_suffix` | `(s string, suffix string) -> string` | Remove suffix if present, otherwise return unchanged |
 | `replace` | `(s string, old string, new string) -> string` | Replace all occurrences |
 | `repeat` | `(s string, count int) -> string` | Repeat string |
 | `reverse` | `(s string) -> string` | Reverse string |
@@ -2549,6 +2666,13 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `split` | `(s string, sep string) -> [string]` | Split into array |
 | `join` | `(arr [string], sep string) -> string` | Join array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
+
+#### Conversion Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `to_chars` | `(s string) -> [char]` | Convert string to char array |
+| `from_chars` | `(chars [char]) -> string` | Convert char array to string |
 
 ### 9.4 Maps Module (`@maps`)
 
@@ -2704,6 +2828,12 @@ Unless noted otherwise, all math functions accept `int`, `float`, and sized nume
 | `to_iso` | `(timestamp int) -> string` | ISO 8601 string |
 | `date` | `(timestamp int) -> string` | Date (YYYY-MM-DD) |
 | `to_clock` | `(timestamp int) -> string` | Time (HH:MM:SS) |
+
+#### Arithmetic
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `diff` | `(t1 int, t2 int) -> int` | Difference in seconds (t2 - t1); negative if t1 is after t2 |
 
 #### Performance Timing
 
@@ -2878,6 +3008,7 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 |----------|-----------|-------------|
 | `get_env` | `(name string) -> string` | Get environment variable |
 | `set_env` | `(name string, value string)` | Set environment variable |
+| `unset_env` | `(name string)` | Remove environment variable |
 
 #### System Information
 
@@ -2894,10 +3025,10 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `exec` | `(cmd string, args [string]) -> (int, string, bool)` | Run a subprocess. Returns `(exit_code, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout is inherited and passes through to the terminal; only stderr is captured. POSIX only. |
+| `exec` | `(cmd string, args [string]) -> (int, string, string, bool)` | Run a subprocess. Returns `(exit_code, stdout, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout and stderr are captured. POSIX only. |
 
 ```ez
-mut code, stderr, ok = os.exec("ls", {"-l", "/tmp"})
+mut code, stdout, stderr, ok = os.exec("ls", {"-l", "/tmp"})
 if !ok {
     println("failed to launch")
 }
@@ -2921,12 +3052,12 @@ HTTP client for making requests. Currently supports HTTP only.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> HttpResponse` | GET request |
-| `post` | `(url string, body string) -> HttpResponse` | POST request |
-| `put` | `(url string, body string) -> HttpResponse` | PUT request |
-| `patch` | `(url string, body string) -> HttpResponse` | PATCH request |
-| `delete` | `(url string) -> HttpResponse` | DELETE request |
-| `head` | `(url string) -> HttpResponse` | HEAD request |
+| `get` | `(url string, headers map[string:string]) -> HttpResponse` | GET request |
+| `post` | `(url string, body string, headers map[string:string]) -> HttpResponse` | POST request |
+| `put` | `(url string, body string, headers map[string:string]) -> HttpResponse` | PUT request |
+| `patch` | `(url string, body string, headers map[string:string]) -> HttpResponse` | PATCH request |
+| `delete` | `(url string, headers map[string:string]) -> HttpResponse` | DELETE request |
+| `head` | `(url string, headers map[string:string]) -> HttpResponse` | HEAD request |
 
 Error-returning variants: `get`, `post`, `put`, `delete`, `head`, `patch`
 
@@ -3217,6 +3348,8 @@ Message passing between threads. Compiler-only feature; requires POSIX threads.
 | `send` | `(ch Channel, value)` | Send a value into a channel |
 | `receive` | `(ch Channel) -> T` | Receive a value from a channel |
 | `close` | `(ch Channel)` | Close a channel |
+| `try_send` | `(ch Channel, value int) -> bool` | Non-blocking send; returns false if full |
+| `try_receive` | `(ch Channel) -> (int, bool)` | Non-blocking receive; returns value and success |
 
 ### 9.25 Memory Module (`@mem`)
 
@@ -3466,9 +3599,18 @@ Runtime errors include location information (file, line, column).
 
 ## 11. Memory Model
 
-### 11.1 Memory Management
+### 11.1 Automatic Scope-Based Arena Management (ASBAM)
 
-EZ uses **scope-based automatic memory management**. When a block of code ends, whether a function body, a loop iteration, or a conditional block, any memory it created is freed. If a value needs to survive because it escapes the scope, EZ handles it automatically.
+EZ uses **Automatic Scope-Based Arena Management (ASBAM)**, a memory management model that combines arena allocators with scope-driven lifecycle control and automatic escape detection. There is no garbage collector, no reference counting, and no ownership annotations. The compiler infers everything from scope structure.
+
+ASBAM is built on four principles:
+
+1. **Arena allocation** — memory is allocated from arena regions and freed in bulk, not per-object. There is no per-allocation overhead.
+2. **Scope-driven lifecycle** — every scope boundary (function, loop iteration, conditional block) defines a memory region. When the scope ends, its region is reclaimed in a single operation.
+3. **Automatic escape detection** — when a value created inside a scope is stored somewhere that outlives that scope, the compiler automatically deep-copies it to the outer scope's arena before the inner arena is reclaimed.
+4. **Dual-arena separation** — two arenas serve distinct roles: a default arena for scope-bound temporaries, and a heap arena for persistent allocations via `new()`.
+
+When a block of code ends, whether a function body, a loop iteration, or a conditional block, any memory it created is freed. If a value needs to survive because it escapes the scope, ASBAM handles it automatically.
 
 ```ez
 do process(name string) {
@@ -3547,11 +3689,11 @@ mem.reset(scratch)
 mem.destroy(scratch)
 ```
 
-Most users never import the `@mem` module. The automatic scope model handles their allocations.
+Most users never import the `@mem` module. ASBAM handles their allocations.
 
 ### 11.7 Memory Safety
 
-EZ is **not memory safe** in the way that Rust or similar languages are. However, the scope-based memory model prevents many common memory errors automatically, and the compiler catches several more at compile time.
+EZ is **memory safe by default**. ASBAM prevents common memory errors automatically, and the compiler catches several more at compile time. Memory safety is not unconditionally guaranteed — opting into the `@mem` module or unsynchronized threading introduces hazards that the programmer is responsible for. But for programs that stay within EZ's defaults, memory safety holds without annotations or manual management.
 
 **Compile-time checked:**
 
@@ -3561,7 +3703,7 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 | Cross-scope pointer assignment | Warning when a pointer in an outer scope is assigned from `addr()` of a value in an inner scope |
 | Double-free on `@mem` arenas | Straight-line double `mem.destroy()` on the same variable is rejected |
 
-**Prevented by the scope model:**
+**Prevented by ASBAM:**
 
 | Hazard | How |
 |--------|-----|
@@ -3590,20 +3732,20 @@ EZ is **not memory safe** in the way that Rust or similar languages are. However
 | Data races | Multiple threads accessing shared data without `sync.lock()` |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
+For most EZ programs, those that don't use the `@mem` module, raw pointers, or threading, ASBAM combined with compile-time checks and runtime panics provides practical safety without annotations or manual memory management.
 
 ### 11.8 Under the Hood
 
-EZ's scope-based memory model is built on **arena allocators**. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in one operation.
+ASBAM is implemented using arena allocators. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in a single O(1) operation.
 
-#### Program Startup
+#### Dual-Arena Architecture
 
-Every EZ program starts with two arenas:
+Every EZ program starts with two arenas, and each thread gets its own independent pair:
 
-- **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out.
-- **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped. This is why pointers returned by `new()` are always valid until the program exits.
+- **The default arena** — used by all runtime allocations: strings, arrays, maps, and temporaries. This is the arena that scopes swap in and out. When a scope ends, this arena is either watermark-reset (void functions, blocks) or destroyed entirely (non-void functions).
+- **The heap arena** — used exclusively by `new()`. It lives for the entire program and is never swapped or reset. This is why pointers returned by `new()` are always valid until the program exits.
 
-Each thread gets its own pair of arenas, so multithreaded programs do not contend over memory.
+The per-thread isolation means multithreaded programs never contend over memory allocation.
 
 #### How Scopes Work
 
@@ -3689,7 +3831,7 @@ The `ez` command-line tool provides the following commands:
 | `ez fmt <path>` | Format source files |
 | `ez doc <path>` | Generate documentation from `#doc` attributes |
 | `ez pz <name>` | Scaffold a new project |
-| `ez man <name>` | Show documentation for builtins and stdlib |
+| `ez man <name>` | Show documentation for builtins, stdlib, and language reference |
 | `ez report` | Print system info for bug reports |
 | `ez update` | Check for updates and upgrade |
 | `ez install <version>` | Install a specific version by exact semver |
@@ -3731,7 +3873,7 @@ ez build <file.ez> [flags]
 | Flag | Description |
 |------|-------------|
 | `-o, --output <name>` | Output binary name. Defaults to the input filename without `.ez`. |
-| `--emit-c` | Emit the generated C source file without compiling to a binary. |
+| `--emit-c` | Emit the generated C source to a file without compiling to a binary. No binary is produced. Uses `-o` for the output path, or defaults to `<input>.c` (e.g., `main.ez` → `main.c`). |
 | `--time` | Show compilation timing. |
 | `-q, --quiet <codes>` | Suppress warnings. |
 | `--no-color` | Disable colored output. |
@@ -3739,6 +3881,7 @@ ez build <file.ez> [flags]
 ```bash
 ez build main.ez -o myapp
 ez build main.ez --emit-c
+ez build main.ez --emit-c -o output.c
 ez build main.ez --time -q all
 ```
 
@@ -3853,7 +3996,7 @@ ez pz                          # interactive mode
 
 ### 13.8 `ez man`
 
-Show documentation for builtin functions, stdlib modules, and stdlib types.
+Show documentation for builtin functions, stdlib modules, stdlib types, and language reference (keywords, types, symbols, attributes).
 
 ```
 ez man [name]
@@ -3866,6 +4009,11 @@ ez man [name]
 | `<module>` | List all functions and types in a stdlib module. |
 | `<name>` | Show documentation for a specific function or type. |
 | `<module>.<name>` | Qualified lookup to resolve ambiguity. |
+| `lang` | Overview of all language reference categories. |
+| `keywords` | List all keywords by category. |
+| `types` | List all types by category. |
+| `symbols` | List all symbols. |
+| `attributes` | List all attributes. |
 
 ```bash
 ez man
@@ -3873,9 +4021,16 @@ ez man builtins
 ez man math
 ez man println
 ez man strings.contains
+ez man lang
+ez man keywords
+ez man struct
+ez man i8
+ez man flags
 ```
 
 > 💡 **Flip's Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `ez` sees them. Use the name alone: `ez man println`, not `ez man println()`.
+
+> 💡 **Flip's Tip:** For attributes, omit the `#` prefix — the shell treats `#` as a comment. Use `ez man flags`, not `ez man #flags`.
 
 ### 13.9 `ez report`
 

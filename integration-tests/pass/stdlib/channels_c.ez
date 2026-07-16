@@ -1,7 +1,7 @@
 /*
  * channels_c.ez - Integration test for the channels module (compiler)
  *
- * Covers: open, send, receive, close
+ * Covers: open, send, receive, close, try_send, try_receive
  */
 
 import @channels
@@ -65,9 +65,51 @@ do main() {
         failed += 1
     }
 
-    // Test 6: close channel
+    // Test 6: try_send success
+    mut ch2 = channels.open(1)
+    mut ok bool = channels.try_send(ch2, 42)
+    if ok {
+        println("  [PASS] try_send success")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] try_send success")
+        failed += 1
+    }
+
+    // Test 7: try_send full
+    mut ok2 bool = channels.try_send(ch2, 99)
+    if !ok2 {
+        println("  [PASS] try_send full")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] try_send full")
+        failed += 1
+    }
+
+    // Test 8: try_receive success
+    mut val2 int, got bool = channels.try_receive(ch2)
+    if got && val2 == 42 {
+        println("  [PASS] try_receive success")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] try_receive success: val=${val2} got=${got}")
+        failed += 1
+    }
+
+    // Test 9: try_receive empty
+    mut val3 int, got2 bool = channels.try_receive(ch2)
+    if !got2 && val3 == 0 {
+        println("  [PASS] try_receive empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] try_receive empty: val=${val3} got=${got2}")
+        failed += 1
+    }
+
+    // Test 10: close channel
     channels.close(ch)
     channels.close(buf)
+    channels.close(ch2)
     println("  [PASS] channels.close")
     passed += 1
 

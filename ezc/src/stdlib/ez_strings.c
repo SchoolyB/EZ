@@ -73,6 +73,15 @@ int64_t ez_strings_index_of(EzString s, EzString sub) {
     return -1;
 }
 
+int64_t ez_strings_last_index_of(EzString s, EzString sub) {
+    if (sub.len == 0) return s.len;
+    if (sub.len > s.len) return -1;
+    for (int32_t i = s.len - sub.len; i >= 0; i--) {
+        if (memcmp(s.data + i, sub.data, (size_t)sub.len) == 0) return i;
+    }
+    return -1;
+}
+
 int64_t ez_strings_count(EzString s, EzString sub) {
     if (sub.len == 0) return 0;
     int64_t count = 0;
@@ -87,6 +96,18 @@ int64_t ez_strings_count(EzString s, EzString sub) {
 
 bool ez_strings_is_empty(EzString s) {
     return s.len == 0;
+}
+
+EzString ez_strings_remove_prefix(EzArena *arena, EzString s, EzString prefix) {
+    if (prefix.len > s.len || memcmp(s.data, prefix.data, (size_t)prefix.len) != 0) return s;
+    int32_t new_len = s.len - prefix.len;
+    return ez_string_new(arena, s.data + prefix.len, new_len);
+}
+
+EzString ez_strings_remove_suffix(EzArena *arena, EzString s, EzString suffix) {
+    if (suffix.len > s.len || memcmp(s.data + s.len - suffix.len, suffix.data, (size_t)suffix.len) != 0) return s;
+    int32_t new_len = s.len - suffix.len;
+    return ez_string_new(arena, s.data, new_len);
 }
 
 EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString new_s) {
@@ -189,6 +210,34 @@ EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep) {
     return r;
 }
 
+
+EzArray ez_strings_to_chars(EzArena *arena, EzString s) {
+    EzArray arr = ez_array_new(arena, sizeof(int32_t), s.len);
+    for (int32_t i = 0; i < s.len; i++) {
+        int32_t c = (int32_t)(unsigned char)s.data[i];
+        ez_array_push(arena, &arr, &c);
+    }
+    return arr;
+}
+
+EzString ez_strings_from_chars(EzArena *arena, EzArray *chars) {
+    int32_t n = chars->len;
+    char *buf = ez_arena_alloc(arena, (size_t)n + 1);
+    int32_t *data = (int32_t *)chars->data;
+    for (int32_t i = 0; i < n; i++) {
+        buf[i] = (char)data[i];
+    }
+    buf[n] = '\0';
+    return ez_string_new(arena, buf, n);
+}
+
+char ez_strings_char_at(EzString s, int64_t index) {
+    if (index < 0 || index >= s.len) {
+        ez_panic_code("P0082", "string index %d out of bounds (length %d)",
+                      (int)index, (int)s.len);
+    }
+    return s.data[index];
+}
 
 bool ez_strings_is_alpha(char c)      { return isalpha((unsigned char)c) != 0; }
 bool ez_strings_is_digit(char c)      { return isdigit((unsigned char)c) != 0; }

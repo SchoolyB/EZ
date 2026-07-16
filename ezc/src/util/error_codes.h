@@ -59,7 +59,7 @@
     EZ_ERROR("E2015", "syntax", "duplicate field '%s' in struct literal; field can only be initialized once") \
     EZ_ERROR("E2016", "syntax", "enum '%s' has no values; an enum must have at least one value") \
     EZ_ERROR("E2017", "syntax", "stray comma; remove the extra ','") \
-    EZ_ERROR("E2025", "syntax", "expected integer for array size; the second value in [type, size] must be a positive integer") \
+    EZ_ERROR("E2025", "syntax", "expected integer or constant for array size; the second value in [type, size] must be a positive integer or a const integer identifier") \
     EZ_ERROR("E2036", "syntax", "imports must be at the top of the file, not inside a function") \
     EZ_ERROR("E2037", "syntax", "duplicate function name in struct; each function must have a unique name") \
     EZ_ERROR("E2038", "syntax", "reserved name for struct or enum; this name is used by the language") \
@@ -97,7 +97,8 @@
     EZ_ERROR("E2083", "syntax", "enum variant '%s' cannot have both a payload and an explicit value") \
     EZ_ERROR("E2084", "syntax", "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result") \
     EZ_ERROR("E2085", "syntax", "when statement already has a default branch; only one default is allowed") \
-    EZ_ERROR("E2086", "syntax", "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range")
+    EZ_ERROR("E2086", "syntax", "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range") \
+    EZ_ERROR("E2087", "syntax", "type parameters (<?>) cannot be mixed with value parameters in the same function")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -139,7 +140,7 @@
     EZ_ERROR("E3048", "types", "operator '+' is not defined for strings; use string interpolation or fmt.format() instead") \
     EZ_ERROR("E3049", "types", "cannot use '%s' on enum values; enums only support == and != comparisons") \
     EZ_ERROR("E3050", "types", "array needs a type annotation; declare as [T] (e.g., mut x [int] = {1, 2, 3})") \
-    EZ_ERROR("E3051", "types", "map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})") \
+    EZ_ERROR("E3051", "types", "map needs a type annotation; declare as [K:V] or map[K:V] (e.g., mut x [string:int] = {\"a\": 1})") \
     EZ_ERROR("E3052", "types", "too many elements in array initializer; declared size is %d, got %d") \
     EZ_ERROR("E3053", "types", "type mismatch in array initializer; expected '%s', got '%s'") \
     EZ_ERROR("E3054", "types", "mutable arrays cannot have a fixed size; remove the size or use 'const' (e.g., mut %s %.*s] = ...)") \
@@ -204,14 +205,18 @@
     EZ_ERROR("E3114", "types", "variant '%s' of enum '%s' has no payload; remove the arguments") \
     EZ_ERROR("E3115", "types", "enum '%s' is not a tagged enum; variant '%s' cannot be called") \
     EZ_ERROR("E3116", "types", "wrong number of bindings for variant '%s'; expected %d, got %d") \
-    EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'") \
+    EZ_ERROR("E3117", "types", "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT', or cast to int with cast(value, int)") \
     EZ_ERROR("E3118", "types", "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'") \
     EZ_ERROR("E3119", "types", "fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s'") \
     EZ_ERROR("E3120", "types", "pointer ordering comparisons are not supported; only == and != are allowed on pointers") \
     EZ_ERROR("E3121", "types", "cannot use '%s' as a condition in a when statement; allowed types are int, uint, string, char, byte, bool, float, and enum") \
     EZ_ERROR("E3122", "safety", "cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer") \
     EZ_ERROR("E3123", "iteration", "for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count") \
-    EZ_ERROR("E3124", "types", "operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or !=")
+    EZ_ERROR("E3124", "types", "operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or !=") \
+    EZ_ERROR("E3125", "types", "'%s' is not a compile-time integer constant; array size must be a const int/uint value") \
+    EZ_ERROR("E3126", "types", "array size must be greater than zero; '%s' resolves to %d") \
+    EZ_ERROR("E3127", "types", "type parameter expects a struct type name, but '%s' is not a struct; only struct types can be passed as type arguments") \
+    EZ_ERROR("E3128", "types", "type parameter expects a struct type name, but got a non-type expression; pass a struct type name like 'MyStruct'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

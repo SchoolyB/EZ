@@ -49,6 +49,10 @@ void ez_os_set_env(EzString name, EzString value) {
     setenv(name.data, value.data, 1);
 }
 
+void ez_os_unset_env(EzString name) {
+    unsetenv(name.data);
+}
+
 EzString ez_os_cwd(EzArena *arena) {
     char buf[PATH_MAX];
     if (getcwd(buf, sizeof(buf))) {

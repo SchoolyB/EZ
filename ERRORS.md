@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 359 codes** (241 errors, 17 warnings, 101 panics)
+**Total: 364 codes** (246 errors, 17 warnings, 101 panics)
 
 ---
 
@@ -39,7 +39,7 @@
 | `E2015` | syntax | duplicate field '%s' in struct literal; field can only be initialized once |
 | `E2016` | syntax | enum '%s' has no values; an enum must have at least one value |
 | `E2017` | syntax | stray comma; remove the extra ',' |
-| `E2025` | syntax | expected integer for array size; the second value in [type, size] must be a positive integer |
+| `E2025` | syntax | expected integer or constant for array size; the second value in [type, size] must be a positive integer or a const integer identifier |
 | `E2036` | syntax | imports must be at the top of the file, not inside a function |
 | `E2037` | syntax | duplicate function name in struct; each function must have a unique name |
 | `E2038` | syntax | reserved name for struct or enum; this name is used by the language |
@@ -78,6 +78,7 @@
 | `E2084` | syntax | blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result |
 | `E2085` | syntax | when statement already has a default branch; only one default is allowed |
 | `E2086` | syntax | '%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range |
+| `E2087` | syntax | type parameters (<?>) cannot be mixed with value parameters in the same function |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -116,7 +117,7 @@
 | `E3048` | types | operator '+' is not defined for strings; use string interpolation or fmt.format() instead |
 | `E3049` | types | cannot use '%s' on enum values; enums only support == and != comparisons |
 | `E3050` | types | array needs a type annotation; declare as [T] (e.g., mut x [int] = {1, 2, 3}) |
-| `E3051` | types | map needs a type annotation; declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1}) |
+| `E3051` | types | map needs a type annotation; declare as [K:V] or map[K:V] (e.g., mut x [string:int] = {\"a\": 1}) |
 | `E3052` | types | too many elements in array initializer; declared size is %d, got %d |
 | `E3053` | types | type mismatch in array initializer; expected '%s', got '%s' |
 | `E3054` | types | mutable arrays cannot have a fixed size; remove the size or use 'const' (e.g., mut %s %.*s] = ...) |
@@ -181,7 +182,7 @@
 | `E3114` | types | variant '%s' of enum '%s' has no payload; remove the arguments |
 | `E3115` | types | enum '%s' is not a tagged enum; variant '%s' cannot be called |
 | `E3116` | types | wrong number of bindings for variant '%s'; expected %d, got %d |
-| `E3117` | types | cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT' |
+| `E3117` | types | cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT', or cast to int with cast(value, int) |
 | `E3118` | types | cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT' |
 | `E3119` | types | fixed-size arrays are not allowed in function parameters; use '[%s]' instead of '%s' for parameter '%s' |
 | `E3120` | types | pointer ordering comparisons are not supported; only == and != are allowed on pointers |
@@ -189,6 +190,10 @@
 | `E3122` | safety | cannot take the address of const '%s'; addr() on an immutable variable would allow mutation through the pointer |
 | `E3123` | iteration | for_each with both positions discarded accesses nothing; use 'for _ in range(0, len(collection))' to iterate by count |
 | `E3124` | types | operator '%s' is not defined for tagged enum '%s'; tagged enums carry payloads and cannot be compared with == or != |
+| `E3125` | types | '%s' is not a compile-time integer constant; array size must be a const int/uint value |
+| `E3126` | types | array size must be greater than zero; '%s' resolves to %d |
+| `E3127` | types | type parameter expects a struct type name, but '%s' is not a struct; only struct types can be passed as type arguments |
+| `E3128` | types | type parameter expects a struct type name, but got a non-type expression; pass a struct type name like 'MyStruct' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -410,4 +415,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-10 08:15:03 UTC*
+*Generated on 2026-07-16 08:23:05 UTC*

@@ -123,6 +123,19 @@ bool ez_strings_ends_with(EzString s, EzString suffix);
  */
 int64_t ez_strings_index_of(EzString s, EzString sub);
 
+/*@man last_index_of
+ *@module strings
+ *@group Query
+ *@sig last_index_of(s string, sub string) -> int
+ *@desc Returns the byte index of the last occurrence of sub in s, or -1 if not found.
+ *@example
+ *   import @strings
+ *   println(strings.last_index_of("hello world hello", "hello"))
+ *   println(strings.last_index_of("hello world", "xyz"))
+ *@end
+ */
+int64_t ez_strings_last_index_of(EzString s, EzString sub);
+
 /*@man count
  *@module strings
  *@group Query
@@ -147,6 +160,32 @@ int64_t ez_strings_count(EzString s, EzString sub);
  *@end
  */
 bool ez_strings_is_empty(EzString s);
+
+/*@man remove_prefix
+ *@module strings
+ *@group Transformation
+ *@sig remove_prefix(s string, prefix string) -> string
+ *@desc Returns s with the given prefix removed. If s does not start with prefix, it is returned unchanged.
+ *@example
+ *   import @strings
+ *   println(strings.remove_prefix("hello world", "hello "))
+ *   println(strings.remove_prefix("hello world", "xyz"))
+ *@end
+ */
+EzString ez_strings_remove_prefix(EzArena *arena, EzString s, EzString prefix);
+
+/*@man remove_suffix
+ *@module strings
+ *@group Transformation
+ *@sig remove_suffix(s string, suffix string) -> string
+ *@desc Returns s with the given suffix removed. If s does not end with suffix, it is returned unchanged.
+ *@example
+ *   import @strings
+ *   println(strings.remove_suffix("hello world", " world"))
+ *   println(strings.remove_suffix("hello world", "xyz"))
+ *@end
+ */
+EzString ez_strings_remove_suffix(EzArena *arena, EzString s, EzString suffix);
 
 /*@man replace
  *@module strings
@@ -221,6 +260,46 @@ EzArray ez_strings_split(EzArena *arena, EzString s, EzString sep);
  *@end
  */
 EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep);
+
+/*@man char_at
+ *@module strings
+ *@group Access
+ *@sig char_at(s string, index int) -> char
+ *@desc Returns the character at the given byte index. Panics if the index is out of bounds.
+ *@example
+ *   import @strings
+ *   println(strings.char_at("hello", 0))
+ *   println(strings.char_at("hello", 4))
+ *@end
+ */
+char ez_strings_char_at(EzString s, int64_t index);
+
+/*@man to_chars
+ *@module strings
+ *@group Conversion
+ *@sig to_chars(s string) -> [char]
+ *@desc Converts a string to an array of its individual characters.
+ *@example
+ *   import @strings
+ *   mut chars [char] = strings.to_chars("hello")
+ *   println(chars[0])
+ *@end
+ */
+EzArray ez_strings_to_chars(EzArena *arena, EzString s);
+
+/*@man from_chars
+ *@module strings
+ *@group Conversion
+ *@sig from_chars(chars [char]) -> string
+ *@desc Converts an array of characters back into a string.
+ *@example
+ *   import @strings
+ *   mut chars [char] = strings.to_chars("hello")
+ *   mut s string = strings.from_chars(chars)
+ *   println(s)
+ *@end
+ */
+EzString ez_strings_from_chars(EzArena *arena, EzArray *chars);
 
 /*@man is_alpha
  *@module strings

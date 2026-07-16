@@ -1,0 +1,12 @@
+import @strings
+
+do main() {
+    mut chars [char] = {'H', 'i', '!'}
+    mut s string = strings.from_chars(chars)
+    println(s)
+
+    mut data [byte] = {0x48, 0x69, 0x21}
+    println(data[0])
+    println(data[1])
+    println(data[2])
+}

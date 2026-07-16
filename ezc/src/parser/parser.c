@@ -279,6 +279,20 @@ static const char *parse_complex_type(Parser *p) {
                 next_token(p);
             }
             const char *inner = read_type_name(p);
+            if (peek_token_is(p, TOK_COLON)) {
+                /* Last bracket was map shorthand: [[K:V]] = [map[K:V]] */
+                depth--;
+                next_token(p); /* skip : */
+                next_token(p); /* value type */
+                const char *val_type = parse_complex_type(p);
+                if (!val_type) return NULL;
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                size_t klen = strlen(inner), vlen = strlen(val_type);
+                size_t map_len = klen + vlen + 7;
+                char *map_str = arena_alloc(p->arena, map_len);
+                snprintf(map_str, map_len, "map[%s:%s]", inner, val_type);
+                inner = map_str;
+            }
             for (int d = 0; d < depth; d++) {
                 if (!expect_peek(p, TOK_RBRACKET)) return NULL;
             }
@@ -308,7 +322,7 @@ static const char *parse_complex_type(Parser *p) {
             if (peek_token_is(p, TOK_COMMA)) {
                 next_token(p); /* skip , */
                 next_token(p); /* size */
-                if (!cur_token_is(p, TOK_INT)) {
+                if (!cur_token_is(p, TOK_INT) && !cur_token_is(p, TOK_IDENT)) {
                     diag_error_code(p->diag, "E2025", p->file, p->cur_token.line, p->cur_token.column, 0);
                 }
                 const char *sz = p->cur_token.literal;
@@ -331,11 +345,23 @@ static const char *parse_complex_type(Parser *p) {
             return NULL;
         } else {
             const char *elem = read_type_name(p);
-            if (peek_token_is(p, TOK_COMMA)) {
-                /* Fixed-size array: [int, 3] */
+            if (peek_token_is(p, TOK_COLON)) {
+                /* Map shorthand: [K:V] → normalized to "map[K:V]" */
+                next_token(p); /* skip : */
+                next_token(p); /* value type */
+                const char *val_type = parse_complex_type(p);
+                if (!val_type) return NULL;
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                size_t klen = strlen(elem), vlen = strlen(val_type);
+                size_t ts_len = klen + vlen + 7;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "map[%s:%s]", elem, val_type);
+                return type_str;
+            } else if (peek_token_is(p, TOK_COMMA)) {
+                /* Fixed-size array: [int, 3] or [int, SIZE] */
                 next_token(p); /* skip , */
                 next_token(p); /* size */
-                if (!cur_token_is(p, TOK_INT)) {
+                if (!cur_token_is(p, TOK_INT) && !cur_token_is(p, TOK_IDENT)) {
                     diag_error_code(p->diag, "E2025", p->file, p->cur_token.line, p->cur_token.column, 0);
                 }
                 const char *sz = p->cur_token.literal;
@@ -1695,10 +1721,19 @@ static AstNode *parse_func_declaration(Parser *p) {
 
             /* Type name follows (unless next param or closing paren) */
             if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) ||
-                peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_QUESTION)) {
+                peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_QUESTION) ||
+                peek_token_is(p, TOK_LT)) {
                 next_token(p);
-                param->type_name = parse_complex_type(p);
-                if (!param->type_name) return NULL;
+                if (cur_token_is(p, TOK_LT)) {
+                    /* <?> type parameter syntax */
+                    if (!expect_peek(p, TOK_QUESTION)) return NULL;
+                    if (!expect_peek(p, TOK_GT)) return NULL;
+                    param->type_name = "?";
+                    param->is_type_param = true;
+                } else {
+                    param->type_name = parse_complex_type(p);
+                    if (!param->type_name) return NULL;
+                }
             } else if (peek_token_is(p, TOK_AMPERSAND)) {
                 /* Common mistake: `name &type` instead of `&name type`.
                  * Without this, the loop has no token to consume and
@@ -1752,6 +1787,21 @@ static AstNode *parse_func_declaration(Parser *p) {
                 "parameter '%s' is missing a type; every parameter must have a type (e.g., %s int)",
                 p_i->name, p_i->name);
             diag_error_msg(p->diag, "E2002", arena_strdup(p->arena, buf),
+                p->file, node->token.line, node->token.column, 0);
+        }
+    }
+
+    /* E2087: type parameters (<?>) cannot be mixed with value parameters */
+    {
+        bool has_type_param = false, has_value_param = false;
+        for (int i = 0; i < node->data.func_decl.param_count; i++) {
+            if (node->data.func_decl.params[i].is_type_param)
+                has_type_param = true;
+            else
+                has_value_param = true;
+        }
+        if (has_type_param && has_value_param) {
+            diag_error_code(p->diag, "E2087",
                 p->file, node->token.line, node->token.column, 0);
         }
     }

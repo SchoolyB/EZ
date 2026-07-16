@@ -15,7 +15,8 @@ do main() {
     mut chunk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     mut body = strings.repeat(chunk, 300)
 
-    mut resp, err = http.post("http://httpbun.com/post", body)
+    mut headers map[string:string] = {:}
+    mut resp, err = http.post("http://httpbun.com/post", body, headers)
     if err != nil {
         println("FAIL: unexpected error: ${err}")
         fail += 1

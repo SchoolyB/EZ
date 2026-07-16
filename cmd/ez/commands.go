@@ -291,7 +291,7 @@ func reportCCompiler() (path, version, triple string) {
 }
 
 func printManUsage() {
-	fmt.Println("ez man — builtin and stdlib documentation")
+	fmt.Println("ez man — builtin, stdlib, and language reference documentation")
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  ez man builtins          list all builtins")
@@ -310,6 +310,16 @@ func printManUsage() {
 	}
 	sort.Strings(mods)
 	fmt.Printf("  %s\n", strings.Join(mods, "  "))
+	fmt.Println()
+	fmt.Println("Language Reference:")
+	fmt.Println("  ez man lang              overview of all language reference categories")
+	fmt.Println("  ez man keywords          list all keywords")
+	fmt.Println("  ez man types             list all types")
+	fmt.Println("  ez man symbols           list all symbols")
+	fmt.Println("  ez man attributes        list all attributes")
+	fmt.Println()
+	fmt.Println("  Note: for attributes, omit the # prefix (e.g. ez man flags, not ez man #flags)")
+	fmt.Println("  Note: for functions, omit the () suffix (e.g. ez man math.sqrt, not ez man math.sqrt())")
 }
 
 func printBuiltinsIndex() {
@@ -410,6 +420,53 @@ func printStdlibModuleIndex(module string) {
 		}
 		fmt.Printf("  %s  %s\n", g.Label, strings.Join(labels, "  "))
 	}
+	fmt.Println()
+	fmt.Println("  Tip: omit the () when looking up functions (e.g. ez man " + module + "." + groups[0].Names[0] + ")")
+}
+
+func printLangIndex() {
+	fmt.Println("Language Reference  (ez man <category> for details)")
+	fmt.Println(strings.Repeat("─", 50))
+	for _, cat := range []string{"keywords", "types", "symbols", "attributes"} {
+		groups := langCategories[cat]
+		var allNames []string
+		for _, g := range groups {
+			allNames = append(allNames, g.Names...)
+		}
+		fmt.Printf("  %-14s %s\n", cat, strings.Join(allNames, "  "))
+	}
+}
+
+func printLangCategoryIndex(category string) {
+	groups, ok := langCategories[category]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "ez: no language reference category '%s'\n", category)
+		fmt.Fprintf(os.Stderr, "    try: ez man lang\n")
+		os.Exit(1)
+	}
+	fmt.Printf("lang: %s  (ez man <name> for details)\n", category)
+	fmt.Println(strings.Repeat("─", 50))
+	for _, g := range groups {
+		fmt.Printf("  %s  %s\n", g.Label, strings.Join(g.Names, "  "))
+	}
+	if category == "attributes" {
+		fmt.Println()
+		fmt.Println("  Tip: omit the # when looking up attributes (e.g. ez man flags)")
+	}
+}
+
+func printLangEntry(displayName string, entry LangManEntry) {
+	fmt.Printf("lang: %s\n", displayName)
+	fmt.Println(strings.Repeat("─", 46))
+	fmt.Printf("Kind:    %s\n", entry.Kind)
+	fmt.Printf("Syntax:  %s\n", entry.Syntax)
+	fmt.Printf("\n%s\n", entry.Desc)
+	if entry.Example != "" {
+		fmt.Println("\nExample:")
+		for _, line := range strings.Split(entry.Example, "\n") {
+			fmt.Printf("  %s\n", line)
+		}
+	}
 }
 
 var manCmd = &cobra.Command{
@@ -426,6 +483,16 @@ var manCmd = &cobra.Command{
 
 		if name == "builtins" || name == "builtin" {
 			printBuiltinsIndex()
+			return
+		}
+
+		// Language reference index and categories
+		if name == "lang" || name == "language" {
+			printLangIndex()
+			return
+		}
+		if name == "keywords" || name == "types" || name == "symbols" || name == "attributes" {
+			printLangCategoryIndex(name)
 			return
 		}
 
@@ -472,8 +539,26 @@ var manCmd = &cobra.Command{
 			return
 		}
 
+		// Language reference lookup — direct key
+		if entry, ok := langManDocs[name]; ok {
+			printLangEntry(langDisplayName(name), entry)
+			return
+		}
+		// Language reference lookup — type suffix fallback (e.g. "i8" -> "i8_type")
+		if entry, ok := langManDocs[name+"_type"]; ok {
+			printLangEntry(name, entry)
+			return
+		}
+		// Language reference lookup — symbol alias (e.g. "pointer" -> "^")
+		if target, ok := langSymbolAliases[name]; ok {
+			if entry, ok := langManDocs[target]; ok {
+				printLangEntry(target, entry)
+				return
+			}
+		}
+
 		fmt.Fprintf(os.Stderr, "ez: no documentation for '%s'\n", name)
-		fmt.Fprintf(os.Stderr, "    try: ez man builtins\n")
+		fmt.Fprintf(os.Stderr, "    try: ez man builtins  or  ez man lang\n")
 		os.Exit(1)
 	},
 }
@@ -567,7 +652,7 @@ Use "ez [command] --help" for more information about a command.
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
 	buildCmd.Flags().MarkHidden("verbose")
-	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
+	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source to a file (no binary). Uses -o for output path, or defaults to <input>.c")
 	buildCmd.Flags().Bool("time", false, "Show compilation timing")
 	buildCmd.Flags().Bool("no-color", false, "Disable colored output")
 	rootCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")

@@ -918,12 +918,16 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"strings", "to_upper", 1, 1}, {"strings", "to_lower", 1, 1},
     {"strings", "is_empty", 1, 1}, {"strings", "contains", 2, 2},
     {"strings", "starts_with", 2, 2}, {"strings", "ends_with", 2, 2},
-    {"strings", "index_of", 2, 2}, {"strings", "count", 2, 2},
+    {"strings", "index_of", 2, 2}, {"strings", "last_index_of", 2, 2}, {"strings", "count", 2, 2},
     {"strings", "trim", 1, 1}, {"strings", "trim_left", 1, 1},
-    {"strings", "trim_right", 1, 1}, {"strings", "replace", 3, 3},
+    {"strings", "trim_right", 1, 1},
+    {"strings", "remove_prefix", 2, 2}, {"strings", "remove_suffix", 2, 2},
+    {"strings", "replace", 3, 3},
     {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
     {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
     {"strings", "slice", 3, 3},
+    {"strings", "char_at", 2, 2},
+    {"strings", "to_chars", 1, 1}, {"strings", "from_chars", 1, 1},
     {"strings", "is_alpha", 1, 1}, {"strings", "is_digit", 1, 1},
     {"strings", "is_alnum", 1, 1}, {"strings", "is_whitespace", 1, 1},
     {"strings", "is_upper", 1, 1}, {"strings", "is_lower", 1, 1},
@@ -955,8 +959,8 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"csv", "read_file", 1, 1}, {"csv", "write_file", 2, 2},
     {"csv", "headers", 1, 1},
     /* http */
-    {"http", "get", 1, 1}, {"http", "delete", 1, 1}, {"http", "head", 1, 1},
-    {"http", "post", 2, 2}, {"http", "put", 2, 2}, {"http", "patch", 2, 2},
+    {"http", "get", 2, 2}, {"http", "delete", 2, 2}, {"http", "head", 2, 2},
+    {"http", "post", 3, 3}, {"http", "put", 3, 3}, {"http", "patch", 3, 3},
     /* net */
     {"net", "connect", 2, 2}, {"net", "listen", 1, 2},
     {"net", "accept", 1, 1}, {"net", "send", 2, 2},
@@ -968,9 +972,9 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"time", "hour", 1, 1}, {"time", "minute", 1, 1}, {"time", "second", 1, 1},
     {"time", "weekday", 1, 1}, {"time", "format", 2, 2},
     {"time", "to_iso", 1, 1}, {"time", "date", 1, 1}, {"time", "to_clock", 1, 1},
-    {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1},
+    {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1}, {"time", "diff", 2, 2},
     /* os */
-    {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2},
+    {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2}, {"os", "unset_env", 1, 1},
     {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
     {"os", "hostname", 0, 0}, {"os", "pid", 0, 0},
     {"os", "current_os", 0, 0}, {"os", "arch", 0, 0},
@@ -988,6 +992,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"arrays", "remove", 2, 2},
     {"arrays", "map", 2, 2}, {"arrays", "filter", 2, 2},
     {"arrays", "reduce", 3, 3},
+    {"arrays", "any", 2, 2}, {"arrays", "all", 2, 2},
     /* bytes */
     {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
     {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
@@ -1040,12 +1045,14 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     /* channels */
     {"channels", "open", 1, 1}, {"channels", "send", 2, 2},
     {"channels", "receive", 1, 1}, {"channels", "close", 1, 1},
+    {"channels", "try_send", 2, 2}, {"channels", "try_receive", 1, 1},
     /* atomic */
     {"atomic", "load", 1, 1}, {"atomic", "store", 2, 2},
     {"atomic", "add", 2, 2}, {"atomic", "sub", 2, 2},
     {"atomic", "exchange", 2, 2}, {"atomic", "cas", 3, 3},
     {"atomic", "and", 2, 2}, {"atomic", "or", 2, 2}, {"atomic", "xor", 2, 2},
-    {"atomic", "spinlock", 0, 0}, {"atomic", "spin_lock", 1, 1},
+    {"atomic", "spinlock", 0, 0}, {"atomic", "spinlock_destroy", 1, 1},
+    {"atomic", "spin_lock", 1, 1},
     {"atomic", "spin_trylock", 1, 1}, {"atomic", "spin_unlock", 1, 1},
     {"atomic", "fence", 0, 0},
     /* fmt */
@@ -1130,7 +1137,7 @@ static void tc_check_strconv_base(TypeChecker *tc, const char *mod,
  * expected types so we can catch type mismatches before they leak to C.
  * ARG_ANY means no validation (the function accepts mixed types). */
 typedef enum {
-    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR
+    ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR, ARG_CHANNEL
 } ExpectedArgKind;
 
 typedef struct {
@@ -1145,18 +1152,25 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"strings", "to_upper", 0, ARG_STRING}, {"strings", "to_lower", 0, ARG_STRING},
     {"strings", "is_empty", 0, ARG_STRING}, {"strings", "contains", 0, ARG_STRING},
     {"strings", "starts_with", 0, ARG_STRING}, {"strings", "ends_with", 0, ARG_STRING},
-    {"strings", "index_of", 0, ARG_STRING}, {"strings", "count", 0, ARG_STRING},
+    {"strings", "index_of", 0, ARG_STRING}, {"strings", "last_index_of", 0, ARG_STRING},
+    {"strings", "count", 0, ARG_STRING},
     {"strings", "trim", 0, ARG_STRING}, {"strings", "trim_left", 0, ARG_STRING},
-    {"strings", "trim_right", 0, ARG_STRING}, {"strings", "replace", 0, ARG_STRING},
+    {"strings", "trim_right", 0, ARG_STRING},
+    {"strings", "remove_prefix", 0, ARG_STRING}, {"strings", "remove_prefix", 1, ARG_STRING},
+    {"strings", "remove_suffix", 0, ARG_STRING}, {"strings", "remove_suffix", 1, ARG_STRING},
+    {"strings", "replace", 0, ARG_STRING},
     {"strings", "repeat", 0, ARG_STRING}, {"strings", "reverse", 0, ARG_STRING},
     {"strings", "split", 0, ARG_STRING}, {"strings", "slice", 0, ARG_STRING},
     {"strings", "contains", 1, ARG_STRING}, {"strings", "starts_with", 1, ARG_STRING},
     {"strings", "ends_with", 1, ARG_STRING}, {"strings", "index_of", 1, ARG_STRING},
+    {"strings", "last_index_of", 1, ARG_STRING},
     {"strings", "count", 1, ARG_STRING}, {"strings", "replace", 1, ARG_STRING},
     {"strings", "replace", 2, ARG_STRING}, {"strings", "split", 1, ARG_STRING},
     {"strings", "repeat", 1, ARG_INT},
     {"strings", "slice", 1, ARG_INT}, {"strings", "slice", 2, ARG_INT},
     {"strings", "join", 0, ARG_ARRAY}, {"strings", "join", 1, ARG_STRING},
+    {"strings", "char_at", 0, ARG_STRING}, {"strings", "char_at", 1, ARG_INT},
+    {"strings", "to_chars", 0, ARG_STRING}, {"strings", "from_chars", 0, ARG_ARRAY},
     {"strings", "is_alpha", 0, ARG_CHAR}, {"strings", "is_digit", 0, ARG_CHAR},
     {"strings", "is_alnum", 0, ARG_CHAR}, {"strings", "is_whitespace", 0, ARG_CHAR},
     {"strings", "is_upper", 0, ARG_CHAR}, {"strings", "is_lower", 0, ARG_CHAR},
@@ -1200,6 +1214,13 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"csv", "parse", 0, ARG_STRING},
     {"csv", "read_file", 0, ARG_STRING}, {"csv", "write_file", 0, ARG_STRING},
     {"csv", "headers", 0, ARG_ARRAY},
+    /* http: url is string, body is string, headers is map */
+    {"http", "get", 0, ARG_STRING}, {"http", "get", 1, ARG_MAP},
+    {"http", "delete", 0, ARG_STRING}, {"http", "delete", 1, ARG_MAP},
+    {"http", "head", 0, ARG_STRING}, {"http", "head", 1, ARG_MAP},
+    {"http", "post", 0, ARG_STRING}, {"http", "post", 1, ARG_STRING}, {"http", "post", 2, ARG_MAP},
+    {"http", "put", 0, ARG_STRING}, {"http", "put", 1, ARG_STRING}, {"http", "put", 2, ARG_MAP},
+    {"http", "patch", 0, ARG_STRING}, {"http", "patch", 1, ARG_STRING}, {"http", "patch", 2, ARG_MAP},
     /* bytes */
     {"bytes", "from_string", 0, ARG_STRING}, {"bytes", "from_hex", 0, ARG_STRING},
     {"bytes", "from_base64", 0, ARG_STRING}, {"bytes", "to_string", 0, ARG_ARRAY},
@@ -1214,6 +1235,11 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"server", "json", 1, ARG_STRING},
     {"server", "html", 1, ARG_STRING},
     {"server", "redirect", 1, ARG_STRING},
+    /* channels: value arg must be int */
+    {"channels", "send", 0, ARG_CHANNEL}, {"channels", "send", 1, ARG_INT},
+    {"channels", "receive", 0, ARG_CHANNEL}, {"channels", "close", 0, ARG_CHANNEL},
+    {"channels", "try_send", 0, ARG_CHANNEL}, {"channels", "try_send", 1, ARG_INT},
+    {"channels", "try_receive", 0, ARG_CHANNEL},
     /* math: numeric argument required for all single-arg functions */
     {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
     {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
@@ -1259,6 +1285,8 @@ static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
     case ARG_NUMBER: return actual->kind == TK_INT || actual->kind == TK_UINT ||
                             actual->kind == TK_BYTE || actual->kind == TK_FLOAT;
     case ARG_CHAR:   return actual->kind == TK_CHAR;
+    case ARG_CHANNEL: return actual->kind == TK_STRUCT &&
+                             actual->name && strcmp(actual->name, "Channel") == 0;
     }
     return true;
 }
@@ -1274,6 +1302,7 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     case ARG_ANY:    return "any";
     case ARG_NUMBER: return "number";
     case ARG_CHAR:   return "char";
+    case ARG_CHANNEL: return "Channel";
     }
     return "unknown";
 }
@@ -1552,7 +1581,9 @@ static const UsingFunc _using_funcs[] = {
     /* strings */
     {"to_upper","strings",TK_STRING},{"to_lower","strings",TK_STRING},
     {"trim","strings",TK_STRING},{"trim_left","strings",TK_STRING},
-    {"trim_right","strings",TK_STRING},{"replace","strings",TK_STRING},
+    {"trim_right","strings",TK_STRING},
+    {"remove_prefix","strings",TK_STRING},{"remove_suffix","strings",TK_STRING},
+    {"replace","strings",TK_STRING},
     {"repeat","strings",TK_STRING},{"reverse","strings",TK_STRING},
     {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
     {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
@@ -1560,7 +1591,9 @@ static const UsingFunc _using_funcs[] = {
     {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
     {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
     {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
-    {"index_of","strings",TK_INT},{"count","strings",TK_INT},
+    {"char_at","strings",TK_CHAR},
+    {"to_chars","strings",TK_ARRAY},{"from_chars","strings",TK_STRING},
+    {"index_of","strings",TK_INT},{"last_index_of","strings",TK_INT},{"count","strings",TK_INT},
     {"split","strings",TK_ARRAY},
     {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
     {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
@@ -1601,6 +1634,7 @@ static const UsingFunc _using_funcs[] = {
     {"index_of","arrays",TK_INT},
     {"is_empty","arrays",TK_BOOL},{"contains","arrays",TK_BOOL},
     {"is_equal","arrays",TK_BOOL},
+    {"any","arrays",TK_BOOL},{"all","arrays",TK_BOOL},
     /* maps (arg-dependent get_keys/get_values handled by special case) */
     {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
     {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
@@ -1643,13 +1677,13 @@ static const UsingFunc _using_funcs[] = {
     {"normalize","io",TK_STRING},
     /* os */
     {"args","os",TK_ARRAY},{"get_env","os",TK_STRING},
-    {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
+    {"set_env","os",TK_VOID},{"unset_env","os",TK_VOID},{"current_dir","os",TK_STRING},
     {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
     {"current_os","os",TK_INT},{"pid","os",TK_INT},
     {"exec","os",TK_BOOL},
     /* time */
     {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
-    {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},
+    {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},{"diff","time",TK_INT},
     {"year","time",TK_INT},{"month","time",TK_INT},{"day","time",TK_INT},
     {"hour","time",TK_INT},{"minute","time",TK_INT},{"second","time",TK_INT},
     {"weekday","time",TK_INT},
@@ -1725,12 +1759,14 @@ static const UsingFunc _using_funcs[] = {
     {"add","atomic",TK_INT},{"sub","atomic",TK_INT},
     {"exchange","atomic",TK_INT},{"cas","atomic",TK_BOOL},
     {"and","atomic",TK_INT},{"or","atomic",TK_INT},{"xor","atomic",TK_INT},
-    {"spinlock","atomic",TK_UNKNOWN},{"spin_lock","atomic",TK_VOID},
+    {"spinlock","atomic",TK_UNKNOWN},{"spinlock_destroy","atomic",TK_VOID},
+    {"spin_lock","atomic",TK_VOID},
     {"spin_trylock","atomic",TK_BOOL},{"spin_unlock","atomic",TK_VOID},
     {"fence","atomic",TK_VOID},
     /* channels */
     {"open","channels",TK_UNKNOWN},{"send","channels",TK_VOID},
     {"receive","channels",TK_INT},{"close","channels",TK_VOID},
+    {"try_send","channels",TK_BOOL},{"try_receive","channels",TK_INT},
     /* server */
     {"add_router","server",TK_UNKNOWN},{"add_route","server",TK_VOID},
     {"listen","server",TK_VOID},{"cors","server",TK_VOID},
@@ -1958,6 +1994,86 @@ static void tc_register_const_int(TypeChecker *tc, const char *name, int64_t val
     tc->const_int_names[tc->const_int_count] = name;
     tc->const_int_values[tc->const_int_count] = value;
     tc->const_int_count++;
+}
+
+/* Resolve a non-numeric array size identifier in a fixed-size array type
+ * string like "[int,SIZE]".  If the size field is already numeric this is
+ * a no-op.  Otherwise the name is looked up in const_int_names/values and
+ * the type string on the var_decl node is rewritten to its numeric form
+ * so that downstream code (E3052/W3003, codegen extract_array_size) sees
+ * only numeric size strings.
+ *
+ * Emits E3125 if the identifier is not a known const int.
+ * Emits E3126 if the resolved value is <= 0. */
+static void tc_resolve_array_size(TypeChecker *tc, AstNode *node) {
+    const char *tn = node->data.var_decl.type_name;
+    /* Find the top-level comma separating element type from size. */
+    const char *size_comma = NULL;
+    int depth = 0;
+    for (const char *c = tn; *c; c++) {
+        if (*c == '(' || *c == '[') depth++;
+        else if (*c == ')' || *c == ']') depth--;
+        else if (*c == ',' && depth == 1) { size_comma = c; break; }
+    }
+    if (!size_comma) return; /* no size field */
+
+    /* Extract the size substring: after comma, before closing ']' */
+    const char *size_start = size_comma + 1;
+    const char *rbracket = strrchr(tn, ']');
+    if (!rbracket || rbracket <= size_start) return;
+    size_t sz_len = (size_t)(rbracket - size_start);
+    char size_buf[256];
+    if (sz_len >= sizeof(size_buf)) return;
+    memcpy(size_buf, size_start, sz_len);
+    size_buf[sz_len] = '\0';
+
+    /* If already numeric, nothing to resolve. */
+    char *endp = NULL;
+    long val = strtol(size_buf, &endp, 10);
+    if (endp && *endp == '\0') {
+        (void)val;
+        return;
+    }
+
+    /* Look up the identifier in the const int table. */
+    bool found = false;
+    int64_t resolved = 0;
+    for (int i = 0; i < tc->const_int_count; i++) {
+        if (strcmp(tc->const_int_names[i], size_buf) == 0) {
+            resolved = tc->const_int_values[i];
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        char *msg = tc_fmt(tc,
+            "'%s' is not a compile-time integer constant; array size must be a const int/uint value",
+            size_buf);
+        diag_error_msg(tc->diag, "E3125", msg,
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        return;
+    }
+    if (resolved <= 0) {
+        char *msg = tc_fmt(tc,
+            "array size must be greater than zero; '%s' resolves to %d",
+            size_buf, (int)resolved);
+        diag_error_msg(tc->diag, "E3126", msg,
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        return;
+    }
+
+    /* Rewrite the type string with the resolved numeric value.
+     * e.g. "[int,SIZE]" → "[int,5]" */
+    size_t prefix_len = (size_t)(size_comma + 1 - tn);
+    char num_buf[32];
+    int num_len = snprintf(num_buf, sizeof(num_buf), "%d", (int)resolved);
+    size_t new_len = prefix_len + (size_t)num_len + 2; /* +1 for ']' +1 for '\0' */
+    char *new_tn = arena_alloc(tc->arena, new_len);
+    memcpy(new_tn, tn, prefix_len);
+    memcpy(new_tn + prefix_len, num_buf, (size_t)num_len);
+    new_tn[prefix_len + (size_t)num_len] = ']';
+    new_tn[prefix_len + (size_t)num_len + 1] = '\0';
+    node->data.var_decl.type_name = new_tn;
 }
 
 /* Try to evaluate node as a compile-time integer constant.
@@ -2268,6 +2384,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_LABEL: {
         const char *name = node->data.label.value;
 
+        /* Type parameter name (e.g. T) — resolve as unknown during main
+         * pass, or as the concrete binding during re-check.
+         * Also handle "?" which is the rewritten form of T. */
+        if (tc->type_param_name &&
+            (strcmp(name, tc->type_param_name) == 0 ||
+             strcmp(name, "?") == 0)) {
+            if (tc->type_param_binding) {
+                result = type_from_name(tc->type_param_binding);
+            } else {
+                result = &TYPE_UNKNOWN;
+            }
+            break;
+        }
+
         /* Type names used as values are caught downstream; they won't match
          * any variable in scope, and functions like new(), mem.make(), and casts
          * legitimately take type names as arguments. */
@@ -2564,7 +2694,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* String + string: reject with helpful message */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) && op == TOK_PLUS) {
-            diag_error_code(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3048", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "use string interpolation \"${a}${b}\" or fmt.format() to combine strings");
             infix_errored = true;
         }
 
@@ -3546,14 +3677,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "is_alnum") == 0 || strcmp(mfn, "is_whitespace") == 0 ||
                     strcmp(mfn, "is_upper") == 0 || strcmp(mfn, "is_lower") == 0) {
                     result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "char_at") == 0) {
+                    result = &TYPE_CHAR;
+                } else if (strcmp(mfn, "to_chars") == 0) {
+                    result = type_array("char");
+                } else if (strcmp(mfn, "from_chars") == 0) {
+                    result = &TYPE_STRING;
                 } else if (strcmp(mfn, "index_of") == 0 ||
+                           strcmp(mfn, "last_index_of") == 0 ||
                            strcmp(mfn, "count") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "split") == 0) {
                     result = type_array("string");
                 } else if (strcmp(mfn, "to_upper") == 0 || strcmp(mfn, "to_lower") == 0 ||
                            strcmp(mfn, "trim") == 0 || strcmp(mfn, "trim_left") == 0 ||
-                           strcmp(mfn, "trim_right") == 0 || strcmp(mfn, "replace") == 0 ||
+                           strcmp(mfn, "trim_right") == 0 ||
+                           strcmp(mfn, "remove_prefix") == 0 || strcmp(mfn, "remove_suffix") == 0 ||
+                           strcmp(mfn, "replace") == 0 ||
                            strcmp(mfn, "repeat") == 0 || strcmp(mfn, "reverse") == 0 ||
                            strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0) {
                     result = &TYPE_STRING;
@@ -3589,7 +3729,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "now") == 0 || strcmp(mfn, "now_ms") == 0 ||
                            strcmp(mfn, "now_ns") == 0 || strcmp(mfn, "tick") == 0 ||
-                           strcmp(mfn, "elapsed_ms") == 0 ||
+                           strcmp(mfn, "elapsed_ms") == 0 || strcmp(mfn, "diff") == 0 ||
                            strcmp(mfn, "year") == 0 || strcmp(mfn, "month") == 0 ||
                            strcmp(mfn, "day") == 0 || strcmp(mfn, "hour") == 0 ||
                            strcmp(mfn, "minute") == 0 || strcmp(mfn, "second") == 0 ||
@@ -3720,7 +3860,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "arrays") == 0) {
                 if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0 ||
-                    strcmp(mfn, "is_equal") == 0) {
+                    strcmp(mfn, "is_equal") == 0 ||
+                    strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "get_sum") == 0 ||
                            strcmp(mfn, "get_min") == 0 || strcmp(mfn, "get_max") == 0 ||
@@ -3832,6 +3973,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
+                /* E3001: arrays.remove_at/insert_at index must be int */
+                if ((strcmp(mfn, "remove_at") == 0 && node->data.call.arg_count >= 2) ||
+                    (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 2)) {
+                    AstNode *idx_node = node->data.call.args[1];
+                    EzType *idx_t = resolve_expr(tc, idx_node);
+                    if (idx_t && idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind)) {
+                        char *msg = NULL;
+                        msg = tc_fmt(tc,
+                            "arrays.%s() expects an int index, got %s",
+                            mfn, type_name(idx_t));
+                        diag_error_msg(tc->diag, "E3001", msg,
+                            NODE_FILE(tc, idx_node), idx_node->token.line, idx_node->token.column, 0);
+                    }
+                }
                 /* E9002: arrays.sum/min/max require numeric array */
                 if ((strcmp(mfn, "sum") == 0 || strcmp(mfn, "min") == 0 ||
                      strcmp(mfn, "max") == 0) && node->data.call.arg_count > 0) {
@@ -3904,7 +4059,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 /* E9003/E9004: map/filter/reduce callback validation */
                 if ((strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0 ||
-                     strcmp(mfn, "reduce") == 0) && node->data.call.arg_count >= 2) {
+                     strcmp(mfn, "reduce") == 0 ||
+                     strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) && node->data.call.arg_count >= 2) {
                     /* Determine which arg is the callback */
                     int cb_idx = (strcmp(mfn, "reduce") == 0) ? 2 : 1;
                     if (cb_idx < node->data.call.arg_count) {
@@ -3940,20 +4096,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                                 NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                                 mfn, "map callback must return a value");
                                         }
-                                    } else if (strcmp(mfn, "filter") == 0) {
+                                    } else if (strcmp(mfn, "filter") == 0 ||
+                                               strcmp(mfn, "any") == 0 ||
+                                               strcmp(mfn, "all") == 0) {
                                         if (cb_fs->param_count != 1) {
                                             char *msg = NULL;
                                             msg = tc_fmt(tc,
-                                                "filter callback must take 1 parameter, got %d",
-                                                cb_fs->param_count);
+                                                "%s callback must take 1 parameter, got %d",
+                                                mfn, cb_fs->param_count);
                                             diag_error_codef(tc->diag, "E9004",
                                                 NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                                 mfn, msg);
                                         } else if (cb_fs->return_count < 1 ||
                                                    cb_fs->return_types[0]->kind != TK_BOOL) {
+                                            char *msg = NULL;
+                                            msg = tc_fmt(tc,
+                                                "%s callback must return bool", mfn);
                                             diag_error_codef(tc->diag, "E9004",
                                                 NODE_FILE(tc, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, "filter callback must return bool");
+                                                mfn, msg);
                                         }
                                     } else { /* reduce */
                                         if (cb_fs->param_count != 2) {
@@ -3997,7 +4158,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "set_env") == 0) {
+                } else if (strcmp(mfn, "set_env") == 0 || strcmp(mfn, "unset_env") == 0) {
                     result = &TYPE_VOID;
                 } else if (strcmp(mfn, "exec") == 0) {
                     result = &TYPE_BOOL;
@@ -4098,7 +4259,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_struct("SpinLock"); /* EzSpinLock; opaque */
                 } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "fence") == 0 ||
                            strcmp(mfn, "spin_lock") == 0 ||
-                           strcmp(mfn, "spin_unlock") == 0) {
+                           strcmp(mfn, "spin_unlock") == 0 ||
+                           strcmp(mfn, "spinlock_destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -4107,10 +4269,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "channels") == 0) {
                 if (strcmp(mfn, "open") == 0) {
                     result = type_struct("Channel"); /* EzChannel; opaque */
-                } else if (strcmp(mfn, "receive") == 0) {
+                } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "try_receive") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "send") == 0 || strcmp(mfn, "close") == 0) {
                     result = &TYPE_VOID;
+                } else if (strcmp(mfn, "try_send") == 0) {
+                    result = &TYPE_BOOL;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -5160,6 +5324,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "size_of") == 0) {
+                /* Rewrite size_of(T) → size_of(?) when T is a type param */
+                if (node->data.call.arg_count == 1 &&
+                    node->data.call.args[0]->kind == NODE_LABEL &&
+                    tc->type_param_name &&
+                    strcmp(node->data.call.args[0]->data.label.value,
+                           tc->type_param_name) == 0) {
+                    node->data.call.args[0]->data.label.value = "?";
+                }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_char") == 0) {
                 if (node->data.call.arg_count != 2) {
@@ -5489,8 +5661,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     msg = tc_fmt(tc,
                         "cannot convert %s to %s; only numeric types, strings, and bools can be converted",
                         type_name(src_t), fn_name);
-                    diag_error_msg(tc->diag, "E3043", msg,
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    diag_error_help(tc->diag, "E3043", msg,
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        "only numeric, enum, and string conversions are supported");
                 }
                 if (strcmp(fn_name, "byte") == 0)
                     result = &TYPE_BYTE;
@@ -5621,6 +5794,39 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
                         for (int ai = 0; ai < cc; ai++) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
+                            /* Type parameter (<?>) — binding comes from the label
+                             * (a struct name), not from resolve_expr. */
+                            if (sig->decl->data.func_decl.params[ai].is_type_param) {
+                                if (node->data.call.args[ai]->kind != NODE_LABEL) {
+                                    diag_error_code(tc->diag, "E3128",
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                }
+                                const char *arg_label = node->data.call.args[ai]->data.label.value;
+                                /* Must not be a variable in scope */
+                                if (scope_lookup(tc->current_scope, arg_label)) {
+                                    diag_error_code(tc->diag, "E3128",
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    continue;
+                                }
+                                /* Must be a struct name */
+                                if (!is_struct_name(tc, arg_label)) {
+                                    diag_error_codef(tc->diag, "E3127",
+                                        NODE_FILE(tc, node->data.call.args[ai]),
+                                        node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0,
+                                        arg_label);
+                                    continue;
+                                }
+                                if (!generic_binding) {
+                                    generic_binding = (char *)arg_label;
+                                }
+                                continue;
+                            }
                             EzType *at = resolve_expr(tc, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
                             /* E3100: struct/enum type name passed as a value argument */
@@ -5702,6 +5908,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     int check_count = node->data.call.arg_count < sig->param_count
                         ? node->data.call.arg_count : sig->param_count;
                     for (int ai = 0; ai < check_count; ai++) {
+                        /* Skip type parameters — no value to type-check */
+                        if (sig->decl && sig->decl->kind == NODE_FUNC_DECL &&
+                            ai < sig->decl->data.func_decl.param_count &&
+                            sig->decl->data.func_decl.params[ai].is_type_param)
+                            continue;
                         EzType *param_t = sig->param_types[ai];
                         /* Set expected_type for implicit enum resolution */
                         EzType *saved_expected = tc->expected_type;
@@ -6689,6 +6900,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_STRUCT_VALUE: {
         const char *sname = node->data.struct_value.name;
+        /* Type parameter: rewrite T → "?" so codegen can substitute */
+        if (tc->type_param_name && strcmp(sname, tc->type_param_name) == 0) {
+            node->data.struct_value.name = "?";
+            sname = "?";
+        }
+        if (strcmp(sname, "?") == 0) {
+            /* During re-check with a binding, validate with concrete struct */
+            if (tc->type_param_binding) {
+                sname = tc->type_param_binding;
+            } else {
+                /* Main pass — skip field validation, return unknown */
+                for (int i = 0; i < node->data.struct_value.count; i++)
+                    resolve_expr(tc, node->data.struct_value.field_values[i]);
+                result = &TYPE_UNKNOWN;
+                break;
+            }
+        }
         tc_mark_type_module_used(tc, sname);
         StructInfo *si = find_struct(tc, sname);
         /* E4016: reject undefined/unimported struct types in struct literals */
@@ -6940,26 +7168,43 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 msg = tc_fmt(tc,
                     "cannot cast '%s' to '%s'",
                     tn, node->data.cast.target_type);
-                diag_error_msg(tc->diag, "E3043", msg,
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                diag_error_help(tc->diag, "E3043", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "only primitive-to-primitive casts are supported (e.g. cast(x, int), cast(x, string))");
             }
         }
         result = dst_t;
         break;
     }
 
-    case NODE_NEW_EXPR:
-        tc_mark_type_module_used(tc, node->data.new_expr.type_name);
-        if (!is_struct_name(tc, node->data.new_expr.type_name)) {
-            char *msg = NULL;
-            msg = tc_fmt(tc,
-                "new() requires a struct type, but '%s' is not a struct",
-                node->data.new_expr.type_name);
-            diag_error_msg(tc->diag, "E3041", msg,
-                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+    case NODE_NEW_EXPR: {
+        const char *new_type = node->data.new_expr.type_name;
+        /* Type parameter: rewrite T → "?" so codegen can substitute */
+        if (tc->type_param_name && strcmp(new_type, tc->type_param_name) == 0) {
+            node->data.new_expr.type_name = "?";
+            new_type = "?";
         }
-        result = type_pointer(node->data.new_expr.type_name);
+        if (strcmp(new_type, "?") == 0) {
+            /* During re-check with a binding, validate the concrete type */
+            if (tc->type_param_binding) {
+                result = type_pointer(tc->type_param_binding);
+            } else {
+                result = type_pointer("?");
+            }
+        } else {
+            tc_mark_type_module_used(tc, new_type);
+            if (!is_struct_name(tc, new_type)) {
+                char *msg = NULL;
+                msg = tc_fmt(tc,
+                    "new() requires a struct type, but '%s' is not a struct",
+                    new_type);
+                diag_error_msg(tc->diag, "E3041", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            result = type_pointer(new_type);
+        }
         break;
+    }
 
     case NODE_FUNC_REF: {
         /* Validate that the referenced function exists.
@@ -7398,25 +7643,28 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_code(tc->diag, "E5013",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
-        /* Track file-scope const integer values for constant folding in later
-         * declarations.  Also detect overflow in const arithmetic expressions:
-         * codegen emits runtime overflow-check wrappers (ez_add_check etc.)
-         * which are not valid as C file-scope initializers.  The typechecker
-         * must evaluate and reject overflowing expressions before codegen runs.
+        /* Track const integer values for constant folding in later
+         * declarations (e.g. fixed-size array sizes).  Also detect overflow
+         * in const arithmetic expressions: codegen emits runtime
+         * overflow-check wrappers (ez_add_check etc.) which are not valid
+         * as C file-scope initializers.  The typechecker must evaluate and
+         * reject overflowing expressions before codegen runs.
          * E5039: constant expression overflows the declared integer type. */
-        if (tc->func_depth == 0 && !node->data.var_decl.mutable &&
+        if (!node->data.var_decl.mutable &&
             node->data.var_decl.type_name && node->data.var_decl.value) {
             const char *tn = node->data.var_decl.type_name;
-            /* Only track signed integer types in the const table.  Unsigned
-             * types (uint, u64, u8…) can hold values that do not fit in
-             * int64_t, so folding them with signed arithmetic would produce
-             * wrong results.  Unsigned overflow detection is left to a
-             * separate check; for now we just ensure the codegen fix applies
-             * (in_const_decl suppresses the runtime wrapper). */
-            bool is_signed_int_type =
+            /* Track integer types (signed and unsigned) in the const table.
+             * Unsigned values that fit in int64_t are stored as-is; this
+             * covers practical array-size use cases.  Full uint64 overflow
+             * detection is left to a separate check; for now we just ensure
+             * the codegen fix applies (in_const_decl suppresses the runtime
+             * wrapper). */
+            bool is_int_type =
                 strcmp(tn, "int") == 0 || strcmp(tn, "i64") == 0 ||
-                strcmp(tn, "i8") == 0 || strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0;
-            if (is_signed_int_type) {
+                strcmp(tn, "i8") == 0 || strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0 ||
+                strcmp(tn, "uint") == 0 || strcmp(tn, "u64") == 0 ||
+                strcmp(tn, "u8") == 0 || strcmp(tn, "u16") == 0 || strcmp(tn, "u32") == 0;
+            if (is_int_type) {
                 int64_t folded = 0;
                 bool overflowed = false;
                 bool ok = tc_fold_const_int(tc, node->data.var_decl.value, &folded, &overflowed);
@@ -7533,7 +7781,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* E3059: maps cannot be declared const */
         if (!node->data.var_decl.mutable && node->data.var_decl.type_name &&
             strncmp(node->data.var_decl.type_name, "map[", 4) == 0) {
-            diag_error_code(tc->diag, "E3059", NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            diag_error_code_help(tc->diag, "E3059", NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                "change 'const' to 'mut'; use a struct for fixed key-value data");
         }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
@@ -7553,11 +7802,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
             strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
             if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
-                diag_error_code(tc->diag, "E3050",
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                diag_error_code_help(tc->diag, "E3050",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "add a type annotation, e.g. mut x [int] = {1, 2, 3}");
             } else if (node->data.var_decl.value->kind == NODE_MAP_VALUE) {
-                diag_error_code(tc->diag, "E3051",
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                diag_error_code_help(tc->diag, "E3051",
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "add a type annotation, e.g. mut x [string:int] = {\"a\": 1}");
             }
         }
 
@@ -7575,14 +7826,26 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 else if (*c == ',' && depth == 1) { size_comma = c; break; }
             }
             bool has_size = size_comma != NULL;
+            /* Resolve const identifier sizes (e.g. "[int,SIZE]" → "[int,5]")
+             * before the mut/const checks so downstream code always sees
+             * numeric type strings. */
+            if (has_size) {
+                tc_resolve_array_size(tc, node);
+                /* Re-read type_name — tc_resolve_array_size may have rewritten it. */
+                tn = node->data.var_decl.type_name;
+            }
             if (node->data.var_decl.mutable && has_size) {
-                diag_error_codef(tc->diag, "E3054", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
-                    (int)(size_comma - tn), tn);
+                char *msg = tc_fmt(tc, "mutable array '%s' cannot have a fixed size '%.*s'",
+                    VAR_DISPLAY_NAME(node), (int)(size_comma - tn), tn);
+                diag_error_help(tc->diag, "E3054", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "use 'const' for fixed-size arrays, or remove the size for a dynamic 'mut' array");
             } else if (!node->data.var_decl.mutable && !has_size) {
-                diag_error_codef(tc->diag, "E3055", NODE_FILE(tc, node), node->token.line, node->token.column, 0, VAR_DISPLAY_NAME(node),
-                    (int)(strlen(tn) - 2), tn + 1,
-                    node->data.var_decl.value && node->data.var_decl.value->kind == NODE_ARRAY_VALUE
-                        ? node->data.var_decl.value->data.array_value.count : 0);
+                char *msg = tc_fmt(tc, "const array '%s' of type [%.*s] must have a fixed size",
+                    VAR_DISPLAY_NAME(node), (int)(strlen(tn) - 2), tn + 1);
+                diag_error_help(tc->diag, "E3055", msg,
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                    "add a size: const name [type, N] = {...}, or use 'mut' for a dynamic array");
             }
         }
 
@@ -7708,6 +7971,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         diag_error_codef(tc->diag, "E3089", NODE_FILE(tc, node),
                             node->token.line, node->token.column, 0,
                             call_name, call_name, call_name);
+                    } else if (call_mod && strcmp(call_mod, "channels") == 0 &&
+                               strcmp(call_name, "try_receive") == 0) {
+                        diag_error_codef(tc->diag, "E3040", NODE_FILE(tc, node),
+                            node->token.line, node->token.column, 0,
+                            call_name, 2, call_name);
                     }
                 }
             }
@@ -8485,6 +8753,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             sym->ret_count = 4;
                         }
                     }
+                    /* channels.try_receive returns (int, bool) */
+                    if (strcmp(mod, "channels") == 0 && strcmp(mfn, "try_receive") == 0) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            EzType **rt = xmalloc(sizeof(EzType *) * 2);
+                            rt[0] = &TYPE_INT;
+                            rt[1] = &TYPE_BOOL;
+                            sym->ret_types = rt;
+                            sym->ret_count = 2;
+                        }
+                    }
                 }
                 /* User-defined module calls (mod.func); look up the prefixed
                  * function signature and propagate multi-return types so
@@ -9200,9 +9480,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         char full[EZ_MSG_BUF_SIZE];
                         const char *display_obj = struct_display_name(tc, obj_name);
                         snprintf(full, sizeof(full), "%s.%s()", display_obj, mem_name);
-                        diag_error_codef(tc->diag, "E5011",
+                        char *msg = tc_fmt(tc, "return value of '%s' is not used", full);
+                        diag_error_help(tc->diag, "E5011", msg,
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                            full);
+                            "assign the result to a variable, or use 'mut _ = ...' to discard it");
                     }
                     is_side_effect = true; /* already handled */
                 }
@@ -9210,9 +9491,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (!is_side_effect && fn_name) {
                 char full[EZ_MSG_BUF_SIZE];
                 snprintf(full, sizeof(full), "%s()", fn_name);
-                diag_error_codef(tc->diag, "E5011",
+                char *msg = tc_fmt(tc, "return value of '%s' is not used", full);
+                diag_error_help(tc->diag, "E5011", msg,
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0,
-                    full);
+                    "assign the result to a variable, or use 'mut _ = ...' to discard it");
             }
         }
         /* : double-free detection for mem.destroy() */
@@ -9564,6 +9846,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* Define parameters in function scope, check for duplicates */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
             Param *p = &node->data.func_decl.params[i];
+            /* Type parameter (<?>) — not a variable; just record the name
+             * so the body can recognise T in type positions. */
+            if (p->is_type_param) {
+                tc->type_param_name = p->name;
+                continue;
+            }
             /* E2038: reserved type name as parameter name */
             if (is_reserved_type_name(p->name)) {
                 char *msg = NULL;
@@ -9627,7 +9915,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                 }
                 if (prev_has_default) {
-                    diag_error_codef(tc->diag, "E2039", NODE_FILE(tc, node), node->token.line, node->token.column, 0, p->name);
+                    char *msg = tc_fmt(tc, "required parameter '%s' follows a parameter with a default value", p->name);
+                    diag_error_help(tc->diag, "E2039", msg,
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        "move all parameters with default values to the end of the parameter list");
                 }
             }
             /* E3119: fixed-size array in function parameter */
@@ -9644,8 +9935,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     char elem[EZ_MSG_BUF_SIZE];
                     int elem_len = (int)(size_comma - tn - 1);
                     snprintf(elem, sizeof(elem), "%.*s", elem_len, tn + 1);
-                    diag_error_codef(tc->diag, "E3119", NODE_FILE(tc, node),
-                        node->token.line, node->token.column, 0, elem, tn, p->name);
+                    char *msg = tc_fmt(tc, "fixed-size array type '%s' is not allowed in function parameter '%s'; use [%s] instead",
+                        tn, p->name, elem);
+                    diag_error_help(tc->diag, "E3119", msg,
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0,
+                        "use a dynamic array type instead, e.g. [int] without a size");
                 }
             }
             EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
@@ -9929,6 +10223,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_main_return_suppressed = saved_main_suppressed;
         tc->current_func_is_main = saved_is_main;
         tc->using_module_count = prev_using_count;
+        tc->type_param_name = NULL;
+        tc->type_param_binding = NULL;
         tc->func_depth--;
         tc->current_scope = outer;
         scope_destroy(func_scope);
@@ -11236,6 +11532,12 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
             for (int pi = 0; pi < decl->data.func_decl.param_count; pi++) {
                 Param *p = &decl->data.func_decl.params[pi];
+                /* Type parameter — not a variable; set binding for body re-check */
+                if (p->is_type_param) {
+                    tc->type_param_name = p->name;
+                    tc->type_param_binding = concrete;
+                    continue;
+                }
                 char *sub = substitute_wildcard(p->type_name, concrete);
                 EzType *pt = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
                 scope_define(inst_scope, p->name, pt, p->mutable);
@@ -11292,6 +11594,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             tc->current_return_count = prev_ret_count;
             tc->current_has_named_returns = prev_named;
             tc->current_return_names = prev_return_names;
+            tc->type_param_name = NULL;
+            tc->type_param_binding = NULL;
             tc->current_scope = outer_scope;
             tc->func_depth--;
             free(ret_types);

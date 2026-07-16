@@ -184,6 +184,23 @@ EzString ez_time_date(EzArena *arena, int64_t ts);
  */
 EzString ez_time_to_clock(EzArena *arena, int64_t ts);
 
+/* Arithmetic */
+
+/*@man diff
+ *@module time
+ *@group Arithmetic
+ *@sig diff(t1 int, t2 int) -> int
+ *@desc Returns the difference between two Unix timestamps in seconds as t2 - t1. The result is negative if t1 is after t2.
+ *@example
+ *   import @time
+ *   mut start int = time.now()
+ *   mut end int = time.now()
+ *   mut delta int = time.diff(start, end)
+ *   println(delta)
+ *@end
+ */
+int64_t ez_time_diff(int64_t t1, int64_t t2);
+
 /* Performance */
 
 /*@man tick

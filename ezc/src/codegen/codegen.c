@@ -368,6 +368,14 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         if (cg && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
             resolved = resolve_unprefixed_name(cg, type_name);
         }
+        /* Module-qualified opaque types: mod_Type → strip prefix and
+         * re-resolve so opaque mappings (Channel→EzChannel etc.) apply. */
+        const char *mod_us = strchr(resolved, '_');
+        if (mod_us && mod_us[1] >= 'A' && mod_us[1] <= 'Z') {
+            const char *base = mod_us + 1;
+            const char *mapped = ez_type_to_c_cg(cg, base);
+            if (mapped != base) return mapped;
+        }
         if (cg && codegen_is_enum(cg, resolved)) {
             snprintf(buf, sizeof(buf), "EzEnum_%s", resolved);
         } else {
@@ -1089,6 +1097,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         /* Next char is also hex; break the string */
                         emit(cg, "\" \"");
                     }
+                } else if (s[0] == '\\' && s[1] == '$') {
+                    buf_append_char(&cg->output, '$');
+                    s += 2;
                 } else if (*s == '\n') {
                     emit(cg, "\\n");
                     s++;
@@ -1138,6 +1149,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 const char *s = part->data.string_value.value;
                 while (*s) {
                     if (*s == '%') buf_append(&cg->output, "%%");
+                    else if (s[0] == '\\' && s[1] == '$') { buf_append_char(&cg->output, '$'); s++; }
                     else buf_append_char(&cg->output, *s);
                     s++;
                 }
@@ -1460,6 +1472,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         case TK_MAP:    c_type = "EzMap"; break;
         case TK_ARRAY:  c_type = "EzArray"; break;
+        case TK_CHAR:   c_type = "int32_t"; break;
+        case TK_BYTE:   c_type = "uint8_t"; break;
         default:        c_type = "int64_t"; break;
         }
 
@@ -1541,8 +1555,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     case NODE_STRUCT_VALUE: {
         /* Struct literal: (EzStruct_Name){.field = value, ...} */
-        /* Resolve unprefixed struct names from 'import and use' */
+        /* Resolve ? → concrete binding for type params */
         const char *sname = node->data.struct_value.name;
+        if (strcmp(sname, "?") == 0 && cg->wildcard_binding) {
+            sname = cg->wildcard_binding;
+        }
+        /* Resolve unprefixed struct names from 'import and use' */
         if (sname[0] >= 'A' && sname[0] <= 'Z') {
             bool found = false;
             for (int si = 0; si < cg->struct_decl_count; si++) {
@@ -2481,9 +2499,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             bool map_is_rvalue = (node->data.index_expr.left->kind == NODE_INDEX_EXPR ||
                 node->data.index_expr.left->kind == NODE_CALL_EXPR);
             if (!map_is_rvalue && node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
+                AstNode *obj = node->data.index_expr.left->data.member.object;
                 EzType *obj_t = cg->type_table
-                    ? typetable_get(cg->type_table, node->data.index_expr.left->data.member.object) : NULL;
+                    ? typetable_get(cg->type_table, obj) : NULL;
                 if (obj_t && obj_t->kind == TK_POINTER) map_is_rvalue = true;
+                if (obj->kind == NODE_POSTFIX_EXPR && obj->data.postfix.op == TOK_CARET)
+                    map_is_rvalue = true;
             }
             if (map_is_rvalue) {
                 emitf(cg, "({ EzMap _mt = ");
@@ -2719,6 +2740,10 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
          * zero-filled EzMap/EzArray has key_size/value_size/elem_size = 0
          * and operations on them silently fail. */
         const char *sname = node->data.new_expr.type_name;
+        /* Resolve ? → concrete binding for type params */
+        if (strcmp(sname, "?") == 0 && cg->wildcard_binding) {
+            sname = cg->wildcard_binding;
+        }
         const char *c_type = ez_type_to_c_cg(cg, sname);
         AstNode *sdecl = find_struct_decl(cg, sname);
         bool needs_init = false;
@@ -4385,45 +4410,57 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_multi_var = is_result_temp(cg->current_var_name);
     const char *sfx = is_multi_var ? "_result" : "";
-    if (strcmp(func, "get") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "get") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_http_get%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "post") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "post") == 0 && node->data.call.arg_count == 3) {
         emitf(cg, "ez_http_post%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[2]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "put") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "put") == 0 && node->data.call.arg_count == 3) {
         emitf(cg, "ez_http_put%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[2]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "delete") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "delete") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_http_delete%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "head") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "head") == 0 && node->data.call.arg_count == 2) {
         emitf(cg, "ez_http_head%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "patch") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "patch") == 0 && node->data.call.arg_count == 3) {
         emitf(cg, "ez_http_patch%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[2]);
         emit(cg, ")");
         return true;
     }
@@ -5241,6 +5278,32 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emitf(cg, "if (_f_fn(_f_v)) { ez_arrays_append(ez_default_arena, &_f_res, &_f_v); } } _f_res; })");
         return true;
     }
+    if (strcmp(func, "any") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _a_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; bool (*_a_fn)(%s) = (void *)", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; bool _a_res = false; ");
+        emitf(cg, "for (int32_t _a_i = 0; _a_i < _a_src.len; _a_i++) { ");
+        emitf(cg, "if (_a_fn(((%s *)_a_src.data)[_a_i])) { _a_res = true; break; } } _a_res; })", c_elem);
+        return true;
+    }
+    if (strcmp(func, "all") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
+        const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+        emit(cg, "({ EzArray _l_src = ");
+        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "; bool (*_l_fn)(%s) = (void *)", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, "; bool _l_res = true; ");
+        emitf(cg, "for (int32_t _l_i = 0; _l_i < _l_src.len; _l_i++) { ");
+        emitf(cg, "if (!_l_fn(((%s *)_l_src.data)[_l_i])) { _l_res = false; break; } } _l_res; })", c_elem);
+        return true;
+    }
     if (strcmp(func, "reduce") == 0 && node->data.call.arg_count == 3) {
         EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
@@ -5311,6 +5374,12 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "unset_env") == 0) {
+        emit(cg, "ez_os_unset_env(");
+        emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
@@ -5402,14 +5471,22 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_strings_call(CodeGen *cg, AstNode *node, const char *func) {
     bool needs_arena = (strcmp(func, "to_upper") == 0 || strcmp(func, "to_lower") == 0 ||
         strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
-        strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
+        strcmp(func, "trim_right") == 0 ||
+        strcmp(func, "remove_prefix") == 0 || strcmp(func, "remove_suffix") == 0 ||
+        strcmp(func, "replace") == 0 ||
         strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
         strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
-        strcmp(func, "join") == 0);
+        strcmp(func, "join") == 0 ||
+        strcmp(func, "to_chars") == 0 || strcmp(func, "from_chars") == 0);
 
     emitf(cg, "ez_strings_%s(", func);
     if (needs_arena) {
         emit(cg, "ez_default_arena, ");
+    }
+    if (strcmp(func, "from_chars") == 0) {
+        emit_addr_of(cg, node->data.call.args[0], "_ca");
+        emit(cg, ")");
+        return true;
     }
     for (int i = 0; i < node->data.call.arg_count; i++) {
         if (i > 0) emit(cg, ", ");
@@ -5723,7 +5800,8 @@ static bool emit_atomic_call(CodeGen *cg, AstNode *node, const char *func) {
     /* Single-argument functions: load, spin_lock, spin_unlock, spin_trylock */
     if (node->data.call.arg_count == 1) {
         if (strcmp(func, "load") == 0 || strcmp(func, "spin_lock") == 0 ||
-            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0) {
+            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0 ||
+            strcmp(func, "spinlock_destroy") == 0) {
             emitf(cg, "ez_atomic_mod_%s(", func);
             emit_expression(cg, node->data.call.args[0]);
             emit(cg, ")");
@@ -5783,6 +5861,20 @@ static bool emit_channels_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "close") == 0) {
         emit(cg, "ez_channels_close(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "try_send") == 0) {
+        emit(cg, "ez_channels_try_send(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "try_receive") == 0) {
+        emit(cg, "ez_channels_try_receive(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -5858,11 +5950,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             static const struct { const char *func; const char *mod; } func_to_mod[] = {
                 /* @strings */
                 {"to_upper","strings"},{"to_lower","strings"},{"trim","strings"},
-                {"trim_left","strings"},{"trim_right","strings"},{"replace","strings"},
+                {"trim_left","strings"},{"trim_right","strings"},
+                {"remove_prefix","strings"},{"remove_suffix","strings"},{"replace","strings"},
                 {"repeat","strings"},{"reverse","strings"},{"slice","strings"},
                 {"join","strings"},{"contains","strings"},{"starts_with","strings"},
-                {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},
+                {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},{"last_index_of","strings"},
                 {"count","strings"},{"split","strings"},
+                {"char_at","strings"},{"to_chars","strings"},{"from_chars","strings"},
                 {"is_alpha","strings"},{"is_digit","strings"},{"is_alnum","strings"},
                 {"is_whitespace","strings"},{"is_upper","strings"},{"is_lower","strings"},
                 /* @math */
@@ -5888,6 +5982,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"index_of","arrays"},{"is_empty","arrays"},{"contains","arrays"},
                 {"is_equal","arrays"},
                 {"map","arrays"},{"filter","arrays"},{"reduce","arrays"},
+                {"any","arrays"},{"all","arrays"},
                 /* @maps */
                 {"has_key","maps"},{"keys","maps"},{"values","maps"},{"get_keys","maps"},
                 {"get_values","maps"},{"remove_key","maps"},{"clear","maps"},
@@ -5920,12 +6015,12 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"path_join","io"},{"dirname","io"},{"basename","io"},
                 {"extension","io"},{"normalize","io"},
                 /* @os */
-                {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
+                {"args","os"},{"get_env","os"},{"set_env","os"},{"unset_env","os"},{"current_dir","os"},
                 {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
                 {"exec","os"},
                 /* @time */
                 {"now","time"},{"now_ms","time"},{"now_ns","time"},{"tick","time"},
-                {"elapsed_ms","time"},{"year","time"},{"month","time"},{"day","time"},
+                {"elapsed_ms","time"},{"diff","time"},{"year","time"},{"month","time"},{"day","time"},
                 {"hour","time"},{"minute","time"},{"second","time"},{"weekday","time"},
                 {"format","time"},{"to_iso","time"},{"date","time"},{"to_clock","time"},
                 /* @uuid */
@@ -5977,10 +6072,11 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* @atomic */
                 {"load","atomic"},{"store","atomic"},{"add","atomic"},{"sub","atomic"},
                 {"exchange","atomic"},{"cas","atomic"},{"and","atomic"},{"or","atomic"},
-                {"xor","atomic"},{"spinlock","atomic"},{"spin_lock","atomic"},
+                {"xor","atomic"},{"spinlock","atomic"},{"spinlock_destroy","atomic"},{"spin_lock","atomic"},
                 {"spin_trylock","atomic"},{"spin_unlock","atomic"},{"fence","atomic"},
                 /* @channels */
                 {"open","channels"},{"send","channels"},{"receive","channels"},{"close","channels"},
+                {"try_send","channels"},{"try_receive","channels"},
                 /* @server */
                 {"add_router","server"},{"add_route","server"},{"listen","server"},
                 {"cors","server"},{"use","server"},{"text","server"},{"json","server"},
@@ -6382,6 +6478,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             int ac = node->data.call.arg_count;
             int cc = pc < ac ? pc : ac;
             for (int pi = 0; pi < cc && !binding; pi++) {
+                /* Type parameter: binding is the arg label directly */
+                if (target_func->data.func_decl.params[pi].is_type_param) {
+                    if (node->data.call.args[pi]->kind == NODE_LABEL) {
+                        binding = node->data.call.args[pi]->data.label.value;
+                    }
+                    continue;
+                }
                 const char *ptn = target_func->data.func_decl.params[pi].type_name;
                 if (!ptn || !strchr(ptn, '?')) continue;
                 EzType *at = cg->type_table
@@ -6639,6 +6742,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
         emit(cg, "({ ");
         for (int i = 0; i < node->data.call.arg_count; i++) {
+            if (target_func->data.func_decl.params[i].is_type_param) continue;
             const char *pname = target_func->data.func_decl.params[i].name;
             const char *ptn = target_func->data.func_decl.params[i].type_name;
             const char *c_ty = ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t";
@@ -6649,13 +6753,18 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
         emit(cg, saved_fn);
         emit(cg, "(");
-        for (int i = 0; i < total_args; i++) {
-            if (i > 0) emit(cg, ", ");
-            if (i < node->data.call.arg_count) {
-                const char *pname = target_func->data.func_decl.params[i].name;
-                emitf(cg, "%s", pname ? safe_name(pname) : "_arg");
-            } else {
-                emit_expression(cg, target_func->data.func_decl.params[i].default_value);
+        {
+            bool df_first = true;
+            for (int i = 0; i < total_args; i++) {
+                if (target_func->data.func_decl.params[i].is_type_param) continue;
+                if (!df_first) emit(cg, ", ");
+                df_first = false;
+                if (i < node->data.call.arg_count) {
+                    const char *pname = target_func->data.func_decl.params[i].name;
+                    emitf(cg, "%s", pname ? safe_name(pname) : "_arg");
+                } else {
+                    emit_expression(cg, target_func->data.func_decl.params[i].default_value);
+                }
             }
         }
         emit(cg, "); })");
@@ -6663,8 +6772,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     emit(cg, "(");
+    bool first_arg = true;
     for (int i = 0; i < total_args; i++) {
-        if (i > 0) emit(cg, ", ");
+        /* Skip type params — erased in C */
+        if (target_func && i < target_func->data.func_decl.param_count &&
+            target_func->data.func_decl.params[i].is_type_param) continue;
+        if (!first_arg) emit(cg, ", ");
+        first_arg = false;
 
         if (i < node->data.call.arg_count) {
             /* Provided argument */
@@ -8507,10 +8621,13 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         emitf(cg, "static %s ", func_return_type(cg, node));
         emitf(cg, "ez_fn_%s(", node->data.func_decl.name);
 
-        /* Parameters */
+        /* Parameters — skip type params (erased in C) */
+        bool first_param = true;
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
-            if (i > 0) emit(cg, ", ");
             Param *param = &node->data.func_decl.params[i];
+            if (param->is_type_param) continue;
+            if (!first_param) emit(cg, ", ");
+            first_param = false;
             if (param->mutable) {
                 emitf(cg, "%s *%s", ez_type_to_c_cg(cg,param->type_name), safe_name(param->name));
             } else {
@@ -8518,7 +8635,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
             }
         }
 
-        if (node->data.func_decl.param_count == 0) {
+        if (first_param) {
             emit(cg, "void");
         }
         emit(cg, ")");
@@ -9735,17 +9852,22 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             emitf(cg, "static %s ", func_return_type(cg, stmt));
             if (has_wc) stmt->data.func_decl.name = orig_name;
             emitf(cg, "ez_fn_%s(", emit_name);
-            for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
-                if (j > 0) emit(cg, ", ");
-                Param *param = &stmt->data.func_decl.params[j];
-                if (param->mutable) {
-                    emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
-                } else {
-                    emit(cg, ez_type_to_c_cg(cg,param->type_name));
+            {
+                bool fwd_first = true;
+                for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
+                    Param *param = &stmt->data.func_decl.params[j];
+                    if (param->is_type_param) continue;
+                    if (!fwd_first) emit(cg, ", ");
+                    fwd_first = false;
+                    if (param->mutable) {
+                        emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
+                    } else {
+                        emit(cg, ez_type_to_c_cg(cg,param->type_name));
+                    }
                 }
-            }
-            if (stmt->data.func_decl.param_count == 0) {
-                emit(cg, "void");
+                if (fwd_first) {
+                    emit(cg, "void");
+                }
             }
             emit(cg, ");\n");
             cg->wildcard_binding = saved_binding;
