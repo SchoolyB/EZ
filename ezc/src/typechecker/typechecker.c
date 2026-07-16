@@ -18,7 +18,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 
-#define EZ_MAX_STRUCT_DEPTH 32
+#define GRAY_MAX_STRUCT_DEPTH 32
 
 /* Helper: get the source file from an AST node's token, falling back to tc->file.
  * Imported nodes carry their original file path in token.file; main-file nodes have NULL. */
@@ -377,7 +377,7 @@ static const char *type_display_name(TypeChecker *tc, EzType *t) {
         const char *inner = struct_display_name(tc, t->name);
         if (inner == t->name) inner = enum_display_name(tc, t->name);
         if (inner != t->name) {
-            static char ptr_bufs[4][EZ_TYPE_NAME_MAX];
+            static char ptr_bufs[4][GRAY_TYPE_NAME_MAX];
             static int ptr_slot = 0;
             char *out = ptr_bufs[ptr_slot];
             ptr_slot = (ptr_slot + 1) & 3;
@@ -389,7 +389,7 @@ static const char *type_display_name(TypeChecker *tc, EzType *t) {
         const char *inner = struct_display_name(tc, t->element_type);
         if (inner == t->element_type) inner = enum_display_name(tc, t->element_type);
         if (inner != t->element_type) {
-            static char arr_bufs[4][EZ_TYPE_NAME_MAX];
+            static char arr_bufs[4][GRAY_TYPE_NAME_MAX];
             static int arr_slot = 0;
             char *out = arr_bufs[arr_slot];
             arr_slot = (arr_slot + 1) & 3;
@@ -410,7 +410,7 @@ static const char *tc_resolve_alias(TypeChecker *tc, const char *name) {
 
 /* Format a diagnostic message string into the arena (only called in error paths). */
 static char *tc_fmt(TypeChecker *tc, const char *fmt, ...) {
-    char buf[EZ_MSG_BUF_SIZE];
+    char buf[GRAY_MSG_BUF_SIZE];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -430,7 +430,7 @@ static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const
     if (!si && struct_name) {
         const char *dunder = strstr(struct_name, "__");
         if (dunder) {
-            char base[EZ_MSG_BUF_SIZE];
+            char base[GRAY_MSG_BUF_SIZE];
             size_t n = (size_t)(dunder - struct_name);
             if (n < sizeof(base)) {
                 memcpy(base, struct_name, n);
@@ -456,7 +456,7 @@ static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const
                         /* Extract base name and try again */
                         const char *dd = strstr(struct_name, "__");
                         if (dd) {
-                            char bname[EZ_MSG_BUF_SIZE];
+                            char bname[GRAY_MSG_BUF_SIZE];
                             size_t bn = (size_t)(dd - struct_name);
                             if (bn < sizeof(bname)) {
                                 memcpy(bname, struct_name, bn);
@@ -1892,7 +1892,7 @@ static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
         for (int ui = 0; ui < tc->using_module_count; ui++) {
             if (!using_module_accessible(tc, ui)) continue;
             const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
-            char prefixed[EZ_MSG_BUF_SIZE];
+            char prefixed[GRAY_MSG_BUF_SIZE];
             snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
             if (is_enum_name(tc, prefixed)) return type_enum(prefixed);
             if (is_struct_name(tc, prefixed)) return type_struct(prefixed);
@@ -2176,7 +2176,7 @@ static bool check_integer_range(DiagnosticList *diag, const char *file,
     }
 
     if (out_of_range) {
-        char msg[EZ_MSG_BUF_SIZE];
+        char msg[GRAY_MSG_BUF_SIZE];
         if (is_unsigned && value < 0) {
             if (is_u64) {
                 snprintf(msg, sizeof(msg),
@@ -2408,7 +2408,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             for (int ui = 0; ui < tc->using_module_count; ui++) {
                 if (!using_module_accessible(tc, ui)) continue;
                 const char *umod = tc_resolve_alias(tc, tc->using_modules[ui]);
-                char prefixed[EZ_MSG_BUF_SIZE];
+                char prefixed[GRAY_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", umod, name);
                 sym = scope_lookup(tc->current_scope, prefixed);
                 if (sym) {
@@ -2483,7 +2483,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                 }
                 if (is_named_return) {
-                    char help[EZ_MSG_BUF_LARGE];
+                    char help[GRAY_MSG_BUF_LARGE];
                     snprintf(help, sizeof(help),
                         "'%s' is a named return value in the function signature. Did you forget to declare 'mut %s %s' at function scope?",
                         name, name, nr_type ? nr_type : "?");
@@ -2492,7 +2492,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     const char *suggestion = suggest_name(tc, name);
                     if (suggestion) {
-                        char help[EZ_MSG_BUF_SIZE];
+                        char help[GRAY_MSG_BUF_SIZE];
                         snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                         diag_error_help(tc->diag, "E4001", msg,
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0, arena_strdup(tc->arena, help));
@@ -2632,7 +2632,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* E3002: incompatible bigint operands. Bigint arithmetic and comparison
-         * functions (ez_i128_add_checked, ez_i128_eq, etc.) only accept their
+         * functions (gray_i128_add_checked, gray_i128_eq, etc.) only accept their
          * own struct type. The only cross-type bigint combinations that codegen
          * can handle are i256+i128 and u256+u128 (the narrower type is widened).
          * Everything else — mixed signedness or the wrong direction — leaks a
@@ -3050,7 +3050,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     const char *mod_raw = afn->data.member.object->data.label.value;
                     const char *mod = tc_resolve_alias(tc, mod_raw);
                     aname = afn->data.member.member;
-                    char prefixed[EZ_MSG_BUF_SIZE];
+                    char prefixed[GRAY_MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, aname);
                     asig = find_func(tc, prefixed);
                 }
@@ -3118,7 +3118,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (fn && fn->kind == NODE_CALL_EXPR) {
             AstNode *inner_fn = fn->data.call.function;
             const char *inner_name = NULL;
-            char inner_buf[EZ_MSG_BUF_SIZE];
+            char inner_buf[GRAY_MSG_BUF_SIZE];
             if (inner_fn && inner_fn->kind == NODE_LABEL) {
                 inner_name = inner_fn->data.label.value;
             } else if (inner_fn && inner_fn->kind == NODE_MEMBER_EXPR &&
@@ -3249,7 +3249,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
             /* Look up mod_Struct_func */
-            char prefixed[EZ_MSG_BUF_SIZE];
+            char prefixed[GRAY_MSG_BUF_SIZE];
             snprintf(prefixed, sizeof(prefixed), "%s_%s_%s", mod_name, struct_name, func_name);
             FuncSig *sig = find_func(tc, prefixed);
             if (sig) {
@@ -3295,7 +3295,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             Symbol *arg_sym = scope_lookup(tc->current_scope,
                                 arg->data.label.value);
                             if (arg_sym && !arg_sym->mutable) {
-                                char emsg[EZ_MSG_BUF_SIZE];
+                                char emsg[GRAY_MSG_BUF_SIZE];
                                 snprintf(emsg, sizeof(emsg),
                                     "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s.%s'",
                                     arg_sym->name, found_decl->data.func_decl.params[ai].name,
@@ -3307,7 +3307,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         } else if (arg->kind == NODE_MEMBER_EXPR &&
                                    arg->data.member.object->kind == NODE_LABEL &&
                                    is_enum_name(tc, arg->data.member.object->data.label.value)) {
-                            char emsg[EZ_MSG_BUF_SIZE];
+                            char emsg[GRAY_MSG_BUF_SIZE];
                             snprintf(emsg, sizeof(emsg),
                                 "cannot pass enum constant to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
                                 found_decl->data.func_decl.params[ai].name,
@@ -3318,7 +3318,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         } else if (arg->kind != NODE_MEMBER_EXPR &&
                                    arg->kind != NODE_INDEX_EXPR &&
                                    arg->kind != NODE_PREFIX_EXPR) {
-                            char emsg[EZ_MSG_BUF_SIZE];
+                            char emsg[GRAY_MSG_BUF_SIZE];
                             snprintf(emsg, sizeof(emsg),
                                 "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
                                 found_decl->data.func_decl.params[ai].name,
@@ -3473,7 +3473,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
             /* E5034: named arguments are not supported for stdlib functions */
             if (tc_has_named_args(node)) {
-                char fname[EZ_MSG_BUF_SIZE];
+                char fname[GRAY_MSG_BUF_SIZE];
                 snprintf(fname, sizeof(fname), "%s.%s", mod, mfn);
                 char *msg = NULL;
                 msg = tc_fmt(tc,
@@ -4539,7 +4539,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
                                   arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
                         /* Build a readable type name */
-                        char tn[EZ_TYPE_NAME_MAX];
+                        char tn[GRAY_TYPE_NAME_MAX];
                         if (arg_t->kind == TK_ARRAY && arg_t->element_type)
                             snprintf(tn, sizeof(tn), "[%s]", arg_t->element_type);
                         else if (arg_t->kind == TK_MAP)
@@ -4561,14 +4561,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (is_struct_name(tc, mod)) {
                 /* Struct-namespaced function call: Type.func(); look up return type */
                 const char *display_mod = struct_display_name(tc, mod);
-                char prefixed[EZ_MSG_BUF_SIZE];
+                char prefixed[GRAY_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
                 FuncSig *sig = find_func(tc, prefixed);
                 if (sig) {
                     sig->used = true;
                     /* Resolve named arguments for struct static calls */
                     if (sig->decl) {
-                        char display[EZ_MSG_BUF_SIZE];
+                        char display[GRAY_MSG_BUF_SIZE];
                         snprintf(display, sizeof(display), "%s.%s", display_mod, mfn);
                         tc_resolve_named_args(tc, node, sig->decl, display);
                     }
@@ -4722,7 +4722,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     Symbol *arg_sym = scope_lookup(tc->current_scope,
                                         arg->data.label.value);
                                     if (arg_sym && !arg_sym->mutable) {
-                                        char emsg[EZ_MSG_BUF_SIZE];
+                                        char emsg[GRAY_MSG_BUF_SIZE];
                                         snprintf(emsg, sizeof(emsg),
                                             "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
                                             arg_sym->name, found_decl->data.func_decl.params[ai].name, display_mod, mfn);
@@ -4733,7 +4733,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 } else if (arg->kind == NODE_MEMBER_EXPR &&
                                            arg->data.member.object->kind == NODE_LABEL &&
                                            is_enum_name(tc, arg->data.member.object->data.label.value)) {
-                                    char emsg[EZ_MSG_BUF_SIZE];
+                                    char emsg[GRAY_MSG_BUF_SIZE];
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                         found_decl->data.func_decl.params[ai].name, display_mod, mfn);
@@ -4743,7 +4743,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 } else if (arg->kind != NODE_MEMBER_EXPR &&
                                            arg->kind != NODE_INDEX_EXPR &&
                                            arg->kind != NODE_PREFIX_EXPR) {
-                                    char emsg[EZ_MSG_BUF_SIZE];
+                                    char emsg[GRAY_MSG_BUF_SIZE];
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                         found_decl->data.func_decl.params[ai].name, display_mod, mfn);
@@ -4762,7 +4762,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else {
                 /* Try user-defined module: look up <module>_<func> in function registry */
-                char prefixed[EZ_MSG_BUF_SIZE];
+                char prefixed[GRAY_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
                 FuncSig *sig = find_func(tc, prefixed);
                 if (sig && sig->is_private) {
@@ -4771,7 +4771,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     sig->used = true;
                     /* Resolve named arguments for user-module function calls */
                     if (sig->decl) {
-                        char display[EZ_MSG_BUF_SIZE];
+                        char display[GRAY_MSG_BUF_SIZE];
                         snprintf(display, sizeof(display), "%s.%s", mod, mfn);
                         tc_resolve_named_args(tc, node, sig->decl, display);
                     }
@@ -4811,7 +4811,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 : &TYPE_UNKNOWN;
                             break;
                         }
-                        char sfn[EZ_MSG_BUF_SIZE];
+                        char sfn[GRAY_MSG_BUF_SIZE];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
                         FuncSig *ssig = find_func(tc, sfn);
                         /* Auto-dispatch instance.func() → Type.func(instance)
@@ -4860,7 +4860,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 } else {
                                     tmp_decl.data.func_decl.param_count = 0;
                                 }
-                                char display[EZ_MSG_BUF_SIZE];
+                                char display[GRAY_MSG_BUF_SIZE];
                                 snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
                                 tc_resolve_named_args(tc, node, &tmp_decl, display);
                             }
@@ -4928,7 +4928,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     int display_got = node->data.call.arg_count - 1;
                                     int display_max = ssig->param_count - 1;
                                     int display_min = min_params - 1;
-                                    char emsg[EZ_MSG_BUF_SIZE];
+                                    char emsg[GRAY_MSG_BUF_SIZE];
                                     if (display_min == display_max) {
                                         snprintf(emsg, sizeof(emsg),
                                             "function '%s.%s' expects %d argument(s), got %d",
@@ -4962,7 +4962,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
                                         !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
                                         !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
-                                        char amsg[EZ_MSG_BUF_SIZE];
+                                        char amsg[GRAY_MSG_BUF_SIZE];
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
                                             ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
@@ -4976,7 +4976,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                                         arg_t->name && param_t->name &&
                                         !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
-                                        char smsg[EZ_MSG_BUF_SIZE];
+                                        char smsg[GRAY_MSG_BUF_SIZE];
                                         snprintf(smsg, sizeof(smsg),
                                             "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
                                             ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
@@ -4990,7 +4990,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                                         arg_t->name && param_t->name &&
                                         !tc_same_struct_type(tc, arg_t->name, param_t->name)) {
-                                        char pmsg[EZ_MSG_BUF_SIZE];
+                                        char pmsg[GRAY_MSG_BUF_SIZE];
                                         snprintf(pmsg, sizeof(pmsg),
                                             "argument %d of '%s.%s': expected '%s', got '%s'",
                                             ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
@@ -5015,7 +5015,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         /* Self arg: synthetic NODE_LABEL with value mod_raw */
                                         Symbol *self_sym = scope_lookup(tc->current_scope, mod_raw);
                                         if (self_sym && !self_sym->mutable) {
-                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            char emsg[GRAY_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot call '%s.%s' on constant '%s'; function requires a mutable ('&') self parameter",
                                                 display_sname, mfn, self_sym->name);
@@ -5029,7 +5029,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             Symbol *arg_sym = scope_lookup(tc->current_scope,
                                                 arg->data.label.value);
                                             if (arg_sym && !arg_sym->mutable) {
-                                                char emsg[EZ_MSG_BUF_SIZE];
+                                                char emsg[GRAY_MSG_BUF_SIZE];
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
                                                     arg_sym->name, ssig->decl->data.func_decl.params[ai].name,
@@ -5041,7 +5041,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         } else if (arg->kind == NODE_MEMBER_EXPR &&
                                                    arg->data.member.object->kind == NODE_LABEL &&
                                                    is_enum_name(tc, arg->data.member.object->data.label.value)) {
-                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            char emsg[GRAY_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                                 ssig->decl->data.func_decl.params[ai].name, display_sname, mfn);
@@ -5051,7 +5051,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         } else if (arg->kind != NODE_MEMBER_EXPR &&
                                                    arg->kind != NODE_INDEX_EXPR &&
                                                    arg->kind != NODE_PREFIX_EXPR) {
-                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            char emsg[GRAY_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                                 ssig->decl->data.func_decl.params[ai].name, display_sname, mfn);
@@ -5079,7 +5079,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* Resolve named arguments if present */
                             if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
                                 tc_has_named_args(node)) {
-                                char display[EZ_MSG_BUF_SIZE];
+                                char display[GRAY_MSG_BUF_SIZE];
                                 snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
                                 tc_resolve_named_args(tc, node, ssig->decl, display);
                             }
@@ -5099,7 +5099,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 }
                                 if (node->data.call.arg_count < min_params ||
                                     node->data.call.arg_count > ssig->param_count) {
-                                    char emsg[EZ_MSG_BUF_SIZE];
+                                    char emsg[GRAY_MSG_BUF_SIZE];
                                     if (min_params == ssig->param_count) {
                                         snprintf(emsg, sizeof(emsg),
                                             "function '%s.%s' expects %d argument(s), got %d",
@@ -5128,7 +5128,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
                                         !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
                                         !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
-                                        char amsg[EZ_MSG_BUF_SIZE];
+                                        char amsg[GRAY_MSG_BUF_SIZE];
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
                                             ai + 1, display_sname, mfn, type_display_name(tc, param_t), type_display_name(tc, arg_t));
@@ -5250,7 +5250,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     EzType *arg_t = resolve_expr(tc, arg);
                     const char *pointee_name = type_name(arg_t);
                     if (arg_t->kind == TK_ARRAY) {
-                        char buf[EZ_MSG_BUF_SIZE];
+                        char buf[GRAY_MSG_BUF_SIZE];
                         snprintf(buf, sizeof(buf), "[%s]", arg_t->element_type);
                         pointee_name = strdup(buf);
                     } else if (arg_t->kind == TK_MAP) {
@@ -5510,7 +5510,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                             enum_display_name(tc, at->name), fn_name);
                     }
-                    char ctx[EZ_TYPE_NAME_MAX];
+                    char ctx[GRAY_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
                 }
@@ -5540,7 +5540,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0,
                             enum_display_name(tc, at->name), fn_name);
                     }
-                    char ctx[EZ_TYPE_NAME_MAX];
+                    char ctx[GRAY_TYPE_NAME_MAX];
                     snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
                     reject_void_in_context(tc, node->data.call.args[0], at, ctx);
                 }
@@ -5736,7 +5736,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     for (int ui = 0; ui < tc->using_module_count; ui++) {
                         if (!using_module_accessible(tc, ui)) continue;
                         const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
-                        char pfx[EZ_MSG_BUF_SIZE];
+                        char pfx[GRAY_MSG_BUF_SIZE];
                         snprintf(pfx, sizeof(pfx), "%s_%s", real_mod, fn_name);
                         FuncSig *psig = find_func(tc, pfx);
                         if (psig) {
@@ -6213,7 +6213,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                                 Symbol *arg_sym = scope_lookup(tc->current_scope,
                                                     arg->data.label.value);
                                                 if (arg_sym && !arg_sym->mutable) {
-                                                    char emsg[EZ_MSG_BUF_SIZE];
+                                                    char emsg[GRAY_MSG_BUF_SIZE];
                                                     snprintf(emsg, sizeof(emsg),
                                                         "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
                                                         arg_sym->name, s->data.func_decl.params[ai].name,
@@ -6225,7 +6225,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             } else if (arg->kind == NODE_MEMBER_EXPR &&
                                                        arg->data.member.object->kind == NODE_LABEL &&
                                                        is_enum_name(tc, arg->data.member.object->data.label.value)) {
-                                                char emsg[EZ_MSG_BUF_SIZE];
+                                                char emsg[GRAY_MSG_BUF_SIZE];
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
                                                     s->data.func_decl.params[ai].name, func_display_name(ref_sig));
@@ -6235,7 +6235,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             } else if (arg->kind != NODE_MEMBER_EXPR &&
                                                        arg->kind != NODE_INDEX_EXPR &&
                                                        arg->kind != NODE_PREFIX_EXPR) {
-                                                char emsg[EZ_MSG_BUF_SIZE];
+                                                char emsg[GRAY_MSG_BUF_SIZE];
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
                                                     s->data.func_decl.params[ai].name, func_display_name(ref_sig));
@@ -6292,7 +6292,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                                           arg->kind == NODE_MEMBER_EXPR ||
                                                           arg->kind == NODE_INDEX_EXPR);
                                         if (is_enum_const) {
-                                            char emsg[EZ_MSG_BUF_SIZE];
+                                            char emsg[GRAY_MSG_BUF_SIZE];
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass enum constant to '&' parameter %d of '%s'; expected a mutable variable",
                                                 ai + 1, fn_name);
@@ -6303,7 +6303,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         } else if (arg->kind == NODE_LABEL) {
                                             Symbol *as = scope_lookup(tc->current_scope, arg->data.label.value);
                                             if (as && !as->mutable) {
-                                                char emsg[EZ_MSG_BUF_SIZE];
+                                                char emsg[GRAY_MSG_BUF_SIZE];
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass constant '%s' to '&' parameter %d of '%s'",
                                                     as->name, ai + 1, fn_name);
@@ -6410,7 +6410,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                             /* 2) Try user-defined module: look up <module>_<func> */
                             if (!found_in_using) {
-                                char prefixed[EZ_MSG_BUF_SIZE];
+                                char prefixed[GRAY_MSG_BUF_SIZE];
                                 snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, fn_name);
                                 FuncSig *sig = find_func(tc, prefixed);
                                 if (sig) {
@@ -6459,7 +6459,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 int el = fn_node ? fn_node->token.line : node->token.line;
                                 int ec = fn_node ? fn_node->token.column : node->token.column;
                                 if (suggestion) {
-                                    char help[EZ_MSG_BUF_SIZE];
+                                    char help[GRAY_MSG_BUF_SIZE];
                                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                                     diag_error_help(tc->diag, "E4002", msg,
                                         NODE_FILE(tc, node), el, ec, 0, arena_strdup(tc->arena, help));
@@ -6487,7 +6487,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             const char *mod_name = obj->data.member.object->data.label.value;
             const char *type_name = obj->data.member.member;
             /* Build prefixed type name: mod_Type */
-            char prefixed_type[EZ_MSG_BUF_SIZE];
+            char prefixed_type[GRAY_MSG_BUF_SIZE];
             snprintf(prefixed_type, sizeof(prefixed_type), "%s_%s", mod_name, type_name);
             /* Check if it's a module-qualified enum access */
             if (is_enum_name(tc, prefixed_type)) {
@@ -6589,7 +6589,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
             /* Check for user-module constant access: mod.CONST */
             if (tc_is_imported_module(tc, obj_name)) {
-                char prefixed[EZ_MSG_BUF_SIZE];
+                char prefixed[GRAY_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", obj_name, member);
                 Symbol *mod_sym = scope_lookup(tc->current_scope, prefixed);
                 if (mod_sym) {
@@ -6697,7 +6697,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 const char *type_n = obj->data.member.member;
                 if (mod[0] >= 'a' && mod[0] <= 'z' &&
                     type_n[0] >= 'A' && type_n[0] <= 'Z') {
-                    char prefixed[EZ_MSG_BUF_SIZE];
+                    char prefixed[GRAY_MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_n);
                     if (is_enum_name(tc, prefixed)) {
                         result = &TYPE_INT;
@@ -7054,7 +7054,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     sdecl->data.struct_decl.instantiation_count = n + 1;
                 }
                 /* Return mangled struct type */
-                char mangled[EZ_MSG_BUF_SIZE];
+                char mangled[GRAY_MSG_BUF_SIZE];
                 size_t pos = snprintf(mangled, sizeof(mangled), "%s__", sname);
                 for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -7157,7 +7157,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
             if (!allowed) {
-                char tn[EZ_TYPE_NAME_MAX];
+                char tn[GRAY_TYPE_NAME_MAX];
                 if (src_t->kind == TK_ARRAY && src_t->element_type)
                     snprintf(tn, sizeof(tn), "[%s]", src_t->element_type);
                 else {
@@ -7241,7 +7241,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Struct.func → lookup as Struct_func */
                     ref_struct_name = obj->data.label.value;
                     ref_member_name = member;
-                    char buf[EZ_MSG_BUF_SIZE];
+                    char buf[GRAY_MSG_BUF_SIZE];
                     snprintf(buf, sizeof(buf), "%s_%s", obj->data.label.value, member);
                     ref_name = arena_strdup(tc->arena, buf);
                 }
@@ -7285,7 +7285,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 msg = tc_fmt(tc, "undefined function '%s' in function reference", ref_name);
                 const char *suggestion = suggest_name(tc, ref_name);
                 if (suggestion) {
-                    char help[EZ_MSG_BUF_SIZE];
+                    char help[GRAY_MSG_BUF_SIZE];
                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                     diag_error_help(tc->diag, "E4002", msg,
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0, arena_strdup(tc->arena, help));
@@ -7367,12 +7367,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 }
 
 /* Check if a name uses a reserved prefix that would collide with generated C.
- * Skip names starting with _ez_ as those are compiler-generated temporaries. */
+ * Skip names starting with _gray_ as those are compiler-generated temporaries. */
 static void check_reserved_name(TypeChecker *tc, const char *name, const char *file, int line, int col) {
     if (!name) return;
-    /* Skip compiler-generated temps (_ez_tmp, _ez_or, _ez_idx, etc.) */
-    if (strncmp(name, "_ez_", 4) == 0) return;
-    if (strncmp(name, "ez_", 3) == 0 || strncmp(name, "Ez", 2) == 0) {
+    /* Skip compiler-generated temps (_gray_tmp, _gray_or, _gray_idx, etc.) */
+    if (strncmp(name, "_gray_", 4) == 0) return;
+    if (strncmp(name, "gray_", 3) == 0 || strncmp(name, "Ez", 2) == 0) {
         diag_error_codef(tc->diag, "E4006", file, line, col, 0, name);
     }
 }
@@ -7573,12 +7573,12 @@ static void check_block(TypeChecker *tc, AstNode *node) {
         }
     }
     /* E3006: multi-var destructuring with fewer variables than return values.
-     * Desugared blocks look like: _ez_tmpN = call(); a = _ez_tmpN.v0; b = _ez_tmpN.v1; ...
+     * Desugared blocks look like: _gray_tmpN = call(); a = _gray_tmpN.v0; b = _gray_tmpN.v1; ...
      * If var_count < ret_count, trailing return values are silently lost. */
     if (node->data.block.count >= 2) {
         AstNode *first = node->data.block.stmts[0];
         if (first && first->kind == NODE_VAR_DECL &&
-            strncmp(first->data.var_decl.name, "_ez_tmp", 7) == 0 &&
+            strncmp(first->data.var_decl.name, "_gray_tmp", 7) == 0 &&
             first->data.var_decl.value &&
             first->data.var_decl.value->kind == NODE_CALL_EXPR) {
             Symbol *sym = scope_lookup_local(tc->current_scope, first->data.var_decl.name);
@@ -7646,7 +7646,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* Track const integer values for constant folding in later
          * declarations (e.g. fixed-size array sizes).  Also detect overflow
          * in const arithmetic expressions: codegen emits runtime
-         * overflow-check wrappers (ez_add_check etc.) which are not valid
+         * overflow-check wrappers (gray_add_check etc.) which are not valid
          * as C file-scope initializers.  The typechecker must evaluate and
          * reject overflowing expressions before codegen runs.
          * E5039: constant expression overflows the declared integer type. */
@@ -7748,14 +7748,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* E3045: or_return on non-error-returning function */
-        if (strncmp(node->data.var_decl.name, "_ez_or", 6) == 0 &&
+        if (strncmp(node->data.var_decl.name, "_gray_or", 6) == 0 &&
             node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
             AstNode *call_fn = node->data.var_decl.value->data.call.function;
             const char *call_name = NULL;
             if (call_fn->kind == NODE_LABEL) call_name = call_fn->data.label.value;
             else if (call_fn->kind == NODE_MEMBER_EXPR && call_fn->data.member.object->kind == NODE_LABEL) {
                 /* module.func() or Type.func(); construct prefixed name */
-                static char prefixed[EZ_MSG_BUF_SIZE];
+                static char prefixed[GRAY_MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s",
                     call_fn->data.member.object->data.label.value, call_fn->data.member.member);
                 call_name = prefixed;
@@ -7764,7 +7764,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, call_name);
                 if (sig && (sig->return_count < 2 ||
                     sig->return_types[sig->return_count - 1]->kind != TK_ERROR)) {
-                    char display[EZ_MSG_BUF_SIZE];
+                    char display[GRAY_MSG_BUF_SIZE];
                     if (call_fn->kind == NODE_MEMBER_EXPR)
                         snprintf(display, sizeof(display), "%s.%s",
                             call_fn->data.member.object->data.label.value,
@@ -7799,8 +7799,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         /* E3050/E3051: array/map literals require explicit type annotations */
         if (!node->data.var_decl.type_name && node->data.var_decl.value &&
-            strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
-            strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
+            strncmp(node->data.var_decl.name, "_gray_tmp", 7) != 0 &&
+            strncmp(node->data.var_decl.name, "_gray_or", 6) != 0) {
             if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                 diag_error_code_help(tc->diag, "E3050",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0,
@@ -7924,7 +7924,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 node->data.var_decl.value->kind == NODE_CALL_EXPR) {
                 AstNode *call_fn = node->data.var_decl.value->data.call.function;
                 const char *called = "function";
-                char called_buf[EZ_MSG_BUF_SIZE];
+                char called_buf[GRAY_MSG_BUF_SIZE];
                 if (call_fn->kind == NODE_LABEL) {
                     called = call_fn->data.label.value;
                 } else if (call_fn->kind == NODE_MEMBER_EXPR &&
@@ -7944,8 +7944,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check for multi-return to single variable
              * (skip if this is part of a multi-var expansion; the value will be a .v0 access) */
             if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
-                strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
-                strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
+                strncmp(node->data.var_decl.name, "_gray_tmp", 7) != 0 &&
+                strncmp(node->data.var_decl.name, "_gray_or", 6) != 0) {
                 AstNode *call_fn = node->data.var_decl.value->data.call.function;
                 const char *call_name = NULL;
                 const char *call_mod = NULL;
@@ -7958,7 +7958,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     const char *mod_raw = call_fn->data.member.object->data.label.value;
                     call_mod = tc_resolve_alias(tc, mod_raw);
                     const char *mfn = call_fn->data.member.member;
-                    char prefixed[EZ_MSG_BUF_SIZE];
+                    char prefixed[GRAY_MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", call_mod, mfn);
                     sig = find_func(tc, prefixed);
                     call_name = mfn;
@@ -8245,7 +8245,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 /* E3001 (): assigning an array literal `{}` to a map
                  * variable falls through the normal type check because the
                  * literal has no elements to derive a concrete element type
-                 * from, and codegen then emits ez_array_new which the C
+                 * from, and codegen then emits gray_array_new which the C
                  * compiler rejects. Point the user at the empty-map form
                  * `{:}` before the rest of the var_decl check runs. */
                 const char *tn = node->data.var_decl.type_name;
@@ -8269,7 +8269,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 /* E3026/E3036: Check array literal elements fit in sized element type */
                 if (tn[0] == '[' && node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                     /* Extract element type name from "[byte]", "[i8]", "[u8, 3]", etc. */
-                    char elem_type[EZ_TYPE_NAME_MAX] = {0};
+                    char elem_type[GRAY_TYPE_NAME_MAX] = {0};
                     const char *start = tn + 1;
                     /* Find the matching ']' for the outermost array bracket,
                      * skipping nested brackets (e.g. map[K:V], [T]). */
@@ -8414,8 +8414,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     const char *mcolon = strchr(mstart, ':');
                     const char *mend = strrchr(tn, ']');
                     if (mcolon && mend && mend > mcolon) {
-                        char key_tn[EZ_TYPE_NAME_MAX] = {0};
-                        char val_tn[EZ_TYPE_NAME_MAX] = {0};
+                        char key_tn[GRAY_TYPE_NAME_MAX] = {0};
+                        char val_tn[GRAY_TYPE_NAME_MAX] = {0};
                         size_t klen = (size_t)(mcolon - mstart);
                         size_t vlen = (size_t)(mend - mcolon - 1);
                         if (klen > 0 && klen < sizeof(key_tn) &&
@@ -8774,7 +8774,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     const char *mod_raw = fn->data.member.object->data.label.value;
                     const char *mod = tc_resolve_alias(tc, mod_raw);
                     const char *mfn = fn->data.member.member;
-                    char prefixed[EZ_MSG_BUF_SIZE];
+                    char prefixed[GRAY_MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
                     FuncSig *sig = find_func(tc, prefixed);
                     if (sig && sig->return_count > 1) {
@@ -8797,7 +8797,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     rname = fref->data.label.value;
                 } else if (fref->kind == NODE_MEMBER_EXPR &&
                            fref->data.member.object->kind == NODE_LABEL) {
-                    char buf[EZ_MSG_BUF_SIZE];
+                    char buf[GRAY_MSG_BUF_SIZE];
                     snprintf(buf, sizeof(buf), "%s_%s",
                         fref->data.member.object->data.label.value,
                         fref->data.member.member);
@@ -9181,7 +9181,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         /* main() exits when control reaches the closing brace; an
          * explicit `return` is not allowed. Without this check, codegen
-         * emits `ez_scope_restore(_, _scope_mark)` referencing a
+         * emits `gray_scope_restore(_, _scope_mark)` referencing a
          * variable that main never declares, and the C compile fails. */
         if (tc->current_func_is_main) {
             diag_error_help(tc->diag, "E3073",
@@ -9270,7 +9270,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (node->data.return_stmt.count == 1 &&
                 node->data.return_stmt.values[0]->kind == NODE_MEMBER_EXPR) {
                 AstNode *obj = node->data.return_stmt.values[0]->data.member.object;
-                if (obj->kind == NODE_LABEL && strncmp(obj->data.label.value, "_ez_or", 6) == 0) {
+                if (obj->kind == NODE_LABEL && strncmp(obj->data.label.value, "_gray_or", 6) == 0) {
                     is_or_return_synthetic = true;
                 }
             }
@@ -9393,7 +9393,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 if (exp_inner == expected->element_type) exp_inner = enum_display_name(tc, expected->element_type);
                 const char *got_inner = struct_display_name(tc, ret_t->element_type);
                 if (got_inner == ret_t->element_type) got_inner = enum_display_name(tc, ret_t->element_type);
-                char exp_str[EZ_TYPE_NAME_MAX], got_str[EZ_TYPE_NAME_MAX];
+                char exp_str[GRAY_TYPE_NAME_MAX], got_str[GRAY_TYPE_NAME_MAX];
                 snprintf(exp_str, sizeof(exp_str), "^%s", exp_inner);
                 snprintf(got_str, sizeof(got_str), "^%s", got_inner);
                 char *msg = NULL;
@@ -9477,7 +9477,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         mem_name = fn->data.member.member;
                     }
                     if (obj_name && mem_name && !is_side_effect) {
-                        char full[EZ_MSG_BUF_SIZE];
+                        char full[GRAY_MSG_BUF_SIZE];
                         const char *display_obj = struct_display_name(tc, obj_name);
                         snprintf(full, sizeof(full), "%s.%s()", display_obj, mem_name);
                         char *msg = tc_fmt(tc, "return value of '%s' is not used", full);
@@ -9489,7 +9489,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
             if (!is_side_effect && fn_name) {
-                char full[EZ_MSG_BUF_SIZE];
+                char full[GRAY_MSG_BUF_SIZE];
                 snprintf(full, sizeof(full), "%s()", fn_name);
                 char *msg = tc_fmt(tc, "return value of '%s' is not used", full);
                 diag_error_help(tc->diag, "E5011", msg,
@@ -9932,7 +9932,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     else if (*c == ',' && depth == 1) { size_comma = c; break; }
                 }
                 if (size_comma) {
-                    char elem[EZ_MSG_BUF_SIZE];
+                    char elem[GRAY_MSG_BUF_SIZE];
                     int elem_len = (int)(size_comma - tn - 1);
                     snprintf(elem, sizeof(elem), "%.*s", elem_len, tn + 1);
                     char *msg = tc_fmt(tc, "fixed-size array type '%s' is not allowed in function parameter '%s'; use [%s] instead",
@@ -10579,7 +10579,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             for (int ui = 0; ui < tc->using_module_count && !has_enum_case; ui++) {
                                 if (!using_module_accessible(tc, ui)) continue;
                                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
-                                char prefixed[EZ_MSG_BUF_SIZE];
+                                char prefixed[GRAY_MSG_BUF_SIZE];
                                 snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
                                 if (is_enum_name(tc, prefixed)) has_enum_case = true;
                             }
@@ -10693,7 +10693,7 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
     if (type_name[0] == '[') {
         size_t len = strlen(type_name);
         if (len > 2 && type_name[len - 1] == ']') {
-            char elem[EZ_MSG_BUF_SIZE];
+            char elem[GRAY_MSG_BUF_SIZE];
             size_t elem_len = len - 2;
             memcpy(elem, type_name + 1, elem_len);
             elem[elem_len] = '\0';
@@ -10709,7 +10709,7 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
         size_t len = strlen(type_name);
         if (len > 5 && type_name[len - 1] == ']') {
             /* Extract inner "K:V" string */
-            char inner[EZ_MSG_BUF_SIZE];
+            char inner[GRAY_MSG_BUF_SIZE];
             size_t inner_len = len - 5; /* skip "map[" and "]" */
             memcpy(inner, type_name + 4, inner_len);
             inner[inner_len] = '\0';
@@ -10722,7 +10722,7 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
                 else if (inner[i] == ':' && depth == 0) { colon_pos = i; break; }
             }
             if (colon_pos >= 0) {
-                char key_t[EZ_MSG_BUF_SIZE];
+                char key_t[GRAY_MSG_BUF_SIZE];
                 memcpy(key_t, inner, (size_t)colon_pos);
                 key_t[colon_pos] = '\0';
                 const char *val_t = inner + colon_pos + 1;
@@ -11014,7 +11014,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     } else {
                         AstNode *child = find_struct_in_program(program, ftn);
                         if (child) {
-                            const char *visited[EZ_MAX_STRUCT_DEPTH];
+                            const char *visited[GRAY_MAX_STRUCT_DEPTH];
                             int vc = 0;
                             is_cycle = struct_contains_by_value(
                                 program, child, self_name, visited, &vc, 32);
@@ -11128,7 +11128,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
                 /* Register with prefixed name: StructName_funcName */
-                char buf[EZ_MSG_BUF_SIZE];
+                char buf[GRAY_MSG_BUF_SIZE];
                 snprintf(buf, sizeof(buf), "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
                 const char *prefixed = arena_strdup(tc->arena, buf);
                 register_func(tc, prefixed, ptypes, pc, rtypes, rc);
@@ -11425,7 +11425,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         if (!is_main) continue;
         const char *umod = tc->using_modules[ui];
         size_t umod_len = strlen(umod);
-        char prefix[EZ_TYPE_NAME_MAX];
+        char prefix[GRAY_TYPE_NAME_MAX];
         snprintf(prefix, sizeof(prefix), "%s_", umod);
         size_t prefix_len = umod_len + 1;
         /* Check structs */

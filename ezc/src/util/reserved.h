@@ -1,5 +1,5 @@
 /*
- * reserved.h - Canonical reserved name lists for the EZ compiler
+ * reserved.h - Canonical reserved name lists for the Grayscale compiler
  *
  * Single authoritative source for every identifier the user may not shadow:
  * reserved type names, builtin function names, stdlib module names, and
@@ -13,20 +13,20 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZ_RESERVED_H
-#define EZ_RESERVED_H
+#ifndef GRAY_RESERVED_H
+#define GRAY_RESERVED_H
 
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-static inline int ez_strptr_cmp(const void *a, const void *b) {
+static inline int gray_strptr_cmp(const void *a, const void *b) {
     return strcmp(*(const char *const *)a, *(const char *const *)b);
 }
 
 /* --- Reserved type names (STANDARD.md §2.5) --- */
 
-static const char *const ez_reserved_type_names[] = {
+static const char *const gray_reserved_type_names[] = {
     "Error",
     "SourceLocation",
     "bool",
@@ -56,18 +56,18 @@ static const char *const ez_reserved_type_names[] = {
     "void",
 };
 
-#define EZ_RESERVED_TYPE_NAMES_COUNT \
-    ((int)(sizeof(ez_reserved_type_names) / sizeof(ez_reserved_type_names[0])))
+#define GRAY_RESERVED_TYPE_NAMES_COUNT \
+    ((int)(sizeof(gray_reserved_type_names) / sizeof(gray_reserved_type_names[0])))
 
 static inline bool is_reserved_type_name(const char *name) {
-    return bsearch(&name, ez_reserved_type_names,
-                   (size_t)EZ_RESERVED_TYPE_NAMES_COUNT,
-                   sizeof(const char *), ez_strptr_cmp) != NULL;
+    return bsearch(&name, gray_reserved_type_names,
+                   (size_t)GRAY_RESERVED_TYPE_NAMES_COUNT,
+                   sizeof(const char *), gray_strptr_cmp) != NULL;
 }
 
 /* --- Builtin function names --- */
 
-static const char *const ez_builtin_func_names[] = {
+static const char *const gray_builtin_func_names[] = {
     "addr",
     "assert",
     "c_string",
@@ -94,18 +94,18 @@ static const char *const ez_builtin_func_names[] = {
     "type_of",
 };
 
-#define EZ_BUILTIN_FUNC_NAMES_COUNT \
-    ((int)(sizeof(ez_builtin_func_names) / sizeof(ez_builtin_func_names[0])))
+#define GRAY_BUILTIN_FUNC_NAMES_COUNT \
+    ((int)(sizeof(gray_builtin_func_names) / sizeof(gray_builtin_func_names[0])))
 
 static inline bool is_reserved_builtin_func_name(const char *name) {
-    return bsearch(&name, ez_builtin_func_names,
-                   (size_t)EZ_BUILTIN_FUNC_NAMES_COUNT,
-                   sizeof(const char *), ez_strptr_cmp) != NULL;
+    return bsearch(&name, gray_builtin_func_names,
+                   (size_t)GRAY_BUILTIN_FUNC_NAMES_COUNT,
+                   sizeof(const char *), gray_strptr_cmp) != NULL;
 }
 
 /* --- Standard library module names --- */
 
-static const char *const ez_stdlib_module_names[] = {
+static const char *const gray_stdlib_module_names[] = {
     "arrays",
     "atomic",
     "binary",
@@ -135,18 +135,18 @@ static const char *const ez_stdlib_module_names[] = {
     "uuid",
 };
 
-#define EZ_STDLIB_MODULE_NAMES_COUNT \
-    ((int)(sizeof(ez_stdlib_module_names) / sizeof(ez_stdlib_module_names[0])))
+#define GRAY_STDLIB_MODULE_NAMES_COUNT \
+    ((int)(sizeof(gray_stdlib_module_names) / sizeof(gray_stdlib_module_names[0])))
 
 static inline bool is_stdlib_module_name(const char *name) {
-    return bsearch(&name, ez_stdlib_module_names,
-                   (size_t)EZ_STDLIB_MODULE_NAMES_COUNT,
-                   sizeof(const char *), ez_strptr_cmp) != NULL;
+    return bsearch(&name, gray_stdlib_module_names,
+                   (size_t)GRAY_STDLIB_MODULE_NAMES_COUNT,
+                   sizeof(const char *), gray_strptr_cmp) != NULL;
 }
 
 /* --- Reserved stdlib struct names (map to internal C types) --- */
 
-static const char *const ez_reserved_stdlib_struct_names[] = {
+static const char *const gray_reserved_stdlib_struct_names[] = {
     "Channel",
     "Database",
     "HttpRequest",
@@ -160,13 +160,13 @@ static const char *const ez_reserved_stdlib_struct_names[] = {
     "UUID",
 };
 
-#define EZ_RESERVED_STDLIB_STRUCT_NAMES_COUNT \
-    ((int)(sizeof(ez_reserved_stdlib_struct_names) / sizeof(ez_reserved_stdlib_struct_names[0])))
+#define GRAY_RESERVED_STDLIB_STRUCT_NAMES_COUNT \
+    ((int)(sizeof(gray_reserved_stdlib_struct_names) / sizeof(gray_reserved_stdlib_struct_names[0])))
 
 static inline bool is_reserved_stdlib_struct_name(const char *name) {
-    return bsearch(&name, ez_reserved_stdlib_struct_names,
-                   (size_t)EZ_RESERVED_STDLIB_STRUCT_NAMES_COUNT,
-                   sizeof(const char *), ez_strptr_cmp) != NULL;
+    return bsearch(&name, gray_reserved_stdlib_struct_names,
+                   (size_t)GRAY_RESERVED_STDLIB_STRUCT_NAMES_COUNT,
+                   sizeof(const char *), gray_strptr_cmp) != NULL;
 }
 
-#endif /* EZ_RESERVED_H */
+#endif /* GRAY_RESERVED_H */

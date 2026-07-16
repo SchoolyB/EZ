@@ -1,11 +1,11 @@
-# EZC Makefile
+# Grayscale Compiler Makefile
 #
 # Copyright (c) 2025-Present Marshall A Burns
 # Licensed under the MIT License. See LICENSE for details.
 
 CC ?= cc
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "unknown")
-CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wno-unused-parameter -DEZ_VERSION=\"$(VERSION)\"
+CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Wno-unused-parameter -DGRAY_VERSION=\"$(VERSION)\"
 # Auto-generate header dependencies so incremental builds rebuild every
 # TU whose transitively-included headers changed. Without this, editing
 # a shared header (e.g. scope.h) leaves stale .o files that were built
@@ -37,43 +37,43 @@ SRC = src/main.c \
       src/fmt/fmt.c
 
 OBJ = $(SRC:.c=.o)
-BIN = ezc
+BIN = grayc
 
 # Runtime/stdlib files compiled into a static library for fast linking
-RT_SRC = src/runtime/ez_runtime.c \
-         src/runtime/ez_array.c \
-         src/runtime/ez_map.c \
-         src/stdlib/ez_builtins.c \
-         src/stdlib/ez_mem.c \
-         src/stdlib/ez_fmt.c \
-         src/stdlib/ez_math.c \
-         src/stdlib/ez_strings.c \
-         src/stdlib/ez_io.c \
-         src/stdlib/ez_maps.c \
-         src/stdlib/ez_os.c \
-         src/stdlib/ez_arrays.c \
-         src/stdlib/ez_random.c \
-         src/stdlib/ez_time.c \
-         src/stdlib/ez_uuid.c \
-         src/stdlib/ez_encoding.c \
-         src/stdlib/ez_crypto.c \
-         src/stdlib/ez_bytes.c \
-         src/stdlib/ez_binary.c \
-         src/stdlib/ez_csv.c \
-         src/stdlib/ez_json.c \
-         src/stdlib/ez_sqlite.c \
-         src/stdlib/ez_threads.c \
-         src/stdlib/ez_sync.c \
-         src/stdlib/ez_atomic.c \
-         src/stdlib/ez_channels.c \
-         src/stdlib/ez_regex.c \
-         src/stdlib/ez_net.c \
-         src/stdlib/ez_http.c \
-         src/stdlib/ez_server.c \
-         src/stdlib/ez_strconv.c \
+RT_SRC = src/runtime/gray_runtime.c \
+         src/runtime/gray_array.c \
+         src/runtime/gray_map.c \
+         src/stdlib/gray_builtins.c \
+         src/stdlib/gray_mem.c \
+         src/stdlib/gray_fmt.c \
+         src/stdlib/gray_math.c \
+         src/stdlib/gray_strings.c \
+         src/stdlib/gray_io.c \
+         src/stdlib/gray_maps.c \
+         src/stdlib/gray_os.c \
+         src/stdlib/gray_arrays.c \
+         src/stdlib/gray_random.c \
+         src/stdlib/gray_time.c \
+         src/stdlib/gray_uuid.c \
+         src/stdlib/gray_encoding.c \
+         src/stdlib/gray_crypto.c \
+         src/stdlib/gray_bytes.c \
+         src/stdlib/gray_binary.c \
+         src/stdlib/gray_csv.c \
+         src/stdlib/gray_json.c \
+         src/stdlib/gray_sqlite.c \
+         src/stdlib/gray_threads.c \
+         src/stdlib/gray_sync.c \
+         src/stdlib/gray_atomic.c \
+         src/stdlib/gray_channels.c \
+         src/stdlib/gray_regex.c \
+         src/stdlib/gray_net.c \
+         src/stdlib/gray_http.c \
+         src/stdlib/gray_server.c \
+         src/stdlib/gray_strconv.c \
          src/vendor/sqlite3.c
 RT_OBJ = $(RT_SRC:.c=.o)
-RT_LIB = libezrt.a
+RT_LIB = libgrayrt.a
 
 # OS and architecture detection
 UNAME_S := $(shell uname -s)
@@ -99,7 +99,7 @@ INCLUDES = -Isrc
 all: build
 
 build: $(BIN) $(RT_LIB)
-	@echo "ez: build complete ($(BIN) + $(RT_LIB))"
+	@echo "gray: build complete ($(BIN) + $(RT_LIB))"
 
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
@@ -136,14 +136,14 @@ clean:
 install: build
 	install -d /usr/local/bin
 	install -m 755 $(BIN) /usr/local/bin/
-	install -d /usr/local/lib/ezc/runtime
-	install -d /usr/local/lib/ezc/stdlib
-	install -m 644 src/runtime/ez_runtime.h /usr/local/lib/ezc/runtime/
-	install -m 644 src/runtime/ez_array.h /usr/local/lib/ezc/runtime/
-	install -m 644 src/runtime/ez_map.h /usr/local/lib/ezc/runtime/
-	install -m 644 src/stdlib/ez_std.h /usr/local/lib/ezc/stdlib/
-	install -m 644 src/stdlib/ez_mem.h /usr/local/lib/ezc/stdlib/
-	install -m 644 $(RT_LIB) /usr/local/lib/ezc/
+	install -d /usr/local/lib/grayc/runtime
+	install -d /usr/local/lib/grayc/stdlib
+	install -m 644 src/runtime/gray_runtime.h /usr/local/lib/grayc/runtime/
+	install -m 644 src/runtime/gray_array.h /usr/local/lib/grayc/runtime/
+	install -m 644 src/runtime/gray_map.h /usr/local/lib/grayc/runtime/
+	install -m 644 src/stdlib/gray_std.h /usr/local/lib/grayc/stdlib/
+	install -m 644 src/stdlib/gray_mem.h /usr/local/lib/grayc/stdlib/
+	install -m 644 $(RT_LIB) /usr/local/lib/grayc/
 
 # Shared objects needed by test binaries (everything except main.o)
 TEST_DEPS = src/util/arena.o src/util/buf.o src/util/error.o src/util/error_codes.o \
@@ -245,40 +245,40 @@ leaks: $(BIN)
 	@echo ""
 ifeq ($(UNAME_S),Darwin)
 	@echo "=== Leak check: macOS (leaks --atExit) ==="
-	@echo "(compiling tests.ez through the compiler to exercise all allocations)"
+	@echo "(compiling tests.gray through the compiler to exercise all allocations)"
 	@echo ""
-	@# Copy ezc to a temp binary and sign it with get-task-allow so leaks
+	@# Copy grayc to a temp binary and sign it with get-task-allow so leaks
 	@# can attach. The copy is deleted immediately after; the repo binary
 	@# is never modified and carries no residual entitlement.
-	@cp ./ezc /tmp/ezc_leak_check
+	@cp ./grayc /tmp/grayc_leak_check
 	@codesign -s - --entitlements ../scripts/leak-check.entitlements \
-	    /tmp/ezc_leak_check 2>/dev/null
-	@leaks --atExit -- /tmp/ezc_leak_check ../cmd/ez/tests.ez \
-	    -o /tmp/ez_leak_out 2>&1; LEAK_EXIT=$$?; \
-	    rm -f /tmp/ezc_leak_check /tmp/ez_leak_out; \
+	    /tmp/grayc_leak_check 2>/dev/null
+	@leaks --atExit -- /tmp/grayc_leak_check ../cmd/gray/tests.gray \
+	    -o /tmp/gray_leak_out 2>&1; LEAK_EXIT=$$?; \
+	    rm -f /tmp/grayc_leak_check /tmp/gray_leak_out; \
 	    echo ""; \
 	    if [ $$LEAK_EXIT -ne 0 ]; then \
-	        echo "LEAK CHECK FAILED — memory leaks detected in the EZ compiler (ezc)."; \
+	        echo "LEAK CHECK FAILED — memory leaks detected in the Grayscale compiler (grayc)."; \
 	        echo "Scroll up to see the allocation stacks reported by 'leaks'."; \
-	        echo "These are compiler bugs for contributors to fix — not issues with your EZ code."; \
+	        echo "These are compiler bugs for contributors to fix — not issues with your Grayscale code."; \
 	    else \
 	        echo "LEAK CHECK PASSED — no memory leaks detected."; \
 	    fi; \
 	    exit $$LEAK_EXIT
 else
 	@echo "=== Leak check: Linux (valgrind) ==="
-	@echo "(compiling tests.ez through the compiler to exercise all allocations)"
+	@echo "(compiling tests.gray through the compiler to exercise all allocations)"
 	@echo ""
 	@command -v valgrind >/dev/null 2>&1 || \
 	    { echo "valgrind not found; install with: apt install valgrind"; exit 1; }
 	@valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
-	    ./ezc ../cmd/ez/tests.ez -o /tmp/ez_leak_out 2>&1; LEAK_EXIT=$$?; \
-	    rm -f /tmp/ez_leak_out; \
+	    ./grayc ../cmd/gray/tests.gray -o /tmp/gray_leak_out 2>&1; LEAK_EXIT=$$?; \
+	    rm -f /tmp/gray_leak_out; \
 	    echo ""; \
 	    if [ $$LEAK_EXIT -ne 0 ]; then \
-	        echo "LEAK CHECK FAILED — memory leaks detected in the EZ compiler (ezc)."; \
+	        echo "LEAK CHECK FAILED — memory leaks detected in the Grayscale compiler (grayc)."; \
 	        echo "Scroll up to see the valgrind report with allocation stacks."; \
-	        echo "These are compiler bugs for contributors to fix — not issues with your EZ code."; \
+	        echo "These are compiler bugs for contributors to fix — not issues with your Grayscale code."; \
 	    else \
 	        echo "LEAK CHECK PASSED — no memory leaks detected."; \
 	    fi; \

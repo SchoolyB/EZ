@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# EZ Integration Test Runner
+# Grayscale Integration Test Runner
 #
 # Copyright (c) 2025-Present Marshall A Burns
 # Licensed under the MIT License. See LICENSE for details.
@@ -15,18 +15,18 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_DIR="$PROJECT_ROOT/integration-tests"
-EZ_BIN="$PROJECT_ROOT/ez"
-EZC_BIN="$PROJECT_ROOT/ezc/ezc"
+GRAY_BIN="$PROJECT_ROOT/gray"
+GRAYC_BIN="$PROJECT_ROOT/ezc/grayc"
 
 # Always rebuild to ensure we test current code
-echo "Building ezc..."
-(cd "$PROJECT_ROOT/ezc" && make build) || { echo "ezc build failed"; exit 1; }
+echo "Building grayc..."
+(cd "$PROJECT_ROOT/ezc" && make build) || { echo "grayc build failed"; exit 1; }
 
-echo "Building ez CLI..."
-(cd "$PROJECT_ROOT" && go build -o ez ./cmd/ez) || { echo "ez build failed"; exit 1; }
+echo "Building gray CLI..."
+(cd "$PROJECT_ROOT" && go build -o gray ./cmd/gray) || { echo "gray build failed"; exit 1; }
 
-# Point ez at the local ezc binary
-export EZ_COMPILER_PATH="$PROJECT_ROOT/ezc/ezc"
+# Point gray at the local grayc binary
+export GRAY_COMPILER_PATH="$PROJECT_ROOT/ezc/grayc"
 
 echo ""
 
@@ -45,7 +45,7 @@ pass() { printf "  ${GREEN}PASS${NC}  %s\n" "$1"; ((++PASS_COUNT)); }
 fail() { printf "  ${RED}FAIL${NC}  %s %s\n" "$1" "$2"; ((++FAIL_COUNT)); }
 
 echo "========================================"
-echo "  EZ Integration Test Suite"
+echo "  Grayscale Integration Test Suite"
 echo "========================================"
 echo ""
 

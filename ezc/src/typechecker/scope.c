@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#define EZ_SCOPE_INITIAL_CAP 8
+#define GRAY_SCOPE_INITIAL_CAP 8
 
 static uint32_t scope_str_hash(const char *s) {
     uint32_t h = 5381u;
@@ -58,7 +58,7 @@ void scope_define(Scope *s, const char *name, EzType *type, bool mutable) {
     }
 
     if (s->count >= s->cap) {
-        s->cap = s->cap ? s->cap * 2 : EZ_SCOPE_INITIAL_CAP;
+        s->cap = s->cap ? s->cap * 2 : GRAY_SCOPE_INITIAL_CAP;
         s->symbols = xrealloc(s->symbols, sizeof(Symbol) * s->cap);
     }
 

@@ -1,9 +1,9 @@
-# EZ Language Build System
+# Grayscale Language Build System
 .PHONY: build stubs install uninstall clean help leaks \
        test test-unit test-e2e test-integration test-go \
        test-ubsan test-asan
 
-BINARY_NAME=ez
+BINARY_NAME=gray
 INSTALL_PATH=/usr/local/bin
 GO=go
 
@@ -12,16 +12,16 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
 
-EMBED_DIR=internal/ezc/runtime
+EMBED_DIR=internal/grayc/runtime
 
 help:
-	@echo "EZ Language Build System"
+	@echo "Grayscale Language Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build     - Build the ez binary (compiler embedded)"
+	@echo "  make build     - Build the gray binary (compiler embedded)"
 	@echo "  make stubs     - Create empty embed stubs (for dev go build)"
-	@echo "  make install   - Install ez to $(INSTALL_PATH)"
-	@echo "  make uninstall - Remove ez from $(INSTALL_PATH)"
+	@echo "  make install   - Install gray to $(INSTALL_PATH)"
+	@echo "  make uninstall - Remove gray from $(INSTALL_PATH)"
 	@echo "  make clean     - Remove built binaries"
 	@echo "  make leaks     - Check compiler for memory leaks (macOS: leaks, Linux: valgrind)"
 	@echo ""
@@ -40,7 +40,7 @@ help:
 test: build
 	@echo ""
 	@echo "=== Go Unit Tests ==="
-	$(GO) test -v -count=1 ./cmd/ez/... ./internal/ezc/...
+	$(GO) test -v -count=1 ./cmd/gray/... ./internal/grayc/...
 	@echo ""
 	@$(MAKE) -C ezc test-unit
 	@$(MAKE) -C ezc test-e2e
@@ -60,7 +60,7 @@ test-integration: build
 test-go: stubs
 	@echo ""
 	@echo "=== Go Unit Tests ==="
-	$(GO) test -v -count=1 ./cmd/ez/... ./internal/ezc/...
+	$(GO) test -v -count=1 ./cmd/gray/... ./internal/grayc/...
 
 test-ubsan:
 	@$(MAKE) -C ezc test-ubsan
@@ -72,38 +72,38 @@ leaks:
 	@$(MAKE) -C ezc leaks
 
 # Create zero-length embed stubs. go:embed directives in
-# internal/ezc/embedded.go require these files to exist at `go build`
+# internal/grayc/embedded.go require these files to exist at `go build`
 # time; the extractor detects empty stubs and falls back to the
 # path search so dev builds still work. Both the runtime binaries
 # themselves are gitignored — `make build` overwrites the stubs with
 # real content before invoking `go build`.
 stubs:
 	@mkdir -p $(EMBED_DIR)/src/runtime $(EMBED_DIR)/src/stdlib
-	@test -f $(EMBED_DIR)/ezc || : > $(EMBED_DIR)/ezc
-	@test -f $(EMBED_DIR)/libezrt.a || : > $(EMBED_DIR)/libezrt.a
+	@test -f $(EMBED_DIR)/grayc || : > $(EMBED_DIR)/grayc
+	@test -f $(EMBED_DIR)/libgrayrt.a || : > $(EMBED_DIR)/libgrayrt.a
 	@test -f $(EMBED_DIR)/src/runtime/.stub || : > $(EMBED_DIR)/src/runtime/.stub
 	@test -f $(EMBED_DIR)/src/stdlib/.stub || : > $(EMBED_DIR)/src/stdlib/.stub
 
 # Single-binary build (#1461): compile the C compiler first, stage the
-# artifacts into internal/ezc/runtime/ so go:embed picks them up, then
-# build the Go CLI. The final `ez` binary contains `ezc` + `libezrt.a`
-# as embedded assets and extracts them on first use to ~/.ez/runtime/.
+# artifacts into internal/grayc/runtime/ so go:embed picks them up, then
+# build the Go CLI. The final `gray` binary contains `grayc` + `libgrayrt.a`
+# as embedded assets and extracts them on first use to ~/.gray/runtime/.
 build: stubs
 	@echo "Building compiler..."
 	@$(MAKE) -C ezc build
 	@echo "Staging embedded runtime assets..."
-	@cp ezc/ezc $(EMBED_DIR)/ezc
-	@cp ezc/libezrt.a $(EMBED_DIR)/libezrt.a
+	@cp ezc/grayc $(EMBED_DIR)/grayc
+	@cp ezc/libgrayrt.a $(EMBED_DIR)/libgrayrt.a
 	@cp ezc/src/runtime/*.h ezc/src/runtime/*.c $(EMBED_DIR)/src/runtime/
 	@cp ezc/src/stdlib/*.h ezc/src/stdlib/*.c $(EMBED_DIR)/src/stdlib/
-	@echo "Building ez CLI (with embedded runtime)..."
-	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/ez
+	@echo "Building gray CLI (with embedded runtime)..."
+	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gray
 	@echo ""
 	@echo "Build complete: ./$(BINARY_NAME)"
-	@echo "Run with: ./$(BINARY_NAME) <file.ez>"
+	@echo "Run with: ./$(BINARY_NAME) <file.gray>"
 
 install: build
-	@echo "Installing EZ to $(INSTALL_PATH)..."
+	@echo "Installing Grayscale to $(INSTALL_PATH)..."
 	@if [ -w $(INSTALL_PATH) ]; then \
 		mkdir -p $(INSTALL_PATH); \
 		cp $(BINARY_NAME) $(INSTALL_PATH)/$(BINARY_NAME); \
@@ -115,28 +115,29 @@ install: build
 		sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME); \
 	fi
 	@echo ""
-	@echo ' _____ ____'
-	@echo '| ____|__  |'
-	@echo '|  _|   / /'
-	@echo '| |___ / /_'
-	@echo '|_____/____|'
-	@echo 'Programming made EZ'
+	@echo '  ____                               _'
+	@echo ' / ___|_ __ __ _ _   _ ___  ___ __ _| | ___'
+	@echo '| |  _| '"'"'__/ _` | | | / __|/ __/ _` | |/ _ \'
+	@echo '| |_| | | | (_| | |_| \__ \ (_| (_| | |  __/'
+	@echo ' \____|_|  \__,_|\__, |___/\___\__,_|_|\___|'
+	@echo '                 |___/'
+	@echo 'The Grayscale Programming Language'
 	@echo ""
-	@echo "EZ installed successfully!"
+	@echo "Grayscale installed successfully!"
 
 uninstall:
-	@echo "Uninstalling EZ..."
+	@echo "Uninstalling Grayscale..."
 	@rm -f $(INSTALL_PATH)/$(BINARY_NAME)
 	@# Remove standalone ezc from prior install layouts (#1461)
-	@rm -f $(INSTALL_PATH)/ezc
-	@echo "EZ uninstalled"
+	@rm -f $(INSTALL_PATH)/grayc
+	@echo "Grayscale uninstalled"
 
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -f $(BINARY_NAME)
 	@rm -rf dist/
 	@# Embed assets are gitignored — delete entirely, not truncate
-	@rm -f $(EMBED_DIR)/ezc $(EMBED_DIR)/libezrt.a
+	@rm -f $(EMBED_DIR)/grayc $(EMBED_DIR)/libgrayrt.a
 	@rm -rf $(EMBED_DIR)/src
 	@$(MAKE) -C ezc clean
 	@echo "Clean complete"

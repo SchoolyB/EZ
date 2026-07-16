@@ -556,7 +556,7 @@ Token lexer_next_token(Lexer *l) {
             }
             goto done;
         } else {
-            char msg[EZ_TYPE_NAME_MAX];
+            char msg[GRAY_TYPE_NAME_MAX];
             snprintf(msg, sizeof(msg), "unexpected character '%c'", l->ch);
             l->error_code = "E1022";
             l->error_msg = arena_strdup(l->arena, msg);

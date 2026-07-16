@@ -17,8 +17,8 @@ static DiagnosticList *diag;
 static AstNode *parse(const char *input) {
     diag = diag_create();
     diag->use_color = false;
-    Lexer *l = lexer_create(arena, input, "test.ez");
-    Parser *p = parser_create(arena, l, "test.ez", diag);
+    Lexer *l = lexer_create(arena, input, "test.gray");
+    Parser *p = parser_create(arena, l, "test.gray", diag);
     return parser_parse_program(p);
 }
 

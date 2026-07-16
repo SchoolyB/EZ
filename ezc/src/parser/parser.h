@@ -12,7 +12,7 @@
 #include "../util/arena.h"
 #include "../util/error.h"
 
-#define EZ_MAX_PARSE_DEPTH 256
+#define GRAY_MAX_PARSE_DEPTH 256
 
 typedef struct {
     Lexer *lexer;

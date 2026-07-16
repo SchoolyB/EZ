@@ -11,7 +11,7 @@
 #include <stdio.h>
 
 /*
- * ez_fmt_source:
+ * gray_fmt_source:
  *   Format the EZ source in `src` (NUL-terminated) and write the result to
  *   `out`. Returns 0 on success, non-zero if the source could not be lexed.
  *
@@ -20,6 +20,6 @@
  *   All content (comments, string literals, operators) is preserved verbatim —
  *   only the leading indentation of each line is touched.
  */
-int ez_fmt_source(const char *src, const char *filename, FILE *out);
+int gray_fmt_source(const char *src, const char *filename, FILE *out);
 
 #endif

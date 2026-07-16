@@ -17,10 +17,10 @@ static Arena *arena;
 static TypeTable *check(const char *input) {
     DiagnosticList *diag = diag_create();
     diag->use_color = false;
-    Lexer *l = lexer_create(arena, input, "test.ez");
-    Parser *p = parser_create(arena, l, "test.ez", diag);
+    Lexer *l = lexer_create(arena, input, "test.gray");
+    Parser *p = parser_create(arena, l, "test.gray", diag);
     AstNode *prog = parser_parse_program(p);
-    TypeChecker *tc = typechecker_create(diag, "test.ez");
+    TypeChecker *tc = typechecker_create(diag, "test.gray");
     typechecker_check(tc, prog);
     return typechecker_get_table(tc);
 }
@@ -32,10 +32,10 @@ static EzType *expr_type(const char *expr_code) {
         "do main() { mut _result = %s }", expr_code);
     DiagnosticList *diag = diag_create();
     diag->use_color = false;
-    Lexer *l = lexer_create(arena, buf, "test.ez");
-    Parser *p = parser_create(arena, l, "test.ez", diag);
+    Lexer *l = lexer_create(arena, buf, "test.gray");
+    Parser *p = parser_create(arena, l, "test.gray", diag);
     AstNode *prog = parser_parse_program(p);
-    TypeChecker *tc = typechecker_create(diag, "test.ez");
+    TypeChecker *tc = typechecker_create(diag, "test.gray");
     typechecker_check(tc, prog);
     TypeTable *tt = typechecker_get_table(tc);
 
@@ -295,10 +295,10 @@ static void test_resolve_addr(void) {
 static DiagnosticList *check_diag(const char *input) {
     DiagnosticList *d = diag_create();
     d->use_color = false;
-    Lexer *l = lexer_create(arena, input, "test.ez");
-    Parser *p = parser_create(arena, l, "test.ez", d);
+    Lexer *l = lexer_create(arena, input, "test.gray");
+    Parser *p = parser_create(arena, l, "test.gray", d);
     AstNode *prog = parser_parse_program(p);
-    TypeChecker *tc = typechecker_create(d, "test.ez");
+    TypeChecker *tc = typechecker_create(d, "test.gray");
     typechecker_check(tc, prog);
     return d;
 }
@@ -636,7 +636,7 @@ static void test_error_E3044_field_on_type(void) {
 
 static void test_error_E4006_reserved_name(void) {
     DiagnosticList *d = check_diag(
-        "do main() { mut ez_internal int = 5 }");
+        "do main() { mut gray_internal int = 5 }");
     ASSERT(has_code(d, "E4006"));
     diag_destroy(d);
 }

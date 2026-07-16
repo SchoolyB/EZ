@@ -1,0 +1,136 @@
+import @io, @strings
+import utils"./utils.ez"
+
+using utils
+
+
+do main(){
+    mut version, err = io.read_file("version")
+    if err != nil {
+     println("error: ${err.message}")
+    }
+
+    mut _  = create_collection_files_dir()
+
+    println("Now using OstrichDB CLI Version ${version}")
+    mut _ = command_line()
+    println("Hi")
+}
+
+
+//BUG: Evem with the using statement above, I have to have the utils. prefix when utilizing this constant otherwise its undefined:
+//METADATA_HEADER_CONTENT
+//Oddlt enough other constants arent showing this issue. COLLECTION_DIR which is a string doesnt seem to need the prefix. But this array does....
+do append_collection_metadata(c Collection) {
+    mut _, _ = io.append_file("${COLLECTION_DIR}${c.name}", utils.METADATA_HEADER_CONTENT)
+}
+
+
+//Check if the Collections dir exists, if not create it...
+do create_collection_files_dir() -> bool {
+    mut res, e = io.make_dir(COLLECTION_DIR) //returns false and nil if fail or already exists
+
+    if e != nil && res == false {
+        println("The collections dir may already exist")
+        return false
+    }
+
+    return res
+}
+
+do command_line() -> int {
+    loop {
+        print("ODB-CLI>>>")
+        mut res = input()
+        if res == "" {
+            println("Invalid input, please try again...")
+        } otherwise {
+            mut q = build_query(res)
+            println(q)
+
+            mut cT = q.CommandToken
+            when cT {
+                is "NEW" {
+                    mut collectionName string
+                    mut clusterName string
+                    mut recordName string
+
+                    #strict
+                    when len(q.LocationTokens){
+                        is DataTier.COLLECTION_TIER {
+                            collectionName = q.LocationTokens[0]
+                            mut col = make_collection(collectionName)
+                            mut err = create_collection_file(col)
+
+
+                        }
+                        is DataTier.CLUSTER_TIER {
+                            collectionName = q.LocationTokens[0]
+                            clusterName = q.LocationTokens[1]
+                        }
+                        is DataTier.RECORD_TIER {
+                            collectionName = q.LocationTokens[0]
+                            clusterName = q.LocationTokens[1]
+                            recordName = q.LocationTokens[2]
+                        }
+                    }
+                }
+                is "ERASE" {}
+                is "GET" {}
+                is "EXIT" {
+                    println("Now exiting the OstrichDB CLI")
+                    exit(0)
+                }
+                default {println("Invalid command token provided. Please try again...")}
+            }
+        }
+    }
+
+    return 0
+}
+
+do build_query(userInput string) -> Query {
+    mut inputArr = strings.split(userInput, " ")
+
+    mut q = new(Query)
+    for_each vc in ValidCommandTokens {
+        if strings.to_upper(inputArr[0]) == vc{
+            q.CommandToken = vc
+            break
+        }
+    }
+
+    if len(inputArr) > 1 {
+        mut location = inputArr[1]
+        println(location)
+        q.LocationTokens = split_location(location)
+    }
+
+    return q^
+}
+
+do split_location(location string) -> [string] {
+    mut split = strings.split(location, ".")
+    return split
+}
+
+
+do create_collection_file(c Collection) -> Error {
+    mut result, err = io.write_file("${COLLECTION_DIR}${c.name}.ostrichdb", "")
+    if err != nil {
+        println("Unable to create collection of name: ${c.name}")
+        return error("Failed to created collection ${c.name}")
+    }
+
+    return nil
+}
+
+
+do make_collection(n string, t = CollectionType.STANDARD) -> Collection {
+    mut c = new(Collection)
+    c.name = n
+    c.type = t
+    c.clusters = {}
+
+    return c^
+}

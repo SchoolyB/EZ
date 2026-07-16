@@ -8,16 +8,16 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZ_CONSTANTS_H
-#define EZ_CONSTANTS_H
+#ifndef GRAY_CONSTANTS_H
+#define GRAY_CONSTANTS_H
 
 /* --- Diagnostic buffer sizes --- */
-#define EZ_MSG_BUF_SIZE         256
-#define EZ_MSG_BUF_LARGE        512
-#define EZ_SOURCE_LINE_MAX      2048
-#define EZ_TYPE_NAME_MAX        128
+#define GRAY_MSG_BUF_SIZE         256
+#define GRAY_MSG_BUF_LARGE        512
+#define GRAY_SOURCE_LINE_MAX      2048
+#define GRAY_TYPE_NAME_MAX        128
 /* Buffer large enough for "name_name\0" (two max-length identifiers joined) */
-#define EZ_IDENT_BUF            (EZ_TYPE_NAME_MAX * 2 + 2)
+#define GRAY_IDENT_BUF            (GRAY_TYPE_NAME_MAX * 2 + 2)
 
 /* --- Time unit conversions --- */
 #define NS_PER_SEC              1000000000LL

@@ -17,25 +17,25 @@
 static int test_num = 0;
 
 /* Compile and run an EZ program, return its stdout output */
-static char *compile_and_run(const char *ez_source) {
+static char *compile_and_run(const char *gray_source) {
     test_num++;
     static char output[4096];
-    char ez_file[128], bin_file[128];
+    char gray_file[128], bin_file[128];
 
-    snprintf(ez_file, sizeof(ez_file), "/tmp/ezc_e2e_%d.ez", test_num);
+    snprintf(gray_file, sizeof(gray_file), "/tmp/ezc_e2e_%d.gray", test_num);
     snprintf(bin_file, sizeof(bin_file), "/tmp/ezc_e2e_%d", test_num);
 
     /* Write source */
-    FILE *f = fopen(ez_file, "w");
+    FILE *f = fopen(gray_file, "w");
     if (!f) return NULL;
-    fputs(ez_source, f);
+    fputs(gray_source, f);
     fclose(f);
 
     /* Compile */
     char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", ez_file, bin_file);
+    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", gray_file, bin_file);
     if (system(cmd) != 0) {
-        unlink(ez_file);
+        unlink(gray_file);
         return NULL;
     }
 
@@ -44,7 +44,7 @@ static char *compile_and_run(const char *ez_source) {
     snprintf(run_cmd, sizeof(run_cmd), "%s 2>&1", bin_file);
     FILE *p = popen(run_cmd, "r");
     if (!p) {
-        unlink(ez_file);
+        unlink(gray_file);
         unlink(bin_file);
         return NULL;
     }
@@ -62,7 +62,7 @@ static char *compile_and_run(const char *ez_source) {
         output[total - 1] = '\0';
     }
 
-    unlink(ez_file);
+    unlink(gray_file);
     unlink(bin_file);
     return output;
 }
@@ -990,8 +990,8 @@ static void test_e2e_map_foreach(void) {
 static void test_e2e_div_zero(void) {
     /* Compile and run — should panic, not crash silently */
     test_num++;
-    char ez_file[128], bin_file[128];
-    snprintf(ez_file, sizeof(ez_file), "/tmp/ezc_e2e_%d.ez", test_num);
+    char gray_file[128], bin_file[128];
+    snprintf(gray_file, sizeof(gray_file), "/tmp/ezc_e2e_%d.gray", test_num);
     snprintf(bin_file, sizeof(bin_file), "/tmp/ezc_e2e_%d", test_num);
 
     const char *src =
@@ -1002,15 +1002,15 @@ static void test_e2e_div_zero(void) {
         "  println(x / y)\n"
         "}";
 
-    FILE *f = fopen(ez_file, "w");
+    FILE *f = fopen(gray_file, "w");
     if (!f) { _test_fail++; printf("  FAIL %s: cannot write\n", __func__); return; }
     fputs(src, f);
     fclose(f);
 
     char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", ez_file, bin_file);
+    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", gray_file, bin_file);
     if (system(cmd) != 0) {
-        unlink(ez_file);
+        unlink(gray_file);
         _test_fail++;
         printf("  FAIL %s: compile failed\n", __func__);
         return;
@@ -1025,7 +1025,7 @@ static void test_e2e_div_zero(void) {
         pclose(p);
     }
 
-    unlink(ez_file);
+    unlink(gray_file);
     unlink(bin_file);
 
     if (strstr(output, "division by zero")) {

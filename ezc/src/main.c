@@ -1,7 +1,7 @@
 /*
- * main.c - EZ compiler entry point
+ * main.c - Grayscale compiler entry point
  *
- * Usage: ez <file.ez> [-o output]
+ * Usage: gray <file.gray> [-o output]
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -30,21 +30,21 @@
 #include "codegen/codegen.h"
 #include "fmt/fmt.h"
 
-#ifndef EZ_VERSION
-#define EZ_VERSION "unknown"
+#ifndef GRAY_VERSION
+#define GRAY_VERSION "unknown"
 #endif
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
-#define EZ_MAX_IMPORTS 256
-#define EZ_COMPILER_ARENA_SIZE (1024 * 1024)
+#define GRAY_MAX_IMPORTS 256
+#define GRAY_COMPILER_ARENA_SIZE (1024 * 1024)
 
 static void print_usage(void) {
-    fprintf(stderr, "EZ Programming Language v%s\n", EZ_VERSION);
+    fprintf(stderr, "Grayscale Programming Language v%s\n", GRAY_VERSION);
     fprintf(stderr, "\nUsage:\n");
-    fprintf(stderr, "  ez <file.ez> [options]         Compile and run\n");
-    fprintf(stderr, "  ez build <file.ez> [options]   Compile to binary\n");
-    fprintf(stderr, "  ez check <file.ez>             Type check only\n");
-    fprintf(stderr, "  ez version                     Show version\n");
+    fprintf(stderr, "  gray <file.gray> [options]         Compile and run\n");
+    fprintf(stderr, "  gray build <file.gray> [options]   Compile to binary\n");
+    fprintf(stderr, "  gray check <file.gray>             Type check only\n");
+    fprintf(stderr, "  gray version                       Show version\n");
     fprintf(stderr, "\nOptions:\n");
     fprintf(stderr, "  -o <file>       Output binary name (default: based on input filename)\n");
     fprintf(stderr, "  -c              Emit C source only (don't compile)\n");
@@ -192,13 +192,13 @@ static const char *get_self_dir(const char *argv0) {
     return NULL;
 }
 
-/* Strip .ez extension and return base name */
+/* Strip .gray extension and return base name */
 static char *output_name_from_input(const char *input) {
     const char *slash = strrchr(input, '/');
     const char *base = slash ? slash + 1 : input;
 
     size_t len = strlen(base);
-    if (len > 3 && strcmp(base + len - 3, ".ez") == 0) {
+    if (len > 3 && strcmp(base + len - 3, ".gray") == 0) {
         len -= 3;
     }
 
@@ -209,37 +209,37 @@ static char *output_name_from_input(const char *input) {
 }
 
 /*
- * Find the runtime directory containing ez_runtime.h and ez_std.h.
+ * Find the runtime directory containing gray_runtime.h and gray_std.h.
  *
  * Search order:
- *   1. EZ_RUNTIME env var (explicit override)
- *   2. Relative to binary: ../lib/ezc (installed layout)
+ *   1. GRAY_RUNTIME env var (explicit override)
+ *   2. Relative to binary: ../lib/grayc (installed layout)
  *   3. Relative to binary: src (development layout — binary is in ezc/)
  *   4. Relative to CWD: ezc/src (running from project root)
- *   5. /usr/local/lib/ezc (system install)
+ *   5. /usr/local/lib/grayc (system install)
  */
 static const char *find_runtime_dir(const char *argv0) {
     static char path[PATH_BUF_SIZE];
 
     /* 1. Environment variable override */
-    const char *env = getenv("EZ_RUNTIME");
+    const char *env = getenv("GRAY_RUNTIME");
     if (env && access(env, R_OK) == 0) {
-        snprintf(path, sizeof(path), "%s/runtime/ez_runtime.h", env);
+        snprintf(path, sizeof(path), "%s/runtime/gray_runtime.h", env);
         if (access(path, R_OK) == 0) return env;
     }
 
     /* 2-3. Relative to binary location */
     const char *self_dir = get_self_dir(argv0);
     if (self_dir) {
-        /* Installed layout: binary in /usr/local/bin, runtime in /usr/local/lib/ezc */
-        snprintf(path, sizeof(path), "%s/../lib/ezc/runtime/ez_runtime.h", self_dir);
+        /* Installed layout: binary in /usr/local/bin, runtime in /usr/local/lib/grayc */
+        snprintf(path, sizeof(path), "%s/../lib/grayc/runtime/gray_runtime.h", self_dir);
         if (access(path, R_OK) == 0) {
-            snprintf(path, sizeof(path), "%s/../lib/ezc", self_dir);
+            snprintf(path, sizeof(path), "%s/../lib/grayc", self_dir);
             return path;
         }
 
         /* Development layout: binary in ezc/, runtime in ezc/src/runtime */
-        snprintf(path, sizeof(path), "%s/src/runtime/ez_runtime.h", self_dir);
+        snprintf(path, sizeof(path), "%s/src/runtime/gray_runtime.h", self_dir);
         if (access(path, R_OK) == 0) {
             snprintf(path, sizeof(path), "%s/src", self_dir);
             return path;
@@ -253,7 +253,7 @@ static const char *find_runtime_dir(const char *argv0) {
             char probe[PATH_BUF_SIZE];
             char *dir = cwd;
             while (*dir) {
-                snprintf(probe, sizeof(probe), "%s/ezc/src/runtime/ez_runtime.h", dir);
+                snprintf(probe, sizeof(probe), "%s/ezc/src/runtime/gray_runtime.h", dir);
                 if (access(probe, R_OK) == 0) {
                     snprintf(path, sizeof(path), "%s/ezc/src", dir);
                     return path;
@@ -267,8 +267,8 @@ static const char *find_runtime_dir(const char *argv0) {
     }
 
     /* 5. System install location */
-    if (access("/usr/local/lib/ezc/runtime/ez_runtime.h", R_OK) == 0) {
-        return "/usr/local/lib/ezc";
+    if (access("/usr/local/lib/grayc/runtime/gray_runtime.h", R_OK) == 0) {
+        return "/usr/local/lib/grayc";
     }
 
     return NULL;
@@ -319,9 +319,9 @@ static const char *rewrite_type_name(const char *t,
         }
         const char *new_elem = rewrite_type_name(inner, orig_names, new_names, name_count, arena);
         if (new_elem == inner && !comma_pos) return t;
-        char *buf = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-        if (size_suffix) snprintf(buf, EZ_MSG_BUF_SIZE, "[%s,%s]", new_elem, size_suffix);
-        else             snprintf(buf, EZ_MSG_BUF_SIZE, "[%s]", new_elem);
+        char *buf = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+        if (size_suffix) snprintf(buf, GRAY_MSG_BUF_SIZE, "[%s,%s]", new_elem, size_suffix);
+        else             snprintf(buf, GRAY_MSG_BUF_SIZE, "[%s]", new_elem);
         return buf;
     }
 
@@ -330,8 +330,8 @@ static const char *rewrite_type_name(const char *t,
         const char *pointee = t + 1;
         const char *new_pointee = rewrite_type_name(pointee, orig_names, new_names, name_count, arena);
         if (new_pointee == pointee) return t;
-        char *buf = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-        snprintf(buf, EZ_MSG_BUF_SIZE, "^%s", new_pointee);
+        char *buf = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+        snprintf(buf, GRAY_MSG_BUF_SIZE, "^%s", new_pointee);
         return buf;
     }
 
@@ -354,8 +354,8 @@ static const char *rewrite_type_name(const char *t,
         const char *new_k = rewrite_type_name(k, orig_names, new_names, name_count, arena);
         const char *new_v = rewrite_type_name(v, orig_names, new_names, name_count, arena);
         if (new_k == k && new_v == v) return t;
-        char *buf = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-        snprintf(buf, EZ_MSG_BUF_SIZE, "map[%s:%s]", new_k, new_v);
+        char *buf = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+        snprintf(buf, GRAY_MSG_BUF_SIZE, "map[%s:%s]", new_k, new_v);
         return buf;
     }
 
@@ -551,7 +551,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
 /* Import cache: track already-imported files to avoid duplicates and cycles.
  * Open-addressing hash set keyed on canonical file path. */
 
-/* Must be a power of 2 and >= 2*EZ_MAX_IMPORTS for safe linear probing. */
+/* Must be a power of 2 and >= 2*GRAY_MAX_IMPORTS for safe linear probing. */
 #define IMPORT_HASH_BUCKETS 512
 
 #define FNV1A_OFFSET_BASIS 2166136261u
@@ -588,7 +588,7 @@ static const char *imported_by_module(const char *path) {
 }
 
 static void mark_imported_with_module(const char *path, const char *mod) {
-    if (imported_file_count >= EZ_MAX_IMPORTS) return;
+    if (imported_file_count >= GRAY_MAX_IMPORTS) return;
     uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
     for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
         if (!import_hash[i].path) {
@@ -605,14 +605,14 @@ static void mark_imported(const char *path) {
     mark_imported_with_module(path, NULL);
 }
 
-/* Scan a directory for .ez files. Returns count of files found.
+/* Scan a directory for .gray files. Returns count of files found.
  * Fills paths[] with full file paths (dir_path + "/" + filename). */
 #define MAX_DIR_FILES 256
-static int ez_path_cmp(const void *a, const void *b) {
+static int gray_path_cmp(const void *a, const void *b) {
     return strcmp((const char *)a, (const char *)b);
 }
 
-static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int max_files) {
+static int scan_gray_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int max_files) {
     DIR *d = opendir(dir_path);
     if (!d) return -1;
 
@@ -622,14 +622,14 @@ static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int 
         const char *name = ent->d_name;
         if (name[0] == '.') continue; /* skip hidden files and . / .. */
         size_t nlen = strlen(name);
-        if (nlen < 4 || strcmp(name + nlen - 3, ".ez") != 0) continue;
+        if (nlen < 4 || strcmp(name + nlen - 3, ".gray") != 0) continue;
         snprintf(paths[count], PATH_BUF_SIZE, "%s/%s", dir_path, name);
         count++;
     }
     closedir(d);
 
     /* Sort alphabetically for deterministic import order */
-    qsort(paths, (size_t)count, PATH_BUF_SIZE, ez_path_cmp);
+    qsort(paths, (size_t)count, PATH_BUF_SIZE, gray_path_cmp);
     return count;
 }
 
@@ -656,7 +656,7 @@ int main(int argc, char **argv) {
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "version") == 0 || strcmp(argv[i], "--version") == 0) {
-            printf("ez %s\n", EZ_VERSION);
+            printf("gray %s\n", GRAY_VERSION);
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -744,7 +744,7 @@ int main(int argc, char **argv) {
             free(source);
             return 1;
         }
-        int rc = ez_fmt_source(source, input_file, tmp);
+        int rc = gray_fmt_source(source, input_file, tmp);
         if (rc != 0) {
             fprintf(stderr, "ez: fmt: failed to format '%s'\n", input_file);
             fclose(tmp);
@@ -787,7 +787,7 @@ int main(int argc, char **argv) {
     }
 
     /* Create compiler arena and diagnostics */
-    Arena *arena = arena_create(EZ_COMPILER_ARENA_SIZE);
+    Arena *arena = arena_create(GRAY_COMPILER_ARENA_SIZE);
     DiagnosticList *diag = diag_create();
     diag_set_source(diag, input_file, source);
     if (no_color) diag->use_color = false;
@@ -848,7 +848,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* Resolve local imports: parse imported .ez files and merge declarations */
+    /* Resolve local imports: parse imported .gray files and merge declarations */
     {
         /* Mark the main file as already imported (prevents circular import loops).
          * Use realpath so that diamond dependencies reaching the main file via
@@ -863,9 +863,9 @@ int main(int argc, char **argv) {
         const char *main_base = input_file;
         const char *main_slash = strrchr(input_file, '/');
         if (main_slash) main_base = main_slash + 1;
-        char main_mod_buf[EZ_MSG_BUF_SIZE];
+        char main_mod_buf[GRAY_MSG_BUF_SIZE];
         size_t main_mod_len = strlen(main_base);
-        if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".ez") == 0) {
+        if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".gray") == 0) {
             memcpy(main_mod_buf, main_base, main_mod_len - 3);
             main_mod_buf[main_mod_len - 3] = '\0';
         } else {
@@ -894,11 +894,11 @@ int main(int argc, char **argv) {
         /* Seed import queue once from the initial program stmts — O(N), done once.
          * Transitive imports push onto the tail as they are discovered, so the
          * queue drains naturally without re-scanning the growing program AST. */
-        AstNode *import_queue[EZ_MAX_IMPORTS];
+        AstNode *import_queue[GRAY_MAX_IMPORTS];
         int iq_head = 0, iq_tail = 0;
         for (int si = 0; si < program->data.program.stmt_count; si++) {
             if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
-                iq_tail < EZ_MAX_IMPORTS) {
+                iq_tail < GRAY_MAX_IMPORTS) {
                 import_queue[iq_tail++] = program->data.program.stmts[si];
             }
         }
@@ -906,8 +906,8 @@ int main(int argc, char **argv) {
         while (iq_head < iq_tail) {
             AstNode *stmt = import_queue[iq_head++];
 
-            const char *seen_modules[EZ_MAX_IMPORTS];
-            const char *seen_paths[EZ_MAX_IMPORTS];
+            const char *seen_modules[GRAY_MAX_IMPORTS];
+            const char *seen_paths[GRAY_MAX_IMPORTS];
             int seen_count = 0;
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
@@ -924,22 +924,22 @@ int main(int argc, char **argv) {
                 const char *base_dir = item->source_dir ? item->source_dir : input_dir;
                 snprintf(import_path, sizeof(import_path), "%s%s", base_dir, rel);
 
-                /* Determine import kind: direct .ez file, extensionless file, or directory.
-                 * Build a list of actual .ez file paths to import. */
+                /* Determine import kind: direct .gray file, extensionless file, or directory.
+                 * Build a list of actual .gray file paths to import. */
                 char (*file_list)[PATH_BUF_SIZE] = NULL;
                 int file_count = 0;
 
                 size_t iplen = strlen(import_path);
-                if (iplen >= 3 && strcmp(import_path + iplen - 3, ".ez") == 0) {
-                    /* Case 1: explicit .ez path — direct file import */
+                if (iplen >= 3 && strcmp(import_path + iplen - 3, ".gray") == 0) {
+                    /* Case 1: explicit .gray path — direct file import */
                     file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
                     strncpy(file_list[0], import_path, PATH_BUF_SIZE - 1);
                     file_list[0][PATH_BUF_SIZE - 1] = '\0';
                     file_count = 1;
                 } else {
-                    /* Case 2: try appending .ez (extensionless file import) */
+                    /* Case 2: try appending .gray (extensionless file import) */
                     char try_file[PATH_BUF_SIZE];
-                    snprintf(try_file, sizeof(try_file), "%s.ez", import_path);
+                    snprintf(try_file, sizeof(try_file), "%s.gray", import_path);
                     struct stat st;
                     if (stat(try_file, &st) == 0 && S_ISREG(st.st_mode)) {
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
@@ -950,7 +950,7 @@ int main(int argc, char **argv) {
                         strncpy(import_path, try_file, sizeof(import_path) - 1);
                         import_path[sizeof(import_path) - 1] = '\0';
                     } else if (stat(import_path, &st) == 0 && S_ISDIR(st.st_mode)) {
-                        /* Case 3: directory import — scan for .ez files */
+                        /* Case 3: directory import — scan for .gray files */
 
                         /* Self-referential directory import: if the importing file
                          * lives inside the directory it is trying to import, reject. */
@@ -958,7 +958,7 @@ int main(int argc, char **argv) {
                             char *norm_dir = realpath(import_path, NULL);
                             char *norm_src = realpath(item->source_dir, NULL);
                             if (norm_dir && norm_src && strcmp(norm_dir, norm_src) == 0) {
-                                char msg[EZ_MSG_BUF_LARGE];
+                                char msg[GRAY_MSG_BUF_LARGE];
                                 snprintf(msg, sizeof(msg),
                                     "cannot import own module directory '%s'", item->path);
                                 diag_error(diag, "E6004", strdup(msg),
@@ -972,17 +972,17 @@ int main(int argc, char **argv) {
                         }
 
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]) * MAX_DIR_FILES);
-                        file_count = scan_ez_files(import_path, file_list, MAX_DIR_FILES);
+                        file_count = scan_gray_files(import_path, file_list, MAX_DIR_FILES);
                         if (file_count == 0) {
-                            char msg[EZ_MSG_BUF_LARGE];
-                            snprintf(msg, sizeof(msg), "directory '%s' contains no .ez files", item->path);
+                            char msg[GRAY_MSG_BUF_LARGE];
+                            snprintf(msg, sizeof(msg), "directory '%s' contains no .gray files", item->path);
                             diag_error(diag, "E6003", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
                             continue;
                         }
                     } else {
                         /* Nothing found */
-                        char msg[EZ_MSG_BUF_LARGE];
+                        char msg[GRAY_MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", item->path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -990,7 +990,7 @@ int main(int argc, char **argv) {
                     }
                 }
 
-                /* Derive module name from filename/directory (strip directory and .ez) */
+                /* Derive module name from filename/directory (strip directory and .gray) */
                 const char *mod_base = rel;
                 const char *slash = strrchr(rel, '/');
                 if (slash) mod_base = slash + 1;
@@ -1003,15 +1003,15 @@ int main(int argc, char **argv) {
                     while (prev > rel && *prev != '/') prev--;
                     if (*prev == '/') prev++;
                     size_t dlen = (size_t)(slash - prev);
-                    char dir_name[EZ_MSG_BUF_SIZE];
+                    char dir_name[GRAY_MSG_BUF_SIZE];
                     memcpy(dir_name, prev, dlen);
                     dir_name[dlen] = '\0';
                     mod_base = arena_strdup(arena, dir_name);
                 }
 
-                char mod_name_buf[EZ_MSG_BUF_SIZE];
+                char mod_name_buf[GRAY_MSG_BUF_SIZE];
                 size_t mod_len = strlen(mod_base);
-                if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".ez") == 0) {
+                if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".gray") == 0) {
                     memcpy(mod_name_buf, mod_base, mod_len - 3);
                     mod_name_buf[mod_len - 3] = '\0';
                 } else {
@@ -1045,7 +1045,7 @@ int main(int argc, char **argv) {
                              * Only warn for direct imports; transitive diamonds
                              * (from inside directory modules) are silently deduped. */
                             if (!item->source_dir) {
-                                char msg[EZ_MSG_BUF_SIZE];
+                                char msg[GRAY_MSG_BUF_SIZE];
                                 snprintf(msg, sizeof(msg),
                                     "module '%s' is already imported; duplicate import ignored",
                                     mod_name);
@@ -1056,7 +1056,7 @@ int main(int argc, char **argv) {
                             break;
                         }
                         /* Different file, same module name — genuine collision */
-                        char msg[EZ_MSG_BUF_SIZE];
+                        char msg[GRAY_MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported; use an alias to distinguish them",
                             mod_name);
@@ -1067,7 +1067,7 @@ int main(int argc, char **argv) {
                     }
                 }
                 if (collision) continue;
-                if (seen_count < EZ_MAX_IMPORTS) {
+                if (seen_count < GRAY_MAX_IMPORTS) {
                     seen_modules[seen_count] = mod_name;
                     seen_paths[seen_count] = arena_strdup(arena, norm_import);
                     seen_count++;
@@ -1081,7 +1081,7 @@ int main(int argc, char **argv) {
                  * For directory imports, we use a two-pass approach:
                  *   Pass 1: Parse all files, collect ALL declaration names across all files
                  *   Pass 2: Rewrite using the combined mapping, then merge
-                 * This ensures sibling references (e.g. logic.ez referencing types.ez's
+                 * This ensures sibling references (e.g. logic.gray referencing types.gray's
                  * structs) get properly rewritten to their prefixed names. */
 
                 /* Storage for parsed programs in the directory */
@@ -1092,12 +1092,12 @@ int main(int argc, char **argv) {
                 /* Sibling import aliases collected during parse pass.
                  * After all names are known, compound mappings (alias_Name → mod_Name)
                  * are generated for each alias × declaration name. */
-                const char *sibling_aliases[EZ_MAX_IMPORTS];
+                const char *sibling_aliases[GRAY_MAX_IMPORTS];
                 int sibling_alias_count = 0;
 
                 /* Combined name mapping across all files in this import */
-                const char *orig_names[EZ_MAX_IMPORTS];
-                const char *new_names[EZ_MAX_IMPORTS];
+                const char *orig_names[GRAY_MAX_IMPORTS];
+                const char *new_names[GRAY_MAX_IMPORTS];
                 int name_count = 0;
 
                 /* Parse pass: parse each file, collect names, inject transitive imports */
@@ -1116,7 +1116,7 @@ int main(int argc, char **argv) {
                          * module referencing a sibling already pulled in by the
                          * directory import, emit an informational warning. */
                         if (item->source_dir && file_count == 1) {
-                            char msg[EZ_MSG_BUF_SIZE];
+                            char msg[GRAY_MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "import of '%s' is redundant; already included by directory import",
                                 item->path);
@@ -1125,7 +1125,7 @@ int main(int argc, char **argv) {
                         } else if (!item->source_dir && file_count == 1) {
                             /* Direct import of a file already pulled in by a directory import */
                             const char *owner_mod = imported_by_module(norm_path);
-                            char msg[EZ_MSG_BUF_LARGE];
+                            char msg[GRAY_MSG_BUF_LARGE];
                             if (owner_mod) {
                                 snprintf(msg, sizeof(msg),
                                     "file '%s' was already imported as part of a directory import; "
@@ -1147,7 +1147,7 @@ int main(int argc, char **argv) {
                     /* Read and parse the imported file */
                     char *imp_source = read_file(cur_file_path);
                     if (!imp_source) {
-                        char msg[EZ_MSG_BUF_LARGE];
+                        char msg[GRAY_MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", cur_file_path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -1199,11 +1199,11 @@ int main(int argc, char **argv) {
                                 /* Check if it resolves to a file inside the same directory */
                                 size_t trlen = strlen(tres);
                                 bool is_sibling = false;
-                                /* Try with .ez extension if not already present */
+                                /* Try with .gray extension if not already present */
                                 char tres_ez[PATH_BUF_SIZE];
                                 const char *tres_check = tres;
-                                if (trlen < 3 || strcmp(tres + trlen - 3, ".ez") != 0) {
-                                    snprintf(tres_ez, sizeof(tres_ez), "%s.ez", tres);
+                                if (trlen < 3 || strcmp(tres + trlen - 3, ".gray") != 0) {
+                                    snprintf(tres_ez, sizeof(tres_ez), "%s.gray", tres);
                                     tres_check = tres_ez;
                                 }
                                 char *norm_tres = realpath(tres_check, NULL);
@@ -1228,13 +1228,13 @@ int main(int argc, char **argv) {
                                     /* Collect sibling alias for compound mapping generation later */
                                     const char *sib_alias = titem->alias;
                                     if (!sib_alias) {
-                                        /* Derive alias from path (filename without .ez) */
+                                        /* Derive alias from path (filename without .gray) */
                                         const char *sib_base = trel;
                                         const char *sib_slash = strrchr(trel, '/');
                                         if (sib_slash) sib_base = sib_slash + 1;
-                                        char sib_buf[EZ_MSG_BUF_SIZE];
+                                        char sib_buf[GRAY_MSG_BUF_SIZE];
                                         size_t sib_len = strlen(sib_base);
-                                        if (sib_len > 3 && strcmp(sib_base + sib_len - 3, ".ez") == 0) {
+                                        if (sib_len > 3 && strcmp(sib_base + sib_len - 3, ".gray") == 0) {
                                             memcpy(sib_buf, sib_base, sib_len - 3);
                                             sib_buf[sib_len - 3] = '\0';
                                         } else {
@@ -1250,7 +1250,7 @@ int main(int argc, char **argv) {
                                             break;
                                         }
                                     }
-                                    if (!already_tracked && sibling_alias_count < EZ_MAX_IMPORTS) {
+                                    if (!already_tracked && sibling_alias_count < GRAY_MAX_IMPORTS) {
                                         sibling_aliases[sibling_alias_count++] = sib_alias;
                                     }
                                     /* Null out the sibling import path so it's not injected */
@@ -1273,7 +1273,7 @@ int main(int argc, char **argv) {
                                     program->data.program.stmts = ns;
                                     program->data.program.stmt_cap = nc;
                                 }
-                                if (iq_tail < EZ_MAX_IMPORTS) import_queue[iq_tail++] = ts;
+                                if (iq_tail < GRAY_MAX_IMPORTS) import_queue[iq_tail++] = ts;
                                 program->data.program.stmts[program->data.program.stmt_count++] = ts;
                             }
                         }
@@ -1288,10 +1288,10 @@ int main(int argc, char **argv) {
                         else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
                         else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
                         else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
-                        if (oname && name_count < EZ_MAX_IMPORTS) {
+                        if (oname && name_count < GRAY_MAX_IMPORTS) {
                             orig_names[name_count] = oname;
-                            char *pn = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                            snprintf(pn, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
+                            char *pn = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                            snprintf(pn, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
                             new_names[name_count] = pn;
                             name_count++;
                         }
@@ -1311,10 +1311,10 @@ int main(int argc, char **argv) {
                     for (int sa = 0; sa < sibling_alias_count; sa++) {
                         const char *alias = sibling_aliases[sa];
                         for (int ni = 0; ni < base_name_count; ni++) {
-                            if (name_count >= EZ_MAX_IMPORTS) break;
+                            if (name_count >= GRAY_MAX_IMPORTS) break;
                             /* Build "alias_OrigName" and map to "mod_OrigName" */
-                            char *compound = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                            snprintf(compound, EZ_MSG_BUF_SIZE, "%s_%s", alias, orig_names[ni]);
+                            char *compound = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                            snprintf(compound, GRAY_MSG_BUF_SIZE, "%s_%s", alias, orig_names[ni]);
                             /* Avoid duplicates */
                             bool dup = false;
                             for (int ci = 0; ci < name_count; ci++) {
@@ -1326,7 +1326,7 @@ int main(int argc, char **argv) {
                             name_count++;
                         }
                         /* Also add bare alias → mod_name for label references */
-                        if (name_count < EZ_MAX_IMPORTS) {
+                        if (name_count < GRAY_MAX_IMPORTS) {
                             bool dup = false;
                             for (int ci = 0; ci < name_count; ci++) {
                                 if (strcmp(orig_names[ci], alias) == 0) { dup = true; break; }
@@ -1355,8 +1355,8 @@ int main(int argc, char **argv) {
 
                     if (!imp_stmt->data.var_decl.mutable) {
                         imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
-                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         if (imp_stmt->data.var_decl.type_name) {
                             imp_stmt->data.var_decl.type_name = rewrite_type_name(
@@ -1365,8 +1365,8 @@ int main(int argc, char **argv) {
                         }
                     } else {
                         imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
-                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         imp_stmt->data.var_decl.is_private = true;
                     }
@@ -1409,8 +1409,8 @@ int main(int argc, char **argv) {
                     /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
                         imp_stmt->data.func_decl.original_name = imp_stmt->data.func_decl.name;
-                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
+                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
                         /* Rewrite internal references in function body */
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
@@ -1432,8 +1432,8 @@ int main(int argc, char **argv) {
                     /* Prefix struct names and rewrite field type references */
                     if (imp_stmt->kind == NODE_STRUCT_DECL) {
                         imp_stmt->data.struct_decl.original_name = imp_stmt->data.struct_decl.name;
-                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
+                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
                         /* Rewrite field types that reference other imported types */
                         for (int fld = 0; fld < imp_stmt->data.struct_decl.field_count; fld++) {
@@ -1467,8 +1467,8 @@ int main(int argc, char **argv) {
                     /* Prefix enum names with module name */
                     if (imp_stmt->kind == NODE_ENUM_DECL) {
                         imp_stmt->data.enum_decl.original_name = imp_stmt->data.enum_decl.name;
-                        char *prefixed = arena_alloc(arena, EZ_MSG_BUF_SIZE);
-                        snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
+                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
+                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
                         imp_stmt->data.enum_decl.name = prefixed;
                     }
 
@@ -1562,7 +1562,7 @@ int main(int argc, char **argv) {
     if (run_mode && !output_file) {
         /* Run mode: use temp file */
         default_output = malloc(PATH_BUF_SIZE);
-        snprintf(default_output, PATH_BUF_SIZE, "/tmp/ez_run_%d", (int)getpid());
+        snprintf(default_output, PATH_BUF_SIZE, "/tmp/gray_run_%d", (int)getpid());
         output_file = default_output;
     } else if (!output_file) {
         default_output = output_name_from_input(input_file);
@@ -1573,7 +1573,7 @@ int main(int argc, char **argv) {
     const char *out_base = strrchr(output_file, '/');
     out_base = out_base ? out_base + 1 : output_file;
     char c_file[PATH_BUF_SIZE];
-    snprintf(c_file, sizeof(c_file), "/tmp/ez_%s.c", out_base);
+    snprintf(c_file, sizeof(c_file), "/tmp/gray_%s.c", out_base);
 
     if (!write_file(c_file, c_code)) {
         codegen_destroy(&cg);
@@ -1592,11 +1592,11 @@ int main(int argc, char **argv) {
             /* Explicit -o provided */
             c_out = output_file;
         } else {
-            /* Derive from input: foo.ez -> foo.c */
+            /* Derive from input: foo.gray -> foo.c */
             const char *sl = strrchr(input_file, '/');
             const char *base = sl ? sl + 1 : input_file;
             size_t blen = strlen(base);
-            if (blen > 3 && strcmp(base + blen - 3, ".ez") == 0)
+            if (blen > 3 && strcmp(base + blen - 3, ".gray") == 0)
                 blen -= 3;
             c_out_default = malloc(blen + 3);
             memcpy(c_out_default, base, blen);
@@ -1645,10 +1645,10 @@ int main(int argc, char **argv) {
     if (!runtime_dir) {
         fprintf(stderr, "ez: cannot find runtime headers.\n");
         fprintf(stderr, "  Searched:\n");
-        fprintf(stderr, "    - $EZ_RUNTIME environment variable\n");
+        fprintf(stderr, "    - $GRAY_RUNTIME environment variable\n");
         fprintf(stderr, "    - relative to ez binary\n");
         fprintf(stderr, "    - ./ezc/src/ (project root)\n");
-        fprintf(stderr, "    - /usr/local/lib/ezc/\n");
+        fprintf(stderr, "    - /usr/local/lib/grayc/\n");
         fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
         codegen_destroy(&cg);
         typechecker_free(tc);
@@ -1658,7 +1658,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (strchr(runtime_dir, '\'')) {
-        fprintf(stderr, "ez: EZ_RUNTIME path must not contain single quotes\n");
+        fprintf(stderr, "ez: GRAY_RUNTIME path must not contain single quotes\n");
         codegen_destroy(&cg);
         typechecker_free(tc);
         arena_destroy(arena);
@@ -1701,7 +1701,7 @@ int main(int argc, char **argv) {
     }
 
     /* Build debug/optimization flags */
-    char extra_flags[EZ_TYPE_NAME_MAX] = "";
+    char extra_flags[GRAY_TYPE_NAME_MAX] = "";
     if (debug_symbols) {
         snprintf(extra_flags, sizeof(extra_flags), "-g %s", opt_level);
     } else {
@@ -1723,19 +1723,19 @@ int main(int argc, char **argv) {
     } else {
         /* Build source list from all runtime and stdlib .c files */
         static const char *runtime_srcs[] = {
-            "runtime/ez_runtime.c", "runtime/ez_array.c", "runtime/ez_map.c",
+            "runtime/gray_runtime.c", "runtime/gray_array.c", "runtime/gray_map.c",
         };
         static const char *stdlib_srcs[] = {
-            "stdlib/ez_arrays.c",   "stdlib/ez_binary.c",   "stdlib/ez_builtins.c",
-            "stdlib/ez_bytes.c",    "stdlib/ez_channels.c", "stdlib/ez_crypto.c",
-            "stdlib/ez_csv.c",      "stdlib/ez_encoding.c", "stdlib/ez_fmt.c",
-            "stdlib/ez_http.c",     "stdlib/ez_io.c",       "stdlib/ez_json.c",
-            "stdlib/ez_maps.c",     "stdlib/ez_math.c",     "stdlib/ez_mem.c",
-            "stdlib/ez_net.c",      "stdlib/ez_os.c",       "stdlib/ez_random.c",
-            "stdlib/ez_regex.c",    "stdlib/ez_server.c",   "stdlib/ez_sqlite.c",
-            "stdlib/ez_strings.c",  "stdlib/ez_sync.c",     "stdlib/ez_atomic.c",
-            "stdlib/ez_threads.c",
-            "stdlib/ez_time.c",     "stdlib/ez_uuid.c", "stdlib/ez_strconv.c"
+            "stdlib/gray_arrays.c",   "stdlib/gray_binary.c",   "stdlib/gray_builtins.c",
+            "stdlib/gray_bytes.c",    "stdlib/gray_channels.c", "stdlib/gray_crypto.c",
+            "stdlib/gray_csv.c",      "stdlib/gray_encoding.c", "stdlib/gray_fmt.c",
+            "stdlib/gray_http.c",     "stdlib/gray_io.c",       "stdlib/gray_json.c",
+            "stdlib/gray_maps.c",     "stdlib/gray_math.c",     "stdlib/gray_mem.c",
+            "stdlib/gray_net.c",      "stdlib/gray_os.c",       "stdlib/gray_random.c",
+            "stdlib/gray_regex.c",    "stdlib/gray_server.c",   "stdlib/gray_sqlite.c",
+            "stdlib/gray_strings.c",  "stdlib/gray_sync.c",     "stdlib/gray_atomic.c",
+            "stdlib/gray_threads.c",
+            "stdlib/gray_time.c",     "stdlib/gray_uuid.c", "stdlib/gray_strconv.c"
         };
         char srcs[CMD_BUF_SIZE];
         int off = 0;

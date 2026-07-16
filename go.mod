@@ -1,4 +1,4 @@
-module github.com/marshallburns/ez
+module github.com/grayscale-lang/grayscale
 
 go 1.23.1
 

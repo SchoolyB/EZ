@@ -120,7 +120,7 @@ static bool line_is_in_raw_string(const char *src, int target_line) {
     return in_raw;
 }
 
-int ez_fmt_source(const char *src, const char *filename, FILE *out) {
+int gray_fmt_source(const char *src, const char *filename, FILE *out) {
     int max_line = count_lines(src);
     int *depth_table = build_depth_table(src, filename, max_line);
     if (!depth_table) return 1;

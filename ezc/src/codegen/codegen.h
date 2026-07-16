@@ -122,7 +122,7 @@ typedef struct {
     void *pending_call_typed_sig;
 
     /* True while emitting the initializer of a file-scope const declaration.
-     * Prevents runtime overflow-check wrappers (ez_add_check etc.) from being
+     * Prevents runtime overflow-check wrappers (gray_add_check etc.) from being
      * emitted as C file-scope initializers, which C does not allow. */
     bool in_const_decl;
 

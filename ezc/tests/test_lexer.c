@@ -12,7 +12,7 @@
 static Arena *arena;
 
 static Lexer *lex(const char *input) {
-    return lexer_create(arena, input, "test.ez");
+    return lexer_create(arena, input, "test.gray");
 }
 
 static Token next(Lexer *l) {

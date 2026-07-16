@@ -15,9 +15,9 @@
 
 #define MAX_MULTI_VARS 16
 #define MAX_SHARED_RETURNS 16
-#define EZ_FLOAT_LIT_BUF    128
-#define EZ_TMP_NAME_BUF     32
-#define EZ_FIELD_NAME_BUF   8
+#define GRAY_FLOAT_LIT_BUF    128
+#define GRAY_TMP_NAME_BUF     32
+#define GRAY_FIELD_NAME_BUF   8
 
 /* Operator precedence levels */
 typedef enum {
@@ -139,7 +139,7 @@ static bool expect_peek(Parser *p, TokenType t) {
         next_token(p);
         return true;
     }
-    char buf[EZ_MSG_BUF_SIZE];
+    char buf[GRAY_MSG_BUF_SIZE];
     snprintf(buf, sizeof(buf), "expected '%s', got '%s'",
         token_type_name(t), token_type_name(p->peek_token.type));
     /* Point at current token (where the expected token should be), not the peek token */
@@ -417,7 +417,7 @@ static const char *parse_complex_type(Parser *p) {
         }
         next_token(p); /* consume ( */
         /* Build params buffer */
-        char params[EZ_MSG_BUF_LARGE] = {0};
+        char params[GRAY_MSG_BUF_LARGE] = {0};
         size_t plen = 0;
         if (!peek_token_is(p, TOK_RPAREN)) {
             next_token(p); /* first param */
@@ -442,7 +442,7 @@ static const char *parse_complex_type(Parser *p) {
         /* Optional -> R | -> (R1, R2, ...).
          * Absence of -> means "no return value" (the canonical encoding
          * just omits the suffix; there is no user-facing 'void' type). */
-        char ret[EZ_MSG_BUF_SIZE] = {0};
+        char ret[GRAY_MSG_BUF_SIZE] = {0};
         bool has_return = false;
         if (peek_token_is(p, TOK_ARROW)) {
             next_token(p); /* -> */
@@ -562,7 +562,7 @@ static AstNode *parse_float_literal(Parser *p) {
     /* Strip underscores before parsing; atof stops at _ */
     const char *lit = p->cur_token.literal;
     if (strchr(lit, '_')) {
-        char buf[EZ_FLOAT_LIT_BUF];
+        char buf[GRAY_FLOAT_LIT_BUF];
         int j = 0;
         for (int i = 0; lit[i] && j < (int)sizeof(buf) - 1; i++) {
             if (lit[i] != '_') buf[j++] = lit[i];
@@ -804,8 +804,8 @@ static AstNode *parse_prefix(Parser *p) {
                     (parser_is_struct_name(p, p->cur_token.literal) ||
                      (p->cur_token.literal[0] >= 'A' && p->cur_token.literal[0] <= 'Z'))) {
                     /* mod.Name{; module-qualified struct literal */
-                    char *prefixed = arena_alloc(p->arena, EZ_MSG_BUF_SIZE);
-                    snprintf(prefixed, EZ_MSG_BUF_SIZE, "%s_%s", mod, p->cur_token.literal);
+                    char *prefixed = arena_alloc(p->arena, GRAY_MSG_BUF_SIZE);
+                    snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod, p->cur_token.literal);
                     next_token(p); /* move to { */
                     return parse_struct_literal(p, prefixed);
                 }
@@ -1055,7 +1055,7 @@ static AstNode *parse_prefix(Parser *p) {
         /* 'in'/'not_in'/'!in' used without a left-hand value */
         Token bad_tok = p->cur_token;
         const char *op = bad_tok.literal;
-        char buf[EZ_MSG_BUF_SIZE];
+        char buf[GRAY_MSG_BUF_SIZE];
         snprintf(buf, sizeof(buf),
             "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range",
             op, op);
@@ -1077,7 +1077,7 @@ static AstNode *parse_prefix(Parser *p) {
     {
         /* Skip generic error for ILLEGAL tokens; the lexer already emitted a specific diagnostic */
         if (p->cur_token.type != TOK_ILLEGAL) {
-            char buf[EZ_MSG_BUF_SIZE];
+            char buf[GRAY_MSG_BUF_SIZE];
             if (p->cur_token.type == TOK_EOF && p->in_interp)
                 snprintf(buf, sizeof(buf), "unexpected end of interpolation expression");
             else
@@ -1235,7 +1235,7 @@ static AstNode *parse_infix(Parser *p, AstNode *left) {
 
 static AstNode *parse_expression(Parser *p, Precedence prec) {
     p->depth++;
-    if (p->depth > EZ_MAX_PARSE_DEPTH) {
+    if (p->depth > GRAY_MAX_PARSE_DEPTH) {
         diag_error_msg(p->diag, "E2001",
             strdup("expression is nested too deeply; maximum depth is 256"),
             p->file, p->cur_token.line, p->cur_token.column, 0);
@@ -1294,8 +1294,8 @@ static AstNode *maybe_apply_or_return(Parser *p, AstNode *var_decl) {
     }
 
     static int or_return_counter = 0;
-    char *tmp_name = arena_alloc(p->arena, EZ_TMP_NAME_BUF);
-    snprintf(tmp_name, EZ_TMP_NAME_BUF, "_ez_or%d", or_return_counter++);
+    char *tmp_name = arena_alloc(p->arena, GRAY_TMP_NAME_BUF);
+    snprintf(tmp_name, GRAY_TMP_NAME_BUF, "_gray_or%d", or_return_counter++);
 
     AstNode *block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
     block->data.block.cap = 4;
@@ -1412,7 +1412,7 @@ static AstNode *parse_var_declaration(Parser *p) {
     if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
         next_token(p);
     } else if (is_keyword_token(p->peek_token.type)) {
-        char msg[EZ_MSG_BUF_SIZE];
+        char msg[GRAY_MSG_BUF_SIZE];
         snprintf(msg, sizeof(msg),
             "'%s' is a reserved keyword and cannot be used as a variable name",
             p->peek_token.literal);
@@ -1470,7 +1470,7 @@ static AstNode *parse_var_declaration(Parser *p) {
     if (strcmp(node->data.var_decl.name, "_") == 0 &&
         !peek_token_is(p, TOK_ASSIGN) && !peek_token_is(p, TOK_COMMA)) {
         const char *kw = node->data.var_decl.mutable ? "mut" : "const";
-        char msg[EZ_MSG_BUF_SIZE];
+        char msg[GRAY_MSG_BUF_SIZE];
         snprintf(msg, sizeof(msg),
             "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result", kw);
         diag_error_msg(p->diag, "E2084", arena_strdup(p->arena, msg),
@@ -1517,8 +1517,8 @@ static AstNode *parse_var_declaration(Parser *p) {
 
             /* Generate unique temp name */
             static int multi_var_counter = 0;
-            char *tmp_name = arena_alloc(p->arena, EZ_TMP_NAME_BUF);
-            snprintf(tmp_name, EZ_TMP_NAME_BUF, "_ez_tmp%d", multi_var_counter++);
+            char *tmp_name = arena_alloc(p->arena, GRAY_TMP_NAME_BUF);
+            snprintf(tmp_name, GRAY_TMP_NAME_BUF, "_gray_tmp%d", multi_var_counter++);
 
             /* Create a block with: __auto_type _tmp = expr; type x = _tmp.v0; ... */
             AstNode *block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
@@ -1540,13 +1540,13 @@ static AstNode *parse_var_declaration(Parser *p) {
                 vd->data.var_decl.mutable = node->data.var_decl.mutable;
                 vd->data.var_decl.name = names[i];
                 vd->data.var_decl.type_name = types[i];
-                /* Value: _ez_tmp.vN */
+                /* Value: _gray_tmp.vN */
                 AstNode *member = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
                 AstNode *label = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
                 label->data.label.value = tmp_name;
                 member->data.member.object = label;
-                char *field = arena_alloc(p->arena, EZ_FIELD_NAME_BUF);
-                snprintf(field, EZ_FIELD_NAME_BUF, "v%d", i);
+                char *field = arena_alloc(p->arena, GRAY_FIELD_NAME_BUF);
+                snprintf(field, GRAY_FIELD_NAME_BUF, "v%d", i);
                 member->data.member.member = field;
                 vd->data.var_decl.value = member;
                 block->data.block.stmts[block->data.block.count++] = vd;
@@ -1637,7 +1637,7 @@ static AstNode *parse_func_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FUNC_DECL, p->cur_token);
 
     if (is_keyword_token(p->peek_token.type)) {
-        char msg[EZ_MSG_BUF_SIZE];
+        char msg[GRAY_MSG_BUF_SIZE];
         snprintf(msg, sizeof(msg),
             "'%s' is a reserved keyword and cannot be used as a function name",
             p->peek_token.literal);
@@ -1681,7 +1681,7 @@ static AstNode *parse_func_declaration(Parser *p) {
             /* Check for reserved names as parameters */
             if (p->cur_token.type != TOK_IDENT && p->cur_token.type != TOK_BLANK) {
                 /* Keyword used as parameter name */
-                char buf[EZ_MSG_BUF_SIZE];
+                char buf[GRAY_MSG_BUF_SIZE];
                 snprintf(buf, sizeof(buf),
                     "'%s' is a keyword and cannot be used as a parameter name",
                     param->name);
@@ -1708,7 +1708,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 };
                 for (int ri = 0; reserved[ri]; ri++) {
                     if (strcmp(param->name, reserved[ri]) == 0) {
-                        char buf[EZ_MSG_BUF_SIZE];
+                        char buf[GRAY_MSG_BUF_SIZE];
                         snprintf(buf, sizeof(buf),
                             "'%s' is a built-in name and cannot be used as a parameter name",
                             param->name);
@@ -1759,7 +1759,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 /* Forward-progress guard: any unexpected token between
                  * params that isn't ',' or ')' would otherwise loop
                  * forever. Surface it as a parse error and bail. */
-                char buf[EZ_MSG_BUF_SIZE];
+                char buf[GRAY_MSG_BUF_SIZE];
                 snprintf(buf, sizeof(buf),
                     "unexpected token '%s' in parameter list; expected ',' or ')'",
                     p->peek_token.literal ? p->peek_token.literal : "?");
@@ -1782,7 +1782,7 @@ static AstNode *parse_func_declaration(Parser *p) {
             }
         }
         if (!p_i->type_name && !p_i->default_value) {
-            char buf[EZ_MSG_BUF_SIZE];
+            char buf[GRAY_MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf),
                 "parameter '%s' is missing a type; every parameter must have a type (e.g., %s int)",
                 p_i->name, p_i->name);
@@ -2077,7 +2077,7 @@ static AstNode *parse_import_statement(Parser *p) {
                     p->file, p->cur_token.line, p->cur_token.column, 0);
             }
         } else if (cur_token_is(p, TOK_IDENT)) {
-            char buf[EZ_MSG_BUF_SIZE];
+            char buf[GRAY_MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf),
                 "expected @module or \"path\" after import, got '%s'",
                 p->cur_token.literal);
@@ -2281,7 +2281,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
             }
             /* Reject reserved keywords and type names as struct field names */
             if (is_keyword_token(p->cur_token.type)) {
-                char msg[EZ_MSG_BUF_SIZE];
+                char msg[GRAY_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a reserved keyword and cannot be used as a struct field name",
                     p->cur_token.literal);
@@ -2291,7 +2291,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
                 break;
             }
             if (cur_token_is(p, TOK_IDENT) && is_reserved_type_name(p->cur_token.literal)) {
-                char msg[EZ_MSG_BUF_SIZE];
+                char msg[GRAY_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a reserved type name and cannot be used as a struct field name",
                     p->cur_token.literal);
@@ -2301,7 +2301,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
                 break;
             }
             if (cur_token_is(p, TOK_IDENT) && is_reserved_builtin_func_name(p->cur_token.literal)) {
-                char msg[EZ_MSG_BUF_SIZE];
+                char msg[GRAY_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a builtin function and cannot be used as a struct field name",
                     p->cur_token.literal);
@@ -2311,7 +2311,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
                 break;
             }
             if (cur_token_is(p, TOK_IDENT) && is_stdlib_module_name(p->cur_token.literal)) {
-                char msg[EZ_MSG_BUF_SIZE];
+                char msg[GRAY_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a standard library module and cannot be used as a struct field name",
                     p->cur_token.literal);
@@ -2437,7 +2437,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
 
         /* Reject reserved names as enum variant names */
         if (is_keyword_token(p->cur_token.type)) {
-            char msg[EZ_MSG_BUF_SIZE];
+            char msg[GRAY_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved keyword and cannot be used as an enum variant name",
                 p->cur_token.literal);
@@ -2447,7 +2447,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             continue;
         }
         if (cur_token_is(p, TOK_IDENT) && is_reserved_type_name(p->cur_token.literal)) {
-            char msg[EZ_MSG_BUF_SIZE];
+            char msg[GRAY_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved type name and cannot be used as an enum variant name",
                 p->cur_token.literal);
@@ -2457,7 +2457,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             continue;
         }
         if (cur_token_is(p, TOK_IDENT) && is_reserved_builtin_func_name(p->cur_token.literal)) {
-            char msg[EZ_MSG_BUF_SIZE];
+            char msg[GRAY_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a builtin function and cannot be used as an enum variant name",
                 p->cur_token.literal);
@@ -2467,7 +2467,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
             continue;
         }
         if (cur_token_is(p, TOK_IDENT) && is_stdlib_module_name(p->cur_token.literal)) {
-            char msg[EZ_MSG_BUF_SIZE];
+            char msg[GRAY_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a standard library module and cannot be used as an enum variant name",
                 p->cur_token.literal);
@@ -2620,7 +2620,7 @@ static AstNode *parse_for_statement(Parser *p) {
             next_token(p);  /* consume IN */
             next_token(p);  /* advance to iterable start */
             if (!cur_token_is(p, TOK_RANGE)) {
-                char msg[EZ_MSG_BUF_SIZE];
+                char msg[GRAY_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'for %s in ...' only supports range(); use 'for_each %s in ...' to iterate over a collection",
                     var, var);
@@ -2946,7 +2946,7 @@ static AstNode *parse_statement(Parser *p) {
     case TOK_CONST:
         /* Check for keyword used as name: const for struct / mut for int */
         if (is_keyword_token(p->peek_token.type)) {
-            char msg[EZ_MSG_BUF_SIZE];
+            char msg[GRAY_MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved keyword and cannot be used as a name",
                 p->peek_token.literal);
