@@ -1097,6 +1097,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         /* Next char is also hex; break the string */
                         emit(cg, "\" \"");
                     }
+                } else if (s[0] == '\\' && s[1] == '$') {
+                    buf_append_char(&cg->output, '$');
+                    s += 2;
                 } else if (*s == '\n') {
                     emit(cg, "\\n");
                     s++;
@@ -1146,6 +1149,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 const char *s = part->data.string_value.value;
                 while (*s) {
                     if (*s == '%') buf_append(&cg->output, "%%");
+                    else if (s[0] == '\\' && s[1] == '$') { buf_append_char(&cg->output, '$'); s++; }
                     else buf_append_char(&cg->output, *s);
                     s++;
                 }

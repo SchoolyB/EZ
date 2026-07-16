@@ -1,0 +1,6 @@
+do main() {
+    println("literal \${x}")
+
+    mut y int = 10
+    println("escaped \${x} and ${y}")
+}
