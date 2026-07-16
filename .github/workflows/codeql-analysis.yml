@@ -33,7 +33,7 @@ jobs:
           go env
           go test ./... || true
 
-      - name: Build EZ compiler
+      - name: Build Grayscale compiler
         run: |
           cd ezc
           make clean

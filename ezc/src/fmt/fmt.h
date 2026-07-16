@@ -1,5 +1,5 @@
 /*
- * fmt.h - EZ source formatter
+ * fmt.h - Grayscale source formatter
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -12,7 +12,7 @@
 
 /*
  * gray_fmt_source:
- *   Format the EZ source in `src` (NUL-terminated) and write the result to
+ *   Format the Grayscale source in `src` (NUL-terminated) and write the result to
  *   `out`. Returns 0 on success, non-zero if the source could not be lexed.
  *
  *   Strategy: lex the source to build a per-line indentation depth table,

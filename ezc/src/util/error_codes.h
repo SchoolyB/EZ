@@ -1,5 +1,5 @@
 /*
- * error_codes.h - Centralized error code registry for EZ
+ * error_codes.h - Centralized error code registry for Grayscale
  *
  * This is the SINGLE SOURCE OF TRUTH for all error and warning codes.
  * The scripts/generate_errors.sh script reads this file to produce ERRORS.md.

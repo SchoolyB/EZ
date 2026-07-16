@@ -1,7 +1,7 @@
 /*
  * test_codegen.c - End-to-end tests for EZC code generation
  *
- * Each test compiles an EZ snippet, runs the resulting binary,
+ * Each test compiles a Grayscale snippet, runs the resulting binary,
  * and checks the output.
  *
  * Copyright (c) 2025-Present Marshall A Burns
@@ -16,7 +16,7 @@
 
 static int test_num = 0;
 
-/* Compile and run an EZ program, return its stdout output */
+/* Compile and run a Grayscale program, return its stdout output */
 static char *compile_and_run(const char *gray_source) {
     test_num++;
     static char output[4096];

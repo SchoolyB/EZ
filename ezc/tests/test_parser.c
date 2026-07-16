@@ -756,7 +756,7 @@ static void test_parse_return_multiple_values(void) {
 }
 
 static void test_parse_import_alias(void) {
-    /* EZ alias syntax: import alias @module */
+    /* Grayscale alias syntax: import alias @module */
     AstNode *prog = parse("import m @math");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);

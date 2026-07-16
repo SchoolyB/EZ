@@ -61,7 +61,7 @@ static void print_usage(void) {
 static char *read_file(const char *path) {
     FILE *f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "ez: cannot open '%s': ", path);
+        fprintf(stderr, "gray: cannot open '%s': ", path);
         perror("");
         return NULL;
     }
@@ -79,7 +79,7 @@ static char *read_file(const char *path) {
     if (size >= 0) {
         char *buf = malloc((size_t)size + 1);
         if (!buf) {
-            fprintf(stderr, "ez: out of memory\n");
+            fprintf(stderr, "gray: out of memory\n");
             fclose(f);
             return NULL;
         }
@@ -95,7 +95,7 @@ static char *read_file(const char *path) {
     size_t len = 0;
     char *buf = malloc(cap);
     if (!buf) {
-        fprintf(stderr, "ez: out of memory\n");
+        fprintf(stderr, "gray: out of memory\n");
         fclose(f);
         return NULL;
     }
@@ -106,7 +106,7 @@ static char *read_file(const char *path) {
             if (!new_buf) {
                 free(buf);
                 fclose(f);
-                fprintf(stderr, "ez: out of memory\n");
+                fprintf(stderr, "gray: out of memory\n");
                 return NULL;
             }
             buf = new_buf;
@@ -121,7 +121,7 @@ static char *read_file(const char *path) {
         if (!grow) {
             free(buf);
             fclose(f);
-            fprintf(stderr, "ez: out of memory\n");
+            fprintf(stderr, "gray: out of memory\n");
             return NULL;
         }
         buf = grow;
@@ -134,12 +134,12 @@ static char *read_file(const char *path) {
 static bool write_file(const char *path, const char *content) {
     FILE *f = fopen(path, "w");
     if (!f) {
-        fprintf(stderr, "ez: cannot write '%s': ", path);
+        fprintf(stderr, "gray: cannot write '%s': ", path);
         perror("");
         return false;
     }
     if (fputs(content, f) == EOF) {
-        fprintf(stderr, "ez: failed to write '%s'\n", path);
+        fprintf(stderr, "gray: failed to write '%s'\n", path);
         fclose(f);
         return false;
     }
@@ -696,7 +696,7 @@ int main(int argc, char **argv) {
             if (i + 1 < argc && argv[i + 1][0] == 'W') {
                 quiet_codes_arg = argv[++i];
             } else if (i + 1 < argc && argv[i + 1][0] == 'E') {
-                fprintf(stderr, "ez: '-q' only accepts warning codes (W-prefixed), not error code '%s'\n", argv[i + 1]);
+                fprintf(stderr, "gray: '-q' only accepts warning codes (W-prefixed), not error code '%s'\n", argv[i + 1]);
                 return 1;
             } else {
                 quiet_all = true;
@@ -721,14 +721,14 @@ int main(int argc, char **argv) {
             continue;
         }
         if (argv[i][0] == '-') {
-            fprintf(stderr, "ez: unknown option '%s'\n", argv[i]);
+            fprintf(stderr, "gray: unknown option '%s'\n", argv[i]);
             return 1;
         }
         input_file = argv[i];
     }
 
     if (!input_file) {
-        fprintf(stderr, "ez: no input file\n");
+        fprintf(stderr, "gray: no input file\n");
         return 1;
     }
 
@@ -740,13 +740,13 @@ int main(int argc, char **argv) {
     if (fmt_mode) {
         FILE *tmp = tmpfile();
         if (!tmp) {
-            fprintf(stderr, "ez: fmt: could not create temp file\n");
+            fprintf(stderr, "gray: fmt: could not create temp file\n");
             free(source);
             return 1;
         }
         int rc = gray_fmt_source(source, input_file, tmp);
         if (rc != 0) {
-            fprintf(stderr, "ez: fmt: failed to format '%s'\n", input_file);
+            fprintf(stderr, "gray: fmt: failed to format '%s'\n", input_file);
             fclose(tmp);
             free(source);
             return 1;
@@ -756,7 +756,7 @@ int main(int argc, char **argv) {
         rewind(tmp);
         char *fmt_buf = malloc(fmt_len + 1);
         if (!fmt_buf || (long)fread(fmt_buf, 1, fmt_len, tmp) != fmt_len) {
-            fprintf(stderr, "ez: fmt: failed to read formatted output\n");
+            fprintf(stderr, "gray: fmt: failed to read formatted output\n");
             fclose(tmp);
             free(source);
             return 1;
@@ -766,14 +766,14 @@ int main(int argc, char **argv) {
         /* Write back to the original file with explicit 0644 permissions */
         int wfd = open(input_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (wfd < 0) {
-            fprintf(stderr, "ez: fmt: cannot write '%s'\n", input_file);
+            fprintf(stderr, "gray: fmt: cannot write '%s'\n", input_file);
             free(fmt_buf);
             free(source);
             return 1;
         }
         FILE *f = fdopen(wfd, "w");
         if (!f) {
-            fprintf(stderr, "ez: fmt: cannot write '%s'\n", input_file);
+            fprintf(stderr, "gray: fmt: cannot write '%s'\n", input_file);
             close(wfd);
             free(fmt_buf);
             free(source);
@@ -805,12 +805,12 @@ int main(int argc, char **argv) {
         while (tok) {
             /* Validate: must start with W */
             if (tok[0] == 'E') {
-                fprintf(stderr, "ez: '-q' only accepts warning codes (W-prefixed), not error code '%s'\n", tok);
+                fprintf(stderr, "gray: '-q' only accepts warning codes (W-prefixed), not error code '%s'\n", tok);
                 free(codes_buf);
                 return 1;
             }
             if (tok[0] != 'W') {
-                fprintf(stderr, "ez: unknown warning code '%s'\n", tok);
+                fprintf(stderr, "gray: unknown warning code '%s'\n", tok);
                 free(codes_buf);
                 return 1;
             }
@@ -818,7 +818,7 @@ int main(int argc, char **argv) {
                 code_cap *= 2;
                 void *tmp = realloc(diag->suppressed_codes, sizeof(const char *) * code_cap);
                 if (!tmp) {
-                    fprintf(stderr, "ez: out of memory\n");
+                    fprintf(stderr, "gray: out of memory\n");
                     free(codes_buf);
                     return 1;
                 }
@@ -1541,9 +1541,9 @@ int main(int argc, char **argv) {
         clock_t t_end = clock();
         if (show_time) {
             double ms = (double)(t_end - t_start) / CLOCKS_PER_SEC * 1000.0;
-            fprintf(stderr, "ez: check completed in %.1fms\n", ms);
+            fprintf(stderr, "gray: check completed in %.1fms\n", ms);
         }
-        fprintf(stderr, "ez: %s: no errors\n", input_file);
+        fprintf(stderr, "gray: %s: no errors\n", input_file);
         typechecker_free(tc);
         diag_destroy(diag);
         arena_destroy(arena);
@@ -1605,7 +1605,7 @@ int main(int argc, char **argv) {
         }
 
         if (!write_file(c_out, c_code)) {
-            fprintf(stderr, "ez: failed to write C output: %s\n", c_out);
+            fprintf(stderr, "gray: failed to write C output: %s\n", c_out);
             free(c_out_default);
             codegen_destroy(&cg);
             typechecker_free(tc);
@@ -1628,8 +1628,8 @@ int main(int argc, char **argv) {
     if (system("cc --version >/dev/null 2>&1") != 0 &&
         system("gcc --version >/dev/null 2>&1") != 0 &&
         system("clang --version >/dev/null 2>&1") != 0) {
-        fprintf(stderr, "ez: no C compiler found.\n");
-        fprintf(stderr, "  Install gcc or clang to compile EZ programs.\n");
+        fprintf(stderr, "gray: no C compiler found.\n");
+        fprintf(stderr, "  Install gcc or clang to compile Grayscale programs.\n");
         fprintf(stderr, "  On macOS: xcode-select --install\n");
         fprintf(stderr, "  On Ubuntu: sudo apt install gcc\n");
         codegen_destroy(&cg);
@@ -1643,10 +1643,10 @@ int main(int argc, char **argv) {
     /* Find runtime directory */
     const char *runtime_dir = find_runtime_dir(argv[0]);
     if (!runtime_dir) {
-        fprintf(stderr, "ez: cannot find runtime headers.\n");
+        fprintf(stderr, "gray: cannot find runtime headers.\n");
         fprintf(stderr, "  Searched:\n");
         fprintf(stderr, "    - $GRAY_RUNTIME environment variable\n");
-        fprintf(stderr, "    - relative to ez binary\n");
+        fprintf(stderr, "    - relative to gray binary\n");
         fprintf(stderr, "    - ./ezc/src/ (project root)\n");
         fprintf(stderr, "    - /usr/local/lib/grayc/\n");
         fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
@@ -1658,7 +1658,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (strchr(runtime_dir, '\'')) {
-        fprintf(stderr, "ez: GRAY_RUNTIME path must not contain single quotes\n");
+        fprintf(stderr, "gray: GRAY_RUNTIME path must not contain single quotes\n");
         codegen_destroy(&cg);
         typechecker_free(tc);
         arena_destroy(arena);
@@ -1667,7 +1667,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (strchr(output_file, '\'')) {
-        fprintf(stderr, "ez: output path must not contain single quotes\n");
+        fprintf(stderr, "gray: output path must not contain single quotes\n");
         codegen_destroy(&cg);
         typechecker_free(tc);
         arena_destroy(arena);
@@ -1762,11 +1762,11 @@ int main(int argc, char **argv) {
     }
 
     if (verbose) {
-        fprintf(stderr, "ez: %s\n", cmd);
+        fprintf(stderr, "gray: %s\n", cmd);
     }
 
     if (strlen(cmd) >= CMD_BUF_SIZE - 1) {
-        fprintf(stderr, "ez: compile command too long (paths may be too deep)\n");
+        fprintf(stderr, "gray: compile command too long (paths may be too deep)\n");
         codegen_destroy(&cg);
         typechecker_free(tc);
         diag_destroy(diag);
@@ -1781,7 +1781,7 @@ int main(int argc, char **argv) {
     clock_t t_cc_end = clock();
 
     if (ret != 0) {
-        fprintf(stderr, "ez: C compilation failed\n");
+        fprintf(stderr, "gray: C compilation failed\n");
         bool has_c_import = false;
         for (int si = 0; si < program->data.program.stmt_count; si++) {
             AstNode *s = program->data.program.stmts[si];
@@ -1796,9 +1796,9 @@ int main(int argc, char **argv) {
             if (has_c_import) break;
         }
         if (has_c_import) {
-            fprintf(stderr, "ez: hint: check that all C headers in import c\"...\" exist and are installed\n");
+            fprintf(stderr, "gray: hint: check that all C headers in import c\"...\" exist and are installed\n");
         }
-        fprintf(stderr, "ez: generated C source at %s\n", c_file);
+        fprintf(stderr, "gray: generated C source at %s\n", c_file);
     } else {
         unlink(c_file);
 
@@ -1824,14 +1824,14 @@ int main(int argc, char **argv) {
         if (pid == 0) {
             char *args[] = { output_file, NULL };
             execv(output_file, args);
-            perror("ez: exec");
+            perror("gray: exec");
             _exit(127);
         } else if (pid > 0) {
             int status = 0;
             waitpid(pid, &status, 0);
             ret = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
         } else {
-            perror("ez: fork");
+            perror("gray: fork");
             ret = 1;
         }
         unlink(output_file);

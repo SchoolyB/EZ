@@ -2054,15 +2054,15 @@ static AstNode *parse_import_statement(Parser *p) {
                 const char *slash = strrchr(item->path, '/');
                 const char *base = slash ? slash + 1 : item->path;
                 size_t blen = strlen(base);
-                if (blen > 3 && strcmp(base + blen - 3, ".ez") == 0) {
-                    /* Strip .ez extension: "helpers.ez" → "helpers" */
+                if (blen > 3 && strcmp(base + blen - 3, ".gray") == 0) {
+                    /* Strip .gray extension: "helpers.gray" → "helpers" */
                     char *mod = arena_alloc(p->arena, blen - 2);
                     memcpy(mod, base, blen - 3);
                     mod[blen - 3] = '\0';
                     item->alias = mod;
                     item->module = mod;
                 } else if (blen > 0) {
-                    /* No .ez extension: use last path component as module name */
+                    /* No .gray extension: use last path component as module name */
                     char *mod = arena_alloc(p->arena, blen + 1);
                     memcpy(mod, base, blen);
                     mod[blen] = '\0';
@@ -2073,7 +2073,7 @@ static AstNode *parse_import_statement(Parser *p) {
             /* Reject 'c' as a module name; reserved for C interop */
             if (item->alias && strcmp(item->alias, "c") == 0) {
                 diag_error_msg(p->diag, "E2002",
-                    strdup("'c' is reserved for C interop; rename the file or use an alias (e.g., import myc\"./c.ez\")"),
+                    strdup("'c' is reserved for C interop; rename the file or use an alias (e.g., import myc\"./c.gray\")"),
                     p->file, p->cur_token.line, p->cur_token.column, 0);
             }
         } else if (cur_token_is(p, TOK_IDENT)) {
@@ -3045,7 +3045,7 @@ static AstNode *parse_statement(Parser *p) {
     }
     case TOK_SUPPRESS:
         diag_error_msg(p->diag, "E2002",
-            strdup("#suppress is no longer supported; use 'ez file.ez -q W1001' to suppress warnings from the command line"),
+            strdup("#suppress is no longer supported; use 'gray file.gray -q W1001' to suppress warnings from the command line"),
             p->file, p->cur_token.line, p->cur_token.column, 0);
         /* Consume the attribute and its args to avoid cascading errors */
         if (peek_token_is(p, TOK_LPAREN)) {
@@ -3083,7 +3083,7 @@ static AstNode *parse_statement(Parser *p) {
     default: {
         /* IDENT IDENT at statement position means the user tried to
          * declare a variable but typed the wrong leading keyword
-         * (e.g. `cont myVar = 10`). No valid EZ statement has this
+         * (e.g. `cont myVar = 10`). No valid Grayscale statement has this
          * shape, so we can confidently redirect them at 'const' or
          * 'mut'. Consume the botched header and keep parsing. */
         if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT)) {

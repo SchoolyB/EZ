@@ -2091,7 +2091,7 @@ static bool tc_fold_const_int(TypeChecker *tc, AstNode *node,
     if (node->kind == NODE_INT_VALUE) {
         /* overflow_u64 means the literal exceeds uint64 range entirely;
          * overflow alone only means it exceeds int64 range (still valid
-         * for unsigned EZ types).  Only treat overflow_u64 as a hard
+         * for unsigned Grayscale types).  Only treat overflow_u64 as a hard
          * failure here since we fold using the raw int64 bit pattern. */
         if (node->data.int_value.overflow_u64) { *overflowed = true; return false; }
         *out = node->data.int_value.value;
@@ -2767,7 +2767,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* E3124: == / != on tagged enums. Tagged enums are emitted as C
          * structs (union + tag field) and cannot be compared with ==.
-         * Reject at the EZ level before C is ever invoked. */
+         * Reject at the Grayscale level before C is ever invoked. */
         if (!infix_errored &&
             (op == TOK_EQ || op == TOK_NOT_EQ) &&
             left->kind == TK_ENUM && right->kind == TK_ENUM &&
@@ -3113,7 +3113,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         /* E5030: chained call on a function-call result — e.g. get_fn()(5).
-         * A call result is never directly callable in EZ; func references
+         * A call result is never directly callable in Grayscale; func references
          * must be created with ()func_name or ref(func_name) first. */
         if (fn && fn->kind == NODE_CALL_EXPR) {
             AstNode *inner_fn = fn->data.call.function;
@@ -3440,7 +3440,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
                     }
-                    /* Reject EZ-specific composite types */
+                    /* Reject Grayscale-specific composite types */
                     if (arg_t->kind == TK_ARRAY || arg_t->kind == TK_MAP) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -3450,7 +3450,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
                     }
-                    /* Reject EZ structs (registered in typechecker) */
+                    /* Reject Grayscale structs (registered in typechecker) */
                     if (arg_t->kind == TK_STRUCT && arg_t->name &&
                         is_struct_name(tc, arg_t->name)) {
                         char *msg = NULL;
@@ -3466,7 +3466,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 break;
             }
             /* Skip stdlib dispatch if this module is a user import, not stdlib.
-             * User modules with the same name (e.g., import "./server.ez") must
+             * User modules with the same name (e.g., import "./server.gray") must
              * fall through to the user-module handler below. */
             if (!tc_is_stdlib_import(tc, mod_raw)) {
                 goto user_module_dispatch;
@@ -3617,7 +3617,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "io") == 0) {
                 /* Fallible I/O: the type checker returns the primary value type.
                  * The codegen emits _result() versions that return (T, Error) tuples.
-                 * The .v0 access gets __auto_type in C, but the EZ type system
+                 * The .v0 access gets __auto_type in C, but the Grayscale type system
                  * sees it as the value type for interpolation purposes. */
                 if (strcmp(mfn, "read_file") == 0) {
                     result = &TYPE_STRING;
@@ -7384,7 +7384,7 @@ static void check_statement(TypeChecker *tc, AstNode *node);
 /* Walk an expression tree looking for a function call anywhere inside.
  * Used by the file-scope initializer guard (E5013): runtime calls in
  * a top-level var_decl produce invalid C (free-standing init or
- * non-constant initializer), so the EZ side must reject them with
+ * non-constant initializer), so the Grayscale side must reject them with
  * a real diagnostic before codegen runs. */
 static bool expr_contains_call(AstNode *node) {
     if (!node) return false;
@@ -7634,9 +7634,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     case NODE_VAR_DECL: {
         /* E5013: file-scope initializers cannot contain function calls.
          * A runtime call as an initializer would either need a module-init
-         * function (which EZ does not generate) or produce invalid C
+         * function (which Grayscale does not generate) or produce invalid C
          * (non-constant initializer / free-standing statement at file
-         * scope). Catch it on the EZ side so the user sees a real
+         * scope). Catch it on the Grayscale side so the user sees a real
          * diagnostic instead of a clang error pointing at the generated C. */
         if (tc->func_depth == 0 && node->data.var_decl.value &&
             expr_contains_call(node->data.var_decl.value)) {
@@ -10269,7 +10269,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* E3099: struct name collides with a stdlib opaque type reserved by codegen.
          * These names map to internal C types (EzRouter, EzThread, etc.) before the
          * user-struct path, so any user struct with these names silently generates
-         * invalid C with no EZ diagnostic. */
+         * invalid C with no Grayscale diagnostic. */
         const char *sname = STRUCT_DISPLAY_NAME(node);
         if (is_reserved_stdlib_struct_name(sname)) {
             diag_error_codef(tc->diag, "E3099",

@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # generate_stdlib_man.sh — extract @man blocks from stdlib headers
 # Usage: ./scripts/generate_stdlib_man.sh
-# Reads all ez_*.h files under ezc/src/stdlib/ that contain @module tags.
-# Generates cmd/ez/stdlib_man_data.go (committed, do not edit by hand).
+# Reads all gray_*.h files under ezc/src/stdlib/ that contain @module tags.
+# Generates cmd/gray/stdlib_man_data.go (committed, do not edit by hand).
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
 STDLIB_DIR="$ROOT/ezc/src/stdlib"
-OUT="$ROOT/cmd/ez/stdlib_man_data.go"
+OUT="$ROOT/cmd/gray/stdlib_man_data.go"
 
 # Collect all @man blocks from all stdlib headers into a TSV:
 #   name <TAB> module <TAB> group <TAB> sig <TAB> desc <TAB> example
-TMPFILE="$(mktemp /tmp/ez_stdlib_man_XXXXXX.tsv)"
+TMPFILE="$(mktemp /tmp/gray_stdlib_man_XXXXXX.tsv)"
 trap 'rm -f "$TMPFILE"' EXIT
 
-for header in "$STDLIB_DIR"/ez_*.h; do
+for header in "$STDLIB_DIR"/gray_*.h; do
   awk '
     /^\/\*@man / {
       name = substr($0, 8); gsub(/[[:space:]]/, "", name)
@@ -65,7 +65,7 @@ done > "$TMPFILE"
   echo "	Example string"
   echo "}"
   echo ""
-  echo "// stdlibManDocs is the per-function lookup table used by ez man <name>."
+  echo "// stdlibManDocs is the per-function lookup table used by gray man <name>."
   echo "var stdlibManDocs = map[string]StdlibManEntry{"
   awk -F'\t' '{
     printf "\t\"%s.%s\": {Module: \"%s\", Group: \"%s\", Kind: \"%s\", Sig: \"%s\", Fields: \"%s\", Desc: \"%s\", Example: \"%s\"},\n", $2, $1, $2, $3, $4, $5, $6, $7, $8

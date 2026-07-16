@@ -138,7 +138,7 @@ __attribute__((unused))
 static void codegen_ice(const char *context, const char *file, int line) {
     fflush(stdout);
     fprintf(stderr, "internal compiler error: %s (at %s:%d)\n"
-        "This is a bug in the EZ compiler. Please report it.\n",
+        "This is a bug in the Grayscale compiler. Please report it.\n",
         context, file ? file : "<unknown>", line);
     exit(1);
 }
@@ -186,7 +186,7 @@ static const char *safe_name(const char *name) {
     return bufs[i];
 }
 
-/* Map EZ type name to C type */
+/* Map Grayscale type name to C type */
 /* Return a type string with any '?' replaced by the active wildcard
  * binding. Returns the original pointer if no binding is active or the
  * string has no wildcard. The substituted string lives in a small ring
@@ -387,7 +387,7 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
     return type_name;
 }
 
-/* Resolve an EZ type to its C type for map key/value storage.
+/* Resolve a Grayscale type to its C type for map key/value storage.
  * Uses gray_type_to_c_cg for struct/array/map types, hardcoded for primitives.
  * Routes the input through cg_effective_type_str so '?' inside a generic
  * instantiation resolves to the active wildcard binding. */
@@ -436,7 +436,7 @@ static const char *gray_map_key_kind_macro(const char *c_key_type) {
  * how any real language treats pointer copy.
  *
  * Three mutually-recursive emitters handle each collection kind, and
- * emit_value_deep_copy dispatches based on the EZ type string. All of
+ * emit_value_deep_copy dispatches based on the Grayscale type string. All of
  * them take a `src_var` naming a C lvalue holding the source value,
  * and emit a single C expression (usually a GCC statement expression)
  * that evaluates to a fully independent copy. */
@@ -1947,7 +1947,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (!cg->in_const_decl && (op == TOK_SLASH || op == TOK_PERCENT)) {
             bool is_float_div = (lt && lt->kind == TK_FLOAT) || (rt && rt->kind == TK_FLOAT);
             if (is_float_div) {
-                /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
+                /* Float division: check for zero (Grayscale panics, no IEEE 754 inf) */
                 emit(cg, "({ double _dv = (double)");
                 emit_expression(cg, node->data.infix.right);
                 emit(cg, "; if (_dv == 0.0) { gray_panic_code(\"P0078\", \"division by zero\"); } (double)");
@@ -2333,7 +2333,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
         /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED.
-         * The first-letter casing heuristics aren't reliable — EZ permits
+         * The first-letter casing heuristics aren't reliable — Grayscale permits
          * lowercase enum members (e.g. `type_change`), and a confident
          * `codegen_is_enum` lookup on the prefixed name is authoritative.
          * Verify the type really is a known enum before rewriting. */
@@ -2996,7 +2996,7 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
 }
 
 /* Emit a fmt format string literal with %d/%i/%u upgraded to %lld/%llu for
- * EZ int/uint arguments (which are int64_t/uint64_t) to avoid -Wformat.
+ * Grayscale int/uint arguments (which are int64_t/uint64_t) to avoid -Wformat.
  * If append_newline is true, a \n is appended before the closing quote. */
 static void emit_fmt_string_normalized_ex(CodeGen *cg, const char *fmt_str, AstNode *call_node, bool append_newline) {
     const char *p = fmt_str;
@@ -3028,7 +3028,7 @@ static void emit_fmt_string_normalized_ex(CodeGen *cg, const char *fmt_str, AstN
         }
         char spec = *p ? *p++ : 0;
         if (!spec) break;
-        /* Upgrade bare %d/%i/%u to %lld/%llu when arg is EZ int/uint */
+        /* Upgrade bare %d/%i/%u to %lld/%llu when arg is Grayscale int/uint */
         if (!has_length && (spec == 'd' || spec == 'i' || spec == 'u') &&
             di < call_node->data.call.arg_count) {
             EzType *dt = cg->type_table ?
@@ -3908,7 +3908,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    /* c_string(ptr); convert C char* to EZ string. Copies onto the
+    /* c_string(ptr); convert C char* to Grayscale string. Copies onto the
      * arena so the result is safe to use even after the C-side buffer
      * is freed or overwritten. NULL maps to "" instead of crashing. */
     if (strcmp(func, "c_string") == 0 && node->data.call.arg_count == 1) {
@@ -9384,7 +9384,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"gray_server.h\"\n");
     emit(cg, "#include \"gray_bigint.h\"\n");
 
-    /* Emit user C interop headers (after EZ internals to prevent collisions) */
+    /* Emit user C interop headers (after Grayscale internals to prevent collisions) */
     if (cg->c_header_count > 0) {
         emit(cg, "\n/* C interop headers */\n");
         for (int i = 0; i < cg->c_header_count; i++) {

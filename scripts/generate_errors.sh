@@ -23,14 +23,14 @@ if [ ! -f "$CODES_FILE" ]; then
 fi
 
 # Count errors, warnings, and panics
-ERROR_COUNT=$(grep -c '^ *EZ_ERROR("' "$CODES_FILE" || echo 0)
-WARNING_COUNT=$(grep -c '^ *EZ_WARNING("' "$CODES_FILE" || echo 0)
-PANIC_COUNT=$(grep -c '^ *EZ_PANIC("' "$CODES_FILE" || echo 0)
+ERROR_COUNT=$(grep -c '^ *GRAY_ERROR("' "$CODES_FILE" || echo 0)
+WARNING_COUNT=$(grep -c '^ *GRAY_WARNING("' "$CODES_FILE" || echo 0)
+PANIC_COUNT=$(grep -c '^ *GRAY_PANIC("' "$CODES_FILE" || echo 0)
 TOTAL=$((ERROR_COUNT + WARNING_COUNT + PANIC_COUNT))
 
 # Generate markdown
 cat > "$OUTPUT" << HEADER
-# EZ Error Code Reference
+# Grayscale Error Code Reference
 
 > Auto-generated from \`ezc/src/util/error_codes.h\`. Do not edit manually.
 > Run \`./scripts/generate_errors.sh\` to regenerate.
@@ -46,10 +46,10 @@ cat > "$OUTPUT" << HEADER
 HEADER
 
 # Extract errors
-grep '^ *EZ_ERROR("' "$CODES_FILE" | while IFS= read -r line; do
-    code=$(echo "$line" | sed 's/.*EZ_ERROR("\([^"]*\)".*/\1/')
-    category=$(echo "$line" | sed 's/.*EZ_ERROR("[^"]*", "\([^"]*\)".*/\1/')
-    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*EZ_ERROR("[^"]*", "[^"]*", "\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
+grep '^ *GRAY_ERROR("' "$CODES_FILE" | while IFS= read -r line; do
+    code=$(echo "$line" | sed 's/.*GRAY_ERROR("\([^"]*\)".*/\1/')
+    category=$(echo "$line" | sed 's/.*GRAY_ERROR("[^"]*", "\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*GRAY_ERROR("[^"]*", "[^"]*", "\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 
@@ -64,10 +64,10 @@ cat >> "$OUTPUT" << WARN_HEADER
 WARN_HEADER
 
 # Extract warnings
-grep '^ *EZ_WARNING("' "$CODES_FILE" | while IFS= read -r line; do
-    code=$(echo "$line" | sed 's/.*EZ_WARNING("\([^"]*\)".*/\1/')
-    category=$(echo "$line" | sed 's/.*EZ_WARNING("[^"]*", "\([^"]*\)".*/\1/')
-    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*EZ_WARNING("[^"]*", "[^"]*", "\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
+grep '^ *GRAY_WARNING("' "$CODES_FILE" | while IFS= read -r line; do
+    code=$(echo "$line" | sed 's/.*GRAY_WARNING("\([^"]*\)".*/\1/')
+    category=$(echo "$line" | sed 's/.*GRAY_WARNING("[^"]*", "\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*GRAY_WARNING("[^"]*", "[^"]*", "\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 
@@ -84,10 +84,10 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 PANIC_HEADER
 
 # Extract panics
-grep '^ *EZ_PANIC("' "$CODES_FILE" | while IFS= read -r line; do
-    code=$(echo "$line" | sed 's/.*EZ_PANIC("\([^"]*\)".*/\1/')
-    category=$(echo "$line" | sed 's/.*EZ_PANIC("[^"]*", *"\([^"]*\)".*/\1/')
-    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*EZ_PANIC("[^"]*", *"[^"]*", *"\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
+grep '^ *GRAY_PANIC("' "$CODES_FILE" | while IFS= read -r line; do
+    code=$(echo "$line" | sed 's/.*GRAY_PANIC("\([^"]*\)".*/\1/')
+    category=$(echo "$line" | sed 's/.*GRAY_PANIC("[^"]*", *"\([^"]*\)".*/\1/')
+    desc=$(echo "$line" | sed 's/\\"/DQUOTE/g' | sed 's/.*GRAY_PANIC("[^"]*", *"[^"]*", *"\([^"]*\)".*/\1/' | sed 's/DQUOTE/\\"/g')
     echo "| \`${code}\` | ${category} | ${desc} |"
 done >> "$OUTPUT"
 

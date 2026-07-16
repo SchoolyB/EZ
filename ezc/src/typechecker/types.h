@@ -1,5 +1,5 @@
 /*
- * types.h - Type representation for the EZ type system
+ * types.h - Type representation for the Grayscale type system
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -31,7 +31,7 @@ typedef enum {
 } TypeKind;
 
 /* Signature payload for TK_FUNCTION (typed function references).
- * param_types[i] is the EZ type-name string for parameter i (no `&` prefix);
+ * param_types[i] is the Grayscale type-name string for parameter i (no `&` prefix);
  * param_mutable[i] tracks the `&` flag separately. return_count==0 means
  * void. The strings are owned elsewhere (parser arena). */
 typedef struct {
