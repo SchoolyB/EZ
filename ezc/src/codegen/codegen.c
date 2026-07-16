@@ -1468,6 +1468,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         case TK_MAP:    c_type = "EzMap"; break;
         case TK_ARRAY:  c_type = "EzArray"; break;
+        case TK_CHAR:   c_type = "int32_t"; break;
+        case TK_BYTE:   c_type = "uint8_t"; break;
         default:        c_type = "int64_t"; break;
         }
 
