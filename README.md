@@ -1,32 +1,29 @@
-<p align="center">
-  <img src="images/Flip.png" alt="Flip - EZ Mascot" width="275">
-</p>
-<h1 align="center">EZ</h1>
+<h1 align="center">Grayscale</h1>
 
 <p align="center">
   A compiled language that's actually approachable!
 </p>
 
-<h3 align="center">Programming made EZ.</h3>
+<h3 align="center">The Grayscale Programming Language</h3>
 
 <p align="center">
-  <a href="STANDARD.md">Learn More About EZ</a>
+  <a href="STANDARD.md">Learn More About Grayscale</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/SchoolyB/EZ/actions/workflows/ci.yml"><img src="https://github.com/SchoolyB/EZ/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/SchoolyB/EZ/actions/workflows/codeql-analysis.yml"><img src="https://github.com/SchoolyB/EZ/actions/workflows/codeql-analysis.yml/badge.svg" alt="CodeQL Security Scan"></a>
+  <a href="https://github.com/grayscale-lang/grayscale/actions/workflows/ci.yml"><img src="https://github.com/grayscale-lang/grayscale/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/grayscale-lang/grayscale/actions/workflows/codeql-analysis.yml"><img src="https://github.com/grayscale-lang/grayscale/actions/workflows/codeql-analysis.yml/badge.svg" alt="CodeQL Security Scan"></a>
 </p>
 
 ---
 
-```ez
+```gray
 do main() {
     println("Hello, World!")
 }
 ```
 
-```ez
+```gray
 import @json
 
 #json
@@ -39,13 +36,13 @@ do main() {
     mut u = new(User)^
     u.name = "Marshall"
     u.age = 31
-    
+
     println(json.stringify(u))
 }
 // Output: {"name":"Marshall","age":31}
 ```
 
-```ez
+```gray
 import @io
 
 do main() {
@@ -62,7 +59,7 @@ do main() {
 }
 ```
 
-```ez
+```gray
 do main() {
     mut score int = 82
     mut grade char
@@ -81,11 +78,11 @@ do main() {
 
 ---
 
-## Why EZ?
+## Why Grayscale?
 
 - **Readable syntax** — `for_each`, `as_long_as`, `if`/`or`/`otherwise`, `when`/`is`, `in`/`not_in`, `or_return`, `ensure`, `bit_and`/`bit_or`/`bit_xor`.
-- **Versatility through simplicity** — Scripts, microservices, CLI tools, or a project where you want to learn systems programming fundamentals EZ is designed for you!
-- **A compiler that works with the programmer** — Clear error messages, a builtin formatter, live reloading, builtin docs via `ez man`. You should never have to wonder what went wrong or where.
+- **Versatility through simplicity** — Scripts, microservices, CLI tools, or a project where you want to learn systems programming fundamentals Grayscale is designed for you!
+- **A compiler that works with the programmer** — Clear error messages, a builtin formatter, live reloading, builtin docs via `gray man`. You should never have to wonder what went wrong or where.
 - **Safe by default** — Automatic Scope-Based Arena Management (ASBAM) for memory, bounds-checked arrays, overflow-checked math, nil protection, no pointer arithmetic. The guardrails are on unless you explicitly take them off with the `@mem` stdlib module
 
 ---
@@ -106,20 +103,20 @@ do main() {
 
 ### Binary download (recommended)
 
-Download the latest release for your platform from the [Releases page](https://github.com/SchoolyB/EZ/releases). No dependencies required.
+Download the latest release for your platform from the [Releases page](https://github.com/grayscale-lang/grayscale/releases). No dependencies required.
 
 ### Build from source
 
 Requires Go 1.23+ and a C compiler (gcc or clang).
 
 ```bash
-git clone https://github.com/SchoolyB/EZ.git
-cd EZ
+git clone https://github.com/grayscale-lang/grayscale.git
+cd grayscale
 make build
 make install
 ```
 
-> **Note:** EZ currently supports **macOS** and **Linux** only.
+> **Note:** Grayscale currently supports **macOS** and **Linux** only.
 
 ---
 
@@ -127,36 +124,36 @@ make install
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `ez <file>` | Compile and run | `ez main.ez` |
-| `ez build <file> -o <name>` | Compile to a distributable binary | `ez build main.ez -o myapp` |
-| `ez build <file> --emit-c` | Emit generated C source to a file (no binary) | `ez build main.ez --emit-c` |
-| `ez check <file>` | Type check without compiling | `ez check main.ez` |
-| `ez watch <file>` | Watch for changes, re-run on save | `ez watch main.ez` |
-| `ez fmt <path>` | Format `.ez` source files in place | `ez fmt .` or `ez fmt ./...` |
-| `ez fmt --check <path>` | Check formatting without modifying files (CI gate) | `ez fmt --check ./...` |
-| `ez doc <file>` | Generate docs from `#doc` attributes | `ez doc main.ez` |
-| `ez pz <name>` | Scaffold a new project | `ez pz myproject` |
-| `ez report` | Print system info for bug reports | `ez report` |
-| `ez update` | Update to the latest stable version | `ez update` |
-| `ez update --pre` | Update to the latest pre-release (alpha/beta) | `ez update --pre` |
-| `ez install <version>` | Install a specific version by semver | `ez install 2.5.0` |
-| `ez version` | Show version info | `ez version` |
-| `ez man` | Show help for the man command | `ez man` |
-| `ez man <module>` | Show info about a stdlib module | `ez man strings` |
-| `ez man <function>` | Show info about a stdlib function | `ez man to_upper` |
-| `ez man <struct>` | Show info about a stdlib struct type | `ez man HttpRequest` |
+| `gray <file>` | Compile and run | `gray main.gray` |
+| `gray build <file> -o <name>` | Compile to a distributable binary | `gray build main.gray -o myapp` |
+| `gray build <file> --emit-c` | Emit generated C source to a file (no binary) | `gray build main.gray --emit-c` |
+| `gray check <file>` | Type check without compiling | `gray check main.gray` |
+| `gray watch <file>` | Watch for changes, re-run on save | `gray watch main.gray` |
+| `gray fmt <path>` | Format `.gray` source files in place | `gray fmt .` or `gray fmt ./...` |
+| `gray fmt --check <path>` | Check formatting without modifying files (CI gate) | `gray fmt --check ./...` |
+| `gray doc <file>` | Generate docs from `#doc` attributes | `gray doc main.gray` |
+| `gray pz <name>` | Scaffold a new project | `gray pz myproject` |
+| `gray report` | Print system info for bug reports | `gray report` |
+| `gray update` | Update to the latest stable version | `gray update` |
+| `gray update --pre` | Update to the latest pre-release (alpha/beta) | `gray update --pre` |
+| `gray install <version>` | Install a specific version by semver | `gray install 2.5.0` |
+| `gray version` | Show version info | `gray version` |
+| `gray man` | Show help for the man command | `gray man` |
+| `gray man <module>` | Show info about a stdlib module | `gray man strings` |
+| `gray man <function>` | Show info about a stdlib function | `gray man to_upper` |
+| `gray man <struct>` | Show info about a stdlib struct type | `gray man HttpRequest` |
 
 ---
 
 ## Updating
 
 ```bash
-ez update              # latest stable
-ez update --pre        # latest pre-release
-ez install 2.5.0       # pin to an exact version
+gray update              # latest stable
+gray update --pre        # latest pre-release
+gray install 2.5.0       # pin to an exact version
 ```
 
-`ez update` checks for new versions, shows the changelog, and upgrades both the `ez` CLI and the compiler. Pass `--pre` to pick up the latest alpha, beta, or rc. Use `ez install <version>` to install an exact version by semver — downgrades and pre-release tags (e.g. `3.0.0-beta.2`) are supported.
+`gray update` checks for new versions, shows the changelog, and upgrades both the `gray` CLI and the compiler. Pass `--pre` to pick up the latest alpha, beta, or rc. Use `gray install <version>` to install an exact version by semver — downgrades and pre-release tags (e.g. `3.0.0-beta.2`) are supported.
 
 ---
 
@@ -166,12 +163,12 @@ ez install 2.5.0       # pin to an exact version
 - [Contributing guide](CONTRIBUTING.md)
 
 ## Tooling
-- [The EZ Language Server Protocol](https://github.com/SchoolyB/EZLS)
+- [The Grayscale Language Server Protocol](https://github.com/grayscale-lang/grayscale-ls)
 ---
 
 ## Status
 
-EZ is in active development. The language is usable for personal projects and dev tools. Breaking changes may occur frequently.
+Grayscale is in active development. The language is usable for personal projects and dev tools. Breaking changes may occur frequently.
 
 ---
 
@@ -185,7 +182,7 @@ See [LICENSE](LICENSE) for details.
 
 ## Contributors
 
-Thank you to everyone who has contributed to EZ!
+Thank you to everyone who has contributed to Grayscale!
 
 <a href="https://github.com/akamikado"><img src="https://github.com/akamikado.png" width="50" height="50" alt="akamikado"/></a>
 <a href="https://github.com/CobbCoding1"><img src="https://github.com/CobbCoding1.png" width="50" height="50" alt="CobbCoding1"/></a>
