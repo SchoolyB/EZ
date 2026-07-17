@@ -38,6 +38,8 @@
 #define CMD_BUF_SIZE 8192
 #define MAX_IMPORTS 256
 #define COMPILER_ARENA_SIZE (1024 * 1024)
+#define GRAY_EXT      ".gray"
+#define GRAY_EXT_LEN  5
 
 static void print_usage(void) {
     fprintf(stderr, "Grayscale Programming Language v%s\n", GRAY_VERSION);
@@ -199,8 +201,8 @@ static char *output_name_from_input(const char *input) {
     const char *base = slash ? slash + 1 : input;
 
     size_t len = strlen(base);
-    if (len > 3 && strcmp(base + len - 3, ".gray") == 0) {
-        len -= 3;
+    if (len > GRAY_EXT_LEN && strcmp(base + len - GRAY_EXT_LEN, GRAY_EXT) == 0) {
+        len -= GRAY_EXT_LEN;
     }
 
     char *out = malloc(len + 1);
@@ -623,7 +625,7 @@ static int scan_gray_files(const char *dir_path, char paths[][PATH_BUF_SIZE], in
         const char *name = ent->d_name;
         if (name[0] == '.') continue; /* skip hidden files and . / .. */
         size_t nlen = strlen(name);
-        if (nlen < 4 || strcmp(name + nlen - 3, ".gray") != 0) continue;
+        if (nlen < GRAY_EXT_LEN + 1 || strcmp(name + nlen - GRAY_EXT_LEN, GRAY_EXT) != 0) continue;
         snprintf(paths[count], PATH_BUF_SIZE, "%s/%s", dir_path, name);
         count++;
     }
@@ -866,9 +868,9 @@ int main(int argc, char **argv) {
         if (main_slash) main_base = main_slash + 1;
         char main_mod_buf[MSG_BUF_SIZE];
         size_t main_mod_len = strlen(main_base);
-        if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".gray") == 0) {
-            memcpy(main_mod_buf, main_base, main_mod_len - 3);
-            main_mod_buf[main_mod_len - 3] = '\0';
+        if (main_mod_len > GRAY_EXT_LEN && strcmp(main_base + main_mod_len - GRAY_EXT_LEN, GRAY_EXT) == 0) {
+            memcpy(main_mod_buf, main_base, main_mod_len - GRAY_EXT_LEN);
+            main_mod_buf[main_mod_len - GRAY_EXT_LEN] = '\0';
         } else {
             snprintf(main_mod_buf, sizeof(main_mod_buf), "%s", main_base);
         }
@@ -931,7 +933,7 @@ int main(int argc, char **argv) {
                 int file_count = 0;
 
                 size_t iplen = strlen(import_path);
-                if (iplen >= 3 && strcmp(import_path + iplen - 3, ".gray") == 0) {
+                if (iplen >= GRAY_EXT_LEN && strcmp(import_path + iplen - GRAY_EXT_LEN, GRAY_EXT) == 0) {
                     /* Case 1: explicit .gray path — direct file import */
                     file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
                     strncpy(file_list[0], import_path, PATH_BUF_SIZE - 1);
@@ -1012,9 +1014,9 @@ int main(int argc, char **argv) {
 
                 char mod_name_buf[MSG_BUF_SIZE];
                 size_t mod_len = strlen(mod_base);
-                if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".gray") == 0) {
-                    memcpy(mod_name_buf, mod_base, mod_len - 3);
-                    mod_name_buf[mod_len - 3] = '\0';
+                if (mod_len > GRAY_EXT_LEN && strcmp(mod_base + mod_len - GRAY_EXT_LEN, GRAY_EXT) == 0) {
+                    memcpy(mod_name_buf, mod_base, mod_len - GRAY_EXT_LEN);
+                    mod_name_buf[mod_len - GRAY_EXT_LEN] = '\0';
                 } else {
                     snprintf(mod_name_buf, sizeof(mod_name_buf), "%s", mod_base);
                 }
@@ -1203,7 +1205,7 @@ int main(int argc, char **argv) {
                                 /* Try with .gray extension if not already present */
                                 char tres_gray[PATH_BUF_SIZE];
                                 const char *tres_check = tres;
-                                if (trlen < 3 || strcmp(tres + trlen - 3, ".gray") != 0) {
+                                if (trlen < GRAY_EXT_LEN || strcmp(tres + trlen - GRAY_EXT_LEN, GRAY_EXT) != 0) {
                                     snprintf(tres_gray, sizeof(tres_gray), "%s.gray", tres);
                                     tres_check = tres_gray;
                                 }
@@ -1235,9 +1237,9 @@ int main(int argc, char **argv) {
                                         if (sib_slash) sib_base = sib_slash + 1;
                                         char sib_buf[MSG_BUF_SIZE];
                                         size_t sib_len = strlen(sib_base);
-                                        if (sib_len > 3 && strcmp(sib_base + sib_len - 3, ".gray") == 0) {
-                                            memcpy(sib_buf, sib_base, sib_len - 3);
-                                            sib_buf[sib_len - 3] = '\0';
+                                        if (sib_len > GRAY_EXT_LEN && strcmp(sib_base + sib_len - GRAY_EXT_LEN, GRAY_EXT) == 0) {
+                                            memcpy(sib_buf, sib_base, sib_len - GRAY_EXT_LEN);
+                                            sib_buf[sib_len - GRAY_EXT_LEN] = '\0';
                                         } else {
                                             snprintf(sib_buf, sizeof(sib_buf), "%s", sib_base);
                                         }
@@ -1597,8 +1599,8 @@ int main(int argc, char **argv) {
             const char *sl = strrchr(input_file, '/');
             const char *base = sl ? sl + 1 : input_file;
             size_t blen = strlen(base);
-            if (blen > 3 && strcmp(base + blen - 3, ".gray") == 0)
-                blen -= 3;
+            if (blen > GRAY_EXT_LEN && strcmp(base + blen - GRAY_EXT_LEN, GRAY_EXT) == 0)
+                blen -= GRAY_EXT_LEN;
             c_out_default = malloc(blen + 3);
             memcpy(c_out_default, base, blen);
             memcpy(c_out_default + blen, ".c", 3);
