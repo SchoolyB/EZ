@@ -676,7 +676,7 @@ static void test_e2e_os_args(void) {
         "}");
     ASSERT_NOT_NULL(output);
     /* Should be arm64 or x86_64 — just check it's not empty */
-    ASSERT(strlen(out) > 0);
+    ASSERT(strlen(output) > 0);
 }
 
 static void test_e2e_arrays_append(void) {
@@ -771,9 +771,9 @@ static void test_e2e_threads_spawn_join(void) {
         "}");
     ASSERT_NOT_NULL(output);
     /* Output order may vary due to threading, but "done" must be last */
-    ASSERT(strstr(out, "done") != NULL);
-    ASSERT(strstr(out, "w1") != NULL);
-    ASSERT(strstr(out, "w2") != NULL);
+    ASSERT(strstr(output, "done") != NULL);
+    ASSERT(strstr(output, "w1") != NULL);
+    ASSERT(strstr(output, "w2") != NULL);
 }
 
 static void test_e2e_threads_channel(void) {
