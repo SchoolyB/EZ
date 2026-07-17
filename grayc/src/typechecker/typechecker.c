@@ -121,21 +121,21 @@ GrayType *typetable_get(TypeTable *table, AstNode *node) {
 }
 
 /* Shared helpers for sorted-string-set lookups. */
-static int strptr_cmp(const void *a, const void *b) {
+static int string_pointer_compare(const void *a, const void *b) {
     return strcmp(*(const char *const *)a, *(const char *const *)b);
 }
-static bool strset_contains(const char *const *sorted, int n, const char *name) {
-    return bsearch(&name, sorted, (size_t)n, sizeof(const char *), strptr_cmp) != NULL;
+static bool string_set_contains(const char *const *sorted, int n, const char *name) {
+    return bsearch(&name, sorted, (size_t)n, sizeof(const char *), string_pointer_compare) != NULL;
 }
 
 
-/* Forward declaration — resolve_expr is defined later but needed by helper
+/* Forward declaration — resolve_expression is defined later but needed by helper
  * routines and stdlib arg-type validation. */
-static GrayType *resolve_expr(TypeChecker *checker, AstNode *node);
+static GrayType *resolve_expression(TypeChecker *checker, AstNode *node);
 
 /* Return the user-facing display string for an operator TokenType.
  * Used in error messages that embed the operator name. */
-static const char *op_to_str(TokenType op) {
+static const char *operator_to_string(TokenType op) {
     switch (op) {
     case TOK_PLUS: return "+";
     case TOK_MINUS: return "-";
@@ -172,33 +172,34 @@ static const char *op_to_str(TokenType op) {
     }
 }
 
-/* True if expr is an lvalue (something with a stable address): a variable,
- * a field of an lvalue, an index into an lvalue, or a pointer dereference.
- * Used by addr() and ref() to reject literals, call results, arithmetic
- * expressions, etc. — none of which have an address to take. */
-static bool is_lvalue_expr(AstNode *e) {
+/* True if the expression is an assignment target (something with a stable
+ * address): a variable, a field of an assignment target, an index into an
+ * assignment target, or a pointer dereference. Used by addr() and ref() to
+ * reject literals, call results, arithmetic expressions, etc. — none of
+ * which have an address to take. */
+static bool is_assignment_target(AstNode *e) {
     if (!e) return false;
     switch (e->kind) {
     case NODE_LABEL:        return true;
-    case NODE_MEMBER_EXPR:  return is_lvalue_expr(e->data.member.object);
-    case NODE_INDEX_EXPR:   return is_lvalue_expr(e->data.index_expr.left);
+    case NODE_MEMBER_EXPR:  return is_assignment_target(e->data.member.object);
+    case NODE_INDEX_EXPR:   return is_assignment_target(e->data.index_expr.left);
     case NODE_POSTFIX_EXPR:
-        /* p^ (dereference) is an lvalue */
+        /* p^ (dereference) is an assignment target */
         return e->data.postfix.op == TOK_CARET;
     default:                return false;
     }
 }
 
-/* Walk an lvalue expression chain and return the root variable name.
+/* Walk an assignment target expression chain and return the root variable name.
  * Returns NULL if the chain passes through a pointer dereference (^),
  * because the pointed-to memory is independent of the pointer variable's
  * mutability. */
-static const char *lvalue_root_name(AstNode *e) {
+static const char *assignment_target_root_name(AstNode *e) {
     if (!e) return NULL;
     switch (e->kind) {
     case NODE_LABEL:       return e->data.label.value;
-    case NODE_MEMBER_EXPR: return lvalue_root_name(e->data.member.object);
-    case NODE_INDEX_EXPR:  return lvalue_root_name(e->data.index_expr.left);
+    case NODE_MEMBER_EXPR: return assignment_target_root_name(e->data.member.object);
+    case NODE_INDEX_EXPR:  return assignment_target_root_name(e->data.index_expr.left);
     case NODE_POSTFIX_EXPR:
         if (e->data.postfix.op == TOK_CARET)
             return NULL; /* pointer deref: memory is not the const variable */
@@ -216,7 +217,7 @@ static bool path_contains_map_index(TypeChecker *checker, AstNode *e) {
     case NODE_MEMBER_EXPR:
         return path_contains_map_index(checker, e->data.member.object);
     case NODE_INDEX_EXPR: {
-        GrayType *left_t = resolve_expr(checker, e->data.index_expr.left);
+        GrayType *left_t = resolve_expression(checker, e->data.index_expr.left);
         if (left_t && left_t->kind == TK_MAP) return true;
         return path_contains_map_index(checker, e->data.index_expr.left);
     }
@@ -245,7 +246,7 @@ static void register_struct(TypeChecker *checker, const char *name,
     si->field_count = field_count;
 }
 
-static int structinfo_name_cmp(const void *a, const void *b) {
+static int struct_info_name_compare(const void *a, const void *b) {
     return strcmp((*(const StructInfo *const *)a)->struct_name,
                   (*(const StructInfo *const *)b)->struct_name);
 }
@@ -258,13 +259,13 @@ static StructInfo *find_struct(TypeChecker *checker, const char *name) {
         for (int i = 0; i < checker->struct_count; i++)
             checker->structs_sorted[i] = &checker->structs[i];
         qsort(checker->structs_sorted, (size_t)checker->struct_count,
-              sizeof(StructInfo *), structinfo_name_cmp);
+              sizeof(StructInfo *), struct_info_name_compare);
         checker->structs_sorted_built = true;
     }
     StructInfo key = { .struct_name = name };
     StructInfo *key_ptr = &key;
     StructInfo **hit = bsearch(&key_ptr, checker->structs_sorted,
-        (size_t)checker->struct_count, sizeof(StructInfo *), structinfo_name_cmp);
+        (size_t)checker->struct_count, sizeof(StructInfo *), struct_info_name_compare);
     return hit ? *hit : NULL;
 }
 
@@ -272,7 +273,7 @@ static bool is_struct_name(TypeChecker *checker, const char *name) {
     return find_struct(checker, name) != NULL;
 }
 
-static int enum_name_str_cmp(const void *a, const void *b) {
+static int enum_name_string_compare(const void *a, const void *b) {
     return strcmp(*(const char *const *)a, *(const char *const *)b);
 }
 
@@ -285,7 +286,7 @@ static void enum_ensure_sorted(TypeChecker *checker) {
     for (int i = 0; i < checker->enum_count; i++)
         checker->enum_names_sorted[i] = checker->enum_names[i];
     qsort(checker->enum_names_sorted, (size_t)checker->enum_count,
-          sizeof(const char *), enum_name_str_cmp);
+          sizeof(const char *), enum_name_string_compare);
     /* Build reverse mapping from sorted position to original index */
     for (int s = 0; s < checker->enum_count; s++) {
         for (int i = 0; i < checker->enum_count; i++) {
@@ -303,7 +304,7 @@ static int find_enum_index(TypeChecker *checker, const char *name) {
     if (checker->enum_count == 0) return -1;
     enum_ensure_sorted(checker);
     const char **hit = bsearch(&name, checker->enum_names_sorted,
-        (size_t)checker->enum_count, sizeof(const char *), enum_name_str_cmp);
+        (size_t)checker->enum_count, sizeof(const char *), enum_name_string_compare);
     if (!hit) return -1;
     return checker->enum_names_sorted_indices[hit - checker->enum_names_sorted];
 }
@@ -312,7 +313,7 @@ static bool is_enum_name(TypeChecker *checker, const char *name) {
     if (checker->enum_count == 0) return false;
     enum_ensure_sorted(checker);
     return bsearch(&name, checker->enum_names_sorted, (size_t)checker->enum_count,
-                   sizeof(const char *), enum_name_str_cmp) != NULL;
+                   sizeof(const char *), enum_name_string_compare) != NULL;
 }
 
 /* The name the programmer wrote for a struct, never the module-prefixed
@@ -332,35 +333,35 @@ static const char *enum_display_name(TypeChecker *checker, const char *name) {
 /* Compare two type names by their user-facing display names, so that
  * module-prefixed internal names (e.g. lib_Foo vs objects_Foo) match
  * when they refer to the same user-defined type. */
-static bool tc_same_struct_type(TypeChecker *checker, const char *a, const char *b) {
+static bool typechecker_same_struct_type(TypeChecker *checker, const char *a, const char *b) {
     if (a == b || strcmp(a, b) == 0) return true;
     return strcmp(struct_display_name(checker, a), struct_display_name(checker, b)) == 0;
 }
-static bool tc_same_enum_type(TypeChecker *checker, const char *a, const char *b) {
+static bool typechecker_same_enum_type(TypeChecker *checker, const char *a, const char *b) {
     if (a == b || strcmp(a, b) == 0) return true;
     return strcmp(enum_display_name(checker, a), enum_display_name(checker, b)) == 0;
 }
 /* Compare array element type names accounting for module-prefixed struct
  * aliases (e.g. "Item" vs "utils_Item" should match). */
-static bool tc_same_array_elem(TypeChecker *checker, const char *a, const char *b) {
+static bool typechecker_same_array_element(TypeChecker *checker, const char *a, const char *b) {
     if (strcmp(a, b) == 0) return true;
     GrayType *at = type_from_name(a);
     GrayType *bt = type_from_name(b);
     if (at && bt && at->kind == TK_STRUCT && bt->kind == TK_STRUCT)
-        return tc_same_struct_type(checker, a, b);
+        return typechecker_same_struct_type(checker, a, b);
     if (at && bt && at->kind == TK_ENUM && bt->kind == TK_ENUM)
-        return tc_same_enum_type(checker, a, b);
+        return typechecker_same_enum_type(checker, a, b);
     return false;
 }
 
 /* Returns true if the named enum is string-backed. */
-static bool tc_enum_is_string(TypeChecker *checker, const char *name) {
+static bool typechecker_enum_is_string(TypeChecker *checker, const char *name) {
     int i = find_enum_index(checker, name);
     return i >= 0 && checker->enum_is_string[i];
 }
 
 /* Returns true if the named enum is a tagged enum (has payload variants). */
-static bool tc_enum_is_tagged(TypeChecker *checker, const char *name) {
+static bool typechecker_enum_is_tagged(TypeChecker *checker, const char *name) {
     int i = find_enum_index(checker, name);
     return i >= 0 && checker->enum_is_tagged[i];
 }
@@ -401,7 +402,7 @@ static const char *type_display_name(TypeChecker *checker, GrayType *t) {
 }
 
 /* Resolve an import alias to the actual module name */
-static const char *tc_resolve_alias(TypeChecker *checker, const char *name) {
+static const char *typechecker_resolve_alias(TypeChecker *checker, const char *name) {
     for (int i = 0; i < checker->alias_count; i++) {
         if (strcmp(checker->alias_names[i], name) == 0) return checker->alias_modules[i];
     }
@@ -409,7 +410,7 @@ static const char *tc_resolve_alias(TypeChecker *checker, const char *name) {
 }
 
 /* Format a diagnostic message string into the arena (only called in error paths). */
-static char *tc_fmt(TypeChecker *checker, const char *fmt, ...) {
+static char *typechecker_format(TypeChecker *checker, const char *fmt, ...) {
     char buf[MSG_BUF_SIZE];
     va_list ap;
     va_start(ap, fmt);
@@ -537,7 +538,7 @@ static char *substitute_wildcard(const char *src, const char *concrete) {
 
 /* Find the top-level ':' inside a "map[K:V]" type string, skipping nested
  * brackets. Sets key_out/key_len and val_out/val_len on success. */
-static bool parse_map_keyval(const char *tn,
+static bool parse_map_key_value(const char *tn,
                               const char **key_out, size_t *key_len,
                               const char **val_out, size_t *val_len) {
     if (strncmp(tn, "map[", 4) != 0) return false;
@@ -573,7 +574,7 @@ static bool parse_map_keyval(const char *tn,
  *   "map[string:[?]]" vs "map[string:[int]]" -> "int"
  *   "map[?:?]"        vs "map[int:int]"   -> "int"    (K==V required)
  */
-static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
+static char *bind_wildcard_string(const char *param_tn, const char *arg_tn) {
     if (!param_tn || !arg_tn) return NULL;
 
     if (strcmp(param_tn, "?") == 0) {
@@ -590,7 +591,7 @@ static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
         if (param_tn[plen - 1] != ']' || arg_tn[alen - 1] != ']') return NULL;
         char *p_inner = strndup(param_tn + 1, plen - 2);
         char *a_inner = strndup(arg_tn + 1, alen - 2);
-        char *result = bind_wildcard_str(p_inner, a_inner);
+        char *result = bind_wildcard_string(p_inner, a_inner);
         free(p_inner);
         free(a_inner);
         return result;
@@ -600,8 +601,8 @@ static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
     if (strncmp(param_tn, "map[", 4) == 0 && strncmp(arg_tn, "map[", 4) == 0) {
         const char *pk, *pv, *ak, *av;
         size_t pkl, pvl, akl, avl;
-        if (!parse_map_keyval(param_tn, &pk, &pkl, &pv, &pvl)) return NULL;
-        if (!parse_map_keyval(arg_tn,   &ak, &akl, &av, &avl)) return NULL;
+        if (!parse_map_key_value(param_tn, &pk, &pkl, &pv, &pvl)) return NULL;
+        if (!parse_map_key_value(arg_tn,   &ak, &akl, &av, &avl)) return NULL;
 
         bool pk_wild = false;
         for (size_t i = 0; i < pkl; i++) if (pk[i] == '?') { pk_wild = true; break; }
@@ -623,12 +624,12 @@ static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
         if (pk_wild) {
             char *p = strndup(pk, pkl);
             char *a = strndup(ak, akl);
-            result = bind_wildcard_str(p, a);
+            result = bind_wildcard_string(p, a);
             free(p); free(a);
         } else {
             char *p = strndup(pv, pvl);
             char *a = strndup(av, avl);
-            result = bind_wildcard_str(p, a);
+            result = bind_wildcard_string(p, a);
             free(p); free(a);
         }
         return result;
@@ -638,19 +639,19 @@ static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
 }
 
 /* Derive the concrete type that '?' binds to given the parameter's type
- * string and the resolved argument GrayType. Delegates to bind_wildcard_str
+ * string and the resolved argument GrayType. Delegates to bind_wildcard_string
  * so composite nesting (arrays-of-arrays, maps-of-arrays, etc.) is handled
  * recursively. Caller owns the returned string. */
 static char *bind_wildcard(const char *param_tn, GrayType *arg_t) {
     if (!param_tn || !arg_t) return NULL;
-    return bind_wildcard_str(param_tn, type_name(arg_t));
+    return bind_wildcard_string(param_tn, type_name(arg_t));
 }
 
 /* Mark a just-registered FuncSig as generic if any of the declared
  * parameter or return type strings on `decl` contains a '?'. Stores
  * `decl` on the sig so later call-site instantiation can walk the
  * original type_name strings for substitution. */
-static void finalize_generic_sig(FuncSig *fs, AstNode *decl) {
+static void finalize_generic_signature(FuncSig *fs, AstNode *decl) {
     fs->decl = decl;
     if (!decl || decl->kind != NODE_FUNC_DECL) return;
     for (int i = 0; i < decl->data.func_decl.param_count; i++) {
@@ -707,7 +708,7 @@ static bool record_instantiation(FuncSig *fs, const char *concrete,
     return true;
 }
 
-static int funcsig_name_cmp(const void *a, const void *b) {
+static int function_signature_name_compare(const void *a, const void *b) {
     return strcmp((*(const FuncSig *const *)a)->name,
                   (*(const FuncSig *const *)b)->name);
 }
@@ -720,13 +721,13 @@ static FuncSig *find_func(TypeChecker *checker, const char *name) {
         for (int i = 0; i < checker->func_count; i++)
             checker->funcs_sorted[i] = &checker->funcs[i];
         qsort(checker->funcs_sorted, (size_t)checker->func_count,
-              sizeof(FuncSig *), funcsig_name_cmp);
+              sizeof(FuncSig *), function_signature_name_compare);
         checker->funcs_sorted_built = true;
     }
     FuncSig key = { .name = name };
     FuncSig *key_ptr = &key;
     FuncSig **hit = bsearch(&key_ptr, checker->funcs_sorted,
-        (size_t)checker->func_count, sizeof(FuncSig *), funcsig_name_cmp);
+        (size_t)checker->func_count, sizeof(FuncSig *), function_signature_name_compare);
     return hit ? *hit : NULL;
 }
 
@@ -778,7 +779,7 @@ static const FallibleEntry fallible_stdlib[] = {
     {"strconv", "to_float"}, {"strconv", "to_bool"},
 };
 
-static int fallible_entry_cmp(const void *a, const void *b) {
+static int fallible_entry_compare(const void *a, const void *b) {
     const FallibleEntry *ea = *(const FallibleEntry *const *)a;
     const FallibleEntry *eb = *(const FallibleEntry *const *)b;
     int r = strcmp(ea->mod, eb->mod);
@@ -790,7 +791,7 @@ static const FallibleEntry *fallible_stdlib_sorted[FALLIBLE_STDLIB_N];
 
 /* Returns true if (mod, fn) is a fallible stdlib function.
  * Pass mod=NULL to check by fn name alone (any module). */
-static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
+static bool typechecker_is_fallible_stdlib(const char *mod, const char *fn) {
     if (!mod) {
         for (int i = 0; i < FALLIBLE_STDLIB_N; i++) {
             if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
@@ -800,7 +801,7 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
     FallibleEntry key = { .mod = mod, .fn = fn };
     const FallibleEntry *key_ptr = &key;
     return bsearch(&key_ptr, fallible_stdlib_sorted, FALLIBLE_STDLIB_N,
-                   sizeof(const FallibleEntry *), fallible_entry_cmp) != NULL;
+                   sizeof(const FallibleEntry *), fallible_entry_compare) != NULL;
 }
 
 /* Return the primary (non-error) type for a fallible stdlib function.
@@ -855,7 +856,7 @@ static const FallibleTypeEntry fallible_type_table[] = {
     {"strconv", "to_float", FT_FLOAT}, {"strconv", "to_bool", FT_BOOL},
 };
 
-static int fallible_type_entry_cmp(const void *a, const void *b) {
+static int fallible_type_entry_compare(const void *a, const void *b) {
     const FallibleTypeEntry *ea = *(const FallibleTypeEntry *const *)a;
     const FallibleTypeEntry *eb = *(const FallibleTypeEntry *const *)b;
     int r = strcmp(ea->mod, eb->mod);
@@ -865,11 +866,11 @@ static int fallible_type_entry_cmp(const void *a, const void *b) {
 #define FALLIBLE_TYPE_TABLE_N (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0]))
 static const FallibleTypeEntry *fallible_type_sorted[FALLIBLE_TYPE_TABLE_N];
 
-static GrayType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
+static GrayType *typechecker_get_fallible_stdlib_type(const char *mod, const char *fn) {
     FallibleTypeEntry key = { .mod = mod, .fn = fn };
     const FallibleTypeEntry *key_ptr = &key;
     const FallibleTypeEntry **hit = bsearch(&key_ptr, fallible_type_sorted, FALLIBLE_TYPE_TABLE_N,
-        sizeof(const FallibleTypeEntry *), fallible_type_entry_cmp);
+        sizeof(const FallibleTypeEntry *), fallible_type_entry_compare);
     if (!hit) return NULL;
     switch ((*hit)->type) {
     case FT_BOOL:                return &TYPE_BOOL;
@@ -1072,7 +1073,7 @@ static const StdlibArgEntry stdlib_arg_table[] = {
     {"server", "redirect", 2, 2},
 };
 
-static int stdlib_arg_entry_cmp(const void *a, const void *b) {
+static int stdlib_arg_entry_compare(const void *a, const void *b) {
     const StdlibArgEntry *ea = *(const StdlibArgEntry *const *)a;
     const StdlibArgEntry *eb = *(const StdlibArgEntry *const *)b;
     int r = strcmp(ea->mod, eb->mod);
@@ -1082,13 +1083,13 @@ static int stdlib_arg_entry_cmp(const void *a, const void *b) {
 #define STDLIB_ARG_TABLE_N (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0]))
 static const StdlibArgEntry *stdlib_arg_sorted[STDLIB_ARG_TABLE_N];
 
-static void tc_check_stdlib_arg_count(TypeChecker *checker, const char *mod,
+static void typechecker_check_stdlib_arg_count(TypeChecker *checker, const char *mod,
     const char *fn, AstNode *node)
 {
     StdlibArgEntry key = { .mod = mod, .fn = fn };
     const StdlibArgEntry *key_ptr = &key;
     const StdlibArgEntry **hit = bsearch(&key_ptr, stdlib_arg_sorted, STDLIB_ARG_TABLE_N,
-        sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
+        sizeof(const StdlibArgEntry *), stdlib_arg_entry_compare);
     if (!hit) return;
 
     const StdlibArgEntry *e = *hit;
@@ -1096,11 +1097,11 @@ static void tc_check_stdlib_arg_count(TypeChecker *checker, const char *mod,
     if (nargs < e->min_args || nargs > e->max_args) {
         char *msg = NULL;
         if (e->min_args == e->max_args) {
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "function '%s.%s' expects %d argument(s), got %d",
                 mod, fn, e->min_args, nargs);
         } else {
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "function '%s.%s' expects %d to %d argument(s), got %d",
                 mod, fn, e->min_args, e->max_args, nargs);
         }
@@ -1112,7 +1113,7 @@ static void tc_check_stdlib_arg_count(TypeChecker *checker, const char *mod,
 /* Compile-time validation for strconv base parameter.
  * When the second arg to to_int/to_uint is a literal integer, verify it's
  * in the valid range [2, 36]. */
-static void tc_check_strconv_base(TypeChecker *checker, const char *mod,
+static void typechecker_check_strconv_base(TypeChecker *checker, const char *mod,
     const char *fn, AstNode *node)
 {
     if (strcmp(mod, "strconv") != 0) return;
@@ -1123,7 +1124,7 @@ static void tc_check_strconv_base(TypeChecker *checker, const char *mod,
     int64_t base = base_arg->data.int_value.value;
     if (base < 2 || base > 36) {
         char *msg;
-        msg = tc_fmt(checker,
+        msg = typechecker_format(checker,
             "invalid base %lld for strconv.%s; base must be between 2 and 36",
             (long long)base, fn);
         diagnostic_error_message(checker->diag, "E5009", msg,
@@ -1307,7 +1308,7 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     return "unknown";
 }
 
-static int stdlib_argtype_entry_cmp(const void *a, const void *b) {
+static int stdlib_arg_type_entry_compare(const void *a, const void *b) {
     const StdlibArgTypeEntry *ea = *(const StdlibArgTypeEntry *const *)a;
     const StdlibArgTypeEntry *eb = *(const StdlibArgTypeEntry *const *)b;
     int r = strcmp(ea->mod, eb->mod);
@@ -1317,27 +1318,27 @@ static int stdlib_argtype_entry_cmp(const void *a, const void *b) {
 #define STDLIB_ARG_TYPE_TABLE_N (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0]))
 static const StdlibArgTypeEntry *stdlib_argtype_sorted[STDLIB_ARG_TYPE_TABLE_N];
 
-static void tc_check_stdlib_arg_types(TypeChecker *checker, const char *mod,
+static void typechecker_check_stdlib_arg_types(TypeChecker *checker, const char *mod,
     const char *fn, AstNode *node)
 {
     StdlibArgTypeEntry key = { .mod = mod, .fn = fn };
     const StdlibArgTypeEntry *key_ptr = &key;
     const StdlibArgTypeEntry **hit = bsearch(&key_ptr, stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N,
-        sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+        sizeof(const StdlibArgTypeEntry *), stdlib_arg_type_entry_compare);
     if (!hit) return;
 
     /* bsearch may land on any entry in the (mod, fn) group; walk back to first. */
-    while (hit > stdlib_argtype_sorted && stdlib_argtype_entry_cmp(hit - 1, hit) == 0) hit--;
+    while (hit > stdlib_argtype_sorted && stdlib_arg_type_entry_compare(hit - 1, hit) == 0) hit--;
 
     /* Iterate the contiguous group of entries for this (mod, fn). */
-    for (; hit < stdlib_argtype_sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_argtype_entry_cmp(hit, &key_ptr) == 0; hit++) {
+    for (; hit < stdlib_argtype_sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_arg_type_entry_compare(hit, &key_ptr) == 0; hit++) {
         const StdlibArgTypeEntry *e = *hit;
         int idx = e->arg_index;
         if (idx < node->data.call.arg_count) {
-            GrayType *arg_t = resolve_expr(checker, node->data.call.args[idx]);
+            GrayType *arg_t = resolve_expression(checker, node->data.call.args[idx]);
             if (!arg_kind_matches(e->kind, arg_t)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "%s.%s() expects %s as argument %d, got '%s'",
                     mod, fn, expected_kind_name(e->kind), idx + 1, type_name(arg_t));
                 diagnostic_error_message(checker->diag, "E5026", msg,
@@ -1376,7 +1377,7 @@ static int levenshtein(const char *a, const char *b) {
 }
 
 /* Find closest matching name from scope variables, functions, and builtins */
-static const char *suggest_name(TypeChecker *checker, const char *name) {
+static const char *suggest_similar_name(TypeChecker *checker, const char *name) {
     const char *best = NULL;
     int best_dist = 3; /* max distance for suggestions */
 
@@ -1405,14 +1406,14 @@ static const char *suggest_name(TypeChecker *checker, const char *name) {
 
 /* --- Builtin name check --- */
 
-static bool tc_is_imported_module(TypeChecker *checker, const char *name) {
+static bool typechecker_is_imported_module(TypeChecker *checker, const char *name) {
     for (int i = 0; i < checker->import_count; i++) {
         if (strcmp(checker->imported_modules[i], name) == 0) return true;
     }
     return false;
 }
 
-static bool tc_is_stdlib_import(TypeChecker *checker, const char *name) {
+static bool typechecker_is_stdlib_import(TypeChecker *checker, const char *name) {
     for (int i = 0; i < checker->import_count; i++) {
         if (strcmp(checker->imported_modules[i], name) == 0)
             return checker->import_is_stdlib[i];
@@ -1423,7 +1424,7 @@ static bool tc_is_stdlib_import(TypeChecker *checker, const char *name) {
 /* If type_name is module-prefixed (e.g. "T_Query"), mark that module used.
  * The parser rewrites "T.Query" to "T_Query", so we split on the first
  * underscore and check whether the prefix is a known import. */
-static void tc_mark_type_module_used(TypeChecker *checker, const char *type_name) {
+static void typechecker_mark_type_module_used(TypeChecker *checker, const char *type_name) {
     if (!type_name) return;
     const char *us = strchr(type_name, '_');
     if (!us || us == type_name) return;
@@ -1437,7 +1438,7 @@ static void tc_mark_type_module_used(TypeChecker *checker, const char *type_name
     }
 }
 
-static bool tc_is_builtin(const char *name) {
+static bool typechecker_is_builtin(const char *name) {
     static const char *const builtins[] = {
         "addr", "assert", "bool", "byte", "c_string", "cast",
         "char", "char_count", "copy", "embed", "eprint", "eprintln",
@@ -1448,11 +1449,11 @@ static bool tc_is_builtin(const char *name) {
         "string", "to_char", "type_of",
         "u128", "u16", "u256", "u32", "u64", "u8", "uint",
     };
-    return strset_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
+    return string_set_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
 }
 
 /* Check whether any arg_names entry is non-NULL (i.e. call has named args). */
-static bool tc_has_named_args(AstNode *node) {
+static bool typechecker_has_named_arguments(AstNode *node) {
     if (!node->data.call.arg_names) return false;
     for (int i = 0; i < node->data.call.arg_count; i++) {
         if (node->data.call.arg_names[i]) return true;
@@ -1462,7 +1463,7 @@ static bool tc_has_named_args(AstNode *node) {
 
 /* Resolve named arguments: validate names, check ordering, and reorder
  * args in-place so downstream code sees normal positional args. */
-static void tc_resolve_named_args(TypeChecker *checker, AstNode *node,
+static void typechecker_resolve_named_arguments(TypeChecker *checker, AstNode *node,
                                   AstNode *func_decl, const char *display_name) {
     if (!node->data.call.arg_names) return;
 
@@ -1483,7 +1484,7 @@ static void tc_resolve_named_args(TypeChecker *checker, AstNode *node,
             seen_named = true;
         } else if (seen_named) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "positional argument after named argument in call to '%s'",
                 display_name);
             diagnostic_error_message(checker->diag, "E5033", msg,
@@ -1529,7 +1530,7 @@ static void tc_resolve_named_args(TypeChecker *checker, AstNode *node,
         if (slot < 0) {
             /* E5031: unknown parameter name */
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "unknown parameter name '%s' in call to '%s'",
                 name, display_name);
             diagnostic_error_message(checker->diag, "E5031", msg,
@@ -1540,7 +1541,7 @@ static void tc_resolve_named_args(TypeChecker *checker, AstNode *node,
         if (new_args[slot]) {
             /* E5032: already filled by a positional arg */
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "parameter '%s' is already provided positionally (argument %d) in call to '%s'",
                 name, slot + 1, display_name);
             diagnostic_error_message(checker->diag, "E5032", msg,
@@ -1816,8 +1817,8 @@ static const UsingConst _using_consts[] = {
 };
 
 /* Find the index of a module name in checker->imported_modules[], or -1. */
-static int tc_find_import_index(TypeChecker *checker, const char *mod) {
-    const char *real = tc_resolve_alias(checker, mod);
+static int typechecker_find_import_index(TypeChecker *checker, const char *mod) {
+    const char *real = typechecker_resolve_alias(checker, mod);
     for (int mi = 0; mi < checker->import_count; mi++) {
         if (strcmp(checker->imported_modules[mi], mod) == 0 ||
             strcmp(checker->imported_modules[mi], real) == 0)
@@ -1827,10 +1828,10 @@ static int tc_find_import_index(TypeChecker *checker, const char *mod) {
 }
 
 /* Single-pass lookup: marks import used and returns the type (NULL = not found). */
-static GrayType *tc_lookup_using_constant(TypeChecker *checker, const char *name) {
+static GrayType *typechecker_lookup_using_constant(TypeChecker *checker, const char *name) {
     for (int ui = 0; ui < checker->using_module_count; ui++) {
         if (!using_module_accessible(checker, ui)) continue;
-        const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+        const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
         for (int ci = 0; _using_consts[ci].name; ci++) {
             if (strcmp(name, _using_consts[ci].name) == 0 &&
                 strcmp(real_mod, _using_consts[ci].mod) == 0) {
@@ -1879,7 +1880,7 @@ static void register_enum(TypeChecker *checker, const char *name,
 
 /* Resolve a type name, returning TK_ENUM for known enum names instead of
  * the default TK_STRUCT that type_from_name() produces for uppercase names. */
-static GrayType *tc_type_from_name(TypeChecker *checker, const char *name) {
+static GrayType *typechecker_type_from_name(TypeChecker *checker, const char *name) {
     if (name && is_enum_name(checker, name)) return type_enum(name);
     GrayType *t = type_from_name(name);
     /* : try prefixed type names from using-modules so bare
@@ -1891,7 +1892,7 @@ static GrayType *tc_type_from_name(TypeChecker *checker, const char *name) {
         !is_struct_name(checker, name) && !is_enum_name(checker, name)) {
         for (int ui = 0; ui < checker->using_module_count; ui++) {
             if (!using_module_accessible(checker, ui)) continue;
-            const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+            const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
             char prefixed[MSG_BUF_SIZE];
             snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
             if (is_enum_name(checker, prefixed)) return type_enum(prefixed);
@@ -1918,7 +1919,7 @@ static bool is_int_kind(TypeKind k) {
 
 /* Rank for named integer types; 0 = not a named integer type.
  * Used to detect narrowing (declared rank < value rank). */
-static int int_name_rank(const char *n) {
+static int int_type_name_rank(const char *n) {
     if (!n) return 0;
     if (strcmp(n, "i8")   == 0 || strcmp(n, "u8")   == 0 || strcmp(n, "byte") == 0) return 1;
     if (strcmp(n, "i16")  == 0 || strcmp(n, "u16")  == 0) return 2;
@@ -1983,7 +1984,7 @@ static bool try_get_literal_int(AstNode *node, int64_t *out) {
 }
 
 /* Register a file-scope const integer value for later constant folding. */
-static void tc_register_const_int(TypeChecker *checker, const char *name, int64_t value) {
+static void typechecker_register_const_int(TypeChecker *checker, const char *name, int64_t value) {
     if (checker->const_int_count >= checker->const_int_cap) {
         checker->const_int_cap = checker->const_int_cap ? checker->const_int_cap * 2 : 8;
         checker->const_int_names = xrealloc(checker->const_int_names,
@@ -2005,7 +2006,7 @@ static void tc_register_const_int(TypeChecker *checker, const char *name, int64_
  *
  * Emits E3125 if the identifier is not a known const int.
  * Emits E3126 if the resolved value is <= 0. */
-static void tc_resolve_array_size(TypeChecker *checker, AstNode *node) {
+static void typechecker_resolve_array_size(TypeChecker *checker, AstNode *node) {
     const char *tn = node->data.var_decl.type_name;
     /* Find the top-level comma separating element type from size. */
     const char *size_comma = NULL;
@@ -2046,7 +2047,7 @@ static void tc_resolve_array_size(TypeChecker *checker, AstNode *node) {
         }
     }
     if (!found) {
-        char *msg = tc_fmt(checker,
+        char *msg = typechecker_format(checker,
             "'%s' is not a compile-time integer constant; array size must be a const int/uint value",
             size_buf);
         diagnostic_error_message(checker->diag, "E3125", msg,
@@ -2054,7 +2055,7 @@ static void tc_resolve_array_size(TypeChecker *checker, AstNode *node) {
         return;
     }
     if (resolved <= 0) {
-        char *msg = tc_fmt(checker,
+        char *msg = typechecker_format(checker,
             "array size must be greater than zero; '%s' resolves to %d",
             size_buf, (int)resolved);
         diagnostic_error_message(checker->diag, "E3126", msg,
@@ -2085,7 +2086,7 @@ static void tc_resolve_array_size(TypeChecker *checker, AstNode *node) {
  *   - any operand is not a known constant (*overflowed unchanged), or
  *   - arithmetic overflowed int64 (*overflowed set to true).
  */
-static bool tc_fold_const_int(TypeChecker *checker, AstNode *node,
+static bool typechecker_fold_const_int(TypeChecker *checker, AstNode *node,
                                int64_t *out, bool *overflowed) {
     if (!node) return false;
     if (node->kind == NODE_INT_VALUE) {
@@ -2116,8 +2117,8 @@ static bool tc_fold_const_int(TypeChecker *checker, AstNode *node,
     if (node->kind == NODE_INFIX_EXPR) {
         int64_t lv, rv;
         bool l_ov = false, r_ov = false;
-        bool l_ok = tc_fold_const_int(checker, node->data.infix.left, &lv, &l_ov);
-        bool r_ok = tc_fold_const_int(checker, node->data.infix.right, &rv, &r_ov);
+        bool l_ok = typechecker_fold_const_int(checker, node->data.infix.left, &lv, &l_ov);
+        bool r_ok = typechecker_fold_const_int(checker, node->data.infix.right, &rv, &r_ov);
         if (!l_ok || !r_ok) {
             if (l_ov || r_ov) *overflowed = true;
             return false;
@@ -2215,11 +2216,11 @@ static void reject_void_in_context(TypeChecker *checker, AstNode *expr,
     char *msg = NULL;
     if (expr->kind == NODE_CALL_EXPR && expr->data.call.function &&
         expr->data.call.function->kind == NODE_LABEL) {
-        msg = tc_fmt(checker,
+        msg = typechecker_format(checker,
             "cannot use void function '%s' as %s; the function does not return a value",
             expr->data.call.function->data.label.value, context);
     } else {
-        msg = tc_fmt(checker,
+        msg = typechecker_format(checker,
             "cannot use void expression as %s; the expression does not produce a value",
             context);
     }
@@ -2234,7 +2235,7 @@ static void reject_void_in_context(TypeChecker *checker, AstNode *expr,
  * whatever the module's default-else set) and cascades into a
  * misleading downstream "cannot assign string to int" diagnostic,
  * hiding the real bug. */
-static void emit_unknown_stdlib_fn(TypeChecker *checker, const char *mod,
+static void emit_unknown_stdlib_function(TypeChecker *checker, const char *mod,
                                     const char *mfn, AstNode *node) {
     diagnostic_error_code_formatted(checker->diag, "E4005", NODE_FILE(checker, node), node->token.line, node->token.column, 0, mod, mfn);
 }
@@ -2281,7 +2282,7 @@ static GrayType *resolve_implicit_enum(TypeChecker *checker, AstNode *node) {
     return type_enum(enum_name);
 }
 
-static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
+static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
     /* Memoize: if we already resolved this node, return the cached type.
@@ -2324,7 +2325,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         /* Resolve types of all interpolation parts */
         for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
             AstNode *part = node->data.interpolated_string.parts[i];
-            GrayType *pt = resolve_expr(checker, part);
+            GrayType *pt = resolve_expression(checker, part);
             /* Only check non-literal parts (the ${expr} expressions) */
             if (part->kind == NODE_STRING_VALUE || !pt) continue;
             /* Interpolation expressions are re-lexed by a sub-lexer on
@@ -2352,14 +2353,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                  * (interpolate individual fields for structs). */
                 char *msg = NULL;
                 if (pt->kind == TK_STRUCT && pt->name) {
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot interpolate struct value of type '%s'; format fields individually (e.g. \"${v.field}\")",
                         type_display_name(checker, pt));
                 } else if (pt->kind == TK_POINTER) {
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot interpolate pointer value; dereference with ^ or format the pointee explicitly");
                 } else {
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot interpolate function reference; call the function or format its result");
                 }
                 diagnostic_error_message(checker->diag, "E3041", msg,
@@ -2407,7 +2408,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         if (!sym) {
             for (int ui = 0; ui < checker->using_module_count; ui++) {
                 if (!using_module_accessible(checker, ui)) continue;
-                const char *umod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                const char *umod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                 char prefixed[MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", umod, name);
                 sym = scope_lookup(checker->current_scope, prefixed);
@@ -2438,7 +2439,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         } else if (find_func(checker, name)) {
             /* Bare function name used as a value (). Call sites
              * inspect node->data.call.function directly and never
-             * recurse through resolve_expr for a LABEL callee, and
+             * recurse through resolve_expression for a LABEL callee, and
              * NODE_FUNC_REF reads its inner label without going
              * through here either; so any NODE_LABEL that resolves
              * to a function at this point is an unwrapped reference
@@ -2446,9 +2447,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             FuncSig *fs = find_func(checker, name);
             if (fs) fs->used = true;
             diagnostic_error_code_formatted(checker->diag, "E3031", NODE_FILE(checker, node), node->token.line, node->token.column, 0, name, name, name);
-        } else if (tc_lookup_using_constant(checker, name)) {
-            result = tc_lookup_using_constant(checker, name);
-        } else if (tc_is_builtin(name)) {
+        } else if (typechecker_lookup_using_constant(checker, name)) {
+            result = typechecker_lookup_using_constant(checker, name);
+        } else if (typechecker_is_builtin(name)) {
             GrayType *bt = type_from_name(name);
             if (bt != &TYPE_UNKNOWN) {
                 /* Builtin type name (int, i128, float, etc.) used as a
@@ -2462,13 +2463,13 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
         } else if (!is_enum_name(checker, name) &&
                    !is_struct_name(checker, name) &&
-                   !tc_is_imported_module(checker, name)) {
+                   !typechecker_is_imported_module(checker, name)) {
             /* Check if it looks like a number with a leading underscore */
             if (name[0] == '_' && name[1] >= '0' && name[1] <= '9') {
                 diagnostic_error_code_formatted(checker->diag, "E1012", NODE_FILE(checker, node), node->token.line, node->token.column, 0, name + 1);
             } else {
                 char *msg = NULL;
-                msg = tc_fmt(checker, "undefined variable '%s'", name);
+                msg = typechecker_format(checker, "undefined variable '%s'", name);
                 /* Check if the name matches a named return value */
                 bool is_named_return = false;
                 const char *nr_type = NULL;
@@ -2490,7 +2491,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     diagnostic_error_help(checker->diag, "E4001", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_copy_string(checker->arena, help));
                 } else {
-                    const char *suggestion = suggest_name(checker, name);
+                    const char *suggestion = suggest_similar_name(checker, name);
                     if (suggestion) {
                         char help[MSG_BUF_SIZE];
                         snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
@@ -2507,7 +2508,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
     }
 
     case NODE_PREFIX_EXPR: {
-        GrayType *right = resolve_expr(checker, node->data.prefix.right);
+        GrayType *right = resolve_expression(checker, node->data.prefix.right);
         if (node->data.prefix.op == TOK_BANG) {
             if (right->kind != TK_BOOL && right->kind != TK_UNKNOWN) {
                 diagnostic_error_code_formatted(checker->diag, "E3090", NODE_FILE(checker, node), node->token.line, node->token.column, 0, type_display_name(checker, right));
@@ -2534,14 +2535,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
 
     case NODE_INFIX_EXPR: {
         TokenType op = node->data.infix.op;
-        GrayType *left = resolve_expr(checker, node->data.infix.left);
+        GrayType *left = resolve_expression(checker, node->data.infix.left);
         /* For == and !=, set expected_type so .VARIANT on the RHS
          * can resolve against the LHS enum type. */
         GrayType *saved_infix_expected = checker->expected_type;
         if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
             left && left->kind == TK_ENUM && left->name)
             checker->expected_type = left;
-        GrayType *right = resolve_expr(checker, node->data.infix.right);
+        GrayType *right = resolve_expression(checker, node->data.infix.right);
         checker->expected_type = saved_infix_expected;
 
         /* : track whether any op-specific check has rejected the
@@ -2568,8 +2569,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             (op == TOK_LT || op == TOK_GT ||
              op == TOK_LT_EQ || op == TOK_GT_EQ)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
-                "cannot use '%s' on strings; use strings.compare() instead", op_to_str(op));
+            msg = typechecker_format(checker,
+                "cannot use '%s' on strings; use strings.compare() instead", operator_to_string(op));
             diagnostic_error_message(checker->diag, "E3002", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
             result = &TYPE_BOOL;
@@ -2607,7 +2608,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
             if (is_zero) {
                 char *msg;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "%s by zero; dividing by a literal zero is always invalid",
                     op == TOK_PERCENT ? "modulo" : "division");
                 diagnostic_error_message(checker->diag, "E3002", msg,
@@ -2623,9 +2624,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
              op == TOK_PERCENT) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "invalid operands: cannot use '%s' with %s and %s",
-                op_to_str(op), type_name(left), type_name(right));
+                operator_to_string(op), type_name(left), type_name(right));
             diagnostic_error_message(checker->diag, "E3002", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2650,9 +2651,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             !(strcmp(left->name, "i256") == 0 && strcmp(right->name, "i128") == 0) &&
             !(strcmp(left->name, "u256") == 0 && strcmp(right->name, "u128") == 0)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "invalid operands: cannot use '%s' with %s and %s; bigint types must match",
-                op_to_str(op), type_name(left), type_name(right));
+                operator_to_string(op), type_name(left), type_name(right));
             diagnostic_error_message(checker->diag, "E3002", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2668,9 +2669,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         if ((left->kind == TK_NIL || right->kind == TK_NIL) &&
             op != TOK_EQ && op != TOK_NOT_EQ) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "cannot use nil with operator '%s'; nil is only valid for == / != against nullable types (Error, pointers)",
-                op_to_str(op));
+                operator_to_string(op));
             diagnostic_error_message(checker->diag, "E3002", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2704,8 +2705,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             op != TOK_PLUS && op != TOK_EQ && op != TOK_NOT_EQ &&
             op != TOK_IN && op != TOK_NOT_IN) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
-                "cannot use '%s' on string type", op_to_str(op));
+            msg = typechecker_format(checker,
+                "cannot use '%s' on string type", operator_to_string(op));
             diagnostic_error_message(checker->diag, "E3002", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
             infix_errored = true;
@@ -2722,7 +2723,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 bad = right;
             if (bad && bad->kind != TK_UNKNOWN) {
                 diagnostic_error_code_formatted(checker->diag, "E3093", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    op_to_str(op), type_display_name(checker, bad));
+                    operator_to_string(op), type_display_name(checker, bad));
                 infix_errored = true;
             }
         }
@@ -2778,7 +2779,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             if (eidx >= 0 && checker->enum_is_tagged[eidx]) {
                 diagnostic_error_code_formatted(checker->diag, "E3124",
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    op_to_str(op), enum_display_name(checker, left->name));
+                    operator_to_string(op), enum_display_name(checker, left->name));
                 infix_errored = true;
             }
         }
@@ -2802,7 +2803,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 (right && right->kind == TK_INT);
             if ((left_is_enum || right_is_enum) &&
                 !(is_ordering && has_int_side)) {
-                diagnostic_error_code_formatted(checker->diag, "E3049", NODE_FILE(checker, node), node->token.line, node->token.column, 0, op_to_str(op));
+                diagnostic_error_code_formatted(checker->diag, "E3049", NODE_FILE(checker, node), node->token.line, node->token.column, 0, operator_to_string(op));
                 infix_errored = true;
             }
         }
@@ -2812,7 +2813,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
             if (left->kind == TK_ENUM && is_int_kind(right->kind)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'",
                     type_display_name(checker, left), type_name(right), type_display_name(checker, left));
                 diagnostic_error_message(checker->diag, "E3117", msg,
@@ -2820,7 +2821,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
             if (is_int_kind(left->kind) && right->kind == TK_ENUM) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot compare %s with enum '%s'; use an enum variant like '%s.VARIANT'",
                     type_name(left), type_display_name(checker, right), type_display_name(checker, right));
                 diagnostic_error_message(checker->diag, "E3117", msg,
@@ -2839,10 +2840,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
             !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
             /* String enums can be compared with string literals */
-            !(left->kind == TK_ENUM && right->kind == TK_STRING && tc_enum_is_string(checker, left->name)) &&
-            !(left->kind == TK_STRING && right->kind == TK_ENUM && tc_enum_is_string(checker, right->name))) {
+            !(left->kind == TK_ENUM && right->kind == TK_STRING && typechecker_enum_is_string(checker, left->name)) &&
+            !(left->kind == TK_STRING && right->kind == TK_ENUM && typechecker_enum_is_string(checker, right->name))) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "cannot compare %s with %s", type_name(left), type_name(right));
             diagnostic_error_message(checker->diag, "E3001", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -2855,7 +2856,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             strcmp(left->name, right->name) != 0 &&
             strcmp(left->name, "nil") != 0 && strcmp(right->name, "nil") != 0) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "cannot compare %s with %s", type_name(left), type_name(right));
             diagnostic_error_message(checker->diag, "E3001", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -2930,7 +2931,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
             if (mismatch) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'in' operator type mismatch: cannot check if '%s' is in '%s'",
                     left_tn, right_tn);
                 diagnostic_error_message(checker->diag, "E3085", msg,
@@ -2949,7 +2950,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             if (!left_ok || !right_ok) {
                 diagnostic_error_code_formatted(checker->diag, "E8001",
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    op_to_str(op), type_display_name(checker, left), type_display_name(checker, right));
+                    operator_to_string(op), type_display_name(checker, left), type_display_name(checker, right));
                 infix_errored = true;
             } else {
                 result = left;
@@ -2978,11 +2979,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
     }
 
     case NODE_POSTFIX_EXPR: {
-        GrayType *left_t = resolve_expr(checker, node->data.postfix.left);
+        GrayType *left_t = resolve_expression(checker, node->data.postfix.left);
         if (node->data.postfix.op == TOK_CARET) {
             if (left_t->kind == TK_POINTER) {
                 /* Dereference: ^T^ → T */
-                result = tc_type_from_name(checker, left_t->element_type);
+                result = typechecker_type_from_name(checker, left_t->element_type);
             } else if (left_t->kind != TK_UNKNOWN) {
                 diagnostic_error_code_formatted(checker->diag, "E3016", NODE_FILE(checker, node), node->token.line, node->token.column, 0, type_display_name(checker, left_t));
                 result = left_t;
@@ -3007,7 +3008,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
             }
             if (left_t->kind != TK_UNKNOWN && !type_is_integer(left_t)) {
-                diagnostic_error_code_formatted(checker->diag, "E5023", NODE_FILE(checker, node), node->token.line, node->token.column, 0, op_to_str(node->data.postfix.op), type_display_name(checker, left_t));
+                diagnostic_error_code_formatted(checker->diag, "E5023", NODE_FILE(checker, node), node->token.line, node->token.column, 0, operator_to_string(node->data.postfix.op), type_display_name(checker, left_t));
             }
             result = left_t;
         } else {
@@ -3019,7 +3020,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
     case NODE_CALL_EXPR: {
         /* Resolve argument types first. Skip the argument of ref()
          * when it's a bare function name; the ref() builtin handler
-         * below resolves it specially, and the general resolve_expr
+         * below resolves it specially, and the general resolve_expression
          * path would fire E3031 on the bare name ( follow-up). */
         bool is_ref_call = (node->data.call.function &&
             node->data.call.function->kind == NODE_LABEL &&
@@ -3033,7 +3034,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
              * from the function signature, which is resolved later. */
             if (node->data.call.args[i]->kind == NODE_IMPLICIT_ENUM)
                 continue;
-            resolve_expr(checker, node->data.call.args[i]);
+            resolve_expression(checker, node->data.call.args[i]);
 
             /* E3040: a multi-return call cannot appear in single-value
              * argument position. Caller must destructure first. */
@@ -3048,7 +3049,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (afn && afn->kind == NODE_MEMBER_EXPR &&
                            afn->data.member.object->kind == NODE_LABEL) {
                     const char *mod_raw = afn->data.member.object->data.label.value;
-                    const char *mod = tc_resolve_alias(checker, mod_raw);
+                    const char *mod = typechecker_resolve_alias(checker, mod_raw);
                     aname = afn->data.member.member;
                     char prefixed[MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, aname);
@@ -3109,7 +3110,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
          * leaving its subtree untyped and breaking codegen paths that rely on
          * typetable lookups. Resolve it here so those subtrees get populated. */
         if (fn && fn->kind != NODE_LABEL && fn->kind != NODE_MEMBER_EXPR) {
-            resolve_expr(checker, fn);
+            resolve_expression(checker, fn);
         }
 
         /* E5030: chained call on a function-call result — e.g. get_fn()(5).
@@ -3129,7 +3130,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 inner_name = inner_buf;
             }
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling",
                 inner_name ? inner_name : "function");
             diagnostic_error_message(checker->diag, "E5030", msg,
@@ -3209,8 +3210,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             diagnostic_error_code_formatted(checker->diag, "E3113", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx], expected_pc, got_ac);
                         } else {
                             for (int ai = 0; ai < got_ac; ai++) {
-                                GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
-                                GrayType *exp_t = tc_type_from_name(checker, checker->enum_payload_types[eidx][vidx][ai]);
+                                GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
+                                GrayType *exp_t = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][ai]);
                                 if (arg_t && exp_t &&
                                     arg_t->kind != TK_UNKNOWN && exp_t->kind != TK_UNKNOWN &&
                                     arg_t->kind != exp_t->kind &&
@@ -3258,7 +3259,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 /* Check argument count */
                 if (node->data.call.arg_count != sig->param_count) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "function '%s.%s.%s' expects %d argument(s), got %d",
                         mod_name, struct_name, func_name,
                         sig->param_count, node->data.call.arg_count);
@@ -3271,7 +3272,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 int check_count = node->data.call.arg_count < sig->param_count
                     ? node->data.call.arg_count : sig->param_count;
                 for (int ai = 0; ai < check_count; ai++) {
-                    resolve_expr(checker, node->data.call.args[ai]);
+                    resolve_expression(checker, node->data.call.args[ai]);
                     AstNode *arg = node->data.call.args[ai];
                     AstNode *found_decl = NULL;
                     for (int fi = 0; fi < checker->program->data.program.stmt_count && !found_decl; fi++) {
@@ -3368,8 +3369,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else {
                     /* Validate each arg type against payload type */
                     for (int ai = 0; ai < got_ac; ai++) {
-                        GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
-                        GrayType *expected_t = tc_type_from_name(checker, checker->enum_payload_types[eidx][vidx][ai]);
+                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
+                        GrayType *expected_t = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][ai]);
                         if (arg_t && expected_t &&
                             arg_t->kind != TK_UNKNOWN && expected_t->kind != TK_UNKNOWN &&
                             arg_t->kind != expected_t->kind &&
@@ -3385,7 +3386,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
         } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
             const char *mod_raw = fn->data.member.object->data.label.value;
-            const char *mod = tc_resolve_alias(checker, mod_raw);
+            const char *mod = typechecker_resolve_alias(checker, mod_raw);
             const char *mfn = fn->data.member.member;
             /* Check that module is actually imported */
             bool mod_imported = false;
@@ -3399,7 +3400,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
             if (!mod_imported && is_stdlib_module_name(mod)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "module '%s' is not imported; add 'import @%s' at the top of the file",
                     mod, mod);
                 diagnostic_error_message(checker->diag, "E4001", msg,
@@ -3426,14 +3427,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
                 /* Validate arguments; reject types that don't translate to C */
                 for (int ai = 0; ai < node->data.call.arg_count; ai++) {
-                    GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
+                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
                     if (!arg_t || arg_t->kind == TK_UNKNOWN) continue;
                     /* Reject bigint types */
                     if (arg_t->name &&
                         (strcmp(arg_t->name, "i128") == 0 || strcmp(arg_t->name, "i256") == 0 ||
                          strcmp(arg_t->name, "u128") == 0 || strcmp(arg_t->name, "u256") == 0)) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot pass %s to a C function; C has no 128/256-bit integer types",
                             arg_t->name);
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -3443,7 +3444,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     /* Reject Grayscale-specific composite types */
                     if (arg_t->kind == TK_ARRAY || arg_t->kind == TK_MAP) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot pass %s to a C function; use individual elements instead",
                             arg_t->kind == TK_ARRAY ? "an array" : "a map");
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -3454,7 +3455,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     if (arg_t->kind == TK_STRUCT && arg_t->name &&
                         is_struct_name(checker, arg_t->name)) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot pass struct '%s' to a C function; pass individual fields instead",
                             type_display_name(checker, arg_t));
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -3468,24 +3469,24 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             /* Skip stdlib dispatch if this module is a user import, not stdlib.
              * User modules with the same name (e.g., import "./server.gray") must
              * fall through to the user-module handler below. */
-            if (!tc_is_stdlib_import(checker, mod_raw)) {
+            if (!typechecker_is_stdlib_import(checker, mod_raw)) {
                 goto user_module_dispatch;
             }
             /* E5034: named arguments are not supported for stdlib functions */
-            if (tc_has_named_args(node)) {
+            if (typechecker_has_named_arguments(node)) {
                 char fname[MSG_BUF_SIZE];
                 snprintf(fname, sizeof(fname), "%s.%s", mod, mfn);
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "named arguments are not supported for builtin function '%s'",
                     fname);
                 diagnostic_error_message(checker->diag, "E5034", msg,
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0);
             }
             /* Validate argument count for stdlib function calls */
-            tc_check_stdlib_arg_count(checker, mod, mfn, node);
-            tc_check_stdlib_arg_types(checker, mod, mfn, node);
-            tc_check_strconv_base(checker, mod, mfn, node);
+            typechecker_check_stdlib_arg_count(checker, mod, mfn, node);
+            typechecker_check_stdlib_arg_types(checker, mod, mfn, node);
+            typechecker_check_strconv_base(checker, mod, mfn, node);
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena"); /* arena pointer; opaque */
@@ -3501,25 +3502,25 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
                     /* alloc returns the same type as its second argument */
-                    result = resolve_expr(checker, node->data.call.args[1]);
+                    result = resolve_expression(checker, node->data.call.args[1]);
                 } else if (strcmp(mfn, "make") == 0) {
                     result = &TYPE_UNKNOWN;
                 } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
                            strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "maps") == 0) {
                 if (strcmp(mfn, "get_keys") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        GrayType *map_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
                         result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
                     } else result = type_array("string");
                 } else if (strcmp(mfn, "get_values") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        GrayType *map_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
                         result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
                     } else result = type_array("string");
                 } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
@@ -3528,16 +3529,16 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "merge") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        result = resolve_expr(checker, node->data.call.args[0]);
+                        result = resolve_expression(checker, node->data.call.args[0]);
                     } else result = &TYPE_UNKNOWN;
                 } else if (strcmp(mfn, "get_or_default") == 0) {
                     if (node->data.call.arg_count >= 3) {
-                        result = resolve_expr(checker, node->data.call.args[2]);
+                        result = resolve_expression(checker, node->data.call.args[2]);
                     } else result = &TYPE_UNKNOWN;
                 } else if (strcmp(mfn, "remove_key") == 0 || strcmp(mfn, "clear") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* E12001: maps functions require map argument */
@@ -3564,7 +3565,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             strcmp(t0->value_type, t1->value_type) == 0;
                         if (!key_match || !val_match) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "type mismatch: cannot compare map[%s:%s] with map[%s:%s]",
                                 t0->key_type ? t0->key_type : "?",
                                 t0->value_type ? t0->value_type : "?",
@@ -3581,7 +3582,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         }
                         if (bad_member) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "maps.is_equal does not support maps with %s values; only primitive and string element types are supported",
                                 bad_member);
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -3647,7 +3648,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "normalize") == 0) {
                     result = &TYPE_STRING;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "strconv") == 0) {
@@ -3667,7 +3668,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "from_bool") == 0) {
                     result = &TYPE_STRING;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "strings") == 0) {
@@ -3698,7 +3699,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0) {
                     result = &TYPE_STRING;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* E7004: strings.repeat() second arg must be integer */
@@ -3736,7 +3737,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "weekday") == 0) {
                     result = &TYPE_INT;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "uuid") == 0) {
@@ -3751,7 +3752,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                          strcmp(mfn, "parse") == 0) {
                     result = type_struct("UUID");
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "encoding") == 0) {
@@ -3766,7 +3767,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "to_base64") == 0) {
                     result = &TYPE_STRING;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "binary") == 0) {
@@ -3783,10 +3784,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     result = &TYPE_BOOL;
                     /* E5026: second arg must be an array, not a string */
                     if (node->data.call.arg_count >= 2) {
-                        GrayType *arg2_type = resolve_expr(checker, node->data.call.args[1]);
+                        GrayType *arg2_type = resolve_expression(checker, node->data.call.args[1]);
                         if (arg2_type && arg2_type->kind == TK_STRING) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "csv.%s() expects an array as the second argument, got string",
                                 mfn);
                             diagnostic_error_message(checker->diag, "E5026", msg,
@@ -3797,7 +3798,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "encode") == 0) {
                     result = &TYPE_STRING;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "json") == 0) {
@@ -3813,7 +3814,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "pretty_print") == 0) {
                     result = &TYPE_STRING;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "sqlite") == 0) {
@@ -3822,7 +3823,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 else if (strcmp(mfn, "query") == 0) result = type_array("map");
                 else if (strcmp(mfn, "close") == 0) result = &TYPE_VOID;
                 else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "random") == 0) {
@@ -3834,7 +3835,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
                     /* Preserve input array's element type */
                     if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
                         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
                             result = type_array(arr_t->element_type);
                         else
@@ -3845,7 +3846,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "choice") == 0) {
                     /* Return element type of the array argument */
                     if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
                         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
                             result = type_from_name(arr_t->element_type);
                         else
@@ -3855,7 +3856,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     }
                 } else if (strcmp(mfn, "seed") == 0) result = &TYPE_VOID;
                 else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "arrays") == 0) {
@@ -3872,7 +3873,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0) {
                     /* Preserve input array element type */
                     if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
                         result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
                     } else {
                         result = type_array("int");
@@ -3881,7 +3882,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     result = type_array("[int]"); /* nested array */
                 } else if (strcmp(mfn, "flatten") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
                         if (arr_t && arr_t->element_type) {
                             /* arr_t is [[T]]; element_type is "[T]". Unwrap one level. */
                             GrayType *inner = type_from_name(arr_t->element_type);
@@ -3899,7 +3900,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0 ||
                            strcmp(mfn, "reduce") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
                         result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
                     } else {
                         result = &TYPE_INT;
@@ -3912,7 +3913,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "clear") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* E5007: mutating array functions on const array */
@@ -3949,11 +3950,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     if (val_node && op_name) {
                         AstNode *arr_arg = node->data.call.args[0];
                         GrayType *arr_t = typetable_get(checker->type_table, arr_arg);
-                        if (!arr_t) arr_t = resolve_expr(checker, arr_arg);
-                        GrayType *val_t = resolve_expr(checker, val_node);
+                        if (!arr_t) arr_t = resolve_expression(checker, arr_arg);
+                        GrayType *val_t = resolve_expression(checker, val_node);
                         if (arr_t && arr_t->kind != TK_ARRAY && arr_t->kind != TK_UNKNOWN) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "arrays.%s() expects an array as the first argument, got %s",
                                 op_name, type_name(arr_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -3964,7 +3965,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind &&
                                 !(is_int_kind(elem_t->kind) && is_int_kind(val_t->kind))) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "type mismatch in arrays.%s(); cannot add %s to array of %s",
                                     op_name, type_name(val_t), arr_t->element_type);
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -3977,10 +3978,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 if ((strcmp(mfn, "remove_at") == 0 && node->data.call.arg_count >= 2) ||
                     (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 2)) {
                     AstNode *idx_node = node->data.call.args[1];
-                    GrayType *idx_t = resolve_expr(checker, idx_node);
+                    GrayType *idx_t = resolve_expression(checker, idx_node);
                     if (idx_t && idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind)) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "arrays.%s() expects an int index, got %s",
                             mfn, type_name(idx_t));
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4009,7 +4010,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         t0->element_type && t1->element_type &&
                         strcmp(t0->element_type, t1->element_type) != 0) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "type mismatch: cannot concat array of %s with array of %s",
                             t0->element_type, t1->element_type);
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4025,7 +4026,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         t0->element_type && t1->element_type &&
                         strcmp(t0->element_type, t1->element_type) != 0) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "type mismatch: cannot compare array of %s with array of %s",
                             t0->element_type, t1->element_type);
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4037,7 +4038,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         GrayType *et = type_from_name(t0->element_type);
                         if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "arrays.is_equal does not support arrays of %s; only primitive and string element types are supported",
                                 t0->element_type);
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4085,7 +4086,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     if (strcmp(mfn, "map") == 0) {
                                         if (cb_fs->param_count != 1) {
                                             char *msg = NULL;
-                                            msg = tc_fmt(checker,
+                                            msg = typechecker_format(checker,
                                                 "map callback must take 1 parameter, got %d",
                                                 cb_fs->param_count);
                                             diagnostic_error_code_formatted(checker->diag, "E9004",
@@ -4101,7 +4102,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                strcmp(mfn, "all") == 0) {
                                         if (cb_fs->param_count != 1) {
                                             char *msg = NULL;
-                                            msg = tc_fmt(checker,
+                                            msg = typechecker_format(checker,
                                                 "%s callback must take 1 parameter, got %d",
                                                 mfn, cb_fs->param_count);
                                             diagnostic_error_code_formatted(checker->diag, "E9004",
@@ -4110,7 +4111,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         } else if (cb_fs->return_count < 1 ||
                                                    cb_fs->return_types[0]->kind != TK_BOOL) {
                                             char *msg = NULL;
-                                            msg = tc_fmt(checker,
+                                            msg = typechecker_format(checker,
                                                 "%s callback must return bool", mfn);
                                             diagnostic_error_code_formatted(checker->diag, "E9004",
                                                 NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
@@ -4119,7 +4120,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     } else { /* reduce */
                                         if (cb_fs->param_count != 2) {
                                             char *msg = NULL;
-                                            msg = tc_fmt(checker,
+                                            msg = typechecker_format(checker,
                                                 "reduce callback must take 2 parameters, got %d",
                                                 cb_fs->param_count);
                                             diagnostic_error_code_formatted(checker->diag, "E9004",
@@ -4139,10 +4140,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 /* All arrays.* functions expect an array as the first argument */
                 if (node->data.call.arg_count > 0) {
                     AstNode *arg0 = node->data.call.args[0];
-                    GrayType *arg0_t = resolve_expr(checker, arg0);
+                    GrayType *arg0_t = resolve_expression(checker, arg0);
                     if (arg0_t && arg0_t->kind != TK_ARRAY && arg0_t->kind != TK_UNKNOWN) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "arrays.%s() expects an array as the first argument, got '%s'",
                             mfn, type_name(arg0_t));
                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4163,7 +4164,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "exec") == 0) {
                     result = &TYPE_BOOL;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "math") == 0) {
@@ -4178,7 +4179,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "clamp") == 0) {
                     /* Return type matches argument type; float in, float out */
                     if (node->data.call.arg_count > 0) {
-                        GrayType *arg_t = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
                         result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
                     } else {
                         result = &TYPE_INT;
@@ -4203,7 +4204,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0) {
                     result = &TYPE_FLOAT;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "threads") == 0) {
@@ -4232,7 +4233,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "sleep") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "sync") == 0) {
@@ -4244,7 +4245,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "atomic") == 0) {
@@ -4263,7 +4264,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "spinlock_destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "channels") == 0) {
@@ -4276,7 +4277,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "try_send") == 0) {
                     result = &TYPE_BOOL;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "server") == 0) {
@@ -4289,7 +4290,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "cors") == 0 || strcmp(mfn, "use") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "http") == 0) {
@@ -4308,7 +4309,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* E5026: functions that take a socket/listener as first arg */
@@ -4316,12 +4317,12 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0 ||
                     strcmp(mfn, "accept") == 0) {
                     if (node->data.call.arg_count >= 1) {
-                        GrayType *arg1_type = resolve_expr(checker, node->data.call.args[0]);
+                        GrayType *arg1_type = resolve_expression(checker, node->data.call.args[0]);
                         if (arg1_type && arg1_type->kind != TK_STRUCT) {
                             const char *expected = strcmp(mfn, "accept") == 0
                                 ? "Listener" : "Socket";
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "net.%s() expects a %s as the first argument, got %s",
                                 mfn, expected,
                                 arg1_type->name ? arg1_type->name : "non-struct type");
@@ -4339,7 +4340,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "find_all") == 0 || strcmp(mfn, "split") == 0) {
                     result = type_array("string");
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "mem") == 0) {
@@ -4351,7 +4352,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         result = &TYPE_UNKNOWN;
                     }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
-                    GrayType *val_t = resolve_expr(checker, node->data.call.args[1]);
+                    GrayType *val_t = resolve_expression(checker, node->data.call.args[1]);
                     result = type_pointer(type_name(val_t));
                 } else if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena");
@@ -4361,7 +4362,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "sqlite") == 0) {
@@ -4374,7 +4375,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (strcmp(mfn, "close") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "fmt") == 0) {
@@ -4396,7 +4397,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            strcmp(mfn, "eprintfln") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    emit_unknown_stdlib_fn(checker, mod, mfn, node);
+                    emit_unknown_stdlib_function(checker, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
                 /* Validate printf/sprintf/format: literal format string + directive types */
@@ -4474,7 +4475,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 }
                                 if (di >= node->data.call.arg_count) { di++; continue; }
                                 AstNode *darg = node->data.call.args[di];
-                                GrayType *dt = resolve_expr(checker, darg);
+                                GrayType *dt = resolve_expression(checker, darg);
                                 di++;
                                 if (!dt) continue;
                                 const char *expected = NULL;
@@ -4535,7 +4536,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
                 /* Validate that non-format args are primitive types */
                 for (int ai = 1; ai < node->data.call.arg_count; ai++) {
-                    GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
+                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
                     if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
                                   arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
                         /* Build a readable type name */
@@ -4570,7 +4571,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     if (sig->decl) {
                         char display[MSG_BUF_SIZE];
                         snprintf(display, sizeof(display), "%s.%s", display_mod, mfn);
-                        tc_resolve_named_args(checker, node, sig->decl, display);
+                        typechecker_resolve_named_arguments(checker, node, sig->decl, display);
                     }
                     /* E4017: private struct function called from outside the struct */
                     if (sig->is_private &&
@@ -4587,7 +4588,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
                         for (int ai = 0; ai < cc && !binding; ai++) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
-                            GrayType *at = resolve_expr(checker, node->data.call.args[ai]);
+                            GrayType *at = resolve_expression(checker, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
                             binding = bind_wildcard(ptn, at);
                         }
@@ -4621,11 +4622,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             node->data.call.arg_count > sig->param_count) {
                             char *msg = NULL;
                             if (min_params == sig->param_count) {
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "function '%s.%s' expects %d argument(s), got %d",
                                     display_mod, mfn, sig->param_count, node->data.call.arg_count);
                             } else {
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "function '%s.%s' expects %d-%d argument(s), got %d",
                                     display_mod, mfn, min_params, sig->param_count, node->data.call.arg_count);
                             }
@@ -4642,7 +4643,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         GrayType *saved_expected_m = checker->expected_type;
                         if (param_t && param_t->kind == TK_ENUM && param_t->name)
                             checker->expected_type = param_t;
-                        GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
+                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
                         checker->expected_type = saved_expected_m;
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
@@ -4652,7 +4653,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
                             !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s.%s': expected %s, got %s",
                                 ai + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4662,9 +4663,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Enum-to-enum: kinds both TK_ENUM but different names */
                         if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
                             arg_t->name && param_t->name &&
-                            !tc_same_enum_type(checker, arg_t->name, param_t->name)) {
+                            !typechecker_same_enum_type(checker, arg_t->name, param_t->name)) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
                                 ai + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4674,9 +4675,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Struct-to-struct: kinds both TK_STRUCT but different names */
                         if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                             arg_t->name && param_t->name &&
-                            !tc_same_struct_type(checker, arg_t->name, param_t->name)) {
+                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
                                 ai + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -4686,16 +4687,16 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Pointer-to-pointer: pointee types differ */
                         if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                             arg_t->name && param_t->name &&
-                            !tc_same_struct_type(checker, arg_t->name, param_t->name)) {
+                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s.%s': expected '%s', got '%s'",
                                 ai + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
                                 NODE_FILE(checker, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
-                        /* E3027: non-lvalue or const passed to mutable (&) param.
+                        /* E3027: non-assignable or const passed to mutable (&) param.
                          * Struct functions live inside NODE_STRUCT_DECL, not as
                          * top-level stmts, so scan struct declarations. */
                         {
@@ -4773,7 +4774,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     if (sig->decl) {
                         char display[MSG_BUF_SIZE];
                         snprintf(display, sizeof(display), "%s.%s", mod, mfn);
-                        tc_resolve_named_args(checker, node, sig->decl, display);
+                        typechecker_resolve_named_arguments(checker, node, sig->decl, display);
                     }
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
@@ -4848,7 +4849,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                              * so build a temporary shifted decl view. Named
                              * args target param names excluding the self param. */
                             if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
-                                tc_has_named_args(node)) {
+                                typechecker_has_named_arguments(node)) {
                                 AstNode *sdecl = ssig->decl;
                                 /* Create a temporary fake decl with params shifted
                                  * to skip the self parameter (param[0]). */
@@ -4862,7 +4863,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 }
                                 char display[MSG_BUF_SIZE];
                                 snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
-                                tc_resolve_named_args(checker, node, &tmp_decl, display);
+                                typechecker_resolve_named_arguments(checker, node, &tmp_decl, display);
                             }
                             /* Rewrite the call AST: change the member-expr
                              * object from the instance label to the type
@@ -4890,7 +4891,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     ? node->data.call.arg_count : ssig->decl->data.func_decl.param_count;
                                 for (int ai = 0; ai < cc && !binding; ai++) {
                                     const char *ptn = ssig->decl->data.func_decl.params[ai].type_name;
-                                    GrayType *at = resolve_expr(checker, node->data.call.args[ai]);
+                                    GrayType *at = resolve_expression(checker, node->data.call.args[ai]);
                                     if (!type_name_has_wildcard(ptn)) continue;
                                     binding = bind_wildcard(ptn, at);
                                 }
@@ -4952,7 +4953,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     GrayType *saved_expected_s = checker->expected_type;
                                     if (param_t && param_t->kind == TK_ENUM && param_t->name)
                                         checker->expected_type = param_t;
-                                    GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
+                                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
                                     checker->expected_type = saved_expected_s;
                                     if (arg_t && param_t &&
                                         arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
@@ -4975,7 +4976,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     if (arg_t && param_t &&
                                         arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                                         arg_t->name && param_t->name &&
-                                        !tc_same_struct_type(checker, arg_t->name, param_t->name)) {
+                                        !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
                                         char smsg[MSG_BUF_SIZE];
                                         snprintf(smsg, sizeof(smsg),
                                             "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
@@ -4989,7 +4990,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     if (arg_t && param_t &&
                                         arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                                         arg_t->name && param_t->name &&
-                                        !tc_same_struct_type(checker, arg_t->name, param_t->name)) {
+                                        !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
                                         char pmsg[MSG_BUF_SIZE];
                                         snprintf(pmsg, sizeof(pmsg),
                                             "argument %d of '%s.%s': expected '%s', got '%s'",
@@ -5001,7 +5002,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     }
                                 }
                             }
-                            /* E3027: non-lvalue or const passed to mutable (&) param
+                            /* E3027: non-assignable or const passed to mutable (&) param
                              * in instance dispatch. After the AST rewrite, arg[0]
                              * is self; user-visible args start at index 1. */
                             if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
@@ -5078,10 +5079,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             }
                             /* Resolve named arguments if present */
                             if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
-                                tc_has_named_args(node)) {
+                                typechecker_has_named_arguments(node)) {
                                 char display[MSG_BUF_SIZE];
                                 snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
-                                tc_resolve_named_args(checker, node, ssig->decl, display);
+                                typechecker_resolve_named_arguments(checker, node, ssig->decl, display);
                             }
                             fn->data.member.object->data.label.value = strdup(sname);
                             ssig->used = true;
@@ -5118,7 +5119,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 int check_count = node->data.call.arg_count < ssig->param_count
                                     ? node->data.call.arg_count : ssig->param_count;
                                 for (int ai = 0; ai < check_count; ai++) {
-                                    GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
+                                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
                                     GrayType *param_t = ssig->param_types[ai];
                                     if (arg_t && param_t &&
                                         arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
@@ -5152,11 +5153,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
 
         /* Member call on expression result: foo().bar() */
         if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind != NODE_LABEL) {
-            GrayType *obj_t = resolve_expr(checker, fn->data.member.object);
+            GrayType *obj_t = resolve_expression(checker, fn->data.member.object);
             if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_POINTER &&
                 obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type '%s' does not support function calls via dot notation",
                     type_name(obj_t));
                 diagnostic_error_message(checker->diag, "E3013", msg,
@@ -5176,11 +5177,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         }
 
         if (fn_name) {
-            if (tc_is_builtin(fn_name)) {
+            if (typechecker_is_builtin(fn_name)) {
                 /* E5034: named arguments are not supported for builtins */
-                if (tc_has_named_args(node)) {
+                if (typechecker_has_named_arguments(node)) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "named arguments are not supported for builtin function '%s'",
                         fn_name);
                     diagnostic_error_message(checker->diag, "E5034", msg,
@@ -5190,7 +5191,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             /* Check built-in functions first */
             if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
-                /* addr() requires an lvalue. is_lvalue_expr recurses into
+                /* addr() requires an assignment target. is_assignment_target recurses into
                  * member/index chains so 'addr(some_call().field)' is
                  * rejected at typecheck instead of leaking an
                  * '&(rvalue)' to clang. */
@@ -5199,14 +5200,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         "addr() cannot take the address of a map index expression; map values may relocate on rehash",
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 }
-                if (!is_lvalue_expr(arg)) {
+                if (!is_assignment_target(arg)) {
                     diagnostic_error_message(checker->diag, "E3012",
                         "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 }
                 /* E3122: addr() of a const variable would allow mutation
                  * through the resulting pointer, bypassing immutability. */
-                const char *root = lvalue_root_name(arg);
+                const char *root = assignment_target_root_name(arg);
                 if (root) {
                     Symbol *sym = scope_lookup(checker->current_scope, root);
                     if (sym && !sym->mutable) {
@@ -5214,12 +5215,12 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             node->token.line, node->token.column, 0, root);
                     }
                 }
-                GrayType *arg_t = resolve_expr(checker, arg);
+                GrayType *arg_t = resolve_expression(checker, arg);
                 result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
                 /* ref(func_name) returns func type; resolve the
-                 * function lookup BEFORE calling resolve_expr on the
+                 * function lookup BEFORE calling resolve_expression on the
                  * label, otherwise the E3031 "bare function name as
                  * value" check fires and rejects a legitimate
                  * use ( follow-up). */
@@ -5229,7 +5230,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     if (rfs) rfs->used = true;
                     result = type_from_name("func");
                 } else {
-                    /* Same lvalue requirement as addr(): reject literals,
+                    /* Same assignment target requirement as addr(): reject literals,
                      * call results, arithmetic expressions — anything
                      * without a stable address. Without this, ref(42) and
                      * ref(some_call()) leaked '&42' / '&(rvalue)' to clang
@@ -5239,7 +5240,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             "ref() cannot take a reference to a map index expression; map values may relocate on rehash",
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     }
-                    if (!is_lvalue_expr(arg)) {
+                    if (!is_assignment_target(arg)) {
                         diagnostic_error_message(checker->diag, "E3012",
                             "ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression",
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -5247,7 +5248,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     /* Build a pointer type that preserves the full source type.
                      * For arrays, type_name returns the element type ("int"),
                      * so reconstruct the full name ("[int]"). */
-                    GrayType *arg_t = resolve_expr(checker, arg);
+                    GrayType *arg_t = resolve_expression(checker, arg);
                     const char *pointee_name = type_name(arg_t);
                     if (arg_t->kind == TK_ARRAY) {
                         char buf[MSG_BUF_SIZE];
@@ -5268,13 +5269,13 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                  * type here instead of letting it leak. */
                 if (node->data.call.arg_count != 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "len() expects 1 argument, got %d",
                         node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 } else {
-                    GrayType *at = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
                     reject_void_in_context(checker, node->data.call.args[0], at,
                         "len() argument");
                     if (at && at->kind != TK_UNKNOWN && at->kind != TK_VOID &&
@@ -5289,7 +5290,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 /* E5008: type_of() requires exactly 1 argument */
                 if (node->data.call.arg_count != 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "type_of() expects 1 argument, got %d",
                         node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
@@ -5305,7 +5306,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         Symbol *sym = scope_lookup(checker->current_scope, aname);
                         if (!sym && (is_struct_name(checker, aname) || is_enum_name(checker, aname))) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "type_of() expects a value, not a type name '%s'; use type_of(instance) instead",
                                 aname);
                             diagnostic_error_message(checker->diag, "E3084", msg,
@@ -5315,7 +5316,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
                 /* E3038: type_of() on void function result */
                 if (node->data.call.arg_count > 0) {
-                    GrayType *arg_t = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
                     if (arg_t->kind == TK_VOID) {
                         diagnostic_error_message(checker->diag, "E3038",
                             "cannot use type_of() on a void function; the function does not return a value",
@@ -5336,17 +5337,17 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             } else if (strcmp(fn_name, "to_char") == 0) {
                 if (node->data.call.arg_count != 2) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "to_char() expects 2 arguments (string, index), got %d",
                         node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 } else {
-                    GrayType *arg0 = resolve_expr(checker, node->data.call.args[0]);
-                    GrayType *arg1 = resolve_expr(checker, node->data.call.args[1]);
+                    GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
+                    GrayType *arg1 = resolve_expression(checker, node->data.call.args[1]);
                     if (arg0->kind != TK_STRING) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "to_char() first argument must be a string, got %s",
                             type_name(arg0));
                         diagnostic_error_message(checker->diag, "E3043", msg,
@@ -5354,7 +5355,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     }
                     if (arg1->kind != TK_INT && arg1->kind != TK_UINT) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "to_char() second argument must be int or uint, got %s",
                             type_name(arg1));
                         diagnostic_error_message(checker->diag, "E3043", msg,
@@ -5365,16 +5366,16 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             } else if (strcmp(fn_name, "char_count") == 0) {
                 if (node->data.call.arg_count != 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "char_count() expects 1 argument (string), got %d",
                         node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 } else {
-                    GrayType *arg0 = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
                     if (arg0->kind != TK_STRING) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "char_count() argument must be a string, got %s",
                             type_name(arg0));
                         diagnostic_error_message(checker->diag, "E3043", msg,
@@ -5384,10 +5385,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "c_string") == 0) {
                 if (node->data.call.arg_count >= 1) {
-                    GrayType *arg0 = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
                     if (arg0 && arg0->kind != TK_POINTER && arg0->kind != TK_UNKNOWN) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "c_string() requires a raw C pointer; '%s' is not a pointer type. "
                             "c_string() is only valid with values from C interop (import c\"header.h\")",
                             type_name(arg0));
@@ -5407,7 +5408,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             } else if (strcmp(fn_name, "embed") == 0) {
                 if (node->data.call.arg_count != 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "embed() takes exactly 1 argument, got %d",
                         node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
@@ -5471,7 +5472,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         FILE *ef = fopen(resolved, "r");
                         if (!ef) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "embed() cannot open '%s': file not found or unreadable",
                                 embed_path);
                             diagnostic_error_message(checker->diag, "E5018", msg,
@@ -5489,23 +5490,23 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 /* println/eprintln accept 0 or 1 arguments */
                 if (node->data.call.arg_count > 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "%s() expects 0 or 1 argument(s), got %d",
                         fn_name, node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
                     if (at->kind == TK_FUNCTION) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot pass a func reference to %s(); func references are not printable values",
                             fn_name);
                         diagnostic_error_message(checker->diag, "E5028", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     }
-                    if (at->kind == TK_ENUM && at->name && tc_enum_is_tagged(checker, at->name)) {
+                    if (at->kind == TK_ENUM && at->name && typechecker_enum_is_tagged(checker, at->name)) {
                         diagnostic_error_code_formatted(checker->diag, "E5038",
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                             enum_display_name(checker, at->name), fn_name);
@@ -5519,23 +5520,23 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 /* print/eprint accept exactly 1 argument */
                 if (node->data.call.arg_count != 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "%s() expects 1 argument, got %d",
                         fn_name, node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
                     if (at->kind == TK_FUNCTION) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot pass a func reference to %s(); func references are not printable values",
                             fn_name);
                         diagnostic_error_message(checker->diag, "E5028", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     }
-                    if (at->kind == TK_ENUM && at->name && tc_enum_is_tagged(checker, at->name)) {
+                    if (at->kind == TK_ENUM && at->name && typechecker_enum_is_tagged(checker, at->name)) {
                         diagnostic_error_code_formatted(checker->diag, "E5038",
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                             enum_display_name(checker, at->name), fn_name);
@@ -5552,37 +5553,37 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                        strcmp(fn_name, "sleep_ns") == 0) {
                 /* Validate argument types for these builtins */
                 if (strcmp(fn_name, "exit") == 0 && node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
                     if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "exit() expects an integer argument, got '%s'", type_name(at));
                         diagnostic_error_message(checker->diag, "E3001", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     }
                 } else if (strcmp(fn_name, "panic") == 0 && node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
                     if (at->kind != TK_UNKNOWN && at->kind != TK_STRING) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "panic() expects a string argument, got '%s'", type_name(at));
                         diagnostic_error_message(checker->diag, "E3001", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     }
                 } else if (strcmp(fn_name, "assert") == 0 && node->data.call.arg_count >= 1) {
-                    GrayType *cond_t = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *cond_t = resolve_expression(checker, node->data.call.args[0]);
                     if (cond_t->kind != TK_UNKNOWN && cond_t->kind != TK_BOOL) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "assert() condition must be a bool, got '%s'", type_name(cond_t));
                         diagnostic_error_message(checker->diag, "E3001", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     }
                     if (node->data.call.arg_count >= 2) {
-                        GrayType *msg_t = resolve_expr(checker, node->data.call.args[1]);
+                        GrayType *msg_t = resolve_expression(checker, node->data.call.args[1]);
                         if (msg_t->kind != TK_UNKNOWN && msg_t->kind != TK_STRING) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "assert() message must be a string, got '%s'", type_display_name(checker, msg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
                                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -5590,10 +5591,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     }
                 } else if ((strcmp(fn_name, "sleep_s") == 0 || strcmp(fn_name, "sleep_ms") == 0 ||
                             strcmp(fn_name, "sleep_ns") == 0) && node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expr(checker, node->data.call.args[0]);
+                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
                     if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "%s() expects an integer argument, got '%s'", fn_name, type_name(at));
                         diagnostic_error_message(checker->diag, "E3001", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -5601,7 +5602,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
-                result = resolve_expr(checker, node->data.call.args[0]);
+                result = resolve_expression(checker, node->data.call.args[0]);
                 if (result->kind == TK_FUNCTION) {
                     diagnostic_error_message(checker->diag, "E5029",
                         arena_copy_string(checker->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
@@ -5616,7 +5617,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 /* E5008: char() requires exactly 1 argument */
                 if (node->data.call.arg_count != 1) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "char() expects 1 argument, got %d",
                         node->data.call.arg_count);
                     diagnostic_error_message(checker->diag, "E5008", msg,
@@ -5630,14 +5631,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     diagnostic_error_code_formatted(checker->diag, "E7014", NODE_FILE(checker, node), node->token.line, node->token.column, 0, (long long)lit_val);
                 }
                 /* E3001: char() with a string literal that is not exactly one character */
-                GrayType *char_arg_t = resolve_expr(checker, node->data.call.args[0]);
+                GrayType *char_arg_t = resolve_expression(checker, node->data.call.args[0]);
                 if (char_arg_t->kind == TK_STRING) {
                     AstNode *arg = node->data.call.args[0];
                     if (arg->kind == NODE_STRING_VALUE) {
                         int slen = (int)strlen(arg->data.string_value.value);
                         if (slen != 1) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "char() requires a single-character string; got a string of length %d",
                                 slen);
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -5654,11 +5655,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         strcmp(fn_name, "byte") == 0) &&
                        node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to numeric */
-                GrayType *src_t = resolve_expr(checker, node->data.call.args[0]);
+                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
                 if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                     src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot convert %s to %s; only numeric types, strings, and bools can be converted",
                         type_name(src_t), fn_name);
                     diagnostic_error_help(checker->diag, "E3043", msg,
@@ -5673,7 +5674,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     result = &TYPE_INT;
             } else if (strcmp(fn_name, "string") == 0 && node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to string */
-                GrayType *src_t = resolve_expr(checker, node->data.call.args[0]);
+                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
                 if (src_t->kind == TK_STRING) {
                     diagnostic_error_message(checker->diag, "E3043",
                         arena_copy_string(checker->arena, "cannot convert string to string; value is already a string"),
@@ -5681,7 +5682,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 } else if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                            src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot convert %s to string; use string interpolation or access individual elements",
                         type_name(src_t));
                     diagnostic_error_message(checker->diag, "E3043", msg,
@@ -5690,12 +5691,12 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to float */
-                GrayType *src_t = resolve_expr(checker, node->data.call.args[0]);
+                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
                 if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                     src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
                     src_t->kind == TK_BOOL) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot convert %s to float; only numeric types and strings can be converted",
                         type_name(src_t));
                     diagnostic_error_message(checker->diag, "E3043", msg,
@@ -5703,12 +5704,12 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
                 result = &TYPE_FLOAT;
             } else if (strcmp(fn_name, "bool") == 0 && node->data.call.arg_count == 1) {
-                GrayType *src_t = resolve_expr(checker, node->data.call.args[0]);
+                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
                 if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                     src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
                     src_t->kind == TK_STRING) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot convert %s to bool; only numeric types and bools can be converted",
                         type_name(src_t));
                     diagnostic_error_message(checker->diag, "E3043", msg,
@@ -5735,7 +5736,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                      * W1002/W1003 don't fire on the source. */
                     for (int ui = 0; ui < checker->using_module_count; ui++) {
                         if (!using_module_accessible(checker, ui)) continue;
-                        const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                        const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                         char pfx[MSG_BUF_SIZE];
                         snprintf(pfx, sizeof(pfx), "%s_%s", real_mod, fn_name);
                         FuncSig *psig = find_func(checker, pfx);
@@ -5753,7 +5754,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     }
                     /* Resolve named arguments before checking counts/types */
                     if (sig->decl) {
-                        tc_resolve_named_args(checker, node, sig->decl, fn_name);
+                        typechecker_resolve_named_arguments(checker, node, sig->decl, fn_name);
                     }
                     /* Check argument count; account for default parameters */
                     int min_args = sig->param_count;
@@ -5768,11 +5769,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         node->data.call.arg_count > sig->param_count) {
                         char *msg = NULL;
                         if (min_args == sig->param_count) {
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "function '%s' expects %d argument(s), got %d",
                                 fn_name, sig->param_count, node->data.call.arg_count);
                         } else {
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "function '%s' expects %d-%d argument(s), got %d",
                                 fn_name, min_args, sig->param_count, node->data.call.arg_count);
                         }
@@ -5795,7 +5796,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         for (int ai = 0; ai < cc; ai++) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
                             /* Type parameter (<?>) — binding comes from the label
-                             * (a struct name), not from resolve_expr. */
+                             * (a struct name), not from resolve_expression. */
                             if (sig->decl->data.func_decl.params[ai].is_type_param) {
                                 if (node->data.call.args[ai]->kind != NODE_LABEL) {
                                     diagnostic_error_code(checker->diag, "E3128",
@@ -5827,7 +5828,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 }
                                 continue;
                             }
-                            GrayType *at = resolve_expr(checker, node->data.call.args[ai]);
+                            GrayType *at = resolve_expression(checker, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
                             /* E3100: struct/enum type name passed as a value argument */
                             if (at->kind == TK_UNKNOWN &&
@@ -5836,7 +5837,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 if (!scope_lookup(checker->current_scope, arg_label)) {
                                     if (is_struct_name(checker, arg_label)) {
                                         char *msg = NULL;
-                                        msg = tc_fmt(checker,
+                                        msg = typechecker_format(checker,
                                             "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
                                             arg_label, arg_label, arg_label);
                                         diagnostic_error_message(checker->diag, "E3100", msg,
@@ -5846,7 +5847,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         continue;
                                     } else if (is_enum_name(checker, arg_label)) {
                                         char *msg = NULL;
-                                        msg = tc_fmt(checker,
+                                        msg = typechecker_format(checker,
                                             "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
                                             arg_label, arg_label);
                                         diagnostic_error_message(checker->diag, "E3100", msg,
@@ -5866,7 +5867,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                  * types — skip the false-positive here. */
                                 if (at->kind == TK_UNKNOWN) continue;
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
                                     ptn, ai + 1, fn_name, type_name(at));
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -5878,7 +5879,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 generic_binding = bound;
                             } else if (strcmp(generic_binding, bound) != 0) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "wildcard type conflict in '%s': '?' was bound to %s, but argument %d is %s",
                                     fn_name, generic_binding, ai + 1, bound);
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -5918,7 +5919,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         GrayType *saved_expected = checker->expected_type;
                         if (param_t && param_t->kind == TK_ENUM && param_t->name)
                             checker->expected_type = param_t;
-                        GrayType *arg_t = resolve_expr(checker, node->data.call.args[ai]);
+                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[ai]);
                         checker->expected_type = saved_expected;
                         if (is_generic_call) {
                             /* Generic branch already handled unification;
@@ -5934,7 +5935,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             if (!scope_lookup(checker->current_scope, arg_label)) {
                                 if (is_struct_name(checker, arg_label)) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
                                         arg_label, arg_label, arg_label);
                                     diagnostic_error_message(checker->diag, "E3100", msg,
@@ -5944,7 +5945,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     continue;
                                 } else if (is_enum_name(checker, arg_label)) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
                                         arg_label, arg_label);
                                     diagnostic_error_message(checker->diag, "E3100", msg,
@@ -5963,7 +5964,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
                             !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s': expected %s, got %s",
                                 ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -5973,9 +5974,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Enum-to-enum: kinds both TK_ENUM but different names */
                         if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
                             arg_t->name && param_t->name &&
-                            !tc_same_enum_type(checker, arg_t->name, param_t->name)) {
+                            !typechecker_same_enum_type(checker, arg_t->name, param_t->name)) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s': expected enum '%s', got enum '%s'",
                                 ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -5985,9 +5986,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Struct-to-struct: kinds both TK_STRUCT but different names */
                         if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
                             arg_t->name && param_t->name &&
-                            !tc_same_struct_type(checker, arg_t->name, param_t->name)) {
+                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s': expected struct '%s', got struct '%s'",
                                 ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -5997,9 +5998,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Pointer-to-pointer: pointee types differ (e.g., addr(Color) to ^Point) */
                         if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
                             arg_t->name && param_t->name &&
-                            !tc_same_struct_type(checker, arg_t->name, param_t->name)) {
+                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s': expected '%s', got '%s'",
                                 ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6008,11 +6009,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         }
                         /* Bigint narrowing in call argument: i128 arg to i64 param, etc. */
                         if (arg_t->name && param_t->name) {
-                            int ar = int_name_rank(arg_t->name);
-                            int pr = int_name_rank(param_t->name);
+                            int ar = int_type_name_rank(arg_t->name);
+                            int pr = int_type_name_rank(param_t->name);
                             if (ar >= 5 && pr > 0 && pr < ar) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "argument %d of '%s': cannot implicitly narrow %s to %s; use %s() to convert explicitly",
                                     ai + 1, fn_name, arg_t->name, param_t->name, param_t->name);
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6023,12 +6024,12 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         /* Array element type mismatch */
                         if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
                             arg_t->element_type && param_t->element_type &&
-                            !tc_same_array_elem(checker, arg_t->element_type, param_t->element_type)) {
+                            !typechecker_same_array_element(checker, arg_t->element_type, param_t->element_type)) {
                             GrayType *ae = type_from_name(arg_t->element_type);
                             GrayType *pe = type_from_name(param_t->element_type);
                             if (!(ae && pe && is_int_kind(ae->kind) && is_int_kind(pe->kind))) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "argument %d of '%s': expected '%s', got '%s'",
                                     ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6044,7 +6045,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 strcmp(arg_t->value_type, param_t->value_type) != 0;
                             if (key_mismatch || val_mismatch) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "argument %d of '%s': expected '%s', got '%s'",
                                     ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6057,14 +6058,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             arg_t->name && param_t->name &&
                             strcmp(arg_t->name, param_t->name) != 0) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "argument %d of '%s': expected %s, got %s",
                                 ai + 1, fn_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
                             diagnostic_error_message(checker->diag, "E3066", msg,
                                 NODE_FILE(checker, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
-                        /* E3027: non-lvalue or const passed to mutable (&) param */
+                        /* E3027: non-assignable or const passed to mutable (&) param */
                         {
                             AstNode *arg = node->data.call.args[ai];
                             /* Find the func decl to check if this param is mutable */
@@ -6075,13 +6076,13 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     ai >= s->data.func_decl.param_count ||
                                     !s->data.func_decl.params[ai].mutable)
                                     continue;
-                                /* Param is mutable; check argument is a valid lvalue */
+                                /* Param is mutable; check argument is a valid assignment target */
                                 if (arg->kind == NODE_LABEL) {
                                     Symbol *arg_sym = scope_lookup(checker->current_scope,
                                         arg->data.label.value);
                                     if (arg_sym && !arg_sym->mutable) {
                                         char *msg = NULL;
-                                        msg = tc_fmt(checker,
+                                        msg = typechecker_format(checker,
                                             "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
                                             arg_sym->name, s->data.func_decl.params[ai].name, fn_name);
                                         diagnostic_error_message(checker->diag, "E3027", msg,
@@ -6092,7 +6093,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                            arg->data.member.object->kind == NODE_LABEL &&
                                            is_enum_name(checker, arg->data.member.object->data.label.value)) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
                                         s->data.func_decl.params[ai].name, fn_name);
                                     diagnostic_error_message(checker->diag, "E3027", msg,
@@ -6101,9 +6102,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 } else if (arg->kind != NODE_MEMBER_EXPR &&
                                            arg->kind != NODE_INDEX_EXPR &&
                                            arg->kind != NODE_PREFIX_EXPR) {
-                                    /* Literal, call result, or other non-lvalue expression */
+                                    /* Literal, call result, or other non-assignable expression */
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
                                         s->data.func_decl.params[ai].name, fn_name);
                                     diagnostic_error_message(checker->diag, "E3027", msg,
@@ -6156,11 +6157,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             if (ac < min_arity || ac > ref_sig->param_count) {
                                 char *msg = NULL;
                                 if (min_arity == ref_sig->param_count) {
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "function '%s' expects %d argument(s), got %d",
                                         func_display_name(ref_sig), ref_sig->param_count, ac);
                                 } else {
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "function '%s' expects %d to %d argument(s), got %d",
                                         func_display_name(ref_sig), min_arity, ref_sig->param_count, ac);
                                 }
@@ -6168,7 +6169,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                             } else {
                                 for (int ai = 0; ai < ref_sig->param_count; ai++) {
-                                    GrayType *at = resolve_expr(checker, node->data.call.args[ai]);
+                                    GrayType *at = resolve_expression(checker, node->data.call.args[ai]);
                                     GrayType *pt = ref_sig->param_types[ai];
                                     if (at && pt && at->kind != TK_UNKNOWN &&
                                         pt->kind != TK_UNKNOWN &&
@@ -6176,7 +6177,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
                                         !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
                                         char *msg = NULL;
-                                        msg = tc_fmt(checker,
+                                        msg = typechecker_format(checker,
                                             "argument %d of '%s': expected %s, got %s",
                                             ai + 1, func_display_name(ref_sig),
                                             type_display_name(checker, pt), type_display_name(checker, at));
@@ -6190,7 +6191,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         at->name && pt->name &&
                                         strcmp(at->name, pt->name) != 0) {
                                         char *msg = NULL;
-                                        msg = tc_fmt(checker,
+                                        msg = typechecker_format(checker,
                                             "argument %d of '%s': expected enum '%s', got enum '%s'",
                                             ai + 1, func_display_name(ref_sig), enum_display_name(checker, pt->name), enum_display_name(checker, at->name));
                                         diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6198,7 +6199,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
                                     }
-                                    /* E3027: non-lvalue or const passed to mutable (&) param */
+                                    /* E3027: non-assignable or const passed to mutable (&) param */
                                     {
                                         AstNode *arg = node->data.call.args[ai];
                                         const char *ref_name = fn_sym->func_ref_name;
@@ -6260,7 +6261,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             int ac = node->data.call.arg_count;
                             if (ac != sig->param_count) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "function reference '%s' expects %d argument(s), got %d",
                                     fn_name, sig->param_count, ac);
                                 diagnostic_error_message(checker->diag, "E5008", msg,
@@ -6268,26 +6269,26 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             } else {
                                 for (int ai = 0; ai < sig->param_count; ai++) {
                                     AstNode *arg = node->data.call.args[ai];
-                                    GrayType *at = resolve_expr(checker, arg);
+                                    GrayType *at = resolve_expression(checker, arg);
                                     GrayType *pt = sig->param_types[ai] ? type_from_name(sig->param_types[ai]) : NULL;
                                     if (at && pt && at->kind != TK_UNKNOWN && pt->kind != TK_UNKNOWN &&
                                         at->kind != pt->kind &&
                                         !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
                                         !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
                                         char *msg = NULL;
-                                        msg = tc_fmt(checker,
+                                        msg = typechecker_format(checker,
                                             "argument %d of '%s': expected %s, got %s",
                                             ai + 1, fn_name,
                                             type_display_name(checker, pt), type_display_name(checker, at));
                                         diagnostic_error_message(checker->diag, "E3001", msg,
                                             NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
                                     }
-                                    /* E3027/E3067: `&` param requires an lvalue */
+                                    /* E3027/E3067: `&` param requires an assignment target */
                                     if (sig->param_mutable[ai]) {
                                         bool is_enum_const = (arg->kind == NODE_MEMBER_EXPR &&
                                                               arg->data.member.object->kind == NODE_LABEL &&
                                                               is_enum_name(checker, arg->data.member.object->data.label.value));
-                                        bool is_lvalue = !is_enum_const &&
+                                        bool is_assignable = !is_enum_const &&
                                                          (arg->kind == NODE_LABEL ||
                                                           arg->kind == NODE_MEMBER_EXPR ||
                                                           arg->kind == NODE_INDEX_EXPR);
@@ -6298,7 +6299,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                 ai + 1, fn_name);
                                             diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                 NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
-                                        } else if (!is_lvalue) {
+                                        } else if (!is_assignable) {
                                             diagnostic_error_code_formatted(checker->diag, "E3067", NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0, ai + 1, fn_name);
                                         } else if (arg->kind == NODE_LABEL) {
                                             Symbol *as = scope_lookup(checker->current_scope, arg->data.label.value);
@@ -6323,7 +6324,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     } else if (fn_sym && fn_sym->type) {
                         /* Variable exists but is not a function */
                         diagnostic_error_code_formatted(checker->diag, "E3015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, fn_name, type_display_name(checker, fn_sym->type));
-                    } else if (!tc_is_builtin(fn_name)) {
+                    } else if (!typechecker_is_builtin(fn_name)) {
                         /* Check if it's a function from a 'using' module */
                         bool found_in_using = false;
                         /* Check for math functions whose return type depends on argument */
@@ -6332,11 +6333,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             strcmp(fn_name, "clamp") == 0)) {
                             for (int ui = 0; ui < checker->using_module_count; ui++) {
                                 if (!using_module_accessible(checker, ui)) continue;
-                                const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                                 if (strcmp(real_mod, "math") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
-                                        GrayType *arg_t = resolve_expr(checker, node->data.call.args[0]);
+                                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
                                         result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
                                     } else {
                                         result = &TYPE_INT;
@@ -6350,11 +6351,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             strcmp(fn_name, "shuffle") == 0 || strcmp(fn_name, "sample") == 0)) {
                             for (int ui = 0; ui < checker->using_module_count; ui++) {
                                 if (!using_module_accessible(checker, ui)) continue;
-                                const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                                 if (strcmp(real_mod, "random") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
-                                        GrayType *arr_t = resolve_expr(checker, node->data.call.args[0]);
+                                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
                                         if (strcmp(fn_name, "choice") == 0) {
                                             result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
                                         } else {
@@ -6371,11 +6372,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         if (!found_in_using && (strcmp(fn_name, "get_keys") == 0 || strcmp(fn_name, "get_values") == 0)) {
                             for (int ui = 0; ui < checker->using_module_count; ui++) {
                                 if (!using_module_accessible(checker, ui)) continue;
-                                const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                                 if (strcmp(real_mod, "maps") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
-                                        GrayType *map_t = resolve_expr(checker, node->data.call.args[0]);
+                                        GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
                                         if (strcmp(fn_name, "get_keys") == 0)
                                             result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
                                         else
@@ -6391,7 +6392,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                             if (!using_module_accessible(checker, ui)) continue;
                             const char *umod = checker->using_modules[ui];
                             /* Resolve alias to actual module name */
-                            const char *real_mod = tc_resolve_alias(checker, umod);
+                            const char *real_mod = typechecker_resolve_alias(checker, umod);
                             /* 1) Try hardcoded stdlib table */
                             for (int fi = 0; _using_funcs[fi].func; fi++) {
                                 if (strcmp(fn_name, _using_funcs[fi].func) == 0 &&
@@ -6452,8 +6453,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                  * re-emitting the same diagnostic here. */
                             } else {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker, "undefined function '%s'", fn_name);
-                                const char *suggestion = suggest_name(checker, fn_name);
+                                msg = typechecker_format(checker, "undefined function '%s'", fn_name);
+                                const char *suggestion = suggest_similar_name(checker, fn_name);
                                 /* Point at the function name, not the ( */
                                 AstNode *fn_node = node->data.call.function;
                                 int el = fn_node ? fn_node->token.line : node->token.line;
@@ -6510,7 +6511,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
         }
 
-        resolve_expr(checker, obj);
+        resolve_expression(checker, obj);
 
         if (obj->kind == NODE_LABEL) {
             const char *obj_name = obj->data.label.value;
@@ -6582,13 +6583,13 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
 
             /* C interop constant access: c.EOF, c.NULL, etc. */
-            if (strcmp(obj_name, "c") == 0 && tc_is_imported_module(checker, "c")) {
+            if (strcmp(obj_name, "c") == 0 && typechecker_is_imported_module(checker, "c")) {
                 result = &TYPE_UNKNOWN;
                 break;
             }
 
             /* Check for user-module constant access: mod.CONST */
-            if (tc_is_imported_module(checker, obj_name)) {
+            if (typechecker_is_imported_module(checker, obj_name)) {
                 char prefixed[MSG_BUF_SIZE];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", obj_name, member);
                 Symbol *mod_sym = scope_lookup(checker->current_scope, prefixed);
@@ -6663,7 +6664,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     result = &TYPE_STRING;
                 } else {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "Error has no field '%s'; available fields: message, code",
                         member);
                     diagnostic_error_message(checker->diag, "E3010", msg,
@@ -6675,7 +6676,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                        sym->type->kind != TK_POINTER &&
                        !(member[0] == 'v' && member[1] >= '0' && member[1] <= '9')) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type '%s' does not support access via dot notation",
                     type_name(sym->type));
                 diagnostic_error_message(checker->diag, "E3013", msg,
@@ -6714,7 +6715,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
             /* Nested member access: a.b.c; resolve a.b first, then look up .c */
             GrayType *obj_t = typetable_get(checker->type_table, obj);
-            if (!obj_t) obj_t = resolve_expr(checker, obj);
+            if (!obj_t) obj_t = resolve_expression(checker, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(checker, obj_t->name, member);
                 bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
@@ -6732,7 +6733,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 }
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type '%s' does not support access via dot notation",
                     type_name(obj_t));
                 diagnostic_error_message(checker->diag, "E3013", msg,
@@ -6740,12 +6741,12 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
         } else {
             /* Object is an expression (e.g. foo().bar); resolve its type */
-            GrayType *obj_t = resolve_expr(checker, obj);
+            GrayType *obj_t = resolve_expression(checker, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(checker, obj_t->name, member);
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type '%s' does not support access via dot notation",
                     type_name(obj_t));
                 diagnostic_error_message(checker->diag, "E3013", msg,
@@ -6756,13 +6757,13 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
     }
 
     case NODE_INDEX_EXPR: {
-        GrayType *left = resolve_expr(checker, node->data.index_expr.left);
-        GrayType *idx_t = resolve_expr(checker, node->data.index_expr.index);
+        GrayType *left = resolve_expression(checker, node->data.index_expr.left);
+        GrayType *idx_t = resolve_expression(checker, node->data.index_expr.index);
         /* E3003: array index must be integer */
         if (left->kind == TK_ARRAY && idx_t->kind != TK_UNKNOWN &&
             !is_int_kind(idx_t->kind) && idx_t->kind != TK_BYTE) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "array index must be an integer, got %s", type_name(idx_t));
             diagnostic_error_message(checker->diag, "E3003", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -6777,20 +6778,20 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             node->data.index_expr.index->data.prefix.right->kind == NODE_INT_VALUE) {
             const char *what = left->kind == TK_STRING ? "string" : "array";
             char *msg;
-            msg = tc_fmt(checker, "%s index cannot be negative", what);
+            msg = typechecker_format(checker, "%s index cannot be negative", what);
             diagnostic_error_message(checker->diag, "E3003", msg,
                 NODE_FILE(checker, node->data.index_expr.index), node->data.index_expr.index->token.line,
                 node->data.index_expr.index->token.column, 0);
         }
         if (left->kind == TK_ARRAY && left->element_type) {
-            result = tc_type_from_name(checker, left->element_type);
+            result = typechecker_type_from_name(checker, left->element_type);
         } else if (left->kind == TK_MAP && left->value_type) {
             result = type_from_name(left->value_type);
             /* Check map key type matches. Enum keys are int-backed, so accept
              * int expressions (and enum members, which resolve as int) when
              * the declared key is a user enum name. */
             if (left->key_type && idx_t->kind != TK_UNKNOWN) {
-                GrayType *key_t = tc_type_from_name(checker, left->key_type);
+                GrayType *key_t = typechecker_type_from_name(checker, left->key_type);
                 bool declared_is_enum = is_enum_name(checker, left->key_type);
                 bool compatible =
                     key_t->kind == TK_UNKNOWN ||
@@ -6799,7 +6800,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     (declared_is_enum && is_int_kind(idx_t->kind));
                 if (!compatible) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "map key type mismatch: expected '%s', got '%s'",
                         left->key_type, type_name(idx_t));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6809,7 +6810,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         } else if (left->kind == TK_STRING) {
             if (idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind) && idx_t->kind != TK_BYTE) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "string index must be an integer, got %s", type_name(idx_t));
                 diagnostic_error_message(checker->diag, "E3003", msg,
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -6826,16 +6827,16 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         GrayType *saved_arr_expected = checker->expected_type;
         if (checker->expected_type && checker->expected_type->kind == TK_ARRAY &&
             checker->expected_type->element_type) {
-            GrayType *elem_t = tc_type_from_name(checker, checker->expected_type->element_type);
+            GrayType *elem_t = typechecker_type_from_name(checker, checker->expected_type->element_type);
             if (elem_t && elem_t->kind == TK_ENUM && elem_t->name)
                 checker->expected_type = elem_t;
         }
         if (node->data.array_value.count > 0) {
-            GrayType *first = resolve_expr(checker, node->data.array_value.elements[0]);
+            GrayType *first = resolve_expression(checker, node->data.array_value.elements[0]);
             result = type_array(type_name(first));
             /* Validate all elements have the same type */
             for (int i = 1; i < node->data.array_value.count; i++) {
-                GrayType *ei = resolve_expr(checker, node->data.array_value.elements[i]);
+                GrayType *ei = resolve_expression(checker, node->data.array_value.elements[i]);
                 if (!ei || ei->kind == TK_UNKNOWN || !first || first->kind == TK_UNKNOWN)
                     continue;
                 bool compatible = (ei->kind == first->kind) ||
@@ -6844,7 +6845,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     (is_int_kind(ei->kind) && first->kind == TK_BYTE);
                 if (!compatible) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "array elements must all be the same type; element %d is '%s' but the array is '%s'",
                         i, type_name(ei), type_name(first));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -6861,8 +6862,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
     case NODE_MAP_VALUE: {
         /* Resolve key and value types */
         for (int i = 0; i < node->data.map_value.count; i++) {
-            GrayType *kt = resolve_expr(checker, node->data.map_value.keys[i]);
-            GrayType *vt = resolve_expr(checker, node->data.map_value.values[i]);
+            GrayType *kt = resolve_expression(checker, node->data.map_value.keys[i]);
+            GrayType *vt = resolve_expression(checker, node->data.map_value.values[i]);
             /* : void can't be a map key or value. */
             reject_void_in_context(checker, node->data.map_value.keys[i], kt, "map key");
             reject_void_in_context(checker, node->data.map_value.values[i], vt, "map value");
@@ -6912,17 +6913,17 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             } else {
                 /* Main pass — skip field validation, return unknown */
                 for (int i = 0; i < node->data.struct_value.count; i++)
-                    resolve_expr(checker, node->data.struct_value.field_values[i]);
+                    resolve_expression(checker, node->data.struct_value.field_values[i]);
                 result = &TYPE_UNKNOWN;
                 break;
             }
         }
-        tc_mark_type_module_used(checker, sname);
+        typechecker_mark_type_module_used(checker, sname);
         StructInfo *si = find_struct(checker, sname);
         /* E4016: reject undefined/unimported struct types in struct literals */
         if (!si && !is_struct_name(checker, sname)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "undefined type '%s'; check the spelling or import the module that defines it",
                 sname);
             diagnostic_error_message(checker->diag, "E4016", msg,
@@ -6957,7 +6958,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             GrayType *saved_sv_expected = checker->expected_type;
             if (field_expected_t && field_expected_t->kind == TK_ENUM && field_expected_t->name)
                 checker->expected_type = field_expected_t;
-            GrayType *val_t = resolve_expr(checker, node->data.struct_value.field_values[i]);
+            GrayType *val_t = resolve_expression(checker, node->data.struct_value.field_values[i]);
             checker->expected_type = saved_sv_expected;
             /* Validate field exists */
             if (si && node->data.struct_value.field_names[i]) {
@@ -6993,7 +6994,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                            !(val_t->kind == TK_NIL &&
                              (expected_t->kind == TK_POINTER || expected_t->kind == TK_ERROR))) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "field '%s' of struct '%s': expected %s, got %s",
                         fname, struct_display_name(checker, sname), type_display_name(checker, expected_t), type_display_name(checker, val_t));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -7017,14 +7018,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         strcmp(sdecl->data.struct_decl.fields[j].type_name, "?") == 0) {
                         GrayType *val_t = typetable_get(checker->type_table,
                             node->data.struct_value.field_values[i]);
-                        if (!val_t) val_t = resolve_expr(checker, node->data.struct_value.field_values[i]);
+                        if (!val_t) val_t = resolve_expression(checker, node->data.struct_value.field_values[i]);
                         if (val_t && val_t->kind != TK_UNKNOWN) {
                             const char *concrete = type_name(val_t);
                             if (!binding) {
                                 binding = concrete;
                             } else if (strcmp(binding, concrete) != 0) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "wildcard type conflict in struct '%s': '?' was bound to %s, but field '%s' is %s",
                                     sname, binding, fname, concrete);
                                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -7078,10 +7079,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         const char *labels[] = { "start", "end", "step" };
         for (int ri = 0; ri < 3; ri++) {
             if (!parts[ri]) continue;
-            GrayType *pt = resolve_expr(checker, parts[ri]);
+            GrayType *pt = resolve_expression(checker, parts[ri]);
             if (pt->kind != TK_UNKNOWN && !is_int_kind(pt->kind)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "range() %s argument must be an integer type, got '%s'",
                     labels[ri], type_name(pt));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -7109,7 +7110,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         break;
 
     case NODE_CAST_EXPR: {
-        GrayType *src_t = resolve_expr(checker, node->data.cast.value);
+        GrayType *src_t = resolve_expression(checker, node->data.cast.value);
         GrayType *dst_t = type_from_name(node->data.cast.target_type);
         /* Resolve user-defined enum types that type_from_name() can't find */
         if (!dst_t && is_enum_name(checker, node->data.cast.target_type))
@@ -7165,7 +7166,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     tn[sizeof(tn) - 1] = '\0';
                 }
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot cast '%s' to '%s'",
                     tn, node->data.cast.target_type);
                 diagnostic_error_help(checker->diag, "E3043", msg,
@@ -7192,10 +7193,10 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 result = type_pointer("?");
             }
         } else {
-            tc_mark_type_module_used(checker, new_type);
+            typechecker_mark_type_module_used(checker, new_type);
             if (!is_struct_name(checker, new_type)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "new() requires a struct type, but '%s' is not a struct",
                     new_type);
                 diagnostic_error_message(checker->diag, "E3041", msg,
@@ -7215,9 +7216,9 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
         if (node->data.func_ref.function->kind == NODE_LABEL) {
             const char *lname = node->data.func_ref.function->data.label.value;
             /* Surface 1: ()builtin_name — builtins are not first-class values */
-            if (tc_is_builtin(lname)) {
+            if (typechecker_is_builtin(lname)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot take a function reference to '%s'; builtin functions are not first-class values", lname);
                 diagnostic_error_message(checker->diag, "E4019", msg,
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -7228,11 +7229,11 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             AstNode *obj = node->data.func_ref.function->data.member.object;
             const char *member = node->data.func_ref.function->data.member.member;
             if (obj->kind == NODE_LABEL) {
-                const char *mod_name = tc_resolve_alias(checker, obj->data.label.value);
+                const char *mod_name = typechecker_resolve_alias(checker, obj->data.label.value);
                 /* Surface 2: ()module.func — stdlib module functions are not first-class values */
                 if (is_stdlib_module_name(mod_name)) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values",
                         obj->data.label.value, member);
                     diagnostic_error_message(checker->diag, "E4019", msg,
@@ -7263,14 +7264,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             bool found_in_using = false;
             for (int ui = 0; ui < checker->using_module_count && !found_in_using; ui++) {
                 if (!using_module_accessible(checker, ui)) continue;
-                const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                 if (is_stdlib_module_name(real_mod)) {
                     for (int fi = 0; _using_funcs[fi].func; fi++) {
                         if (strcmp(ref_name, _using_funcs[fi].func) == 0 &&
                             strcmp(real_mod, _using_funcs[fi].mod) == 0) {
                             found_in_using = true;
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "cannot take a function reference to '%s'; stdlib functions are not first-class values",
                                 ref_name);
                             diagnostic_error_message(checker->diag, "E4019", msg,
@@ -7282,8 +7283,8 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
             }
             if (!found_in_using) {
                 char *msg = NULL;
-                msg = tc_fmt(checker, "undefined function '%s' in function reference", ref_name);
-                const char *suggestion = suggest_name(checker, ref_name);
+                msg = typechecker_format(checker, "undefined function '%s' in function reference", ref_name);
+                const char *suggestion = suggest_similar_name(checker, ref_name);
                 if (suggestion) {
                     char help[MSG_BUF_SIZE];
                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
@@ -7386,7 +7387,7 @@ static void check_statement(TypeChecker *checker, AstNode *node);
  * a top-level var_decl produce invalid C (free-standing init or
  * non-constant initializer), so the Grayscale side must reject them with
  * a real diagnostic before codegen runs. */
-static bool expr_contains_call(AstNode *node) {
+static bool expression_contains_call(AstNode *node) {
     if (!node) return false;
     switch (node->kind) {
     case NODE_CALL_EXPR:
@@ -7398,42 +7399,42 @@ static bool expr_contains_call(AstNode *node) {
         }
         return true;
     case NODE_PREFIX_EXPR:
-        return expr_contains_call(node->data.prefix.right);
+        return expression_contains_call(node->data.prefix.right);
     case NODE_INFIX_EXPR:
-        return expr_contains_call(node->data.infix.left) ||
-               expr_contains_call(node->data.infix.right);
+        return expression_contains_call(node->data.infix.left) ||
+               expression_contains_call(node->data.infix.right);
     case NODE_POSTFIX_EXPR:
-        return expr_contains_call(node->data.postfix.left);
+        return expression_contains_call(node->data.postfix.left);
     case NODE_INDEX_EXPR:
-        return expr_contains_call(node->data.index_expr.left) ||
-               expr_contains_call(node->data.index_expr.index);
+        return expression_contains_call(node->data.index_expr.left) ||
+               expression_contains_call(node->data.index_expr.index);
     case NODE_MEMBER_EXPR:
-        return expr_contains_call(node->data.member.object);
+        return expression_contains_call(node->data.member.object);
     case NODE_RANGE_EXPR:
-        return expr_contains_call(node->data.range_expr.start) ||
-               expr_contains_call(node->data.range_expr.end) ||
-               expr_contains_call(node->data.range_expr.step);
+        return expression_contains_call(node->data.range_expr.start) ||
+               expression_contains_call(node->data.range_expr.end) ||
+               expression_contains_call(node->data.range_expr.step);
     case NODE_CAST_EXPR:
-        return expr_contains_call(node->data.cast.value);
+        return expression_contains_call(node->data.cast.value);
     case NODE_ARRAY_VALUE:
         for (int i = 0; i < node->data.array_value.count; i++) {
-            if (expr_contains_call(node->data.array_value.elements[i])) return true;
+            if (expression_contains_call(node->data.array_value.elements[i])) return true;
         }
         return false;
     case NODE_MAP_VALUE:
         for (int i = 0; i < node->data.map_value.count; i++) {
-            if (expr_contains_call(node->data.map_value.keys[i])) return true;
-            if (expr_contains_call(node->data.map_value.values[i])) return true;
+            if (expression_contains_call(node->data.map_value.keys[i])) return true;
+            if (expression_contains_call(node->data.map_value.values[i])) return true;
         }
         return false;
     case NODE_STRUCT_VALUE:
         for (int i = 0; i < node->data.struct_value.count; i++) {
-            if (expr_contains_call(node->data.struct_value.field_values[i])) return true;
+            if (expression_contains_call(node->data.struct_value.field_values[i])) return true;
         }
         return false;
     case NODE_INTERPOLATED_STRING:
         for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
-            if (expr_contains_call(node->data.interpolated_string.parts[i])) return true;
+            if (expression_contains_call(node->data.interpolated_string.parts[i])) return true;
         }
         return false;
     default:
@@ -7595,7 +7596,7 @@ static void check_block(TypeChecker *checker, AstNode *node) {
                         fn_name = call_fn->data.member.member;
                     }
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "'%s' returns %d values but only %d variable(s) provided; "
                         "all return values must be handled (use '_' to discard unwanted values)",
                         fn_name, sym->ret_count, var_count);
@@ -7639,7 +7640,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
          * scope). Catch it on the Grayscale side so the user sees a real
          * diagnostic instead of a clang error pointing at the generated C. */
         if (checker->func_depth == 0 && node->data.var_decl.value &&
-            expr_contains_call(node->data.var_decl.value)) {
+            expression_contains_call(node->data.var_decl.value)) {
             diagnostic_error_code(checker->diag, "E5013",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
@@ -7669,14 +7670,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             if (is_int_type) {
                 int64_t folded = 0;
                 bool overflowed = false;
-                bool ok = tc_fold_const_int(checker, node->data.var_decl.value, &folded, &overflowed);
+                bool ok = typechecker_fold_const_int(checker, node->data.var_decl.value, &folded, &overflowed);
                 if (ok) {
                     /* Expression is a valid compile-time constant.  Register
                      * the value so later const declarations can reference it. */
-                    tc_register_const_int(checker, node->data.var_decl.name, folded);
+                    typechecker_register_const_int(checker, node->data.var_decl.name, folded);
                 } else if (overflowed) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "constant expression overflows type '%s'", tn);
                     diagnostic_error_message(checker->diag, "E5039",
                         msg,
@@ -7723,7 +7724,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (node->data.var_decl.name[0] != '_' &&
             is_reserved_type_name(node->data.var_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "'%s' is a reserved type name and cannot be used as a variable name",
                 VAR_DISPLAY_NAME(node));
             diagnostic_error_message(checker->diag, "E2038", msg,
@@ -7733,7 +7734,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (node->data.var_decl.name[0] != '_' &&
             is_reserved_builtin_func_name(node->data.var_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "'%s' is a builtin function and cannot be used as a variable name",
                 VAR_DISPLAY_NAME(node));
             diagnostic_error_message(checker->diag, "E5016", msg,
@@ -7743,7 +7744,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (node->data.var_decl.name[0] != '_' &&
             is_stdlib_module_name(node->data.var_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "'%s' is a standard library module and cannot be used as a variable name",
                 VAR_DISPLAY_NAME(node));
             diagnostic_error_message(checker->diag, "E5035", msg,
@@ -7832,18 +7833,18 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
              * before the mut/const checks so downstream code always sees
              * numeric type strings. */
             if (has_size) {
-                tc_resolve_array_size(checker, node);
-                /* Re-read type_name — tc_resolve_array_size may have rewritten it. */
+                typechecker_resolve_array_size(checker, node);
+                /* Re-read type_name — typechecker_resolve_array_size may have rewritten it. */
                 tn = node->data.var_decl.type_name;
             }
             if (node->data.var_decl.mutable && has_size) {
-                char *msg = tc_fmt(checker, "mutable array '%s' cannot have a fixed size '%.*s'",
+                char *msg = typechecker_format(checker, "mutable array '%s' cannot have a fixed size '%.*s'",
                     VAR_DISPLAY_NAME(node), (int)(size_comma - tn), tn);
                 diagnostic_error_help(checker->diag, "E3054", msg,
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                     "use 'const' for fixed-size arrays, or remove the size for a dynamic 'mut' array");
             } else if (!node->data.var_decl.mutable && !has_size) {
-                char *msg = tc_fmt(checker, "const array '%s' of type [%.*s] must have a fixed size",
+                char *msg = typechecker_format(checker, "const array '%s' of type [%.*s] must have a fixed size",
                     VAR_DISPLAY_NAME(node), (int)(strlen(tn) - 2), tn + 1);
                 diagnostic_error_help(checker->diag, "E3055", msg,
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0,
@@ -7859,19 +7860,19 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         }
 
         GrayType *declared = node->data.var_decl.type_name
-            ? tc_type_from_name(checker, node->data.var_decl.type_name)
+            ? typechecker_type_from_name(checker, node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
         /* E4016: explicitly annotated type name that doesn't exist */
         if (node->data.var_decl.type_name && declared->kind == TK_UNKNOWN &&
             node->data.var_decl.type_name[0] >= 'A' && node->data.var_decl.type_name[0] <= 'Z') {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "undefined type '%s'; check the spelling or import the module that defines it",
                 node->data.var_decl.type_name);
             diagnostic_error_message(checker->diag, "E4016", msg,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
-        tc_mark_type_module_used(checker, node->data.var_decl.type_name);
+        typechecker_mark_type_module_used(checker, node->data.var_decl.type_name);
 
         /* E3057: reject composite types as map keys before downstream checks
          * produce misleading cascades (e.g. struct-literal-in-index-position
@@ -7897,11 +7898,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             if (declared->kind == TK_ENUM && declared->name)
                 checker->expected_type = declared;
             else if (declared->kind == TK_ARRAY && declared->element_type) {
-                GrayType *elem_t = tc_type_from_name(checker, declared->element_type);
+                GrayType *elem_t = typechecker_type_from_name(checker, declared->element_type);
                 if (elem_t && elem_t->kind == TK_ENUM)
                     checker->expected_type = declared;
             }
-            GrayType *value_type = resolve_expr(checker, node->data.var_decl.value);
+            GrayType *value_type = resolve_expression(checker, node->data.var_decl.value);
             checker->expected_type = saved_expected;
             /* : when a func-pointer call returns TK_UNKNOWN but
              * the assignment target has a concrete declared type,
@@ -7937,7 +7938,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     called = called_buf;
                 }
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "function '%s' returns a func type; func references cannot be assigned from function return values. Use '()func_name' or 'ref(func_name)' to create a func reference",
                     called);
                 diagnostic_error_message(checker->diag, "E3102", msg,
@@ -7958,7 +7959,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 } else if (call_fn->kind == NODE_MEMBER_EXPR &&
                            call_fn->data.member.object->kind == NODE_LABEL) {
                     const char *mod_raw = call_fn->data.member.object->data.label.value;
-                    call_mod = tc_resolve_alias(checker, mod_raw);
+                    call_mod = typechecker_resolve_alias(checker, mod_raw);
                     const char *mfn = call_fn->data.member.member;
                     char prefixed[MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", call_mod, mfn);
@@ -7968,7 +7969,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 if (sig && sig->return_count > 1) {
                     diagnostic_error_code_formatted(checker->diag, "E3040", NODE_FILE(checker, node), node->token.line, node->token.column, 0, call_name, sig->return_count, call_name);
                 } else if (call_name && !sig) {
-                    bool is_fallible = tc_is_fallible_stdlib(call_mod, call_name);
+                    bool is_fallible = typechecker_is_fallible_stdlib(call_mod, call_name);
                     if (is_fallible) {
                         diagnostic_error_code_formatted(checker->diag, "E3089", NODE_FILE(checker, node),
                             node->token.line, node->token.column, 0,
@@ -7986,7 +7987,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 declared->kind != TK_ERROR && declared->kind != TK_POINTER &&
                 declared->kind != TK_NIL) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot assign nil to '%s'; only Error and pointer types are nullable",
                     type_name(declared));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8005,7 +8006,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 declared->name && value_type->name &&
                 strcmp(declared->name, value_type->name) != 0) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot assign %s to variable of type %s",
                     type_display_name(checker, value_type), type_display_name(checker, declared));
                 diagnostic_error_message(checker->diag, "E3066", msg,
@@ -8036,11 +8037,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         v->data.call.function &&
                         v->data.call.function->kind == NODE_LABEL) {
                         const char *called = v->data.call.function->data.label.value;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot assign %s to 'func'; to store a reference to '%s', use '()%s' (not '%s()')",
                             type_name(value_type), called, called, called);
                     } else {
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot assign %s to 'func'; func variables hold function references (e.g. '()name')",
                             type_name(value_type));
                     }
@@ -8067,7 +8068,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
                        /* Allow string enum → string (string enums hold GrayString values) */
                        !(declared->kind == TK_STRING && value_type->kind == TK_ENUM &&
-                         tc_enum_is_string(checker, value_type->name)) &&
+                         typechecker_enum_is_string(checker, value_type->name)) &&
                        /* Note: multi-var expansion (.v0/.v1 access) is intentionally
                         * NOT skipped here — type mismatch on reversed multi-return
                         * types must be caught. */
@@ -8082,7 +8083,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                        !(declared->kind == TK_FLOAT && is_int_kind(value_type->kind))) {
                 /* Type mismatch */
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type mismatch: cannot assign %s to %s",
                     type_display_name(checker, value_type), type_display_name(checker, declared));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8096,7 +8097,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 declared->name && value_type->name &&
                 strcmp(declared->name, value_type->name) != 0) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type mismatch: cannot assign %s to %s",
                     type_display_name(checker, value_type), type_display_name(checker, declared));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8107,11 +8108,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
              * them through.  Catch it here by comparing named ranks. */
             if (declared && value_type &&
                 declared->name && value_type->name) {
-                int dr = int_name_rank(declared->name);
-                int vr = int_name_rank(value_type->name);
+                int dr = int_type_name_rank(declared->name);
+                int vr = int_type_name_rank(value_type->name);
                 if (dr > 0 && vr >= 5 && dr < vr) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "type mismatch: cannot implicitly narrow %s to %s; use %s() to convert explicitly",
                         value_type->name, declared->name, declared->name);
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8136,7 +8137,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 strcmp(declared->name, value_type->name) != 0 &&
                 !struct_alias_match) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type mismatch: cannot assign '%s' to '%s'",
                     type_display_name(checker, value_type), type_display_name(checker, declared));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8147,7 +8148,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 declared->name && value_type->name &&
                 strcmp(declared->name, value_type->name) != 0) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type mismatch: cannot assign enum '%s' to enum '%s'",
                     type_display_name(checker, value_type), type_display_name(checker, declared));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8156,7 +8157,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* Array element type mismatch (both TK_ARRAY but different element types) */
             if (declared->kind == TK_ARRAY && value_type->kind == TK_ARRAY &&
                 declared->element_type && value_type->element_type &&
-                !tc_same_array_elem(checker, declared->element_type, value_type->element_type)) {
+                !typechecker_same_array_element(checker, declared->element_type, value_type->element_type)) {
                 GrayType *decl_elem = type_from_name(declared->element_type);
                 GrayType *val_elem  = type_from_name(value_type->element_type);
                 /* Allow int-kind ↔ int-kind, int→float, and skip when either
@@ -8169,7 +8170,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     !(is_int_kind(decl_elem->kind) && val_elem->kind == TK_STRUCT) &&
                     !(decl_elem->kind == TK_FLOAT && is_int_kind(val_elem->kind))) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "type mismatch: cannot assign '%s' to '%s'",
                         type_display_name(checker, value_type), type_display_name(checker, declared));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8203,7 +8204,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 }
                 if (key_mismatch || val_mismatch) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "type mismatch: cannot assign '%s' to '%s'",
                         type_display_name(checker, value_type), type_display_name(checker, declared));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -8255,11 +8256,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                     char *msg = NULL;
                     if (node->data.var_decl.value->data.array_value.count == 0) {
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot assign array literal '{}' to '%s'; use '{:}' for an empty map",
                             tn);
                     } else {
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "cannot assign array literal to '%s'; map literals use '{key: value, ...}' syntax",
                             tn);
                     }
@@ -8341,10 +8342,10 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     }
                     /* E3053: element type mismatch in array initializer */
                     if (elem_type[0]) {
-                        GrayType *expected_et = tc_type_from_name(checker, elem_type);
+                        GrayType *expected_et = typechecker_type_from_name(checker, elem_type);
                         AstNode *arr = node->data.var_decl.value;
                         for (int ei = 0; ei < arr->data.array_value.count; ei++) {
-                            GrayType *actual_et = resolve_expr(checker, arr->data.array_value.elements[ei]);
+                            GrayType *actual_et = resolve_expression(checker, arr->data.array_value.elements[ei]);
                             if (actual_et && actual_et->kind != TK_UNKNOWN &&
                                 expected_et && expected_et->kind != TK_UNKNOWN &&
                                 actual_et->kind != expected_et->kind) {
@@ -8394,7 +8395,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         }
                         if (fixed_size > 0 && arr->data.array_value.count < fixed_size) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "fixed-size array [%s, %d] initialized with only %d of %d elements; remaining will be zero-valued",
                                 elem_type[0] ? elem_type : "?", fixed_size,
                                 arr->data.array_value.count, fixed_size);
@@ -8426,14 +8427,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             key_tn[klen] = '\0';
                             memcpy(val_tn, mcolon + 1, vlen);
                             val_tn[vlen] = '\0';
-                            GrayType *expected_k = tc_type_from_name(checker, key_tn);
-                            GrayType *expected_v = tc_type_from_name(checker, val_tn);
+                            GrayType *expected_k = typechecker_type_from_name(checker, key_tn);
+                            GrayType *expected_v = typechecker_type_from_name(checker, val_tn);
                             AstNode *mv = node->data.var_decl.value;
                             for (int mi = 0; mi < mv->data.map_value.count; mi++) {
                                 AstNode *kn = mv->data.map_value.keys[mi];
                                 AstNode *vn = mv->data.map_value.values[mi];
-                                GrayType *kt = resolve_expr(checker, kn);
-                                GrayType *vt = resolve_expr(checker, vn);
+                                GrayType *kt = resolve_expression(checker, kn);
+                                GrayType *vt = resolve_expression(checker, vn);
                                 if (kt && kt->kind != TK_UNKNOWN && kt->kind != TK_VOID &&
                                     expected_k && expected_k->kind != TK_UNKNOWN &&
                                     kt->kind != expected_k->kind &&
@@ -8442,7 +8443,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                                     !(expected_k->kind == TK_ENUM && is_int_kind(kt->kind)) &&
                                     !(expected_k->kind == TK_FLOAT && is_int_kind(kt->kind))) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type mismatch in map literal key; expected '%s', got '%s'",
                                         type_display_name(checker, expected_k), type_display_name(checker, kt));
                                     diagnostic_error_message(checker->diag, "E3053", msg,
@@ -8452,9 +8453,9 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                                 if (expected_k && kt &&
                                     expected_k->kind == TK_ENUM && kt->kind == TK_ENUM &&
                                     expected_k->name && kt->name &&
-                                    !tc_same_enum_type(checker, expected_k->name, kt->name)) {
+                                    !typechecker_same_enum_type(checker, expected_k->name, kt->name)) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type mismatch in map literal key; expected enum '%s', got enum '%s'",
                                         type_display_name(checker, expected_k), type_display_name(checker, kt));
                                     diagnostic_error_message(checker->diag, "E3053", msg,
@@ -8469,7 +8470,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                                     !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER) &&
                                     !(expected_v->kind == TK_FLOAT && is_int_kind(vt->kind))) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type mismatch in map literal value; expected '%s', got '%s'",
                                         type_display_name(checker, expected_v), type_display_name(checker, vt));
                                     diagnostic_error_message(checker->diag, "E3053", msg,
@@ -8479,9 +8480,9 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                                 if (expected_v && vt &&
                                     expected_v->kind == TK_ENUM && vt->kind == TK_ENUM &&
                                     expected_v->name && vt->name &&
-                                    !tc_same_enum_type(checker, expected_v->name, vt->name)) {
+                                    !typechecker_same_enum_type(checker, expected_v->name, vt->name)) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type mismatch in map literal value; expected enum '%s', got enum '%s'",
                                         type_display_name(checker, expected_v), type_display_name(checker, vt));
                                     diagnostic_error_message(checker->diag, "E3053", msg,
@@ -8493,7 +8494,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                                     expected_v->name && vt->name &&
                                     strcmp(expected_v->name, vt->name) != 0) {
                                     char *msg = NULL;
-                                    msg = tc_fmt(checker,
+                                    msg = typechecker_format(checker,
                                         "type mismatch in map literal value; expected '%s', got '%s'",
                                         type_display_name(checker, expected_v), type_display_name(checker, vt));
                                     diagnostic_error_message(checker->diag, "E3053", msg,
@@ -8566,13 +8567,13 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     bool is_global = (outer_scope->parent == NULL);
                     char *msg = NULL;
                     if (is_global) {
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "variable '%s' shadows a global constant or variable declared on line %d",
                             VAR_DISPLAY_NAME(node), outer_sym->def_line);
                         diagnostic_warning_message(checker->diag, "W2007", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     } else {
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "variable '%s' shadows a variable declared on line %d",
                             VAR_DISPLAY_NAME(node), outer_sym->def_line);
                         diagnostic_warning_message(checker->diag, "W2002", msg,
@@ -8662,7 +8663,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             if (src_sym && !src_sym->mutable &&
                                 !find_func(checker, src->data.label.value)) {
                                 char *msg = NULL;
-                                msg = tc_fmt(checker,
+                                msg = typechecker_format(checker,
                                     "cannot take a mutable reference to const variable '%s'; declare '%s' as const, or copy() the value to get an independent mutable instance",
                                     src->data.label.value,
                                     node->data.var_decl.name);
@@ -8702,7 +8703,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                                     const char *ptn =
                                         decl->data.func_decl.params[ai].type_name;
                                     if (!ptn || !type_name_has_wildcard(ptn)) continue;
-                                    GrayType *at = resolve_expr(checker, call->data.call.args[ai]);
+                                    GrayType *at = resolve_expression(checker, call->data.call.args[ai]);
                                     binding = bind_wildcard(ptn, at);
                                 }
                                 if (binding) {
@@ -8729,8 +8730,8 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     fn->data.member.object->kind == NODE_LABEL) {
                     const char *mod = fn->data.member.object->data.label.value;
                     const char *mfn = fn->data.member.member;
-                    if (tc_is_fallible_stdlib(mod, mfn)) {
-                        GrayType *primary = tc_get_fallible_stdlib_type(mod, mfn);
+                    if (typechecker_is_fallible_stdlib(mod, mfn)) {
+                        GrayType *primary = typechecker_get_fallible_stdlib_type(mod, mfn);
                         Symbol *sym = scope_lookup_local(checker->current_scope,
                             node->data.var_decl.name);
                         if (sym && primary) {
@@ -8774,7 +8775,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 if (fn->kind == NODE_MEMBER_EXPR &&
                     fn->data.member.object->kind == NODE_LABEL) {
                     const char *mod_raw = fn->data.member.object->data.label.value;
-                    const char *mod = tc_resolve_alias(checker, mod_raw);
+                    const char *mod = typechecker_resolve_alias(checker, mod_raw);
                     const char *mfn = fn->data.member.member;
                     char prefixed[MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
@@ -8853,12 +8854,12 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
     }
 
     case NODE_ASSIGN_STMT: {
-        GrayType *target_t = resolve_expr(checker, node->data.assign.target);
+        GrayType *target_t = resolve_expression(checker, node->data.assign.target);
         /* Set expected_type for implicit enum resolution (.VARIANT) */
         GrayType *saved_expected = checker->expected_type;
         if (target_t && target_t->kind == TK_ENUM && target_t->name)
             checker->expected_type = target_t;
-        GrayType *value_t = resolve_expr(checker, node->data.assign.value);
+        GrayType *value_t = resolve_expression(checker, node->data.assign.value);
         checker->expected_type = saved_expected;
 
         /* E3078: compound arithmetic assigns on pointer variables
@@ -8890,7 +8891,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             }
         }
 
-        /* E5025: lvalue validation; reject assignment to non-lvalue targets */
+        /* E5025: assignment target validation; reject assignment to non-assignable targets */
         if (target->kind != NODE_LABEL &&
             target->kind != NODE_MEMBER_EXPR &&
             target->kind != NODE_INDEX_EXPR &&
@@ -8923,7 +8924,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
          * sequences — individual characters cannot be modified by index.
          * This fires regardless of the assigned value's type. */
         if (target->kind == NODE_INDEX_EXPR) {
-            GrayType *indexed_t = resolve_expr(checker, target->data.index_expr.left);
+            GrayType *indexed_t = resolve_expression(checker, target->data.index_expr.left);
             if (indexed_t && indexed_t->kind == TK_STRING) {
                 diagnostic_error_code(checker->diag, "E3004",
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -8932,10 +8933,10 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
 
         /* E3094: array index assignment type mismatch (arr[i] = wrong_type) */
         if (target->kind == NODE_INDEX_EXPR && node->data.assign.value) {
-            GrayType *indexed_t = resolve_expr(checker, target->data.index_expr.left);
+            GrayType *indexed_t = resolve_expression(checker, target->data.index_expr.left);
             if (indexed_t && indexed_t->kind == TK_ARRAY && indexed_t->element_type) {
                 GrayType *elem_t = type_from_name(indexed_t->element_type);
-                GrayType *val_t = resolve_expr(checker, node->data.assign.value);
+                GrayType *val_t = resolve_expression(checker, node->data.assign.value);
                 if (val_t && val_t->kind != TK_UNKNOWN && elem_t && elem_t->kind != TK_UNKNOWN &&
                     val_t->kind != elem_t->kind &&
                     !(is_int_kind(val_t->kind) && is_int_kind(elem_t->kind)) &&
@@ -9009,7 +9010,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (target->kind == NODE_LABEL && target_t->kind == TK_ENUM &&
             is_int_kind(value_t->kind)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "cannot assign %s to enum '%s'; use an enum variant like '%s.VARIANT'",
                 type_name(value_t), type_display_name(checker, target_t), type_display_name(checker, target_t));
             diagnostic_error_message(checker->diag, "E3118", msg,
@@ -9036,7 +9037,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 !(value_t->kind == TK_NIL &&
                   (target_t->kind == TK_POINTER || target_t->kind == TK_ERROR))) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type mismatch: cannot assign %s to %s variable '%s'",
                     type_display_name(checker, value_t), type_display_name(checker, target_t), target->data.label.value);
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9049,7 +9050,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             target_t->name && value_t->name &&
             strcmp(target_t->name, value_t->name) != 0) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "type mismatch: cannot assign '%s' to '%s' variable '%s'",
                 type_display_name(checker, value_t), type_display_name(checker, target_t),
                 target->data.label.value);
@@ -9058,7 +9059,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         }
         /* E3098: struct-to-struct name mismatch through pointer dereference: v3^ = v2^
          * The NODE_LABEL check above is bypassed when the target is a postfix
-         * dereference. resolve_expr already strips the pointer layer, so
+         * dereference. resolve_expression already strips the pointer layer, so
          * target_t and value_t are both TK_STRUCT — just compare names. */
         if (target->kind == NODE_POSTFIX_EXPR &&
             target->data.postfix.op == TOK_CARET &&
@@ -9067,7 +9068,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             target_t->name && value_t->name &&
             strcmp(target_t->name, value_t->name) != 0) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "type mismatch: cannot assign '%s' to '%s' through pointer dereference",
                 type_display_name(checker, value_t), type_display_name(checker, target_t));
             diagnostic_error_message(checker->diag, "E3098", msg,
@@ -9081,7 +9082,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             target_t->name && value_t->name &&
             strcmp(target_t->name, value_t->name) != 0) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "type mismatch: cannot assign %s to %s variable '%s'",
                 type_display_name(checker, value_t), type_display_name(checker, target_t), target->data.label.value);
             diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9091,11 +9092,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (target->kind == NODE_LABEL &&
             target_t && value_t &&
             target_t->name && value_t->name) {
-            int dr = int_name_rank(target_t->name);
-            int vr = int_name_rank(value_t->name);
+            int dr = int_type_name_rank(target_t->name);
+            int vr = int_type_name_rank(value_t->name);
             if (dr > 0 && vr >= 5 && dr < vr) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "type mismatch: cannot implicitly narrow %s to %s variable '%s'; use %s() to convert explicitly",
                     value_t->name, target_t->name, target->data.label.value, target_t->name);
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9125,7 +9126,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     !(value_t->kind == TK_NIL &&
                       (field_t->kind == TK_POINTER || field_t->kind == TK_ERROR))) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "type mismatch: cannot assign %s to %s field '%s'",
                         type_display_name(checker, value_t), type_display_name(checker, field_t), target->data.member.member);
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9136,7 +9137,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     field_t->name && value_t->name &&
                     strcmp(field_t->name, value_t->name) != 0) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot assign %s to field '%s' of type %s",
                         type_display_name(checker, value_t), target->data.member.member,
                         type_display_name(checker, field_t));
@@ -9178,7 +9179,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 checker->current_return_types[i]->kind == TK_ENUM &&
                 checker->current_return_types[i]->name)
                 checker->expected_type = checker->current_return_types[i];
-            resolve_expr(checker, node->data.return_stmt.values[i]);
+            resolve_expression(checker, node->data.return_stmt.values[i]);
             checker->expected_type = saved_ret_expected;
         }
         /* main() exits when control reaches the closing brace; an
@@ -9240,7 +9241,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     expected->kind != TK_ERROR && expected->kind != TK_UNKNOWN &&
                     expected->kind != TK_NIL && expected->kind != TK_VOID) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types",
                         type_name(expected));
                     diagnostic_error_message(checker->diag, "E3072", msg,
@@ -9278,7 +9279,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             }
             if (!is_or_return_synthetic) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "function expects %d return value(s), got %d",
                     checker->current_return_count, node->data.return_stmt.count);
                 diagnostic_error_message(checker->diag, "E3013", msg,
@@ -9287,7 +9288,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         } else if (checker->current_return_count > 0 && node->data.return_stmt.count > 0 &&
                    node->data.return_stmt.count == checker->current_return_count) {
             /* Check first return value type (skip for or_return synthetic returns) */
-            GrayType *ret_t = resolve_expr(checker, node->data.return_stmt.values[0]);
+            GrayType *ret_t = resolve_expression(checker, node->data.return_stmt.values[0]);
             GrayType *expected = checker->current_return_types[0];
             /* : same push as var_decl; when a func-pointer call
              * is the return value and the function's declared return
@@ -9310,9 +9311,9 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind)) &&
                 /* Allow string enum → string return */
                 !(expected->kind == TK_STRING && ret_t->kind == TK_ENUM &&
-                  tc_enum_is_string(checker, ret_t->name))) {
+                  typechecker_enum_is_string(checker, ret_t->name))) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "return type mismatch: expected %s, got %s",
                     type_display_name(checker, expected), type_display_name(checker, ret_t));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9323,7 +9324,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 ret_t->name && expected->name &&
                 strcmp(ret_t->name, expected->name) != 0) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "return type mismatch: expected '%s', got '%s'",
                     type_display_name(checker, expected), type_display_name(checker, ret_t));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9332,9 +9333,9 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* Enum-to-enum return name mismatch */
             if (ret_t->kind == TK_ENUM && expected->kind == TK_ENUM &&
                 ret_t->name && expected->name &&
-                !tc_same_enum_type(checker, ret_t->name, expected->name)) {
+                !typechecker_same_enum_type(checker, ret_t->name, expected->name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "return type mismatch: expected enum '%s', got enum '%s'",
                     type_display_name(checker, expected), type_display_name(checker, ret_t));
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9345,7 +9346,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 ret_t->name && expected->name &&
                 strcmp(ret_t->name, expected->name) != 0) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot return %s from function declared to return %s",
                     type_display_name(checker, ret_t), type_display_name(checker, expected));
                 diagnostic_error_message(checker->diag, "E3066", msg,
@@ -9356,12 +9357,12 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* Array element type mismatch in return */
             if (ret_t->kind == TK_ARRAY && expected->kind == TK_ARRAY &&
                 ret_t->element_type && expected->element_type &&
-                !tc_same_array_elem(checker, ret_t->element_type, expected->element_type)) {
+                !typechecker_same_array_element(checker, ret_t->element_type, expected->element_type)) {
                 GrayType *re = type_from_name(ret_t->element_type);
                 GrayType *ee = type_from_name(expected->element_type);
                 if (!(re && ee && is_int_kind(re->kind) && is_int_kind(ee->kind))) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "return type mismatch: expected '%s', got '%s'",
                         type_display_name(checker, expected), type_display_name(checker, ret_t));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9376,7 +9377,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     strcmp(ret_t->value_type, expected->value_type) != 0;
                 if (key_mismatch || val_mismatch) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "return type mismatch: expected '%s', got '%s'",
                         type_display_name(checker, expected), type_display_name(checker, ret_t));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9399,7 +9400,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 snprintf(exp_str, sizeof(exp_str), "^%s", exp_inner);
                 snprintf(got_str, sizeof(got_str), "^%s", got_inner);
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "return type mismatch: expected '%s', got '%s'",
                     exp_str, got_str);
                 diagnostic_error_message(checker->diag, "E3001", msg,
@@ -9425,7 +9426,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         strcmp(rv->data.label.value, checker->current_return_names[i]) == 0);
                     if (!is_named_var) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "function must return named variable '%s', not a different expression",
                             checker->current_return_names[i]);
                         diagnostic_error_message(checker->diag, "E3080", msg,
@@ -9437,14 +9438,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         break;
 
     case NODE_EXPR_STMT: {
-        GrayType *expr_t = resolve_expr(checker, node->data.expr_stmt.expr);
+        GrayType *expr_t = resolve_expression(checker, node->data.expr_stmt.expr);
         /* E3081: bare function name used as statement without call */
         AstNode *expr = node->data.expr_stmt.expr;
         if (expr && expr->kind == NODE_LABEL) {
             const char *name = expr->data.label.value;
-            if (tc_is_builtin(name) || find_func(checker, name)) {
+            if (typechecker_is_builtin(name) || find_func(checker, name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "function '%s' used as a statement without being called; did you mean '%s()'?",
                     name, name);
                 diagnostic_error_message(checker->diag, "E3081", msg,
@@ -9466,7 +9467,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* For member expression calls, check if the return type is void —
              * only warn about non-void return values being discarded */
             if (fn->kind == NODE_MEMBER_EXPR) {
-                /* expr_t is already the resolved return type from resolve_expr above.
+                /* expr_t is already the resolved return type from resolve_expression above.
                  * If it's void or unknown, this is a side-effect call; no warning needed. */
                 if (expr_t->kind == TK_VOID || expr_t->kind == TK_UNKNOWN) {
                     is_side_effect = true;
@@ -9482,7 +9483,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         char full[MSG_BUF_SIZE];
                         const char *display_obj = struct_display_name(checker, obj_name);
                         snprintf(full, sizeof(full), "%s.%s()", display_obj, mem_name);
-                        char *msg = tc_fmt(checker, "return value of '%s' is not used", full);
+                        char *msg = typechecker_format(checker, "return value of '%s' is not used", full);
                         diagnostic_error_help(checker->diag, "E5011", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                             "assign the result to a variable, or use 'mut _ = ...' to discard it");
@@ -9493,7 +9494,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             if (!is_side_effect && fn_name) {
                 char full[MSG_BUF_SIZE];
                 snprintf(full, sizeof(full), "%s()", fn_name);
-                char *msg = tc_fmt(checker, "return value of '%s' is not used", full);
+                char *msg = typechecker_format(checker, "return value of '%s' is not used", full);
                 diagnostic_error_help(checker->diag, "E5011", msg,
                     NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                     "assign the result to a variable, or use 'mut _ = ...' to discard it");
@@ -9575,7 +9576,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         break;
 
     case NODE_IF_STMT: {
-        GrayType *cond_t = resolve_expr(checker, node->data.if_stmt.condition);
+        GrayType *cond_t = resolve_expression(checker, node->data.if_stmt.condition);
         /* E3038 (): void function call as condition. The same check
          * already exists for variable assignment and arithmetic; wire
          * it up for control-flow conditions too. The 'or' branch of an
@@ -9586,11 +9587,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             char *msg = NULL;
             if (c && c->kind == NODE_CALL_EXPR && c->data.call.function &&
                 c->data.call.function->kind == NODE_LABEL) {
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot use void function '%s' as condition; 'if' requires a bool expression",
                     c->data.call.function->data.label.value);
             } else {
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot use void expression as condition; 'if' requires a bool expression");
             }
             diagnostic_error_message(checker->diag, "E3038", msg,
@@ -9624,7 +9625,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         Scope *outer = checker->current_scope;
         checker->current_scope = loop_scope;
         scope_define(loop_scope, node->data.for_stmt.var_name, &TYPE_INT, false);
-        resolve_expr(checker, node->data.for_stmt.iterable);
+        resolve_expression(checker, node->data.for_stmt.iterable);
         /* E9005: check range bounds when both bounds and step direction are compile-time known */
         if (node->data.for_stmt.iterable &&
             node->data.for_stmt.iterable->kind == NODE_RANGE_EXPR) {
@@ -9650,11 +9651,11 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     if (invalid) {
                         char *msg = NULL;
                         if (negative_step) {
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "invalid range: start (%lld) must be greater than or equal to end (%lld) for negative step",
                                 (long long)start_val, (long long)end_val);
                         } else {
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "invalid range: start (%lld) must be less than or equal to end (%lld)",
                                 (long long)start_val, (long long)end_val);
                         }
@@ -9684,7 +9685,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 Symbol *outer_sym = scope_lookup(outer, var);
                 if (outer_sym) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "for_each variable '%s' shadows a variable declared on line %d",
                         var, outer_sym->def_line);
                     diagnostic_warning_message(checker->diag, "W2002", msg,
@@ -9696,7 +9697,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 Symbol *outer_sym = scope_lookup(outer, idx);
                 if (outer_sym) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "for_each index variable '%s' shadows a variable declared on line %d",
                         idx, outer_sym->def_line);
                     diagnostic_warning_message(checker->diag, "W2002", msg,
@@ -9719,7 +9720,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         }
 
         /* Resolve collection type to determine element type */
-        GrayType *coll_t = resolve_expr(checker, node->data.for_each.collection);
+        GrayType *coll_t = resolve_expression(checker, node->data.for_each.collection);
 
         /* Check that collection is iterable */
         if (coll_t->kind != TK_UNKNOWN && coll_t->kind != TK_ARRAY &&
@@ -9743,7 +9744,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* Array/string iteration */
             GrayType *elem_t = &TYPE_UNKNOWN;
             if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
-                elem_t = tc_type_from_name(checker, coll_t->element_type);
+                elem_t = typechecker_type_from_name(checker, coll_t->element_type);
             } else if (coll_t->kind == TK_STRING) {
                 elem_t = &TYPE_CHAR;
             }
@@ -9762,18 +9763,18 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
     }
 
     case NODE_WHILE_STMT: {
-        GrayType *wh_cond_t = resolve_expr(checker, node->data.while_stmt.condition);
+        GrayType *wh_cond_t = resolve_expression(checker, node->data.while_stmt.condition);
         /* E3038 (): void function call as 'as_long_as' condition. */
         if (wh_cond_t && wh_cond_t->kind == TK_VOID) {
             AstNode *c = node->data.while_stmt.condition;
             char *msg = NULL;
             if (c && c->kind == NODE_CALL_EXPR && c->data.call.function &&
                 c->data.call.function->kind == NODE_LABEL) {
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot use void function '%s' as condition; 'as_long_as' requires a bool expression",
                     c->data.call.function->data.label.value);
             } else {
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "cannot use void expression as condition; 'as_long_as' requires a bool expression");
             }
             diagnostic_error_message(checker->diag, "E3038", msg,
@@ -9822,7 +9823,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         /* E2038: reserved type name as function name */
         if (is_reserved_type_name(node->data.func_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "'%s' is a reserved type name and cannot be used as a function name",
                 FUNC_DISPLAY_NAME(node));
             diagnostic_error_message(checker->diag, "E2038", msg,
@@ -9831,7 +9832,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         /* E5016: builtin function name redeclared */
         if (is_reserved_builtin_func_name(node->data.func_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "'%s' is a builtin function and cannot be redeclared",
                 FUNC_DISPLAY_NAME(node));
             diagnostic_error_message(checker->diag, "E5016", msg,
@@ -9840,7 +9841,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         /* E5035: stdlib module name as function name */
         if (is_stdlib_module_name(node->data.func_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "'%s' is a standard library module and cannot be used as a function name",
                 FUNC_DISPLAY_NAME(node));
             diagnostic_error_message(checker->diag, "E5035", msg,
@@ -9869,7 +9870,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* E2038: reserved type name as parameter name */
             if (is_reserved_type_name(p->name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'%s' is a reserved type name and cannot be used as a parameter name",
                     p->name);
                 diagnostic_error_message(checker->diag, "E2038", msg,
@@ -9878,7 +9879,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* E5016: builtin function name as parameter name */
             if (is_reserved_builtin_func_name(p->name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'%s' is a builtin function and cannot be used as a parameter name",
                     p->name);
                 diagnostic_error_message(checker->diag, "E5016", msg,
@@ -9887,7 +9888,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* E5035: stdlib module name as parameter name */
             if (is_stdlib_module_name(p->name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'%s' is a standard library module and cannot be used as a parameter name",
                     p->name);
                 diagnostic_error_message(checker->diag, "E5035", msg,
@@ -9908,7 +9909,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         const char *display = checker->enum_display_names[ei]
                             ? checker->enum_display_names[ei] : checker->enum_names[ei];
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "parameter '%s' shadows enum variant '%s.%s'",
                             p->name, display, p->name);
                         diagnostic_warning(checker->diag, "W2008", msg,
@@ -9929,7 +9930,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     }
                 }
                 if (prev_has_default) {
-                    char *msg = tc_fmt(checker, "required parameter '%s' follows a parameter with a default value", p->name);
+                    char *msg = typechecker_format(checker, "required parameter '%s' follows a parameter with a default value", p->name);
                     diagnostic_error_help(checker->diag, "E2039", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                         "move all parameters with default values to the end of the parameter list");
@@ -9949,19 +9950,19 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     char elem[MSG_BUF_SIZE];
                     int elem_len = (int)(size_comma - tn - 1);
                     snprintf(elem, sizeof(elem), "%.*s", elem_len, tn + 1);
-                    char *msg = tc_fmt(checker, "fixed-size array type '%s' is not allowed in function parameter '%s'; use [%s] instead",
+                    char *msg = typechecker_format(checker, "fixed-size array type '%s' is not allowed in function parameter '%s'; use [%s] instead",
                         tn, p->name, elem);
                     diagnostic_error_help(checker->diag, "E3119", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                         "use a dynamic array type instead, e.g. [int] without a size");
                 }
             }
-            GrayType *ptype = p->type_name ? tc_type_from_name(checker, p->type_name) : &TYPE_UNKNOWN;
+            GrayType *ptype = p->type_name ? typechecker_type_from_name(checker, p->type_name) : &TYPE_UNKNOWN;
             /* E4016: undefined parameter type */
             if (p->type_name && ptype->kind == TK_UNKNOWN &&
                 p->type_name[0] >= 'A' && p->type_name[0] <= 'Z') {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "undefined type '%s'; check the spelling or import the module that defines it",
                     p->type_name);
                 diagnostic_error_message(checker->diag, "E4016", msg,
@@ -9970,12 +9971,12 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             /* Type inference: if no explicit type annotation, infer from default
              * value when it is an enum member access (e.g. t = Color.RED). */
             if (!p->type_name && p->default_value) {
-                GrayType *inferred = resolve_expr(checker, p->default_value);
+                GrayType *inferred = resolve_expression(checker, p->default_value);
                 if (inferred && inferred->kind == TK_ENUM) {
                     ptype = inferred;
                 } else {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "parameter '%s' has no type annotation; omitting the type is only allowed when the default value is an enum member (e.g. %s = MyEnum.VALUE)",
                         p->name, p->name);
                     diagnostic_error_message(checker->diag, "E2002", msg,
@@ -9988,14 +9989,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 GrayType *saved_def_expected = checker->expected_type;
                 if (ptype->kind == TK_ENUM && ptype->name)
                     checker->expected_type = ptype;
-                GrayType *def_t = resolve_expr(checker, p->default_value);
+                GrayType *def_t = resolve_expression(checker, p->default_value);
                 checker->expected_type = saved_def_expected;
                 if (def_t->kind != TK_UNKNOWN && ptype->kind != TK_UNKNOWN &&
                     def_t->kind != ptype->kind &&
                     !(is_int_kind(def_t->kind) && is_int_kind(ptype->kind)) &&
                     !(def_t->kind == TK_NIL)) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "default value for parameter '%s' has wrong type; expected %s, got %s",
                         p->name, p->type_name, type_name(def_t));
                     diagnostic_error_message(checker->diag, "E3001", msg,
@@ -10044,7 +10045,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         if (node->data.func_decl.return_names[j] &&
                             strcmp(node->data.func_decl.return_names[j], rn) == 0) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "duplicate named return value '%s'", rn);
                             diagnostic_error_message(checker->diag, "E2063", msg,
                                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -10056,7 +10057,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         node->data.func_decl.return_types[i] &&
                         strcmp(node->data.func_decl.return_types[i], "?") == 0) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "wildcard type '?' cannot be used in named return value '%s'; use an unnamed return instead (e.g. -> (?, int))",
                             rn);
                         diagnostic_error_message(checker->diag, "E3082", msg,
@@ -10066,7 +10067,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     for (int j = 0; j < node->data.func_decl.param_count; j++) {
                         if (strcmp(node->data.func_decl.params[j].name, rn) == 0) {
                             char *msg = NULL;
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "named return value '%s' conflicts with parameter '%s'",
                                 rn, rn);
                             diagnostic_error_message(checker->diag, "E2063", msg,
@@ -10106,14 +10107,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             checker->current_return_type_names = xmalloc(sizeof(const char *) * node->data.func_decl.return_type_count);
             checker->current_return_count = node->data.func_decl.return_type_count;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
-                checker->current_return_types[i] = tc_type_from_name(checker, node->data.func_decl.return_types[i]);
+                checker->current_return_types[i] = typechecker_type_from_name(checker, node->data.func_decl.return_types[i]);
                 checker->current_return_type_names[i] = node->data.func_decl.return_types[i];
                 /* E4016: undefined return type */
                 const char *rtn = node->data.func_decl.return_types[i];
                 if (rtn && checker->current_return_types[i]->kind == TK_UNKNOWN &&
                     rtn[0] >= 'A' && rtn[0] <= 'Z') {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "undefined type '%s'; check the spelling or import the module that defines it",
                         rtn);
                     diagnostic_error_message(checker->diag, "E4016", msg,
@@ -10196,7 +10197,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 Symbol *sym = scope_lookup_local(func_scope, rn);
                 if (!sym) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "named return value '%s' is declared in the signature but no matching variable exists in the function body",
                         rn);
                     diagnostic_warning_message(checker->diag, "W2011", msg,
@@ -10219,7 +10220,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 }
                 if (!is_param) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "variable '%s' is declared but never used", s->name);
                     diagnostic_warning_message(checker->diag, "W1001", msg,
                         checker->file, s->def_line, s->def_column, 0);
@@ -10266,13 +10267,13 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             }
             checker->using_module_files[checker->using_module_count] = node->token.file;
             checker->using_module_import_indices[checker->using_module_count] =
-                tc_find_import_index(checker, node->data.using_stmt.modules[j]);
+                typechecker_find_import_index(checker, node->data.using_stmt.modules[j]);
             checker->using_modules[checker->using_module_count++] = node->data.using_stmt.modules[j];
         }
         break;
 
     case NODE_ENSURE_STMT:
-        resolve_expr(checker, node->data.ensure_stmt.expr);
+        resolve_expression(checker, node->data.ensure_stmt.expr);
         if (node->data.ensure_stmt.expr &&
             node->data.ensure_stmt.expr->kind != NODE_CALL_EXPR) {
             diagnostic_error_code(checker->diag, "E3039", NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -10301,7 +10302,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 const char *ftype = node->data.struct_decl.fields[fi].type_name;
                 if (ftype && strncmp(ftype, "func", 4) == 0) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "#json struct '%s' cannot have func-typed field '%s'; func references have no JSON representation",
                         STRUCT_DISPLAY_NAME(node),
                         node->data.struct_decl.fields[fi].name);
@@ -10310,7 +10311,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 }
                 if (node->data.struct_decl.fields[fi].default_value) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "#json struct '%s' cannot have default field values; field '%s' has a default",
                         STRUCT_DISPLAY_NAME(node),
                         node->data.struct_decl.fields[fi].name);
@@ -10323,7 +10324,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 if (fn && fn->kind == NODE_FUNC_DECL) {
                     const char *fname = FUNC_DISPLAY_NAME(fn);
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "#json struct '%s' cannot declare functions; #json structs are data-only — move '%s' to a standalone function",
                         STRUCT_DISPLAY_NAME(node), fname);
                     diagnostic_error_message(checker->diag, "E3104", msg,
@@ -10353,7 +10354,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         break;
 
     case NODE_WHEN_STMT: {
-        GrayType *when_t = resolve_expr(checker, node->data.when_stmt.value);
+        GrayType *when_t = resolve_expression(checker, node->data.when_stmt.value);
         /* W2012: float subjects use bit-equality, which is rarely what the
          * user wants given 0.1 + 0.2 != 0.3. */
         if (when_t && when_t->kind == TK_FLOAT) {
@@ -10413,7 +10414,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     }
                     continue;
                 }
-                GrayType *case_t = resolve_expr(checker, val_i);
+                GrayType *case_t = resolve_expression(checker, val_i);
                 /* Check case value type matches scrutinee; skip range exprs and unknowns */
                 if (when_t && case_t &&
                     when_t->kind != TK_UNKNOWN && case_t->kind != TK_UNKNOWN &&
@@ -10428,9 +10429,9 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         (when_t->kind == TK_BYTE && is_int_kind(case_t->kind)) ||
                         /* string subject with string-enum arm, or vice versa */
                         (when_t->kind == TK_STRING && case_t->kind == TK_ENUM &&
-                         tc_enum_is_string(checker, case_t->name)) ||
+                         typechecker_enum_is_string(checker, case_t->name)) ||
                         (when_t->kind == TK_ENUM && case_t->kind == TK_STRING &&
-                         tc_enum_is_string(checker, when_t->name));
+                         typechecker_enum_is_string(checker, when_t->name));
                     if (!compat) {
                         diagnostic_error_code_formatted(checker->diag, "E3018", NODE_FILE(checker, val_i), val_i->token.line, val_i->token.column, 0, type_display_name(checker, when_t), type_display_name(checker, case_t));
                     }
@@ -10473,7 +10474,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             int pc = checker->enum_payload_counts[eidx][vidx];
                             int limit = bc < pc ? bc : pc;
                             for (int bi = 0; bi < limit; bi++) {
-                                GrayType *bt = tc_type_from_name(checker, checker->enum_payload_types[eidx][vidx][bi]);
+                                GrayType *bt = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][bi]);
                                 scope_define(checker->current_scope, val_i->data.when_pattern.bindings[bi], bt, false);
                             }
                         }
@@ -10592,7 +10593,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                         } else {
                             for (int ui = 0; ui < checker->using_module_count && !has_enum_case; ui++) {
                                 if (!using_module_accessible(checker, ui)) continue;
-                                const char *real_mod = tc_resolve_alias(checker, checker->using_modules[ui]);
+                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[ui]);
                                 char prefixed[MSG_BUF_SIZE];
                                 snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
                                 if (is_enum_name(checker, prefixed)) has_enum_case = true;
@@ -10749,7 +10750,7 @@ static void validate_field_type_recursive(TypeChecker *checker, AstNode *program
 
     /* Leaf: must be a known primitive, enum, struct, or wildcard '?' */
     if (type_name_has_wildcard(type_name)) return;
-    GrayType *t = tc_type_from_name(checker, type_name);
+    GrayType *t = typechecker_type_from_name(checker, type_name);
     if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
     if (is_enum_name(checker, type_name)) return;
     if (is_struct_name(checker, type_name)) return;
@@ -10767,7 +10768,7 @@ static void validate_field_type_recursive(TypeChecker *checker, AstNode *program
     }
 
     char *msg = NULL;
-    msg = tc_fmt(checker,
+    msg = typechecker_format(checker,
         "field '%s' references undefined type '%s'",
         field_name, type_name);
     diagnostic_error_message(checker->diag, "E4016", msg,
@@ -10819,7 +10820,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
     }
 
     /* Pass 2a: Register enums BEFORE structs so that struct field types
-     * referencing enums resolve correctly via tc_type_from_name(). Without
+     * referencing enums resolve correctly via typechecker_type_from_name(). Without
      * this ordering guarantee, a struct field typed as an enum (e.g. `color
      * Color`) resolves as TK_STRUCT instead of TK_ENUM when the struct
      * appears before the enum in the merged AST (common with imports). */
@@ -10831,19 +10832,19 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
         const char *en = ENUM_DISPLAY_NAME(stmt);
         if (is_reserved_type_name(stmt->data.enum_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker, "'%s' is a reserved type name and cannot be used as an enum name", en);
+            msg = typechecker_format(checker, "'%s' is a reserved type name and cannot be used as an enum name", en);
             diagnostic_error_message(checker->diag, "E2038", msg, NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
         }
         /* E5016: builtin function name as enum name */
         if (is_reserved_builtin_func_name(stmt->data.enum_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker, "'%s' is a builtin function and cannot be used as an enum name", en);
+            msg = typechecker_format(checker, "'%s' is a builtin function and cannot be used as an enum name", en);
             diagnostic_error_message(checker->diag, "E5016", msg, NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
         }
         /* E5035: stdlib module name as enum name */
         if (is_stdlib_module_name(stmt->data.enum_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker, "'%s' is a standard library module and cannot be used as an enum name", en);
+            msg = typechecker_format(checker, "'%s' is a standard library module and cannot be used as an enum name", en);
             diagnostic_error_message(checker->diag, "E5035", msg, NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
         }
         /* E2016: empty enum */
@@ -10877,7 +10878,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             /* E2038: reserved type name as enum variant */
             if (is_reserved_type_name(vname)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'%s' is a reserved type name and cannot be used as an enum variant name",
                     vname);
                 diagnostic_error_message(checker->diag, "E2038", msg,
@@ -10886,7 +10887,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             /* E5016: builtin function name as enum variant */
             if (is_reserved_builtin_func_name(vname)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'%s' is a builtin function and cannot be used as an enum variant name",
                     vname);
                 diagnostic_error_message(checker->diag, "E5016", msg,
@@ -10895,7 +10896,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             /* E5035: stdlib module name as enum variant */
             if (is_stdlib_module_name(vname)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "'%s' is a standard library module and cannot be used as an enum variant name",
                     vname);
                 diagnostic_error_message(checker->diag, "E5035", msg,
@@ -10922,7 +10923,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
         if (is_enum_name(checker, stmt->data.enum_decl.name) ||
             is_struct_name(checker, stmt->data.enum_decl.name)) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "a type named '%s' is already declared",
                 ENUM_DISPLAY_NAME(stmt));
             diagnostic_error_message(checker->diag, "E4007", msg,
@@ -10979,12 +10980,12 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             GrayType **ftypes = arena_alloc(checker->arena, sizeof(GrayType *) * (fc ? fc : 1));
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
-                ftypes[j] = tc_type_from_name(checker, stmt->data.struct_decl.fields[j].type_name);
+                ftypes[j] = typechecker_type_from_name(checker, stmt->data.struct_decl.fields[j].type_name);
                 /* E3038: void field type */
                 if (stmt->data.struct_decl.fields[j].type_name &&
                     strcmp(stmt->data.struct_decl.fields[j].type_name, "void") == 0) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "'void' cannot be used as a struct field type (field '%s')",
                         fnames[j]);
                     diagnostic_error_message(checker->diag, "E3038", msg,
@@ -10997,7 +10998,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                 /* E5016: builtin function name as struct field name */
                 if (is_reserved_builtin_func_name(fnames[j])) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "'%s' is a builtin function and cannot be used as a struct field name",
                         fnames[j]);
                     diagnostic_error_message(checker->diag, "E5016", msg,
@@ -11006,7 +11007,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                 /* E5035: stdlib module name as struct field name */
                 if (is_stdlib_module_name(fnames[j])) {
                     char *msg = NULL;
-                    msg = tc_fmt(checker,
+                    msg = typechecker_format(checker,
                         "'%s' is a standard library module and cannot be used as a struct field name",
                         fnames[j]);
                     diagnostic_error_message(checker->diag, "E5035", msg,
@@ -11038,11 +11039,11 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                         char *msg = NULL;
                         const char *display = STRUCT_DISPLAY_NAME(stmt);
                         if (strcmp(ftn, self_name) == 0) {
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "struct '%s' cannot contain itself by value; use a pointer field '^%s' for recursive types",
                                 display, display);
                         } else {
-                            msg = tc_fmt(checker,
+                            msg = typechecker_format(checker,
                                 "struct '%s' cannot contain itself by value through '%s'; break the cycle with a pointer field '^%s'",
                                 display, ftn, ftn);
                         }
@@ -11066,26 +11067,26 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             const char *sn = STRUCT_DISPLAY_NAME(stmt);
             if (is_reserved_type_name(stmt->data.struct_decl.name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker, "'%s' is a reserved type name and cannot be used as a struct name", sn);
+                msg = typechecker_format(checker, "'%s' is a reserved type name and cannot be used as a struct name", sn);
                 diagnostic_error_message(checker->diag, "E2037", msg, NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E5016: builtin function name as struct name */
             if (is_reserved_builtin_func_name(stmt->data.struct_decl.name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker, "'%s' is a builtin function and cannot be used as a struct name", sn);
+                msg = typechecker_format(checker, "'%s' is a builtin function and cannot be used as a struct name", sn);
                 diagnostic_error_message(checker->diag, "E5016", msg, NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E5035: stdlib module name as struct name */
             if (is_stdlib_module_name(stmt->data.struct_decl.name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker, "'%s' is a standard library module and cannot be used as a struct name", sn);
+                msg = typechecker_format(checker, "'%s' is a standard library module and cannot be used as a struct name", sn);
                 diagnostic_error_message(checker->diag, "E5035", msg, NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E4007: duplicate struct name */
             if (is_struct_name(checker, stmt->data.struct_decl.name) ||
                 is_enum_name(checker, stmt->data.struct_decl.name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "a type named '%s' is already declared",
                     STRUCT_DISPLAY_NAME(stmt));
                 diagnostic_error_message(checker->diag, "E4007", msg,
@@ -11115,7 +11116,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                     if (prev && prev->kind == NODE_FUNC_DECL &&
                         strcmp(prev->data.func_decl.name, fn->data.func_decl.name) == 0) {
                         char *msg = NULL;
-                        msg = tc_fmt(checker,
+                        msg = typechecker_format(checker,
                             "duplicate function '%s' in struct '%s'",
                             FUNC_DISPLAY_NAME(fn), STRUCT_DISPLAY_NAME(stmt));
                         diagnostic_error_message(checker->diag, "E2037", msg,
@@ -11134,12 +11135,12 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                 int pc = fn->data.func_decl.param_count;
                 GrayType **ptypes = arena_alloc(checker->arena, sizeof(GrayType *) * (pc ? pc : 1));
                 for (int k = 0; k < pc; k++) {
-                    ptypes[k] = tc_type_from_name(checker, fn->data.func_decl.params[k].type_name);
+                    ptypes[k] = typechecker_type_from_name(checker, fn->data.func_decl.params[k].type_name);
                 }
                 int rc = fn->data.func_decl.return_type_count;
                 GrayType **rtypes = arena_alloc(checker->arena, sizeof(GrayType *) * (rc ? rc : 1));
                 for (int k = 0; k < rc; k++) {
-                    rtypes[k] = tc_type_from_name(checker, fn->data.func_decl.return_types[k]);
+                    rtypes[k] = typechecker_type_from_name(checker, fn->data.func_decl.return_types[k]);
                 }
                 /* Register with prefixed name: StructName_funcName */
                 char buf[MSG_BUF_SIZE];
@@ -11147,7 +11148,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                 const char *prefixed = arena_copy_string(checker->arena, buf);
                 register_func(checker, prefixed, ptypes, pc, rtypes, rc);
                 checker->funcs[checker->func_count - 1].is_private = fn->data.func_decl.is_private;
-                finalize_generic_sig(&checker->funcs[checker->func_count - 1], fn);
+                finalize_generic_signature(&checker->funcs[checker->func_count - 1], fn);
             }
         }
 
@@ -11157,15 +11158,15 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             int pc = stmt->data.func_decl.param_count;
             GrayType **ptypes = arena_alloc(checker->arena, sizeof(GrayType *) * (pc ? pc : 1));
             for (int j = 0; j < pc; j++) {
-                ptypes[j] = tc_type_from_name(checker, stmt->data.func_decl.params[j].type_name);
-                tc_mark_type_module_used(checker, stmt->data.func_decl.params[j].type_name);
+                ptypes[j] = typechecker_type_from_name(checker, stmt->data.func_decl.params[j].type_name);
+                typechecker_mark_type_module_used(checker, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
             GrayType **rtypes = arena_alloc(checker->arena, sizeof(GrayType *) * (rc ? rc : 1));
             for (int j = 0; j < rc; j++) {
-                rtypes[j] = tc_type_from_name(checker, stmt->data.func_decl.return_types[j]);
-                tc_mark_type_module_used(checker, stmt->data.func_decl.return_types[j]);
+                rtypes[j] = typechecker_type_from_name(checker, stmt->data.func_decl.return_types[j]);
+                typechecker_mark_type_module_used(checker, stmt->data.func_decl.return_types[j]);
             }
 
             /* E4008: main() cannot have parameters or return types */
@@ -11192,7 +11193,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             if (is_struct_name(checker, stmt->data.func_decl.name) ||
                 is_enum_name(checker, stmt->data.func_decl.name)) {
                 char *msg = NULL;
-                msg = tc_fmt(checker,
+                msg = typechecker_format(checker,
                     "function '%s' conflicts with a type of the same name",
                     FUNC_DISPLAY_NAME(stmt));
                 diagnostic_error_message(checker->diag, "E4007", msg,
@@ -11202,7 +11203,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
             checker->funcs[checker->func_count - 1].is_private = stmt->data.func_decl.is_private;
             /* Store line for unused function warning */
             checker->funcs[checker->func_count - 1].def_line = stmt->token.line;
-            finalize_generic_sig(&checker->funcs[checker->func_count - 1], stmt);
+            finalize_generic_signature(&checker->funcs[checker->func_count - 1], stmt);
             /* Also register unprefixed name for internal cross-references.
              * If name is "lib_foo", also register "foo" so calls within imported
              * function bodies can resolve unprefixed names.
@@ -11220,7 +11221,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                             register_func(checker, unprefixed, ptypes, pc, rtypes, rc);
                             checker->funcs[checker->func_count - 1].is_private = stmt->data.func_decl.is_private;
                             checker->funcs[checker->func_count - 1].def_line = 0; /* suppress unused warning */
-                            finalize_generic_sig(&checker->funcs[checker->func_count - 1], stmt);
+                            finalize_generic_signature(&checker->funcs[checker->func_count - 1], stmt);
                             break;
                         }
                     }
@@ -11293,13 +11294,13 @@ TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
     static bool tables_built = false;
     if (!tables_built) {
         for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) stdlib_arg_sorted[i] = &stdlib_arg_table[i];
-        qsort(stdlib_arg_sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_cmp);
+        qsort(stdlib_arg_sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_compare);
         for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) stdlib_argtype_sorted[i] = &stdlib_arg_type_table[i];
-        qsort(stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_argtype_entry_cmp);
+        qsort(stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_arg_type_entry_compare);
         for (int i = 0; i < FALLIBLE_STDLIB_N; i++) fallible_stdlib_sorted[i] = &fallible_stdlib[i];
-        qsort(fallible_stdlib_sorted, FALLIBLE_STDLIB_N, sizeof(const FallibleEntry *), fallible_entry_cmp);
+        qsort(fallible_stdlib_sorted, FALLIBLE_STDLIB_N, sizeof(const FallibleEntry *), fallible_entry_compare);
         for (int i = 0; i < FALLIBLE_TYPE_TABLE_N; i++) fallible_type_sorted[i] = &fallible_type_table[i];
-        qsort(fallible_type_sorted, FALLIBLE_TYPE_TABLE_N, sizeof(const FallibleTypeEntry *), fallible_type_entry_cmp);
+        qsort(fallible_type_sorted, FALLIBLE_TYPE_TABLE_N, sizeof(const FallibleTypeEntry *), fallible_type_entry_compare);
         tables_built = true;
     }
 
@@ -11331,7 +11332,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
     }
 
     /* Register stdlib struct types scoped to their module imports */
-    if (tc_is_imported_module(checker, "server") || tc_is_imported_module(checker, "http")) {
+    if (typechecker_is_imported_module(checker, "server") || typechecker_is_imported_module(checker, "http")) {
         const char **fnames = arena_alloc(checker->arena, sizeof(const char *) * 3);
         GrayType **ftypes = arena_alloc(checker->arena, sizeof(GrayType *) * 3);
         fnames[0] = "status"; fnames[1] = "body"; fnames[2] = "headers";
@@ -11339,7 +11340,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
         register_struct(checker, "HttpResponse", "HttpResponse", fnames, ftypes, 3);
     }
 
-    if (tc_is_imported_module(checker, "server")) {
+    if (typechecker_is_imported_module(checker, "server")) {
         const char **fnames = arena_alloc(checker->arena, sizeof(const char *) * 6);
         GrayType **ftypes = arena_alloc(checker->arena, sizeof(GrayType *) * 6);
         fnames[0] = "method"; fnames[1] = "path"; fnames[2] = "body";
@@ -11351,7 +11352,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
         register_struct(checker, "HttpRequest", "HttpRequest", fnames, ftypes, 6);
     }
 
-    if (tc_is_imported_module(checker, "uuid")) {
+    if (typechecker_is_imported_module(checker, "uuid")) {
         const char **fnames = arena_alloc(checker->arena, sizeof(const char *) * 1);
         GrayType **ftypes = arena_alloc(checker->arena, sizeof(GrayType *) * 1);
         fnames[0] = "value";
@@ -11401,7 +11402,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
                 }
                 checker->using_module_files[checker->using_module_count] = stmt->token.file;
                 {
-                    int mi = tc_find_import_index(checker, stmt->data.using_stmt.modules[j]);
+                    int mi = typechecker_find_import_index(checker, stmt->data.using_stmt.modules[j]);
                     checker->using_module_import_indices[checker->using_module_count] = mi;
                     if (mi >= 0) checker->import_used[mi] = true;
                 }
@@ -11423,7 +11424,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
                     }
                     checker->using_module_files[checker->using_module_count] = stmt->token.file;
                     checker->using_module_import_indices[checker->using_module_count] =
-                        tc_find_import_index(checker, item->module);
+                        typechecker_find_import_index(checker, item->module);
                     checker->using_modules[checker->using_module_count++] = item->module;
                 }
             }
@@ -11642,7 +11643,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
             strcmp(checker->import_files[i], checker->file) != 0) continue; /* skip sub-file imports */
         if (!checker->import_used[i]) {
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "module '%s' is imported but never used; remove the import or use the module",
                 checker->imported_modules[i]);
             diagnostic_warning_message(checker->diag, "W1002", msg,
@@ -11661,7 +11662,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
                 fs->decl->data.func_decl.original_name) ?
                 fs->decl->data.func_decl.original_name : fs->name;
             char *msg = NULL;
-            msg = tc_fmt(checker,
+            msg = typechecker_format(checker,
                 "function '%s' is declared but never called", display);
             diagnostic_warning_message(checker->diag, "W1003", msg,
                 checker->file, fs->def_line, 1, 0);
