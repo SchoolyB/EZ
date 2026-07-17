@@ -93,7 +93,7 @@ static const char *resolve_unprefixed_name(CodeGen *cg, const char *name) {
 /* --- Helpers --- */
 
 static void emit(CodeGen *cg, const char *s) {
-    buf_append(&cg->output, s);
+    append_string_to_buffer(&cg->output, s);
 }
 
 static void emitf(CodeGen *cg, const char *fmt, ...) {
@@ -109,7 +109,7 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
     if (n < 0) return;
 
     if (n < (int)sizeof(stack_buf)) {
-        buf_appendn(&cg->output, stack_buf, (size_t)n);
+        append_bytes_to_buffer(&cg->output, stack_buf, (size_t)n);
         return;
     }
 
@@ -130,7 +130,7 @@ static void emitf(CodeGen *cg, const char *fmt, ...) {
 }
 
 static void emit_indent(CodeGen *cg) {
-    buf_append_indent(&cg->output, cg->indent);
+    append_indent_to_buffer(&cg->output, cg->indent);
 }
 
 /* Internal compiler error; emit a clear message instead of segfaulting.
@@ -1078,7 +1078,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 } else if (*s == '\t') {
                     emit(cg, "\\t");
                 } else {
-                    buf_append_char(&cg->output, *s);
+                    append_char_to_buffer(&cg->output, *s);
                 }
                 s++;
             }
@@ -1086,12 +1086,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             while (*s) {
                 if (s[0] == '\\' && s[1] == 'x' && isxdigit((unsigned char)s[2])) {
                     /* Emit \xNN then break the string if followed by a hex digit */
-                    buf_append_char(&cg->output, s[0]); /* \ */
-                    buf_append_char(&cg->output, s[1]); /* x */
-                    buf_append_char(&cg->output, s[2]); /* first hex */
+                    append_char_to_buffer(&cg->output, s[0]); /* \ */
+                    append_char_to_buffer(&cg->output, s[1]); /* x */
+                    append_char_to_buffer(&cg->output, s[2]); /* first hex */
                     s += 3;
                     if (isxdigit((unsigned char)*s)) {
-                        buf_append_char(&cg->output, *s); /* second hex */
+                        append_char_to_buffer(&cg->output, *s); /* second hex */
                         s++;
                     }
                     if (isxdigit((unsigned char)*s)) {
@@ -1099,7 +1099,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         emit(cg, "\" \"");
                     }
                 } else if (s[0] == '\\' && s[1] == '$') {
-                    buf_append_char(&cg->output, '$');
+                    append_char_to_buffer(&cg->output, '$');
                     s += 2;
                 } else if (*s == '\n') {
                     emit(cg, "\\n");
@@ -1108,7 +1108,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit(cg, "\\r");
                     s++;
                 } else {
-                    buf_append_char(&cg->output, *s);
+                    append_char_to_buffer(&cg->output, *s);
                     s++;
                 }
             }
@@ -1149,9 +1149,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (part->kind == NODE_STRING_VALUE) {
                 const char *s = part->data.string_value.value;
                 while (*s) {
-                    if (*s == '%') buf_append(&cg->output, "%%");
-                    else if (s[0] == '\\' && s[1] == '$') { buf_append_char(&cg->output, '$'); s++; }
-                    else buf_append_char(&cg->output, *s);
+                    if (*s == '%') append_string_to_buffer(&cg->output, "%%");
+                    else if (s[0] == '\\' && s[1] == '$') { append_char_to_buffer(&cg->output, '$'); s++; }
+                    else append_char_to_buffer(&cg->output, *s);
                     s++;
                 }
             } else {
@@ -3002,30 +3002,30 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
 static void emit_fmt_string_normalized_ex(CodeGen *cg, const char *fmt_str, AstNode *call_node, bool append_newline) {
     const char *p = fmt_str;
     int di = 1; /* which call arg corresponds to the next directive */
-    buf_append_char(&cg->output, '"');
+    append_char_to_buffer(&cg->output, '"');
     while (*p) {
-        if (*p != '%') { buf_append_char(&cg->output, *p++); continue; }
+        if (*p != '%') { append_char_to_buffer(&cg->output, *p++); continue; }
         /* Emit '%' and start scanning the directive */
-        buf_append_char(&cg->output, '%');
+        append_char_to_buffer(&cg->output, '%');
         p++;
         if (!*p) break;
-        if (*p == '%') { buf_append_char(&cg->output, '%'); p++; continue; }
+        if (*p == '%') { append_char_to_buffer(&cg->output, '%'); p++; continue; }
         /* Emit flags verbatim */
         while (*p == '-' || *p == '+' || *p == ' ' || *p == '0' || *p == '#')
-            buf_append_char(&cg->output, *p++);
+            append_char_to_buffer(&cg->output, *p++);
         /* Emit width verbatim */
-        while (*p >= '0' && *p <= '9') buf_append_char(&cg->output, *p++);
+        while (*p >= '0' && *p <= '9') append_char_to_buffer(&cg->output, *p++);
         /* Emit precision verbatim */
         if (*p == '.') {
-            buf_append_char(&cg->output, *p++);
-            while (*p >= '0' && *p <= '9') buf_append_char(&cg->output, *p++);
+            append_char_to_buffer(&cg->output, *p++);
+            while (*p >= '0' && *p <= '9') append_char_to_buffer(&cg->output, *p++);
         }
         /* Check for existing length modifier */
         bool has_length = (*p == 'h' || *p == 'l' || *p == 'L');
         if (has_length) {
-            buf_append_char(&cg->output, *p++);
+            append_char_to_buffer(&cg->output, *p++);
             if ((*(p-1) == 'h' && *p == 'h') || (*(p-1) == 'l' && *p == 'l'))
-                buf_append_char(&cg->output, *p++);
+                append_char_to_buffer(&cg->output, *p++);
         }
         char spec = *p ? *p++ : 0;
         if (!spec) break;
@@ -3035,18 +3035,18 @@ static void emit_fmt_string_normalized_ex(CodeGen *cg, const char *fmt_str, AstN
             GrayType *dt = cg->type_table ?
                 typetable_get(cg->type_table, call_node->data.call.args[di]) : NULL;
             if (dt && (spec == 'd' || spec == 'i') && dt->kind == TK_INT) {
-                buf_append_char(&cg->output, 'l');
-                buf_append_char(&cg->output, 'l');
+                append_char_to_buffer(&cg->output, 'l');
+                append_char_to_buffer(&cg->output, 'l');
             } else if (dt && spec == 'u' && dt->kind == TK_UINT) {
-                buf_append_char(&cg->output, 'l');
-                buf_append_char(&cg->output, 'l');
+                append_char_to_buffer(&cg->output, 'l');
+                append_char_to_buffer(&cg->output, 'l');
             }
         }
-        buf_append_char(&cg->output, spec);
+        append_char_to_buffer(&cg->output, spec);
         di++;
     }
-    if (append_newline) { buf_append_char(&cg->output, '\\'); buf_append_char(&cg->output, 'n'); }
-    buf_append_char(&cg->output, '"');
+    if (append_newline) { append_char_to_buffer(&cg->output, '\\'); append_char_to_buffer(&cg->output, 'n'); }
+    append_char_to_buffer(&cg->output, '"');
 }
 
 static void emit_fmt_string_normalized(CodeGen *cg, const char *fmt_str, AstNode *call_node) {
@@ -6963,7 +6963,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                 emitf(cg, "GrayArray %s;\n", safe_name(node->data.var_decl.name));
                 /* Store deferred init in the init buffer */
                 if (node->data.var_decl.value) {
-                    buf_appendf(&cg->global_init, "    %s = ", safe_name(node->data.var_decl.name));
+                    append_format_to_buffer(&cg->global_init, "    %s = ", safe_name(node->data.var_decl.name));
                     /* Temporarily redirect output to global_init buffer */
                     Buf saved = cg->output;
                     cg->output = cg->global_init;
@@ -9206,8 +9206,8 @@ static int cg_enum_index(CodeGen *cg, const char *name) {
 
 CodeGen codegen_create(const char *file) {
     CodeGen cg;
-    cg.output = buf_create(OUTPUT_BUF_INITIAL);
-    cg.global_init = buf_create(MSG_BUF_SIZE);
+    cg.output = buffer_create(OUTPUT_BUF_INITIAL);
+    cg.global_init = buffer_create(MSG_BUF_SIZE);
     cg.indent = 0;
     cg.has_mem = false;
     cg.has_fmt = false;
@@ -9915,7 +9915,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "    gray_os_init(argc, argv);\n");
     /* Initialize file-scope arrays that can't use C static initializers */
     if (cg->global_init.len > 0) {
-        buf_append(&cg->output, cg->global_init.data);
+        append_string_to_buffer(&cg->output, cg->global_init.data);
     }
     emit(cg, "    gray_fn_main();\n");
     emit(cg, "    gray_runtime_shutdown();\n");
@@ -9924,12 +9924,12 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 }
 
 const char *codegen_result(CodeGen *cg) {
-    return buf_cstr(&cg->output);
+    return buffer_to_string(&cg->output);
 }
 
 void codegen_destroy(CodeGen *cg) {
-    buf_destroy(&cg->output);
-    buf_destroy(&cg->global_init);
+    buffer_destroy(&cg->output);
+    buffer_destroy(&cg->global_init);
     free(cg->enum_names);
     free(cg->enum_is_string);
     free(cg->enum_is_tagged);

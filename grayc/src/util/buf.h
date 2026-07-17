@@ -18,13 +18,13 @@ typedef struct {
     size_t cap;
 } Buf;
 
-Buf buf_create(size_t initial_cap);
-void buf_append(Buf *b, const char *s);
-void buf_appendn(Buf *b, const char *s, size_t len);
-void buf_appendf(Buf *b, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
-void buf_append_char(Buf *b, char c);
-void buf_append_indent(Buf *b, int depth);
-const char *buf_cstr(Buf *b);
-void buf_destroy(Buf *b);
+Buf buffer_create(size_t initial_cap);
+void append_string_to_buffer(Buf *buffer, const char *string);
+void append_bytes_to_buffer(Buf *buffer, const char *data, size_t len);
+void append_format_to_buffer(Buf *buffer, const char *format, ...) __attribute__((format(printf, 2, 3)));
+void append_char_to_buffer(Buf *buffer, char character);
+void append_indent_to_buffer(Buf *buffer, int depth);
+const char *buffer_to_string(Buf *buffer);
+void buffer_destroy(Buf *buffer);
 
 #endif

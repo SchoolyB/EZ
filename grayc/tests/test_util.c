@@ -85,95 +85,95 @@ static void test_arena_strndup(void) {
 
 /* ===== Buf Tests ===== */
 
-static void test_buf_create(void) {
-    Buf b = buf_create(64);
+static void test_buffer_create(void) {
+    Buf b = buffer_create(64);
     ASSERT_EQ(b.len, 0);
-    ASSERT_STR_EQ(buf_cstr(&b), "");
-    buf_destroy(&b);
+    ASSERT_STR_EQ(buffer_to_string(&b), "");
+    buffer_destroy(&b);
 }
 
-static void test_buf_append(void) {
-    Buf b = buf_create(64);
-    buf_append(&b, "hello");
+static void test_append_string_to_buffer(void) {
+    Buf b = buffer_create(64);
+    append_string_to_buffer(&b, "hello");
     ASSERT_EQ(b.len, 5);
-    ASSERT_STR_EQ(buf_cstr(&b), "hello");
-    buf_destroy(&b);
+    ASSERT_STR_EQ(buffer_to_string(&b), "hello");
+    buffer_destroy(&b);
 }
 
-static void test_buf_appendn(void) {
-    Buf b = buf_create(64);
-    buf_appendn(&b, "hello", 3);
+static void test_append_bytes_to_buffer(void) {
+    Buf b = buffer_create(64);
+    append_bytes_to_buffer(&b, "hello", 3);
     ASSERT_EQ(b.len, 3);
-    ASSERT_STR_EQ(buf_cstr(&b), "hel");
-    buf_destroy(&b);
+    ASSERT_STR_EQ(buffer_to_string(&b), "hel");
+    buffer_destroy(&b);
 }
 
 static void test_buf_append_growth(void) {
-    Buf b = buf_create(8);
-    buf_append(&b, "this string is much longer than the initial capacity");
-    ASSERT_STR_EQ(buf_cstr(&b), "this string is much longer than the initial capacity");
-    buf_destroy(&b);
+    Buf b = buffer_create(8);
+    append_string_to_buffer(&b, "this string is much longer than the initial capacity");
+    ASSERT_STR_EQ(buffer_to_string(&b), "this string is much longer than the initial capacity");
+    buffer_destroy(&b);
 }
 
-static void test_buf_appendf(void) {
-    Buf b = buf_create(64);
-    buf_appendf(&b, "%d items", 42);
-    ASSERT_STR_EQ(buf_cstr(&b), "42 items");
-    buf_destroy(&b);
+static void test_append_format_to_buffer(void) {
+    Buf b = buffer_create(64);
+    append_format_to_buffer(&b, "%d items", 42);
+    ASSERT_STR_EQ(buffer_to_string(&b), "42 items");
+    buffer_destroy(&b);
 }
 
 static void test_buf_appendf_large(void) {
-    Buf b = buf_create(8);
-    buf_appendf(&b, "value=%d, name=%s, flag=%s", 12345, "test_variable", "true");
-    ASSERT_STR_EQ(buf_cstr(&b), "value=12345, name=test_variable, flag=true");
-    buf_destroy(&b);
+    Buf b = buffer_create(8);
+    append_format_to_buffer(&b, "value=%d, name=%s, flag=%s", 12345, "test_variable", "true");
+    ASSERT_STR_EQ(buffer_to_string(&b), "value=12345, name=test_variable, flag=true");
+    buffer_destroy(&b);
 }
 
-static void test_buf_append_char(void) {
-    Buf b = buf_create(64);
-    buf_append_char(&b, 'X');
+static void test_append_char_to_buffer(void) {
+    Buf b = buffer_create(64);
+    append_char_to_buffer(&b, 'X');
     ASSERT_EQ(b.len, 1);
-    ASSERT_STR_EQ(buf_cstr(&b), "X");
-    buf_destroy(&b);
+    ASSERT_STR_EQ(buffer_to_string(&b), "X");
+    buffer_destroy(&b);
 }
 
 static void test_buf_append_char_boundary(void) {
-    Buf b = buf_create(4);
+    Buf b = buffer_create(4);
     for (int i = 0; i < 20; i++)
-        buf_append_char(&b, 'A');
+        append_char_to_buffer(&b, 'A');
     ASSERT_EQ(b.len, 20);
     /* Verify all chars are 'A' */
-    const char *s = buf_cstr(&b);
+    const char *s = buffer_to_string(&b);
     for (int i = 0; i < 20; i++)
         ASSERT_EQ(s[i], 'A');
-    buf_destroy(&b);
+    buffer_destroy(&b);
 }
 
 static void test_buf_append_indent_zero(void) {
-    Buf b = buf_create(64);
-    buf_append_indent(&b, 0);
+    Buf b = buffer_create(64);
+    append_indent_to_buffer(&b, 0);
     ASSERT_EQ(b.len, 0);
-    ASSERT_STR_EQ(buf_cstr(&b), "");
-    buf_destroy(&b);
+    ASSERT_STR_EQ(buffer_to_string(&b), "");
+    buffer_destroy(&b);
 }
 
-static void test_buf_append_indent(void) {
-    Buf b = buf_create(64);
-    buf_append_indent(&b, 2);
+static void test_append_indent_to_buffer(void) {
+    Buf b = buffer_create(64);
+    append_indent_to_buffer(&b, 2);
     ASSERT_EQ(b.len, 8);  /* 2 * 4 spaces */
-    ASSERT_STR_EQ(buf_cstr(&b), "        ");
-    buf_destroy(&b);
+    ASSERT_STR_EQ(buffer_to_string(&b), "        ");
+    buffer_destroy(&b);
 }
 
 static void test_buf_append_indent_large(void) {
-    Buf b = buf_create(128);
-    buf_append_indent(&b, 20);
+    Buf b = buffer_create(128);
+    append_indent_to_buffer(&b, 20);
     ASSERT_EQ(b.len, 80);  /* 20 * 4 spaces */
     /* Verify all spaces */
-    const char *s = buf_cstr(&b);
+    const char *s = buffer_to_string(&b);
     for (int i = 0; i < 80; i++)
         ASSERT_EQ(s[i], ' ');
-    buf_destroy(&b);
+    buffer_destroy(&b);
 }
 
 /* ===== Scope Tests ===== */
