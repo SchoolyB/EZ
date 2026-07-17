@@ -13,48 +13,48 @@
 #include <string.h>
 #include <unistd.h>
 
-static int test_num = 0;
+static int test_number = 0;
 
 /* Compile and run a Grayscale program, return its stdout output */
 static char *compile_and_run(const char *gray_source) {
-    test_num++;
+    test_number++;
     static char output[4096];
-    char gray_file[128], bin_file[128];
+    char gray_file[128], binary_file[128];
 
-    snprintf(gray_file, sizeof(gray_file), "/tmp/grayc_e2e_%d.gray", test_num);
-    snprintf(bin_file, sizeof(bin_file), "/tmp/grayc_e2e_%d", test_num);
+    snprintf(gray_file, sizeof(gray_file), "/tmp/grayc_e2e_%d.gray", test_number);
+    snprintf(binary_file, sizeof(binary_file), "/tmp/grayc_e2e_%d", test_number);
 
     /* Write source */
-    FILE *f = fopen(gray_file, "w");
-    if (!f) return NULL;
-    fputs(gray_source, f);
-    fclose(f);
+    FILE *file = fopen(gray_file, "w");
+    if (!file) return NULL;
+    fputs(gray_source, file);
+    fclose(file);
 
     /* Compile */
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./grayc %s -o %s 2>/dev/null", gray_file, bin_file);
-    if (system(cmd) != 0) {
+    char command[1024];
+    snprintf(command, sizeof(command), "./grayc %s -o %s >/dev/null 2>&1", gray_file, binary_file);
+    if (system(command) != 0) {
         unlink(gray_file);
         return NULL;
     }
 
     /* Run and capture output */
     char run_cmd[256];
-    snprintf(run_cmd, sizeof(run_cmd), "%s 2>&1", bin_file);
-    FILE *p = popen(run_cmd, "r");
-    if (!p) {
+    snprintf(run_cmd, sizeof(run_cmd), "%s 2>&1", binary_file);
+    FILE *pipe = popen(run_cmd, "r");
+    if (!pipe) {
         unlink(gray_file);
-        unlink(bin_file);
+        unlink(binary_file);
         return NULL;
     }
 
     size_t total = 0;
-    size_t n;
-    while ((n = fread(output + total, 1, sizeof(output) - total - 1, p)) > 0) {
-        total += n;
+    size_t bytes_read;
+    while ((bytes_read = fread(output + total, 1, sizeof(output) - total - 1, pipe)) > 0) {
+        total += bytes_read;
     }
     output[total] = '\0';
-    pclose(p);
+    pclose(pipe);
 
     /* Remove trailing newline for easier comparison */
     if (total > 0 && output[total - 1] == '\n') {
@@ -62,24 +62,24 @@ static char *compile_and_run(const char *gray_source) {
     }
 
     unlink(gray_file);
-    unlink(bin_file);
+    unlink(binary_file);
     return output;
 }
 
 /* --- Hello World --- */
 
 static void test_e2e_hello(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() { println(\"Hello, World!\") }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "Hello, World!");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "Hello, World!");
 }
 
 /* --- Arithmetic --- */
 
 static void test_e2e_arithmetic(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    println(2 + 3)\n"
@@ -88,42 +88,42 @@ static void test_e2e_arithmetic(void) {
         "    println(20 / 4)\n"
         "    println(17 % 5)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "5\n6\n21\n5\n2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "5\n6\n21\n5\n2");
 }
 
 /* --- Variables --- */
 
 static void test_e2e_variables(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut x int = 10\n"
         "    mut y int = 20\n"
         "    println(x + y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "30");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "30");
 }
 
 /* --- String interpolation --- */
 
 static void test_e2e_interpolation(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut name string = \"Alice\"\n"
         "    mut age int = 30\n"
         "    println(\"${name} is ${age}\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "Alice is 30");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "Alice is 30");
 }
 
 /* --- If/or/otherwise --- */
 
 static void test_e2e_if_else(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut x int = 5\n"
@@ -135,28 +135,28 @@ static void test_e2e_if_else(void) {
         "        println(\"small\")\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "medium");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "medium");
 }
 
 /* --- For loop --- */
 
 static void test_e2e_for_range(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    for i in range(1, 4) {\n"
         "        println(i)\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1\n2\n3");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1\n2\n3");
 }
 
 /* --- While loop --- */
 
 static void test_e2e_while(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut i int = 0\n"
@@ -165,14 +165,14 @@ static void test_e2e_while(void) {
         "        i++\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n1\n2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0\n1\n2");
 }
 
 /* --- Loop with break --- */
 
 static void test_e2e_loop_break(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut i int = 0\n"
@@ -182,39 +182,39 @@ static void test_e2e_loop_break(void) {
         "        i++\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n1\n2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0\n1\n2");
 }
 
 /* --- Functions --- */
 
 static void test_e2e_function_call(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() { println(add(3, 4)) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "7");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "7");
 }
 
 /* --- Recursion --- */
 
 static void test_e2e_recursion(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do fib(n int) -> int {\n"
         "    if n <= 1 { return n }\n"
         "    return fib(n - 1) + fib(n - 2)\n"
         "}\n"
         "do main() { println(fib(10)) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "55");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "55");
 }
 
 /* --- Multiple returns --- */
 
 static void test_e2e_multi_return(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do swap(a int, b int) -> (int, int) { return b, a }\n"
         "do main() {\n"
@@ -222,14 +222,14 @@ static void test_e2e_multi_return(void) {
         "    println(x)\n"
         "    println(y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "20\n10");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "20\n10");
 }
 
 /* --- Mutable params --- */
 
-static void test_e2e_mutable_param(void) {
-    char *out = compile_and_run(
+static void test_e2e_mutable_parameter(void) {
+    char *output = compile_and_run(
         ""
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
@@ -237,14 +237,14 @@ static void test_e2e_mutable_param(void) {
         "    inc(x)\n"
         "    println(x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "6");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "6");
 }
 
 /* --- Ensure --- */
 
 static void test_e2e_ensure(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do cleanup() { println(\"cleaned\") }\n"
         "do work() {\n"
@@ -252,14 +252,14 @@ static void test_e2e_ensure(void) {
         "    println(\"working\")\n"
         "}\n"
         "do main() { work() }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "working\ncleaned");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "working\ncleaned");
 }
 
 /* --- Structs --- */
 
 static void test_e2e_struct(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "const Point struct {\n"
         "    x int\n"
@@ -270,14 +270,14 @@ static void test_e2e_struct(void) {
         "    println(p.x)\n"
         "    println(p.y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3\n4");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "3\n4");
 }
 
 /* --- Enums --- */
 
 static void test_e2e_enum(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "const Color enum {\n"
         "    RED\n"
@@ -288,14 +288,14 @@ static void test_e2e_enum(void) {
         "    mut c Color = Color.GREEN\n"
         "    println(c)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1");
 }
 
 /* --- Arrays --- */
 
 static void test_e2e_array(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut nums [int] = {10, 20, 30}\n"
@@ -303,28 +303,28 @@ static void test_e2e_array(void) {
         "    println(nums[2])\n"
         "    println(len(nums))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "10\n30\n3");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "10\n30\n3");
 }
 
 /* --- Array mutation --- */
 
 static void test_e2e_array_set(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut nums [int] = {1, 2, 3}\n"
         "    nums[1] = 99\n"
         "    println(nums[1])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "99");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "99");
 }
 
 /* --- For each --- */
 
 static void test_e2e_for_each(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut names [string] = {\"a\", \"b\", \"c\"}\n"
@@ -332,14 +332,14 @@ static void test_e2e_for_each(void) {
         "        println(name)\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "a\nb\nc");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "a\nb\nc");
 }
 
 /* --- When/Is --- */
 
 static void test_e2e_when(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut x int = 2\n"
@@ -349,38 +349,38 @@ static void test_e2e_when(void) {
         "        default { println(\"other\") }\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "two");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "two");
 }
 
 /* --- Len builtin --- */
 
 static void test_e2e_len_string(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() { println(len(\"hello\")) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "5");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "5");
 }
 
 /* --- type_of builtin --- */
 
 static void test_e2e_type_of(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    println(type_of(42))\n"
         "    println(type_of(\"hi\"))\n"
         "    println(type_of(true))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "int\nstring\nbool");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "int\nstring\nbool");
 }
 
 /* --- Compound assignment --- */
 
 static void test_e2e_compound_assign(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut x int = 10\n"
@@ -389,41 +389,41 @@ static void test_e2e_compound_assign(void) {
         "    x *= 2\n"
         "    println(x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "24");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "24");
 }
 
 /* --- Char type --- */
 
 static void test_e2e_char(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut c char = 'A'\n"
         "    println(c)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "A");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "A");
 }
 
 /* --- Blank identifier --- */
 
-static void test_e2e_blank_ident(void) {
-    char *out = compile_and_run(
+static void test_e2e_blank_identifier(void) {
+    char *output = compile_and_run(
         ""
         "do pair() -> (int, int) { return 42, 99 }\n"
         "do main() {\n"
         "    mut _, b int = pair()\n"
         "    println(b)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "99");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "99");
 }
 
 /* ===== @mem Module Tests ===== */
 
 static void test_e2e_mem_arena_create_destroy(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do main() {\n"
         "    mut a = mem.arena(4096)\n"
@@ -431,12 +431,12 @@ static void test_e2e_mem_arena_create_destroy(void) {
         "    mem.destroy(a)\n"
         "    println(\"destroyed\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "created\ndestroyed");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "created\ndestroyed");
 }
 
 static void test_e2e_mem_usage(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do main() {\n"
         "    mut a = mem.arena(1024)\n"
@@ -446,12 +446,12 @@ static void test_e2e_mem_usage(void) {
         "    if used > 0 { println(\"allocated\") }\n"
         "    mem.destroy(a)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\nallocated");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0\nallocated");
 }
 
 static void test_e2e_mem_reset(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do main() {\n"
         "    mut a = mem.arena(1024)\n"
@@ -461,12 +461,12 @@ static void test_e2e_mem_reset(void) {
         "    println(mem.usage(a))\n"
         "    mem.destroy(a)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "used\n0");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "used\n0");
 }
 
 static void test_e2e_mem_alloc_string(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do main() {\n"
         "    mut a = mem.arena(4096)\n"
@@ -474,12 +474,12 @@ static void test_e2e_mem_alloc_string(void) {
         "    mut s string = mem.alloc(a, \"arena string\")\n"
         "    println(s)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "arena string");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "arena string");
 }
 
 static void test_e2e_mem_alloc_array(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do main() {\n"
         "    mut a = mem.arena(4096)\n"
@@ -490,12 +490,12 @@ static void test_e2e_mem_alloc_array(void) {
         "    println(nums[2])\n"
         "    println(len(nums))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "10\n20\n30\n3");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "10\n20\n30\n3");
 }
 
 static void test_e2e_mem_ensure_cleanup(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do work() {\n"
         "    mut a = mem.arena(1024)\n"
@@ -507,14 +507,14 @@ static void test_e2e_mem_ensure_cleanup(void) {
         "    work()\n"
         "    println(\"done\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "working\ndone");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "working\ndone");
 }
 
 /* ===== Pointer Tests ===== */
 
 static void test_e2e_ptr_new_deref(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do main() {\n"
         "    mut a = mem.arena(4096)\n"
@@ -523,12 +523,12 @@ static void test_e2e_ptr_new_deref(void) {
         "    p^ = 42\n"
         "    println(p^)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "42");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "42");
 }
 
 static void test_e2e_ptr_struct(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "const Point struct {\n"
         "    x int\n"
@@ -543,12 +543,12 @@ static void test_e2e_ptr_struct(void) {
         "    println(p^.x)\n"
         "    println(p^.y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3\n4");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "3\n4");
 }
 
 static void test_e2e_ptr_addr(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do set(p ^int, v int) {\n"
         "    p^ = v\n"
@@ -558,12 +558,12 @@ static void test_e2e_ptr_addr(void) {
         "    set(addr(x), 99)\n"
         "    println(x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "99");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "99");
 }
 
 static void test_e2e_ptr_nil(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut p ^int = nil\n"
@@ -571,12 +571,12 @@ static void test_e2e_ptr_nil(void) {
         "        println(\"null\")\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "null");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "null");
 }
 
 static void test_e2e_ptr_write_through(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @mem\n"
         "do set_value(p ^int, val int) {\n"
         "    p^ = val\n"
@@ -588,26 +588,26 @@ static void test_e2e_ptr_write_through(void) {
         "    set_value(p, 777)\n"
         "    println(p^)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "777");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "777");
 }
 
 /* ===== v3 Keyword Tests ===== */
 
 static void test_e2e_mut_keyword(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut x int = 10\n"
         "    mut y = 20\n"
         "    println(x + y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "30");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "30");
 }
 
 static void test_e2e_while_keyword(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut i int = 0\n"
@@ -616,12 +616,12 @@ static void test_e2e_while_keyword(void) {
         "        i++\n"
         "    }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n1\n2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0\n1\n2");
 }
 
 static void test_e2e_mut_while_combined(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do fib(n int) -> int {\n"
         "    mut a int = 0\n"
@@ -636,14 +636,14 @@ static void test_e2e_mut_while_combined(void) {
         "    return a\n"
         "}\n"
         "do main() { println(fib(10)) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "55");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "55");
 }
 
 /* ===== Default Params, in/not_in, OS, Arrays Tests ===== */
 
-static void test_e2e_default_params(void) {
-    char *out = compile_and_run(
+static void test_e2e_default_parameters(void) {
+    char *output = compile_and_run(
         ""
         "do greet(name string = \"World\") -> string {\n"
         "    return \"Hello, ${name}!\"\n"
@@ -652,35 +652,35 @@ static void test_e2e_default_params(void) {
         "    println(greet())\n"
         "    println(greet(\"grayc\"))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "Hello, World!\nHello, grayc!");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "Hello, World!\nHello, grayc!");
 }
 
 static void test_e2e_in_operator(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "    mut nums [int] = {1, 2, 3}\n"
         "    if 2 in nums { println(\"found\") }\n"
         "    if 9 !in nums { println(\"not found\") }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "found\nnot found");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "found\nnot found");
 }
 
 static void test_e2e_os_args(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @os\n"
         "do main() {\n"
         "    println(os.arch())\n"
         "}");
-    ASSERT_NOT_NULL(out);
+    ASSERT_NOT_NULL(output);
     /* Should be arm64 or x86_64 — just check it's not empty */
     ASSERT(strlen(out) > 0);
 }
 
 static void test_e2e_arrays_append(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @arrays\n"
         "do main() {\n"
         "    mut nums [int] = {1, 2}\n"
@@ -688,12 +688,12 @@ static void test_e2e_arrays_append(void) {
         "    println(len(nums))\n"
         "    println(nums[2])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3\n3");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "3\n3");
 }
 
 static void test_e2e_arrays_sort(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @arrays\n"
         "do main() {\n"
         "    mut nums [int] = {3, 1, 2}\n"
@@ -702,49 +702,49 @@ static void test_e2e_arrays_sort(void) {
         "    println(nums[1])\n"
         "    println(nums[2])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1\n2\n3");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1\n2\n3");
 }
 
 static void test_e2e_hex_literal(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() { println(0xFF) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "255");
 }
 
 static void test_e2e_octal_literal(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() { println(0o10) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "8");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "8");
 }
 
 static void test_e2e_binary_literal(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() { println(0b1010) }");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "10");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "10");
 }
 
 /* ===== Fixed-size and Multi-dimensional Array Tests ===== */
 
 static void test_e2e_fixed_array(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  const arr [int, 3] = {10, 20, 30}\n"
         "  println(\"${arr[0]},${arr[1]},${arr[2]}\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "10,20,30");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "10,20,30");
 }
 
 static void test_e2e_nested_array(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut m [[int]] = {{1, 2}, {3, 4}}\n"
@@ -752,14 +752,14 @@ static void test_e2e_nested_array(void) {
         "  mut r1 = m[1]\n"
         "  println(\"${r0[0]},${r0[1]},${r1[0]},${r1[1]}\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1,2,3,4");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1,2,3,4");
 }
 
 /* ===== Threads Tests ===== */
 
 static void test_e2e_threads_spawn_join(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @threads\n"
         "do worker(id int) { println(\"w${id}\") }\n"
         "do main() {\n"
@@ -769,7 +769,7 @@ static void test_e2e_threads_spawn_join(void) {
         "  threads.join(t2)\n"
         "  println(\"done\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
+    ASSERT_NOT_NULL(output);
     /* Output order may vary due to threading, but "done" must be last */
     ASSERT(strstr(out, "done") != NULL);
     ASSERT(strstr(out, "w1") != NULL);
@@ -777,7 +777,7 @@ static void test_e2e_threads_spawn_join(void) {
 }
 
 static void test_e2e_threads_channel(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         "import @channels\n"
         "do main() {\n"
         "  mut ch = channels.open(4)\n"
@@ -788,52 +788,52 @@ static void test_e2e_threads_channel(void) {
         "  println(\"${a},${b}\")\n"
         "  channels.close(ch)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "42,100");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "42,100");
 }
 
 static void test_e2e_threads_sleep(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  sleep_ms(10)\n"
         "  println(\"awake\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "awake");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "awake");
 }
 
 /* ===== Function Reference Tests ===== */
 
-static void test_e2e_func_ref_basic(void) {
-    char *out = compile_and_run(
+static void test_e2e_function_reference_basic(void) {
+    char *output = compile_and_run(
         ""
         "do double(n int) -> int { return n * 2 }\n"
         "do main() {\n"
         "  const fn = ()double\n"
         "  println(fn(21))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "42");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "42");
 }
 
-static void test_e2e_func_ref_ref(void) {
-    char *out = compile_and_run(
+static void test_e2e_function_reference_via_ref(void) {
+    char *output = compile_and_run(
         ""
         "do negate(n int) -> int { return n * -1 }\n"
         "do main() {\n"
         "  mut fn = ref(negate)\n"
         "  println(fn(5))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "-5");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "-5");
 }
 
 
 /* ===== Struct-Namespaced Functions ===== */
 
-static void test_e2e_struct_func(void) {
-    char *out = compile_and_run(
+static void test_e2e_struct_function(void) {
+    char *output = compile_and_run(
         ""
         "const Counter struct {\n"
         "  value int\n"
@@ -846,14 +846,14 @@ static void test_e2e_struct_func(void) {
         "  c = Counter.inc(c)\n"
         "  println(c.value)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "2");
 }
 
 /* ===== or_return ===== */
 
 static void test_e2e_or_return(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do fallible(ok bool) -> (string, Error) {\n"
         "  if ok { return \"success\", nil }\n"
@@ -867,14 +867,14 @@ static void test_e2e_or_return(void) {
         "  mut v, e = wrapper()\n"
         "  println(v)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "success");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "success");
 }
 
 /* ===== Enum Attributes ===== */
 
 static void test_e2e_flags_enum(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "#flags\n"
         "const Perms enum {\n"
@@ -887,12 +887,12 @@ static void test_e2e_flags_enum(void) {
         "  println(Perms.WRITE)\n"
         "  println(Perms.EXEC)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1\n2\n4");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1\n2\n4");
 }
 
 static void test_e2e_string_enum(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "const Status enum {\n"
         "  TODO = \"todo\"\n"
@@ -902,14 +902,14 @@ static void test_e2e_string_enum(void) {
         "  println(Status.TODO)\n"
         "  println(Status.DONE)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "todo\ndone");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "todo\ndone");
 }
 
 /* ===== Named Returns ===== */
 
 static void test_e2e_named_return(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do divide(a int, b int) -> (q int, r int) {\n"
         "  mut q int = a / b\n"
@@ -920,14 +920,14 @@ static void test_e2e_named_return(void) {
         "  mut q, r = divide(17, 5)\n"
         "  println(\"${q},${r}\")\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3,2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "3,2");
 }
 
 /* ===== Mutable Indexed/Member Params ===== */
 
-static void test_e2e_mutable_indexed_param(void) {
-    char *out = compile_and_run(
+static void test_e2e_mutable_indexed_parameter(void) {
+    char *output = compile_and_run(
         ""
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
@@ -935,12 +935,12 @@ static void test_e2e_mutable_indexed_param(void) {
         "  inc(arr[1])\n"
         "  println(arr[1])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "21");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "21");
 }
 
-static void test_e2e_mutable_member_param(void) {
-    char *out = compile_and_run(
+static void test_e2e_mutable_member_parameter(void) {
+    char *output = compile_and_run(
         ""
         "const P struct {\n"
         "    x int\n"
@@ -951,26 +951,26 @@ static void test_e2e_mutable_member_param(void) {
         "  inc(p.x)\n"
         "  println(p.x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "6");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "6");
 }
 
 /* ===== Map Operations ===== */
 
 static void test_e2e_map_basic(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut m map[string:int] = {\"a\": 1, \"b\": 2}\n"
         "  println(m[\"a\"])\n"
         "  println(m[\"b\"])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1\n2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1\n2");
 }
 
 static void test_e2e_map_foreach(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut m map[string:int] = {\"x\": 10}\n"
@@ -980,18 +980,18 @@ static void test_e2e_map_foreach(void) {
         "  }\n"
         "  println(total)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "10");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "10");
 }
 
 /* ===== Division by Zero ===== */
 
-static void test_e2e_div_zero(void) {
+static void test_e2e_divide_by_zero(void) {
     /* Compile and run — should panic, not crash silently */
-    test_num++;
-    char gray_file[128], bin_file[128];
-    snprintf(gray_file, sizeof(gray_file), "/tmp/grayc_e2e_%d.gray", test_num);
-    snprintf(bin_file, sizeof(bin_file), "/tmp/grayc_e2e_%d", test_num);
+    test_number++;
+    char gray_file[128], binary_file[128];
+    snprintf(gray_file, sizeof(gray_file), "/tmp/grayc_e2e_%d.gray", test_number);
+    snprintf(binary_file, sizeof(binary_file), "/tmp/grayc_e2e_%d", test_number);
 
     const char *src =
         ""
@@ -1001,14 +1001,14 @@ static void test_e2e_div_zero(void) {
         "  println(x / y)\n"
         "}";
 
-    FILE *f = fopen(gray_file, "w");
-    if (!f) { _test_fail++; printf("  FAIL %s: cannot write\n", __func__); return; }
-    fputs(src, f);
-    fclose(f);
+    FILE *file = fopen(gray_file, "w");
+    if (!file) { _test_fail++; printf("  FAIL %s: cannot write\n", __func__); return; }
+    fputs(src, file);
+    fclose(file);
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./grayc %s -o %s 2>/dev/null", gray_file, bin_file);
-    if (system(cmd) != 0) {
+    char command[1024];
+    snprintf(command, sizeof(command), "./grayc %s -o %s >/dev/null 2>&1", gray_file, binary_file);
+    if (system(command) != 0) {
         unlink(gray_file);
         _test_fail++;
         printf("  FAIL %s: compile failed\n", __func__);
@@ -1016,16 +1016,16 @@ static void test_e2e_div_zero(void) {
     }
 
     char run_cmd[256];
-    snprintf(run_cmd, sizeof(run_cmd), "%s 2>&1", bin_file);
-    FILE *p = popen(run_cmd, "r");
+    snprintf(run_cmd, sizeof(run_cmd), "%s 2>&1", binary_file);
+    FILE *pipe = popen(run_cmd, "r");
     char output[4096] = {0};
-    if (p) {
-        fread(output, 1, sizeof(output) - 1, p);
-        pclose(p);
+    if (pipe) {
+        fread(output, 1, sizeof(output) - 1, pipe);
+        pclose(pipe);
     }
 
     unlink(gray_file);
-    unlink(bin_file);
+    unlink(binary_file);
 
     if (strstr(output, "division by zero")) {
         _test_pass++;
@@ -1039,80 +1039,80 @@ static void test_e2e_div_zero(void) {
 /* ===== Sized Integer Types ===== */
 
 static void test_e2e_sized_int_i8(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x i8 = 127\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "127\ni8");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "127\ni8");
 }
 
 static void test_e2e_sized_int_u8(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x u8 = 255\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255\nu8");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "255\nu8");
 }
 
 static void test_e2e_sized_int_i32(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x i32 = 100000\n"
         "  mut y i32 = 200000\n"
         "  println(x + y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "300000");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "300000");
 }
 
 static void test_e2e_sized_int_u64(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x u64 = 1000000\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1000000\nu64");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1000000\nu64");
 }
 
 static void test_e2e_sized_float_f32(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x f32 = 3.14\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "f32");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "f32");
 }
 
 static void test_e2e_byte_type(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut b byte = cast(255, byte)\n"
         "  println(b)\n"
         "  println(type_of(b))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "255\nbyte");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "255\nbyte");
 }
 
 /* ===== Cast Expression ===== */
 
 static void test_e2e_cast(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x int = 42\n"
@@ -1122,14 +1122,14 @@ static void test_e2e_cast(void) {
         "  mut i int = cast(f, int)\n"
         "  println(i)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "42\n3");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "42\n3");
 }
 
 /* ===== Continue in Loop ===== */
 
 static void test_e2e_continue(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut result int = 0\n"
@@ -1139,29 +1139,29 @@ static void test_e2e_continue(void) {
         "  }\n"
         "  println(result)\n"
         "}");
-    ASSERT_NOT_NULL(out);
+    ASSERT_NOT_NULL(output);
     /* sum of odd numbers 1+3+5+7+9 = 25 */
-    ASSERT_STR_EQ(out, "25");
+    ASSERT_STR_EQ(output, "25");
 }
 
 /* ===== Modulo/Divide Compound Assign ===== */
 
-static void test_e2e_mod_div_assign(void) {
-    char *out = compile_and_run(
+static void test_e2e_modulo_division_assign(void) {
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x int = 20\n"
         "  x /= 4\n"
         "  println(x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "5");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "5");
 }
 
 /* ===== Nested Structs ===== */
 
 static void test_e2e_nested_struct(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "const Point struct {\n"
         "    x int\n"
@@ -1176,69 +1176,69 @@ static void test_e2e_nested_struct(void) {
         "  println(r.origin.x)\n"
         "  println(r.size.y)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1\n20");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1\n20");
 }
 
 /* ===== P4: Remaining sized integer types ===== */
 
 static void test_e2e_sized_int_i16(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x i16 = 32767\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "32767\ni16");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "32767\ni16");
 }
 
 static void test_e2e_sized_int_i64(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x i64 = 9223372036854775807\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "9223372036854775807\ni64");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "9223372036854775807\ni64");
 }
 
 static void test_e2e_sized_int_u16(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x u16 = 65535\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "65535\nu16");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "65535\nu16");
 }
 
 static void test_e2e_sized_int_u32(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x u32 = 4294967295\n"
         "  println(x)\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "4294967295\nu32");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "4294967295\nu32");
 }
 
 static void test_e2e_sized_float_f64(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x f64 = 3.141592653589793\n"
         "  println(type_of(x))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "f64");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "f64");
 }
 
 /* Note: ** power operator codegen emits raw C '**' which is invalid.
@@ -1247,7 +1247,7 @@ static void test_e2e_sized_float_f64(void) {
 /* ===== P5: Range with step ===== */
 
 static void test_e2e_range_with_step(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut result int = 0\n"
@@ -1256,29 +1256,29 @@ static void test_e2e_range_with_step(void) {
         "  }\n"
         "  println(result)\n"
         "}");
-    ASSERT_NOT_NULL(out);
+    ASSERT_NOT_NULL(output);
     /* 0 + 3 + 6 + 9 = 18 */
-    ASSERT_STR_EQ(out, "18");
+    ASSERT_STR_EQ(output, "18");
 }
 
 /* ===== P5: Percent assign ===== */
 
 static void test_e2e_percent_assign(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x int = 17\n"
         "  x %= 5\n"
         "  println(x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "2");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "2");
 }
 
 /* ===== Boolean Logic ===== */
 
 static void test_e2e_bool_and_or(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut a bool = true\n"
@@ -1287,12 +1287,12 @@ static void test_e2e_bool_and_or(void) {
         "  if a || b { println(\"or-ok\") }\n"
         "  if !(a && b) { println(\"not-ok\") }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "and-ok\nor-ok\nnot-ok");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "and-ok\nor-ok\nnot-ok");
 }
 
 static void test_e2e_short_circuit(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "mut called int = 0\n"
         "do side() -> bool { called++\n return true }\n"
@@ -1302,14 +1302,14 @@ static void test_e2e_short_circuit(void) {
         "  if true || side() { println(\"good\") }\n"
         "  println(called)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\ngood\n0");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0\ngood\n0");
 }
 
 /* ===== String Comparison ===== */
 
 static void test_e2e_string_compare(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut a string = \"hello\"\n"
@@ -1318,14 +1318,14 @@ static void test_e2e_string_compare(void) {
         "  if a == b { println(\"eq\") }\n"
         "  if a != c { println(\"neq\") }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "eq\nneq");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "eq\nneq");
 }
 
 /* ===== Negative Arithmetic ===== */
 
 static void test_e2e_negative_arithmetic(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x int = -10\n"
@@ -1335,14 +1335,14 @@ static void test_e2e_negative_arithmetic(void) {
         "  println(x / y)\n"
         "  println(-x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "-7\n-30\n-3\n10");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "-7\n-30\n-3\n10");
 }
 
 /* ===== Variable Shadowing ===== */
 
 static void test_e2e_variable_shadowing(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut x int = 1\n"
@@ -1353,14 +1353,14 @@ static void test_e2e_variable_shadowing(void) {
         "  }\n"
         "  println(x)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "1\n2\n1");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "1\n2\n1");
 }
 
 /* ===== Nested Control Flow ===== */
 
 static void test_e2e_nested_control_flow(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut total int = 0\n"
@@ -1373,14 +1373,14 @@ static void test_e2e_nested_control_flow(void) {
         "  }\n"
         "  println(total)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "60");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "60");
 }
 
 /* ===== Map Mutation ===== */
 
 static void test_e2e_map_set(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut m map[string:int] = {\"a\": 1}\n"
@@ -1389,14 +1389,14 @@ static void test_e2e_map_set(void) {
         "  println(m[\"a\"])\n"
         "  println(m[\"b\"])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "99\n42");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "99\n42");
 }
 
 /* ===== For_each with Index ===== */
 
 static void test_e2e_foreach_index(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut arr [string] = {\"a\", \"b\", \"c\"}\n"
@@ -1404,14 +1404,14 @@ static void test_e2e_foreach_index(void) {
         "    println(\"${i}:${item}\")\n"
         "  }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0:a\n1:b\n2:c");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0:a\n1:b\n2:c");
 }
 
 /* ===== Const Values ===== */
 
 static void test_e2e_const_values(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  const PI float = 3.14\n"
@@ -1421,66 +1421,66 @@ static void test_e2e_const_values(void) {
         "  println(NAME)\n"
         "  println(FLAG)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "3.14\nGrayscale\ntrue");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "3.14\nGrayscale\ntrue");
 }
 
 /* ===== Empty Containers ===== */
 
 static void test_e2e_empty_array(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut arr [int] = {}\n"
         "  println(len(arr))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0");
 }
 
 static void test_e2e_empty_map(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut m map[string:int] = {:}\n"
         "  println(len(m))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0");
 }
 
 /* ===== Nested Function Calls ===== */
 
 static void test_e2e_nested_calls(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do add(a int, b int) -> int { return a + b }\n"
         "do mul(a int, b int) -> int { return a * b }\n"
         "do main() {\n"
         "  println(add(1, mul(2, 3)))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "7");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "7");
 }
 
 /* ===== String Indexing ===== */
 
 static void test_e2e_string_index(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut s string = \"hello\"\n"
         "  println(s[0])\n"
         "  println(s[4])\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "h\no");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "h\no");
 }
 
 /* ===== Enum Comparison ===== */
 
 static void test_e2e_enum_compare(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "const Dir enum {\n"
         "    UP\n"
@@ -1493,27 +1493,27 @@ static void test_e2e_enum_compare(void) {
         "  if d == Dir.LEFT { println(\"left\") }\n"
         "  if d != Dir.UP { println(\"not up\") }\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "left\nnot up");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "left\nnot up");
 }
 
 /* ===== Grouped Parameters ===== */
 
-static void test_e2e_grouped_params(void) {
-    char *out = compile_and_run(
+static void test_e2e_grouped_parameters(void) {
+    char *output = compile_and_run(
         ""
         "do add3(a, b, c int) -> int { return a + b + c }\n"
         "do main() {\n"
         "  println(add3(10, 20, 30))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "60");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "60");
 }
 
 /* ===== Scope Lifetime ===== */
 
 static void test_e2e_loop_scope(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "do main() {\n"
         "  mut total int = 0\n"
@@ -1523,15 +1523,15 @@ static void test_e2e_loop_scope(void) {
         "  }\n"
         "  println(total)\n"
         "}");
-    ASSERT_NOT_NULL(out);
+    ASSERT_NOT_NULL(output);
     /* 0 + 10 + 20 = 30 */
-    ASSERT_STR_EQ(out, "30");
+    ASSERT_STR_EQ(output, "30");
 }
 
 /* ===== #strict when ===== */
 
 static void test_e2e_strict_when(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "const Dir enum {\n"
         "    UP\n"
@@ -1551,28 +1551,28 @@ static void test_e2e_strict_when(void) {
         "  }\n"
         "  println(label)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "left");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "left");
 }
 
 /* ===== C interop ===== */
 
 static void test_e2e_c_interop(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "import c \"stdlib.h\"\n"
         "do main() {\n"
         "  println(c.EXIT_SUCCESS)\n"
         "  println(c.EXIT_FAILURE)\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "0\n1");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "0\n1");
 }
 
 /* ===== Atomic ===== */
 
 static void test_e2e_atomic(void) {
-    char *out = compile_and_run(
+    char *output = compile_and_run(
         ""
         "import @atomic\n"
         "do main() {\n"
@@ -1584,8 +1584,8 @@ static void test_e2e_atomic(void) {
         "  println(old)\n"
         "  println(atomic.load(ptr))\n"
         "}");
-    ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "42\n42\n50");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "42\n42\n50");
 }
 
 int main(void) {
@@ -1607,7 +1607,7 @@ int main(void) {
     RUN_TEST(test_e2e_function_call);
     RUN_TEST(test_e2e_recursion);
     RUN_TEST(test_e2e_multi_return);
-    RUN_TEST(test_e2e_mutable_param);
+    RUN_TEST(test_e2e_mutable_parameter);
     RUN_TEST(test_e2e_ensure);
     RUN_TEST(test_e2e_struct);
     RUN_TEST(test_e2e_enum);
@@ -1619,7 +1619,7 @@ int main(void) {
     RUN_TEST(test_e2e_type_of);
     RUN_TEST(test_e2e_compound_assign);
     RUN_TEST(test_e2e_char);
-    RUN_TEST(test_e2e_blank_ident);
+    RUN_TEST(test_e2e_blank_identifier);
 
     /* @mem module */
     RUN_TEST(test_e2e_mem_arena_create_destroy);
@@ -1642,7 +1642,7 @@ int main(void) {
     RUN_TEST(test_e2e_mut_while_combined);
 
     /* New features */
-    RUN_TEST(test_e2e_default_params);
+    RUN_TEST(test_e2e_default_parameters);
     RUN_TEST(test_e2e_in_operator);
     RUN_TEST(test_e2e_os_args);
     RUN_TEST(test_e2e_arrays_append);
@@ -1661,11 +1661,11 @@ int main(void) {
     RUN_TEST(test_e2e_threads_sleep);
 
     /* Function references */
-    RUN_TEST(test_e2e_func_ref_basic);
-    RUN_TEST(test_e2e_func_ref_ref);
+    RUN_TEST(test_e2e_function_reference_basic);
+    RUN_TEST(test_e2e_function_reference_via_ref);
 
     /* Struct-namespaced functions */
-    RUN_TEST(test_e2e_struct_func);
+    RUN_TEST(test_e2e_struct_function);
 
     /* or_return */
     RUN_TEST(test_e2e_or_return);
@@ -1678,15 +1678,15 @@ int main(void) {
     RUN_TEST(test_e2e_named_return);
 
     /* Mutable indexed/member params */
-    RUN_TEST(test_e2e_mutable_indexed_param);
-    RUN_TEST(test_e2e_mutable_member_param);
+    RUN_TEST(test_e2e_mutable_indexed_parameter);
+    RUN_TEST(test_e2e_mutable_member_parameter);
 
     /* Map operations */
     RUN_TEST(test_e2e_map_basic);
     RUN_TEST(test_e2e_map_foreach);
 
     /* Division by zero */
-    RUN_TEST(test_e2e_div_zero);
+    RUN_TEST(test_e2e_divide_by_zero);
 
     /* Sized integer types */
     RUN_TEST(test_e2e_sized_int_i8);
@@ -1703,7 +1703,7 @@ int main(void) {
     RUN_TEST(test_e2e_continue);
 
     /* Compound assign */
-    RUN_TEST(test_e2e_mod_div_assign);
+    RUN_TEST(test_e2e_modulo_division_assign);
 
     /* Nested structs */
     RUN_TEST(test_e2e_nested_struct);
@@ -1758,7 +1758,7 @@ int main(void) {
     RUN_TEST(test_e2e_enum_compare);
 
     /* Grouped parameters */
-    RUN_TEST(test_e2e_grouped_params);
+    RUN_TEST(test_e2e_grouped_parameters);
 
     /* Scope lifetime */
     RUN_TEST(test_e2e_loop_scope);
