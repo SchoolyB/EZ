@@ -1,6 +1,9 @@
 /*
- * gray_arrays.h - arrays module for EZ
+ * gray_arrays.h — Public interface for the arrays stdlib module.
+ * Declares array manipulation functions such as append, insert,
+ * remove, sort, reverse, and search.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -25,7 +28,7 @@
  *   println(nums)
  *@end
  */
-void gray_arrays_append(EzArena *arena, EzArray *arr, const void *value);
+void gray_arrays_append(GrayArena *arena, GrayArray *arr, const void *value);
 
 /*@man insert_at
  *@module arrays
@@ -39,7 +42,7 @@ void gray_arrays_append(EzArena *arena, EzArray *arr, const void *value);
  *   println(nums)
  *@end
  */
-void gray_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const void *value);
+void gray_arrays_insert_at(GrayArena *arena, GrayArray *arr, int32_t index, const void *value);
 
 /*@man prepend
  *@module arrays
@@ -53,7 +56,7 @@ void gray_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const vo
  *   println(nums)
  *@end
  */
-void gray_arrays_prepend(EzArena *arena, EzArray *arr, const void *value);
+void gray_arrays_prepend(GrayArena *arena, GrayArray *arr, const void *value);
 
 /*@man remove_at
  *@module arrays
@@ -67,7 +70,7 @@ void gray_arrays_prepend(EzArena *arena, EzArray *arr, const void *value);
  *   println(nums)
  *@end
  */
-void gray_arrays_remove_at(EzArray *arr, int32_t index);
+void gray_arrays_remove_at(GrayArray *arr, int32_t index);
 
 /*@man remove
  *@module arrays
@@ -81,9 +84,9 @@ void gray_arrays_remove_at(EzArray *arr, int32_t index);
  *   println(nums)
  *@end
  */
-void gray_arrays_remove_int(EzArray *arr, int64_t value);
-void gray_arrays_remove_float(EzArray *arr, double value);
-void gray_arrays_remove_str(EzArray *arr, EzString value);
+void gray_arrays_remove_int(GrayArray *arr, int64_t value);
+void gray_arrays_remove_float(GrayArray *arr, double value);
+void gray_arrays_remove_str(GrayArray *arr, GrayString value);
 
 /*@man clear
  *@module arrays
@@ -97,7 +100,7 @@ void gray_arrays_remove_str(EzArray *arr, EzString value);
  *   println(nums)
  *@end
  */
-void gray_arrays_clear(EzArray *arr);
+void gray_arrays_clear(GrayArray *arr);
 
 /*@man fill
  *@module arrays
@@ -111,7 +114,7 @@ void gray_arrays_clear(EzArray *arr);
  *   println(nums)
  *@end
  */
-void gray_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t count);
+void gray_arrays_fill(GrayArena *arena, GrayArray *arr, const void *value, int32_t count);
 
 /* Access — typed via codegen cast */
 
@@ -126,7 +129,7 @@ void gray_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t c
  *   println(arrays.get_first(nums))
  *@end
  */
-void *gray_arrays_first_ptr(EzArray *arr);
+void *gray_arrays_first_ptr(GrayArray *arr);
 
 /*@man get_last
  *@module arrays
@@ -139,7 +142,7 @@ void *gray_arrays_first_ptr(EzArray *arr);
  *   println(arrays.get_last(nums))
  *@end
  */
-void *gray_arrays_last_ptr(EzArray *arr);
+void *gray_arrays_last_ptr(GrayArray *arr);
 
 /*@man remove_first
  *@module arrays
@@ -153,7 +156,7 @@ void *gray_arrays_last_ptr(EzArray *arr);
  *   println(val)
  *@end
  */
-void  gray_arrays_remove_first_raw(EzArray *arr, void *out);
+void  gray_arrays_remove_first_raw(GrayArray *arr, void *out);
 
 /*@man remove_last
  *@module arrays
@@ -167,13 +170,13 @@ void  gray_arrays_remove_first_raw(EzArray *arr, void *out);
  *   println(val)
  *@end
  */
-void  gray_arrays_remove_last_raw(EzArray *arr, void *out);
+void  gray_arrays_remove_last_raw(GrayArray *arr, void *out);
 
 /* Access — int64_t variants for internal use */
-int64_t gray_arrays_get_first(EzArray *arr);
-int64_t gray_arrays_get_last(EzArray *arr);
-int64_t gray_arrays_remove_last(EzArray *arr);
-int64_t gray_arrays_remove_first(EzArray *arr);
+int64_t gray_arrays_get_first(GrayArray *arr);
+int64_t gray_arrays_get_last(GrayArray *arr);
+int64_t gray_arrays_remove_last(GrayArray *arr);
+int64_t gray_arrays_remove_first(GrayArray *arr);
 
 /* Query */
 
@@ -188,7 +191,7 @@ int64_t gray_arrays_remove_first(EzArray *arr);
  *   println(arrays.is_empty(nums))
  *@end
  */
-bool gray_arrays_is_empty(EzArray *arr);
+bool gray_arrays_is_empty(GrayArray *arr);
 
 /*@man contains
  *@module arrays
@@ -201,9 +204,9 @@ bool gray_arrays_is_empty(EzArray *arr);
  *   println(arrays.contains(nums, 2))
  *@end
  */
-bool gray_arrays_contains_int(EzArray *arr, int64_t value);
-bool gray_arrays_contains_float(EzArray *arr, double value);
-bool gray_arrays_contains_str(EzArray *arr, EzString value);
+bool gray_arrays_contains_int(GrayArray *arr, int64_t value);
+bool gray_arrays_contains_float(GrayArray *arr, double value);
+bool gray_arrays_contains_str(GrayArray *arr, GrayString value);
 
 /*@man index_of
  *@module arrays
@@ -216,8 +219,8 @@ bool gray_arrays_contains_str(EzArray *arr, EzString value);
  *   println(arrays.index_of(nums, 20))
  *@end
  */
-int64_t gray_arrays_index_of_int(EzArray *arr, int64_t value);
-int64_t gray_arrays_index_of_str(EzArray *arr, EzString value);
+int64_t gray_arrays_index_of_int(GrayArray *arr, int64_t value);
+int64_t gray_arrays_index_of_str(GrayArray *arr, GrayString value);
 
 /*@man count
  *@module arrays
@@ -230,7 +233,7 @@ int64_t gray_arrays_index_of_str(EzArray *arr, EzString value);
  *   println(arrays.count(nums, 2))
  *@end
  */
-int64_t gray_arrays_count(EzArray *arr, int64_t value);
+int64_t gray_arrays_count(GrayArray *arr, int64_t value);
 
 /*@man is_equal
  *@module arrays
@@ -244,8 +247,8 @@ int64_t gray_arrays_count(EzArray *arr, int64_t value);
  *   println(arrays.is_equal(a, b))
  *@end
  */
-bool gray_arrays_is_equal_prim(EzArray *a, EzArray *b);
-bool gray_arrays_is_equal_str(EzArray *a, EzArray *b);
+bool gray_arrays_is_equal_prim(GrayArray *a, GrayArray *b);
+bool gray_arrays_is_equal_str(GrayArray *a, GrayArray *b);
 
 /* Transformation */
 
@@ -260,7 +263,7 @@ bool gray_arrays_is_equal_str(EzArray *a, EzArray *b);
  *   println(arrays.reverse(nums))
  *@end
  */
-EzArray gray_arrays_reverse(EzArena *arena, EzArray *arr);
+GrayArray gray_arrays_reverse(GrayArena *arena, GrayArray *arr);
 
 /*@man slice
  *@module arrays
@@ -273,7 +276,7 @@ EzArray gray_arrays_reverse(EzArena *arena, EzArray *arr);
  *   println(arrays.slice(nums, 1, 3))
  *@end
  */
-EzArray gray_arrays_slice(EzArena *arena, EzArray *arr, int32_t start, int32_t end);
+GrayArray gray_arrays_slice(GrayArena *arena, GrayArray *arr, int32_t start, int32_t end);
 
 /*@man concat
  *@module arrays
@@ -287,7 +290,7 @@ EzArray gray_arrays_slice(EzArena *arena, EzArray *arr, int32_t start, int32_t e
  *   println(arrays.concat(a, b))
  *@end
  */
-EzArray gray_arrays_concat(EzArena *arena, EzArray *a, EzArray *b);
+GrayArray gray_arrays_concat(GrayArena *arena, GrayArray *a, GrayArray *b);
 
 /*@man deduplicate
  *@module arrays
@@ -300,7 +303,7 @@ EzArray gray_arrays_concat(EzArena *arena, EzArray *a, EzArray *b);
  *   println(arrays.deduplicate(nums))
  *@end
  */
-EzArray gray_arrays_deduplicate(EzArena *arena, EzArray *arr);
+GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *arr);
 
 /*@man flatten
  *@module arrays
@@ -313,7 +316,7 @@ EzArray gray_arrays_deduplicate(EzArena *arena, EzArray *arr);
  *   println(arrays.flatten(nested))
  *@end
  */
-EzArray gray_arrays_flatten(EzArena *arena, EzArray *arr);
+GrayArray gray_arrays_flatten(GrayArena *arena, GrayArray *arr);
 
 /*@man split_every
  *@module arrays
@@ -326,7 +329,7 @@ EzArray gray_arrays_flatten(EzArena *arena, EzArray *arr);
  *   println(arrays.split_every(nums, 2))
  *@end
  */
-EzArray gray_arrays_split_every(EzArena *arena, EzArray *arr, int32_t size);
+GrayArray gray_arrays_split_every(GrayArena *arena, GrayArray *arr, int32_t size);
 
 /*@man pair
  *@module arrays
@@ -340,7 +343,7 @@ EzArray gray_arrays_split_every(EzArena *arena, EzArray *arr, int32_t size);
  *   println(arrays.pair(keys, vals))
  *@end
  */
-EzArray gray_arrays_pair(EzArena *arena, EzArray *a, EzArray *b);
+GrayArray gray_arrays_pair(GrayArena *arena, GrayArray *a, GrayArray *b);
 
 /* Computation */
 
@@ -355,7 +358,7 @@ EzArray gray_arrays_pair(EzArena *arena, EzArray *a, EzArray *b);
  *   println(arrays.get_sum(nums))
  *@end
  */
-int64_t gray_arrays_get_sum(EzArray *arr);
+int64_t gray_arrays_get_sum(GrayArray *arr);
 
 /*@man get_min
  *@module arrays
@@ -368,7 +371,7 @@ int64_t gray_arrays_get_sum(EzArray *arr);
  *   println(arrays.get_min(nums))
  *@end
  */
-int64_t gray_arrays_get_min(EzArray *arr);
+int64_t gray_arrays_get_min(GrayArray *arr);
 
 /*@man get_max
  *@module arrays
@@ -381,7 +384,7 @@ int64_t gray_arrays_get_min(EzArray *arr);
  *   println(arrays.get_max(nums))
  *@end
  */
-int64_t gray_arrays_get_max(EzArray *arr);
+int64_t gray_arrays_get_max(GrayArray *arr);
 
 /* Sort */
 
@@ -397,9 +400,9 @@ int64_t gray_arrays_get_max(EzArray *arr);
  *   println(nums)
  *@end
  */
-void gray_arrays_sort_asc(EzArray *arr);
-void gray_arrays_sort_asc_float(EzArray *arr);
-void gray_arrays_sort_asc_str(EzArray *arr);
+void gray_arrays_sort_asc(GrayArray *arr);
+void gray_arrays_sort_asc_float(GrayArray *arr);
+void gray_arrays_sort_asc_str(GrayArray *arr);
 
 /*@man sort_desc
  *@module arrays
@@ -413,9 +416,9 @@ void gray_arrays_sort_asc_str(EzArray *arr);
  *   println(nums)
  *@end
  */
-void gray_arrays_sort_desc(EzArray *arr);
-void gray_arrays_sort_desc_float(EzArray *arr);
-void gray_arrays_sort_desc_str(EzArray *arr);
+void gray_arrays_sort_desc(GrayArray *arr);
+void gray_arrays_sort_desc_float(GrayArray *arr);
+void gray_arrays_sort_desc_str(GrayArray *arr);
 
 /* Higher-Order */
 

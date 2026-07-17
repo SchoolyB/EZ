@@ -1,11 +1,15 @@
 /*
+ * typechecker.h — Public interface for the Grayscale type checker, defining
+ * the TypeChecker context, type table, struct/function signature registries,
+ * and the entry points for semantic analysis of AST programs.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_TYPECHECKER_H
-#define EZC_TYPECHECKER_H
+#ifndef GRAYC_TYPECHECKER_H
+#define GRAYC_TYPECHECKER_H
 
 #include "types.h"
 #include "scope.h"
@@ -19,7 +23,7 @@
 
 typedef struct {
     AstNode **nodes;    /* hash buckets — NULL = empty slot */
-    EzType **types;     /* parallel type array */
+    GrayType **types;     /* parallel type array */
     int count;          /* number of entries */
     int cap;            /* always a power of 2 */
 } TypeTable;
@@ -29,16 +33,16 @@ typedef struct {
     const char *struct_name;   /* flattened lookup key (may be module-prefixed) */
     const char *display_name;  /* user-facing name — for diagnostics, never the prefixed key */
     const char **field_names;
-    EzType **field_types;
+    GrayType **field_types;
     int field_count;
 } StructInfo;
 
 typedef struct {
     /* Function signature for call type checking */
     const char *name;
-    EzType **param_types;
+    GrayType **param_types;
     int param_count;
-    EzType **return_types;
+    GrayType **return_types;
     int return_count;
     bool used;          /* true if function was called */
     int def_line;       /* line where function was declared */
@@ -108,7 +112,7 @@ typedef struct {
     /* Control flow tracking */
     int loop_depth;               /* >0 means inside a loop */
     int func_depth;               /* >0 means inside a function body */
-    EzType **current_return_types; /* expected return types of current function */
+    GrayType **current_return_types; /* expected return types of current function */
     const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;
     bool current_has_named_returns; /* true if current function uses named return values */
@@ -171,7 +175,7 @@ typedef struct {
      * Set before resolving expressions where the target enum type is
      * known (assignments, function args, when/is, comparisons, returns).
      * Cleared after use to prevent stale context. */
-    EzType *expected_type;
+    GrayType *expected_type;
 
     /* Type-level generic parameters (<?> syntax).
      * type_param_name is the parameter name (e.g. "T") during body check.
@@ -198,8 +202,8 @@ void typechecker_check(TypeChecker *tc, AstNode *program);
 void typechecker_free(TypeChecker *tc);
 
 /* Query the type table (used by codegen) */
-EzType *typetable_get(TypeTable *tt, AstNode *node);
-void typetable_set(TypeTable *tt, AstNode *node, EzType *type);
+GrayType *typetable_get(TypeTable *tt, AstNode *node);
+void typetable_set(TypeTable *tt, AstNode *node, GrayType *type);
 
 /* Get the type table from the checker */
 TypeTable *typechecker_get_table(TypeChecker *tc);

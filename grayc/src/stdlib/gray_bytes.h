@@ -1,6 +1,9 @@
 /*
- * gray_bytes.h - @bytes module for EZ
+ * gray_bytes.h — Public interface for the bytes stdlib module.
+ * Declares functions for converting between strings, byte arrays,
+ * hex, and base64 representations.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -80,11 +83,11 @@
  *@end
  */
 
-EzArray gray_bytes_from_string(EzArena *arena, EzString s);
-EzString gray_bytes_to_string(EzArena *arena, EzArray *bytes);
-EzArray gray_bytes_from_hex(EzArena *arena, EzString hex);
-EzString gray_bytes_to_hex(EzArena *arena, EzArray *bytes);
-EzArray gray_bytes_from_base64(EzArena *arena, EzString b64);
-EzString gray_bytes_to_base64(EzArena *arena, EzArray *bytes);
+GrayArray gray_bytes_from_string(GrayArena *arena, GrayString s);
+GrayString gray_bytes_to_string(GrayArena *arena, GrayArray *bytes);
+GrayArray gray_bytes_from_hex(GrayArena *arena, GrayString hex);
+GrayString gray_bytes_to_hex(GrayArena *arena, GrayArray *bytes);
+GrayArray gray_bytes_from_base64(GrayArena *arena, GrayString b64);
+GrayString gray_bytes_to_base64(GrayArena *arena, GrayArray *bytes);
 
 #endif

@@ -1,6 +1,8 @@
 /*
- * types.c - Type representation
+ * types.c — Defines built-in type singletons and provides constructors for
+ * composite types such as arrays, maps, pointers, and function signatures.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -14,24 +16,24 @@
 #include <stdint.h>
 
 /* Built-in type singletons */
-EzType TYPE_VOID    = {TK_VOID,   "void",   NULL, NULL, NULL, NULL};
-EzType TYPE_INT     = {TK_INT,    "int",    NULL, NULL, NULL, NULL};
-EzType TYPE_UINT    = {TK_UINT,   "uint",   NULL, NULL, NULL, NULL};
-EzType TYPE_FLOAT   = {TK_FLOAT,  "float",  NULL, NULL, NULL, NULL};
-EzType TYPE_BOOL    = {TK_BOOL,   "bool",   NULL, NULL, NULL, NULL};
-EzType TYPE_CHAR    = {TK_CHAR,   "char",   NULL, NULL, NULL, NULL};
-EzType TYPE_BYTE    = {TK_BYTE,   "byte",   NULL, NULL, NULL, NULL};
-EzType TYPE_STRING  = {TK_STRING, "string", NULL, NULL, NULL, NULL};
-EzType TYPE_NIL     = {TK_NIL,    "nil",    NULL, NULL, NULL, NULL};
-EzType TYPE_UNKNOWN = {TK_UNKNOWN,"unknown",NULL, NULL, NULL, NULL};
+GrayType TYPE_VOID    = {TK_VOID,   "void",   NULL, NULL, NULL, NULL};
+GrayType TYPE_INT     = {TK_INT,    "int",    NULL, NULL, NULL, NULL};
+GrayType TYPE_UINT    = {TK_UINT,   "uint",   NULL, NULL, NULL, NULL};
+GrayType TYPE_FLOAT   = {TK_FLOAT,  "float",  NULL, NULL, NULL, NULL};
+GrayType TYPE_BOOL    = {TK_BOOL,   "bool",   NULL, NULL, NULL, NULL};
+GrayType TYPE_CHAR    = {TK_CHAR,   "char",   NULL, NULL, NULL, NULL};
+GrayType TYPE_BYTE    = {TK_BYTE,   "byte",   NULL, NULL, NULL, NULL};
+GrayType TYPE_STRING  = {TK_STRING, "string", NULL, NULL, NULL, NULL};
+GrayType TYPE_NIL     = {TK_NIL,    "nil",    NULL, NULL, NULL, NULL};
+GrayType TYPE_UNKNOWN = {TK_UNKNOWN,"unknown",NULL, NULL, NULL, NULL};
 
 #define TYPE_POOL_CAPACITY 4096
 
 /* Pool for dynamically created types (leak on exit, fine for a compiler) */
-static EzType type_pool[TYPE_POOL_CAPACITY];
+static GrayType type_pool[TYPE_POOL_CAPACITY];
 static int type_pool_count = 0;
 
-EzType *type_alloc(void) {
+GrayType *type_alloc(void) {
     if (type_pool_count >= TYPE_POOL_CAPACITY) {
         fprintf(stderr, "error: type pool exhausted (%d types); please report this bug\n", TYPE_POOL_CAPACITY);
         exit(1);
@@ -46,7 +48,7 @@ EzType *type_alloc(void) {
 typedef struct {
     TypeKind kind;
     const char *name;  /* points into the pool entry's name — not a copy */
-    EzType    *type;   /* NULL = empty slot */
+    GrayType    *type;   /* NULL = empty slot */
 } TypeHashEntry;
 
 static TypeHashEntry type_hash_table[TYPE_HASH_CAP];
@@ -59,7 +61,7 @@ static uint32_t type_hash(TypeKind kind, const char *name) {
 }
 
 /* Return an existing pool entry matching kind+name, or NULL if not found. */
-static EzType *pool_find(TypeKind kind, const char *name) {
+static GrayType *pool_find(TypeKind kind, const char *name) {
     if (!name) return NULL;
     uint32_t mask = TYPE_HASH_CAP - 1;
     uint32_t idx  = type_hash(kind, name) & mask;
@@ -72,7 +74,7 @@ static EzType *pool_find(TypeKind kind, const char *name) {
 }
 
 /* Insert a newly created type into the hash index. */
-static void pool_insert(TypeKind kind, const char *name, EzType *t) {
+static void pool_insert(TypeKind kind, const char *name, GrayType *t) {
     uint32_t mask = TYPE_HASH_CAP - 1;
     uint32_t idx  = type_hash(kind, name) & mask;
     for (;;) {
@@ -87,10 +89,10 @@ static void pool_insert(TypeKind kind, const char *name, EzType *t) {
     }
 }
 
-EzType *type_array(const char *elem_type) {
-    EzType *existing = pool_find(TK_ARRAY, elem_type);
+GrayType *type_array(const char *elem_type) {
+    GrayType *existing = pool_find(TK_ARRAY, elem_type);
     if (existing) return existing;
-    EzType *t = type_alloc();
+    GrayType *t = type_alloc();
     t->kind = TK_ARRAY;
     const char *dup = strdup(elem_type);
     t->element_type = dup;
@@ -99,30 +101,30 @@ EzType *type_array(const char *elem_type) {
     return t;
 }
 
-EzType *type_struct(const char *name) {
-    EzType *existing = pool_find(TK_STRUCT, name);
+GrayType *type_struct(const char *name) {
+    GrayType *existing = pool_find(TK_STRUCT, name);
     if (existing) return existing;
-    EzType *t = type_alloc();
+    GrayType *t = type_alloc();
     t->kind = TK_STRUCT;
     t->name = strdup(name);
     pool_insert(TK_STRUCT, t->name, t);
     return t;
 }
 
-EzType *type_enum(const char *name) {
-    EzType *existing = pool_find(TK_ENUM, name);
+GrayType *type_enum(const char *name) {
+    GrayType *existing = pool_find(TK_ENUM, name);
     if (existing) return existing;
-    EzType *t = type_alloc();
+    GrayType *t = type_alloc();
     t->kind = TK_ENUM;
     t->name = strdup(name);
     pool_insert(TK_ENUM, t->name, t);
     return t;
 }
 
-EzType *type_pointer(const char *pointee_type) {
-    EzType *existing = pool_find(TK_POINTER, pointee_type);
+GrayType *type_pointer(const char *pointee_type) {
+    GrayType *existing = pool_find(TK_POINTER, pointee_type);
     if (existing) return existing;
-    EzType *t = type_alloc();
+    GrayType *t = type_alloc();
     t->kind = TK_POINTER;
     const char *dup = strdup(pointee_type);
     t->element_type = dup;
@@ -181,12 +183,12 @@ static void split_top_commas(const char *src, int start, int end,
 }
 
 /* Parse "func(p1,&p2,...)->R" or "func(...)->()" or "func(...)->(R1,R2)"
- * into an EzFuncSig. Returns NULL if the string isn't well-formed. */
-static EzFuncSig *parse_func_sig(const char *name) {
+ * into an GrayFuncSig. Returns NULL if the string isn't well-formed. */
+static GrayFuncSig *parse_func_sig(const char *name) {
     if (strncmp(name, "func(", 5) != 0) return NULL;
     int rparen = find_matching_paren(name, 4);
     if (rparen < 0) return NULL;
-    EzFuncSig *sig = (EzFuncSig *)xmalloc(sizeof(EzFuncSig));
+    GrayFuncSig *sig = (GrayFuncSig *)xmalloc(sizeof(GrayFuncSig));
     sig->param_count = 0;
     sig->param_types = NULL;
     sig->param_mutable = NULL;
@@ -244,7 +246,7 @@ static EzFuncSig *parse_func_sig(const char *name) {
 
 void type_pool_reset(void) {
     for (int i = 0; i < type_pool_count; i++) {
-        EzType *t = &type_pool[i];
+        GrayType *t = &type_pool[i];
         switch (t->kind) {
         case TK_STRUCT:
         case TK_ENUM:
@@ -285,17 +287,17 @@ void type_pool_reset(void) {
     memset(type_hash_table, 0, sizeof(type_hash_table));
 }
 
-bool type_is_numeric(EzType *t) {
+bool type_is_numeric(GrayType *t) {
     return t->kind == TK_INT || t->kind == TK_UINT || t->kind == TK_FLOAT ||
            t->kind == TK_CHAR || t->kind == TK_BYTE;
 }
 
-bool type_is_integer(EzType *t) {
+bool type_is_integer(GrayType *t) {
     return t->kind == TK_INT || t->kind == TK_UINT ||
            t->kind == TK_CHAR || t->kind == TK_BYTE;
 }
 
-bool type_eq(EzType *a, EzType *b) {
+bool type_eq(GrayType *a, GrayType *b) {
     if (a->kind != b->kind) return false;
     if (a->kind == TK_STRUCT || a->kind == TK_ENUM) {
         return strcmp(a->name, b->name) == 0;
@@ -314,7 +316,7 @@ bool type_eq(EzType *a, EzType *b) {
     return true;
 }
 
-const char *type_name(EzType *t) {
+const char *type_name(GrayType *t) {
     if (!t) return "unknown";
     /* Pointer types store the bare pointee in t->name (and t->element_type).
      * Render them with the leading '^' so error messages match source syntax.
@@ -351,7 +353,7 @@ const char *type_name(EzType *t) {
  * name (uppercase precedes lowercase in ASCII), validated by bsearch. */
 typedef struct {
     const char *name;
-    EzType *singleton;   /* non-NULL: return this singleton directly */
+    GrayType *singleton;   /* non-NULL: return this singleton directly */
     int alloc_kind;      /* used when singleton is NULL: pool-alloc with this kind */
     const char *alloc_name; /* if non-NULL, set t->name to this literal instead of strdup(name) */
 } BuiltinTypeEntry;
@@ -391,15 +393,15 @@ static int builtin_type_cmp(const void *a, const void *b) {
                   ((const BuiltinTypeEntry *)b)->name);
 }
 
-EzType *type_from_name(const char *name) {
+GrayType *type_from_name(const char *name) {
     if (!name) return &TYPE_UNKNOWN;
 
     /* Typed function reference: "func(p1,&p2)->R" — checked before bsearch
      * so "func(...)" doesn't get conflated with the bare "func" entry. */
     if (strncmp(name, "func(", 5) == 0) {
-        EzType *existing = pool_find(TK_FUNCTION, name);
+        GrayType *existing = pool_find(TK_FUNCTION, name);
         if (existing) return existing;
-        EzType *t = type_alloc();
+        GrayType *t = type_alloc();
         t->kind = TK_FUNCTION;
         t->name = strdup(name);
         t->func_sig = parse_func_sig(name);
@@ -413,9 +415,9 @@ EzType *type_from_name(const char *name) {
     if (hit) {
         if (hit->singleton) return hit->singleton;
         const char *resolved_name = hit->alloc_name ? hit->alloc_name : name;
-        EzType *existing = pool_find(hit->alloc_kind, resolved_name);
+        GrayType *existing = pool_find(hit->alloc_kind, resolved_name);
         if (existing) return existing;
-        EzType *t = type_alloc();
+        GrayType *t = type_alloc();
         t->kind = hit->alloc_kind;
         t->name = hit->alloc_name ? hit->alloc_name : strdup(name);
         pool_insert(t->kind, t->name, t);
@@ -437,7 +439,7 @@ EzType *type_from_name(const char *name) {
             /* Strip ",N" suffix for fixed-size arrays like [string,3] */
             char *comma = strchr(elem, ',');
             if (comma) *comma = '\0';
-            EzType *arr = type_array(elem);
+            GrayType *arr = type_array(elem);
             free(elem);
             return arr;
         }
@@ -445,9 +447,9 @@ EzType *type_from_name(const char *name) {
 
     /* Map type: map[K:V] */
     if (strncmp(name, "map[", 4) == 0) {
-        EzType *existing = pool_find(TK_MAP, name);
+        GrayType *existing = pool_find(TK_MAP, name);
         if (existing) return existing;
-        EzType *t = type_alloc();
+        GrayType *t = type_alloc();
         t->kind = TK_MAP;
         t->name = strdup(name);
         /* Parse key:value types from "map[string:int]" */
@@ -490,14 +492,14 @@ EzType *type_from_name(const char *name) {
 
     /* Uppercase = enum or struct type, or module-prefixed: mod_Name */
     if (name[0] >= 'A' && name[0] <= 'Z') {
-        EzType *existing = pool_find(TK_ENUM, name);
+        GrayType *existing = pool_find(TK_ENUM, name);
         if (existing) return existing;
         return type_struct(name);
     }
     {
         const char *us = strchr(name, '_');
         if (us && us[1] >= 'A' && us[1] <= 'Z') {
-            EzType *existing = pool_find(TK_ENUM, name);
+            GrayType *existing = pool_find(TK_ENUM, name);
             if (existing) return existing;
             /* Normalize module-qualified stdlib opaque types: e.g.
              * channels_Channel → Channel so they match the canonical

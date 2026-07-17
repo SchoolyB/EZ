@@ -1,8 +1,9 @@
 /*
- * gray_mem.h - @mem module for EZ (memory management)
+ * gray_mem.h — Public interface for the mem stdlib module.
+ * Declares arena creation, destruction, reset, usage queries, and
+ * raw memory copy/zero operations for manual memory management.
  *
- * Manual memory management via arena allocation.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -14,16 +15,16 @@
 #include "../runtime/gray_array.h"
 
 /* mem.arena(size) — create a new arena with initial block size */
-EzArena *gray_mem_arena(int64_t size);
+GrayArena *gray_mem_arena(int64_t size);
 
 /* mem.destroy(arena) — destroy an arena and free all its memory */
-void gray_mem_destroy(EzArena *arena, const char *file, int line);
+void gray_mem_destroy(GrayArena *arena, const char *file, int line);
 
 /* mem.reset(arena) — reset arena for reuse (keeps allocated blocks) */
-void gray_mem_reset(EzArena *arena);
+void gray_mem_reset(GrayArena *arena);
 
 /* mem.usage(arena) — return bytes currently used in the arena */
-int64_t gray_mem_usage(EzArena *arena);
+int64_t gray_mem_usage(GrayArena *arena);
 
 /*
  * mem.alloc(arena, value) is handled by the codegen directly —

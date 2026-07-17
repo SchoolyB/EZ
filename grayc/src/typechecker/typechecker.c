@@ -1,8 +1,8 @@
 /*
+ * typechecker.c — Walks the AST to resolve expression types, enforce type
+ * correctness, and build a type table that codegen can query at emission time.
  *
- * Walks the AST, resolves expression types, checks type correctness,
- * and builds a type table that the codegen can query.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -58,18 +58,18 @@ TypeTable *typetable_create(void) {
     TypeTable *tt = xcalloc(1, sizeof(TypeTable));
     tt->cap = TYPETABLE_INIT_CAP;
     tt->nodes = xcalloc((size_t)tt->cap, sizeof(AstNode *));
-    tt->types = xcalloc((size_t)tt->cap, sizeof(EzType *));
+    tt->types = xcalloc((size_t)tt->cap, sizeof(GrayType *));
     return tt;
 }
 
 static void typetable_grow(TypeTable *tt) {
     int old_cap = tt->cap;
     AstNode **old_nodes = tt->nodes;
-    EzType **old_types = tt->types;
+    GrayType **old_types = tt->types;
 
     tt->cap = old_cap * 2;
     tt->nodes = xcalloc((size_t)tt->cap, sizeof(AstNode *));
-    tt->types = xcalloc((size_t)tt->cap, sizeof(EzType *));
+    tt->types = xcalloc((size_t)tt->cap, sizeof(GrayType *));
     tt->count = 0;
 
     for (int i = 0; i < old_cap; i++) {
@@ -81,7 +81,7 @@ static void typetable_grow(TypeTable *tt) {
     free(old_types);
 }
 
-void typetable_set(TypeTable *tt, AstNode *node, EzType *type) {
+void typetable_set(TypeTable *tt, AstNode *node, GrayType *type) {
     /* Grow at 70% load factor */
     if (tt->count * 10 >= tt->cap * 7) {
         typetable_grow(tt);
@@ -107,7 +107,7 @@ void typetable_set(TypeTable *tt, AstNode *node, EzType *type) {
     }
 }
 
-EzType *typetable_get(TypeTable *tt, AstNode *node) {
+GrayType *typetable_get(TypeTable *tt, AstNode *node) {
     if (!tt || !tt->nodes) return NULL;
 
     uint32_t mask = (uint32_t)(tt->cap - 1);
@@ -131,7 +131,7 @@ static bool strset_contains(const char *const *sorted, int n, const char *name) 
 
 /* Forward declaration — resolve_expr is defined later but needed by helper
  * routines and stdlib arg-type validation. */
-static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
+static GrayType *resolve_expr(TypeChecker *tc, AstNode *node);
 
 /* Return the user-facing display string for an operator TokenType.
  * Used in error messages that embed the operator name. */
@@ -216,7 +216,7 @@ static bool path_contains_map_index(TypeChecker *tc, AstNode *e) {
     case NODE_MEMBER_EXPR:
         return path_contains_map_index(tc, e->data.member.object);
     case NODE_INDEX_EXPR: {
-        EzType *left_t = resolve_expr(tc, e->data.index_expr.left);
+        GrayType *left_t = resolve_expr(tc, e->data.index_expr.left);
         if (left_t && left_t->kind == TK_MAP) return true;
         return path_contains_map_index(tc, e->data.index_expr.left);
     }
@@ -231,7 +231,7 @@ static bool path_contains_map_index(TypeChecker *tc, AstNode *e) {
 
 static void register_struct(TypeChecker *tc, const char *name,
     const char *display_name,
-    const char **field_names, EzType **field_types, int field_count) {
+    const char **field_names, GrayType **field_types, int field_count) {
     if (tc->struct_count >= tc->struct_cap) {
         tc->struct_cap = tc->struct_cap ? tc->struct_cap * 2 : 8;
         tc->structs = xrealloc(tc->structs, sizeof(StructInfo) * tc->struct_cap);
@@ -344,8 +344,8 @@ static bool tc_same_enum_type(TypeChecker *tc, const char *a, const char *b) {
  * aliases (e.g. "Item" vs "utils_Item" should match). */
 static bool tc_same_array_elem(TypeChecker *tc, const char *a, const char *b) {
     if (strcmp(a, b) == 0) return true;
-    EzType *at = type_from_name(a);
-    EzType *bt = type_from_name(b);
+    GrayType *at = type_from_name(a);
+    GrayType *bt = type_from_name(b);
     if (at && bt && at->kind == TK_STRUCT && bt->kind == TK_STRUCT)
         return tc_same_struct_type(tc, a, b);
     if (at && bt && at->kind == TK_ENUM && bt->kind == TK_ENUM)
@@ -369,7 +369,7 @@ static bool tc_enum_is_tagged(TypeChecker *tc, const char *name) {
  * is the user-facing name, never the module-prefixed lookup key. Composite
  * types (pointers, arrays, maps) recurse into their inner types so that
  * e.g. ^myutils_Thing displays as ^Thing. */
-static const char *type_display_name(TypeChecker *tc, EzType *t) {
+static const char *type_display_name(TypeChecker *tc, GrayType *t) {
     if (!t) return type_name(t);
     if (t->kind == TK_STRUCT && t->name) return struct_display_name(tc, t->name);
     if (t->kind == TK_ENUM && t->name) return enum_display_name(tc, t->name);
@@ -420,7 +420,7 @@ static char *tc_fmt(TypeChecker *tc, const char *fmt, ...) {
 
 static AstNode *find_struct_in_program(AstNode *program, const char *name);
 
-static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const char *field) {
+static GrayType *struct_field_type(TypeChecker *tc, const char *struct_name, const char *field) {
     StructInfo *si = find_struct(tc, struct_name);
     /* : for mangled generic struct names (Pair__int), fall back
      * to the base name (Pair) since fields are registered there.
@@ -446,7 +446,7 @@ static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const
             /* : if the field type is ? (registered as TK_UNKNOWN)
              * and we have a generic binding from the mangled name,
              * substitute to the concrete type. Check the raw decl
-             * type_name since the resolved EzType lost the "?" marker. */
+             * type_name since the resolved GrayType lost the "?" marker. */
             if (generic_binding && si->field_types[i]->kind == TK_UNKNOWN) {
                 /* Find the raw struct decl to check the field type_name */
                 if (tc->program) {
@@ -493,8 +493,8 @@ static bool type_name_has_wildcard(const char *tn) {
 }
 
 static void register_func(TypeChecker *tc, const char *name,
-    EzType **param_types, int param_count,
-    EzType **return_types, int return_count) {
+    GrayType **param_types, int param_count,
+    GrayType **return_types, int return_count) {
     if (tc->func_count >= tc->func_cap) {
         tc->func_cap = tc->func_cap ? tc->func_cap * 2 : 16;
         tc->funcs = xrealloc(tc->funcs, sizeof(FuncSig) * tc->func_cap);
@@ -638,10 +638,10 @@ static char *bind_wildcard_str(const char *param_tn, const char *arg_tn) {
 }
 
 /* Derive the concrete type that '?' binds to given the parameter's type
- * string and the resolved argument EzType. Delegates to bind_wildcard_str
+ * string and the resolved argument GrayType. Delegates to bind_wildcard_str
  * so composite nesting (arrays-of-arrays, maps-of-arrays, etc.) is handled
  * recursively. Caller owns the returned string. */
-static char *bind_wildcard(const char *param_tn, EzType *arg_t) {
+static char *bind_wildcard(const char *param_tn, GrayType *arg_t) {
     if (!param_tn || !arg_t) return NULL;
     return bind_wildcard_str(param_tn, type_name(arg_t));
 }
@@ -865,7 +865,7 @@ static int fallible_type_entry_cmp(const void *a, const void *b) {
 #define FALLIBLE_TYPE_TABLE_N (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0]))
 static const FallibleTypeEntry *fallible_type_sorted[FALLIBLE_TYPE_TABLE_N];
 
-static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
+static GrayType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
     FallibleTypeEntry key = { .mod = mod, .fn = fn };
     const FallibleTypeEntry *key_ptr = &key;
     const FallibleTypeEntry **hit = bsearch(&key_ptr, fallible_type_sorted, FALLIBLE_TYPE_TABLE_N,
@@ -1271,7 +1271,7 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"math", "distance", 2, ARG_NUMBER}, {"math", "distance", 3, ARG_NUMBER},
 };
 
-static bool arg_kind_matches(ExpectedArgKind expected, EzType *actual) {
+static bool arg_kind_matches(ExpectedArgKind expected, GrayType *actual) {
     if (!actual || actual->kind == TK_UNKNOWN) return true; /* can't validate */
     switch (expected) {
     case ARG_STRING: return actual->kind == TK_STRING;
@@ -1334,7 +1334,7 @@ static void tc_check_stdlib_arg_types(TypeChecker *tc, const char *mod,
         const StdlibArgTypeEntry *e = *hit;
         int idx = e->arg_index;
         if (idx < node->data.call.arg_count) {
-            EzType *arg_t = resolve_expr(tc, node->data.call.args[idx]);
+            GrayType *arg_t = resolve_expr(tc, node->data.call.args[idx]);
             if (!arg_kind_matches(e->kind, arg_t)) {
                 char *msg = NULL;
                 msg = tc_fmt(tc,
@@ -1827,7 +1827,7 @@ static int tc_find_import_index(TypeChecker *tc, const char *mod) {
 }
 
 /* Single-pass lookup: marks import used and returns the type (NULL = not found). */
-static EzType *tc_lookup_using_constant(TypeChecker *tc, const char *name) {
+static GrayType *tc_lookup_using_constant(TypeChecker *tc, const char *name) {
     for (int ui = 0; ui < tc->using_module_count; ui++) {
         if (!using_module_accessible(tc, ui)) continue;
         const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
@@ -1879,9 +1879,9 @@ static void register_enum(TypeChecker *tc, const char *name,
 
 /* Resolve a type name, returning TK_ENUM for known enum names instead of
  * the default TK_STRUCT that type_from_name() produces for uppercase names. */
-static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
+static GrayType *tc_type_from_name(TypeChecker *tc, const char *name) {
     if (name && is_enum_name(tc, name)) return type_enum(name);
-    EzType *t = type_from_name(name);
+    GrayType *t = type_from_name(name);
     /* : try prefixed type names from using-modules so bare
      * "Point" resolves to "shapes_Point" when shapes is using'd.
      * type_from_name returns TK_STRUCT for any capitalized name
@@ -1901,7 +1901,7 @@ static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
          * aren't registered as structs or enums. During registration we must
          * allow forward references, so only enforce this in later passes.
          * Exempt built-in types that are mapped directly in codegen without
-         * struct registration (e.g. Error → EzError*). */
+         * struct registration (e.g. Error → GrayError*). */
         if (!tc->registering && strcmp(name, "Error") != 0) {
             return &TYPE_UNKNOWN;
         }
@@ -2210,7 +2210,7 @@ static bool check_integer_range(DiagnosticList *diag, const char *file,
 static AstNode *find_struct_in_program(AstNode *program, const char *name);
 
 static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
-                                    EzType *t, const char *context) {
+                                    GrayType *t, const char *context) {
     if (!t || t->kind != TK_VOID || !expr) return;
     char *msg = NULL;
     if (expr->kind == NODE_CALL_EXPR && expr->data.call.function &&
@@ -2241,9 +2241,9 @@ static void emit_unknown_stdlib_fn(TypeChecker *tc, const char *mod,
 
 /* Resolve .VARIANT implicit enum selector using expected type context.
  * Sets node->data.implicit_enum.resolved_enum on success. */
-static EzType *resolve_implicit_enum(TypeChecker *tc, AstNode *node) {
+static GrayType *resolve_implicit_enum(TypeChecker *tc, AstNode *node) {
     const char *variant = node->data.implicit_enum.variant;
-    EzType *expected = tc->expected_type;
+    GrayType *expected = tc->expected_type;
 
     /* No type context — emit E3110 */
     if (!expected || expected->kind != TK_ENUM || !expected->name) {
@@ -2281,7 +2281,7 @@ static EzType *resolve_implicit_enum(TypeChecker *tc, AstNode *node) {
     return type_enum(enum_name);
 }
 
-static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
+static GrayType *resolve_expr(TypeChecker *tc, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
     /* Memoize: if we already resolved this node, return the cached type.
@@ -2296,7 +2296,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
      * their concrete instantiations. Without this bypass, the cached
      * TK_UNKNOWN from the main pass short-circuits the resolution and
      * the inner function's binding never gets recorded. */
-    EzType *cached = typetable_get(tc->type_table, node);
+    GrayType *cached = typetable_get(tc->type_table, node);
     /* : bypass the cache entirely during the re-check pass
      * (suppress_typetable_writes). The re-check walks generic bodies
      * with concrete param bindings; stale TK_UNKNOWN entries from the
@@ -2305,7 +2305,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     if (cached && !tc->suppress_typetable_writes)
         return cached;
 
-    EzType *result = &TYPE_UNKNOWN;
+    GrayType *result = &TYPE_UNKNOWN;
 
     switch (node->kind) {
     case NODE_INT_VALUE:
@@ -2324,7 +2324,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         /* Resolve types of all interpolation parts */
         for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
             AstNode *part = node->data.interpolated_string.parts[i];
-            EzType *pt = resolve_expr(tc, part);
+            GrayType *pt = resolve_expr(tc, part);
             /* Only check non-literal parts (the ${expr} expressions) */
             if (part->kind == NODE_STRING_VALUE || !pt) continue;
             /* Interpolation expressions are re-lexed by a sub-lexer on
@@ -2449,7 +2449,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else if (tc_lookup_using_constant(tc, name)) {
             result = tc_lookup_using_constant(tc, name);
         } else if (tc_is_builtin(name)) {
-            EzType *bt = type_from_name(name);
+            GrayType *bt = type_from_name(name);
             if (bt != &TYPE_UNKNOWN) {
                 /* Builtin type name (int, i128, float, etc.) used as a
                  * bare label — valid as an argument to size_of(Type). */
@@ -2507,7 +2507,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_PREFIX_EXPR: {
-        EzType *right = resolve_expr(tc, node->data.prefix.right);
+        GrayType *right = resolve_expr(tc, node->data.prefix.right);
         if (node->data.prefix.op == TOK_BANG) {
             if (right->kind != TK_BOOL && right->kind != TK_UNKNOWN) {
                 diag_error_codef(tc->diag, "E3090", NODE_FILE(tc, node), node->token.line, node->token.column, 0, type_display_name(tc, right));
@@ -2534,14 +2534,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_INFIX_EXPR: {
         TokenType op = node->data.infix.op;
-        EzType *left = resolve_expr(tc, node->data.infix.left);
+        GrayType *left = resolve_expr(tc, node->data.infix.left);
         /* For == and !=, set expected_type so .VARIANT on the RHS
          * can resolve against the LHS enum type. */
-        EzType *saved_infix_expected = tc->expected_type;
+        GrayType *saved_infix_expected = tc->expected_type;
         if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
             left && left->kind == TK_ENUM && left->name)
             tc->expected_type = left;
-        EzType *right = resolve_expr(tc, node->data.infix.right);
+        GrayType *right = resolve_expr(tc, node->data.infix.right);
         tc->expected_type = saved_infix_expected;
 
         /* : track whether any op-specific check has rejected the
@@ -2678,7 +2678,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* E3092: nil compared to a non-nullable type */
         if (!infix_errored && (op == TOK_EQ || op == TOK_NOT_EQ)) {
-            EzType *non_nil = NULL;
+            GrayType *non_nil = NULL;
             if (left->kind == TK_NIL && right->kind != TK_UNKNOWN && right->kind != TK_NIL &&
                 right->kind != TK_POINTER && right->kind != TK_ERROR)
                 non_nil = right;
@@ -2715,7 +2715,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (!infix_errored &&
             (op == TOK_PLUS || op == TOK_MINUS ||
              op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
-            EzType *bad = NULL;
+            GrayType *bad = NULL;
             if (left->kind == TK_MAP || left->kind == TK_ARRAY || left->kind == TK_STRUCT)
                 bad = left;
             else if (right->kind == TK_MAP || right->kind == TK_ARRAY || right->kind == TK_STRUCT)
@@ -2899,14 +2899,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             const char *left_tn = type_name(left);
             const char *right_tn = type_name(right);
             if (right->kind == TK_ARRAY && right->element_type) {
-                EzType *elem = type_from_name(right->element_type);
+                GrayType *elem = type_from_name(right->element_type);
                 if (elem->kind != TK_UNKNOWN && left->kind != elem->kind &&
                     !(is_int_kind(left->kind) && is_int_kind(elem->kind)) &&
                     !(left->name && strcmp(left->name, right->element_type) == 0)) {
                     mismatch = true;
                 }
             } else if (right->kind == TK_MAP && right->key_type) {
-                EzType *key = type_from_name(right->key_type);
+                GrayType *key = type_from_name(right->key_type);
                 if (key->kind != TK_UNKNOWN && left->kind != key->kind &&
                     !(is_int_kind(left->kind) && is_int_kind(key->kind)) &&
                     !(left->name && strcmp(left->name, right->key_type) == 0)) {
@@ -2978,7 +2978,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_POSTFIX_EXPR: {
-        EzType *left_t = resolve_expr(tc, node->data.postfix.left);
+        GrayType *left_t = resolve_expr(tc, node->data.postfix.left);
         if (node->data.postfix.op == TOK_CARET) {
             if (left_t->kind == TK_POINTER) {
                 /* Dereference: ^T^ → T */
@@ -3171,7 +3171,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (arr_sym && arr_sym->type && arr_sym->type->kind == TK_ARRAY &&
                 arr_sym->type->element_type &&
                 strncmp(arr_sym->type->element_type, "func(", 5) == 0) {
-                EzType *elem_t = type_from_name(arr_sym->type->element_type);
+                GrayType *elem_t = type_from_name(arr_sym->type->element_type);
                 if (elem_t && elem_t->func_sig &&
                     elem_t->func_sig->return_count > 0 &&
                     elem_t->func_sig->return_types[0]) {
@@ -3186,7 +3186,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (fn->kind == NODE_IMPLICIT_ENUM) {
             const char *vname = fn->data.implicit_enum.variant;
             /* Resolve enum from expected_type */
-            EzType *et = tc->expected_type;
+            GrayType *et = tc->expected_type;
             if (et && et->kind == TK_ENUM && et->name) {
                 fn->data.implicit_enum.resolved_enum = et->name;
                 int eidx = -1;
@@ -3209,8 +3209,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             diag_error_codef(tc->diag, "E3113", NODE_FILE(tc, node), node->token.line, node->token.column, 0, vname, tc->enum_display_names[eidx], expected_pc, got_ac);
                         } else {
                             for (int ai = 0; ai < got_ac; ai++) {
-                                EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
-                                EzType *exp_t = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][ai]);
+                                GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                GrayType *exp_t = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][ai]);
                                 if (arg_t && exp_t &&
                                     arg_t->kind != TK_UNKNOWN && exp_t->kind != TK_UNKNOWN &&
                                     arg_t->kind != exp_t->kind &&
@@ -3368,8 +3368,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     /* Validate each arg type against payload type */
                     for (int ai = 0; ai < got_ac; ai++) {
-                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
-                        EzType *expected_t = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][ai]);
+                        GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        GrayType *expected_t = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][ai]);
                         if (arg_t && expected_t &&
                             arg_t->kind != TK_UNKNOWN && expected_t->kind != TK_UNKNOWN &&
                             arg_t->kind != expected_t->kind &&
@@ -3426,7 +3426,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 /* Validate arguments; reject types that don't translate to C */
                 for (int ai = 0; ai < node->data.call.arg_count; ai++) {
-                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                    GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                     if (!arg_t || arg_t->kind == TK_UNKNOWN) continue;
                     /* Reject bigint types */
                     if (arg_t->name &&
@@ -3514,12 +3514,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "maps") == 0) {
                 if (strcmp(mfn, "get_keys") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *map_t = resolve_expr(tc, node->data.call.args[0]);
                         result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
                     } else result = type_array("string");
                 } else if (strcmp(mfn, "get_values") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *map_t = resolve_expr(tc, node->data.call.args[0]);
                         result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
                     } else result = type_array("string");
                 } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
@@ -3543,7 +3543,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 /* E12001: maps functions require map argument */
                 if (node->data.call.arg_count > 0) {
                     AstNode *arg0 = node->data.call.args[0];
-                    EzType *arg0_t = typetable_get(tc->type_table, arg0);
+                    GrayType *arg0_t = typetable_get(tc->type_table, arg0);
                     if (arg0_t && arg0_t->kind == TK_ARRAY) {
                         diag_error_codef(tc->diag, "E12001", NODE_FILE(tc, arg0), arg0->token.line, arg0->token.column, 0, mfn);
                     }
@@ -3555,8 +3555,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
                     AstNode *a0 = node->data.call.args[0];
                     AstNode *a1 = node->data.call.args[1];
-                    EzType *t0 = typetable_get(tc->type_table, a0);
-                    EzType *t1 = typetable_get(tc->type_table, a1);
+                    GrayType *t0 = typetable_get(tc->type_table, a0);
+                    GrayType *t1 = typetable_get(tc->type_table, a1);
                     if (t0 && t1 && t0->kind == TK_MAP && t1->kind == TK_MAP) {
                         bool key_match = t0->key_type && t1->key_type &&
                             strcmp(t0->key_type, t1->key_type) == 0;
@@ -3575,7 +3575,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                         const char *bad_member = NULL;
                         if (t0->value_type) {
-                            EzType *vt = type_from_name(t0->value_type);
+                            GrayType *vt = type_from_name(t0->value_type);
                             if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT)
                                 bad_member = t0->value_type;
                         }
@@ -3591,9 +3591,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (strcmp(mfn, "contains_value") == 0 && node->data.call.arg_count >= 1) {
                     AstNode *a0 = node->data.call.args[0];
-                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    GrayType *t0 = typetable_get(tc->type_table, a0);
                     if (t0 && t0->kind == TK_MAP && t0->value_type) {
-                        EzType *vt = type_from_name(t0->value_type);
+                        GrayType *vt = type_from_name(t0->value_type);
                         if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT) {
                             diag_error_codef(tc->diag, "E12007",
                                 NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0,
@@ -3703,7 +3703,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 /* E7004: strings.repeat() second arg must be integer */
                 if (strcmp(mfn, "repeat") == 0 && node->data.call.arg_count >= 2) {
-                    EzType *count_t = typetable_get(tc->type_table, node->data.call.args[1]);
+                    GrayType *count_t = typetable_get(tc->type_table, node->data.call.args[1]);
                     if (count_t && count_t->kind == TK_FLOAT) {
                         diag_error_msg(tc->diag, "E7004",
                             "strings.repeat() count must be an integer, not a float",
@@ -3714,7 +3714,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 /* E7004: strings.slice() bounds must be integers */
                 if (strcmp(mfn, "slice") == 0 && node->data.call.arg_count >= 3) {
                     for (int si = 1; si <= 2 && si < node->data.call.arg_count; si++) {
-                        EzType *bt = typetable_get(tc->type_table, node->data.call.args[si]);
+                        GrayType *bt = typetable_get(tc->type_table, node->data.call.args[si]);
                         if (bt && bt->kind == TK_FLOAT) {
                             diag_error_msg(tc->diag, "E7004",
                                 "strings.slice() bounds must be integers, not floats",
@@ -3783,7 +3783,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                     /* E5026: second arg must be an array, not a string */
                     if (node->data.call.arg_count >= 2) {
-                        EzType *arg2_type = resolve_expr(tc, node->data.call.args[1]);
+                        GrayType *arg2_type = resolve_expr(tc, node->data.call.args[1]);
                         if (arg2_type && arg2_type->kind == TK_STRING) {
                             char *msg = NULL;
                             msg = tc_fmt(tc,
@@ -3834,7 +3834,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
                     /* Preserve input array's element type */
                     if (node->data.call.arg_count > 0) {
-                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
                             result = type_array(arr_t->element_type);
                         else
@@ -3845,7 +3845,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "choice") == 0) {
                     /* Return element type of the array argument */
                     if (node->data.call.arg_count > 0) {
-                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
                             result = type_from_name(arr_t->element_type);
                         else
@@ -3872,7 +3872,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0) {
                     /* Preserve input array element type */
                     if (node->data.call.arg_count > 0) {
-                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                         result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
                     } else {
                         result = type_array("int");
@@ -3881,10 +3881,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_array("[int]"); /* nested array */
                 } else if (strcmp(mfn, "flatten") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                         if (arr_t && arr_t->element_type) {
                             /* arr_t is [[T]]; element_type is "[T]". Unwrap one level. */
-                            EzType *inner = type_from_name(arr_t->element_type);
+                            GrayType *inner = type_from_name(arr_t->element_type);
                             if (inner && inner->kind == TK_ARRAY && inner->element_type)
                                 result = type_array(inner->element_type);
                             else
@@ -3899,7 +3899,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0 ||
                            strcmp(mfn, "reduce") == 0) {
                     if (node->data.call.arg_count > 0) {
-                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                         result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
                     } else {
                         result = &TYPE_INT;
@@ -3948,9 +3948,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                     if (val_node && op_name) {
                         AstNode *arr_arg = node->data.call.args[0];
-                        EzType *arr_t = typetable_get(tc->type_table, arr_arg);
+                        GrayType *arr_t = typetable_get(tc->type_table, arr_arg);
                         if (!arr_t) arr_t = resolve_expr(tc, arr_arg);
-                        EzType *val_t = resolve_expr(tc, val_node);
+                        GrayType *val_t = resolve_expr(tc, val_node);
                         if (arr_t && arr_t->kind != TK_ARRAY && arr_t->kind != TK_UNKNOWN) {
                             char *msg = NULL;
                             msg = tc_fmt(tc,
@@ -3960,7 +3960,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, arr_arg), arr_arg->token.line, arr_arg->token.column, 0);
                         } else if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
                             val_t && val_t->kind != TK_UNKNOWN) {
-                            EzType *elem_t = type_from_name(arr_t->element_type);
+                            GrayType *elem_t = type_from_name(arr_t->element_type);
                             if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind &&
                                 !(is_int_kind(elem_t->kind) && is_int_kind(val_t->kind))) {
                                 char *msg = NULL;
@@ -3977,7 +3977,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if ((strcmp(mfn, "remove_at") == 0 && node->data.call.arg_count >= 2) ||
                     (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 2)) {
                     AstNode *idx_node = node->data.call.args[1];
-                    EzType *idx_t = resolve_expr(tc, idx_node);
+                    GrayType *idx_t = resolve_expr(tc, idx_node);
                     if (idx_t && idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind)) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -3991,9 +3991,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if ((strcmp(mfn, "sum") == 0 || strcmp(mfn, "min") == 0 ||
                      strcmp(mfn, "max") == 0) && node->data.call.arg_count > 0) {
                     AstNode *arg0 = node->data.call.args[0];
-                    EzType *arr_t = typetable_get(tc->type_table, arg0);
+                    GrayType *arr_t = typetable_get(tc->type_table, arg0);
                     if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
-                        EzType *elem_t = type_from_name(arr_t->element_type);
+                        GrayType *elem_t = type_from_name(arr_t->element_type);
                         if (elem_t->kind == TK_STRING || elem_t->kind == TK_BOOL) {
                             diag_error_codef(tc->diag, "E9002", NODE_FILE(tc, arg0), arg0->token.line, arg0->token.column, 0, mfn, arr_t->element_type);
                         }
@@ -4003,8 +4003,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "concat") == 0 && node->data.call.arg_count >= 2) {
                     AstNode *a0 = node->data.call.args[0];
                     AstNode *a1 = node->data.call.args[1];
-                    EzType *t0 = typetable_get(tc->type_table, a0);
-                    EzType *t1 = typetable_get(tc->type_table, a1);
+                    GrayType *t0 = typetable_get(tc->type_table, a0);
+                    GrayType *t1 = typetable_get(tc->type_table, a1);
                     if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
                         t0->element_type && t1->element_type &&
                         strcmp(t0->element_type, t1->element_type) != 0) {
@@ -4019,8 +4019,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
                     AstNode *a0 = node->data.call.args[0];
                     AstNode *a1 = node->data.call.args[1];
-                    EzType *t0 = typetable_get(tc->type_table, a0);
-                    EzType *t1 = typetable_get(tc->type_table, a1);
+                    GrayType *t0 = typetable_get(tc->type_table, a0);
+                    GrayType *t1 = typetable_get(tc->type_table, a1);
                     if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
                         t0->element_type && t1->element_type &&
                         strcmp(t0->element_type, t1->element_type) != 0) {
@@ -4034,7 +4034,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Composite element types (nested arrays, maps, structs) cannot be
                      * compared with the primitive memcmp path; reject for now. */
                     if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
-                        EzType *et = type_from_name(t0->element_type);
+                        GrayType *et = type_from_name(t0->element_type);
                         if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
                             char *msg = NULL;
                             msg = tc_fmt(tc,
@@ -4047,9 +4047,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 if (strcmp(mfn, "contains") == 0 && node->data.call.arg_count >= 1) {
                     AstNode *a0 = node->data.call.args[0];
-                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    GrayType *t0 = typetable_get(tc->type_table, a0);
                     if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
-                        EzType *et = type_from_name(t0->element_type);
+                        GrayType *et = type_from_name(t0->element_type);
                         if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
                             diag_error_codef(tc->diag, "E9006",
                                 NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0,
@@ -4139,7 +4139,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 /* All arrays.* functions expect an array as the first argument */
                 if (node->data.call.arg_count > 0) {
                     AstNode *arg0 = node->data.call.args[0];
-                    EzType *arg0_t = resolve_expr(tc, arg0);
+                    GrayType *arg0_t = resolve_expr(tc, arg0);
                     if (arg0_t && arg0_t->kind != TK_ARRAY && arg0_t->kind != TK_UNKNOWN) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -4178,7 +4178,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "clamp") == 0) {
                     /* Return type matches argument type; float in, float out */
                     if (node->data.call.arg_count > 0) {
-                        EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arg_t = resolve_expr(tc, node->data.call.args[0]);
                         result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
                     } else {
                         result = &TYPE_INT;
@@ -4220,7 +4220,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
-                    result = type_struct("Thread"); /* EzThread; opaque */
+                    result = type_struct("Thread"); /* GrayThread; opaque */
                 } else if (strcmp(mfn, "get_id") == 0 ||
                            strcmp(mfn, "current") == 0 ||
                            strcmp(mfn, "thread_count") == 0) {
@@ -4237,7 +4237,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "sync") == 0) {
                 if (strcmp(mfn, "mutex") == 0) {
-                    result = type_struct("Mutex"); /* EzMutex; opaque */
+                    result = type_struct("Mutex"); /* GrayMutex; opaque */
                 } else if (strcmp(mfn, "try_lock") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "lock") == 0 || strcmp(mfn, "unlock") == 0 ||
@@ -4256,7 +4256,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "cas") == 0 || strcmp(mfn, "spin_trylock") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "spinlock") == 0) {
-                    result = type_struct("SpinLock"); /* EzSpinLock; opaque */
+                    result = type_struct("SpinLock"); /* GraySpinLock; opaque */
                 } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "fence") == 0 ||
                            strcmp(mfn, "spin_lock") == 0 ||
                            strcmp(mfn, "spin_unlock") == 0 ||
@@ -4268,7 +4268,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "channels") == 0) {
                 if (strcmp(mfn, "open") == 0) {
-                    result = type_struct("Channel"); /* EzChannel; opaque */
+                    result = type_struct("Channel"); /* GrayChannel; opaque */
                 } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "try_receive") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "send") == 0 || strcmp(mfn, "close") == 0) {
@@ -4281,10 +4281,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "server") == 0) {
                 if (strcmp(mfn, "add_router") == 0) {
-                    result = type_struct("Router"); /* EzRouter; opaque */
+                    result = type_struct("Router"); /* GrayRouter; opaque */
                 } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
                            strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
-                    result = type_struct("HttpResponse"); /* EzResponse */
+                    result = type_struct("HttpResponse"); /* GrayResponse */
                 } else if (strcmp(mfn, "add_route") == 0 || strcmp(mfn, "listen") == 0 ||
                            strcmp(mfn, "cors") == 0 || strcmp(mfn, "use") == 0) {
                     result = &TYPE_VOID;
@@ -4293,14 +4293,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "http") == 0) {
-                /* All http methods return EzHttpResponse struct
+                /* All http methods return GrayHttpResponse struct
                  * with .status (int), .body (string), .headers (map) */
                 result = type_struct("HttpResponse"); /* opaque struct; member access via __auto_type */
             } else if (strcmp(mod, "net") == 0) {
                 if (strcmp(mfn, "listen") == 0) {
-                    result = type_struct("Listener"); /* EzSocket; opaque */
+                    result = type_struct("Listener"); /* GraySocket; opaque */
                 } else if (strcmp(mfn, "connect") == 0 || strcmp(mfn, "accept") == 0) {
-                    result = type_struct("Socket"); /* EzSocket; opaque */
+                    result = type_struct("Socket"); /* GraySocket; opaque */
                 } else if (strcmp(mfn, "send") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "resolve") == 0) {
@@ -4316,7 +4316,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0 ||
                     strcmp(mfn, "accept") == 0) {
                     if (node->data.call.arg_count >= 1) {
-                        EzType *arg1_type = resolve_expr(tc, node->data.call.args[0]);
+                        GrayType *arg1_type = resolve_expr(tc, node->data.call.args[0]);
                         if (arg1_type && arg1_type->kind != TK_STRUCT) {
                             const char *expected = strcmp(mfn, "accept") == 0
                                 ? "Listener" : "Socket";
@@ -4351,7 +4351,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_UNKNOWN;
                     }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
-                    EzType *val_t = resolve_expr(tc, node->data.call.args[1]);
+                    GrayType *val_t = resolve_expr(tc, node->data.call.args[1]);
                     result = type_pointer(type_name(val_t));
                 } else if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena");
@@ -4474,7 +4474,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 }
                                 if (di >= node->data.call.arg_count) { di++; continue; }
                                 AstNode *darg = node->data.call.args[di];
-                                EzType *dt = resolve_expr(tc, darg);
+                                GrayType *dt = resolve_expr(tc, darg);
                                 di++;
                                 if (!dt) continue;
                                 const char *expected = NULL;
@@ -4535,7 +4535,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 /* Validate that non-format args are primitive types */
                 for (int ai = 1; ai < node->data.call.arg_count; ai++) {
-                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                    GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                     if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
                                   arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
                         /* Build a readable type name */
@@ -4587,7 +4587,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
                         for (int ai = 0; ai < cc && !binding; ai++) {
                             const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
-                            EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                            GrayType *at = resolve_expr(tc, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
                             binding = bind_wildcard(ptn, at);
                         }
@@ -4637,12 +4637,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     int check_count = node->data.call.arg_count < sig->param_count
                         ? node->data.call.arg_count : sig->param_count;
                     for (int ai = 0; ai < check_count; ai++) {
-                        EzType *param_t = sig->param_types[ai];
+                        GrayType *param_t = sig->param_types[ai];
                         /* Set expected_type for implicit enum resolution */
-                        EzType *saved_expected_m = tc->expected_type;
+                        GrayType *saved_expected_m = tc->expected_type;
                         if (param_t && param_t->kind == TK_ENUM && param_t->name)
                             tc->expected_type = param_t;
-                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                         tc->expected_type = saved_expected_m;
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
@@ -4795,7 +4795,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                          * mistaken for a struct function. The bare "func" type
                          * was deprecated; modern typed function refs are
                          * encoded as "func(...)->R" with kind TK_FUNCTION. */
-                        EzType *field_t = struct_field_type(tc, sname, mfn);
+                        GrayType *field_t = struct_field_type(tc, sname, mfn);
                         if (field_t && field_t->kind == TK_FUNCTION) {
                             /* This is a func-typed data field. Accept the call
                              *; codegen will emit it as a function-pointer
@@ -4890,7 +4890,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     ? node->data.call.arg_count : ssig->decl->data.func_decl.param_count;
                                 for (int ai = 0; ai < cc && !binding; ai++) {
                                     const char *ptn = ssig->decl->data.func_decl.params[ai].type_name;
-                                    EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                                    GrayType *at = resolve_expr(tc, node->data.call.args[ai]);
                                     if (!type_name_has_wildcard(ptn)) continue;
                                     binding = bind_wildcard(ptn, at);
                                 }
@@ -4947,12 +4947,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 int check_count = node->data.call.arg_count < ssig->param_count
                                     ? node->data.call.arg_count : ssig->param_count;
                                 for (int ai = 0; ai < check_count; ai++) {
-                                    EzType *param_t = ssig->param_types[ai];
+                                    GrayType *param_t = ssig->param_types[ai];
                                     /* Set expected_type for implicit enum resolution */
-                                    EzType *saved_expected_s = tc->expected_type;
+                                    GrayType *saved_expected_s = tc->expected_type;
                                     if (param_t && param_t->kind == TK_ENUM && param_t->name)
                                         tc->expected_type = param_t;
-                                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                    GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                                     tc->expected_type = saved_expected_s;
                                     if (arg_t && param_t &&
                                         arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
@@ -5118,8 +5118,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 int check_count = node->data.call.arg_count < ssig->param_count
                                     ? node->data.call.arg_count : ssig->param_count;
                                 for (int ai = 0; ai < check_count; ai++) {
-                                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
-                                    EzType *param_t = ssig->param_types[ai];
+                                    GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                    GrayType *param_t = ssig->param_types[ai];
                                     if (arg_t && param_t &&
                                         arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                                         arg_t->kind != param_t->kind &&
@@ -5152,7 +5152,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         /* Member call on expression result: foo().bar() */
         if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind != NODE_LABEL) {
-            EzType *obj_t = resolve_expr(tc, fn->data.member.object);
+            GrayType *obj_t = resolve_expr(tc, fn->data.member.object);
             if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_POINTER &&
                 obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char *msg = NULL;
@@ -5214,7 +5214,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             node->token.line, node->token.column, 0, root);
                     }
                 }
-                EzType *arg_t = resolve_expr(tc, arg);
+                GrayType *arg_t = resolve_expr(tc, arg);
                 result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
@@ -5247,7 +5247,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Build a pointer type that preserves the full source type.
                      * For arrays, type_name returns the element type ("int"),
                      * so reconstruct the full name ("[int]"). */
-                    EzType *arg_t = resolve_expr(tc, arg);
+                    GrayType *arg_t = resolve_expr(tc, arg);
                     const char *pointee_name = type_name(arg_t);
                     if (arg_t->kind == TK_ARRAY) {
                         char buf[GRAY_MSG_BUF_SIZE];
@@ -5261,7 +5261,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(fn_name, "len") == 0) {
                 /* E7015 (): len() only works on string / array / map.
                  * Codegen blindly emits '.len' on the receiver, which
-                 * works for the runtime's EzArray / EzMap / EzString
+                 * works for the runtime's GrayArray / GrayMap / GrayString
                  * structs but bombs with a raw clang "no member 'len'"
                  * on anything else; structs, enums, primitives,
                  * pointers, func refs, errors. Validate the argument
@@ -5274,7 +5274,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E5008", msg,
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else {
-                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *at = resolve_expr(tc, node->data.call.args[0]);
                     reject_void_in_context(tc, node->data.call.args[0], at,
                         "len() argument");
                     if (at && at->kind != TK_UNKNOWN && at->kind != TK_VOID &&
@@ -5315,7 +5315,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 /* E3038: type_of() on void function result */
                 if (node->data.call.arg_count > 0) {
-                    EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *arg_t = resolve_expr(tc, node->data.call.args[0]);
                     if (arg_t->kind == TK_VOID) {
                         diag_error_msg(tc->diag, "E3038",
                             "cannot use type_of() on a void function; the function does not return a value",
@@ -5342,8 +5342,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E5008", msg,
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else {
-                    EzType *arg0 = resolve_expr(tc, node->data.call.args[0]);
-                    EzType *arg1 = resolve_expr(tc, node->data.call.args[1]);
+                    GrayType *arg0 = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *arg1 = resolve_expr(tc, node->data.call.args[1]);
                     if (arg0->kind != TK_STRING) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5371,7 +5371,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_msg(tc->diag, "E5008", msg,
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else {
-                    EzType *arg0 = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *arg0 = resolve_expr(tc, node->data.call.args[0]);
                     if (arg0->kind != TK_STRING) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5384,7 +5384,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "c_string") == 0) {
                 if (node->data.call.arg_count >= 1) {
-                    EzType *arg0 = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *arg0 = resolve_expr(tc, node->data.call.args[0]);
                     if (arg0 && arg0->kind != TK_POINTER && arg0->kind != TK_UNKNOWN) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5496,7 +5496,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *at = resolve_expr(tc, node->data.call.args[0]);
                     if (at->kind == TK_FUNCTION) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5526,7 +5526,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *at = resolve_expr(tc, node->data.call.args[0]);
                     if (at->kind == TK_FUNCTION) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5552,7 +5552,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                        strcmp(fn_name, "sleep_ns") == 0) {
                 /* Validate argument types for these builtins */
                 if (strcmp(fn_name, "exit") == 0 && node->data.call.arg_count >= 1) {
-                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *at = resolve_expr(tc, node->data.call.args[0]);
                     if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5561,7 +5561,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                 } else if (strcmp(fn_name, "panic") == 0 && node->data.call.arg_count >= 1) {
-                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *at = resolve_expr(tc, node->data.call.args[0]);
                     if (at->kind != TK_UNKNOWN && at->kind != TK_STRING) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5570,7 +5570,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                 } else if (strcmp(fn_name, "assert") == 0 && node->data.call.arg_count >= 1) {
-                    EzType *cond_t = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *cond_t = resolve_expr(tc, node->data.call.args[0]);
                     if (cond_t->kind != TK_UNKNOWN && cond_t->kind != TK_BOOL) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5579,7 +5579,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                     if (node->data.call.arg_count >= 2) {
-                        EzType *msg_t = resolve_expr(tc, node->data.call.args[1]);
+                        GrayType *msg_t = resolve_expr(tc, node->data.call.args[1]);
                         if (msg_t->kind != TK_UNKNOWN && msg_t->kind != TK_STRING) {
                             char *msg = NULL;
                             msg = tc_fmt(tc,
@@ -5590,7 +5590,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                 } else if ((strcmp(fn_name, "sleep_s") == 0 || strcmp(fn_name, "sleep_ms") == 0 ||
                             strcmp(fn_name, "sleep_ns") == 0) && node->data.call.arg_count >= 1) {
-                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    GrayType *at = resolve_expr(tc, node->data.call.args[0]);
                     if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
                         char *msg = NULL;
                         msg = tc_fmt(tc,
@@ -5630,7 +5630,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E7014", NODE_FILE(tc, node), node->token.line, node->token.column, 0, (long long)lit_val);
                 }
                 /* E3001: char() with a string literal that is not exactly one character */
-                EzType *char_arg_t = resolve_expr(tc, node->data.call.args[0]);
+                GrayType *char_arg_t = resolve_expr(tc, node->data.call.args[0]);
                 if (char_arg_t->kind == TK_STRING) {
                     AstNode *arg = node->data.call.args[0];
                     if (arg->kind == NODE_STRING_VALUE) {
@@ -5654,7 +5654,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         strcmp(fn_name, "byte") == 0) &&
                        node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to numeric */
-                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                GrayType *src_t = resolve_expr(tc, node->data.call.args[0]);
                 if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                     src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
                     char *msg = NULL;
@@ -5673,7 +5673,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
             } else if (strcmp(fn_name, "string") == 0 && node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to string */
-                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                GrayType *src_t = resolve_expr(tc, node->data.call.args[0]);
                 if (src_t->kind == TK_STRING) {
                     diag_error_msg(tc->diag, "E3043",
                         arena_strdup(tc->arena, "cannot convert string to string; value is already a string"),
@@ -5690,7 +5690,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
                 /* E3043: validate source type is convertible to float */
-                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                GrayType *src_t = resolve_expr(tc, node->data.call.args[0]);
                 if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                     src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
                     src_t->kind == TK_BOOL) {
@@ -5703,7 +5703,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_FLOAT;
             } else if (strcmp(fn_name, "bool") == 0 && node->data.call.arg_count == 1) {
-                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                GrayType *src_t = resolve_expr(tc, node->data.call.args[0]);
                 if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                     src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
                     src_t->kind == TK_STRING) {
@@ -5786,7 +5786,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                      * per-arg check below since '?' would otherwise collapse
                      * to TK_UNKNOWN and produce no useful errors. */
                     char *generic_binding = NULL;
-                    EzType *generic_return_t = NULL;
+                    GrayType *generic_return_t = NULL;
                     bool is_generic_call = sig->is_generic && sig->decl &&
                         sig->decl->kind == NODE_FUNC_DECL;
                     if (is_generic_call) {
@@ -5827,7 +5827,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 }
                                 continue;
                             }
-                            EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                            GrayType *at = resolve_expr(tc, node->data.call.args[ai]);
                             if (!type_name_has_wildcard(ptn)) continue;
                             /* E3100: struct/enum type name passed as a value argument */
                             if (at->kind == TK_UNKNOWN &&
@@ -5913,12 +5913,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             ai < sig->decl->data.func_decl.param_count &&
                             sig->decl->data.func_decl.params[ai].is_type_param)
                             continue;
-                        EzType *param_t = sig->param_types[ai];
+                        GrayType *param_t = sig->param_types[ai];
                         /* Set expected_type for implicit enum resolution */
-                        EzType *saved_expected = tc->expected_type;
+                        GrayType *saved_expected = tc->expected_type;
                         if (param_t && param_t->kind == TK_ENUM && param_t->name)
                             tc->expected_type = param_t;
-                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        GrayType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                         tc->expected_type = saved_expected;
                         if (is_generic_call) {
                             /* Generic branch already handled unification;
@@ -6024,8 +6024,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
                             arg_t->element_type && param_t->element_type &&
                             !tc_same_array_elem(tc, arg_t->element_type, param_t->element_type)) {
-                            EzType *ae = type_from_name(arg_t->element_type);
-                            EzType *pe = type_from_name(param_t->element_type);
+                            GrayType *ae = type_from_name(arg_t->element_type);
+                            GrayType *pe = type_from_name(param_t->element_type);
                             if (!(ae && pe && is_int_kind(ae->kind) && is_int_kind(pe->kind))) {
                                 char *msg = NULL;
                                 msg = tc_fmt(tc,
@@ -6168,8 +6168,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                             } else {
                                 for (int ai = 0; ai < ref_sig->param_count; ai++) {
-                                    EzType *at = resolve_expr(tc, node->data.call.args[ai]);
-                                    EzType *pt = ref_sig->param_types[ai];
+                                    GrayType *at = resolve_expr(tc, node->data.call.args[ai]);
+                                    GrayType *pt = ref_sig->param_types[ai];
                                     if (at && pt && at->kind != TK_UNKNOWN &&
                                         pt->kind != TK_UNKNOWN &&
                                         at->kind != pt->kind &&
@@ -6256,7 +6256,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* No source FuncSig; validate against the typed-
                              * func signature from the variable's annotated type
                              * (e.g. callback parameters: do f(g func(int)->int)). */
-                            EzFuncSig *sig = fn_sym->type->func_sig;
+                            GrayFuncSig *sig = fn_sym->type->func_sig;
                             int ac = node->data.call.arg_count;
                             if (ac != sig->param_count) {
                                 char *msg = NULL;
@@ -6268,8 +6268,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             } else {
                                 for (int ai = 0; ai < sig->param_count; ai++) {
                                     AstNode *arg = node->data.call.args[ai];
-                                    EzType *at = resolve_expr(tc, arg);
-                                    EzType *pt = sig->param_types[ai] ? type_from_name(sig->param_types[ai]) : NULL;
+                                    GrayType *at = resolve_expr(tc, arg);
+                                    GrayType *pt = sig->param_types[ai] ? type_from_name(sig->param_types[ai]) : NULL;
                                     if (at && pt && at->kind != TK_UNKNOWN && pt->kind != TK_UNKNOWN &&
                                         at->kind != pt->kind &&
                                         !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
@@ -6336,7 +6336,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 if (strcmp(real_mod, "math") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
-                                        EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                                        GrayType *arg_t = resolve_expr(tc, node->data.call.args[0]);
                                         result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
                                     } else {
                                         result = &TYPE_INT;
@@ -6354,7 +6354,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 if (strcmp(real_mod, "random") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
-                                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                                        GrayType *arr_t = resolve_expr(tc, node->data.call.args[0]);
                                         if (strcmp(fn_name, "choice") == 0) {
                                             result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
                                         } else {
@@ -6375,7 +6375,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 if (strcmp(real_mod, "maps") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
-                                        EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
+                                        GrayType *map_t = resolve_expr(tc, node->data.call.args[0]);
                                         if (strcmp(fn_name, "get_keys") == 0)
                                             result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
                                         else
@@ -6684,7 +6684,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* Struct-namespaced function or enum access: Type.func() / Type.MEMBER */
             if (!sym && is_struct_name(tc, obj_name)) {
                 /* Check if member is a field; can't access fields on the type itself */
-                EzType *ft = struct_field_type(tc, obj_name, member);
+                GrayType *ft = struct_field_type(tc, obj_name, member);
                 if (ft && ft->kind != TK_UNKNOWN) {
                     diag_error_codef(tc->diag, "E3044", NODE_FILE(tc, node), node->token.line, node->token.column, 0, member, obj_name);
                 }
@@ -6713,7 +6713,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
             /* Nested member access: a.b.c; resolve a.b first, then look up .c */
-            EzType *obj_t = typetable_get(tc->type_table, obj);
+            GrayType *obj_t = typetable_get(tc->type_table, obj);
             if (!obj_t) obj_t = resolve_expr(tc, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(tc, obj_t->name, member);
@@ -6740,7 +6740,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         } else {
             /* Object is an expression (e.g. foo().bar); resolve its type */
-            EzType *obj_t = resolve_expr(tc, obj);
+            GrayType *obj_t = resolve_expr(tc, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(tc, obj_t->name, member);
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
@@ -6756,8 +6756,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_INDEX_EXPR: {
-        EzType *left = resolve_expr(tc, node->data.index_expr.left);
-        EzType *idx_t = resolve_expr(tc, node->data.index_expr.index);
+        GrayType *left = resolve_expr(tc, node->data.index_expr.left);
+        GrayType *idx_t = resolve_expr(tc, node->data.index_expr.index);
         /* E3003: array index must be integer */
         if (left->kind == TK_ARRAY && idx_t->kind != TK_UNKNOWN &&
             !is_int_kind(idx_t->kind) && idx_t->kind != TK_BYTE) {
@@ -6790,7 +6790,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
              * int expressions (and enum members, which resolve as int) when
              * the declared key is a user enum name. */
             if (left->key_type && idx_t->kind != TK_UNKNOWN) {
-                EzType *key_t = tc_type_from_name(tc, left->key_type);
+                GrayType *key_t = tc_type_from_name(tc, left->key_type);
                 bool declared_is_enum = is_enum_name(tc, left->key_type);
                 bool compatible =
                     key_t->kind == TK_UNKNOWN ||
@@ -6823,19 +6823,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_ARRAY_VALUE: {
         /* If expected_type is an array-of-enum, propagate element type for .VARIANT */
-        EzType *saved_arr_expected = tc->expected_type;
+        GrayType *saved_arr_expected = tc->expected_type;
         if (tc->expected_type && tc->expected_type->kind == TK_ARRAY &&
             tc->expected_type->element_type) {
-            EzType *elem_t = tc_type_from_name(tc, tc->expected_type->element_type);
+            GrayType *elem_t = tc_type_from_name(tc, tc->expected_type->element_type);
             if (elem_t && elem_t->kind == TK_ENUM && elem_t->name)
                 tc->expected_type = elem_t;
         }
         if (node->data.array_value.count > 0) {
-            EzType *first = resolve_expr(tc, node->data.array_value.elements[0]);
+            GrayType *first = resolve_expr(tc, node->data.array_value.elements[0]);
             result = type_array(type_name(first));
             /* Validate all elements have the same type */
             for (int i = 1; i < node->data.array_value.count; i++) {
-                EzType *ei = resolve_expr(tc, node->data.array_value.elements[i]);
+                GrayType *ei = resolve_expr(tc, node->data.array_value.elements[i]);
                 if (!ei || ei->kind == TK_UNKNOWN || !first || first->kind == TK_UNKNOWN)
                     continue;
                 bool compatible = (ei->kind == first->kind) ||
@@ -6861,8 +6861,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_MAP_VALUE: {
         /* Resolve key and value types */
         for (int i = 0; i < node->data.map_value.count; i++) {
-            EzType *kt = resolve_expr(tc, node->data.map_value.keys[i]);
-            EzType *vt = resolve_expr(tc, node->data.map_value.values[i]);
+            GrayType *kt = resolve_expr(tc, node->data.map_value.keys[i]);
+            GrayType *vt = resolve_expr(tc, node->data.map_value.values[i]);
             /* : void can't be a map key or value. */
             reject_void_in_context(tc, node->data.map_value.keys[i], kt, "map key");
             reject_void_in_context(tc, node->data.map_value.values[i], vt, "map value");
@@ -6885,12 +6885,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
-        EzType *t = type_alloc();
+        GrayType *t = type_alloc();
         t->kind = TK_MAP;
         t->name = strdup("map");
         if (node->data.map_value.count > 0) {
-            EzType *kt = typetable_get(tc->type_table, node->data.map_value.keys[0]);
-            EzType *vt = typetable_get(tc->type_table, node->data.map_value.values[0]);
+            GrayType *kt = typetable_get(tc->type_table, node->data.map_value.keys[0]);
+            GrayType *vt = typetable_get(tc->type_table, node->data.map_value.values[0]);
             t->key_type = strdup(kt ? type_name(kt) : "unknown");
             t->value_type = strdup(vt ? type_name(vt) : "unknown");
         }
@@ -6944,7 +6944,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
         for (int i = 0; i < node->data.struct_value.count; i++) {
             /* Look up expected field type for implicit enum resolution */
-            EzType *field_expected_t = NULL;
+            GrayType *field_expected_t = NULL;
             if (si && node->data.struct_value.field_names[i]) {
                 const char *fname_pre = node->data.struct_value.field_names[i];
                 for (int j = 0; j < si->field_count; j++) {
@@ -6954,16 +6954,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                 }
             }
-            EzType *saved_sv_expected = tc->expected_type;
+            GrayType *saved_sv_expected = tc->expected_type;
             if (field_expected_t && field_expected_t->kind == TK_ENUM && field_expected_t->name)
                 tc->expected_type = field_expected_t;
-            EzType *val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
+            GrayType *val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
             tc->expected_type = saved_sv_expected;
             /* Validate field exists */
             if (si && node->data.struct_value.field_names[i]) {
                 const char *fname = node->data.struct_value.field_names[i];
                 bool found = false;
-                EzType *expected_t = NULL;
+                GrayType *expected_t = NULL;
                 for (int j = 0; j < si->field_count; j++) {
                     if (strcmp(si->field_names[j], fname) == 0) {
                         found = true;
@@ -6976,7 +6976,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (expected_t && val_t->kind != TK_UNKNOWN &&
                            expected_t->kind != TK_UNKNOWN &&
                            /* kinds differ, OR both are pointers to different types,
-                            * OR both are structs with different names (#1790) */
+                            * OR both are structs with different names */
                            (expected_t->kind != val_t->kind ||
                             (expected_t->kind == TK_POINTER &&
                              expected_t->name && val_t->name &&
@@ -7015,7 +7015,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (strcmp(sdecl->data.struct_decl.fields[j].name, fname) == 0 &&
                         sdecl->data.struct_decl.fields[j].type_name &&
                         strcmp(sdecl->data.struct_decl.fields[j].type_name, "?") == 0) {
-                        EzType *val_t = typetable_get(tc->type_table,
+                        GrayType *val_t = typetable_get(tc->type_table,
                             node->data.struct_value.field_values[i]);
                         if (!val_t) val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
                         if (val_t && val_t->kind != TK_UNKNOWN) {
@@ -7078,7 +7078,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         const char *labels[] = { "start", "end", "step" };
         for (int ri = 0; ri < 3; ri++) {
             if (!parts[ri]) continue;
-            EzType *pt = resolve_expr(tc, parts[ri]);
+            GrayType *pt = resolve_expr(tc, parts[ri]);
             if (pt->kind != TK_UNKNOWN && !is_int_kind(pt->kind)) {
                 char *msg = NULL;
                 msg = tc_fmt(tc,
@@ -7089,7 +7089,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     parts[ri]->token.column, 0);
             }
         }
-        EzType *rt = type_alloc();
+        GrayType *rt = type_alloc();
         rt->kind = TK_INT;
         rt->name = strdup("Range<int>");
         result = rt;
@@ -7109,8 +7109,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_CAST_EXPR: {
-        EzType *src_t = resolve_expr(tc, node->data.cast.value);
-        EzType *dst_t = type_from_name(node->data.cast.target_type);
+        GrayType *src_t = resolve_expr(tc, node->data.cast.value);
+        GrayType *dst_t = type_from_name(node->data.cast.target_type);
         /* Resolve user-defined enum types that type_from_name() can't find */
         if (!dst_t && is_enum_name(tc, node->data.cast.target_type))
             dst_t = type_enum(node->data.cast.target_type);
@@ -7148,8 +7148,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* Array -> Array: only when both element types are numeric */
             if (src_t->kind == TK_ARRAY && dst_t->kind == TK_ARRAY) {
                 if (src_t->element_type && dst_t->element_type) {
-                    EzType *src_elem = type_from_name(src_t->element_type);
-                    EzType *dst_elem = type_from_name(dst_t->element_type);
+                    GrayType *src_elem = type_from_name(src_t->element_type);
+                    GrayType *dst_elem = type_from_name(dst_t->element_type);
                     if (type_is_numeric(src_elem) && type_is_numeric(dst_elem))
                         allowed = true;
                 } else {
@@ -7371,8 +7371,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 static void check_reserved_name(TypeChecker *tc, const char *name, const char *file, int line, int col) {
     if (!name) return;
     /* Skip compiler-generated temps (_gray_tmp, _gray_or, _gray_idx, etc.) */
-    if (strncmp(name, "_gray_", 4) == 0) return;
-    if (strncmp(name, "gray_", 3) == 0 || strncmp(name, "Ez", 2) == 0) {
+    if (strncmp(name, "_gray_", 6) == 0) return;
+    if (strncmp(name, "gray_", 5) == 0 || strncmp(name, "Gray", 4) == 0) {
         diag_error_codef(tc->diag, "E4006", file, line, col, 0, name);
     }
 }
@@ -7578,7 +7578,7 @@ static void check_block(TypeChecker *tc, AstNode *node) {
     if (node->data.block.count >= 2) {
         AstNode *first = node->data.block.stmts[0];
         if (first && first->kind == NODE_VAR_DECL &&
-            strncmp(first->data.var_decl.name, "_gray_tmp", 7) == 0 &&
+            strncmp(first->data.var_decl.name, "_gray_tmp", 9) == 0 &&
             first->data.var_decl.value &&
             first->data.var_decl.value->kind == NODE_CALL_EXPR) {
             Symbol *sym = scope_lookup_local(tc->current_scope, first->data.var_decl.name);
@@ -7748,7 +7748,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* E3045: or_return on non-error-returning function */
-        if (strncmp(node->data.var_decl.name, "_gray_or", 6) == 0 &&
+        if (strncmp(node->data.var_decl.name, "_gray_or", 8) == 0 &&
             node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
             AstNode *call_fn = node->data.var_decl.value->data.call.function;
             const char *call_name = NULL;
@@ -7799,8 +7799,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         /* E3050/E3051: array/map literals require explicit type annotations */
         if (!node->data.var_decl.type_name && node->data.var_decl.value &&
-            strncmp(node->data.var_decl.name, "_gray_tmp", 7) != 0 &&
-            strncmp(node->data.var_decl.name, "_gray_or", 6) != 0) {
+            strncmp(node->data.var_decl.name, "_gray_tmp", 9) != 0 &&
+            strncmp(node->data.var_decl.name, "_gray_or", 8) != 0) {
             if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                 diag_error_code_help(tc->diag, "E3050",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0,
@@ -7856,7 +7856,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
-        EzType *declared = node->data.var_decl.type_name
+        GrayType *declared = node->data.var_decl.type_name
             ? tc_type_from_name(tc, node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
         /* E4016: explicitly annotated type name that doesn't exist */
@@ -7877,7 +7877,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * and hash fine. */
         if (declared->kind == TK_MAP && declared->key_type) {
             const char *kt = declared->key_type;
-            EzType *key_resolved = type_from_name(kt);
+            GrayType *key_resolved = type_from_name(kt);
             const char *bad = NULL;
             if (key_resolved->kind == TK_STRUCT && !is_enum_name(tc, kt))
                 bad = "struct";
@@ -7891,15 +7891,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         if (node->data.var_decl.value) {
             /* Set expected_type for implicit enum resolution (.VARIANT) */
-            EzType *saved_expected = tc->expected_type;
+            GrayType *saved_expected = tc->expected_type;
             if (declared->kind == TK_ENUM && declared->name)
                 tc->expected_type = declared;
             else if (declared->kind == TK_ARRAY && declared->element_type) {
-                EzType *elem_t = tc_type_from_name(tc, declared->element_type);
+                GrayType *elem_t = tc_type_from_name(tc, declared->element_type);
                 if (elem_t && elem_t->kind == TK_ENUM)
                     tc->expected_type = declared;
             }
-            EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
+            GrayType *value_type = resolve_expr(tc, node->data.var_decl.value);
             tc->expected_type = saved_expected;
             /* : when a func-pointer call returns TK_UNKNOWN but
              * the assignment target has a concrete declared type,
@@ -7944,8 +7944,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check for multi-return to single variable
              * (skip if this is part of a multi-var expansion; the value will be a .v0 access) */
             if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
-                strncmp(node->data.var_decl.name, "_gray_tmp", 7) != 0 &&
-                strncmp(node->data.var_decl.name, "_gray_or", 6) != 0) {
+                strncmp(node->data.var_decl.name, "_gray_tmp", 9) != 0 &&
+                strncmp(node->data.var_decl.name, "_gray_or", 8) != 0) {
                 AstNode *call_fn = node->data.var_decl.value->data.call.function;
                 const char *call_name = NULL;
                 const char *call_mod = NULL;
@@ -8063,12 +8063,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         * the reverse; int literals / variables can't be
                         * assigned to enum variables (). */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
-                       /* Allow string enum → string (string enums hold EzString values) */
+                       /* Allow string enum → string (string enums hold GrayString values) */
                        !(declared->kind == TK_STRING && value_type->kind == TK_ENUM &&
                          tc_enum_is_string(tc, value_type->name)) &&
                        /* Note: multi-var expansion (.v0/.v1 access) is intentionally
                         * NOT skipped here — type mismatch on reversed multi-return
-                        * types must be caught (see #1693). */
+                        * types must be caught. */
                        /* Skip mismatch when assigning ref var to ^T pointer */
                        !(declared->kind == TK_POINTER && node->data.var_decl.value &&
                          node->data.var_decl.value->kind == NODE_LABEL &&
@@ -8155,8 +8155,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (declared->kind == TK_ARRAY && value_type->kind == TK_ARRAY &&
                 declared->element_type && value_type->element_type &&
                 !tc_same_array_elem(tc, declared->element_type, value_type->element_type)) {
-                EzType *decl_elem = type_from_name(declared->element_type);
-                EzType *val_elem  = type_from_name(value_type->element_type);
+                GrayType *decl_elem = type_from_name(declared->element_type);
+                GrayType *val_elem  = type_from_name(value_type->element_type);
                 /* Allow int-kind ↔ int-kind, int→float, and skip when either
                  * element type is opaque/unknown (e.g. generic stdlib returns) */
                 /* Skip function-type arrays: signature strings differ by whitespace */
@@ -8182,16 +8182,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     strcmp(declared->value_type, value_type->value_type) != 0;
                 /* Suppress key/value mismatches caused by int-kind coercion or float coercion */
                 if (key_mismatch) {
-                    EzType *dk = type_from_name(declared->key_type);
-                    EzType *vk = type_from_name(value_type->key_type);
+                    GrayType *dk = type_from_name(declared->key_type);
+                    GrayType *vk = type_from_name(value_type->key_type);
                     if (dk && vk && ((is_int_kind(dk->kind) && is_int_kind(vk->kind)) ||
                                     (dk->kind == TK_FLOAT && vk->kind == TK_FLOAT) ||
                                     (dk->kind == TK_FLOAT && is_int_kind(vk->kind))))
                         key_mismatch = false;
                 }
                 if (val_mismatch) {
-                    EzType *dv = type_from_name(declared->value_type);
-                    EzType *vv = type_from_name(value_type->value_type);
+                    GrayType *dv = type_from_name(declared->value_type);
+                    GrayType *vv = type_from_name(value_type->value_type);
                     bool val_is_literal = node->data.var_decl.value &&
                         node->data.var_decl.value->kind == NODE_MAP_VALUE;
                     if (dv && vv && ((is_int_kind(dv->kind) && is_int_kind(vv->kind)) ||
@@ -8339,10 +8339,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                     /* E3053: element type mismatch in array initializer */
                     if (elem_type[0]) {
-                        EzType *expected_et = tc_type_from_name(tc, elem_type);
+                        GrayType *expected_et = tc_type_from_name(tc, elem_type);
                         AstNode *arr = node->data.var_decl.value;
                         for (int ei = 0; ei < arr->data.array_value.count; ei++) {
-                            EzType *actual_et = resolve_expr(tc, arr->data.array_value.elements[ei]);
+                            GrayType *actual_et = resolve_expr(tc, arr->data.array_value.elements[ei]);
                             if (actual_et && actual_et->kind != TK_UNKNOWN &&
                                 expected_et && expected_et->kind != TK_UNKNOWN &&
                                 actual_et->kind != expected_et->kind) {
@@ -8424,14 +8424,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             key_tn[klen] = '\0';
                             memcpy(val_tn, mcolon + 1, vlen);
                             val_tn[vlen] = '\0';
-                            EzType *expected_k = tc_type_from_name(tc, key_tn);
-                            EzType *expected_v = tc_type_from_name(tc, val_tn);
+                            GrayType *expected_k = tc_type_from_name(tc, key_tn);
+                            GrayType *expected_v = tc_type_from_name(tc, val_tn);
                             AstNode *mv = node->data.var_decl.value;
                             for (int mi = 0; mi < mv->data.map_value.count; mi++) {
                                 AstNode *kn = mv->data.map_value.keys[mi];
                                 AstNode *vn = mv->data.map_value.values[mi];
-                                EzType *kt = resolve_expr(tc, kn);
-                                EzType *vt = resolve_expr(tc, vn);
+                                GrayType *kt = resolve_expr(tc, kn);
+                                GrayType *vt = resolve_expr(tc, vn);
                                 if (kt && kt->kind != TK_UNKNOWN && kt->kind != TK_VOID &&
                                     expected_k && expected_k->kind != TK_UNKNOWN &&
                                     kt->kind != expected_k->kind &&
@@ -8683,7 +8683,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym) {
-                            EzType **slots = sig->return_types;
+                            GrayType **slots = sig->return_types;
                             int slot_count = sig->return_count;
                             if (sig->is_generic && sig->decl &&
                                 sig->decl->kind == NODE_FUNC_DECL) {
@@ -8700,12 +8700,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     const char *ptn =
                                         decl->data.func_decl.params[ai].type_name;
                                     if (!ptn || !type_name_has_wildcard(ptn)) continue;
-                                    EzType *at = resolve_expr(tc, call->data.call.args[ai]);
+                                    GrayType *at = resolve_expr(tc, call->data.call.args[ai]);
                                     binding = bind_wildcard(ptn, at);
                                 }
                                 if (binding) {
                                     int rc = decl->data.func_decl.return_type_count;
-                                    EzType **subbed = xmalloc(sizeof(EzType *) * (size_t)rc);
+                                    GrayType **subbed = xmalloc(sizeof(GrayType *) * (size_t)rc);
                                     for (int ri = 0; ri < rc; ri++) {
                                         char *sub = substitute_wildcard(
                                             decl->data.func_decl.return_types[ri], binding);
@@ -8728,11 +8728,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     const char *mod = fn->data.member.object->data.label.value;
                     const char *mfn = fn->data.member.member;
                     if (tc_is_fallible_stdlib(mod, mfn)) {
-                        EzType *primary = tc_get_fallible_stdlib_type(mod, mfn);
+                        GrayType *primary = tc_get_fallible_stdlib_type(mod, mfn);
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym && primary) {
-                            EzType **rt = xmalloc(sizeof(EzType *) * 2);
+                            GrayType **rt = xmalloc(sizeof(GrayType *) * 2);
                             rt[0] = primary;
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
@@ -8744,7 +8744,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym) {
-                            EzType **rt = xmalloc(sizeof(EzType *) * 4);
+                            GrayType **rt = xmalloc(sizeof(GrayType *) * 4);
                             rt[0] = &TYPE_INT;
                             rt[1] = &TYPE_STRING;
                             rt[2] = &TYPE_STRING;
@@ -8758,7 +8758,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym) {
-                            EzType **rt = xmalloc(sizeof(EzType *) * 2);
+                            GrayType **rt = xmalloc(sizeof(GrayType *) * 2);
                             rt[0] = &TYPE_INT;
                             rt[1] = &TYPE_BOOL;
                             sym->ret_types = rt;
@@ -8851,12 +8851,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_ASSIGN_STMT: {
-        EzType *target_t = resolve_expr(tc, node->data.assign.target);
+        GrayType *target_t = resolve_expr(tc, node->data.assign.target);
         /* Set expected_type for implicit enum resolution (.VARIANT) */
-        EzType *saved_expected = tc->expected_type;
+        GrayType *saved_expected = tc->expected_type;
         if (target_t && target_t->kind == TK_ENUM && target_t->name)
             tc->expected_type = target_t;
-        EzType *value_t = resolve_expr(tc, node->data.assign.value);
+        GrayType *value_t = resolve_expr(tc, node->data.assign.value);
         tc->expected_type = saved_expected;
 
         /* E3078: compound arithmetic assigns on pointer variables
@@ -8921,7 +8921,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
          * sequences — individual characters cannot be modified by index.
          * This fires regardless of the assigned value's type. */
         if (target->kind == NODE_INDEX_EXPR) {
-            EzType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
+            GrayType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
             if (indexed_t && indexed_t->kind == TK_STRING) {
                 diag_error_code(tc->diag, "E3004",
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -8930,10 +8930,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         /* E3094: array index assignment type mismatch (arr[i] = wrong_type) */
         if (target->kind == NODE_INDEX_EXPR && node->data.assign.value) {
-            EzType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
+            GrayType *indexed_t = resolve_expr(tc, target->data.index_expr.left);
             if (indexed_t && indexed_t->kind == TK_ARRAY && indexed_t->element_type) {
-                EzType *elem_t = type_from_name(indexed_t->element_type);
-                EzType *val_t = resolve_expr(tc, node->data.assign.value);
+                GrayType *elem_t = type_from_name(indexed_t->element_type);
+                GrayType *val_t = resolve_expr(tc, node->data.assign.value);
                 if (val_t && val_t->kind != TK_UNKNOWN && elem_t && elem_t->kind != TK_UNKNOWN &&
                     val_t->kind != elem_t->kind &&
                     !(is_int_kind(val_t->kind) && is_int_kind(elem_t->kind)) &&
@@ -8971,7 +8971,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             node->data.assign.value) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
             if (sym && sym->type && sym->type->kind == TK_STRUCT) {
-                EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
+                GrayType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t && field_t->name) {
                     int64_t lit_val;
                     if (try_get_literal_int(node->data.assign.value, &lit_val)) {
@@ -8991,7 +8991,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             Symbol *sym = scope_lookup(tc->current_scope,
                 target->data.member.object->data.postfix.left->data.label.value);
             if (sym && sym->type && sym->type->kind == TK_POINTER && sym->type->element_type) {
-                EzType *field_t = struct_field_type(tc, sym->type->element_type, target->data.member.member);
+                GrayType *field_t = struct_field_type(tc, sym->type->element_type, target->data.member.member);
                 if (field_t && field_t->name) {
                     int64_t lit_val;
                     if (try_get_literal_int(node->data.assign.value, &lit_val)) {
@@ -9106,7 +9106,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (target->kind == NODE_MEMBER_EXPR && target->data.member.object->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
             if (sym && (sym->type->kind == TK_STRUCT || sym->type->kind == TK_POINTER)) {
-                EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
+                GrayType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                     /* kinds differ, OR both are pointers/structs to different types */
                     (field_t->kind != value_t->kind ||
@@ -9170,7 +9170,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             /* Set expected_type for implicit enum resolution in return values */
-            EzType *saved_ret_expected = tc->expected_type;
+            GrayType *saved_ret_expected = tc->expected_type;
             if (i < tc->current_return_count &&
                 tc->current_return_types[i] &&
                 tc->current_return_types[i]->kind == TK_ENUM &&
@@ -9233,7 +9233,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (tc->current_return_count > 0 && node->data.return_stmt.count > 0) {
             AstNode *rv = node->data.return_stmt.values[0];
             if (rv->kind == NODE_NIL_VALUE) {
-                EzType *expected = tc->current_return_types[0];
+                GrayType *expected = tc->current_return_types[0];
                 if (expected && expected->kind != TK_POINTER &&
                     expected->kind != TK_ERROR && expected->kind != TK_UNKNOWN &&
                     expected->kind != TK_NIL && expected->kind != TK_VOID) {
@@ -9270,7 +9270,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (node->data.return_stmt.count == 1 &&
                 node->data.return_stmt.values[0]->kind == NODE_MEMBER_EXPR) {
                 AstNode *obj = node->data.return_stmt.values[0]->data.member.object;
-                if (obj->kind == NODE_LABEL && strncmp(obj->data.label.value, "_gray_or", 6) == 0) {
+                if (obj->kind == NODE_LABEL && strncmp(obj->data.label.value, "_gray_or", 8) == 0) {
                     is_or_return_synthetic = true;
                 }
             }
@@ -9285,8 +9285,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
                    node->data.return_stmt.count == tc->current_return_count) {
             /* Check first return value type (skip for or_return synthetic returns) */
-            EzType *ret_t = resolve_expr(tc, node->data.return_stmt.values[0]);
-            EzType *expected = tc->current_return_types[0];
+            GrayType *ret_t = resolve_expr(tc, node->data.return_stmt.values[0]);
+            GrayType *expected = tc->current_return_types[0];
             /* : same push as var_decl; when a func-pointer call
              * is the return value and the function's declared return
              * type is concrete, push it onto the call node so codegen
@@ -9355,8 +9355,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (ret_t->kind == TK_ARRAY && expected->kind == TK_ARRAY &&
                 ret_t->element_type && expected->element_type &&
                 !tc_same_array_elem(tc, ret_t->element_type, expected->element_type)) {
-                EzType *re = type_from_name(ret_t->element_type);
-                EzType *ee = type_from_name(expected->element_type);
+                GrayType *re = type_from_name(ret_t->element_type);
+                GrayType *ee = type_from_name(expected->element_type);
                 if (!(re && ee && is_int_kind(re->kind) && is_int_kind(ee->kind))) {
                     char *msg = NULL;
                     msg = tc_fmt(tc,
@@ -9435,7 +9435,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_EXPR_STMT: {
-        EzType *expr_t = resolve_expr(tc, node->data.expr_stmt.expr);
+        GrayType *expr_t = resolve_expr(tc, node->data.expr_stmt.expr);
         /* E3081: bare function name used as statement without call */
         AstNode *expr = node->data.expr_stmt.expr;
         if (expr && expr->kind == NODE_LABEL) {
@@ -9573,7 +9573,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_IF_STMT: {
-        EzType *cond_t = resolve_expr(tc, node->data.if_stmt.condition);
+        GrayType *cond_t = resolve_expr(tc, node->data.if_stmt.condition);
         /* E3038 (): void function call as condition. The same check
          * already exists for variable assignment and arithmetic; wire
          * it up for control-flow conditions too. The 'or' branch of an
@@ -9717,7 +9717,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         /* Resolve collection type to determine element type */
-        EzType *coll_t = resolve_expr(tc, node->data.for_each.collection);
+        GrayType *coll_t = resolve_expr(tc, node->data.for_each.collection);
 
         /* Check that collection is iterable */
         if (coll_t->kind != TK_UNKNOWN && coll_t->kind != TK_ARRAY &&
@@ -9727,8 +9727,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         if (coll_t->kind == TK_MAP) {
             /* Map iteration: for_each k, v in map OR for_each key in map */
-            EzType *key_t = coll_t->key_type ? type_from_name(coll_t->key_type) : &TYPE_STRING;
-            EzType *val_t = coll_t->value_type ? type_from_name(coll_t->value_type) : &TYPE_UNKNOWN;
+            GrayType *key_t = coll_t->key_type ? type_from_name(coll_t->key_type) : &TYPE_STRING;
+            GrayType *val_t = coll_t->value_type ? type_from_name(coll_t->value_type) : &TYPE_UNKNOWN;
             if (node->data.for_each.index_name) {
                 /* Two-var: index_name = key, var_name = value */
                 scope_define(loop_scope, node->data.for_each.index_name, key_t, false);
@@ -9739,7 +9739,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         } else {
             /* Array/string iteration */
-            EzType *elem_t = &TYPE_UNKNOWN;
+            GrayType *elem_t = &TYPE_UNKNOWN;
             if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
                 elem_t = tc_type_from_name(tc, coll_t->element_type);
             } else if (coll_t->kind == TK_STRING) {
@@ -9760,7 +9760,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_WHILE_STMT: {
-        EzType *wh_cond_t = resolve_expr(tc, node->data.while_stmt.condition);
+        GrayType *wh_cond_t = resolve_expr(tc, node->data.while_stmt.condition);
         /* E3038 (): void function call as 'as_long_as' condition. */
         if (wh_cond_t && wh_cond_t->kind == TK_VOID) {
             AstNode *c = node->data.while_stmt.condition;
@@ -9942,7 +9942,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "use a dynamic array type instead, e.g. [int] without a size");
                 }
             }
-            EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
+            GrayType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
             /* E4016: undefined parameter type */
             if (p->type_name && ptype->kind == TK_UNKNOWN &&
                 p->type_name[0] >= 'A' && p->type_name[0] <= 'Z') {
@@ -9956,7 +9956,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Type inference: if no explicit type annotation, infer from default
              * value when it is an enum member access (e.g. t = Color.RED). */
             if (!p->type_name && p->default_value) {
-                EzType *inferred = resolve_expr(tc, p->default_value);
+                GrayType *inferred = resolve_expr(tc, p->default_value);
                 if (inferred && inferred->kind == TK_ENUM) {
                     ptype = inferred;
                 } else {
@@ -9971,10 +9971,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* E3001: validate default value type matches parameter type */
             if (p->default_value && p->type_name) {
                 /* Set expected_type for implicit enum resolution in default param values */
-                EzType *saved_def_expected = tc->expected_type;
+                GrayType *saved_def_expected = tc->expected_type;
                 if (ptype->kind == TK_ENUM && ptype->name)
                     tc->expected_type = ptype;
-                EzType *def_t = resolve_expr(tc, p->default_value);
+                GrayType *def_t = resolve_expr(tc, p->default_value);
                 tc->expected_type = saved_def_expected;
                 if (def_t->kind != TK_UNKNOWN && ptype->kind != TK_UNKNOWN &&
                     def_t->kind != ptype->kind &&
@@ -10069,7 +10069,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         int prev_using_count = tc->using_module_count;
 
         /* Track current function return types for return statement checking */
-        EzType **prev_ret = tc->current_return_types;
+        GrayType **prev_ret = tc->current_return_types;
         const char **prev_ret_names = tc->current_return_type_names;
         int prev_ret_count = tc->current_return_count;
         bool prev_named = tc->current_has_named_returns;
@@ -10088,7 +10088,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (node->data.func_decl.return_type_count > 0) {
-            tc->current_return_types = xmalloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
+            tc->current_return_types = xmalloc(sizeof(GrayType *) * node->data.func_decl.return_type_count);
             tc->current_return_type_names = xmalloc(sizeof(const char *) * node->data.func_decl.return_type_count);
             tc->current_return_count = node->data.func_decl.return_type_count;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
@@ -10267,7 +10267,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_STRUCT_DECL: {
         /* E3099: struct name collides with a stdlib opaque type reserved by codegen.
-         * These names map to internal C types (EzRouter, EzThread, etc.) before the
+         * These names map to internal C types (GrayRouter, GrayThread, etc.) before the
          * user-struct path, so any user struct with these names silently generates
          * invalid C with no Grayscale diagnostic. */
         const char *sname = STRUCT_DISPLAY_NAME(node);
@@ -10339,7 +10339,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_WHEN_STMT: {
-        EzType *when_t = resolve_expr(tc, node->data.when_stmt.value);
+        GrayType *when_t = resolve_expr(tc, node->data.when_stmt.value);
         /* W2012: float subjects use bit-equality, which is rarely what the
          * user wants given 0.1 + 0.2 != 0.3. */
         if (when_t && when_t->kind == TK_FLOAT) {
@@ -10357,7 +10357,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         /* E2043: check for duplicate case values, E3001: check type match */
         /* Set expected_type for implicit enum resolution in when/is branches */
-        EzType *saved_when_expected = tc->expected_type;
+        GrayType *saved_when_expected = tc->expected_type;
         if (when_t && when_t->kind == TK_ENUM && when_t->name)
             tc->expected_type = when_t;
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
@@ -10399,7 +10399,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                     continue;
                 }
-                EzType *case_t = resolve_expr(tc, val_i);
+                GrayType *case_t = resolve_expr(tc, val_i);
                 /* Check case value type matches scrutinee; skip range exprs and unknowns */
                 if (when_t && case_t &&
                     when_t->kind != TK_UNKNOWN && case_t->kind != TK_UNKNOWN &&
@@ -10459,7 +10459,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             int pc = tc->enum_payload_counts[eidx][vidx];
                             int limit = bc < pc ? bc : pc;
                             for (int bi = 0; bi < limit; bi++) {
-                                EzType *bt = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][bi]);
+                                GrayType *bt = tc_type_from_name(tc, tc->enum_payload_types[eidx][vidx][bi]);
                                 scope_define(tc->current_scope, val_i->data.when_pattern.bindings[bi], bt, false);
                             }
                         }
@@ -10735,7 +10735,7 @@ static void validate_field_type_recursive(TypeChecker *tc, AstNode *program,
 
     /* Leaf: must be a known primitive, enum, struct, or wildcard '?' */
     if (type_name_has_wildcard(type_name)) return;
-    EzType *t = tc_type_from_name(tc, type_name);
+    GrayType *t = tc_type_from_name(tc, type_name);
     if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
     if (is_enum_name(tc, type_name)) return;
     if (is_struct_name(tc, type_name)) return;
@@ -10962,7 +10962,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             }
             int fc = stmt->data.struct_decl.field_count;
             const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * (fc ? fc : 1));
-            EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * (fc ? fc : 1));
+            GrayType **ftypes = arena_alloc(tc->arena, sizeof(GrayType *) * (fc ? fc : 1));
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = tc_type_from_name(tc, stmt->data.struct_decl.fields[j].type_name);
@@ -11118,12 +11118,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                 }
                 int pc = fn->data.func_decl.param_count;
-                EzType **ptypes = arena_alloc(tc->arena, sizeof(EzType *) * (pc ? pc : 1));
+                GrayType **ptypes = arena_alloc(tc->arena, sizeof(GrayType *) * (pc ? pc : 1));
                 for (int k = 0; k < pc; k++) {
                     ptypes[k] = tc_type_from_name(tc, fn->data.func_decl.params[k].type_name);
                 }
                 int rc = fn->data.func_decl.return_type_count;
-                EzType **rtypes = arena_alloc(tc->arena, sizeof(EzType *) * (rc ? rc : 1));
+                GrayType **rtypes = arena_alloc(tc->arena, sizeof(GrayType *) * (rc ? rc : 1));
                 for (int k = 0; k < rc; k++) {
                     rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
@@ -11141,14 +11141,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 
         if (stmt->kind == NODE_FUNC_DECL) {
             int pc = stmt->data.func_decl.param_count;
-            EzType **ptypes = arena_alloc(tc->arena, sizeof(EzType *) * (pc ? pc : 1));
+            GrayType **ptypes = arena_alloc(tc->arena, sizeof(GrayType *) * (pc ? pc : 1));
             for (int j = 0; j < pc; j++) {
                 ptypes[j] = tc_type_from_name(tc, stmt->data.func_decl.params[j].type_name);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
-            EzType **rtypes = arena_alloc(tc->arena, sizeof(EzType *) * (rc ? rc : 1));
+            GrayType **rtypes = arena_alloc(tc->arena, sizeof(GrayType *) * (rc ? rc : 1));
             for (int j = 0; j < rc; j++) {
                 rtypes[j] = tc_type_from_name(tc, stmt->data.func_decl.return_types[j]);
                 tc_mark_type_module_used(tc, stmt->data.func_decl.return_types[j]);
@@ -11310,7 +11310,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
      * and is available without any import. */
     {
         const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 3);
-        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 3);
+        GrayType **ftypes = arena_alloc(tc->arena, sizeof(GrayType *) * 3);
         fnames[0] = "file"; fnames[1] = "line"; fnames[2] = "column";
         ftypes[0] = &TYPE_STRING; ftypes[1] = &TYPE_INT; ftypes[2] = &TYPE_INT;
         register_struct(tc, "SourceLocation", "SourceLocation", fnames, ftypes, 3);
@@ -11319,7 +11319,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     /* Register stdlib struct types scoped to their module imports */
     if (tc_is_imported_module(tc, "server") || tc_is_imported_module(tc, "http")) {
         const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 3);
-        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 3);
+        GrayType **ftypes = arena_alloc(tc->arena, sizeof(GrayType *) * 3);
         fnames[0] = "status"; fnames[1] = "body"; fnames[2] = "headers";
         ftypes[0] = &TYPE_INT; ftypes[1] = &TYPE_STRING; ftypes[2] = type_from_name("map[string:string]");
         register_struct(tc, "HttpResponse", "HttpResponse", fnames, ftypes, 3);
@@ -11327,7 +11327,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     if (tc_is_imported_module(tc, "server")) {
         const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 6);
-        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 6);
+        GrayType **ftypes = arena_alloc(tc->arena, sizeof(GrayType *) * 6);
         fnames[0] = "method"; fnames[1] = "path"; fnames[2] = "body";
         fnames[3] = "query"; fnames[4] = "headers"; fnames[5] = "params";
         ftypes[0] = &TYPE_STRING; ftypes[1] = &TYPE_STRING; ftypes[2] = &TYPE_STRING;
@@ -11339,7 +11339,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     if (tc_is_imported_module(tc, "uuid")) {
         const char **fnames = arena_alloc(tc->arena, sizeof(const char *) * 1);
-        EzType **ftypes = arena_alloc(tc->arena, sizeof(EzType *) * 1);
+        GrayType **ftypes = arena_alloc(tc->arena, sizeof(GrayType *) * 1);
         fnames[0] = "value";
         ftypes[0] = &TYPE_STRING;
         register_struct(tc, "UUID", "UUID", fnames, ftypes, 1);
@@ -11436,9 +11436,9 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 if (!is_struct_name(tc, unprefixed)) {
                     int fc = tc->structs[si].field_count;
                     const char **fn = arena_alloc(tc->arena, sizeof(const char *) * (fc ? fc : 1));
-                    EzType **ft = arena_alloc(tc->arena, sizeof(EzType *) * (fc ? fc : 1));
+                    GrayType **ft = arena_alloc(tc->arena, sizeof(GrayType *) * (fc ? fc : 1));
                     memcpy(fn, tc->structs[si].field_names, sizeof(const char *) * fc);
-                    memcpy(ft, tc->structs[si].field_types, sizeof(EzType *) * fc);
+                    memcpy(ft, tc->structs[si].field_types, sizeof(GrayType *) * fc);
                     register_struct(tc, unprefixed, unprefixed, fn, ft, fc);
                 }
             }
@@ -11490,7 +11490,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         if (stmt->kind != NODE_VAR_DECL) continue;
         if (!stmt->data.var_decl.type_name) continue; /* inferred type — skip */
         if (scope_lookup_local(tc->current_scope, stmt->data.var_decl.name)) continue;
-        EzType *pre_t = type_from_name(stmt->data.var_decl.type_name);
+        GrayType *pre_t = type_from_name(stmt->data.var_decl.type_name);
         if (!pre_t) continue;
         scope_define(tc->current_scope, stmt->data.var_decl.name,
             pre_t, stmt->data.var_decl.mutable);
@@ -11539,7 +11539,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                     continue;
                 }
                 char *sub = substitute_wildcard(p->type_name, concrete);
-                EzType *pt = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
+                GrayType *pt = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
                 scope_define(inst_scope, p->name, pt, p->mutable);
                 /* `sub` leaks on purpose; type_from_name stores the
                  * name pointer for array/map kinds and we need it
@@ -11547,17 +11547,17 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                  * time allocation; short-lived process. */
             }
 
-            EzType **prev_ret = tc->current_return_types;
+            GrayType **prev_ret = tc->current_return_types;
             const char **prev_ret_names = tc->current_return_type_names;
             int prev_ret_count = tc->current_return_count;
             bool prev_named = tc->current_has_named_returns;
             const char **prev_return_names = tc->current_return_names;
 
             int rc = decl->data.func_decl.return_type_count;
-            EzType **ret_types = NULL;
+            GrayType **ret_types = NULL;
             const char **ret_names = NULL;
             if (rc > 0) {
-                ret_types = xmalloc(sizeof(EzType *) * (size_t)rc);
+                ret_types = xmalloc(sizeof(GrayType *) * (size_t)rc);
                 ret_names = xmalloc(sizeof(const char *) * (size_t)rc);
                 for (int ri = 0; ri < rc; ri++) {
                     char *sub = substitute_wildcard(

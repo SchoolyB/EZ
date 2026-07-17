@@ -1,6 +1,10 @@
 /*
- * gray_strconv.c - strconv module for EZ (string/type conversions)
+ * gray_strconv.c — Implementation of the strconv stdlib module.
+ * Converts between strings and numeric types (int, uint, float)
+ * with support for custom bases, validation, and both panicking
+ * and result-returning variants.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -15,7 +19,7 @@
 
 /* --- Panicking conversions --- */
 
-int64_t gray_strconv_to_int(EzString s, int base) {
+int64_t gray_strconv_to_int(GrayString s, int base) {
     if (base < 2 || base > 36)
         gray_panic_code("P0054", "strconv.to_int: invalid base %d; must be between 2 and 36", base);
     char buf[STRCONV_BUF_SIZE];
@@ -32,7 +36,7 @@ int64_t gray_strconv_to_int(EzString s, int base) {
     return result;
 }
 
-uint64_t gray_strconv_to_uint(EzString s, int base) {
+uint64_t gray_strconv_to_uint(GrayString s, int base) {
     if (base < 2 || base > 36)
         gray_panic_code("P0056", "strconv.to_uint: invalid base %d; must be between 2 and 36", base);
     char buf[STRCONV_BUF_SIZE];
@@ -55,7 +59,7 @@ uint64_t gray_strconv_to_uint(EzString s, int base) {
     return result;
 }
 
-double gray_strconv_to_float(EzString s) {
+double gray_strconv_to_float(GrayString s) {
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -70,7 +74,7 @@ double gray_strconv_to_float(EzString s) {
     return result;
 }
 
-bool gray_strconv_to_bool(EzString s) {
+bool gray_strconv_to_bool(GrayString s) {
     if (s.len == 4 && strncasecmp(s.data, "true", 4) == 0) return true;
     if (s.len == 5 && strncasecmp(s.data, "false", 5) == 0) return false;
     char buf[STRCONV_BUF_SIZE];
@@ -82,53 +86,53 @@ bool gray_strconv_to_bool(EzString s) {
 
 /* --- Fallible conversions (result versions) --- */
 
-EzResult_int gray_strconv_to_int_result(EzString s, int base) {
+GrayResult_int gray_strconv_to_int_result(GrayString s, int base) {
     if (base < 2 || base > 36) {
-        EzString msg = gray_string_lit("invalid base for integer conversion (must be 2-36)");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_int){0, err};
+        GrayString msg = gray_string_lit("invalid base for integer conversion (must be 2-36)");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_int){0, err};
     }
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
     if (len > 0 && isspace((unsigned char)buf[0])) {
-        EzString msg = gray_string_lit("cannot convert string to int");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_int){0, err};
+        GrayString msg = gray_string_lit("cannot convert string to int");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_int){0, err};
     }
     char *end = NULL;
     errno = 0;
     int64_t result = strtoll(buf, &end, base);
     if (end == buf || *end != '\0' || errno == ERANGE) {
-        EzString msg = gray_string_lit("cannot convert string to int");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_int){0, err};
+        GrayString msg = gray_string_lit("cannot convert string to int");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_int){0, err};
     }
-    return (EzResult_int){result, NULL};
+    return (GrayResult_int){result, NULL};
 }
 
-EzResult_uint gray_strconv_to_uint_result(EzString s, int base) {
+GrayResult_uint gray_strconv_to_uint_result(GrayString s, int base) {
     if (base < 2 || base > 36) {
-        EzString msg = gray_string_lit("invalid base for integer conversion (must be 2-36)");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_uint){0, err};
+        GrayString msg = gray_string_lit("invalid base for integer conversion (must be 2-36)");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_uint){0, err};
     }
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
     if (len > 0 && isspace((unsigned char)buf[0])) {
-        EzString msg = gray_string_lit("cannot convert string to uint");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_uint){0, err};
+        GrayString msg = gray_string_lit("cannot convert string to uint");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_uint){0, err};
     }
     /* Reject negative numbers */
     for (int i = 0; i < len; i++) {
         if (buf[i] == '-') {
-            EzString msg = gray_string_lit("cannot convert negative string to uint");
-            EzError *err = gray_error_new(gray_default_arena, msg);
-            return (EzResult_uint){0, err};
+            GrayString msg = gray_string_lit("cannot convert negative string to uint");
+            GrayError *err = gray_error_new(gray_default_arena, msg);
+            return (GrayResult_uint){0, err};
         }
         if (!isspace((unsigned char)buf[i])) break;
     }
@@ -136,80 +140,80 @@ EzResult_uint gray_strconv_to_uint_result(EzString s, int base) {
     errno = 0;
     uint64_t result = strtoull(buf, &end, base);
     if (end == buf || *end != '\0' || errno == ERANGE) {
-        EzString msg = gray_string_lit("cannot convert string to uint");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_uint){0, err};
+        GrayString msg = gray_string_lit("cannot convert string to uint");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_uint){0, err};
     }
-    return (EzResult_uint){result, NULL};
+    return (GrayResult_uint){result, NULL};
 }
 
-EzResult_float gray_strconv_to_float_result(EzString s) {
+GrayResult_float gray_strconv_to_float_result(GrayString s) {
     char buf[STRCONV_BUF_SIZE];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
     if (len > 0 && isspace((unsigned char)buf[0])) {
-        EzString msg = gray_string_lit("cannot convert string to float");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_float){0.0, err};
+        GrayString msg = gray_string_lit("cannot convert string to float");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_float){0.0, err};
     }
     char *end = NULL;
     errno = 0;
     double result = strtod(buf, &end);
     if (end == buf || *end != '\0' || errno == ERANGE) {
-        EzString msg = gray_string_lit("cannot convert string to float");
-        EzError *err = gray_error_new(gray_default_arena, msg);
-        return (EzResult_float){0.0, err};
+        GrayString msg = gray_string_lit("cannot convert string to float");
+        GrayError *err = gray_error_new(gray_default_arena, msg);
+        return (GrayResult_float){0.0, err};
     }
-    return (EzResult_float){result, NULL};
+    return (GrayResult_float){result, NULL};
 }
 
-EzResult_bool gray_strconv_to_bool_result(EzString s) {
+GrayResult_bool gray_strconv_to_bool_result(GrayString s) {
     if (s.len == 4 && strncasecmp(s.data, "true", 4) == 0) {
-        return (EzResult_bool){true, NULL};
+        return (GrayResult_bool){true, NULL};
     }
     if (s.len == 5 && strncasecmp(s.data, "false", 5) == 0) {
-        return (EzResult_bool){false, NULL};
+        return (GrayResult_bool){false, NULL};
     }
-    EzString msg = gray_string_lit("cannot convert string to bool");
-    EzError *err = gray_error_new(gray_default_arena, msg);
-    return (EzResult_bool){false, err};
+    GrayString msg = gray_string_lit("cannot convert string to bool");
+    GrayError *err = gray_error_new(gray_default_arena, msg);
+    return (GrayResult_bool){false, err};
 }
 
 /* --- Type to string conversions --- */
 
-EzString gray_strconv_from_int(EzArena *arena, int64_t n) {
+GrayString gray_strconv_from_int(GrayArena *arena, int64_t n) {
     char buf[STRCONV_BUF_SIZE];
     int len = snprintf(buf, sizeof(buf), "%" PRId64, n);
     char *data = (char *)gray_arena_alloc(arena, (size_t)len + 1);
     memcpy(data, buf, (size_t)len + 1);
-    return (EzString){data, (int32_t)len};
+    return (GrayString){data, (int32_t)len};
 }
 
-EzString gray_strconv_from_uint(EzArena *arena, uint64_t n) {
+GrayString gray_strconv_from_uint(GrayArena *arena, uint64_t n) {
     char buf[STRCONV_BUF_SIZE];
     int len = snprintf(buf, sizeof(buf), "%" PRIu64, n);
     char *data = (char *)gray_arena_alloc(arena, (size_t)len + 1);
     memcpy(data, buf, (size_t)len + 1);
-    return (EzString){data, (int32_t)len};
+    return (GrayString){data, (int32_t)len};
 }
 
-EzString gray_strconv_from_float(EzArena *arena, double f) {
+GrayString gray_strconv_from_float(GrayArena *arena, double f) {
     char buf[STRCONV_BUF_SIZE];
     int len = snprintf(buf, sizeof(buf), "%g", f);
     char *data = (char *)gray_arena_alloc(arena, (size_t)len + 1);
     memcpy(data, buf, (size_t)len + 1);
-    return (EzString){data, (int32_t)len};
+    return (GrayString){data, (int32_t)len};
 }
 
-EzString gray_strconv_from_bool(bool b) {
+GrayString gray_strconv_from_bool(bool b) {
     if (b) return gray_string_lit("true");
     return gray_string_lit("false");
 }
 
 /* --- Query functions --- */
 
-bool gray_strconv_is_numeric(EzString s) {
+bool gray_strconv_is_numeric(GrayString s) {
     if (s.len == 0) return false;
     int start = 0;
     if (s.data[0] == '-' || s.data[0] == '+') {
@@ -231,7 +235,7 @@ bool gray_strconv_is_numeric(EzString s) {
     return has_digit;
 }
 
-bool gray_strconv_is_integer(EzString s) {
+bool gray_strconv_is_integer(GrayString s) {
     if (s.len == 0) return false;
     int start = 0;
     if (s.data[0] == '-' || s.data[0] == '+') {

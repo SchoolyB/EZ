@@ -1,12 +1,15 @@
 /*
- * types.h - Type representation for the Grayscale type system
+ * types.h — Core type representation for the Grayscale type system, declaring
+ * TypeKind, the GrayType struct, and the built-in type singletons used by the
+ * type checker and codegen.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_TYPES_H
-#define EZC_TYPES_H
+#ifndef GRAYC_TYPES_H
+#define GRAYC_TYPES_H
 
 #include <stdbool.h>
 
@@ -40,46 +43,46 @@ typedef struct {
     bool *param_mutable;
     int return_count;
     const char **return_types;
-} EzFuncSig;
+} GrayFuncSig;
 
-typedef struct EzType {
+typedef struct GrayType {
     TypeKind kind;
     const char *name;           /* "int", "string", "Person", "[int]", etc. */
     const char *element_type;   /* For arrays: element type name */
     const char *key_type;       /* For maps: key type name */
     const char *value_type;     /* For maps: value type name */
-    EzFuncSig *func_sig;        /* For TK_FUNCTION: parsed signature */
-} EzType;
+    GrayFuncSig *func_sig;        /* For TK_FUNCTION: parsed signature */
+} GrayType;
 
 /* Built-in type singletons */
-extern EzType TYPE_VOID;
-extern EzType TYPE_INT;
-extern EzType TYPE_UINT;
-extern EzType TYPE_FLOAT;
-extern EzType TYPE_BOOL;
-extern EzType TYPE_CHAR;
-extern EzType TYPE_BYTE;
-extern EzType TYPE_STRING;
-extern EzType TYPE_NIL;
-extern EzType TYPE_UNKNOWN;
+extern GrayType TYPE_VOID;
+extern GrayType TYPE_INT;
+extern GrayType TYPE_UINT;
+extern GrayType TYPE_FLOAT;
+extern GrayType TYPE_BOOL;
+extern GrayType TYPE_CHAR;
+extern GrayType TYPE_BYTE;
+extern GrayType TYPE_STRING;
+extern GrayType TYPE_NIL;
+extern GrayType TYPE_UNKNOWN;
 
 /* Type constructors */
-EzType *type_array(const char *elem_type);
-EzType *type_struct(const char *name);
-EzType *type_enum(const char *name);
-EzType *type_pointer(const char *pointee_type);
+GrayType *type_array(const char *elem_type);
+GrayType *type_struct(const char *name);
+GrayType *type_enum(const char *name);
+GrayType *type_pointer(const char *pointee_type);
 
 /* Allocate a new type (from internal pool) */
-EzType *type_alloc(void);
+GrayType *type_alloc(void);
 
 /* Type queries */
-bool type_is_numeric(EzType *t);
-bool type_is_integer(EzType *t);
-bool type_eq(EzType *a, EzType *b);
-const char *type_name(EzType *t);
+bool type_is_numeric(GrayType *t);
+bool type_is_integer(GrayType *t);
+bool type_eq(GrayType *a, GrayType *b);
+const char *type_name(GrayType *t);
 
-/* Resolve a type name string to an EzType */
-EzType *type_from_name(const char *name);
+/* Resolve a type name string to an GrayType */
+GrayType *type_from_name(const char *name);
 
 /* Free all heap strings owned by pool entries and reset the pool */
 void type_pool_reset(void);

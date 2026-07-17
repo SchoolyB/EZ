@@ -1,7 +1,8 @@
 /*
+ * codegen.c — Walks the typed AST and emits equivalent C source code,
+ * handling declarations, control flow, stdlib calls, and memory management.
  *
- * Walks the AST and emits C source code.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -299,24 +300,24 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "bool") == 0)   return "bool";
     if (strcmp(type_name, "char") == 0)   return "int32_t";
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
-    if (strcmp(type_name, "string") == 0) return "EzString";
-    if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
-    if (strcmp(type_name, "HttpRequest") == 0) return "EzRequest";
-    if (strcmp(type_name, "HttpResponse") == 0) return "EzResponse";
+    if (strcmp(type_name, "string") == 0) return "GrayString";
+    if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "GrayError *";
+    if (strcmp(type_name, "HttpRequest") == 0) return "GrayRequest";
+    if (strcmp(type_name, "HttpResponse") == 0) return "GrayResponse";
     /* Stdlib opaque types: scalar path uses __auto_type and never reaches
      * this resolver, but [T] / map[_:T] / struct fields write the type
      * name explicitly and need it mapped here. Without this, the fallback
-     * below produces EzStruct_<Name>, which no header defines, and clang
+     * below produces GrayStruct_<Name>, which no header defines, and clang
      * fails on the generated C. */
-    if (strcmp(type_name, "Thread") == 0)   return "EzThread";
-    if (strcmp(type_name, "Mutex") == 0)    return "EzMutex";
-    if (strcmp(type_name, "SpinLock") == 0) return "EzSpinLock";
-    if (strcmp(type_name, "Channel") == 0)  return "EzChannel";
-    if (strcmp(type_name, "Socket") == 0)   return "EzSocket";
-    if (strcmp(type_name, "Listener") == 0) return "EzSocket";
-    if (strcmp(type_name, "Database") == 0) return "EzSqlite";
-    if (strcmp(type_name, "Router") == 0)   return "EzRouter";
-    if (strcmp(type_name, "UUID") == 0)     return "EzUUID";
+    if (strcmp(type_name, "Thread") == 0)   return "GrayThread";
+    if (strcmp(type_name, "Mutex") == 0)    return "GrayMutex";
+    if (strcmp(type_name, "SpinLock") == 0) return "GraySpinLock";
+    if (strcmp(type_name, "Channel") == 0)  return "GrayChannel";
+    if (strcmp(type_name, "Socket") == 0)   return "GraySocket";
+    if (strcmp(type_name, "Listener") == 0) return "GraySocket";
+    if (strcmp(type_name, "Database") == 0) return "GraySqlite";
+    if (strcmp(type_name, "Router") == 0)   return "GrayRouter";
+    if (strcmp(type_name, "UUID") == 0)     return "GrayUUID";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* bare func; cast at call site */
     if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
@@ -331,14 +332,14 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
         return buf;
     }
 
-    /* Array type: [T]; use EzArray */
+    /* Array type: [T]; use GrayArray */
     if (type_name[0] == '[') {
-        return "EzArray";
+        return "GrayArray";
     }
 
-    /* Map type: map[K:V]; use EzMap */
+    /* Map type: map[K:V]; use GrayMap */
     if (strncmp(type_name, "map[", 4) == 0) {
-        return "EzMap";
+        return "GrayMap";
     }
 
     /* Qualified type name: module.Type → strip module prefix */
@@ -347,9 +348,9 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
         const char *base = dot + 1;
         static char buf[GRAY_MSG_BUF_SIZE];
         if (cg && codegen_is_enum(cg, base)) {
-            snprintf(buf, sizeof(buf), "EzEnum_%s", base);
+            snprintf(buf, sizeof(buf), "GrayEnum_%s", base);
         } else {
-            snprintf(buf, sizeof(buf), "EzStruct_%s", base);
+            snprintf(buf, sizeof(buf), "GrayStruct_%s", base);
         }
         return buf;
     }
@@ -369,7 +370,7 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
             resolved = resolve_unprefixed_name(cg, type_name);
         }
         /* Module-qualified opaque types: mod_Type → strip prefix and
-         * re-resolve so opaque mappings (Channel→EzChannel etc.) apply. */
+         * re-resolve so opaque mappings (Channel→GrayChannel etc.) apply. */
         const char *mod_us = strchr(resolved, '_');
         if (mod_us && mod_us[1] >= 'A' && mod_us[1] <= 'Z') {
             const char *base = mod_us + 1;
@@ -377,9 +378,9 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
             if (mapped != base) return mapped;
         }
         if (cg && codegen_is_enum(cg, resolved)) {
-            snprintf(buf, sizeof(buf), "EzEnum_%s", resolved);
+            snprintf(buf, sizeof(buf), "GrayEnum_%s", resolved);
         } else {
-            snprintf(buf, sizeof(buf), "EzStruct_%s", resolved);
+            snprintf(buf, sizeof(buf), "GrayStruct_%s", resolved);
         }
         return buf;
     }
@@ -397,29 +398,29 @@ static const char *gray_map_elem_c_type(CodeGen *cg, const char *gray_tn) {
     /* Func references (bare or typed) are stored as void * in maps, same as
      * in arrays and all other composite types. */
     if (strcmp(gray_tn, "func") == 0 || strncmp(gray_tn, "func(", 5) == 0) return "void *";
-    EzType *t = type_from_name(gray_tn);
+    GrayType *t = type_from_name(gray_tn);
     if (!t) return "int64_t";
     switch (t->kind) {
     case TK_FLOAT:   return "double";
-    case TK_STRING:  return "EzString";
+    case TK_STRING:  return "GrayString";
     case TK_BOOL:    return "bool";
     case TK_CHAR:    return "int32_t";
     case TK_BYTE:    return "uint8_t";
-    case TK_ARRAY:   return "EzArray";
-    case TK_MAP:     return "EzMap";
+    case TK_ARRAY:   return "GrayArray";
+    case TK_MAP:     return "GrayMap";
     case TK_STRUCT:  return gray_type_to_c_cg(cg, gray_tn);
     case TK_POINTER: return gray_type_to_c_cg(cg, gray_tn);
     default:         return "int64_t";
     }
 }
 
-/* Map a C key type back to its EzMap key-kind macro so the codegen can
+/* Map a C key type back to its GrayMap key-kind macro so the codegen can
  * tag each gray_map_new_kind call. Float keys need this so -0.0/+0.0 and
  * NaN are normalized at lookup time; other 8-byte keys (int, pointer)
  * stay on the bytewise path. */
 static const char *gray_map_key_kind_macro(const char *c_key_type) {
     if (!c_key_type) return "GRAY_MAP_KEY_BYTES";
-    if (strcmp(c_key_type, "EzString") == 0) return "GRAY_MAP_KEY_STRING";
+    if (strcmp(c_key_type, "GrayString") == 0) return "GRAY_MAP_KEY_STRING";
     if (strcmp(c_key_type, "double") == 0)   return "GRAY_MAP_KEY_F64";
     if (strcmp(c_key_type, "float") == 0)    return "GRAY_MAP_KEY_F32";
     return "GRAY_MAP_KEY_BYTES";
@@ -429,7 +430,7 @@ static const char *gray_map_key_kind_macro(const char *c_key_type) {
  *
  * A value is "needs-deep-copy" iff reading one C-level copy of it
  * would share mutable backing storage with the source. That covers
- * arrays (EzArray header aliases data), maps (EzMap header aliases
+ * arrays (GrayArray header aliases data), maps (GrayMap header aliases
  * keys/values/states/order), and any struct that transitively holds a
  * field of either. Pointers are deliberately left to alias; following
  * the pointee would surprise users, loop on cycles, and doesn't match
@@ -516,8 +517,8 @@ static void emit_array_deep_copy(CodeGen *cg, const char *gray_tn, const char *s
     const char *c_elem = c_elem_buf;
     int t = next_dc_tag();
     emitf(cg,
-        "({ EzArray _ds%d = %s; "
-        "EzArray _dd%d = gray_array_new(gray_default_arena, sizeof(%s), _ds%d.len); "
+        "({ GrayArray _ds%d = %s; "
+        "GrayArray _dd%d = gray_array_new(gray_default_arena, sizeof(%s), _ds%d.len); "
         "_dd%d.len = _ds%d.len; "
         "for (int32_t _di%d = 0; _di%d < _ds%d.len; _di%d++) { "
         "%s _de%d = ",
@@ -579,8 +580,8 @@ static void emit_map_deep_copy(CodeGen *cg, const char *gray_tn, const char *src
     const char *c_val = gray_map_elem_c_type(cg, val_tn);
     int t = next_dc_tag();
     emitf(cg,
-        "({ EzMap _ms%d = %s; "
-        "EzMap _md%d = gray_map_new_kind(gray_default_arena, _ms%d.key_size, _ms%d.value_size, "
+        "({ GrayMap _ms%d = %s; "
+        "GrayMap _md%d = gray_map_new_kind(gray_default_arena, _ms%d.key_size, _ms%d.value_size, "
         "_ms%d.order_len > 4 ? _ms%d.order_len * 2 : 8, _ms%d.key_kind); "
         "for (int32_t _mi%d = 0; _mi%d < _ms%d.order_len; _mi%d++) { "
         "int32_t _mslot%d = _ms%d.order[_mi%d]; "
@@ -685,7 +686,7 @@ static void emit_value_deep_copy(CodeGen *cg, const char *gray_tn, const char *s
  * type string. */
 static void emit_deep_array_copy(CodeGen *cg, AstNode *src_node, const char *elem_type_name) {
     int t = next_dc_tag();
-    emitf(cg, "({ EzArray _dtop%d = ", t);
+    emitf(cg, "({ GrayArray _dtop%d = ", t);
     emit_expression(cg, src_node);
     emit(cg, "; ");
     char src_var[CG_SHORT_VAR_BUF];
@@ -791,7 +792,7 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
     }
     /* Pointer dereference p^ — check whether the pointee type is bigint */
     if (node->kind == NODE_POSTFIX_EXPR && node->data.postfix.op == TOK_CARET) {
-        EzType *ptr_t = cg->type_table
+        GrayType *ptr_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
         if (ptr_t && ptr_t->kind == TK_POINTER && ptr_t->element_type &&
             is_bigint_type(ptr_t->element_type))
@@ -805,7 +806,7 @@ static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
  * values to the bigint arithmetic helpers. */
 static void emit_bigint_operand(CodeGen *cg, AstNode *operand,
                                 const char *pfx, const char *bi_type,
-                                EzType *operand_t) {
+                                GrayType *operand_t) {
     /* Integer literal */
     if (operand->kind == NODE_INT_VALUE) {
         if (operand->data.int_value.overflow) {
@@ -897,7 +898,7 @@ static bool func_uses_caller_arena(AstNode *fn) {
 
 static bool is_result_temp(const char *name) {
     if (!name) return false;
-    return strncmp(name, "_gray_tmp", 7) == 0 || strncmp(name, "_gray_or", 6) == 0;
+    return strncmp(name, "_gray_tmp", 9) == 0 || strncmp(name, "_gray_or", 8) == 0;
 }
 
 static int func_name_cmp(const void *a, const void *b) {
@@ -1155,13 +1156,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             } else {
                 /* Use type table to determine format specifier */
-                EzType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
+                GrayType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
                 TypeKind tk = t ? t->kind : TK_UNKNOWN;
 
                 /* Fall back to AST-based inference if no type info */
                 if (tk == TK_UNKNOWN) {
                     if (cg->wildcard_binding) {
-                        EzType *wc = type_from_name(cg->wildcard_binding);
+                        GrayType *wc = type_from_name(cg->wildcard_binding);
                         if (wc) { tk = wc->kind; t = wc; }
                     }
                 }
@@ -1208,11 +1209,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (part->kind == NODE_STRING_VALUE) continue;
             emit(cg, ", ");
 
-            EzType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
+            GrayType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
             TypeKind tk = t ? t->kind : TK_UNKNOWN;
             if (tk == TK_UNKNOWN) {
                 if (cg->wildcard_binding) {
-                    EzType *wc = type_from_name(cg->wildcard_binding);
+                    GrayType *wc = type_from_name(cg->wildcard_binding);
                     if (wc) { tk = wc->kind; t = wc; }
                 }
             }
@@ -1253,7 +1254,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Determine element kind: 0=int, 1=float, 2=string, 3=bool, 4=uint, 5=byte, 6=char */
                 int ek = 0;
                 if (t && t->element_type) {
-                    EzType *et = type_from_name(t->element_type);
+                    GrayType *et = type_from_name(t->element_type);
                     if (et->kind == TK_FLOAT) ek = 1;
                     else if (et->kind == TK_STRING) ek = 2;
                     else if (et->kind == TK_BOOL) ek = 3;
@@ -1261,7 +1262,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (et->kind == TK_BYTE) ek = 5;
                     else if (et->kind == TK_CHAR) ek = 6;
                 }
-                emitf(cg, "({ EzArray _interp_arr = ");
+                emitf(cg, "({ GrayArray _interp_arr = ");
                 emit_expression(cg, part);
                 emitf(cg, "; gray_builtin_array_to_string(gray_default_arena, &_interp_arr, %d); }).data", ek);
                 break;
@@ -1270,7 +1271,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Determine value kind: 0=int, 1=float, 2=string, 3=bool, 4=uint, 5=byte, 6=char */
                 int vk = 0;
                 if (t && t->value_type) {
-                    EzType *vt = type_from_name(t->value_type);
+                    GrayType *vt = type_from_name(t->value_type);
                     if (vt->kind == TK_FLOAT) vk = 1;
                     else if (vt->kind == TK_STRING) vk = 2;
                     else if (vt->kind == TK_BOOL) vk = 3;
@@ -1278,7 +1279,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (vt->kind == TK_BYTE) vk = 5;
                     else if (vt->kind == TK_CHAR) vk = 6;
                 }
-                emitf(cg, "({ EzMap _interp_map = ");
+                emitf(cg, "({ GrayMap _interp_map = ");
                 emit_expression(cg, part);
                 emitf(cg, "; gray_builtin_map_to_string(gray_default_arena, &_interp_map, %d); }).data", vk);
                 break;
@@ -1327,24 +1328,24 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_ARRAY_VALUE: {
-        /* Array literal: emit as EzArray using gray_array_from */
+        /* Array literal: emit as GrayArray using gray_array_from */
         int count = node->data.array_value.count;
         if (count == 0) {
             /* Empty array; check type table for element type, falling
              * back to the var-decl context type if the node has none. */
-            EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+            GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
             if ((!arr_t || arr_t->kind == TK_UNKNOWN) && cg->current_var_type && cg->current_var_type[0]) {
                 arr_t = type_from_name(cg->current_var_type);
             }
             const char *elem_sz = "int64_t";
             if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
                 const char *etype = arr_t->element_type;
-                EzType *et = type_from_name(etype);
+                GrayType *et = type_from_name(etype);
                 if (et->kind == TK_FLOAT) elem_sz = "double";
                 else if (et->kind == TK_BOOL) elem_sz = "bool";
-                else if (et->kind == TK_STRING) elem_sz = "EzString";
-                else if (et->kind == TK_ARRAY) elem_sz = "EzArray";
-                else if (et->kind == TK_MAP) elem_sz = "EzMap";
+                else if (et->kind == TK_STRING) elem_sz = "GrayString";
+                else if (et->kind == TK_ARRAY) elem_sz = "GrayArray";
+                else if (et->kind == TK_MAP) elem_sz = "GrayMap";
                 else if (et->kind == TK_STRUCT) elem_sz = gray_type_to_c_cg(cg, etype);
                 else if (et->kind == TK_POINTER) elem_sz = gray_type_to_c_cg(cg, etype);
                 else if (et->kind == TK_CHAR) elem_sz = "int32_t";
@@ -1360,30 +1361,30 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
         /* Check if this is a nested array (elements are arrays) */
         if (node->data.array_value.elements[0]->kind == NODE_ARRAY_VALUE) {
-            /* Nested array: each element is an EzArray */
-            emitf(cg, "gray_array_from(gray_default_arena, (EzArray[]){");
+            /* Nested array: each element is an GrayArray */
+            emitf(cg, "gray_array_from(gray_default_arena, (GrayArray[]){");
             for (int i = 0; i < count; i++) {
                 if (i > 0) emit(cg, ", ");
                 emit_expression(cg, node->data.array_value.elements[i]);
             }
-            emitf(cg, "}, sizeof(EzArray), %d)", count);
+            emitf(cg, "}, sizeof(GrayArray), %d)", count);
             break;
         }
 
         /* Array of maps: elements are map literals */
         if (node->data.array_value.elements[0]->kind == NODE_MAP_VALUE) {
-            emitf(cg, "gray_array_from(gray_default_arena, (EzMap[]){");
+            emitf(cg, "gray_array_from(gray_default_arena, (GrayMap[]){");
             for (int i = 0; i < count; i++) {
                 if (i > 0) emit(cg, ", ");
                 emit_expression(cg, node->data.array_value.elements[i]);
             }
-            emitf(cg, "}, sizeof(EzMap), %d)", count);
+            emitf(cg, "}, sizeof(GrayMap), %d)", count);
             break;
         }
 
         /* Determine element type; try bigint detection first, then type table */
         const char *bi_elem = resolve_bigint_type(cg, node->data.array_value.elements[0]);
-        EzType *elem_t = cg->type_table
+        GrayType *elem_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.array_value.elements[0])
             : NULL;
         if (!bi_elem && elem_t && elem_t->name && is_bigint_type(elem_t->name))
@@ -1410,7 +1411,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 /* Strip fixed-size ",N" suffix if present */
                 char *comma = strchr(inferred, ',');
                 if (comma) *comma = '\0';
-                EzType *inferred_t = type_from_name(inferred);
+                GrayType *inferred_t = type_from_name(inferred);
                 if (inferred_t && inferred_t->kind != TK_UNKNOWN) elem_t = inferred_t;
             }
         }
@@ -1441,7 +1442,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         } else switch (tk) {
         case TK_FLOAT:  c_type = "double"; break;
         case TK_BOOL:   c_type = "bool"; break;
-        case TK_STRING: c_type = "EzString"; break;
+        case TK_STRING: c_type = "GrayString"; break;
         case TK_STRUCT: c_type = gray_type_to_c_cg(cg, elem_t->name); break;
         case TK_ENUM: {
             bool is_str = false;
@@ -1455,9 +1456,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
             static char enum_arr_buf[GRAY_MSG_BUF_SIZE];
             if (is_str) {
-                c_type = "EzString";
+                c_type = "GrayString";
             } else {
-                snprintf(enum_arr_buf, sizeof(enum_arr_buf), "EzEnum_%s", elem_t->name ? elem_t->name : "int");
+                snprintf(enum_arr_buf, sizeof(enum_arr_buf), "GrayEnum_%s", elem_t->name ? elem_t->name : "int");
                 c_type = enum_arr_buf;
             }
             break;
@@ -1470,8 +1471,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             c_type = ptr_buf;
             break;
         }
-        case TK_MAP:    c_type = "EzMap"; break;
-        case TK_ARRAY:  c_type = "EzArray"; break;
+        case TK_MAP:    c_type = "GrayMap"; break;
+        case TK_ARRAY:  c_type = "GrayArray"; break;
         case TK_CHAR:   c_type = "int32_t"; break;
         case TK_BYTE:   c_type = "uint8_t"; break;
         default:        c_type = "int64_t"; break;
@@ -1494,9 +1495,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Determine key/value C types. Prefer the enclosing var/field declared
          * type when available; byte/char literals are typechecked as int, so
          * first-pair inference would miss the declared key type. */
-        const char *c_key_type = "EzString";
+        const char *c_key_type = "GrayString";
         const char *c_val_type = "int64_t";
-        EzType *decl_mt = (cg->current_var_type &&
+        GrayType *decl_mt = (cg->current_var_type &&
                            strncmp(cg->current_var_type, "map[", 4) == 0)
             ? type_from_name(cg->current_var_type) : NULL;
         if (decl_mt && decl_mt->key_type)
@@ -1504,8 +1505,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (decl_mt && decl_mt->value_type)
             c_val_type = gray_map_elem_c_type(cg, decl_mt->value_type);
         if (count > 0) {
-            EzType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
-            EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
+            GrayType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
+            GrayType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
             if (!decl_mt && kt) c_key_type = gray_map_elem_c_type(cg, type_name(kt));
             if (!decl_mt && vt && vt->kind == TK_POINTER) {
                 static char map_ptr_buf[GRAY_MSG_BUF_SIZE];
@@ -1517,13 +1518,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        /* Use GCC statement expression: ({ EzMap m = ...; gray_map_set(...); m; })
+        /* Use GCC statement expression: ({ GrayMap m = ...; gray_map_set(...); m; })
          * Capture counter before emitting values; nested map literals will
          * re-enter this case and increment the counter, so each level gets
          * a unique temp name. */
         static int map_lit_counter = 0;
         int my_counter = map_lit_counter++;
-        emitf(cg, "({ EzMap _ml%d = gray_map_new_kind(gray_default_arena, sizeof(%s), sizeof(%s), %d, %s); ",
+        emitf(cg, "({ GrayMap _ml%d = gray_map_new_kind(gray_default_arena, sizeof(%s), sizeof(%s), %d, %s); ",
             my_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8,
             gray_map_key_kind_macro(c_key_type));
 
@@ -1554,7 +1555,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_STRUCT_VALUE: {
-        /* Struct literal: (EzStruct_Name){.field = value, ...} */
+        /* Struct literal: (GrayStruct_Name){.field = value, ...} */
         /* Resolve ? → concrete binding for type params */
         const char *sname = node->data.struct_value.name;
         if (strcmp(sname, "?") == 0 && cg->wildcard_binding) {
@@ -1582,9 +1583,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 mangled[mpos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
             }
             mangled[mpos] = '\0';
-            emitf(cg, "(EzStruct_%s){", mangled);
+            emitf(cg, "(GrayStruct_%s){", mangled);
         } else {
-            emitf(cg, "(EzStruct_%s){", sname);
+            emitf(cg, "(GrayStruct_%s){", sname);
         }
         /* Look up the struct decl so we can thread each field's declared
          * type into emit_expression as current_var_type. Without it, an
@@ -1666,7 +1667,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Overflow-checked negation for signed integer types; STANDARD §3.1.1
          * promises arithmetic panics rather than silent wrap on overflow. */
         if (node->data.prefix.op == TOK_MINUS) {
-            EzType *ot = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
+            GrayType *ot = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
             if (ot && ot->kind == TK_INT) {
                 const char *sn = ot->name;
                 const char *smin = NULL, *smax = NULL;
@@ -1691,7 +1692,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
          * C promotes uint8_t to int before applying ~, yielding a negative
          * value that fails the runtime byte range check. */
         if (node->data.prefix.op == TOK_BIT_NOT) {
-            EzType *bn_t = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
+            GrayType *bn_t = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
             if (bn_t && bn_t->kind == TK_BYTE) {
                 emit(cg, "((uint8_t)(~(");
                 emit_expression(cg, node->data.prefix.right);
@@ -1721,15 +1722,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         TokenType op = node->data.infix.op;
 
         /* Check if either operand is a string; need special handling */
-        EzType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
-        EzType *rt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
+        GrayType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
+        GrayType *rt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
         /* Inside a generic instantiation, operands that were
          * typed TK_UNKNOWN in the main pass (because they traced back
          * to a '?' parameter) should be treated as the active wildcard
          * binding so string/struct comparisons pick up the right path. */
         if (cg && cg->wildcard_binding) {
-            static EzType wc_t_static;
-            EzType *wc_t = type_from_name(cg->wildcard_binding);
+            static GrayType wc_t_static;
+            GrayType *wc_t = type_from_name(cg->wildcard_binding);
             if (wc_t) { wc_t_static = *wc_t; wc_t = &wc_t_static; }
             if (!lt || lt->kind == TK_UNKNOWN) lt = wc_t;
             if (!rt || rt->kind == TK_UNKNOWN) rt = wc_t;
@@ -1839,7 +1840,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
 
             /* Map or array membership */
-            EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
+            GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
             /* Map membership: key in map → gray_maps_has_key */
             if (arr_t && arr_t->kind == TK_MAP) {
                 if (negated) emit(cg, "!");
@@ -1852,7 +1853,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
             /* String membership: char in string or string in string */
             if (arr_t && arr_t->kind == TK_STRING) {
-                EzType *left_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
+                GrayType *left_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
                 if (left_t && left_t->kind == TK_CHAR) {
                     /* char in string → memchr scan */
                     if (negated) emit(cg, "!");
@@ -2095,7 +2096,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "; if (!_dp) { gray_panic_code(\"P0080\", \"nil pointer dereference\"); } *_dp; })");
         } else if (node->data.postfix.op == TOK_INCREMENT) {
             /* Overflow-checked increment; sized types need bounds check */
-            EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
+            GrayType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
             bool su = false;
@@ -2131,7 +2132,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         } else if (node->data.postfix.op == TOK_DECREMENT) {
             /* Overflow-checked decrement; sized types need bounds check */
-            EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
+            GrayType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
             bool su = false;
@@ -2261,14 +2262,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
                 if (resolved_enum) {
                     if (cg_enum_is_tagged(cg, resolved_enum)) {
-                        emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s }", resolved_enum, resolved_enum, mem);
+                        emitf(cg, "(GrayEnum_%s){ .tag = GrayEnum_%s_TAG_%s }", resolved_enum, resolved_enum, mem);
                     } else {
-                        emitf(cg, "EzEnum_%s_%s", resolved_enum, mem);
+                        emitf(cg, "GrayEnum_%s_%s", resolved_enum, mem);
                     }
                     break;
                 }
             }
-            /* Rewritten enum name from import: lib_Color.RED → EzEnum_lib_Color_RED.
+            /* Rewritten enum name from import: lib_Color.RED → GrayEnum_lib_Color_RED.
              * The module-prefixed name starts with the module name (lowercase),
              * so the uppercase-mod guard above misses it. codegen_is_enum is
              * authoritative — if the resolved identifier is a known enum, any
@@ -2277,9 +2278,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
              * `type_change` are valid). */
             if (codegen_is_enum(cg, mod)) {
                 if (cg_enum_is_tagged(cg, mod)) {
-                    emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s }", mod, mod, mem);
+                    emitf(cg, "(GrayEnum_%s){ .tag = GrayEnum_%s_TAG_%s }", mod, mod, mem);
                 } else {
-                    emitf(cg, "EzEnum_%s_%s", mod, mem);
+                    emitf(cg, "GrayEnum_%s_%s", mod, mem);
                 }
                 break;
             }
@@ -2332,7 +2333,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED.
+        /* Module-qualified enum access: lib.Color.RED → GrayEnum_lib_Color_RED.
          * The first-letter casing heuristics aren't reliable — Grayscale permits
          * lowercase enum members (e.g. `type_change`), and a confident
          * `codegen_is_enum` lookup on the prefixed name is authoritative.
@@ -2348,7 +2349,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     char prefixed[GRAY_MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_name);
                     if (codegen_is_enum(cg, prefixed)) {
-                        emitf(cg, "EzEnum_%s_%s_%s", mod, type_name, value);
+                        emitf(cg, "GrayEnum_%s_%s_%s", mod, type_name, value);
                         break;
                     }
                 }
@@ -2356,7 +2357,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         /* Check if object is a pointer type; use -> instead of . */
         {
-            EzType *obj_t = cg->type_table
+            GrayType *obj_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.member.object)
                 : NULL;
 
@@ -2405,8 +2406,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_INDEX_EXPR: {
-        /* Check if left side is an array (EzArray) or string */
-        EzType *left_t = cg->type_table
+        /* Check if left side is an array (GrayArray) or string */
+        GrayType *left_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.index_expr.left)
             : NULL;
         if (left_t && left_t->kind == TK_ARRAY) {
@@ -2416,18 +2417,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (elem_tn && (strcmp(elem_tn, "func") == 0 || strncmp(elem_tn, "func(", 5) == 0)) {
                 c_elem = "void *";
             } else if (elem_tn) {
-                EzType *et = type_from_name(elem_tn);
+                GrayType *et = type_from_name(elem_tn);
                 if (et->kind == TK_FLOAT) c_elem = "double";
                 else if (et->kind == TK_BOOL) c_elem = "bool";
-                else if (et->kind == TK_STRING) c_elem = "EzString";
+                else if (et->kind == TK_STRING) c_elem = "GrayString";
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
-                else if (et->kind == TK_ARRAY) c_elem = "EzArray";
-                else if (et->kind == TK_MAP) c_elem = "EzMap";
+                else if (et->kind == TK_ARRAY) c_elem = "GrayArray";
+                else if (et->kind == TK_MAP) c_elem = "GrayMap";
                 else if (et->kind == TK_STRUCT) c_elem = gray_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_ENUM) {
                     c_elem = cg_enum_is_string(cg, elem_tn)
-                        ? "EzString" : gray_type_to_c_cg(cg, elem_tn);
+                        ? "GrayString" : gray_type_to_c_cg(cg, elem_tn);
                 }
                 else if (et->kind == TK_POINTER) {
                     static char idx_ptr_buf[GRAY_MSG_BUF_SIZE];
@@ -2453,7 +2454,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
                 AstNode *_mem = node->data.index_expr.left;
                 AstNode *_obj = _mem->data.member.object;
-                EzType *_obj_t = cg->type_table ? typetable_get(cg->type_table, _obj) : NULL;
+                GrayType *_obj_t = cg->type_table ? typetable_get(cg->type_table, _obj) : NULL;
                 if (_obj_t && _obj_t->kind == TK_POINTER) {
                     arr_ptr_obj = _obj;
                     arr_ptr_field = _mem->data.member.member;
@@ -2475,7 +2476,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.index_expr.index);
                 emit(cg, "); })");
             } else if (node->data.index_expr.left->kind == NODE_CALL_EXPR) {
-                emitf(cg, "({ EzArray _ea = ");
+                emitf(cg, "({ GrayArray _ea = ");
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; GRAY_ARRAY_GET(_ea, %s, ", c_elem);
                 emit_expression(cg, node->data.index_expr.index);
@@ -2489,7 +2490,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         } else if (left_t && left_t->kind == TK_MAP) {
             /* Map key access; use temp to handle rvalue keys like literals */
-            const char *c_key = "EzString";
+            const char *c_key = "GrayString";
             const char *c_val = "int64_t";
             if (left_t->key_type) c_key = gray_map_elem_c_type(cg, left_t->key_type);
             if (left_t->value_type) c_val = gray_map_elem_c_type(cg, left_t->value_type);
@@ -2500,14 +2501,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 node->data.index_expr.left->kind == NODE_CALL_EXPR);
             if (!map_is_rvalue && node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
                 AstNode *obj = node->data.index_expr.left->data.member.object;
-                EzType *obj_t = cg->type_table
+                GrayType *obj_t = cg->type_table
                     ? typetable_get(cg->type_table, obj) : NULL;
                 if (obj_t && obj_t->kind == TK_POINTER) map_is_rvalue = true;
                 if (obj->kind == NODE_POSTFIX_EXPR && obj->data.postfix.op == TOK_CARET)
                     map_is_rvalue = true;
             }
             if (map_is_rvalue) {
-                emitf(cg, "({ EzMap _mt = ");
+                emitf(cg, "({ GrayMap _mt = ");
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; %s _mk = ", c_key);
                 emit_expression(cg, node->data.index_expr.index);
@@ -2523,7 +2524,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         } else if (left_t && left_t->kind == TK_STRING) {
             /* String indexing with bounds check: s.data[i] */
-            emitf(cg, "({ EzString _es = ");
+            emitf(cg, "({ GrayString _es = ");
             emit_expression(cg, node->data.index_expr.left);
             emitf(cg, "; int32_t _ei = (int32_t)(");
             emit_expression(cg, node->data.index_expr.index);
@@ -2543,7 +2544,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* cast(value, type); dispatch to conversion functions for non-trivial casts */
         const char *target = node->data.cast.target_type;
         AstNode *val = node->data.cast.value;
-        EzType *val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
+        GrayType *val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
         TypeKind val_kind = val_t ? val_t->kind : TK_UNKNOWN;
 
         /* Infer kind from AST if type table has no info */
@@ -2737,7 +2738,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_NEW_EXPR: {
         /* new(Type) → zeroed allocation on default arena, returns pointer.
          * Map and array fields need explicit initialization because a
-         * zero-filled EzMap/EzArray has key_size/value_size/elem_size = 0
+         * zero-filled GrayMap/GrayArray has key_size/value_size/elem_size = 0
          * and operations on them silently fail. */
         const char *sname = node->data.new_expr.type_name;
         /* Resolve ? → concrete binding for type params */
@@ -2765,8 +2766,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 const char *fn = sdecl->data.struct_decl.fields[fi].name;
                 const char *ft = sdecl->data.struct_decl.fields[fi].type_name;
                 if (ft && strncmp(ft, "map[", 4) == 0) {
-                    EzType *mt = type_from_name(ft);
-                    const char *c_kt = "EzString";
+                    GrayType *mt = type_from_name(ft);
+                    const char *c_kt = "GrayString";
                     const char *c_vt = "int64_t";
                     if (mt && mt->key_type) c_kt = gray_map_elem_c_type(cg, mt->key_type);
                     if (mt && mt->value_type) c_vt = gray_map_elem_c_type(cg, mt->value_type);
@@ -2774,7 +2775,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         safe_name(fn), c_kt, c_vt, gray_map_key_kind_macro(c_kt));
                 } else if (ft && ft[0] == '[') {
                     /* Array field — determine element C type */
-                    EzType *at = type_from_name(ft);
+                    GrayType *at = type_from_name(ft);
                     const char *c_elem = "int64_t";
                     if (at && at->element_type)
                         c_elem = gray_map_elem_c_type(cg, at->element_type);
@@ -2799,16 +2800,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         const char *variant = node->data.implicit_enum.variant;
         if (ename) {
             if (cg_enum_is_tagged(cg, ename)) {
-                emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s }", ename, ename, variant);
+                emitf(cg, "(GrayEnum_%s){ .tag = GrayEnum_%s_TAG_%s }", ename, ename, variant);
             } else {
-                emitf(cg, "EzEnum_%s_%s", ename, variant);
+                emitf(cg, "GrayEnum_%s_%s", ename, variant);
             }
         }
         break;
     }
 
     default:
-        emitf(cg, "0 /* ezc: unhandled expression kind %d at %s:%d */",
+        emitf(cg, "0 /* grayc: unhandled expression kind %d at %s:%d */",
             node->kind, cg->file, node->token.line);
         break;
     }
@@ -2860,7 +2861,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
             Param *p = &cg->current_func->data.func_decl.params[i];
             if (p->type_name && strchr(p->type_name, '?') &&
                 strcmp(p->name, label) == 0) {
-                EzType *wt = type_from_name(cg->wildcard_binding);
+                GrayType *wt = type_from_name(cg->wildcard_binding);
                 if (wt) {
                     switch (wt->kind) {
                     case TK_STRING:  return "_str";
@@ -2875,7 +2876,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
             }
         }
     }
-    EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    GrayType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (t && t->kind != TK_UNKNOWN) {
         switch (t->kind) {
         case TK_STRING:  return "_str";
@@ -2914,7 +2915,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
                     struct_name = obj;
                 } else {
                     /* Instance call: f.greet() — look up variable's struct type */
-                    EzType *obj_t = cg->type_table
+                    GrayType *obj_t = cg->type_table
                         ? typetable_get(cg->type_table, fn->data.member.object) : NULL;
                     if (obj_t && (obj_t->kind == TK_STRUCT || obj_t->kind == TK_POINTER) && obj_t->name) {
                         struct_name = obj_t->name;
@@ -2975,10 +2976,10 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
         emit(cg, ")");
         return;
     }
-    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    GrayType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (at && at->kind == TK_ERROR) {
         int t = next_dc_tag();
-        emitf(cg, "({ EzError *_gray_str_err%d = (", t);
+        emitf(cg, "({ GrayError *_gray_str_err%d = (", t);
         emit_expression(cg, arg);
         emitf(cg, "); _gray_str_err%d ? _gray_str_err%d->message : gray_c_string_dup(gray_default_arena, \"nil\"); })", t, t);
         return;
@@ -3031,7 +3032,7 @@ static void emit_fmt_string_normalized_ex(CodeGen *cg, const char *fmt_str, AstN
         /* Upgrade bare %d/%i/%u to %lld/%llu when arg is Grayscale int/uint */
         if (!has_length && (spec == 'd' || spec == 'i' || spec == 'u') &&
             di < call_node->data.call.arg_count) {
-            EzType *dt = cg->type_table ?
+            GrayType *dt = cg->type_table ?
                 typetable_get(cg->type_table, call_node->data.call.args[di]) : NULL;
             if (dt && (spec == 'd' || spec == 'i') && dt->kind == TK_INT) {
                 buf_append_char(&cg->output, 'l');
@@ -3056,7 +3057,7 @@ static void emit_fmt_args(CodeGen *cg, AstNode *node, int start_idx) {
     for (int i = start_idx; i < node->data.call.arg_count; i++) {
         emit(cg, ", ");
         AstNode *arg = node->data.call.args[i];
-        EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (at && at->kind == TK_STRING) {
             emit_expression(cg, arg);
             emit(cg, ".data");
@@ -3092,7 +3093,7 @@ static AstNode *find_struct_decl(CodeGen *cg, const char *name) {
 static const char *evp_visiting[EVP_MAX_DEPTH];
 static int evp_depth = 0;
 
-static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream, bool in_container) {
+static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const char *stream, bool in_container) {
     if (!t || t->kind == TK_UNKNOWN) {
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
@@ -3130,9 +3131,9 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
     case TK_CHAR:
         emit_indent(cg);
         if (in_container) {
-            emitf(cg, "{ EzString _cs = gray_builtin_char_to_utf8(gray_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
+            emitf(cg, "{ GrayString _cs = gray_builtin_char_to_utf8(gray_default_arena, %s); fprintf(%s, \"'\"); fwrite(_cs.data, 1, (size_t)_cs.len, %s); fprintf(%s, \"'\"); }\n", c_expr, stream, stream, stream);
         } else {
-            emitf(cg, "{ EzString _cs = gray_builtin_char_to_utf8(gray_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream);
+            emitf(cg, "{ GrayString _cs = gray_builtin_char_to_utf8(gray_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream);
         }
         break;
     case TK_NIL:
@@ -3142,7 +3143,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
     case TK_ARRAY: {
         int uid = _gray_print_uid++;
         const char *elem_tn = t->element_type ? t->element_type : "int";
-        EzType *elem_t = type_from_name(elem_tn);
+        GrayType *elem_t = type_from_name(elem_tn);
         char c_elem[GRAY_TYPE_NAME_MAX];
         strncpy(c_elem, gray_type_to_c_cg(cg, elem_tn), sizeof(c_elem) - 1);
         c_elem[sizeof(c_elem) - 1] = '\0';
@@ -3183,8 +3184,8 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         int uid = _gray_print_uid++;
         const char *key_tn = t->key_type ? t->key_type : "string";
         const char *val_tn = t->value_type ? t->value_type : "int";
-        EzType *key_t = type_from_name(key_tn);
-        EzType *val_t = type_from_name(val_tn);
+        GrayType *key_t = type_from_name(key_tn);
+        GrayType *val_t = type_from_name(val_tn);
         char c_key[GRAY_TYPE_NAME_MAX], c_val[GRAY_TYPE_NAME_MAX];
         strncpy(c_key, gray_type_to_c_cg(cg, key_tn), sizeof(c_key) - 1);
         c_key[sizeof(c_key) - 1] = '\0';
@@ -3280,7 +3281,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
 
                 char field_expr[GRAY_MSG_BUF_SIZE];
                 snprintf(field_expr, sizeof(field_expr), "(%s).%s", c_expr, f->name);
-                EzType *ft = type_from_name(f->type_name);
+                GrayType *ft = type_from_name(f->type_name);
                 emit_value_print(cg, field_expr, ft, stream, true);
             }
         }
@@ -3323,7 +3324,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     if (node->data.call.arg_count < 1) return false;
 
     AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
-    EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    GrayType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (!t) return false;
     if (t->kind != TK_STRUCT && t->kind != TK_ARRAY &&
         t->kind != TK_MAP && t->kind != TK_POINTER) return false;
@@ -3337,8 +3338,8 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     /* Capture expression in temp var to evaluate only once */
     int uid = _gray_print_uid++;
     char c_type[GRAY_TYPE_NAME_MAX];
-    if (t->kind == TK_ARRAY) snprintf(c_type, sizeof(c_type), "EzArray");
-    else if (t->kind == TK_MAP) snprintf(c_type, sizeof(c_type), "EzMap");
+    if (t->kind == TK_ARRAY) snprintf(c_type, sizeof(c_type), "GrayArray");
+    else if (t->kind == TK_MAP) snprintf(c_type, sizeof(c_type), "GrayMap");
     else if (t->kind == TK_POINTER) {
         const char *pointee_tn = t->element_type ? t->element_type : "int";
         snprintf(c_type, sizeof(c_type), "%s *", gray_type_to_c_cg(cg, pointee_tn));
@@ -3379,7 +3380,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             if (emit_composite_print(cg, node, "stdout", true)) return true;
             AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
             /* Error type: print message or "nil" */
-            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
             if (arg_t && arg_t->kind == TK_ERROR) {
                 emit(cg, "gray_builtin_println_str(");
                 emit_expression(cg, arg);
@@ -3409,7 +3410,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "len") == 0 && node->data.call.arg_count == 1) {
         AstNode *arg = node->data.call.args[0];
-        EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (t && t->kind == TK_MAP) {
             emit(cg, "(int64_t)(");
             emit_expression(cg, arg);
@@ -3430,7 +3431,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emitf(cg, "gray_string_lit(\"%s\")", bi_type);
             return true;
         }
-        EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         /* Range expression: type_of(range(0, 5)) → "Range<int>" */
         if (arg->kind == NODE_RANGE_EXPR ||
             (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
@@ -3479,12 +3480,12 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                 c_type = "bool";
             } else if (type_arg->kind == NODE_STRING_VALUE ||
                        type_arg->kind == NODE_INTERPOLATED_STRING) {
-                c_type = "EzString";
+                c_type = "GrayString";
             } else if (type_arg->kind == NODE_CHAR_VALUE) {
                 c_type = "int32_t";
             } else {
                 /* Fallback: consult the type table */
-                EzType *t = cg->type_table ? typetable_get(cg->type_table, type_arg) : NULL;
+                GrayType *t = cg->type_table ? typetable_get(cg->type_table, type_arg) : NULL;
                 if (t && t->name) c_type = gray_type_to_c_cg(cg, t->name);
             }
             if (c_type) {
@@ -3514,7 +3515,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                 addr_field = arg->data.member.member;
             } else {
                 /* addr(p.field) where p is a pointer type (auto-deref) */
-                EzType *obj_t = cg->type_table
+                GrayType *obj_t = cg->type_table
                     ? typetable_get(cg->type_table, obj) : NULL;
                 if (obj_t && obj_t->kind == TK_POINTER) {
                     addr_ptr_expr = obj;
@@ -3570,7 +3571,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         Token tok = fn ? fn->token : node->token;
         const char *file = tok.file ? tok.file : cg->file;
         emitf(cg,
-            "(EzStruct_SourceLocation){.file = gray_string_lit(\"%s\"), "
+            "(GrayStruct_SourceLocation){.file = gray_string_lit(\"%s\"), "
             ".line = %d, .column = %d}",
             file ? file : "", tok.line, tok.column);
         return true;
@@ -3578,7 +3579,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "embed") == 0 && node->data.call.arg_count == 1) {
         /* Compile-time file embedding: read the file and emit its content as
-         * an EzString literal. Path is resolved relative to the source file. */
+         * an GrayString literal. Path is resolved relative to the source file. */
         AstNode *arg = node->data.call.args[0];
         const char *embed_path = arg->data.string_value.value;
 
@@ -3667,7 +3668,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         } else {
             if (emit_composite_print(cg, node, "stderr", true)) return true;
             AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
-            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
             if (arg_t && arg_t->kind == TK_ERROR) {
                 emit(cg, "gray_builtin_eprintln_str(");
                 emit_expression(cg, arg);
@@ -3698,7 +3699,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stderr", false)) return true;
         AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
-        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_ERROR) {
             emit(cg, "gray_builtin_eprint_str(");
             emit_expression(cg, arg);
@@ -3790,7 +3791,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                 return true;
             }
             /* String→numeric conversion */
-            EzType *carg_t = cg->type_table ? typetable_get(cg->type_table, carg) : NULL;
+            GrayType *carg_t = cg->type_table ? typetable_get(cg->type_table, carg) : NULL;
             bool is_string_src = (carg->kind == NODE_STRING_VALUE || carg->kind == NODE_INTERPOLATED_STRING ||
                                   (carg_t && carg_t->kind == TK_STRING));
             if (is_string_src && (strcmp(func, "int") == 0 || strcmp(func, "uint") == 0)) {
@@ -3823,7 +3824,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
         AstNode *arg = node->data.call.args[0];
-        EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (at && (at->kind == TK_ARRAY || at->kind == TK_MAP || at->kind == TK_STRUCT)) {
             /* Route every container kind through the unified deep-copy
              * emitter so nested collections, structs containing
@@ -3831,8 +3832,8 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
              * transitive mix of those all come out fully independent
              * of the source , ). */
             int t = next_dc_tag();
-            const char *c_type = (at->kind == TK_ARRAY) ? "EzArray"
-                               : (at->kind == TK_MAP) ? "EzMap"
+            const char *c_type = (at->kind == TK_ARRAY) ? "GrayArray"
+                               : (at->kind == TK_MAP) ? "GrayMap"
                                : gray_type_to_c_cg(cg, at->name);
             emitf(cg, "({ %s _cpy%d = ", c_type, t);
             emit_expression(cg, arg);
@@ -3863,7 +3864,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stdout", false)) return true;
         AstNode *arg = unwrap_ref_arg(node->data.call.args[0]);
-        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_ERROR) {
             emit(cg, "gray_builtin_print_str(");
             emit_expression(cg, arg);
@@ -3991,23 +3992,23 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "alloc") == 0 && node->data.call.arg_count == 2) {
         AstNode *arena_arg = node->data.call.args[0];
         AstNode *value_arg = node->data.call.args[1];
-        EzType *vt = cg->type_table ? typetable_get(cg->type_table, value_arg) : NULL;
+        GrayType *vt = cg->type_table ? typetable_get(cg->type_table, value_arg) : NULL;
 
         if (vt && vt->kind == TK_STRING) {
-            emit(cg, "({ EzString _s = ");
+            emit(cg, "({ GrayString _s = ");
             emit_expression(cg, value_arg);
             emit(cg, "; gray_string_new(");
             emit_expression(cg, arena_arg);
             emit(cg, ", _s.data, _s.len); })");
         } else if (value_arg->kind == NODE_ARRAY_VALUE) {
             int count = value_arg->data.array_value.count;
-            EzType *elem_t = (count > 0 && cg->type_table)
+            GrayType *elem_t = (count > 0 && cg->type_table)
                 ? typetable_get(cg->type_table, value_arg->data.array_value.elements[0])
                 : NULL;
             const char *c_type = "int64_t";
             if (elem_t) {
                 if (elem_t->kind == TK_FLOAT) c_type = "double";
-                else if (elem_t->kind == TK_STRING) c_type = "EzString";
+                else if (elem_t->kind == TK_STRING) c_type = "GrayString";
                 else if (elem_t->kind == TK_BOOL) c_type = "bool";
             }
             emitf(cg, "gray_array_from(");
@@ -4034,7 +4035,7 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
 
 static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "abs") == 0 && node->data.call.arg_count == 1) {
-        EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         emitf(cg, "gray_math_abs_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
@@ -4047,7 +4048,7 @@ static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if ((strcmp(func, "min") == 0 || strcmp(func, "max") == 0) && node->data.call.arg_count == 2) {
-        EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         emitf(cg, "gray_math_%s_%s(", func, (at && at->kind == TK_FLOAT) ? "float" : "int");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4056,7 +4057,7 @@ static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "clamp") == 0 && node->data.call.arg_count == 3) {
-        EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         emitf(cg, "gray_math_clamp_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4119,7 +4120,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
          * happens to have; otherwise the hash/memcmp compares the wrong
          * number of bytes. */
         const char *c_key = "int64_t";
-        EzType *map_t = cg->type_table
+        GrayType *map_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (map_t && map_t->kind == TK_MAP && map_t->key_type)
             c_key = gray_map_elem_c_type(cg, map_t->key_type);
@@ -4132,7 +4133,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "remove_key") == 0 && node->data.call.arg_count == 2) {
         const char *c_key = "int64_t";
-        EzType *map_t = cg->type_table
+        GrayType *map_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (map_t && map_t->kind == TK_MAP && map_t->key_type)
             c_key = gray_map_elem_c_type(cg, map_t->key_type);
@@ -4164,7 +4165,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "is_equal") == 0 && node->data.call.arg_count == 2) {
-        EzType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         bool str_keys = map_t && map_t->key_type && strcmp(map_t->key_type, "string") == 0;
         bool str_values = map_t && map_t->value_type && strcmp(map_t->value_type, "string") == 0;
         emit(cg, "gray_maps_is_equal(");
@@ -4176,13 +4177,13 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "contains_value") == 0 && node->data.call.arg_count == 2) {
         /* Determine value type from map to ensure correct size */
-        EzType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *c_val_type = "int64_t";
         if (map_t && map_t->value_type) {
-            EzType *vt = type_from_name(map_t->value_type);
+            GrayType *vt = type_from_name(map_t->value_type);
             if (vt->kind == TK_FLOAT) c_val_type = "double";
             else if (vt->kind == TK_BOOL) c_val_type = "bool";
-            else if (vt->kind == TK_STRING) c_val_type = "EzString";
+            else if (vt->kind == TK_STRING) c_val_type = "GrayString";
         }
         emitf(cg, "({ %s _cv = ", c_val_type);
         emit_expression(cg, node->data.call.args[1]);
@@ -4329,13 +4330,13 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ", (EzResponse (*)(EzRequest))");
+        emit(cg, ", (GrayResponse (*)(GrayRequest))");
         emit_expression(cg, node->data.call.args[3]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
-        /* EZ: server.listen(router, port)  →  C: gray_server_listen(port, &router) */
+        /* Grayscale: server.listen(router, port)  →  C: gray_server_listen(port, &router) */
         emit(cg, "gray_server_listen(");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ", ");
@@ -4344,7 +4345,7 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 3) {
-        /* EZ: server.listen(router, port, host)  →  C: gray_server_listen_host(port, host, &router) */
+        /* Grayscale: server.listen(router, port, host)  →  C: gray_server_listen_host(port, host, &router) */
         emit(cg, "gray_server_listen_host(");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ", ");
@@ -4397,7 +4398,7 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "use") == 0 && node->data.call.arg_count == 2) {
         emit(cg, "gray_server_use(");
         emit_addr_of(cg, node->data.call.args[0], "_sa");
-        emit(cg, ", (EzMiddleware)");
+        emit(cg, ", (GrayMiddleware)");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
@@ -4512,7 +4513,7 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
-        /* EZ: net.listen(host, port)  →  C: gray_net_listen_host(arena, host, port) */
+        /* Grayscale: net.listen(host, port)  →  C: gray_net_listen_host(arena, host, port) */
         emitf(cg, "gray_net_listen_host%s(gray_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -4621,26 +4622,26 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "encode") == 0) {
-        emit(cg, "({ EzArray _csv_a = ");
+        emit(cg, "({ GrayArray _csv_a = ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, "; gray_csv_stringify(gray_default_arena, &_csv_a); })");
         return true;
     }
     if (strcmp(func, "headers") == 0) {
-        emit(cg, "({ EzArray _csv_a = ");
+        emit(cg, "({ GrayArray _csv_a = ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, "; gray_csv_headers(gray_default_arena, &_csv_a); })");
         return true;
     }
     if (strcmp(func, "write_file") == 0) {
         if (is_multi_var) {
-            emit(cg, "({ EzArray _csv_a = ");
+            emit(cg, "({ GrayArray _csv_a = ");
             emit_expression(cg, node->data.call.args[1]);
             emit(cg, "; gray_csv_write_result(gray_default_arena, ");
             emit_expression(cg, node->data.call.args[0]);
             emit(cg, ", &_csv_a); })");
         } else {
-            emit(cg, "({ EzArray _csv_a = ");
+            emit(cg, "({ GrayArray _csv_a = ");
             emit_expression(cg, node->data.call.args[1]);
             emit(cg, "; gray_csv_write(gray_default_arena, ");
             emit_expression(cg, node->data.call.args[0]);
@@ -4656,12 +4657,12 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "encode") == 0) {
         AstNode *arg = node->data.call.args[0];
-        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_MAP) {
             /* Typed map: dispatch based on value type.
              * Materialize into a temporary to handle rvalue expressions
              * (e.g. inline map literals). */
-            emit(cg, "({ EzMap _jm = ");
+            emit(cg, "({ GrayMap _jm = ");
             emit_expression(cg, arg);
             if (arg_t->value_type && strcmp(arg_t->value_type, "int") == 0) {
                 emit(cg, "; gray_json_encode_map_int(gray_default_arena, &_jm); })");
@@ -4675,7 +4676,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         } else if (arg_t && arg_t->kind == TK_ARRAY) {
             /* Typed array: dispatch based on element type.
              * Materialize into a temporary for the same rvalue reason. */
-            emit(cg, "({ EzArray _ja = ");
+            emit(cg, "({ GrayArray _ja = ");
             emit_expression(cg, arg);
             if (arg_t->element_type && strcmp(arg_t->element_type, "float") == 0) {
                 emit(cg, "; gray_json_encode_array_float(gray_default_arena, &_ja); })");
@@ -4701,7 +4702,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, " ? gray_string_lit(\"true\") : gray_string_lit(\"false\"))");
         } else if (arg_t && arg_t->kind == TK_STRING) {
             /* String: wrap in quotes */
-            emit(cg, "({ EzString _js = ");
+            emit(cg, "({ GrayString _js = ");
             emit_expression(cg, arg);
             emit(cg, "; char *_jbuf = gray_arena_alloc(gray_default_arena, _js.len + 3); ");
             emit(cg, "_jbuf[0] = '\"'; memcpy(_jbuf+1, _js.data, _js.len); _jbuf[_js.len+1] = '\"'; _jbuf[_js.len+2] = '\\0'; ");
@@ -4710,7 +4711,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
             /* Fallback: store in temp to allow & */
             emit(cg, "({ __auto_type _jtmp = ");
             emit_expression(cg, arg);
-            emit(cg, "; gray_json_encode_map(gray_default_arena, (EzMap *)&_jtmp); })");
+            emit(cg, "; gray_json_encode_map(gray_default_arena, (GrayMap *)&_jtmp); })");
         }
         return true;
     }
@@ -4726,7 +4727,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
      * var_decl handler via ). Falls back to gray_json_decode for
      * the map-based path. */
     if (strcmp(func, "parse") == 0 && node->data.call.arg_count >= 1) {
-        EzType *target_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+        GrayType *target_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
         if (target_t && target_t->kind == TK_STRUCT && target_t->name) {
             AstNode *sdecl = find_struct_decl(cg, target_t->name);
             if (sdecl && sdecl->data.struct_decl.is_json) {
@@ -4756,7 +4757,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
      * the argument is a #json struct. */
     if (strcmp(func, "stringify") == 0 && node->data.call.arg_count >= 1) {
         AstNode *arg = node->data.call.args[0];
-        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name) {
             AstNode *sdecl = find_struct_decl(cg, arg_t->name);
             if (sdecl && sdecl->data.struct_decl.is_json) {
@@ -4769,7 +4770,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         /* Fallback: encode as map */
         emit(cg, "({ __auto_type _jtmp = ");
         emit_expression(cg, arg);
-        emit(cg, "; gray_json_encode_map(gray_default_arena, (EzMap *)&_jtmp); })");
+        emit(cg, "; gray_json_encode_map(gray_default_arena, (GrayMap *)&_jtmp); })");
         return true;
     }
     if (strcmp(func, "is_valid") == 0) {
@@ -4890,19 +4891,19 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "choice") == 0) {
         /* Determine element C type from the array's type info */
         const char *c_elem = "int64_t";
-        EzType *arr_t = cg->type_table
+        GrayType *arr_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
-            EzType *et = type_from_name(arr_t->element_type);
+            GrayType *et = type_from_name(arr_t->element_type);
             if (et->kind == TK_FLOAT) c_elem = "double";
             else if (et->kind == TK_BOOL) c_elem = "bool";
-            else if (et->kind == TK_STRING) c_elem = "EzString";
+            else if (et->kind == TK_STRING) c_elem = "GrayString";
             else if (et->kind == TK_CHAR) c_elem = "int32_t";
             else if (et->kind == TK_BYTE) c_elem = "uint8_t";
             else if (et->kind == TK_STRUCT) c_elem = gray_type_to_c_cg(cg, arr_t->element_type);
             else if (et->kind == TK_ENUM) {
                 c_elem = cg_enum_is_string(cg, arr_t->element_type)
-                    ? "EzString" : gray_type_to_c_cg(cg, arr_t->element_type);
+                    ? "GrayString" : gray_type_to_c_cg(cg, arr_t->element_type);
             }
         }
         if (expr_is_lvalue(node->data.call.args[0])) {
@@ -4938,7 +4939,7 @@ static void emit_array_arg_addr(CodeGen *cg, AstNode *arg) {
     if (arg->kind == NODE_MEMBER_EXPR && arg->data.member.object->kind == NODE_LABEL) {
         const char *obj_name = arg->data.member.object->data.label.value;
         bool obj_is_ref = is_ref_var(cg, obj_name);
-        EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, arg->data.member.object) : NULL;
+        GrayType *obj_t = cg->type_table ? typetable_get(cg->type_table, arg->data.member.object) : NULL;
         if (!obj_is_ref && obj_t && obj_t->kind == TK_POINTER) {
             /* Pointer field: nil-check then take address of the field */
             emit(cg, "({ __auto_type _dp = ");
@@ -4963,8 +4964,8 @@ static void emit_array_arg_addr(CodeGen *cg, AstNode *arg) {
 
 static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
-        EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[1]) : NULL;
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[1]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : NULL;
         bool elem_is_string = (val_t && val_t->kind == TK_STRING) ||
             (elem_tn && strcmp(elem_tn, "string") == 0);
@@ -4975,9 +4976,9 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             case TK_UINT: c_elem = "uint64_t"; break;
             case TK_FLOAT: c_elem = "double"; break;
             case TK_BOOL: c_elem = "bool"; break;
-            case TK_STRING: c_elem = "EzString"; break;
-            case TK_ARRAY: c_elem = "EzArray"; break;
-            case TK_MAP: c_elem = "EzMap"; break;
+            case TK_STRING: c_elem = "GrayString"; break;
+            case TK_ARRAY: c_elem = "GrayArray"; break;
+            case TK_MAP: c_elem = "GrayMap"; break;
             case TK_FUNCTION: c_elem = "void *"; break;
             default: break;
             }
@@ -4991,11 +4992,11 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
                 c_elem = gray_type_to_c_cg(cg, _ptr_tn);
             }
         } else if (elem_is_string) {
-            c_elem = "EzString";
+            c_elem = "GrayString";
         } else if (elem_tn) {
-            EzType *et = type_from_name(elem_tn);
-            if (et->kind == TK_ARRAY) c_elem = "EzArray";
-            else if (et->kind == TK_MAP) c_elem = "EzMap";
+            GrayType *et = type_from_name(elem_tn);
+            if (et->kind == TK_ARRAY) c_elem = "GrayArray";
+            else if (et->kind == TK_MAP) c_elem = "GrayMap";
             else if (et->kind == TK_STRUCT) c_elem = gray_type_to_c_cg(cg, elem_tn);
             else if (et->kind == TK_FUNCTION) c_elem = "void *";
             else if (et->kind == TK_POINTER) c_elem = gray_type_to_c_cg(cg, elem_tn);
@@ -5011,21 +5012,21 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             if (elem_is_string) {
                 emitf(cg, "_av = gray_string_new(%s, _av.data, _av.len); ", alloc_arena);
             } else if (elem_tn && type_needs_deep_copy(cg, elem_tn)) {
-                emitf(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = %s; _av = ", alloc_arena);
+                emitf(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _av = ", alloc_arena);
                 emit_value_deep_copy(cg, elem_tn, "_av");
                 emit(cg, "; gray_default_arena = _esc; } ");
             }
         }
         /* Ensure elem_size is set on the target array before appending;
          * struct fields may be zero-initialized with no elem_size. */
-        emit(cg, "{ EzArray *_tgt = ");
+        emit(cg, "{ GrayArray *_tgt = ");
         emit_array_arg_addr(cg, node->data.call.args[0]);
         emitf(cg, "; if (_tgt->elem_size == 0) _tgt->elem_size = sizeof(%s); ", c_elem);
         emitf(cg, "gray_arrays_append(%s, _tgt, &_av); } }", alloc_arena);
         return true;
     }
     if (strcmp(func, "insert_at") == 0 && node->data.call.arg_count == 3) {
-        EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[2]) : NULL;
+        GrayType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[2]) : NULL;
         const char *c_elem = "__auto_type";
         if (val_t) {
             switch (val_t->kind) {
@@ -5033,7 +5034,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             case TK_UINT: c_elem = "uint64_t"; break;
             case TK_FLOAT: c_elem = "double"; break;
             case TK_BOOL: c_elem = "bool"; break;
-            case TK_STRING: c_elem = "EzString"; break;
+            case TK_STRING: c_elem = "GrayString"; break;
             case TK_FUNCTION: c_elem = "void *"; break;
             default: break;
             }
@@ -5050,7 +5051,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emitf(cg, "{ %s _iv = ", c_elem);
         emit_expression(cg, node->data.call.args[2]);
         emit(cg, "; ");
-        EzType *ia_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *ia_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *ia_elem_tn = (ia_arr_t && ia_arr_t->kind == TK_ARRAY) ? ia_arr_t->element_type : NULL;
         bool ia_str = (val_t && val_t->kind == TK_STRING) ||
             (ia_elem_tn && strcmp(ia_elem_tn, "string") == 0);
@@ -5058,7 +5059,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             if (ia_str) {
                 emitf(cg, "_iv = gray_string_new(%s, _iv.data, _iv.len); ", ia_arena);
             } else if (ia_elem_tn && type_needs_deep_copy(cg, ia_elem_tn)) {
-                emitf(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = %s; _iv = ", ia_arena);
+                emitf(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _iv = ", ia_arena);
                 emit_value_deep_copy(cg, ia_elem_tn, "_iv");
                 emit(cg, "; gray_default_arena = _esc; } ");
             }
@@ -5079,7 +5080,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "remove") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
             emit(cg, "gray_arrays_remove_str(");
@@ -5102,7 +5103,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "sort_asc") == 0 && node->data.call.arg_count == 1) {
-        EzType *sa_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *sa_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *sa_elem = (sa_t && sa_t->kind == TK_ARRAY) ? sa_t->element_type : NULL;
         if (sa_elem && strcmp(sa_elem, "float") == 0)
             emit(cg, "gray_arrays_sort_asc_float(");
@@ -5115,7 +5116,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "sort_desc") == 0 && node->data.call.arg_count == 1) {
-        EzType *sd_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *sd_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *sd_elem = (sd_t && sd_t->kind == TK_ARRAY) ? sd_t->element_type : NULL;
         if (sd_elem && strcmp(sd_elem, "float") == 0)
             emit(cg, "gray_arrays_sort_desc_float(");
@@ -5134,7 +5135,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "contains") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
             emit(cg, "gray_arrays_contains_str(");
@@ -5148,7 +5149,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "is_equal") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
             emit(cg, "gray_arrays_is_equal_str(");
@@ -5162,7 +5163,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "index_of") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
             emit(cg, "gray_arrays_index_of_str(");
@@ -5178,17 +5179,17 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     /* prepend/fill need special value wrapping */
     if (strcmp(func, "prepend") == 0 && node->data.call.arg_count == 2) {
         const char *pp_arena = cg->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
-        EzType *pp_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *pp_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *pp_elem_tn = (pp_arr_t && pp_arr_t->kind == TK_ARRAY) ? pp_arr_t->element_type : NULL;
         bool pp_str = pp_elem_tn && strcmp(pp_elem_tn, "string") == 0;
         const char *pp_c_elem = "int64_t";
         if (pp_elem_tn) {
-            EzType *pet = type_from_name(pp_elem_tn);
+            GrayType *pet = type_from_name(pp_elem_tn);
             if (pet->kind == TK_FLOAT) pp_c_elem = "double";
             else if (pet->kind == TK_BOOL) pp_c_elem = "bool";
-            else if (pet->kind == TK_STRING) pp_c_elem = "EzString";
-            else if (pet->kind == TK_ARRAY) pp_c_elem = "EzArray";
-            else if (pet->kind == TK_MAP) pp_c_elem = "EzMap";
+            else if (pet->kind == TK_STRING) pp_c_elem = "GrayString";
+            else if (pet->kind == TK_ARRAY) pp_c_elem = "GrayArray";
+            else if (pet->kind == TK_MAP) pp_c_elem = "GrayMap";
             else if (pet->kind == TK_STRUCT) pp_c_elem = gray_type_to_c_cg(cg, pp_elem_tn);
         }
         emitf(cg, "{ %s _pv = ", pp_c_elem);
@@ -5198,7 +5199,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             if (pp_str) {
                 emitf(cg, "_pv = gray_string_new(%s, _pv.data, _pv.len); ", pp_arena);
             } else if (pp_elem_tn && type_needs_deep_copy(cg, pp_elem_tn)) {
-                emitf(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = %s; _pv = ", pp_arena);
+                emitf(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _pv = ", pp_arena);
                 emit_value_deep_copy(cg, pp_elem_tn, "_pv");
                 emit(cg, "; gray_default_arena = _esc; } ");
             }
@@ -5209,13 +5210,13 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "fill") == 0 && node->data.call.arg_count == 3) {
-        EzType *fl_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *fl_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *fl_c_elem = "int64_t";
         if (fl_arr_t && fl_arr_t->kind == TK_ARRAY && fl_arr_t->element_type) {
-            EzType *fet = type_from_name(fl_arr_t->element_type);
+            GrayType *fet = type_from_name(fl_arr_t->element_type);
             if (fet->kind == TK_FLOAT) fl_c_elem = "double";
             else if (fet->kind == TK_BOOL) fl_c_elem = "bool";
-            else if (fet->kind == TK_STRING) fl_c_elem = "EzString";
+            else if (fet->kind == TK_STRING) fl_c_elem = "GrayString";
         }
         emitf(cg, "{ %s _fv = ", fl_c_elem);
         emit_expression(cg, node->data.call.args[1]);
@@ -5229,7 +5230,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
          strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
         node->data.call.arg_count == 1) {
-        EzType *af_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *af_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *af_elem = (af_t && af_t->kind == TK_ARRAY) ? af_t->element_type : NULL;
         const char *af_ctype = af_elem ? gray_type_to_c_cg(cg, af_elem) : "int64_t";
         bool af_is_get = (strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0);
@@ -5251,38 +5252,38 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
 
     /* --- map / filter / reduce: inline loop emission --- */
     if (strcmp(func, "map") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
         const char *c_elem = gray_type_to_c_cg(cg, elem_tn);
-        emit(cg, "({ EzArray _m_src = ");
+        emit(cg, "({ GrayArray _m_src = ");
         emit_expression(cg, node->data.call.args[0]);
         emitf(cg, "; %s (*_m_fn)(%s) = (void *)", c_elem, c_elem);
         emit_expression(cg, node->data.call.args[1]);
-        emitf(cg, "; EzArray _m_res = gray_array_new(gray_default_arena, sizeof(%s), _m_src.len);", c_elem);
+        emitf(cg, "; GrayArray _m_res = gray_array_new(gray_default_arena, sizeof(%s), _m_src.len);", c_elem);
         emitf(cg, "for (int32_t _m_i = 0; _m_i < _m_src.len; _m_i++) { ");
         emitf(cg, "%s _m_v = _m_fn(((%s *)_m_src.data)[_m_i]); ", c_elem, c_elem);
         emitf(cg, "gray_arrays_append(gray_default_arena, &_m_res, &_m_v); } _m_res; })");
         return true;
     }
     if (strcmp(func, "filter") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
         const char *c_elem = gray_type_to_c_cg(cg, elem_tn);
-        emit(cg, "({ EzArray _f_src = ");
+        emit(cg, "({ GrayArray _f_src = ");
         emit_expression(cg, node->data.call.args[0]);
         emitf(cg, "; bool (*_f_fn)(%s) = (void *)", c_elem);
         emit_expression(cg, node->data.call.args[1]);
-        emitf(cg, "; EzArray _f_res = gray_array_new(gray_default_arena, sizeof(%s), _f_src.len);", c_elem);
+        emitf(cg, "; GrayArray _f_res = gray_array_new(gray_default_arena, sizeof(%s), _f_src.len);", c_elem);
         emitf(cg, "for (int32_t _f_i = 0; _f_i < _f_src.len; _f_i++) { ");
         emitf(cg, "%s _f_v = ((%s *)_f_src.data)[_f_i]; ", c_elem, c_elem);
         emitf(cg, "if (_f_fn(_f_v)) { gray_arrays_append(gray_default_arena, &_f_res, &_f_v); } } _f_res; })");
         return true;
     }
     if (strcmp(func, "any") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
         const char *c_elem = gray_type_to_c_cg(cg, elem_tn);
-        emit(cg, "({ EzArray _a_src = ");
+        emit(cg, "({ GrayArray _a_src = ");
         emit_expression(cg, node->data.call.args[0]);
         emitf(cg, "; bool (*_a_fn)(%s) = (void *)", c_elem);
         emit_expression(cg, node->data.call.args[1]);
@@ -5292,10 +5293,10 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "all") == 0 && node->data.call.arg_count == 2) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
         const char *c_elem = gray_type_to_c_cg(cg, elem_tn);
-        emit(cg, "({ EzArray _l_src = ");
+        emit(cg, "({ GrayArray _l_src = ");
         emit_expression(cg, node->data.call.args[0]);
         emitf(cg, "; bool (*_l_fn)(%s) = (void *)", c_elem);
         emit_expression(cg, node->data.call.args[1]);
@@ -5305,10 +5306,10 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "reduce") == 0 && node->data.call.arg_count == 3) {
-        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        GrayType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *elem_tn = (arr_t && arr_t->kind == TK_ARRAY) ? arr_t->element_type : "int";
         const char *c_elem = gray_type_to_c_cg(cg, elem_tn);
-        emit(cg, "({ EzArray _r_src = ");
+        emit(cg, "({ GrayArray _r_src = ");
         emit_expression(cg, node->data.call.args[0]);
         emitf(cg, "; %s _r_acc = ", c_elem);
         emit_expression(cg, node->data.call.args[1]);
@@ -6166,14 +6167,14 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             if (r != ename && codegen_is_enum(cg, r)) resolved_ename = r;
         }
         if (codegen_is_enum(cg, resolved_ename) && cg_enum_is_tagged(cg, resolved_ename)) {
-            /* Emit compound literal: (EzEnum_Shape){ .tag = EzEnum_Shape_TAG_Circle, .data.Circle = { args } } */
+            /* Emit compound literal: (GrayEnum_Shape){ .tag = GrayEnum_Shape_TAG_Circle, .data.Circle = { args } } */
             int eidx = cg_enum_index(cg, resolved_ename);
             AstNode *decl = cg->enum_decls[eidx];
             int vidx = -1;
             for (int vi = 0; vi < decl->data.enum_decl.value_count; vi++) {
                 if (strcmp(decl->data.enum_decl.values[vi].name, vname) == 0) { vidx = vi; break; }
             }
-            emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s", resolved_ename, resolved_ename, vname);
+            emitf(cg, "(GrayEnum_%s){ .tag = GrayEnum_%s_TAG_%s", resolved_ename, resolved_ename, vname);
             if (vidx >= 0 && decl->data.enum_decl.values[vidx].payload_count > 0) {
                 emitf(cg, ", .data.%s = { ", vname);
                 for (int ai = 0; ai < node->data.call.arg_count; ai++) {
@@ -6198,7 +6199,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             for (int vi = 0; vi < decl->data.enum_decl.value_count; vi++) {
                 if (strcmp(decl->data.enum_decl.values[vi].name, vname) == 0) { vidx = vi; break; }
             }
-            emitf(cg, "(EzEnum_%s){ .tag = EzEnum_%s_TAG_%s", ename, ename, vname);
+            emitf(cg, "(GrayEnum_%s){ .tag = GrayEnum_%s_TAG_%s", ename, ename, vname);
             if (vidx >= 0 && decl->data.enum_decl.values[vidx].payload_count > 0) {
                 emitf(cg, ", .data.%s = { ", vname);
                 for (int ai = 0; ai < node->data.call.arg_count; ai++) {
@@ -6253,8 +6254,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, "%s(", member);
                 for (int i = 0; i < node->data.call.arg_count; i++) {
                     if (i > 0) emit(cg, ", ");
-                    /* Auto-convert EzString to char* for C functions */
-                    EzType *arg_t = cg->type_table
+                    /* Auto-convert GrayString to char* for C functions */
+                    GrayType *arg_t = cg->type_table
                         ? typetable_get(cg->type_table, node->data.call.args[i])
                         : NULL;
                     if (arg_t && arg_t->kind == TK_STRING) {
@@ -6279,7 +6280,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                  * through the field access. We get here when the variable
                  * has a struct type but neither <struct>_<member> nor
                  * bare <member> is a registered function. */
-                EzType *inst_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+                GrayType *inst_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
                 /* Save pointer flag before fallback may overwrite inst_t with TK_STRUCT */
                 bool obj_is_ptr = inst_t && inst_t->kind == TK_POINTER;
                 /* If type table missed, scan var decls for a new() initializer */
@@ -6321,14 +6322,14 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                 (strcmp(sdecl->data.struct_decl.fields[fi].type_name, "func") == 0 || strncmp(sdecl->data.struct_decl.fields[fi].type_name, "func(", 5) == 0)) {
                                 int nargs = node->data.call.arg_count;
                                 if (nargs > 0 && !node->data.call.args) nargs = 0;
-                                EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+                                GrayType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
                                 const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN && ret_t->kind != TK_VOID)
                                     ? gray_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
                                 if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
                                 emitf(cg, "((%s (*)(", c_ret);
                                 for (int ai = 0; ai < nargs; ai++) {
                                     if (ai > 0) emit(cg, ", ");
-                                    EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[ai]) : NULL;
+                                    GrayType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[ai]) : NULL;
                                     emit(cg, at ? gray_type_to_c_cg(cg, type_name(at)) : "int64_t");
                                 }
                                 emit(cg, "))");
@@ -6385,7 +6386,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     for (int pi = 0; pi < cc && !binding; pi++) {
                         const char *ptn = ns_func->data.func_decl.params[pi].type_name;
                         if (!ptn || !strchr(ptn, '?')) continue;
-                        EzType *at = cg->type_table
+                        GrayType *at = cg->type_table
                             ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
                         if (!at) continue;
                         if (strcmp(ptn, "?") == 0) {
@@ -6487,7 +6488,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
                 const char *ptn = target_func->data.func_decl.params[pi].type_name;
                 if (!ptn || !strchr(ptn, '?')) continue;
-                EzType *at = cg->type_table
+                GrayType *at = cg->type_table
                     ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
                 if (!at) continue;
                 if (strcmp(ptn, "?") == 0) {
@@ -6537,8 +6538,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
          * typed-func signature, falling back to a brittle var_decl scan only
          * when no signature is available (bare-func paths). */
         int nargs = node->data.call.arg_count;
-        EzFuncSig *typed_sig = NULL;
-        EzType *callee_t = cg->type_table
+        GrayFuncSig *typed_sig = NULL;
+        GrayType *callee_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.call.function) : NULL;
         if (callee_t && callee_t->kind == TK_FUNCTION) {
             typed_sig = callee_t->func_sig;
@@ -6580,7 +6581,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             if (typed_sig->return_count == 0) c_ret = "void";
             else c_ret = gray_type_to_c_cg(cg, typed_sig->return_types[0]);
         } else {
-            EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+            GrayType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
             if (ret_t && ret_t->kind != TK_UNKNOWN) c_ret = gray_type_to_c_cg(cg, type_name(ret_t));
             if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
         }
@@ -6603,7 +6604,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, gray_type_to_c_cg(cg, typed_sig->param_types[i]));
                 if (mut_p) emit(cg, " *");
             } else if (i < nargs) {
-                EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
+                GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
                 if (arg_t && arg_t->kind != TK_UNKNOWN) {
                     emit(cg, gray_type_to_c_cg(cg, type_name(arg_t)));
                     if (mut_p) emit(cg, " *");
@@ -6662,13 +6663,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
          * directly callable; wrap with a function-pointer cast derived from
          * the call site's arg types and return type. */
         int nargs = node->data.call.arg_count;
-        EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+        GrayType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
         const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN) ? gray_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
         if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
         emitf(cg, "((%s (*)(", c_ret);
         for (int i = 0; i < nargs; i++) {
             if (i > 0) emit(cg, ", ");
-            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
+            GrayType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
             if (arg_t && arg_t->kind != TK_UNKNOWN) {
                 emit(cg, gray_type_to_c_cg(cg, type_name(arg_t)));
             } else {
@@ -6684,7 +6685,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     /* Determine total args: provided + defaults */
-    EzFuncSig *call_typed_sig = (EzFuncSig *)cg->pending_call_typed_sig;
+    GrayFuncSig *call_typed_sig = (GrayFuncSig *)cg->pending_call_typed_sig;
     cg->pending_call_typed_sig = NULL; /* one-shot; clear before recursion */
     int total_args = node->data.call.arg_count;
     int param_count = target_func ? target_func->data.func_decl.param_count
@@ -6799,11 +6800,11 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             } else if (needs_addr && node->data.call.args[i]->kind == NODE_INDEX_EXPR) {
                 /* Mutable param on indexed element: array or map */
                 AstNode *idx_node = node->data.call.args[i];
-                EzType *left_t = cg->type_table
+                GrayType *left_t = cg->type_table
                     ? typetable_get(cg->type_table, idx_node->data.index_expr.left) : NULL;
                 if (left_t && left_t->kind == TK_MAP) {
                     /* Map: get pointer to value via gray_map_get */
-                    const char *c_key = "EzString";
+                    const char *c_key = "GrayString";
                     if (left_t->key_type) c_key = gray_map_elem_c_type(cg, left_t->key_type);
                     emitf(cg, "({ %s _mk = ", c_key);
                     emit_expression(cg, idx_node->data.index_expr.index);
@@ -6918,7 +6919,7 @@ static bool emit_narrowing_cast(CodeGen *cg, const char *target,
 /* Emit the initializer for a fixed-size array declaration.
  * When the value is a partial array literal (count < fixed_size), a C
  * compound literal with an explicit size is used so the trailing slots are
- * zero-initialized by C semantics, and fixed_size is passed as the EzArray
+ * zero-initialized by C semantics, and fixed_size is passed as the GrayArray
  * length so index bounds match the declared size N, not the init count k. */
 static void emit_fixed_size_array_init(CodeGen *cg, AstNode *value,
                                        const char *elem_type, int fixed_size) {
@@ -6945,7 +6946,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     if (elem_type) {
         /* [func] with a single func ref init: emit as void* (function pointer),
-         * not EzArray. Array-literal inits still use EzArray. */
+         * not GrayArray. Array-literal inits still use GrayArray. */
         if ((strcmp(elem_type, "func") == 0 || strncmp(elem_type, "func(", 5) == 0) &&
             node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_FUNC_REF) {
@@ -6956,10 +6957,10 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         }
         int fixed_size = extract_array_size(type_name);
         if (fixed_size > 0) {
-            /* Fixed-size array: use EzArray but initialized with exact capacity */
+            /* Fixed-size array: use GrayArray but initialized with exact capacity */
             if (cg->indent == 0) {
                 /* File scope: emit uninitialized global, defer init to gray_init_globals */
-                emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
+                emitf(cg, "GrayArray %s;\n", safe_name(node->data.var_decl.name));
                 /* Store deferred init in the init buffer */
                 if (node->data.var_decl.value) {
                     buf_appendf(&cg->global_init, "    %s = ", safe_name(node->data.var_decl.name));
@@ -6974,7 +6975,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                     cg->indent = 0;
                 }
             } else {
-                emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
+                emitf(cg, "GrayArray %s = ", safe_name(node->data.var_decl.name));
                 if (node->data.var_decl.value) {
                     emit_fixed_size_array_init(cg, node->data.var_decl.value, elem_type, fixed_size);
                 } else {
@@ -6992,35 +6993,35 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             bool label_init = init && init->kind == NODE_LABEL;
             const char *label_elem_tn = NULL;
             if (label_init) {
-                EzType *src_t = cg->type_table
+                GrayType *src_t = cg->type_table
                     ? typetable_get(cg->type_table, init) : NULL;
                 if (src_t && src_t->kind == TK_ARRAY) {
                     label_elem_tn = src_t->element_type;
                 }
             }
             if (cg->indent == 0) {
-                emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
+                emitf(cg, "GrayArray %s;\n", safe_name(node->data.var_decl.name));
                 Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
                 emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
                 if (label_init) emit_deep_array_copy(cg, init, label_elem_tn);
                 else if (init) emit_expression(cg, init);
-                else emit(cg, "gray_array_new(gray_default_arena, sizeof(EzArray), 4)");
+                else emit(cg, "gray_array_new(gray_default_arena, sizeof(GrayArray), 4)");
                 emit(cg, ";\n");
                 cg->global_init = cg->output; cg->output = saved; cg->indent = 0;
             } else {
-                emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
+                emitf(cg, "GrayArray %s = ", safe_name(node->data.var_decl.name));
                 if (label_init) emit_deep_array_copy(cg, init, label_elem_tn);
                 else if (init) emit_expression(cg, init);
-                else emitf(cg, "gray_array_new(gray_default_arena, sizeof(EzArray), 4)");
+                else emitf(cg, "gray_array_new(gray_default_arena, sizeof(GrayArray), 4)");
                 emit(cg, ";\n");
             }
             return;
         }
 
-        /* Dynamic array: use EzArray */
+        /* Dynamic array: use GrayArray */
         const char *c_elem_type = gray_type_to_c_cg(cg, elem_type);
         if (cg->indent == 0) {
-            emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
+            emitf(cg, "GrayArray %s;\n", safe_name(node->data.var_decl.name));
             Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
             emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
             if (node->data.var_decl.value) emit_expression(cg, node->data.var_decl.value);
@@ -7028,7 +7029,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit(cg, ";\n");
             cg->global_init = cg->output; cg->output = saved; cg->indent = 0;
         } else {
-        emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
+        emitf(cg, "GrayArray %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
             node->data.var_decl.value->data.array_value.count == 0) {
@@ -7041,7 +7042,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
              * or a struct field access (e.g. `mut copy [int] = s.field`).
              * Without this, member-expr sources share backing storage with the
              * originating struct field (#1789). */
-            EzType *src_t = cg->type_table
+            GrayType *src_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
             const char *elem_tn = (src_t && src_t->kind == TK_ARRAY)
                 ? src_t->element_type : NULL;
@@ -7065,8 +7066,8 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     /* Map type: map[K:V] */
     if (type_name && strncmp(type_name, "map[", 4) == 0) {
         /* Parse K:V from type string to determine C types */
-        EzType *mt = type_from_name(type_name);
-        const char *c_kt = "EzString";
+        GrayType *mt = type_from_name(type_name);
+        const char *c_kt = "GrayString";
         const char *c_vt = "int64_t";
         if (mt && mt->key_type) c_kt = gray_map_elem_c_type(cg, mt->key_type);
         if (mt && mt->value_type) c_vt = gray_map_elem_c_type(cg, mt->value_type);
@@ -7075,7 +7076,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* File scope: emit zero-init global, defer initializer to
              * gray_init_globals — map literals expand to GCC statement
              * expressions which are not legal at file scope. */
-            emitf(cg, "EzMap %s;\n", safe_name(node->data.var_decl.name));
+            emitf(cg, "GrayMap %s;\n", safe_name(node->data.var_decl.name));
             Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
             emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
             if (node->data.var_decl.value &&
@@ -7083,7 +7084,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                 int t = next_dc_tag();
                 char src_var[CG_VAR_NAME_BUF];
                 snprintf(src_var, sizeof(src_var), "_ms%d", t);
-                emitf(cg, "({ EzMap %s = ", src_var);
+                emitf(cg, "({ GrayMap %s = ", src_var);
                 emit_expression(cg, node->data.var_decl.value);
                 emit(cg, "; ");
                 emit_value_deep_copy(cg, type_name, src_var);
@@ -7102,7 +7103,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             return;
         }
 
-        emitf(cg, "EzMap %s = ", safe_name(node->data.var_decl.name));
+        emitf(cg, "GrayMap %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_LABEL) {
             /* Copy-by-default: deep copy when assigning a map from another
@@ -7110,7 +7111,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             int t = next_dc_tag();
             char src_var[CG_VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_ms%d", t);
-            emitf(cg, "({ EzMap %s = ", src_var);
+            emitf(cg, "({ GrayMap %s = ", src_var);
             emit_expression(cg, node->data.var_decl.value);
             emit(cg, "; ");
             emit_value_deep_copy(cg, type_name, src_var);
@@ -7143,7 +7144,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
          * calls like `mut a = i128(42)` register correctly when the
          * typetable stores the base type name ("int") rather than the
          * width-specific name ("i128"). */
-        EzType *vt = cg->type_table
+        GrayType *vt = cg->type_table
             ? typetable_get(cg->type_table, node->data.var_decl.value)
             : NULL;
         const char *bi_name = (vt && vt->name && is_bigint_type(vt->name))
@@ -7168,15 +7169,15 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     if (!type_name && node->data.var_decl.value) {
         AstNode *val = node->data.var_decl.value;
         if (val->kind == NODE_STRING_VALUE || val->kind == NODE_INTERPOLATED_STRING) {
-            c_type = "EzString";
+            c_type = "GrayString";
         } else if (val->kind == NODE_FLOAT_VALUE) {
             c_type = "double";
         } else if (val->kind == NODE_BOOL_VALUE) {
             c_type = "bool";
         } else if (val->kind == NODE_ARRAY_VALUE) {
-            c_type = "EzArray";
+            c_type = "GrayArray";
         } else if (val->kind == NODE_MAP_VALUE) {
-            c_type = "EzMap";
+            c_type = "GrayMap";
         } else if (val->kind == NODE_STRUCT_VALUE) {
             /* : use mangled name for generic struct instantiations */
             if (val->data.struct_value.wildcard_binding) {
@@ -7193,9 +7194,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             }
         } else if (val->kind == NODE_INFIX_EXPR) {
             /* Check type table for infix result type */
-            EzType *infix_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
+            GrayType *infix_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
             if (infix_t && infix_t->kind == TK_STRING) {
-                c_type = "EzString";
+                c_type = "GrayString";
             } else if (infix_t && infix_t->kind == TK_FLOAT) {
                 c_type = "double";
             } else if (infix_t && infix_t->kind == TK_BOOL) {
@@ -7230,8 +7231,8 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Register as a transparent reference for any lvalue source —
              * variable, struct field, or index expression. Without this,
              * ref(struct.field) was registered as a plain value var and
-             * later GRAY_ARRAY_SET(&(r), ...) produced EzArray ** instead of
-             * EzArray *. The auto-deref path in NODE_LABEL emission
+             * later GRAY_ARRAY_SET(&(r), ...) produced GrayArray ** instead of
+             * GrayArray *. The auto-deref path in NODE_LABEL emission
              * handles field/index sources the same as variable sources. */
             if (node->data.var_decl.value->data.call.arg_count == 1) {
                 AstNode *arg = node->data.var_decl.value->data.call.args[0];
@@ -7370,7 +7371,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
              * Covers: mut big i128 = some_int_var */
             const char *pfx = bigint_prefix(type_name);
             bool dst_unsigned = (type_name[0] == 'u');
-            EzType *val_t = cg->type_table
+            GrayType *val_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
             bool src_unsigned = (val_t && val_t->kind == TK_UINT);
             if (dst_unsigned) {
@@ -7392,9 +7393,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         if (strcmp(c_type, "int64_t") == 0) emit(cg, " = 0");
         else if (strcmp(c_type, "double") == 0) emit(cg, " = 0.0");
         else if (strcmp(c_type, "bool") == 0) emit(cg, " = false");
-        else if (strcmp(c_type, "EzString") == 0) emit(cg, " = (EzString){\"\", 0}");
-        else if (strcmp(c_type, "EzArray") == 0) emit(cg, " = (EzArray){0}");
-        else if (strcmp(c_type, "EzMap") == 0) emit(cg, " = (EzMap){0}");
+        else if (strcmp(c_type, "GrayString") == 0) emit(cg, " = (GrayString){\"\", 0}");
+        else if (strcmp(c_type, "GrayArray") == 0) emit(cg, " = (GrayArray){0}");
+        else if (strcmp(c_type, "GrayMap") == 0) emit(cg, " = (GrayMap){0}");
         else if (strcmp(c_type, "gray_i128") == 0) emit(cg, " = GRAY_I128_ZERO");
         else if (strcmp(c_type, "gray_u128") == 0) emit(cg, " = GRAY_U128_ZERO");
         else if (strcmp(c_type, "gray_i256") == 0) emit(cg, " = GRAY_I256_ZERO");
@@ -7411,7 +7412,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* Check for array index assignment: arr[i] = value */
     if (node->data.assign.target->kind == NODE_INDEX_EXPR) {
         AstNode *left = node->data.assign.target->data.index_expr.left;
-        EzType *left_t = cg->type_table ? typetable_get(cg->type_table, left) : NULL;
+        GrayType *left_t = cg->type_table ? typetable_get(cg->type_table, left) : NULL;
         if (left_t && left_t->kind == TK_ARRAY) {
             const char *c_elem = "int64_t";
             if (left_t->element_type) {
@@ -7430,7 +7431,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 const char *_set_ptr_field = NULL;
                 if (left->kind == NODE_MEMBER_EXPR) {
                     AstNode *_sobj = left->data.member.object;
-                    EzType *_sobj_t = cg->type_table ? typetable_get(cg->type_table, _sobj) : NULL;
+                    GrayType *_sobj_t = cg->type_table ? typetable_get(cg->type_table, _sobj) : NULL;
                     if (_sobj_t && _sobj_t->kind == TK_POINTER) {
                         _set_ptr_obj = _sobj;
                         _set_ptr_field = left->data.member.member;
@@ -7545,7 +7546,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
              * directly. */
             const char *c_val = "int64_t";
             if (left_t->value_type) c_val = gray_map_elem_c_type(cg, left_t->value_type);
-            const char *c_key = "EzString";
+            const char *c_key = "GrayString";
             if (left_t->key_type) c_key = gray_map_elem_c_type(cg, left_t->key_type);
             const char *ms_arena = cg->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
             bool ms_str_key = left_t->key_type && strcmp(left_t->key_type, "string") == 0;
@@ -7557,7 +7558,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
              * is illegal. Instead, nil-check then use -> to get an lvalue. */
             bool map_via_ptr = false;
             if (left->kind == NODE_MEMBER_EXPR) {
-                EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, left->data.member.object) : NULL;
+                GrayType *obj_t = cg->type_table ? typetable_get(cg->type_table, left->data.member.object) : NULL;
                 if (obj_t && obj_t->kind == TK_POINTER) map_via_ptr = true;
             }
 
@@ -7580,7 +7581,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (ms_str_key) {
                     emitf(cg, "_mk = gray_string_new(%s, _mk.data, _mk.len); ", ms_arena);
                 } else if (left_t->key_type && type_needs_deep_copy(cg, left_t->key_type)) {
-                    emitf(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = %s; _mk = ", ms_arena);
+                    emitf(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _mk = ", ms_arena);
                     emit_value_deep_copy(cg, left_t->key_type, "_mk");
                     emit(cg, "; gray_default_arena = _esc; } ");
                 }
@@ -7616,7 +7617,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (ms_str_val) {
                     emitf(cg, "_mv = gray_string_new(%s, _mv.data, _mv.len); ", ms_arena);
                 } else if (left_t->value_type && type_needs_deep_copy(cg, left_t->value_type)) {
-                    emitf(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = %s; _mv = ", ms_arena);
+                    emitf(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _mv = ", ms_arena);
                     emit_value_deep_copy(cg, left_t->value_type, "_mv");
                     emit(cg, "; gray_default_arena = _esc; } ");
                 }
@@ -7647,7 +7648,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     if (node->data.assign.target->kind == NODE_POSTFIX_EXPR &&
         node->data.assign.target->data.postfix.op == TOK_CARET) {
         AstNode *ptr_node = node->data.assign.target->data.postfix.left;
-        EzType *ptr_t = cg->type_table ? typetable_get(cg->type_table, ptr_node) : NULL;
+        GrayType *ptr_t = cg->type_table ? typetable_get(cg->type_table, ptr_node) : NULL;
         const char *bi_elem = (ptr_t && ptr_t->kind == TK_POINTER && ptr_t->element_type &&
                                is_bigint_type(ptr_t->element_type))
                               ? ptr_t->element_type : NULL;
@@ -7688,7 +7689,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         while (cur->kind == NODE_MEMBER_EXPR && depth < 32) {
             chain[depth++] = cur->data.member.member;
             AstNode *obj = cur->data.member.object;
-            EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+            GrayType *obj_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
             if (obj_t && obj_t->kind == TK_POINTER &&
                 !(obj->kind == NODE_LABEL && is_ref_var(cg, obj->data.label.value))) {
                 ptr_root = obj;
@@ -7714,7 +7715,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* Pointer field assignment: p.field = value (where p is ptr<T>) → nil check + p->field = value */
     if (node->data.assign.target->kind == NODE_MEMBER_EXPR) {
         AstNode *obj = node->data.assign.target->data.member.object;
-        EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+        GrayType *obj_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
         bool is_ref = (obj->kind == NODE_LABEL && is_ref_var(cg, obj->data.label.value));
         if (!is_ref && obj_t && obj_t->kind == TK_POINTER) {
             const char *field = node->data.assign.target->data.member.member;
@@ -7722,16 +7723,16 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
              * scoped block (if/loop), deep-copy to the outer arena so the
              * data survives the block's arena destruction. */
             if (node->data.assign.op == TOK_ASSIGN && cg->loop_scope_depth > 0) {
-                EzType *field_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+                GrayType *field_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
                 if (field_t && field_t->kind == TK_ARRAY) {
                     char tn[GRAY_MSG_BUF_SIZE];
                     snprintf(tn, sizeof(tn), "[%s]", field_t->element_type ? field_t->element_type : "");
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
                     emit(cg, "; if (!_dp) { gray_panic_code(\"P0080\", \"nil pointer dereference\"); } ");
-                    emitf(cg, "{ EzArray _esc_v = ");
+                    emitf(cg, "{ GrayArray _esc_v = ");
                     emit_expression(cg, node->data.assign.value);
-                    emit(cg, "; EzArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
+                    emit(cg, "; GrayArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
                     emitf(cg, "_dp->%s = ", safe_name(field));
                     emit_array_deep_copy(cg, tn, "_esc_v");
                     emit(cg, "; gray_default_arena = _esc_a; } }\n");
@@ -7741,7 +7742,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
                     emit(cg, "; if (!_dp) { gray_panic_code(\"P0080\", \"nil pointer dereference\"); } ");
-                    emitf(cg, "{ EzString _esc_v = ");
+                    emitf(cg, "{ GrayString _esc_v = ");
                     emit_expression(cg, node->data.assign.value);
                     emitf(cg, "; _dp->%s = gray_string_new(_gray_outer_arena, _esc_v.data, _esc_v.len); } }\n",
                         safe_name(field));
@@ -7766,7 +7767,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         bool is_arith_compound = (aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN || aop == TOK_ASTERISK_ASSIGN);
         bool is_div_compound = (aop == TOK_SLASH_ASSIGN || aop == TOK_PERCENT_ASSIGN);
         if (is_arith_compound || is_div_compound) {
-            EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+            GrayType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
             const char *sn = (tgt_t && tgt_t->name) ? tgt_t->name : NULL;
             /* Wide integer compound assignment: emit bigint op functions */
             const char *tgt_bi = sn && is_bigint_type(sn) ? sn
@@ -7892,7 +7893,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
      * (variables, call results, etc.) to prevent use-after-free when the
      * source array lives on a function-local arena. */
     if (node->data.assign.op == TOK_ASSIGN) {
-        EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+        GrayType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_ARRAY) {
             emit_expression(cg, node->data.assign.target);
             emit(cg, " = ");
@@ -7905,7 +7906,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             int t = next_dc_tag();
             char src_var[CG_VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_ma%d", t);
-            emit(cg, "{ EzMap ");
+            emit(cg, "{ GrayMap ");
             emitf(cg, "%s = ", src_var);
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; ");
@@ -7928,7 +7929,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; ");
             if (cg->loop_scope_depth > 0) {
-                emit(cg, "EzArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
+                emit(cg, "GrayArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
             }
             emit_expression(cg, node->data.assign.target);
             emit(cg, " = ");
@@ -7949,9 +7950,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
      * arena so it survives the iteration arena's destruction. */
     if (cg->loop_scope_depth > 0 && node->data.assign.op == TOK_ASSIGN &&
         node->data.assign.target->kind == NODE_LABEL) {
-        EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+        GrayType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_STRING) {
-            emit(cg, "{ EzString _esc_v = ");
+            emit(cg, "{ GrayString _esc_v = ");
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; ");
             emit_expression(cg, node->data.assign.target);
@@ -7962,7 +7963,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             const char *c_type = gray_type_to_c_cg(cg, tgt_t->name);
             emitf(cg, "{ %s _esc_v = ", c_type);
             emit_expression(cg, node->data.assign.value);
-            emit(cg, "; EzArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
+            emit(cg, "; GrayArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
             emit_expression(cg, node->data.assign.target);
             emit(cg, " = ");
             emit_value_deep_copy(cg, tgt_t->name, "_esc_v");
@@ -7975,7 +7976,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emitf(cg, " %s ", op_to_c_str(node->data.assign.op));
     if (node->data.assign.value->kind == NODE_LABEL &&
         is_ref_var(cg, node->data.assign.value->data.label.value)) {
-        EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+        GrayType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_POINTER) {
             emit(cg, node->data.assign.value->data.label.value);
         } else {
@@ -8081,17 +8082,17 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
         emit_scratch_arena_unwind(cg);
         return;
     }
-    EzType *rt = type_from_name(ret_type_name);
+    GrayType *rt = type_from_name(ret_type_name);
     if (rt->kind == TK_STRING) {
         emit(cg, "_ret = gray_string_new(_func_saved, _ret.data, _ret.len); ");
     } else if (rt->kind == TK_ERROR) {
-        emit(cg, "if (_ret) { EzError *_src_err = (EzError *)_ret; ");
-        emit(cg, "EzError *_esc_err = (EzError *)gray_arena_alloc(_func_saved, sizeof(EzError)); ");
+        emit(cg, "if (_ret) { GrayError *_src_err = (GrayError *)_ret; ");
+        emit(cg, "GrayError *_esc_err = (GrayError *)gray_arena_alloc(_func_saved, sizeof(GrayError)); ");
         emit(cg, "_esc_err->message = gray_string_new(_func_saved, _src_err->message.data, _src_err->message.len); ");
         emit(cg, "_esc_err->code = gray_string_new(_func_saved, _src_err->code.data, _src_err->code.len); ");
         emit(cg, "_ret = _esc_err; } ");
     } else if (type_needs_deep_copy(cg, ret_type_name)) {
-        emit(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = _func_saved; _ret = ");
+        emit(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = _func_saved; _ret = ");
         emit_value_deep_copy(cg, ret_type_name, "_ret");
         emit(cg, "; gray_default_arena = _esc; } ");
     }
@@ -8100,7 +8101,7 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
     emit(cg, "gray_arena_destroy(_func_arena, __FILE__, __LINE__); free(_func_arena); ");
 }
 
-/* Escape every heap field of the live EzMulti_* _ret struct from _func_arena
+/* Escape every heap field of the live GrayMulti_* _ret struct from _func_arena
  * to _func_saved, then unwind scratch arenas and destroy _func_arena.
  * Mirrors emit_func_return_escape but covers all fields of a multi-return. */
 static void emit_multi_func_return_escape(CodeGen *cg) {
@@ -8112,18 +8113,18 @@ static void emit_multi_func_return_escape(CodeGen *cg) {
     for (int i = 0; i < rc; i++) {
         const char *tn = cg->current_func->data.func_decl.return_types[i];
         if (!tn) continue;
-        EzType *rt = type_from_name(tn);
+        GrayType *rt = type_from_name(tn);
         if (rt->kind == TK_STRING) {
             emitf(cg, "_ret.v%d = gray_string_new(_func_saved, _ret.v%d.data, _ret.v%d.len); ", i, i, i);
         } else if (rt->kind == TK_ERROR) {
-            emitf(cg, "if (_ret.v%d) { EzError *_esc_err = (EzError *)gray_arena_alloc(_func_saved, sizeof(EzError)); ", i);
+            emitf(cg, "if (_ret.v%d) { GrayError *_esc_err = (GrayError *)gray_arena_alloc(_func_saved, sizeof(GrayError)); ", i);
             emitf(cg, "_esc_err->message = gray_string_new(_func_saved, _ret.v%d->message.data, _ret.v%d->message.len); ", i, i);
             emitf(cg, "_esc_err->code = gray_string_new(_func_saved, _ret.v%d->code.data, _ret.v%d->code.len); ", i, i);
             emitf(cg, "_ret.v%d = _esc_err; } ", i);
         } else if (type_needs_deep_copy(cg, tn)) {
             char field[32];
             snprintf(field, sizeof(field), "_ret.v%d", i);
-            emitf(cg, "{ EzArena *_esc = gray_default_arena; gray_default_arena = _func_saved; _ret.v%d = ", i);
+            emitf(cg, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = _func_saved; _ret.v%d = ", i);
             emit_value_deep_copy(cg, tn, field);
             emit(cg, "; gray_default_arena = _esc; } ");
         }
@@ -8158,7 +8159,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         /* Multi-return: evaluate into temp, then exit and return */
         emit_indent(cg);
         const char *mbn = multi_ret_name(cg->current_func);
-        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn, mbn);
+        emitf(cg, "{ GrayMulti_%s _ret = (GrayMulti_%s){", mbn, mbn);
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.return_stmt.values[i]);
@@ -8172,14 +8173,14 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         int rc = cg->current_func->data.func_decl.return_type_count;
         emit_indent(cg);
         const char *mbn2 = multi_ret_name(cg->current_func);
-        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn2, mbn2);
+        emitf(cg, "{ GrayMulti_%s _ret = (GrayMulti_%s){", mbn2, mbn2);
         for (int i = 0; i < rc - 1; i++) {
             /* Use {0} for composite types (structs, arrays, maps, strings)
              * and 0 for scalars to avoid -Wbraced-scalar-init. */
             const char *rt = cg->current_func->data.func_decl.return_types[i];
             bool composite = false;
             if (rt) {
-                EzType *rtt = type_from_name(rt);
+                GrayType *rtt = type_from_name(rt);
                 if (rtt && (rtt->kind == TK_STRUCT || rtt->kind == TK_ARRAY ||
                             rtt->kind == TK_MAP || rtt->kind == TK_STRING ||
                             rtt->kind == TK_ERROR))
@@ -8227,7 +8228,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         } else {
             emit_indent(cg);
             const char *mbn3 = multi_ret_name(cg->current_func);
-            emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn3, mbn3);
+            emitf(cg, "{ GrayMulti_%s _ret = (GrayMulti_%s){", mbn3, mbn3);
             for (int i = 0; i < rc; i++) {
                 if (i > 0) emit(cg, ", ");
                 if (cg->current_func->data.func_decl.return_names[i]) {
@@ -8266,10 +8267,10 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
     emitf(cg, "{ ");
     if (cg->loop_scope_depth == 0) {
-        emit(cg, "EzArena *_gray_outer_arena = gray_default_arena; ");
+        emit(cg, "GrayArena *_gray_outer_arena = gray_default_arena; ");
     }
-    emitf(cg, "EzArena *_if_arena_%d = gray_arena_create(%d); ", isc, CG_IF_ARENA_SIZE);
-    emitf(cg, "EzArena *_if_saved_%d = gray_default_arena; ", isc);
+    emitf(cg, "GrayArena *_if_arena_%d = gray_arena_create(%d); ", isc, CG_IF_ARENA_SIZE);
+    emitf(cg, "GrayArena *_if_saved_%d = gray_default_arena; ", isc);
     emitf(cg, "gray_default_arena = _if_arena_%d;\n", isc);
     cg->loop_scope_depth++;
     {
@@ -8421,7 +8422,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
         emit(cg, ") {\n");
     } else {
         /* Generic for - fallback */
-        emitf(cg, "/* ezc: non-range for loop not yet supported */\n");
+        emitf(cg, "/* grayc: non-range for loop not yet supported */\n");
         emit_indent(cg);
         emit(cg, "{\n");
     }
@@ -8430,13 +8431,13 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     /*  phase 2: per-iteration scratch arena */
     if (cg->loop_scope_depth == 0) {
         emit_indent(cg);
-        emit(cg, "EzArena *_gray_outer_arena = gray_default_arena;\n");
+        emit(cg, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
     }
     int f_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "EzArena *_iter_arena_%d = gray_arena_create(%d);\n", f_depth, CG_LOOP_ARENA_SIZE);
+    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", f_depth, CG_LOOP_ARENA_SIZE);
     emit_indent(cg);
-    emitf(cg, "EzArena *_saved_arena_%d = gray_default_arena;\n", f_depth);
+    emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", f_depth);
     emit_indent(cg);
     emitf(cg, "gray_default_arena = _iter_arena_%d;\n", f_depth);
     cg->loop_scope_depth++;
@@ -8468,13 +8469,13 @@ static void emit_while_statement(CodeGen *cg, AstNode *node) {
     /*  phase 2: per-iteration scratch arena */
     if (cg->loop_scope_depth == 0) {
         emit_indent(cg);
-        emit(cg, "EzArena *_gray_outer_arena = gray_default_arena;\n");
+        emit(cg, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
     }
     int w_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "EzArena *_iter_arena_%d = gray_arena_create(%d);\n", w_depth, CG_LOOP_ARENA_SIZE);
+    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", w_depth, CG_LOOP_ARENA_SIZE);
     emit_indent(cg);
-    emitf(cg, "EzArena *_saved_arena_%d = gray_default_arena;\n", w_depth);
+    emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", w_depth);
     emit_indent(cg);
     emitf(cg, "gray_default_arena = _iter_arena_%d;\n", w_depth);
     cg->loop_scope_depth++;
@@ -8504,13 +8505,13 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     /*  phase 2: per-iteration scratch arena */
     if (cg->loop_scope_depth == 0) {
         emit_indent(cg);
-        emit(cg, "EzArena *_gray_outer_arena = gray_default_arena;\n");
+        emit(cg, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
     }
     int l_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "EzArena *_iter_arena_%d = gray_arena_create(%d);\n", l_depth, CG_LOOP_ARENA_SIZE);
+    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", l_depth, CG_LOOP_ARENA_SIZE);
     emit_indent(cg);
-    emitf(cg, "EzArena *_saved_arena_%d = gray_default_arena;\n", l_depth);
+    emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", l_depth);
     emit_indent(cg);
     emitf(cg, "gray_default_arena = _iter_arena_%d;\n", l_depth);
     cg->loop_scope_depth++;
@@ -8534,7 +8535,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
 
 /* : extract the base (unmangled) function name for multi-return
  * struct references. The monomorphiser temporarily renames functions
- * to `<name>__<binding>`, but the EzMulti typedef is emitted once
+ * to `<name>__<binding>`, but the GrayMulti typedef is emitted once
  * under the original name. Returns a pointer to a small ring of
  * static buffers so a few concurrent uses stay alive. */
 static const char *multi_base_name(const char *fn_name) {
@@ -8570,14 +8571,14 @@ static const char *multi_ret_name(AstNode *func) {
                   : multi_base_name(func->data.func_decl.name);
 }
 
-/* Build a multi-return type name like EzMulti_add */
+/* Build a multi-return type name like GrayMulti_add */
 static void emit_multi_return_typedef(CodeGen *cg, AstNode *node) {
     emitf(cg, "typedef struct {\n");
     for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
         emitf(cg, "    %s v%d;\n",
             gray_type_to_c_cg(cg, node->data.func_decl.return_types[i]), i);
     }
-    emitf(cg, "} EzMulti_%s;\n\n", node->data.func_decl.name);
+    emitf(cg, "} GrayMulti_%s;\n\n", node->data.func_decl.name);
 }
 
 static const char *func_return_type(CodeGen *cg, AstNode *node) {
@@ -8585,7 +8586,7 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
     if (node->data.func_decl.return_type_count == 1) {
         return gray_type_to_c_cg(cg, node->data.func_decl.return_types[0]);
     }
-    /*  + : for multi-return, use `EzMulti_<name>`. The
+    /*  + : for multi-return, use `GrayMulti_<name>`. The
      * monomorphiser temporarily renames the func to `<name>__<binding>`.
      * When return types DON'T contain '?', all instantiations share one
      * struct → use the base name ). When return types DO contain
@@ -8603,12 +8604,12 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
     }
     if (!has_wc_ret) {
         /* : strip __<binding> suffix; shared struct. */
-        snprintf(buf, sizeof(buf), "EzMulti_%s", multi_base_name(fn_name));
+        snprintf(buf, sizeof(buf), "GrayMulti_%s", multi_base_name(fn_name));
     } else {
         /* : use the full (possibly mangled) name; per-instantiation
          * struct. The wildcard_binding is active so gray_type_to_c_cg will
          * substitute '?' in the struct fields. */
-        snprintf(buf, sizeof(buf), "EzMulti_%s", fn_name);
+        snprintf(buf, sizeof(buf), "GrayMulti_%s", fn_name);
     }
     return buf;
 }
@@ -8653,12 +8654,12 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     if (!is_main && !caller_arena) {
         if (is_void_fn) {
             emit_indent(cg);
-            emit(cg, "EzScopeMark _scope_mark = gray_scope_save(gray_default_arena);\n");
+            emit(cg, "GrayScopeMark _scope_mark = gray_scope_save(gray_default_arena);\n");
         } else {
             emit_indent(cg);
-            emitf(cg, "EzArena *_func_arena = gray_arena_create(%d);\n", CG_FUNC_ARENA_SIZE);
+            emitf(cg, "GrayArena *_func_arena = gray_arena_create(%d);\n", CG_FUNC_ARENA_SIZE);
             emit_indent(cg);
-            emit(cg, "EzArena *_func_saved = gray_default_arena;\n");
+            emit(cg, "GrayArena *_func_saved = gray_default_arena;\n");
             emit_indent(cg);
             emit(cg, "gray_default_arena = _func_arena;\n");
         }
@@ -8741,7 +8742,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_FOR_EACH_STMT: {
         emit_indent(cg);
         AstNode *coll = node->data.for_each.collection;
-        EzType *coll_t = cg->type_table ? typetable_get(cg->type_table, coll) : NULL;
+        GrayType *coll_t = cg->type_table ? typetable_get(cg->type_table, coll) : NULL;
 
         const char *idx_name = node->data.for_each.index_name;
         if (!idx_name) idx_name = "_gray_idx";
@@ -8760,10 +8761,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             char mi_name[CG_SHORT_VAR_BUF];
             snprintf(mi_name, sizeof(mi_name), "_gray_mi%d", map_iter_counter++);
 
-            const char *c_key = "EzString";
+            const char *c_key = "GrayString";
             const char *c_val = "int64_t";
             if (coll_t->key_type) {
-                EzType *kt = type_from_name(coll_t->key_type);
+                GrayType *kt = type_from_name(coll_t->key_type);
                 if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
             }
             if (coll_t->value_type) c_val = gray_map_elem_c_type(cg, coll_t->value_type);
@@ -8810,7 +8811,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             }
         } else if (coll_t && coll_t->kind == TK_STRING) {
             /* for_each ch in "string" → iterate characters */
-            emitf(cg, "{ EzString _gray_str = ");
+            emitf(cg, "{ GrayString _gray_str = ");
             emit_expression(cg, coll);
             emit(cg, ";\n");
             emit_indent(cg);
@@ -8819,7 +8820,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emit_indent(cg);
             emitf(cg, "int32_t %s = _gray_str.data[%s];\n", safe_name(node->data.for_each.var_name), idx_name);
         } else {
-            /* for_each item in array → iterate EzArray */
+            /* for_each item in array → iterate GrayArray */
             const char *c_elem = "int64_t";
             if (coll_t && coll_t->kind == TK_ARRAY && coll_t->element_type) {
                 /* Wildcard substitution ): a generic parameter
@@ -8827,19 +8828,19 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                  * out for the active instantiation's concrete binding
                  * before resolving to a C type. */
                 const char *elem_tn = cg_effective_type_str(cg, coll_t->element_type);
-                EzType *et = type_from_name(elem_tn);
+                GrayType *et = type_from_name(elem_tn);
                 if (et->kind == TK_FLOAT) c_elem = "double";
                 else if (et->kind == TK_BOOL) c_elem = "bool";
-                else if (et->kind == TK_STRING) c_elem = "EzString";
-                else if (et->kind == TK_ARRAY) c_elem = "EzArray";
-                else if (et->kind == TK_MAP) c_elem = "EzMap";
+                else if (et->kind == TK_STRING) c_elem = "GrayString";
+                else if (et->kind == TK_ARRAY) c_elem = "GrayArray";
+                else if (et->kind == TK_MAP) c_elem = "GrayMap";
                 else if (et->kind == TK_STRUCT) c_elem = gray_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_POINTER) c_elem = gray_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
                 else if (et->kind == TK_ENUM) {
                     c_elem = cg_enum_is_string(cg, elem_tn)
-                        ? "EzString" : gray_type_to_c_cg(cg, elem_tn);
+                        ? "GrayString" : gray_type_to_c_cg(cg, elem_tn);
                 }
             }
 
@@ -8856,7 +8857,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             coll_needs_tmp = (coll->kind != NODE_LABEL);
             if (coll_needs_tmp) {
                 snprintf(arr_tmp_name, sizeof(arr_tmp_name), "_gray_arr%d", arr_iter_counter - 1);
-                emitf(cg, "{ EzArray %s = ", arr_tmp_name);
+                emitf(cg, "{ GrayArray %s = ", arr_tmp_name);
                 emit_expression(cg, coll);
                 emit(cg, ";\n");
                 emit_indent(cg);
@@ -8880,13 +8881,13 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         /*  phase 2: per-iteration scratch arena */
         if (cg->loop_scope_depth == 0) {
             emit_indent(cg);
-            emit(cg, "EzArena *_gray_outer_arena = gray_default_arena;\n");
+            emit(cg, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
         }
         int fe_depth = cg->loop_scope_depth;
         emit_indent(cg);
-        emitf(cg, "EzArena *_iter_arena_%d = gray_arena_create(%d);\n", fe_depth, CG_LOOP_ARENA_SIZE);
+        emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", fe_depth, CG_LOOP_ARENA_SIZE);
         emit_indent(cg);
-        emitf(cg, "EzArena *_saved_arena_%d = gray_default_arena;\n", fe_depth);
+        emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", fe_depth);
         emit_indent(cg);
         emitf(cg, "gray_default_arena = _iter_arena_%d;\n", fe_depth);
         cg->loop_scope_depth++;
@@ -8951,7 +8952,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_WHEN_STMT: {
         /* Emit as if-else chain for now (switch requires constant values) */
         AstNode *val = node->data.when_stmt.value;
-        EzType *when_val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
+        GrayType *when_val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
         bool when_is_string = (when_val_t && when_val_t->kind == TK_STRING);
         bool when_is_tagged = false;
         const char *when_tagged_ename = NULL;
@@ -8986,7 +8987,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     const char *ename = wc->values[j]->data.when_pattern.enum_name;
                     if (!ename) ename = when_tagged_ename;
                     emit_expression(cg, val);
-                    emitf(cg, ".tag == EzEnum_%s_TAG_%s", ename, vname);
+                    emitf(cg, ".tag == GrayEnum_%s_TAG_%s", ename, vname);
                 } else if (when_is_tagged) {
                     /* Tagged enum, plain variant: compare .tag */
                     AstNode *cv = wc->values[j];
@@ -8998,7 +8999,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     }
                     if (vname) {
                         emit_expression(cg, val);
-                        emitf(cg, ".tag == EzEnum_%s_TAG_%s", when_tagged_ename, vname);
+                        emitf(cg, ".tag == GrayEnum_%s_TAG_%s", when_tagged_ename, vname);
                     } else {
                         emit_expression(cg, val);
                         emit(cg, ".tag == ");
@@ -9174,7 +9175,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     default:
         emit_indent(cg);
-        emitf(cg, "/* ezc: unhandled statement kind %d at %s:%d */\n",
+        emitf(cg, "/* grayc: unhandled statement kind %d at %s:%d */\n",
             node->kind, cg->file, node->token.line);
         break;
     }
@@ -9346,7 +9347,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
 
     /* Emit preamble */
-    emit(cg, "/* Generated by EZC */\n");
+    emit(cg, "/* Generated by grayc */\n");
     emit(cg, "#include \"gray_runtime.h\"\n");
     emit(cg, "#include \"gray_array.h\"\n");
     emit(cg, "#include \"gray_map.h\"\n");
@@ -9438,14 +9439,14 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             cg->enum_count++;
 
             if (is_string_enum) {
-                emitf(cg, "typedef EzString EzEnum_%s;\n", stmt->data.enum_decl.name);
+                emitf(cg, "typedef GrayString GrayEnum_%s;\n", stmt->data.enum_decl.name);
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
                     EnumVal *ev = &stmt->data.enum_decl.values[j];
                     const char *str_val = ev->name;
                     if (ev->value && ev->value->kind == NODE_STRING_VALUE) {
                         str_val = ev->value->data.string_value.value;
                     }
-                    emitf(cg, "#define EzEnum_%s_%s ((EzString){ \"%s\", %d })\n",
+                    emitf(cg, "#define GrayEnum_%s_%s ((GrayString){ \"%s\", %d })\n",
                         stmt->data.enum_decl.name, ev->name,
                         str_val, (int)strlen(str_val));
                 }
@@ -9455,9 +9456,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 /* Tag enum */
                 emitf(cg, "typedef enum {\n");
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                    emitf(cg, "    EzEnum_%s_TAG_%s = %d,\n", ename, stmt->data.enum_decl.values[j].name, j);
+                    emitf(cg, "    GrayEnum_%s_TAG_%s = %d,\n", ename, stmt->data.enum_decl.values[j].name, j);
                 }
-                emitf(cg, "} EzEnum_%s_Tag;\n\n", ename);
+                emitf(cg, "} GrayEnum_%s_Tag;\n\n", ename);
 
                 /* Payload structs (only for variants with payloads) */
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
@@ -9468,13 +9469,13 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                             if (k > 0) emit(cg, "");
                             emitf(cg, " %s _%d;", gray_type_to_c_cg(cg, ev->payload_types[k]), k);
                         }
-                        emitf(cg, " } EzEnum_%s_Data_%s;\n", ename, ev->name);
+                        emitf(cg, " } GrayEnum_%s_Data_%s;\n", ename, ev->name);
                     }
                 }
 
                 /* Tagged union struct */
                 emitf(cg, "typedef struct {\n");
-                emitf(cg, "    EzEnum_%s_Tag tag;\n", ename);
+                emitf(cg, "    GrayEnum_%s_Tag tag;\n", ename);
                 /* Only emit union if any variant has a payload */
                 bool has_any_payload = false;
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
@@ -9485,18 +9486,18 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
                         EnumVal *ev = &stmt->data.enum_decl.values[j];
                         if (ev->payload_count > 0) {
-                            emitf(cg, "        EzEnum_%s_Data_%s %s;\n", ename, ev->name, ev->name);
+                            emitf(cg, "        GrayEnum_%s_Data_%s %s;\n", ename, ev->name, ev->name);
                         }
                     }
                     emitf(cg, "    } data;\n");
                 }
-                emitf(cg, "} EzEnum_%s;\n\n", ename);
+                emitf(cg, "} GrayEnum_%s;\n\n", ename);
             } else {
                 bool is_flags = stmt->data.enum_decl.is_flags;
                 emitf(cg, "typedef enum {\n");
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
                     EnumVal *ev = &stmt->data.enum_decl.values[j];
-                    emitf(cg, "    EzEnum_%s_%s", stmt->data.enum_decl.name, ev->name);
+                    emitf(cg, "    GrayEnum_%s_%s", stmt->data.enum_decl.name, ev->name);
                     if (ev->value) {
                         emit(cg, " = ");
                         emit_expression(cg, ev->value);
@@ -9510,7 +9511,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                      * explicit values entirely. */
                     emit(cg, ",\n");
                 }
-                emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
+                emitf(cg, "} GrayEnum_%s;\n\n", stmt->data.enum_decl.name);
             }
         }
     }
@@ -9531,7 +9532,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
          * Skip generic structs; their forward decls are per-instantiation. */
         for (int i = 0; i < struct_count; i++) {
             if (structs[i]->data.struct_decl.is_generic) continue;
-            emitf(cg, "typedef struct EzStruct_%s EzStruct_%s;\n",
+            emitf(cg, "typedef struct GrayStruct_%s GrayStruct_%s;\n",
                 structs[i]->data.struct_decl.name,
                 structs[i]->data.struct_decl.name);
         }
@@ -9564,7 +9565,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     /* : skip generic structs here; they're
                      * emitted per-instantiation below. */
                     if (s->data.struct_decl.is_generic) continue;
-                    emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
+                    emitf(cg, "struct GrayStruct_%s {\n", s->data.struct_decl.name);
                     for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                         StructField *f = &s->data.struct_decl.fields[j];
                         emitf(cg, "    %s %s;\n", gray_type_to_c_cg(cg, f->type_name), safe_name(f->name));
@@ -9577,7 +9578,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         for (int i = 0; i < struct_count; i++) {
             if (!emitted[i]) {
                 AstNode *s = structs[i];
-                emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
+                emitf(cg, "struct GrayStruct_%s {\n", s->data.struct_decl.name);
                 for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                     StructField *f = &s->data.struct_decl.fields[j];
                     emitf(cg, "    %s %s;\n", gray_type_to_c_cg(cg, f->type_name), safe_name(f->name));
@@ -9589,7 +9590,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
     /* : emit per-instantiation typedefs for generic (wildcard) structs.
      * For each recorded binding, substitute ? → concrete in field types
-     * and emit under a mangled name (e.g. EzStruct_Pair__int). */
+     * and emit under a mangled name (e.g. GrayStruct_Pair__int). */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_generic) continue;
@@ -9602,8 +9603,8 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
             mangled[pos] = '\0';
             /* Forward declaration */
-            emitf(cg, "typedef struct EzStruct_%s EzStruct_%s;\n", mangled, mangled);
-            emitf(cg, "struct EzStruct_%s {\n", mangled);
+            emitf(cg, "typedef struct GrayStruct_%s GrayStruct_%s;\n", mangled, mangled);
+            emitf(cg, "struct GrayStruct_%s {\n", mangled);
             const char *saved = cg->wildcard_binding;
             cg->wildcard_binding = concrete;
             for (int j = 0; j < stmt->data.struct_decl.field_count; j++) {
@@ -9617,8 +9618,8 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
     /* : emit JSON parse/stringify helpers for #json structs. Each
      * #json struct gets two static functions:
-     *   - gray_json_parse_<Name>(arena, json_string) → EzStruct_<Name>
-     *   - gray_json_stringify_<Name>(arena, struct_value) → EzString
+     *   - gray_json_parse_<Name>(arena, json_string) → GrayStruct_<Name>
+     *   - gray_json_stringify_<Name>(arena, struct_value) → GrayString
      * These are called by json.parse() / json.stringify() which the
      * typechecker dispatches based on the target/argument struct type. */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
@@ -9628,29 +9629,29 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         int fc = stmt->data.struct_decl.field_count;
 
         /* --- parse: JSON string → struct --- */
-        emitf(cg, "static EzStruct_%s gray_json_parse_%s(EzArena *arena, EzString text) {\n", sn, sn);
-        emitf(cg, "    EzStruct_%s _r = {0};\n", sn);
-        emitf(cg, "    EzMap _m = gray_json_decode(arena, text);\n");
+        emitf(cg, "static GrayStruct_%s gray_json_parse_%s(GrayArena *arena, GrayString text) {\n", sn, sn);
+        emitf(cg, "    GrayStruct_%s _r = {0};\n", sn);
+        emitf(cg, "    GrayMap _m = gray_json_decode(arena, text);\n");
         for (int j = 0; j < fc; j++) {
             StructField *f = &stmt->data.struct_decl.fields[j];
             if (strcmp(f->type_name, "string") == 0) {
-                emitf(cg, "    { EzString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
-                emitf(cg, "      if (_v) _r.%s = *(EzString *)_v; }\n", safe_name(f->name));
+                emitf(cg, "    { GrayString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) _r.%s = *(GrayString *)_v; }\n", safe_name(f->name));
             } else if (strcmp(f->type_name, "int") == 0 || strcmp(f->type_name, "i64") == 0) {
-                emitf(cg, "    { EzString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
-                emitf(cg, "      if (_v) { EzString _sv = *(EzString *)_v; _r.%s = gray_builtin_string_to_int(_sv); } }\n", safe_name(f->name));
+                emitf(cg, "    { GrayString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) { GrayString _sv = *(GrayString *)_v; _r.%s = gray_builtin_string_to_int(_sv); } }\n", safe_name(f->name));
             } else if (strcmp(f->type_name, "float") == 0 || strcmp(f->type_name, "f64") == 0) {
-                emitf(cg, "    { EzString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
-                emitf(cg, "      if (_v) { EzString _sv = *(EzString *)_v; _r.%s = gray_builtin_string_to_float(_sv); } }\n", safe_name(f->name));
+                emitf(cg, "    { GrayString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) { GrayString _sv = *(GrayString *)_v; _r.%s = gray_builtin_string_to_float(_sv); } }\n", safe_name(f->name));
             } else if (strcmp(f->type_name, "bool") == 0) {
-                emitf(cg, "    { EzString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
-                emitf(cg, "      if (_v) { EzString _sv = *(EzString *)_v; _r.%s = (_sv.len == 4 && memcmp(_sv.data, \"true\", 4) == 0); } }\n", safe_name(f->name));
+                emitf(cg, "    { GrayString _k = gray_string_lit(\"%s\"); void *_v = gray_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) { GrayString _sv = *(GrayString *)_v; _r.%s = (_sv.len == 4 && memcmp(_sv.data, \"true\", 4) == 0); } }\n", safe_name(f->name));
             }
         }
         emitf(cg, "    return _r;\n}\n\n");
 
         /* --- stringify: struct → JSON string --- */
-        emitf(cg, "static EzString gray_json_stringify_%s(EzArena *arena, EzStruct_%s _s) {\n", sn, sn);
+        emitf(cg, "static GrayString gray_json_stringify_%s(GrayArena *arena, GrayStruct_%s _s) {\n", sn, sn);
 
         /* Pass 1: compute exact buffer size at runtime.
          * Field names are identifiers (no escaping), so their contribution
@@ -9713,16 +9714,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
         emitf(cg, "    _buf[_pos++] = '}';\n");
         emitf(cg, "    _buf[_pos] = '\\0';\n");
-        emitf(cg, "    return (EzString){_buf, (int32_t)_pos};\n");
+        emitf(cg, "    return (GrayString){_buf, (int32_t)_pos};\n");
         emitf(cg, "}\n\n");
 
-        /* --- parse array: JSON array string → EzArray of structs --- */
-        emitf(cg, "static EzArray gray_json_parse_array_%s(EzArena *arena, EzString text) {\n", sn);
-        emitf(cg, "    EzArray _elems = gray_json_split_array(arena, text);\n");
-        emitf(cg, "    EzArray _result = gray_array_new(arena, sizeof(EzStruct_%s), _elems.len > 0 ? _elems.len : 4);\n", sn);
+        /* --- parse array: JSON array string → GrayArray of structs --- */
+        emitf(cg, "static GrayArray gray_json_parse_array_%s(GrayArena *arena, GrayString text) {\n", sn);
+        emitf(cg, "    GrayArray _elems = gray_json_split_array(arena, text);\n");
+        emitf(cg, "    GrayArray _result = gray_array_new(arena, sizeof(GrayStruct_%s), _elems.len > 0 ? _elems.len : 4);\n", sn);
         emitf(cg, "    for (int32_t _i = 0; _i < _elems.len; _i++) {\n");
-        emitf(cg, "        EzString _elem_str = *(EzString *)((char *)_elems.data + (size_t)_i * (size_t)_elems.elem_size);\n");
-        emitf(cg, "        EzStruct_%s _item = gray_json_parse_%s(arena, _elem_str);\n", sn, sn);
+        emitf(cg, "        GrayString _elem_str = *(GrayString *)((char *)_elems.data + (size_t)_i * (size_t)_elems.elem_size);\n");
+        emitf(cg, "        GrayStruct_%s _item = gray_json_parse_%s(arena, _elem_str);\n", sn, sn);
         emitf(cg, "        gray_array_push(arena, &_result, &_item);\n");
         emitf(cg, "    }\n");
         emitf(cg, "    return _result;\n");

@@ -1,8 +1,9 @@
 /*
- * gray_regex.c - @regex module implementation
+ * gray_regex.c — Implementation of the regex stdlib module.
+ * Provides match, find, find_all, replace, and split operations
+ * using POSIX extended regular expressions.
  *
- * Uses POSIX <regex.h> for pattern matching.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -18,7 +19,7 @@
 
 /* Helper: compile pattern into a null-terminated C string and regex_t.
  * Returns 0 on success, non-zero on error. Caller must regfree on success. */
-static int compile_pattern(EzString pattern, regex_t *re, int flags) {
+static int compile_pattern(GrayString pattern, regex_t *re, int flags) {
     /* Null-terminate the pattern */
     char pat_buf[GRAY_REGEX_PAT_BUF];
     int plen = pattern.len < (int32_t)sizeof(pat_buf) - 1 ? pattern.len : (int32_t)sizeof(pat_buf) - 1;
@@ -28,22 +29,22 @@ static int compile_pattern(EzString pattern, regex_t *re, int flags) {
     return regcomp(re, pat_buf, flags | REG_EXTENDED);
 }
 
-/* Helper: null-terminate an EzString into a buffer */
-static const char *to_cstr(EzString s, char *buf, size_t bufsz) {
+/* Helper: null-terminate an GrayString into a buffer */
+static const char *to_cstr(GrayString s, char *buf, size_t bufsz) {
     size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
     memcpy(buf, s.data, len);
     buf[len] = '\0';
     return buf;
 }
 
-bool gray_regex_is_valid(EzString pattern) {
+bool gray_regex_is_valid(GrayString pattern) {
     regex_t re;
     if (compile_pattern(pattern, &re, REG_EXTENDED | REG_NOSUB) != 0) return false;
     regfree(&re);
     return true;
 }
 
-bool gray_regex_match(EzString pattern, EzString text) {
+bool gray_regex_match(GrayString pattern, GrayString text) {
     regex_t re;
     if (compile_pattern(pattern, &re, REG_NOSUB) != 0) return false;
 
@@ -55,10 +56,10 @@ bool gray_regex_match(EzString pattern, EzString text) {
     return result == 0;
 }
 
-EzString gray_regex_find(EzArena *arena, EzString pattern, EzString text) {
+GrayString gray_regex_find(GrayArena *arena, GrayString pattern, GrayString text) {
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
-        return (EzString){"", 0};
+        return (GrayString){"", 0};
     }
 
     char txt_buf[GRAY_REGEX_TXT_BUF];
@@ -67,17 +68,17 @@ EzString gray_regex_find(EzArena *arena, EzString pattern, EzString text) {
     regmatch_t match;
     if (regexec(&re, txt_buf, 1, &match, 0) != 0) {
         regfree(&re);
-        return (EzString){"", 0};
+        return (GrayString){"", 0};
     }
 
     int32_t mlen = (int32_t)(match.rm_eo - match.rm_so);
-    EzString result = gray_string_new(arena, txt_buf + match.rm_so, mlen);
+    GrayString result = gray_string_new(arena, txt_buf + match.rm_so, mlen);
     regfree(&re);
     return result;
 }
 
-EzArray gray_regex_find_all(EzArena *arena, EzString pattern, EzString text) {
-    EzArray arr = gray_array_new(arena, sizeof(EzString), 8);
+GrayArray gray_regex_find_all(GrayArena *arena, GrayString pattern, GrayString text) {
+    GrayArray arr = gray_array_new(arena, sizeof(GrayString), 8);
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) return arr;
 
@@ -89,7 +90,7 @@ EzArray gray_regex_find_all(EzArena *arena, EzString pattern, EzString text) {
 
     while (regexec(&re, cursor, 1, &match, 0) == 0) {
         int32_t mlen = (int32_t)(match.rm_eo - match.rm_so);
-        EzString s = gray_string_new(arena, cursor + match.rm_so, mlen);
+        GrayString s = gray_string_new(arena, cursor + match.rm_so, mlen);
         gray_array_push(arena, &arr, &s);
 
         cursor += match.rm_eo;
@@ -103,7 +104,7 @@ EzArray gray_regex_find_all(EzArena *arena, EzString pattern, EzString text) {
     return arr;
 }
 
-EzString gray_regex_replace(EzArena *arena, EzString pattern, EzString text, EzString replacement) {
+GrayString gray_regex_replace(GrayArena *arena, GrayString pattern, GrayString text, GrayString replacement) {
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
         return text;
@@ -149,8 +150,8 @@ EzString gray_regex_replace(EzArena *arena, EzString pattern, EzString text, EzS
     return gray_string_new(arena, result, (int32_t)pos);
 }
 
-EzArray gray_regex_split(EzArena *arena, EzString pattern, EzString text) {
-    EzArray arr = gray_array_new(arena, sizeof(EzString), 8);
+GrayArray gray_regex_split(GrayArena *arena, GrayString pattern, GrayString text) {
+    GrayArray arr = gray_array_new(arena, sizeof(GrayString), 8);
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
         /* On bad pattern, return array with original string */
@@ -167,7 +168,7 @@ EzArray gray_regex_split(EzArena *arena, EzString pattern, EzString text) {
     while (regexec(&re, cursor, 1, &match, 0) == 0) {
         /* Piece before the match */
         int32_t plen = (int32_t)match.rm_so;
-        EzString piece = gray_string_new(arena, cursor, plen);
+        GrayString piece = gray_string_new(arena, cursor, plen);
         gray_array_push(arena, &arr, &piece);
 
         cursor += match.rm_eo;
@@ -179,7 +180,7 @@ EzArray gray_regex_split(EzArena *arena, EzString pattern, EzString text) {
 
     /* Remaining text after last match */
     int32_t remaining = (int32_t)strlen(cursor);
-    EzString last = gray_string_new(arena, cursor, remaining);
+    GrayString last = gray_string_new(arena, cursor, remaining);
     gray_array_push(arena, &arr, &last);
 
     regfree(&re);
@@ -188,11 +189,11 @@ EzArray gray_regex_split(EzArena *arena, EzString pattern, EzString text) {
 
 /* _result variants */
 
-EzResult_string gray_regex_find_result(EzArena *arena, EzString pattern, EzString text) {
-    EzResult_string r;
+GrayResult_string gray_regex_find_result(GrayArena *arena, GrayString pattern, GrayString text) {
+    GrayResult_string r;
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
-        r.v0 = (EzString){"", 0};
+        r.v0 = (GrayString){"", 0};
         r.v1 = gray_error_new(arena, gray_string_format(arena, "invalid regex pattern '%.*s'",
             pattern.len, pattern.data));
         return r;
@@ -203,11 +204,11 @@ EzResult_string gray_regex_find_result(EzArena *arena, EzString pattern, EzStrin
     return r;
 }
 
-EzResult_array gray_regex_find_all_result(EzArena *arena, EzString pattern, EzString text) {
-    EzResult_array r;
+GrayResult_array gray_regex_find_all_result(GrayArena *arena, GrayString pattern, GrayString text) {
+    GrayResult_array r;
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
-        r.v0 = gray_array_new(arena, sizeof(EzString), 0);
+        r.v0 = gray_array_new(arena, sizeof(GrayString), 0);
         r.v1 = gray_error_new(arena, gray_string_format(arena, "invalid regex pattern '%.*s'",
             pattern.len, pattern.data));
         return r;
@@ -218,8 +219,8 @@ EzResult_array gray_regex_find_all_result(EzArena *arena, EzString pattern, EzSt
     return r;
 }
 
-EzResult_string gray_regex_replace_result(EzArena *arena, EzString pattern, EzString text, EzString replacement) {
-    EzResult_string r;
+GrayResult_string gray_regex_replace_result(GrayArena *arena, GrayString pattern, GrayString text, GrayString replacement) {
+    GrayResult_string r;
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
         r.v0 = text;
@@ -233,11 +234,11 @@ EzResult_string gray_regex_replace_result(EzArena *arena, EzString pattern, EzSt
     return r;
 }
 
-EzResult_array gray_regex_split_result(EzArena *arena, EzString pattern, EzString text) {
-    EzResult_array r;
+GrayResult_array gray_regex_split_result(GrayArena *arena, GrayString pattern, GrayString text) {
+    GrayResult_array r;
     regex_t re;
     if (compile_pattern(pattern, &re, 0) != 0) {
-        r.v0 = gray_array_new(arena, sizeof(EzString), 0);
+        r.v0 = gray_array_new(arena, sizeof(GrayString), 0);
         r.v1 = gray_error_new(arena, gray_string_format(arena, "invalid regex pattern '%.*s'",
             pattern.len, pattern.data));
         return r;

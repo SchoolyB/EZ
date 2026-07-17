@@ -2,7 +2,7 @@
 // to anything that imports this file; internal helpers live under
 // ./internal/ and are called via the `helpers` namespace.
 
-import "./internal/helpers.ez"
+import "./internal/helpers.gray"
 
 #doc("greet returns a greeting message for the given name.")
 do greet(name string) -> string {

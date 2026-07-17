@@ -1,8 +1,9 @@
 /*
- * gray_server.c - @server module implementation
+ * gray_server.c — Implementation of the server stdlib module.
+ * HTTP server with routing, path parameters, CORS support, and
+ * thread-per-connection concurrency using POSIX sockets.
  *
- * HTTP server using POSIX sockets with thread-per-connection.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -58,20 +59,20 @@ static const char *http_reason_phrase(int status) {
 }
 
 /* Global arena for server allocations */
-static EzArena *server_arena = NULL;
+static GrayArena *server_arena = NULL;
 
-static EzArena *get_server_arena(void) {
+static GrayArena *get_server_arena(void) {
     if (!server_arena) {
         server_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     }
     return server_arena;
 }
 
-EzRouter gray_server_router(void) {
-    EzRouter r;
+GrayRouter gray_server_router(void) {
+    GrayRouter r;
     r.count = 0;
     r.capacity = GRAY_ROUTER_INITIAL_CAP;
-    r.routes = malloc(sizeof(EzRoute) * r.capacity);
+    r.routes = malloc(sizeof(GrayRoute) * r.capacity);
     r.cors_origin = NULL;
     r.middlewares = NULL;
     r.mw_count = 0;
@@ -79,21 +80,21 @@ EzRouter gray_server_router(void) {
     return r;
 }
 
-void gray_server_route(EzRouter *r, EzString method, EzString pattern,
-                     EzResponse (*handler)(EzRequest)) {
+void gray_server_route(GrayRouter *r, GrayString method, GrayString pattern,
+                     GrayResponse (*handler)(GrayRequest)) {
     if (r->count >= r->capacity) {
         r->capacity *= 2;
-        void *tmp = realloc(r->routes, sizeof(EzRoute) * r->capacity);
+        void *tmp = realloc(r->routes, sizeof(GrayRoute) * r->capacity);
         if (!tmp) {
-            fprintf(stderr, "ez: out of memory\n");
+            fprintf(stderr, "gray: out of memory\n");
             exit(1);
         }
         r->routes = tmp;
     }
-    EzRoute *route = &r->routes[r->count++];
+    GrayRoute *route = &r->routes[r->count++];
 
     /* Null-terminate method and pattern */
-    EzArena *a = get_server_arena();
+    GrayArena *a = get_server_arena();
     char *m = gray_arena_alloc(a, method.len + 1);
     memcpy(m, method.data, method.len);
     m[method.len] = '\0';
@@ -107,30 +108,30 @@ void gray_server_route(EzRouter *r, EzString method, EzString pattern,
     route->handler = handler;
 }
 
-void gray_server_cors(EzRouter *r, EzString origin) {
+void gray_server_cors(GrayRouter *r, GrayString origin) {
     for (int32_t i = 0; i < origin.len; i++) {
         if (origin.data[i] == '\r' || origin.data[i] == '\n') {
             gray_panic_code("P0101", "server.cors: origin contains CR or LF — HTTP header injection is not allowed");
         }
     }
-    EzArena *a = get_server_arena();
+    GrayArena *a = get_server_arena();
     char *o = gray_arena_alloc(a, origin.len + 1);
     memcpy(o, origin.data, origin.len);
     o[origin.len] = '\0';
     r->cors_origin = o;
 }
 
-void gray_server_use(EzRouter *r, EzMiddleware fn) {
+void gray_server_use(GrayRouter *r, GrayMiddleware fn) {
     if (r->mw_count >= r->mw_capacity) {
         r->mw_capacity = r->mw_capacity == 0 ? 8 : r->mw_capacity * 2;
-        r->middlewares = realloc(r->middlewares, sizeof(EzMiddleware) * r->mw_capacity);
+        r->middlewares = realloc(r->middlewares, sizeof(GrayMiddleware) * r->mw_capacity);
     }
     r->middlewares[r->mw_count++] = fn;
 }
 
 /* Check if a route pattern matches a path, extracting params */
 static bool match_route(const char *pattern, const char *path,
-                        EzArena *arena, EzMap *params) {
+                        GrayArena *arena, GrayMap *params) {
     const char *pp = pattern;
     const char *rp = path;
 
@@ -146,8 +147,8 @@ static bool match_route(const char *pattern, const char *path,
             while (*rp && *rp != '/') rp++;
             int32_t val_len = (int32_t)(rp - val_start);
 
-            EzString key = gray_string_new(arena, name_start, name_len);
-            EzString val = gray_string_new(arena, val_start, val_len);
+            GrayString key = gray_string_new(arena, name_start, name_len);
+            GrayString val = gray_string_new(arena, val_start, val_len);
             gray_map_set(arena, params, &key, &val);
         } else {
             if (*pp != *rp) return false;
@@ -164,8 +165,8 @@ static bool match_route(const char *pattern, const char *path,
 }
 
 /* Parse HTTP request from raw data */
-static bool parse_request(EzArena *arena, const char *data, int data_len,
-                          EzRequest *req) {
+static bool parse_request(GrayArena *arena, const char *data, int data_len,
+                          GrayRequest *req) {
     if (data_len < 10) return false;
 
     /* Parse request line: METHOD /path HTTP/1.1 */
@@ -193,8 +194,8 @@ static bool parse_request(EzArena *arena, const char *data, int data_len,
             const char *amp = memchr(eq, '&', end - eq);
             if (!amp) amp = end;
 
-            EzString key = gray_string_new(arena, cursor, (int32_t)(eq - cursor));
-            EzString val = gray_string_new(arena, eq + 1, (int32_t)(amp - eq - 1));
+            GrayString key = gray_string_new(arena, cursor, (int32_t)(eq - cursor));
+            GrayString val = gray_string_new(arena, eq + 1, (int32_t)(amp - eq - 1));
             gray_map_set(arena, &req->query, &key, &val);
 
             cursor = amp + 1;
@@ -219,8 +220,8 @@ static bool parse_request(EzArena *arena, const char *data, int data_len,
             while (*vstart == ' ') vstart++;
             int32_t vlen = (int32_t)(eol - vstart);
 
-            EzString key = gray_string_new(arena, hdr_start, klen);
-            EzString val = gray_string_new(arena, vstart, vlen);
+            GrayString key = gray_string_new(arena, hdr_start, klen);
+            GrayString val = gray_string_new(arena, vstart, vlen);
             gray_map_set(arena, &req->headers, &key, &val);
         }
         hdr_start = eol + 2;
@@ -241,12 +242,12 @@ static bool parse_request(EzArena *arena, const char *data, int data_len,
 /* Connection handler — runs in its own thread */
 typedef struct {
     int client_fd;
-    EzRouter *router;
+    GrayRouter *router;
 } ConnCtx;
 
 static void *handle_connection(void *arg) {
     ConnCtx *ctx = (ConnCtx *)arg;
-    EzArena *arena = gray_arena_create(GRAY_SERVER_REQUEST_ARENA); /* 64KB per request */
+    GrayArena *arena = gray_arena_create(GRAY_SERVER_REQUEST_ARENA); /* 64KB per request */
 
     /* Apply read timeout so slow or idle connections don't hold threads indefinitely */
     struct timeval tv;
@@ -268,13 +269,13 @@ static void *handle_connection(void *arg) {
     buf[n] = '\0';
 
     /* Parse request */
-    EzRequest req;
-    req.body = (EzString){"", 0};
-    req.query = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 8);
-    req.headers = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 16);
-    req.params = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 8);
+    GrayRequest req;
+    req.body = (GrayString){"", 0};
+    req.query = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 8);
+    req.headers = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 16);
+    req.params = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 8);
 
-    EzResponse resp;
+    GrayResponse resp;
     resp.status = 404;
     resp.body = gray_string_new(arena, "Not Found", sizeof("Not Found") - 1);
     resp.content_type = gray_string_new(arena, "text/plain", sizeof("text/plain") - 1);
@@ -300,7 +301,7 @@ static void *handle_connection(void *arg) {
         path_buf[req.path.len] = '\0';
 
         for (int i = 0; i < ctx->router->count; i++) {
-            EzRoute *route = &ctx->router->routes[i];
+            GrayRoute *route = &ctx->router->routes[i];
             if (strcmp(route->method, method_buf) == 0 &&
                 match_route(route->pattern, path_buf, arena, &req.params)) {
                 resp = route->handler(req);
@@ -368,19 +369,19 @@ static void *handle_connection(void *arg) {
     return NULL;
 }
 
-void gray_server_listen_host(int64_t port, EzString host, EzRouter *r) {
-    EzArena *arena = get_server_arena();
-    EzSocket listener = gray_net_listen_host(arena, host, port);
+void gray_server_listen_host(int64_t port, GrayString host, GrayRouter *r) {
+    GrayArena *arena = get_server_arena();
+    GraySocket listener = gray_net_listen_host(arena, host, port);
     if (listener.fd < 0) {
         fprintf(stderr, "server: failed to listen on %.*s:%d\n", host.len, host.data, (int)port);
         return;
     }
 
-    printf("EZ server listening on %.*s:%d\n", host.len, host.data, (int)port);
+    printf("Grayscale server listening on %.*s:%d\n", host.len, host.data, (int)port);
     fflush(stdout);
 
     while (1) {
-        EzSocket client = gray_net_accept(arena, listener);
+        GraySocket client = gray_net_accept(arena, listener);
         if (client.fd < 0) continue;
 
         int32_t prev = gray_atomic_add32(&active_connections, 1);
@@ -413,19 +414,19 @@ void gray_server_listen_host(int64_t port, EzString host, EzRouter *r) {
     }
 }
 
-void gray_server_listen(int64_t port, EzRouter *r) {
-    EzArena *arena = get_server_arena();
-    EzSocket listener = gray_net_listen(arena, port);
+void gray_server_listen(int64_t port, GrayRouter *r) {
+    GrayArena *arena = get_server_arena();
+    GraySocket listener = gray_net_listen(arena, port);
     if (listener.fd < 0) {
         fprintf(stderr, "server: failed to listen on port %d\n", (int)port);
         return;
     }
 
-    printf("EZ server listening on port %d\n", (int)port);
+    printf("Grayscale server listening on port %d\n", (int)port);
     fflush(stdout);
 
     while (1) {
-        EzSocket client = gray_net_accept(arena, listener);
+        GraySocket client = gray_net_accept(arena, listener);
         if (client.fd < 0) continue;
 
         /* Reject incoming connection if at the thread cap */
@@ -460,19 +461,19 @@ void gray_server_listen(int64_t port, EzRouter *r) {
 }
 
 /* Response builders */
-EzResponse gray_server_text(int64_t status, EzString body) {
-    return (EzResponse){status, body, gray_string_lit("text/plain")};
+GrayResponse gray_server_text(int64_t status, GrayString body) {
+    return (GrayResponse){status, body, gray_string_lit("text/plain")};
 }
 
-EzResponse gray_server_json(int64_t status, EzString body) {
-    return (EzResponse){status, body, gray_string_lit("application/json")};
+GrayResponse gray_server_json(int64_t status, GrayString body) {
+    return (GrayResponse){status, body, gray_string_lit("application/json")};
 }
 
-EzResponse gray_server_html(int64_t status, EzString body) {
-    return (EzResponse){status, body, gray_string_lit("text/html")};
+GrayResponse gray_server_html(int64_t status, GrayString body) {
+    return (GrayResponse){status, body, gray_string_lit("text/html")};
 }
 
-EzResponse gray_server_redirect(int64_t status, EzString location) {
+GrayResponse gray_server_redirect(int64_t status, GrayString location) {
     /* For redirect, body contains Location header value */
-    return (EzResponse){status, location, gray_string_lit("text/plain")};
+    return (GrayResponse){status, location, gray_string_lit("text/plain")};
 }

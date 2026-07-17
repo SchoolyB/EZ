@@ -1,3 +1,10 @@
+// grayc_test.go — Tests for the grayc compiler-lookup and invocation logic,
+// covering statFile edge cases and GRAY_COMPILER_PATH override behavior.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package grayc
 
 import (
@@ -53,7 +60,7 @@ func TestFindCompilerPathOverride(t *testing.T) {
 	if err := os.WriteFile(regular, []byte("x"), 0o755); err != nil {
 		t.Fatalf("write regular: %v", err)
 	}
-	subdir := filepath.Join(dir, "ezc_as_directory")
+	subdir := filepath.Join(dir, "grayc_as_directory")
 	if err := os.Mkdir(subdir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -70,12 +77,6 @@ func TestFindCompilerPathOverride(t *testing.T) {
 	})
 
 	t.Run("directory is not returned", func(t *testing.T) {
-		// Regression for #1461 follow-up: GRAY_COMPILER_PATH pointing at a
-		// directory must not be returned verbatim. Either another
-		// fallback path succeeds (in which case Find returns that),
-		// or Find returns the not-found error — both outcomes mean
-		// path 1 rejected the directory. We only care that the
-		// returned path is NOT the directory itself.
 		t.Setenv("GRAY_COMPILER_PATH", subdir)
 		got, _ := Find()
 		if got == subdir {

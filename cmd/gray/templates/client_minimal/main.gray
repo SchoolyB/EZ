@@ -1,4 +1,4 @@
-// main.ez - Minimal HTTP client.
+// main.gray - Minimal HTTP client.
 //
 // http.get(url) returns (HttpResponse, Error).
 // Check err against nil; on success, read .status / .body / .headers.

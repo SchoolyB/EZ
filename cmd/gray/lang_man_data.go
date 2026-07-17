@@ -391,7 +391,7 @@ var langManDocs = map[string]LangManEntry{
 	"#doc": {
 		Kind:    "attribute",
 		Syntax:  "#doc(\"<description>\")",
-		Desc:    "Attaches documentation metadata to a function, struct, or enum. Used by 'ez doc' to generate documentation.",
+		Desc:    "Attaches documentation metadata to a function, struct, or enum. Used by 'gray doc' to generate documentation.",
 		Example: "#doc(\"Adds two integers\")\ndo add(a int, b int) -> int {\n    return a + b\n}",
 	},
 	"#json": {

@@ -1,8 +1,9 @@
 /*
- * gray_sqlite.h - @sqlite module for EZ
+ * gray_sqlite.h — Public interface for the sqlite stdlib module.
+ * Declares database handle types, open/close, query execution, and
+ * row retrieval functions backed by the SQLite3 amalgamation.
  *
- * Backed by the SQLite3 amalgamation.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -13,7 +14,7 @@
 #include "../runtime/gray_runtime.h"
 #include "../runtime/gray_array.h"
 #include "../runtime/gray_map.h"
-#include "gray_io.h" /* EzResult_bool, EzResult_array */
+#include "gray_io.h" /* GrayResult_bool, GrayResult_array */
 
 /*@man open
  *@module sqlite
@@ -71,25 +72,25 @@
 
 typedef struct {
     void *handle; /* sqlite3* */
-} EzSqlite;
+} GraySqlite;
 
 /* sqlite.open(path) — open or create database */
-EzSqlite *gray_sqlite_open(EzArena *arena, EzString path);
+GraySqlite *gray_sqlite_open(GrayArena *arena, GrayString path);
 
 /* sqlite.close(db) — close database */
-void gray_sqlite_close(EzSqlite *db);
+void gray_sqlite_close(GraySqlite *db);
 
 /* sqlite.exec(db, sql) — execute statement, return success */
-bool gray_sqlite_exec(EzSqlite *db, EzString sql);
+bool gray_sqlite_exec(GraySqlite *db, GrayString sql);
 
 /* sqlite.query(db, sql) — execute query, return array of maps */
-EzArray gray_sqlite_query(EzArena *arena, EzSqlite *db, EzString sql);
+GrayArray gray_sqlite_query(GrayArena *arena, GraySqlite *db, GrayString sql);
 
 /* _result variants */
-typedef struct { EzSqlite *v0; EzError *v1; } EzResult_sqlite;
+typedef struct { GraySqlite *v0; GrayError *v1; } GrayResult_sqlite;
 
-EzResult_sqlite gray_sqlite_open_result(EzArena *arena, EzString path);
-EzResult_bool gray_sqlite_exec_result(EzArena *arena, EzSqlite *db, EzString sql);
-EzResult_array gray_sqlite_query_result(EzArena *arena, EzSqlite *db, EzString sql);
+GrayResult_sqlite gray_sqlite_open_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_sqlite_exec_result(GrayArena *arena, GraySqlite *db, GrayString sql);
+GrayResult_array gray_sqlite_query_result(GrayArena *arena, GraySqlite *db, GrayString sql);
 
 #endif

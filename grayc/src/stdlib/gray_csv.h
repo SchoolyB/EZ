@@ -1,6 +1,8 @@
 /*
- * gray_csv.h - @csv module for EZ
+ * gray_csv.h — Public interface for the csv stdlib module.
+ * Declares CSV parsing, formatting, and header extraction functions.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -10,7 +12,7 @@
 
 #include "../runtime/gray_runtime.h"
 #include "../runtime/gray_array.h"
-#include "gray_io.h" /* EzResult_bool, EzResult_array */
+#include "gray_io.h" /* GrayResult_bool, GrayResult_array */
 
 /*@man parse
  *@module csv
@@ -79,22 +81,22 @@
  */
 
 /* Parse CSV string into array of arrays of strings */
-EzArray gray_csv_parse(EzArena *arena, EzString csv_string);
+GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string);
 
 /* Convert array of arrays of strings to CSV string */
-EzString gray_csv_stringify(EzArena *arena, EzArray *data);
+GrayString gray_csv_stringify(GrayArena *arena, GrayArray *data);
 
 /* Extract the first row (headers) from parsed CSV data */
-EzArray gray_csv_headers(EzArena *arena, EzArray *data);
+GrayArray gray_csv_headers(GrayArena *arena, GrayArray *data);
 
 /* Read CSV file */
-EzArray gray_csv_read(EzArena *arena, EzString path);
+GrayArray gray_csv_read(GrayArena *arena, GrayString path);
 
 /* Write CSV to file */
-bool gray_csv_write(EzArena *arena, EzString path, EzArray *data);
+bool gray_csv_write(GrayArena *arena, GrayString path, GrayArray *data);
 
 /* _result variants */
-EzResult_array gray_csv_read_result(EzArena *arena, EzString path);
-EzResult_bool gray_csv_write_result(EzArena *arena, EzString path, EzArray *data);
+GrayResult_array gray_csv_read_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_csv_write_result(GrayArena *arena, GrayString path, GrayArray *data);
 
 #endif

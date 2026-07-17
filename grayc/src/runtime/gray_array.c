@@ -1,6 +1,9 @@
 /*
- * gray_array.c - Dynamic array implementation
+ * gray_array.c — Dynamic array implementation for the Grayscale runtime.
+ * Provides creation, push, pop, insert, remove, deep copy, and iteration
+ * operations, all backed by arena-allocated storage.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -8,8 +11,8 @@
 #include "gray_array.h"
 #include <string.h>
 
-EzArray gray_array_new(EzArena *arena, int32_t elem_size, int32_t initial_cap) {
-    EzArray arr;
+GrayArray gray_array_new(GrayArena *arena, int32_t elem_size, int32_t initial_cap) {
+    GrayArray arr;
     arr.elem_size = elem_size;
     arr.len = 0;
     arr.cap = initial_cap > 0 ? initial_cap : GRAY_ARRAY_MIN_CAP;
@@ -18,8 +21,8 @@ EzArray gray_array_new(EzArena *arena, int32_t elem_size, int32_t initial_cap) {
     return arr;
 }
 
-EzArray gray_array_from(EzArena *arena, const void *data, int32_t elem_size, int32_t count) {
-    EzArray arr;
+GrayArray gray_array_from(GrayArena *arena, const void *data, int32_t elem_size, int32_t count) {
+    GrayArray arr;
     arr.elem_size = elem_size;
     arr.len = count;
     arr.cap = count > 0 ? count : GRAY_ARRAY_MIN_CAP;
@@ -31,14 +34,14 @@ EzArray gray_array_from(EzArena *arena, const void *data, int32_t elem_size, int
     return arr;
 }
 
-void *gray_array_get_ptr(EzArray *arr, int32_t index, const char *file, int line) {
+void *gray_array_get_ptr(GrayArray *arr, int32_t index, const char *file, int line) {
     if (index < 0 || index >= arr->len) {
         gray_panic_code("P0033", "index out of bounds; tried to access index %d but the length is %d", index, arr->len);
     }
     return (char *)arr->data + (size_t)index * (size_t)arr->elem_size;
 }
 
-void gray_array_set(EzArray *arr, int32_t index, const void *value, const char *file, int line) {
+void gray_array_set(GrayArray *arr, int32_t index, const void *value, const char *file, int line) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (index < 0 || index >= arr->len) {
@@ -48,13 +51,13 @@ void gray_array_set(EzArray *arr, int32_t index, const void *value, const char *
            value, (size_t)arr->elem_size);
 }
 
-void gray_array_push(EzArena *arena, EzArray *arr, const void *value) {
+void gray_array_push(GrayArena *arena, GrayArray *arr, const void *value) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len >= arr->cap) {
         int32_t new_cap = arr->cap < GRAY_ARRAY_MIN_CAP ? GRAY_ARRAY_MIN_CAP : arr->cap * 2;
         if (new_cap < arr->cap) {
-            fprintf(stderr, "EZ runtime: array capacity overflow\n");
+            fprintf(stderr, "Grayscale runtime: array capacity overflow\n");
             exit(1);
         }
         void *new_data = gray_arena_alloc(arena, (size_t)new_cap * (size_t)arr->elem_size);
@@ -69,6 +72,6 @@ void gray_array_push(EzArena *arena, EzArray *arr, const void *value) {
     arr->len++;
 }
 
-EzArray gray_array_copy(EzArena *arena, EzArray *src) {
+GrayArray gray_array_copy(GrayArena *arena, GrayArray *src) {
     return gray_array_from(arena, src->data, src->elem_size, src->len);
 }

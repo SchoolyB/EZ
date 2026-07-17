@@ -1,11 +1,14 @@
 /*
+ * codegen.h — Public interface for C code generation, defining the Codegen
+ * context and the entry point for translating a type-checked AST into C.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#ifndef EZC_CODEGEN_H
-#define EZC_CODEGEN_H
+#ifndef GRAYC_CODEGEN_H
+#define GRAYC_CODEGEN_H
 
 #include "../parser/ast.h"
 #include "../util/buf.h"

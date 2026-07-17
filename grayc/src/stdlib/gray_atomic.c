@@ -1,8 +1,10 @@
 /*
- * gray_atomic.c - @atomic module implementation
+ * gray_atomic.c — Implementation of the atomic stdlib module.
+ * Thin wrappers around the runtime's assembly-backed atomic
+ * primitives, exposing load, store, add, sub, CAS, and bitwise
+ * operations to Grayscale code.
  *
- * Thin wrappers around the runtime assembly-backed atomic primitives.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -24,34 +26,34 @@ int64_t gray_atomic_mod_xor(int64_t *ptr, int64_t val) { return gray_atomic_xor(
 
 /* Spinlock */
 
-EzSpinLock gray_atomic_mod_spinlock(void) {
+GraySpinLock gray_atomic_mod_spinlock(void) {
     int32_t *lock = malloc(sizeof(int32_t));
     *lock = 0;
-    EzSpinLock result;
+    GraySpinLock result;
     result._internal = lock;
     return result;
 }
 
-void gray_atomic_mod_spinlock_destroy(EzSpinLock lk) {
+void gray_atomic_mod_spinlock_destroy(GraySpinLock lk) {
     if (lk._internal) {
         free(lk._internal);
     }
 }
 
-void gray_atomic_mod_spin_lock(EzSpinLock lk) {
+void gray_atomic_mod_spin_lock(GraySpinLock lk) {
     if (lk._internal) {
         gray_spin_lock((int32_t *)lk._internal);
     }
 }
 
-bool gray_atomic_mod_spin_trylock(EzSpinLock lk) {
+bool gray_atomic_mod_spin_trylock(GraySpinLock lk) {
     if (lk._internal) {
         return gray_spin_trylock((int32_t *)lk._internal);
     }
     return false;
 }
 
-void gray_atomic_mod_spin_unlock(EzSpinLock lk) {
+void gray_atomic_mod_spin_unlock(GraySpinLock lk) {
     if (lk._internal) {
         gray_spin_unlock((int32_t *)lk._internal);
     }

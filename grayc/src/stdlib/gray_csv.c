@@ -1,8 +1,9 @@
 /*
- * gray_csv.c - @csv module implementation
+ * gray_csv.c — Implementation of the csv stdlib module.
+ * RFC 4180 compliant CSV parser and formatter with support for
+ * quoted fields, header extraction, and row-by-row iteration.
  *
- * Simple RFC 4180 compliant CSV parser.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -11,13 +12,13 @@
 #include <string.h>
 #include <stdio.h>
 
-EzArray gray_csv_parse(EzArena *arena, EzString csv_string) {
-    EzArray rows = gray_array_new(arena, sizeof(EzArray), 8);
+GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string) {
+    GrayArray rows = gray_array_new(arena, sizeof(GrayArray), 8);
     const char *s = csv_string.data;
     const char *end = s + csv_string.len;
 
     while (s < end) {
-        EzArray row = gray_array_new(arena, sizeof(EzString), 8);
+        GrayArray row = gray_array_new(arena, sizeof(GrayString), 8);
         while (s < end && *s != '\n' && *s != '\r') {
             const char *field_start;
             int32_t field_len;
@@ -39,7 +40,7 @@ EzArray gray_csv_parse(EzArena *arena, EzString csv_string) {
                 field_len = (int32_t)(s - field_start);
             }
 
-            EzString field = gray_string_new(arena, field_start, field_len);
+            GrayString field = gray_string_new(arena, field_start, field_len);
             gray_array_push(arena, &row, &field);
 
             if (s < end && *s == ',') s++;
@@ -53,35 +54,35 @@ EzArray gray_csv_parse(EzArena *arena, EzString csv_string) {
     return rows;
 }
 
-EzString gray_csv_stringify(EzArena *arena, EzArray *data) {
+GrayString gray_csv_stringify(GrayArena *arena, GrayArray *data) {
     /* Accept [string] — each string is a pre-formatted CSV row.
      * Join with newlines. */
-    if (data->elem_size == (int32_t)sizeof(EzString)) {
+    if (data->elem_size == (int32_t)sizeof(GrayString)) {
         int32_t total = 0;
         for (int32_t i = 0; i < data->len; i++) {
-            EzString s = GRAY_ARRAY_GET(*data, EzString, i);
+            GrayString s = GRAY_ARRAY_GET(*data, GrayString, i);
             total += s.len + 1;
         }
         char *buf = gray_arena_alloc(arena, (size_t)total + 1);
         int32_t pos = 0;
         for (int32_t i = 0; i < data->len; i++) {
-            EzString s = GRAY_ARRAY_GET(*data, EzString, i);
+            GrayString s = GRAY_ARRAY_GET(*data, GrayString, i);
             memcpy(buf + pos, s.data, (size_t)s.len);
             pos += s.len;
             if (i < data->len - 1) buf[pos++] = '\n';
         }
         buf[pos] = '\0';
-        return (EzString){ buf, pos };
+        return (GrayString){ buf, pos };
     }
 
     /* Fallback: array of arrays ([[string]] rows).
      * First pass: compute exact required size to avoid heap overflow. */
     int32_t total = 0;
     for (int32_t i = 0; i < data->len; i++) {
-        EzArray *row = (EzArray *)((char *)data->data + (size_t)i * sizeof(EzArray));
+        GrayArray *row = (GrayArray *)((char *)data->data + (size_t)i * sizeof(GrayArray));
         for (int32_t j = 0; j < row->len; j++) {
             if (j > 0) total++; /* comma */
-            EzString *field = (EzString *)((char *)row->data + (size_t)j * sizeof(EzString));
+            GrayString *field = (GrayString *)((char *)row->data + (size_t)j * sizeof(GrayString));
             total += field->len;
         }
         total++; /* newline */
@@ -89,30 +90,30 @@ EzString gray_csv_stringify(EzArena *arena, EzArray *data) {
     char *buf = gray_arena_alloc(arena, (size_t)total + 1);
     int32_t pos = 0;
     for (int32_t i = 0; i < data->len; i++) {
-        EzArray *row = (EzArray *)((char *)data->data + (size_t)i * sizeof(EzArray));
+        GrayArray *row = (GrayArray *)((char *)data->data + (size_t)i * sizeof(GrayArray));
         for (int32_t j = 0; j < row->len; j++) {
             if (j > 0) buf[pos++] = ',';
-            EzString *field = (EzString *)((char *)row->data + (size_t)j * sizeof(EzString));
+            GrayString *field = (GrayString *)((char *)row->data + (size_t)j * sizeof(GrayString));
             memcpy(buf + pos, field->data, (size_t)field->len);
             pos += field->len;
         }
         buf[pos++] = '\n';
     }
     buf[pos] = '\0';
-    return (EzString){ buf, pos };
+    return (GrayString){ buf, pos };
 }
 
-EzArray gray_csv_headers(EzArena *arena, EzArray *data) {
+GrayArray gray_csv_headers(GrayArena *arena, GrayArray *data) {
     if (data->len > 0) {
-        EzArray first_row = GRAY_ARRAY_GET(*data, EzArray, 0);
+        GrayArray first_row = GRAY_ARRAY_GET(*data, GrayArray, 0);
         return gray_array_copy(arena, &first_row);
     }
-    return gray_array_new(arena, sizeof(EzString), 0);
+    return gray_array_new(arena, sizeof(GrayString), 0);
 }
 
-EzArray gray_csv_read(EzArena *arena, EzString path) {
+GrayArray gray_csv_read(GrayArena *arena, GrayString path) {
     FILE *f = fopen(path.data, "rb");
-    if (!f) return gray_array_new(arena, sizeof(EzArray), 1);
+    if (!f) return gray_array_new(arena, sizeof(GrayArray), 1);
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -120,12 +121,12 @@ EzArray gray_csv_read(EzArena *arena, EzString path) {
     size_t read = fread(content, 1, (size_t)size, f);
     content[read] = '\0';
     fclose(f);
-    EzString s = { content, (int32_t)read };
+    GrayString s = { content, (int32_t)read };
     return gray_csv_parse(arena, s);
 }
 
-bool gray_csv_write(EzArena *arena, EzString path, EzArray *data) {
-    EzString csv = gray_csv_stringify(arena, data);
+bool gray_csv_write(GrayArena *arena, GrayString path, GrayArray *data) {
+    GrayString csv = gray_csv_stringify(arena, data);
     FILE *f = fopen(path.data, "wb");
     if (!f) return false;
     fwrite(csv.data, 1, (size_t)csv.len, f);
@@ -135,11 +136,11 @@ bool gray_csv_write(EzArena *arena, EzString path, EzArray *data) {
 
 /* _result variants */
 
-EzResult_array gray_csv_read_result(EzArena *arena, EzString path) {
-    EzResult_array r;
+GrayResult_array gray_csv_read_result(GrayArena *arena, GrayString path) {
+    GrayResult_array r;
     FILE *f = fopen(path.data, "rb");
     if (!f) {
-        r.v0 = gray_array_new(arena, sizeof(EzArray), 0);
+        r.v0 = gray_array_new(arena, sizeof(GrayArray), 0);
         r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot read CSV file '%s'", path.data));
         return r;
     }
@@ -149,8 +150,8 @@ EzResult_array gray_csv_read_result(EzArena *arena, EzString path) {
     return r;
 }
 
-EzResult_bool gray_csv_write_result(EzArena *arena, EzString path, EzArray *data) {
-    EzResult_bool r;
+GrayResult_bool gray_csv_write_result(GrayArena *arena, GrayString path, GrayArray *data) {
+    GrayResult_bool r;
     if (gray_csv_write(arena, path, data)) {
         r.v0 = true;
         r.v1 = NULL;

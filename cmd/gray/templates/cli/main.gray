@@ -1,10 +1,10 @@
-// main.ez - CLI application entry point
+// main.gray - CLI application entry point
 //
 // os.args() in a compiled binary returns [binary_name, user_args...].
 // args[0] is the binary, args[1] is the first user-supplied argument.
 
 import @os
-import "./commands.ez"
+import "./commands.gray"
 
 do main() {
     mut args = os.args()

@@ -1,6 +1,9 @@
 /*
- * gray_bytes.c - @bytes module implementation
+ * gray_bytes.c — Implementation of the bytes stdlib module.
+ * Converts between strings, byte arrays, hex, and base64
+ * representations for raw byte manipulation.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -10,8 +13,8 @@
 #include <string.h>
 #include <stdio.h>
 
-EzArray gray_bytes_from_string(EzArena *arena, EzString s) {
-    EzArray arr = gray_array_new(arena, sizeof(uint8_t), s.len);
+GrayArray gray_bytes_from_string(GrayArena *arena, GrayString s) {
+    GrayArray arr = gray_array_new(arena, sizeof(uint8_t), s.len);
     for (int32_t i = 0; i < s.len; i++) {
         uint8_t b = (uint8_t)s.data[i];
         gray_array_push(arena, &arr, &b);
@@ -19,13 +22,13 @@ EzArray gray_bytes_from_string(EzArena *arena, EzString s) {
     return arr;
 }
 
-EzString gray_bytes_to_string(EzArena *arena, EzArray *bytes) {
+GrayString gray_bytes_to_string(GrayArena *arena, GrayArray *bytes) {
     return gray_string_new(arena, (const char *)bytes->data, bytes->len);
 }
 
-EzArray gray_bytes_from_hex(EzArena *arena, EzString hex) {
+GrayArray gray_bytes_from_hex(GrayArena *arena, GrayString hex) {
     int32_t out_len = hex.len / 2;
-    EzArray arr = gray_array_new(arena, sizeof(uint8_t), out_len);
+    GrayArray arr = gray_array_new(arena, sizeof(uint8_t), out_len);
     for (int32_t i = 0; i < out_len; i++) {
         unsigned int byte;
         sscanf(hex.data + i * 2, "%02x", &byte);
@@ -35,7 +38,7 @@ EzArray gray_bytes_from_hex(EzArena *arena, EzString hex) {
     return arr;
 }
 
-EzString gray_bytes_to_hex(EzArena *arena, EzArray *bytes) {
+GrayString gray_bytes_to_hex(GrayArena *arena, GrayArray *bytes) {
     int32_t out_len = bytes->len * 2;
     char *hex = gray_arena_alloc(arena, (size_t)out_len + 1);
     uint8_t *data = (uint8_t *)bytes->data;
@@ -43,16 +46,16 @@ EzString gray_bytes_to_hex(EzArena *arena, EzArray *bytes) {
         snprintf(hex + i * 2, 3, "%02x", data[i]);
     }
     hex[out_len] = '\0';
-    EzString r = { hex, out_len };
+    GrayString r = { hex, out_len };
     return r;
 }
 
-EzArray gray_bytes_from_base64(EzArena *arena, EzString b64) {
-    EzString decoded = gray_encoding_base64_decode(arena, b64);
+GrayArray gray_bytes_from_base64(GrayArena *arena, GrayString b64) {
+    GrayString decoded = gray_encoding_base64_decode(arena, b64);
     return gray_bytes_from_string(arena, decoded);
 }
 
-EzString gray_bytes_to_base64(EzArena *arena, EzArray *bytes) {
-    EzString s = gray_bytes_to_string(arena, bytes);
+GrayString gray_bytes_to_base64(GrayArena *arena, GrayArray *bytes) {
+    GrayString s = gray_bytes_to_string(arena, bytes);
     return gray_encoding_base64_encode(arena, s);
 }

@@ -1,4 +1,10 @@
-// Package grayc provides a Go wrapper for invoking the grayc compiler binary.
+// grayc.go — Go wrapper for locating and invoking the grayc compiler binary.
+// Provides Find, Build, Run, Check, Fmt, and Version entry points used by the gray CLI.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package grayc
 
 import (
@@ -12,7 +18,7 @@ import (
 // Find locates the grayc binary using priority-ordered lookup:
 // 1. GRAY_COMPILER_PATH environment variable (explicit override, always wins)
 // 2. Embedded runtime extracted to ~/.gray/runtime/<hash>/ (release builds)
-// 3. Same directory as the running ez binary (side-by-side install)
+// 3. Same directory as the running gray binary (side-by-side install)
 // 4. PATH lookup
 // 5. Known install locations
 //
@@ -30,7 +36,7 @@ func Find() (string, error) {
 		return p, nil
 	}
 
-	// 3. Same directory as ez binary
+	// 3. Same directory as gray binary
 	if exe, err := os.Executable(); err == nil {
 		candidate := filepath.Join(filepath.Dir(exe), "grayc")
 		if statFile(candidate) {
@@ -78,7 +84,7 @@ type BuildOpts struct {
 // stdout/stderr are streamed directly to the caller's terminal.
 // Returns the exit code from the compiled program.
 func Run(file string, extraArgs []string) (int, error) {
-	ezcPath, err := Find()
+	graycPath, err := Find()
 	if err != nil {
 		return 1, err
 	}
@@ -86,12 +92,12 @@ func Run(file string, extraArgs []string) (int, error) {
 	args := []string{"run", file}
 	args = append(args, extraArgs...)
 
-	return execute(ezcPath, args)
+	return execute(graycPath, args)
 }
 
 // Build compiles a Grayscale source file to a native binary via grayc build.
 func Build(file string, opts BuildOpts) (int, error) {
-	ezcPath, err := Find()
+	graycPath, err := Find()
 	if err != nil {
 		return 1, err
 	}
@@ -124,29 +130,29 @@ func Build(file string, opts BuildOpts) (int, error) {
 		args = append(args, "--quiet", opts.QuietCodes)
 	}
 
-	return execute(ezcPath, args)
+	return execute(graycPath, args)
 }
 
 // Check type-checks a Grayscale source file without compiling.
 func Check(file string, extraArgs []string) (int, error) {
-	ezcPath, err := Find()
+	graycPath, err := Find()
 	if err != nil {
 		return 1, err
 	}
 
 	args := []string{"check", file}
 	args = append(args, extraArgs...)
-	return execute(ezcPath, args)
+	return execute(graycPath, args)
 }
 
 // Version returns the grayc compiler version string.
 func Version() (string, error) {
-	ezcPath, err := Find()
+	graycPath, err := Find()
 	if err != nil {
 		return "", err
 	}
 
-	cmd := exec.Command(ezcPath, "version")
+	cmd := exec.Command(graycPath, "version")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get grayc version: %w", err)
@@ -158,16 +164,16 @@ func Version() (string, error) {
 // Fmt formats a single .gray file in place using the grayc --fmt flag.
 // Returns 0 on success, non-zero on failure.
 func Fmt(file string) (int, error) {
-	ezcPath, err := Find()
+	graycPath, err := Find()
 	if err != nil {
 		return 1, err
 	}
-	return executeSilent(ezcPath, []string{"--fmt", file})
+	return executeSilent(graycPath, []string{"--fmt", file})
 }
 
-// executeSilent runs ezc without streaming I/O, for use by fmt/check internals.
-func executeSilent(ezcPath string, args []string) (int, error) {
-	cmd := exec.Command(ezcPath, args...)
+// executeSilent runs grayc without streaming I/O, for use by fmt/check internals.
+func executeSilent(graycPath string, args []string) (int, error) {
+	cmd := exec.Command(graycPath, args...)
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil {
@@ -180,8 +186,8 @@ func executeSilent(ezcPath string, args []string) (int, error) {
 }
 
 // execute runs the grayc binary with the given args, streaming I/O.
-func execute(ezcPath string, args []string) (int, error) {
-	cmd := exec.Command(ezcPath, args...)
+func execute(graycPath string, args []string) (int, error) {
+	cmd := exec.Command(graycPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

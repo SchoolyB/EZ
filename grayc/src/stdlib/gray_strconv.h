@@ -1,6 +1,9 @@
 /*
- * gray_strconv.h - strconv module for EZ (string/type conversions)
+ * gray_strconv.h — Public interface for the strconv stdlib module.
+ * Declares string-to-numeric and numeric-to-string conversion
+ * functions with panicking and result-returning variants.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -11,12 +14,12 @@
 #include "../runtime/gray_runtime.h"
 
 /* Result types for fallible conversions */
-#ifndef EZRESULT_BOOL_DEFINED
-#define EZRESULT_BOOL_DEFINED
-typedef struct { bool v0; EzError *v1; } EzResult_bool;
+#ifndef GRAY_RESULT_BOOL_DEFINED
+#define GRAY_RESULT_BOOL_DEFINED
+typedef struct { bool v0; GrayError *v1; } GrayResult_bool;
 #endif
-typedef struct { uint64_t v0; EzError *v1; } EzResult_uint;
-typedef struct { double v0; EzError *v1; } EzResult_float;
+typedef struct { uint64_t v0; GrayError *v1; } GrayResult_uint;
+typedef struct { double v0; GrayError *v1; } GrayResult_float;
 
 /*@man to_int
  *@module strconv
@@ -30,7 +33,7 @@ typedef struct { double v0; EzError *v1; } EzResult_float;
  *@end
  */
 /* Panicking conversions (single-var assignment) */
-int64_t gray_strconv_to_int(EzString s, int base);
+int64_t gray_strconv_to_int(GrayString s, int base);
 
 /*@man to_uint
  *@module strconv
@@ -43,7 +46,7 @@ int64_t gray_strconv_to_int(EzString s, int base);
  *   mut val, err = strconv.to_uint("ff", strconv.BASE_16)
  *@end
  */
-uint64_t gray_strconv_to_uint(EzString s, int base);
+uint64_t gray_strconv_to_uint(GrayString s, int base);
 
 /*@man to_float
  *@module strconv
@@ -56,7 +59,7 @@ uint64_t gray_strconv_to_uint(EzString s, int base);
  *   mut val, err = strconv.to_float("not a number")
  *@end
  */
-double gray_strconv_to_float(EzString s);
+double gray_strconv_to_float(GrayString s);
 
 /*@man to_bool
  *@module strconv
@@ -69,13 +72,13 @@ double gray_strconv_to_float(EzString s);
  *   mut val, err = strconv.to_bool("yes")
  *@end
  */
-bool gray_strconv_to_bool(EzString s);
+bool gray_strconv_to_bool(GrayString s);
 
 /* Fallible conversions (multi-var destructuring) */
-EzResult_int gray_strconv_to_int_result(EzString s, int base);
-EzResult_uint gray_strconv_to_uint_result(EzString s, int base);
-EzResult_float gray_strconv_to_float_result(EzString s);
-EzResult_bool gray_strconv_to_bool_result(EzString s);
+GrayResult_int gray_strconv_to_int_result(GrayString s, int base);
+GrayResult_uint gray_strconv_to_uint_result(GrayString s, int base);
+GrayResult_float gray_strconv_to_float_result(GrayString s);
+GrayResult_bool gray_strconv_to_bool_result(GrayString s);
 
 /*@man from_int
  *@module strconv
@@ -88,7 +91,7 @@ EzResult_bool gray_strconv_to_bool_result(EzString s);
  *@end
  */
 /* Type to string conversions */
-EzString gray_strconv_from_int(EzArena *arena, int64_t n);
+GrayString gray_strconv_from_int(GrayArena *arena, int64_t n);
 
 /*@man from_uint
  *@module strconv
@@ -100,7 +103,7 @@ EzString gray_strconv_from_int(EzArena *arena, int64_t n);
  *   println(strconv.from_uint(255))
  *@end
  */
-EzString gray_strconv_from_uint(EzArena *arena, uint64_t n);
+GrayString gray_strconv_from_uint(GrayArena *arena, uint64_t n);
 
 /*@man from_float
  *@module strconv
@@ -112,7 +115,7 @@ EzString gray_strconv_from_uint(EzArena *arena, uint64_t n);
  *   println(strconv.from_float(3.14))
  *@end
  */
-EzString gray_strconv_from_float(EzArena *arena, double f);
+GrayString gray_strconv_from_float(GrayArena *arena, double f);
 
 /*@man from_bool
  *@module strconv
@@ -124,7 +127,7 @@ EzString gray_strconv_from_float(EzArena *arena, double f);
  *   println(strconv.from_bool(true))
  *@end
  */
-EzString gray_strconv_from_bool(bool b);
+GrayString gray_strconv_from_bool(bool b);
 
 /*@man is_numeric
  *@module strconv
@@ -138,7 +141,7 @@ EzString gray_strconv_from_bool(bool b);
  *@end
  */
 /* Query functions */
-bool gray_strconv_is_numeric(EzString s);
+bool gray_strconv_is_numeric(GrayString s);
 
 /*@man is_integer
  *@module strconv
@@ -151,7 +154,7 @@ bool gray_strconv_is_numeric(EzString s);
  *   println(strconv.is_integer("3.14"))
  *@end
  */
-bool gray_strconv_is_integer(EzString s);
+bool gray_strconv_is_integer(GrayString s);
 
 /*@man BASE_2
  *@module strconv

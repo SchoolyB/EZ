@@ -1,6 +1,9 @@
 /*
- * gray_io.h - @io module for EZ (file I/O)
+ * gray_io.h — Public interface for the io stdlib module.
+ * Declares file read/write, path manipulation, directory operations,
+ * globbing, and result types shared across other stdlib modules.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -25,7 +28,7 @@
  *   mut content, _ = io.read_file("data.txt")
  *@end
  */
-EzString gray_io_read_file(EzArena *arena, EzString path);
+GrayString gray_io_read_file(GrayArena *arena, GrayString path);
 
 /*@man read_bytes
  *@module io
@@ -37,7 +40,7 @@ EzString gray_io_read_file(EzArena *arena, EzString path);
  *   mut data [byte] = io.read_bytes("image.png")
  *@end
  */
-EzArray  gray_io_read_bytes(EzArena *arena, EzString path);
+GrayArray  gray_io_read_bytes(GrayArena *arena, GrayString path);
 
 /*@man read_lines
  *@module io
@@ -52,7 +55,7 @@ EzArray  gray_io_read_bytes(EzArena *arena, EzString path);
  *   }
  *@end
  */
-EzArray  gray_io_read_lines(EzArena *arena, EzString path);
+GrayArray  gray_io_read_lines(GrayArena *arena, GrayString path);
 
 /*@man file_exists
  *@module io
@@ -66,7 +69,7 @@ EzArray  gray_io_read_lines(EzArena *arena, EzString path);
  *   }
  *@end
  */
-bool gray_io_file_exists(EzString path);
+bool gray_io_file_exists(GrayString path);
 
 /*@man is_file
  *@module io
@@ -78,7 +81,7 @@ bool gray_io_file_exists(EzString path);
  *   println(io.is_file("data.txt"))
  *@end
  */
-bool gray_io_is_file(EzString path);
+bool gray_io_is_file(GrayString path);
 
 /*@man is_directory
  *@module io
@@ -90,7 +93,7 @@ bool gray_io_is_file(EzString path);
  *   println(io.is_directory("/tmp"))
  *@end
  */
-bool gray_io_is_directory(EzString path);
+bool gray_io_is_directory(GrayString path);
 
 /*@man file_size
  *@module io
@@ -102,7 +105,7 @@ bool gray_io_is_directory(EzString path);
  *   println(io.file_size("data.txt"))
  *@end
  */
-int64_t gray_io_file_size(EzString path);
+int64_t gray_io_file_size(GrayString path);
 
 /* File writing */
 
@@ -116,7 +119,7 @@ int64_t gray_io_file_size(EzString path);
  *   io.write_file("out.txt", "hello\n")
  *@end
  */
-bool gray_io_write_file(EzString path, EzString content);
+bool gray_io_write_file(GrayString path, GrayString content);
 
 /*@man append_file
  *@module io
@@ -128,7 +131,7 @@ bool gray_io_write_file(EzString path, EzString content);
  *   io.append_file("log.txt", "new entry\n")
  *@end
  */
-bool gray_io_append_file(EzString path, EzString content);
+bool gray_io_append_file(GrayString path, GrayString content);
 
 /* File operations */
 
@@ -142,7 +145,7 @@ bool gray_io_append_file(EzString path, EzString content);
  *   io.delete_file("tmp.txt")
  *@end
  */
-bool gray_io_delete_file(EzString path);
+bool gray_io_delete_file(GrayString path);
 
 /*@man rename_file
  *@module io
@@ -154,7 +157,7 @@ bool gray_io_delete_file(EzString path);
  *   io.rename_file("old.txt", "new.txt")
  *@end
  */
-bool gray_io_rename_file(EzString old_path, EzString new_path);
+bool gray_io_rename_file(GrayString old_path, GrayString new_path);
 
 /*@man copy_file
  *@module io
@@ -166,7 +169,7 @@ bool gray_io_rename_file(EzString old_path, EzString new_path);
  *   io.copy_file("src.txt", "dst.txt")
  *@end
  */
-bool gray_io_copy_file(EzString src, EzString dst);
+bool gray_io_copy_file(GrayString src, GrayString dst);
 
 /*@man move_file
  *@module io
@@ -178,7 +181,7 @@ bool gray_io_copy_file(EzString src, EzString dst);
  *   io.move_file("tmp/file.txt", "final/file.txt")
  *@end
  */
-bool gray_io_move_file(EzString src, EzString dst);
+bool gray_io_move_file(GrayString src, GrayString dst);
 
 /* Directory operations */
 
@@ -195,7 +198,7 @@ bool gray_io_move_file(EzString src, EzString dst);
  *   }
  *@end
  */
-EzArray gray_io_list_dir(EzArena *arena, EzString path);
+GrayArray gray_io_list_dir(GrayArena *arena, GrayString path);
 
 /*@man make_dir
  *@module io
@@ -207,7 +210,7 @@ EzArray gray_io_list_dir(EzArena *arena, EzString path);
  *   io.make_dir("output")
  *@end
  */
-bool gray_io_make_dir(EzString path);
+bool gray_io_make_dir(GrayString path);
 
 /*@man make_dir_all
  *@module io
@@ -219,7 +222,7 @@ bool gray_io_make_dir(EzString path);
  *   io.make_dir_all("a/b/c")
  *@end
  */
-bool gray_io_make_dir_all(EzString path);
+bool gray_io_make_dir_all(GrayString path);
 
 /*@man remove_dir
  *@module io
@@ -231,7 +234,7 @@ bool gray_io_make_dir_all(EzString path);
  *   io.remove_dir("empty_dir")
  *@end
  */
-bool gray_io_remove_dir(EzString path);
+bool gray_io_remove_dir(GrayString path);
 
 /*@man remove_dir_all
  *@module io
@@ -243,7 +246,7 @@ bool gray_io_remove_dir(EzString path);
  *   io.remove_dir_all("build")
  *@end
  */
-bool gray_io_remove_dir_all(EzString path);
+bool gray_io_remove_dir_all(GrayString path);
 
 /*@man walk
  *@module io
@@ -258,7 +261,7 @@ bool gray_io_remove_dir_all(EzString path);
  *   }
  *@end
  */
-EzArray gray_io_walk(EzArena *arena, EzString path);
+GrayArray gray_io_walk(GrayArena *arena, GrayString path);
 
 /*@man glob
  *@module io
@@ -267,10 +270,10 @@ EzArray gray_io_walk(EzArena *arena, EzString path);
  *@desc Returns all file paths matching the glob pattern. Returns an empty array if there are no matches. Always use destructuring — single-variable assignment is a compile error. Glob patterns are matched relative to the working directory where the binary is executed, not the source file location.
  *@example
  *   import @io
- *   mut files [string] = io.glob("src/\*.ez")
+ *   mut files [string] = io.glob("src/\*.gray")
  *@end
  */
-EzArray gray_io_glob(EzArena *arena, EzString pattern);
+GrayArray gray_io_glob(GrayArena *arena, GrayString pattern);
 
 /* Path manipulation */
 
@@ -284,7 +287,7 @@ EzArray gray_io_glob(EzArena *arena, EzString pattern);
  *   println(io.path_join(["/home", "user", "docs"]))
  *@end
  */
-EzString gray_io_path_join(EzArena *arena, EzArray parts);
+GrayString gray_io_path_join(GrayArena *arena, GrayArray parts);
 
 /*@man dirname
  *@module io
@@ -296,7 +299,7 @@ EzString gray_io_path_join(EzArena *arena, EzArray parts);
  *   println(io.dirname("/home/user/file.txt"))
  *@end
  */
-EzString gray_io_dirname(EzArena *arena, EzString path);
+GrayString gray_io_dirname(GrayArena *arena, GrayString path);
 
 /*@man basename
  *@module io
@@ -308,7 +311,7 @@ EzString gray_io_dirname(EzArena *arena, EzString path);
  *   println(io.basename("/home/user/file.txt"))
  *@end
  */
-EzString gray_io_basename(EzArena *arena, EzString path);
+GrayString gray_io_basename(GrayArena *arena, GrayString path);
 
 /*@man extension
  *@module io
@@ -320,7 +323,7 @@ EzString gray_io_basename(EzArena *arena, EzString path);
  *   println(io.extension("report.pdf"))
  *@end
  */
-EzString gray_io_extension(EzArena *arena, EzString path);
+GrayString gray_io_extension(GrayArena *arena, GrayString path);
 
 /*@man is_absolute
  *@module io
@@ -333,7 +336,7 @@ EzString gray_io_extension(EzArena *arena, EzString path);
  *   println(io.is_absolute("relative/path"))
  *@end
  */
-bool gray_io_is_absolute(EzString path);
+bool gray_io_is_absolute(GrayString path);
 
 /*@man normalize
  *@module io
@@ -345,33 +348,33 @@ bool gray_io_is_absolute(EzString path);
  *   println(io.normalize("a/b/../c"))
  *@end
  */
-EzString gray_io_normalize(EzArena *arena, EzString path);
+GrayString gray_io_normalize(GrayArena *arena, GrayString path);
 
 /* Tuple-returning versions for (value, Error) pattern */
-typedef struct { EzString v0; EzError *v1; } EzResult_string;
-#ifndef EZRESULT_BOOL_DEFINED
-#define EZRESULT_BOOL_DEFINED
-typedef struct { bool v0; EzError *v1; } EzResult_bool;
+typedef struct { GrayString v0; GrayError *v1; } GrayResult_string;
+#ifndef GRAY_RESULT_BOOL_DEFINED
+#define GRAY_RESULT_BOOL_DEFINED
+typedef struct { bool v0; GrayError *v1; } GrayResult_bool;
 #endif
-typedef struct { EzArray v0; EzError *v1; } EzResult_array;
+typedef struct { GrayArray v0; GrayError *v1; } GrayResult_array;
 
-EzResult_string gray_io_read_file_result(EzArena *arena, EzString path);
-EzResult_array  gray_io_read_bytes_result(EzArena *arena, EzString path);
-EzResult_array  gray_io_read_lines_result(EzArena *arena, EzString path);
-EzResult_int    gray_io_file_size_result(EzArena *arena, EzString path);
-EzResult_bool gray_io_write_file_result(EzArena *arena, EzString path, EzString content);
-EzResult_bool gray_io_delete_file_result(EzArena *arena, EzString path);
-EzResult_bool gray_io_append_file_result(EzArena *arena, EzString path, EzString content);
-EzResult_bool gray_io_rename_file_result(EzArena *arena, EzString old_path, EzString new_path);
-EzResult_bool gray_io_copy_file_result(EzArena *arena, EzString src, EzString dst);
-EzResult_bool gray_io_move_file_result(EzArena *arena, EzString src, EzString dst);
-EzResult_array gray_io_glob_result(EzArena *arena, EzString pattern);
-EzResult_array gray_io_list_dir_result(EzArena *arena, EzString path);
-EzResult_bool gray_io_make_dir_result(EzArena *arena, EzString path);
-EzResult_bool gray_io_make_dir_all_result(EzArena *arena, EzString path);
-EzResult_bool gray_io_remove_dir_result(EzArena *arena, EzString path);
-EzResult_bool gray_io_remove_dir_all_result(EzArena *arena, EzString path);
-EzResult_array gray_io_walk_result(EzArena *arena, EzString path);
+GrayResult_string gray_io_read_file_result(GrayArena *arena, GrayString path);
+GrayResult_array  gray_io_read_bytes_result(GrayArena *arena, GrayString path);
+GrayResult_array  gray_io_read_lines_result(GrayArena *arena, GrayString path);
+GrayResult_int    gray_io_file_size_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_write_file_result(GrayArena *arena, GrayString path, GrayString content);
+GrayResult_bool gray_io_delete_file_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_append_file_result(GrayArena *arena, GrayString path, GrayString content);
+GrayResult_bool gray_io_rename_file_result(GrayArena *arena, GrayString old_path, GrayString new_path);
+GrayResult_bool gray_io_copy_file_result(GrayArena *arena, GrayString src, GrayString dst);
+GrayResult_bool gray_io_move_file_result(GrayArena *arena, GrayString src, GrayString dst);
+GrayResult_array gray_io_glob_result(GrayArena *arena, GrayString pattern);
+GrayResult_array gray_io_list_dir_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_make_dir_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_make_dir_all_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_remove_dir_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_remove_dir_all_result(GrayArena *arena, GrayString path);
+GrayResult_array gray_io_walk_result(GrayArena *arena, GrayString path);
 
 /*@man O_RDONLY
  *@module io

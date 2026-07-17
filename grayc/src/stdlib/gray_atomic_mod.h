@@ -1,9 +1,9 @@
 /*
- * gray_atomic.h - @atomic module for EZ
+ * gray_atomic_mod.h — Public interface for the atomic stdlib module.
+ * Lock-free atomic operations (load, store, add, sub, CAS, bitwise)
+ * backed by hand-written ARM64 and x86_64 assembly.
  *
- * Lock-free atomic operations backed by hand-written assembly
- * (ARM64 and x86_64).
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -17,7 +17,7 @@
 
 typedef struct {
     void *_internal; /* int32_t* lock value */
-} EzSpinLock;
+} GraySpinLock;
 
 /* 64-bit atomics */
 int64_t gray_atomic_mod_load(int64_t *ptr);
@@ -31,11 +31,11 @@ int64_t gray_atomic_mod_or(int64_t *ptr, int64_t val);
 int64_t gray_atomic_mod_xor(int64_t *ptr, int64_t val);
 
 /* Spinlock */
-EzSpinLock gray_atomic_mod_spinlock(void);
-void       gray_atomic_mod_spinlock_destroy(EzSpinLock lk);
-void       gray_atomic_mod_spin_lock(EzSpinLock lk);
-bool       gray_atomic_mod_spin_trylock(EzSpinLock lk);
-void       gray_atomic_mod_spin_unlock(EzSpinLock lk);
+GraySpinLock gray_atomic_mod_spinlock(void);
+void       gray_atomic_mod_spinlock_destroy(GraySpinLock lk);
+void       gray_atomic_mod_spin_lock(GraySpinLock lk);
+bool       gray_atomic_mod_spin_trylock(GraySpinLock lk);
+void       gray_atomic_mod_spin_unlock(GraySpinLock lk);
 
 /* Memory barrier */
 void gray_atomic_mod_fence(void);

@@ -1,9 +1,9 @@
 /*
- * gray_threads.c - @threads module implementation
+ * gray_threads.c — Implementation of the threads stdlib module.
+ * Provides thread spawning, joining, detaching, ID queries, and
+ * yield, all built on POSIX pthreads.
  *
- * Built on POSIX pthreads. See @sync for mutexes, @channels for
- * message passing.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -20,19 +20,19 @@ typedef struct {
     pthread_t pt;
     _Atomic int alive;       /* 1 between entry and exit, 0 otherwise */
     _Atomic int detached;    /* 1 once detach() has been called */
-} EzThreadInternal;
+} GrayThreadInternal;
 
 static _Atomic int64_t gray_threads_live_count = 0;
 
 /* Wrapper for void(*)(void) thread functions */
 typedef struct {
     void (*fn)(void);
-    EzThreadInternal *state;
+    GrayThreadInternal *state;
 } ThreadArg0;
 
 static void *thread_entry_0(void *arg) {
     ThreadArg0 *ta = (ThreadArg0 *)arg;
-    EzThreadInternal *st = ta->state;
+    GrayThreadInternal *st = ta->state;
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     ta->fn();
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
@@ -46,8 +46,8 @@ static void *thread_entry_0(void *arg) {
     return NULL;
 }
 
-EzThread gray_threads_spawn(void (*fn)(void)) {
-    EzThreadInternal *st = malloc(sizeof(EzThreadInternal));
+GrayThread gray_threads_spawn(void (*fn)(void)) {
+    GrayThreadInternal *st = malloc(sizeof(GrayThreadInternal));
     /* alive=1 set before pthread_create so is_alive() is true immediately
      * after spawn() returns; otherwise callers race the scheduler. The
      * thread wrapper clears it on exit. */
@@ -58,7 +58,7 @@ EzThread gray_threads_spawn(void (*fn)(void)) {
     ta->fn = fn;
     ta->state = st;
     pthread_create(&st->pt, NULL, thread_entry_0, ta);
-    EzThread t;
+    GrayThread t;
     t._internal = st;
     return t;
 }
@@ -67,12 +67,12 @@ EzThread gray_threads_spawn(void (*fn)(void)) {
 typedef struct {
     void (*fn)(int64_t);
     int64_t arg;
-    EzThreadInternal *state;
+    GrayThreadInternal *state;
 } ThreadArg1;
 
 static void *thread_entry_1(void *arg) {
     ThreadArg1 *ta = (ThreadArg1 *)arg;
-    EzThreadInternal *st = ta->state;
+    GrayThreadInternal *st = ta->state;
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     ta->fn(ta->arg);
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
@@ -85,8 +85,8 @@ static void *thread_entry_1(void *arg) {
     return NULL;
 }
 
-EzThread gray_threads_spawn_arg(void (*fn)(int64_t), int64_t arg) {
-    EzThreadInternal *st = malloc(sizeof(EzThreadInternal));
+GrayThread gray_threads_spawn_arg(void (*fn)(int64_t), int64_t arg) {
+    GrayThreadInternal *st = malloc(sizeof(GrayThreadInternal));
     atomic_store(&st->alive, 1);
     atomic_store(&st->detached, 0);
     atomic_fetch_add(&gray_threads_live_count, 1);
@@ -95,21 +95,21 @@ EzThread gray_threads_spawn_arg(void (*fn)(int64_t), int64_t arg) {
     ta->arg = arg;
     ta->state = st;
     pthread_create(&st->pt, NULL, thread_entry_1, ta);
-    EzThread t;
+    GrayThread t;
     t._internal = st;
     return t;
 }
 
-void gray_threads_join(EzThread t) {
+void gray_threads_join(GrayThread t) {
     if (!t._internal) return;
-    EzThreadInternal *st = (EzThreadInternal *)t._internal;
+    GrayThreadInternal *st = (GrayThreadInternal *)t._internal;
     pthread_join(st->pt, NULL);
     free(st);
 }
 
-void gray_threads_detach(EzThread t) {
+void gray_threads_detach(GrayThread t) {
     if (!t._internal) return;
-    EzThreadInternal *st = (EzThreadInternal *)t._internal;
+    GrayThreadInternal *st = (GrayThreadInternal *)t._internal;
     atomic_store(&st->detached, 1);
     /* If the thread already exited before detach() was called, the entry
      * function already saw detached=0 and won't free the struct — free
@@ -124,9 +124,9 @@ void gray_threads_detach(EzThread t) {
     }
 }
 
-bool gray_threads_is_alive(EzThread t) {
+bool gray_threads_is_alive(GrayThread t) {
     if (!t._internal) return false;
-    EzThreadInternal *st = (EzThreadInternal *)t._internal;
+    GrayThreadInternal *st = (GrayThreadInternal *)t._internal;
     return atomic_load(&st->alive) != 0;
 }
 

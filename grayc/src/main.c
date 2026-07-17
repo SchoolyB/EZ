@@ -1,8 +1,9 @@
 /*
- * main.c - Grayscale compiler entry point
+ * main.c — Grayscale compiler entry point. Orchestrates the full compilation
+ * pipeline: source reading, lexing, parsing, type checking, C code generation,
+ * and invoking the system C compiler to produce the final binary.
  *
- * Usage: gray <file.gray> [-o output]
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -147,7 +148,7 @@ static bool write_file(const char *path, const char *content) {
     return true;
 }
 
-/* Resolve the directory containing the ezc binary itself */
+/* Resolve the directory containing the grayc binary itself */
 static const char *get_self_dir(const char *argv0) {
     static char buf[PATH_BUF_SIZE];
 
@@ -214,8 +215,8 @@ static char *output_name_from_input(const char *input) {
  * Search order:
  *   1. GRAY_RUNTIME env var (explicit override)
  *   2. Relative to binary: ../lib/grayc (installed layout)
- *   3. Relative to binary: src (development layout — binary is in ezc/)
- *   4. Relative to CWD: ezc/src (running from project root)
+ *   3. Relative to binary: src (development layout — binary is in grayc/)
+ *   4. Relative to CWD: grayc/src (running from project root)
  *   5. /usr/local/lib/grayc (system install)
  */
 static const char *find_runtime_dir(const char *argv0) {
@@ -238,7 +239,7 @@ static const char *find_runtime_dir(const char *argv0) {
             return path;
         }
 
-        /* Development layout: binary in ezc/, runtime in ezc/src/runtime */
+        /* Development layout: binary in grayc/, runtime in grayc/src/runtime */
         snprintf(path, sizeof(path), "%s/src/runtime/gray_runtime.h", self_dir);
         if (access(path, R_OK) == 0) {
             snprintf(path, sizeof(path), "%s/src", self_dir);
@@ -253,9 +254,9 @@ static const char *find_runtime_dir(const char *argv0) {
             char probe[PATH_BUF_SIZE];
             char *dir = cwd;
             while (*dir) {
-                snprintf(probe, sizeof(probe), "%s/ezc/src/runtime/gray_runtime.h", dir);
+                snprintf(probe, sizeof(probe), "%s/grayc/src/runtime/gray_runtime.h", dir);
                 if (access(probe, R_OK) == 0) {
-                    snprintf(path, sizeof(path), "%s/ezc/src", dir);
+                    snprintf(path, sizeof(path), "%s/grayc/src", dir);
                     return path;
                 }
                 /* Move to parent */
@@ -1200,11 +1201,11 @@ int main(int argc, char **argv) {
                                 size_t trlen = strlen(tres);
                                 bool is_sibling = false;
                                 /* Try with .gray extension if not already present */
-                                char tres_ez[PATH_BUF_SIZE];
+                                char tres_gray[PATH_BUF_SIZE];
                                 const char *tres_check = tres;
                                 if (trlen < 3 || strcmp(tres + trlen - 3, ".gray") != 0) {
-                                    snprintf(tres_ez, sizeof(tres_ez), "%s.gray", tres);
-                                    tres_check = tres_ez;
+                                    snprintf(tres_gray, sizeof(tres_gray), "%s.gray", tres);
+                                    tres_check = tres_gray;
                                 }
                                 char *norm_tres = realpath(tres_check, NULL);
                                 if (norm_tres && norm_import_dir) {
@@ -1401,7 +1402,7 @@ int main(int argc, char **argv) {
                     AstNode *imp_stmt = imp_program->data.program.stmts[mi];
                     /* Skip import/module/var declarations (vars handled in Pass 1).
                      * Using statements are preserved so the typechecker can scope
-                     * them per-file and prevent transitive type leaking (#1874). */
+                     * them per-file and prevent transitive type leaking. */
                     if (imp_stmt->kind == NODE_IMPORT_STMT ||
                         imp_stmt->kind == NODE_MODULE_DECL ||
                         imp_stmt->kind == NODE_VAR_DECL) continue;
@@ -1647,9 +1648,9 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  Searched:\n");
         fprintf(stderr, "    - $GRAY_RUNTIME environment variable\n");
         fprintf(stderr, "    - relative to gray binary\n");
-        fprintf(stderr, "    - ./ezc/src/ (project root)\n");
+        fprintf(stderr, "    - ./grayc/src/ (project root)\n");
         fprintf(stderr, "    - /usr/local/lib/grayc/\n");
-        fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
+        fprintf(stderr, "  Try: cd <project-root> && make -C grayc install\n");
         codegen_destroy(&cg);
         typechecker_free(tc);
         arena_destroy(arena);
@@ -1677,24 +1678,24 @@ int main(int argc, char **argv) {
     }
 
     /* Compile the generated C code.
-     * Try linking against pre-compiled libezrt.a first (fast path).
+     * Try linking against pre-compiled libgrayrt.a first (fast path).
      * Fall back to compiling runtime from source if archive not found. */
     char cmd[CMD_BUF_SIZE];
     char lib_path[PATH_BUF_SIZE];
     bool has_archive = false;
 
-    /* Check for libezrt.a relative to binary */
-    snprintf(lib_path, sizeof(lib_path), "%s/../libezrt.a", runtime_dir);
+    /* Check for libgrayrt.a relative to binary */
+    snprintf(lib_path, sizeof(lib_path), "%s/../libgrayrt.a", runtime_dir);
     if (access(lib_path, R_OK) == 0) {
         has_archive = true;
     } else {
         /* Check in install location */
-        snprintf(lib_path, sizeof(lib_path), "%s/../libezrt.a", runtime_dir);
+        snprintf(lib_path, sizeof(lib_path), "%s/../libgrayrt.a", runtime_dir);
         if (access(lib_path, R_OK) != 0) {
             /* Check next to the runtime dir */
             const char *self = get_self_dir(NULL);
             if (self) {
-                snprintf(lib_path, sizeof(lib_path), "%s/libezrt.a", self);
+                snprintf(lib_path, sizeof(lib_path), "%s/libgrayrt.a", self);
                 if (access(lib_path, R_OK) == 0) has_archive = true;
             }
         }

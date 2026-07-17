@@ -1,6 +1,9 @@
 /*
- * gray_arrays.c - arrays module implementation
+ * gray_arrays.c — Implementation of the arrays stdlib module.
+ * Provides append, insert, remove, sort, reverse, slice, and search
+ * operations on GrayArray values.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -12,11 +15,11 @@
 
 /* === Modification === */
 
-void gray_arrays_append(EzArena *arena, EzArray *arr, const void *value) {
+void gray_arrays_append(GrayArena *arena, GrayArray *arr, const void *value) {
     gray_array_push(arena, arr, value);
 }
 
-void gray_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const void *value) {
+void gray_arrays_insert_at(GrayArena *arena, GrayArray *arr, int32_t index, const void *value) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (index < 0 || index > arr->len) {
@@ -29,7 +32,7 @@ void gray_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const vo
     if (arr->len >= arr->cap) {
         int32_t new_cap = arr->cap < GRAY_ARRAY_MIN_CAP ? GRAY_ARRAY_MIN_CAP : arr->cap * 2;
         if (new_cap < arr->cap) {
-            fprintf(stderr, "EZ runtime: array capacity overflow\n");
+            fprintf(stderr, "Grayscale runtime: array capacity overflow\n");
             exit(1);
         }
         void *new_data = gray_arena_alloc(arena, (size_t)new_cap * (size_t)arr->elem_size);
@@ -50,11 +53,11 @@ void gray_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const vo
     arr->len++;
 }
 
-void gray_arrays_prepend(EzArena *arena, EzArray *arr, const void *value) {
+void gray_arrays_prepend(GrayArena *arena, GrayArray *arr, const void *value) {
     gray_arrays_insert_at(arena, arr, 0, value);
 }
 
-void gray_arrays_remove_at(EzArray *arr, int32_t index) {
+void gray_arrays_remove_at(GrayArray *arr, int32_t index) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (index < 0 || index >= arr->len)
@@ -67,7 +70,7 @@ void gray_arrays_remove_at(EzArray *arr, int32_t index) {
     arr->len--;
 }
 
-void gray_arrays_remove_int(EzArray *arr, int64_t value) {
+void gray_arrays_remove_int(GrayArray *arr, int64_t value) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(int64_t *)((char *)arr->data + i * arr->elem_size) == value) {
             gray_arrays_remove_at(arr, i);
@@ -76,7 +79,7 @@ void gray_arrays_remove_int(EzArray *arr, int64_t value) {
     }
 }
 
-void gray_arrays_remove_float(EzArray *arr, double value) {
+void gray_arrays_remove_float(GrayArray *arr, double value) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(double *)((char *)arr->data + i * arr->elem_size) == value) {
             gray_arrays_remove_at(arr, i);
@@ -85,9 +88,9 @@ void gray_arrays_remove_float(EzArray *arr, double value) {
     }
 }
 
-void gray_arrays_remove_str(EzArray *arr, EzString value) {
+void gray_arrays_remove_str(GrayArray *arr, GrayString value) {
     for (int32_t i = 0; i < arr->len; i++) {
-        EzString *s = (EzString *)((char *)arr->data + i * arr->elem_size);
+        GrayString *s = (GrayString *)((char *)arr->data + i * arr->elem_size);
         if (s->len == value.len && memcmp(s->data, value.data, s->len) == 0) {
             gray_arrays_remove_at(arr, i);
             return;
@@ -95,13 +98,13 @@ void gray_arrays_remove_str(EzArray *arr, EzString value) {
     }
 }
 
-void gray_arrays_clear(EzArray *arr) {
+void gray_arrays_clear(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     arr->len = 0;
 }
 
-void gray_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t count) {
+void gray_arrays_fill(GrayArena *arena, GrayArray *arr, const void *value, int32_t count) {
     gray_arrays_clear(arr);
     for (int32_t i = 0; i < count; i++) {
         gray_array_push(arena, arr, value);
@@ -110,19 +113,19 @@ void gray_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t c
 
 /* === Access === */
 
-void *gray_arrays_first_ptr(EzArray *arr) {
+void *gray_arrays_first_ptr(GrayArray *arr) {
     if (arr->len == 0)
         gray_panic_code("P0045", "arrays.get_first called on an empty array");
     return arr->data;
 }
 
-void *gray_arrays_last_ptr(EzArray *arr) {
+void *gray_arrays_last_ptr(GrayArray *arr) {
     if (arr->len == 0)
         gray_panic_code("P0046", "arrays.get_last called on an empty array");
     return (char *)arr->data + (arr->len - 1) * arr->elem_size;
 }
 
-void gray_arrays_remove_first_raw(EzArray *arr, void *out) {
+void gray_arrays_remove_first_raw(GrayArray *arr, void *out) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len == 0)
@@ -131,7 +134,7 @@ void gray_arrays_remove_first_raw(EzArray *arr, void *out) {
     gray_arrays_remove_at(arr, 0);
 }
 
-void gray_arrays_remove_last_raw(EzArray *arr, void *out) {
+void gray_arrays_remove_last_raw(GrayArray *arr, void *out) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len == 0)
@@ -140,17 +143,17 @@ void gray_arrays_remove_last_raw(EzArray *arr, void *out) {
     arr->len--;
 }
 
-int64_t gray_arrays_get_first(EzArray *arr) {
+int64_t gray_arrays_get_first(GrayArray *arr) {
     if (arr->len == 0) gray_panic_code("P0045", "arrays.get_first called on an empty array");
     return *(int64_t *)arr->data;
 }
 
-int64_t gray_arrays_get_last(EzArray *arr) {
+int64_t gray_arrays_get_last(GrayArray *arr) {
     if (arr->len == 0) gray_panic_code("P0046", "arrays.get_last called on an empty array");
     return *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
 }
 
-int64_t gray_arrays_remove_last(EzArray *arr) {
+int64_t gray_arrays_remove_last(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len == 0) gray_panic_code("P0048", "arrays.remove_last called on an empty array");
@@ -159,7 +162,7 @@ int64_t gray_arrays_remove_last(EzArray *arr) {
     return val;
 }
 
-int64_t gray_arrays_remove_first(EzArray *arr) {
+int64_t gray_arrays_remove_first(GrayArray *arr) {
     if (arr->len == 0) gray_panic_code("P0047", "arrays.remove_first called on an empty array");
     int64_t val = *(int64_t *)arr->data;
     gray_arrays_remove_at(arr, 0);
@@ -168,48 +171,48 @@ int64_t gray_arrays_remove_first(EzArray *arr) {
 
 /* === Query === */
 
-bool gray_arrays_is_empty(EzArray *arr) {
+bool gray_arrays_is_empty(GrayArray *arr) {
     return arr->len == 0;
 }
 
-bool gray_arrays_contains_int(EzArray *arr, int64_t value) {
+bool gray_arrays_contains_int(GrayArray *arr, int64_t value) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(int64_t *)((char *)arr->data + i * arr->elem_size) == value) return true;
     }
     return false;
 }
 
-bool gray_arrays_contains_float(EzArray *arr, double value) {
+bool gray_arrays_contains_float(GrayArray *arr, double value) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(double *)((char *)arr->data + i * arr->elem_size) == value) return true;
     }
     return false;
 }
 
-bool gray_arrays_contains_str(EzArray *arr, EzString value) {
+bool gray_arrays_contains_str(GrayArray *arr, GrayString value) {
     for (int32_t i = 0; i < arr->len; i++) {
-        EzString *s = (EzString *)((char *)arr->data + i * arr->elem_size);
+        GrayString *s = (GrayString *)((char *)arr->data + i * arr->elem_size);
         if (s->len == value.len && memcmp(s->data, value.data, s->len) == 0) return true;
     }
     return false;
 }
 
-int64_t gray_arrays_index_of_int(EzArray *arr, int64_t value) {
+int64_t gray_arrays_index_of_int(GrayArray *arr, int64_t value) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(int64_t *)((char *)arr->data + i * arr->elem_size) == value) return i;
     }
     return -1;
 }
 
-int64_t gray_arrays_index_of_str(EzArray *arr, EzString value) {
+int64_t gray_arrays_index_of_str(GrayArray *arr, GrayString value) {
     for (int32_t i = 0; i < arr->len; i++) {
-        EzString *s = (EzString *)((char *)arr->data + i * arr->elem_size);
+        GrayString *s = (GrayString *)((char *)arr->data + i * arr->elem_size);
         if (s->len == value.len && memcmp(s->data, value.data, s->len) == 0) return i;
     }
     return -1;
 }
 
-int64_t gray_arrays_count(EzArray *arr, int64_t value) {
+int64_t gray_arrays_count(GrayArray *arr, int64_t value) {
     int64_t c = 0;
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(int64_t *)((char *)arr->data + i * arr->elem_size) == value) c++;
@@ -217,18 +220,18 @@ int64_t gray_arrays_count(EzArray *arr, int64_t value) {
     return c;
 }
 
-bool gray_arrays_is_equal_prim(EzArray *a, EzArray *b) {
+bool gray_arrays_is_equal_prim(GrayArray *a, GrayArray *b) {
     if (a->len != b->len) return false;
     if (a->elem_size != b->elem_size) return false;
     if (a->len == 0) return true;
     return memcmp(a->data, b->data, (size_t)a->len * (size_t)a->elem_size) == 0;
 }
 
-bool gray_arrays_is_equal_str(EzArray *a, EzArray *b) {
+bool gray_arrays_is_equal_str(GrayArray *a, GrayArray *b) {
     if (a->len != b->len) return false;
     for (int32_t i = 0; i < a->len; i++) {
-        EzString *sa = (EzString *)((char *)a->data + i * a->elem_size);
-        EzString *sb = (EzString *)((char *)b->data + i * b->elem_size);
+        GrayString *sa = (GrayString *)((char *)a->data + i * a->elem_size);
+        GrayString *sb = (GrayString *)((char *)b->data + i * b->elem_size);
         if (sa->len != sb->len) return false;
         if (sa->len > 0 && memcmp(sa->data, sb->data, sa->len) != 0) return false;
     }
@@ -237,8 +240,8 @@ bool gray_arrays_is_equal_str(EzArray *a, EzArray *b) {
 
 /* === Transformation === */
 
-EzArray gray_arrays_reverse(EzArena *arena, EzArray *arr) {
-    EzArray result = gray_array_new(arena, arr->elem_size, arr->len);
+GrayArray gray_arrays_reverse(GrayArena *arena, GrayArray *arr) {
+    GrayArray result = gray_array_new(arena, arr->elem_size, arr->len);
     char *src = (char *)arr->data;
     for (int32_t i = arr->len - 1; i >= 0; i--) {
         gray_array_push(arena, &result, src + i * arr->elem_size);
@@ -246,7 +249,7 @@ EzArray gray_arrays_reverse(EzArena *arena, EzArray *arr) {
     return result;
 }
 
-EzArray gray_arrays_slice(EzArena *arena, EzArray *arr, int32_t start, int32_t end) {
+GrayArray gray_arrays_slice(GrayArena *arena, GrayArray *arr, int32_t start, int32_t end) {
     if (start < 0) start = 0;
     if (end > arr->len) end = arr->len;
     if (start >= end) return gray_array_new(arena, arr->elem_size, 1);
@@ -254,8 +257,8 @@ EzArray gray_arrays_slice(EzArena *arena, EzArray *arr, int32_t start, int32_t e
     return gray_array_from(arena, (char *)arr->data + start * arr->elem_size, arr->elem_size, count);
 }
 
-EzArray gray_arrays_concat(EzArena *arena, EzArray *a, EzArray *b) {
-    EzArray result = gray_array_copy(arena, a);
+GrayArray gray_arrays_concat(GrayArena *arena, GrayArray *a, GrayArray *b) {
+    GrayArray result = gray_array_copy(arena, a);
     char *src = (char *)b->data;
     for (int32_t i = 0; i < b->len; i++) {
         gray_array_push(arena, &result, src + i * b->elem_size);
@@ -263,8 +266,8 @@ EzArray gray_arrays_concat(EzArena *arena, EzArray *a, EzArray *b) {
     return result;
 }
 
-EzArray gray_arrays_deduplicate(EzArena *arena, EzArray *arr) {
-    EzArray result = gray_array_new(arena, arr->elem_size, arr->len);
+GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *arr) {
+    GrayArray result = gray_array_new(arena, arr->elem_size, arr->len);
     char *data = (char *)arr->data;
     size_t es = (size_t)arr->elem_size;
     for (int32_t i = 0; i < arr->len; i++) {
@@ -278,11 +281,11 @@ EzArray gray_arrays_deduplicate(EzArena *arena, EzArray *arr) {
     return result;
 }
 
-EzArray gray_arrays_flatten(EzArena *arena, EzArray *arr) {
-    /* Flatten one level: [[int]] -> [int]. Each element is an EzArray. */
-    EzArray result = gray_array_new(arena, sizeof(int64_t), 8);
+GrayArray gray_arrays_flatten(GrayArena *arena, GrayArray *arr) {
+    /* Flatten one level: [[int]] -> [int]. Each element is an GrayArray. */
+    GrayArray result = gray_array_new(arena, sizeof(int64_t), 8);
     for (int32_t i = 0; i < arr->len; i++) {
-        EzArray *inner = (EzArray *)((char *)arr->data + i * arr->elem_size);
+        GrayArray *inner = (GrayArray *)((char *)arr->data + i * arr->elem_size);
         char *idata = (char *)inner->data;
         for (int32_t j = 0; j < inner->len; j++) {
             gray_array_push(arena, &result, idata + j * inner->elem_size);
@@ -291,24 +294,24 @@ EzArray gray_arrays_flatten(EzArena *arena, EzArray *arr) {
     return result;
 }
 
-EzArray gray_arrays_split_every(EzArena *arena, EzArray *arr, int32_t size) {
+GrayArray gray_arrays_split_every(GrayArena *arena, GrayArray *arr, int32_t size) {
     if (size <= 0) size = 1;
-    EzArray result = gray_array_new(arena, sizeof(EzArray), 4);
+    GrayArray result = gray_array_new(arena, sizeof(GrayArray), 4);
     char *data = (char *)arr->data;
     size_t es = (size_t)arr->elem_size;
     for (int32_t i = 0; i < arr->len; i += size) {
         int32_t chunk_len = (i + size <= arr->len) ? size : (arr->len - i);
-        EzArray chunk = gray_array_from(arena, data + i * es, arr->elem_size, chunk_len);
+        GrayArray chunk = gray_array_from(arena, data + i * es, arr->elem_size, chunk_len);
         gray_array_push(arena, &result, &chunk);
     }
     return result;
 }
 
-EzArray gray_arrays_pair(EzArena *arena, EzArray *a, EzArray *b) {
+GrayArray gray_arrays_pair(GrayArena *arena, GrayArray *a, GrayArray *b) {
     int32_t len = a->len < b->len ? a->len : b->len;
-    EzArray result = gray_array_new(arena, sizeof(EzArray), len);
+    GrayArray result = gray_array_new(arena, sizeof(GrayArray), len);
     for (int32_t i = 0; i < len; i++) {
-        EzArray pair_arr = gray_array_new(arena, a->elem_size, 2);
+        GrayArray pair_arr = gray_array_new(arena, a->elem_size, 2);
         gray_array_push(arena, &pair_arr, (char *)a->data + i * a->elem_size);
         gray_array_push(arena, &pair_arr, (char *)b->data + i * b->elem_size);
         gray_array_push(arena, &result, &pair_arr);
@@ -318,7 +321,7 @@ EzArray gray_arrays_pair(EzArena *arena, EzArray *a, EzArray *b) {
 
 /* === Computation === */
 
-int64_t gray_arrays_get_sum(EzArray *arr) {
+int64_t gray_arrays_get_sum(GrayArray *arr) {
     int64_t total = 0;
     for (int32_t i = 0; i < arr->len; i++) {
         total += *(int64_t *)((char *)arr->data + i * arr->elem_size);
@@ -326,7 +329,7 @@ int64_t gray_arrays_get_sum(EzArray *arr) {
     return total;
 }
 
-int64_t gray_arrays_get_min(EzArray *arr) {
+int64_t gray_arrays_get_min(GrayArray *arr) {
     if (arr->len == 0) return 0;
     int64_t m = *(int64_t *)arr->data;
     for (int32_t i = 1; i < arr->len; i++) {
@@ -336,7 +339,7 @@ int64_t gray_arrays_get_min(EzArray *arr) {
     return m;
 }
 
-int64_t gray_arrays_get_max(EzArray *arr) {
+int64_t gray_arrays_get_max(GrayArray *arr) {
     if (arr->len == 0) return 0;
     int64_t m = *(int64_t *)arr->data;
     for (int32_t i = 1; i < arr->len; i++) {
@@ -373,8 +376,8 @@ static int cmp_f64_desc(const void *a, const void *b) {
 }
 
 static int cmp_str_asc(const void *a, const void *b) {
-    const EzString *sa = (const EzString *)a;
-    const EzString *sb = (const EzString *)b;
+    const GrayString *sa = (const GrayString *)a;
+    const GrayString *sb = (const GrayString *)b;
     int32_t min_len = sa->len < sb->len ? sa->len : sb->len;
     int cmp = memcmp(sa->data, sb->data, (size_t)min_len);
     if (cmp != 0) return cmp;
@@ -385,42 +388,42 @@ static int cmp_str_desc(const void *a, const void *b) {
     return cmp_str_asc(b, a);
 }
 
-void gray_arrays_sort_asc(EzArray *arr) {
+void gray_arrays_sort_asc(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_asc);
 }
 
-void gray_arrays_sort_asc_float(EzArray *arr) {
+void gray_arrays_sort_asc_float(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_f64_asc);
 }
 
-void gray_arrays_sort_asc_str(EzArray *arr) {
+void gray_arrays_sort_asc_str(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_str_asc);
 }
 
-void gray_arrays_sort_desc(EzArray *arr) {
+void gray_arrays_sort_desc(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_desc);
 }
 
-void gray_arrays_sort_desc_float(EzArray *arr) {
+void gray_arrays_sort_desc_float(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_f64_desc);
 }
 
-void gray_arrays_sort_desc_str(EzArray *arr) {
+void gray_arrays_sort_desc_str(GrayArray *arr) {
     if (arr->iterating > 0)
         gray_panic_code("P0034", "cannot modify array during for_each iteration");
     if (arr->len <= 1) return;

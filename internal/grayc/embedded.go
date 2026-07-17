@@ -1,12 +1,10 @@
-// Embedded runtime assets — staged into runtime/ by `make build`.
+// embedded.go — Embeds the grayc binary, libgrayrt.a, and runtime/stdlib sources
+// into the gray CLI binary and extracts them on first use to ~/.gray/runtime/.
 //
-// At build time the root Makefile compiles grayc and libgrayrt.a, copies them
-// into internal/grayc/runtime/, and copies the runtime/stdlib source files
-// into internal/grayc/runtime/src/{runtime,stdlib}/. Then `go build` bakes
-// everything into the final `gray` binary. Dev builds without `make build`
-// still compile because committed stub files keep the go:embed directives
-// satisfied; the extractor detects the stubs by their zero length and
-// returns ErrNoEmbed so Find() falls back to the path search.
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package grayc
 
 import (
@@ -89,7 +87,7 @@ func extractEmbedded() (string, error) {
 			return
 		}
 
-		// Extract runtime and stdlib source files so ezc can find its
+		// Extract runtime and stdlib source files so grayc can find its
 		// headers via the "development layout" search (src/ relative to
 		// binary).
 		if err := extractSourceTree(dir); err != nil {

@@ -1,6 +1,9 @@
 /*
- * gray_random.h - @random module for EZ
+ * gray_random.h — Public interface for the random stdlib module.
+ * Declares pseudo-random number generation, array shuffling, random
+ * element selection, and manual seeding functions.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -128,8 +131,8 @@ int32_t gray_random_char(void);
 int32_t gray_random_char_range(int32_t min, int32_t max);
 
 /* Array operations */
-EzArray gray_random_shuffle(EzArena *arena, EzArray *arr);
-EzArray gray_random_sample(EzArena *arena, EzArray *arr, int32_t n);
+GrayArray gray_random_shuffle(GrayArena *arena, GrayArray *arr);
+GrayArray gray_random_sample(GrayArena *arena, GrayArray *arr, int32_t n);
 
 /* Explicit seeding */
 void gray_random_seed(int64_t value);

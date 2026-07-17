@@ -1,9 +1,10 @@
 /*
- * gray_math.h - @math module for EZ
+ * gray_math.h — Public interface for the math stdlib module.
+ * Thin inline wrappers around <math.h> for trigonometry, rounding,
+ * powers, and logarithms. Constants (PI, E, etc.) are emitted
+ * directly by codegen.
  *
- * Most functions are thin wrappers around <math.h>.
- * Constants are handled by codegen (math.PI, math.E, etc.)
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

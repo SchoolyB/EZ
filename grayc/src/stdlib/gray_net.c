@@ -1,8 +1,9 @@
 /*
- * gray_net.c - @net module implementation
+ * gray_net.c — Implementation of the net stdlib module.
+ * Low-level TCP and UDP networking using POSIX sockets, providing
+ * connect, listen, accept, send, and receive operations.
  *
- * TCP/UDP networking using POSIX sockets.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -23,17 +24,17 @@
 #define GRAY_NET_MAX_RECV_BUF     1048576
 #define GRAY_NET_LISTEN_BACKLOG   128
 
-/* Helper: null-terminate an EzString */
-static const char *net_cstr(EzString s, char *buf, size_t bufsz) {
+/* Helper: null-terminate an GrayString */
+static const char *net_cstr(GrayString s, char *buf, size_t bufsz) {
     size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
     memcpy(buf, s.data, len);
     buf[len] = '\0';
     return buf;
 }
 
-EzSocket gray_net_dial(EzArena *arena, EzString host, int64_t port) {
+GraySocket gray_net_dial(GrayArena *arena, GrayString host, int64_t port) {
     (void)arena;
-    EzSocket sock = {-1};
+    GraySocket sock = {-1};
 
     char host_buf[GRAY_NET_HOST_BUF];
     net_cstr(host, host_buf, sizeof(host_buf));
@@ -68,34 +69,34 @@ EzSocket gray_net_dial(EzArena *arena, EzString host, int64_t port) {
     return sock;
 }
 
-void gray_net_close(EzSocket sock) {
+void gray_net_close(GraySocket sock) {
     if (sock.fd >= 0) {
         close(sock.fd);
     }
 }
 
-int64_t gray_net_send(EzSocket sock, EzString data) {
+int64_t gray_net_send(GraySocket sock, GrayString data) {
     if (sock.fd < 0 || !data.data) return -1;
     ssize_t sent = send(sock.fd, data.data, (size_t)data.len, 0);
     return (int64_t)sent;
 }
 
-EzString gray_net_recv(EzArena *arena, EzSocket sock, int64_t max_bytes) {
-    if (sock.fd < 0 || max_bytes <= 0) return (EzString){"", 0};
+GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t max_bytes) {
+    if (sock.fd < 0 || max_bytes <= 0) return (GrayString){"", 0};
 
     size_t bufsz = (size_t)max_bytes;
     if (bufsz > GRAY_NET_MAX_RECV_BUF) bufsz = GRAY_NET_MAX_RECV_BUF; /* cap at 1MB */
     char *buf = gray_arena_alloc(arena, bufsz);
 
     ssize_t n = recv(sock.fd, buf, bufsz, 0);
-    if (n <= 0) return (EzString){"", 0};
+    if (n <= 0) return (GrayString){"", 0};
 
-    return (EzString){buf, (int32_t)n};
+    return (GrayString){buf, (int32_t)n};
 }
 
-EzSocket gray_net_listen(EzArena *arena, int64_t port) {
+GraySocket gray_net_listen(GrayArena *arena, int64_t port) {
     (void)arena;
-    EzSocket sock = {-1};
+    GraySocket sock = {-1};
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return sock;
@@ -124,9 +125,9 @@ EzSocket gray_net_listen(EzArena *arena, int64_t port) {
     return sock;
 }
 
-EzSocket gray_net_accept(EzArena *arena, EzSocket listener) {
+GraySocket gray_net_accept(GrayArena *arena, GraySocket listener) {
     (void)arena;
-    EzSocket sock = {-1};
+    GraySocket sock = {-1};
     if (listener.fd < 0) return sock;
 
     struct sockaddr_in client_addr;
@@ -138,7 +139,7 @@ EzSocket gray_net_accept(EzArena *arena, EzSocket listener) {
     return sock;
 }
 
-void gray_net_set_timeout(EzSocket sock, int64_t milliseconds) {
+void gray_net_set_timeout(GraySocket sock, int64_t milliseconds) {
     if (sock.fd < 0) return;
     struct timeval tv;
     tv.tv_sec = milliseconds / 1000;
@@ -147,7 +148,7 @@ void gray_net_set_timeout(EzSocket sock, int64_t milliseconds) {
     setsockopt(sock.fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 }
 
-EzString gray_net_resolve(EzArena *arena, EzString hostname) {
+GrayString gray_net_resolve(GrayArena *arena, GrayString hostname) {
     char host_buf[GRAY_NET_HOST_BUF];
     net_cstr(hostname, host_buf, sizeof(host_buf));
 
@@ -156,22 +157,22 @@ EzString gray_net_resolve(EzArena *arena, EzString hostname) {
     hints.ai_family = AF_INET;
 
     if (getaddrinfo(host_buf, NULL, &hints, &res) != 0) {
-        return (EzString){"", 0};
+        return (GrayString){"", 0};
     }
 
     struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
     char ip_buf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &addr->sin_addr, ip_buf, sizeof(ip_buf));
 
-    EzString result = gray_string_new(arena, ip_buf, (int32_t)strlen(ip_buf));
+    GrayString result = gray_string_new(arena, ip_buf, (int32_t)strlen(ip_buf));
     freeaddrinfo(res);
     return result;
 }
 
 /* _result variants */
 
-EzResult_socket gray_net_dial_result(EzArena *arena, EzString host, int64_t port) {
-    EzResult_socket r;
+GrayResult_socket gray_net_dial_result(GrayArena *arena, GrayString host, int64_t port) {
+    GrayResult_socket r;
     r.v0 = gray_net_dial(arena, host, port);
     if (r.v0.fd < 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot connect to '%.*s:%lld'",
@@ -182,9 +183,9 @@ EzResult_socket gray_net_dial_result(EzArena *arena, EzString host, int64_t port
     return r;
 }
 
-EzSocket gray_net_listen_host(EzArena *arena, EzString host, int64_t port) {
+GraySocket gray_net_listen_host(GrayArena *arena, GrayString host, int64_t port) {
     (void)arena;
-    EzSocket sock = {-1};
+    GraySocket sock = {-1};
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return sock;
@@ -219,8 +220,8 @@ EzSocket gray_net_listen_host(EzArena *arena, EzString host, int64_t port) {
     return sock;
 }
 
-EzResult_socket gray_net_listen_result(EzArena *arena, int64_t port) {
-    EzResult_socket r;
+GrayResult_socket gray_net_listen_result(GrayArena *arena, int64_t port) {
+    GrayResult_socket r;
     r.v0 = gray_net_listen(arena, port);
     if (r.v0.fd < 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot listen on port %lld",
@@ -231,8 +232,8 @@ EzResult_socket gray_net_listen_result(EzArena *arena, int64_t port) {
     return r;
 }
 
-EzResult_socket gray_net_listen_host_result(EzArena *arena, EzString host, int64_t port) {
-    EzResult_socket r;
+GrayResult_socket gray_net_listen_host_result(GrayArena *arena, GrayString host, int64_t port) {
+    GrayResult_socket r;
     r.v0 = gray_net_listen_host(arena, host, port);
     if (r.v0.fd < 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot listen on %.*s:%lld",
@@ -243,8 +244,8 @@ EzResult_socket gray_net_listen_host_result(EzArena *arena, EzString host, int64
     return r;
 }
 
-EzResult_socket gray_net_accept_result(EzArena *arena, EzSocket listener) {
-    EzResult_socket r;
+GrayResult_socket gray_net_accept_result(GrayArena *arena, GraySocket listener) {
+    GrayResult_socket r;
     r.v0 = gray_net_accept(arena, listener);
     if (r.v0.fd < 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "accept failed on fd %d", listener.fd));
@@ -254,8 +255,8 @@ EzResult_socket gray_net_accept_result(EzArena *arena, EzSocket listener) {
     return r;
 }
 
-EzResult_int gray_net_send_result(EzArena *arena, EzSocket sock, EzString data) {
-    EzResult_int r;
+GrayResult_int gray_net_send_result(GrayArena *arena, GraySocket sock, GrayString data) {
+    GrayResult_int r;
     r.v0 = gray_net_send(sock, data);
     if (r.v0 < 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "send failed on fd %d", sock.fd));
@@ -265,8 +266,8 @@ EzResult_int gray_net_send_result(EzArena *arena, EzSocket sock, EzString data) 
     return r;
 }
 
-EzResult_string gray_net_recv_result(EzArena *arena, EzSocket sock, int64_t max_bytes) {
-    EzResult_string r;
+GrayResult_string gray_net_recv_result(GrayArena *arena, GraySocket sock, int64_t max_bytes) {
+    GrayResult_string r;
     r.v0 = gray_net_recv(arena, sock, max_bytes);
     if (r.v0.len == 0 && sock.fd >= 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "recv returned no data on fd %d", sock.fd));
@@ -276,8 +277,8 @@ EzResult_string gray_net_recv_result(EzArena *arena, EzSocket sock, int64_t max_
     return r;
 }
 
-EzResult_string gray_net_resolve_result(EzArena *arena, EzString hostname) {
-    EzResult_string r;
+GrayResult_string gray_net_resolve_result(GrayArena *arena, GrayString hostname) {
+    GrayResult_string r;
     r.v0 = gray_net_resolve(arena, hostname);
     if (r.v0.len == 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot resolve '%.*s'",

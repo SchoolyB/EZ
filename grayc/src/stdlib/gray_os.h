@@ -1,6 +1,9 @@
 /*
- * gray_os.h - @os module for EZ
+ * gray_os.h — Public interface for the os stdlib module.
+ * Declares access to command-line args, environment variables,
+ * working directory, hostname, process execution, and signal handling.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -23,7 +26,7 @@
  *@end
  */
 /* os.args() — return command-line arguments as [string] */
-EzArray gray_os_args(EzArena *arena);
+GrayArray gray_os_args(GrayArena *arena);
 
 /*@man get_env
  *@module os
@@ -37,7 +40,7 @@ EzArray gray_os_args(EzArena *arena);
  *@end
  */
 /* os.get_env(name) — get environment variable */
-EzString gray_os_get_env(EzArena *arena, EzString name);
+GrayString gray_os_get_env(GrayArena *arena, GrayString name);
 
 /*@man set_env
  *@module os
@@ -51,7 +54,7 @@ EzString gray_os_get_env(EzArena *arena, EzString name);
  *@end
  */
 /* os.set_env(name, value) */
-void gray_os_set_env(EzString name, EzString value);
+void gray_os_set_env(GrayString name, GrayString value);
 
 /*@man unset_env
  *@module os
@@ -66,7 +69,7 @@ void gray_os_set_env(EzString name, EzString value);
  *@end
  */
 /* os.unset_env(name) — remove environment variable */
-void gray_os_unset_env(EzString name);
+void gray_os_unset_env(GrayString name);
 
 /*@man current_dir
  *@module os
@@ -80,7 +83,7 @@ void gray_os_unset_env(EzString name);
  *@end
  */
 /* os.current_dir() — current working directory */
-EzString gray_os_cwd(EzArena *arena);
+GrayString gray_os_cwd(GrayArena *arena);
 
 /*@man hostname
  *@module os
@@ -93,7 +96,7 @@ EzString gray_os_cwd(EzArena *arena);
  *@end
  */
 /* os.hostname() */
-EzString gray_os_hostname(EzArena *arena);
+GrayString gray_os_hostname(GrayArena *arena);
 
 /*@man current_os
  *@module os
@@ -121,7 +124,7 @@ int64_t gray_os_current_os(void);
  *@end
  */
 /* os.arch() — "arm64", "x86_64", etc. */
-EzString gray_os_arch(void);
+GrayString gray_os_arch(void);
 
 /*@man pid
  *@module os
@@ -153,8 +156,8 @@ void gray_os_init(int argc, char **argv);
  *@end
  */
 /* os.exec(cmd, args) — run a process, capture stdout and stderr, return (exit_code, stdout, stderr, ok) */
-typedef struct { int64_t v0; EzString v1; EzString v2; bool v3; } EzOsExecResult;
-EzOsExecResult gray_os_exec(EzArena *arena, EzString cmd, EzArray args);
+typedef struct { int64_t v0; GrayString v1; GrayString v2; bool v3; } GrayOsExecResult;
+GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString cmd, GrayArray args);
 
 /*@man MAC_OS
  *@module os

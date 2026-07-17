@@ -1,6 +1,9 @@
 /*
- * gray_builtins.c - Built-in functions that require no import
+ * gray_builtins.c — Implementation of built-in functions available
+ * without any import. Includes println, print, input, len, typeof,
+ * size_of, assert, exit, sleep, panic, and string conversion helpers.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -64,7 +67,7 @@ static void fput_utf8(int32_t c, FILE *f) {
 
 /* --- println --- */
 
-void gray_builtin_println_str(EzString s) {
+void gray_builtin_println_str(GrayString s) {
     fwrite(s.data, 1, (size_t)s.len, stdout);
     putchar('\n');
 }
@@ -98,7 +101,7 @@ void gray_builtin_println_addr(uintptr_t v) {
 
 /* --- print --- */
 
-void gray_builtin_print_str(EzString s) {
+void gray_builtin_print_str(GrayString s) {
     fwrite(s.data, 1, (size_t)s.len, stdout);
 }
 
@@ -130,7 +133,7 @@ void gray_builtin_print_addr(uintptr_t v) {
 
 /* --- eprintln / eprint --- */
 
-void gray_builtin_eprintln_str(EzString s) {
+void gray_builtin_eprintln_str(GrayString s) {
     fwrite(s.data, 1, (size_t)s.len, stderr);
     fputc('\n', stderr);
 }
@@ -162,7 +165,7 @@ void gray_builtin_eprintln_addr(uintptr_t v) {
     fprintf(stderr, "0x%" PRIxPTR "\n", v);
 }
 
-void gray_builtin_eprint_str(EzString s) {
+void gray_builtin_eprint_str(GrayString s) {
     fwrite(s.data, 1, (size_t)s.len, stderr);
 }
 
@@ -194,7 +197,7 @@ void gray_builtin_eprint_addr(uintptr_t v) {
 
 /* --- input --- */
 
-EzString gray_builtin_input(EzArena *arena) {
+GrayString gray_builtin_input(GrayArena *arena) {
     char buf[GRAY_INPUT_BUF_SIZE];
     if (fgets(buf, sizeof(buf), stdin) == NULL) {
         return gray_string_lit("");
@@ -214,7 +217,7 @@ EzString gray_builtin_input(EzArena *arena) {
 
 /* --- assert --- */
 
-void gray_builtin_assert(bool condition, EzString message, const char *file, int line) {
+void gray_builtin_assert(bool condition, GrayString message, const char *file, int line) {
     (void)file; (void)line;
     if (!condition) {
         fflush(stdout);
@@ -230,7 +233,7 @@ void gray_builtin_assert(bool condition, EzString message, const char *file, int
 
 /* --- panic --- */
 
-void gray_builtin_panic_msg(EzString message) {
+void gray_builtin_panic_msg(GrayString message) {
     fflush(stdout);
     fprintf(stderr, "panic[P0076]: ");
     fwrite(message.data, 1, (size_t)message.len, stderr);
@@ -272,35 +275,35 @@ void gray_builtin_sleep_ns(int64_t ns) {
 
 /* --- to_string --- */
 
-EzString gray_builtin_to_string_int(EzArena *arena, int64_t v) {
+GrayString gray_builtin_to_string_int(GrayArena *arena, int64_t v) {
     char buf[GRAY_INT_STR_BUF];
     int len = snprintf(buf, sizeof(buf), "%" PRId64, v);
     return gray_string_new(arena, buf, (int32_t)len);
 }
 
-EzString gray_builtin_to_string_uint(EzArena *arena, uint64_t v) {
+GrayString gray_builtin_to_string_uint(GrayArena *arena, uint64_t v) {
     char buf[GRAY_INT_STR_BUF];
     int len = snprintf(buf, sizeof(buf), "%" PRIu64, v);
     return gray_string_new(arena, buf, (int32_t)len);
 }
 
-EzString gray_builtin_to_string_float(EzArena *arena, double v) {
+GrayString gray_builtin_to_string_float(GrayArena *arena, double v) {
     char buf[GRAY_FLOAT_STR_BUF];
     int len = fmt_shortest_float(buf, sizeof(buf), v);
     return gray_string_new(arena, buf, (int32_t)len);
 }
 
-EzString gray_builtin_format_float(EzArena *arena, double v) {
+GrayString gray_builtin_format_float(GrayArena *arena, double v) {
     return gray_builtin_to_string_float(arena, v);
 }
 
-EzString gray_builtin_to_string_bool(EzArena *arena, bool v) {
+GrayString gray_builtin_to_string_bool(GrayArena *arena, bool v) {
     return v ? gray_string_lit("true") : gray_string_lit("false");
 }
 
 /* --- from_string --- */
 
-int64_t gray_builtin_string_to_int(EzString s) {
+int64_t gray_builtin_string_to_int(GrayString s) {
     char buf[GRAY_FLOAT_STR_BUF];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -313,7 +316,7 @@ int64_t gray_builtin_string_to_int(EzString s) {
     return result;
 }
 
-double gray_builtin_string_to_float(EzString s) {
+double gray_builtin_string_to_float(GrayString s) {
     char buf[GRAY_FLOAT_STR_BUF];
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
@@ -336,7 +339,7 @@ static int cp_to_utf8(int32_t cp, char *out) {
     out[0]=(char)(0xF0|(cp>>18)); out[1]=(char)(0x80|((cp>>12)&0x3F)); out[2]=(char)(0x80|((cp>>6)&0x3F)); out[3]=(char)(0x80|(cp&0x3F)); return 4;
 }
 
-EzString gray_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {
+GrayString gray_builtin_array_to_string(GrayArena *arena, GrayArray *arr, int elem_kind) {
     char buf[GRAY_TOSTRING_BUF_SIZE];
     int pos = 0;
     buf[pos++] = '{';
@@ -354,7 +357,7 @@ EzString gray_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kin
             break;
         }
         case 2: {
-            EzString s = GRAY_ARRAY_GET(*arr, EzString, i);
+            GrayString s = GRAY_ARRAY_GET(*arr, GrayString, i);
             pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\"",
                 (int)s.len, s.data ? s.data : "");
             break;
@@ -390,7 +393,7 @@ EzString gray_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kin
 
 /* --- to_char / char_count — Unicode codepoint access --- */
 
-int32_t gray_builtin_to_char(EzString s, int64_t index, const char *file, int line) {
+int32_t gray_builtin_to_char(GrayString s, int64_t index, const char *file, int line) {
     if (index < 0) {
         gray_panic_code("P0049", "to_char() index out of bounds; index %lld is negative", (long long)index);
     }
@@ -433,7 +436,7 @@ int32_t gray_builtin_to_char(EzString s, int64_t index, const char *file, int li
     return 0; /* unreachable */
 }
 
-int64_t gray_builtin_char_count(EzString s) {
+int64_t gray_builtin_char_count(GrayString s) {
     const uint8_t *p = (const uint8_t *)s.data;
     const uint8_t *end = p + s.len;
     int64_t count = 0;
@@ -450,7 +453,7 @@ int64_t gray_builtin_char_count(EzString s) {
     return count;
 }
 
-EzString gray_builtin_char_to_utf8(EzArena *arena, int32_t cp) {
+GrayString gray_builtin_char_to_utf8(GrayArena *arena, int32_t cp) {
     char buf[4];
     int len = 0;
     if (cp < 0x80) {
@@ -478,7 +481,7 @@ EzString gray_builtin_char_to_utf8(EzArena *arena, int32_t cp) {
     return gray_string_new(arena, buf, (int32_t)len);
 }
 
-EzString gray_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
+GrayString gray_builtin_map_to_string(GrayArena *arena, GrayMap *m, int val_kind) {
     char buf[GRAY_TOSTRING_BUF_SIZE];
     int pos = 0;
     buf[pos++] = '{';
@@ -486,7 +489,7 @@ EzString gray_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
         int32_t i = m->order[oi];
         if (m->states[i] != 1) continue;
         if (oi > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
-        EzString *kp = (EzString *)((char *)m->keys + (size_t)i * m->key_size);
+        GrayString *kp = (GrayString *)((char *)m->keys + (size_t)i * m->key_size);
         pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\": ",
             (int)kp->len, kp->data ? kp->data : "");
         void *vp = (char *)m->values + (size_t)i * m->value_size;
@@ -499,7 +502,7 @@ EzString gray_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
             break;
         }
         case 2: {
-            EzString *sp = (EzString *)vp;
+            GrayString *sp = (GrayString *)vp;
             pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\"",
                 (int)sp->len, sp->data ? sp->data : "");
             break;

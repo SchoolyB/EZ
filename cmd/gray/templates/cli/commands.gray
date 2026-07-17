@@ -1,4 +1,4 @@
-// commands.ez - Command implementations
+// commands.gray - Command implementations
 //
 // args[0] = binary name, args[1] = command, args[2+] = command arguments.
 

@@ -1,8 +1,9 @@
 /*
- * gray_builtins.h - Built-in functions that require no import
+ * gray_builtins.h — Public interface for built-in functions that
+ * require no import. Declares println, print, input, len, typeof,
+ * size_of, assert, exit, sleep, panic, and string conversion helpers.
  *
- * These are always available without importing any module.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -24,7 +25,7 @@
  *   println()
  *@end
  */
-void gray_builtin_println_str(EzString s);
+void gray_builtin_println_str(GrayString s);
 void gray_builtin_println_int(int64_t v);
 void gray_builtin_println_uint(uint64_t v);
 void gray_builtin_println_float(double v);
@@ -40,7 +41,7 @@ void gray_builtin_println_addr(uintptr_t v);
  *   print(42)
  *@end
  */
-void gray_builtin_print_str(EzString s);
+void gray_builtin_print_str(GrayString s);
 void gray_builtin_print_int(int64_t v);
 void gray_builtin_print_uint(uint64_t v);
 void gray_builtin_print_float(double v);
@@ -59,7 +60,7 @@ void gray_builtin_print_addr(uintptr_t v);
  *   eprintln()
  *@end
  */
-void gray_builtin_eprintln_str(EzString s);
+void gray_builtin_eprintln_str(GrayString s);
 void gray_builtin_eprintln_int(int64_t v);
 void gray_builtin_eprintln_uint(uint64_t v);
 void gray_builtin_eprintln_float(double v);
@@ -77,7 +78,7 @@ void gray_builtin_eprintln_addr(uintptr_t v);
  *   eprint(true)
  *@end
  */
-void gray_builtin_eprint_str(EzString s);
+void gray_builtin_eprint_str(GrayString s);
 void gray_builtin_eprint_int(int64_t v);
 void gray_builtin_eprint_uint(uint64_t v);
 void gray_builtin_eprint_float(double v);
@@ -94,7 +95,7 @@ void gray_builtin_eprint_addr(uintptr_t v);
  *   println("Hello, ${name}")
  *@end
  */
-EzString gray_builtin_input(EzArena *arena);
+GrayString gray_builtin_input(GrayArena *arena);
 
 /*@man assert
  *@sig assert(condition bool, message string)
@@ -104,7 +105,7 @@ EzString gray_builtin_input(EzArena *arena);
  *   assert(len(items) > 0, "list cannot be empty")
  *@end
  */
-void gray_builtin_assert(bool condition, EzString message, const char *file, int line);
+void gray_builtin_assert(bool condition, GrayString message, const char *file, int line);
 
 /*@man panic
  *@sig panic(message string)
@@ -113,7 +114,7 @@ void gray_builtin_assert(bool condition, EzString message, const char *file, int
  *   panic("unreachable code reached")
  *@end
  */
-void gray_builtin_panic_msg(EzString message);
+void gray_builtin_panic_msg(GrayString message);
 
 /*@man exit
  *@sig exit(code int)
@@ -269,7 +270,7 @@ void gray_builtin_sleep_ns(int64_t ns);
 
 /*@man type_of
  *@sig type_of(value) -> string
- *@desc Returns the EZ type name of any value as a string at runtime.
+ *@desc Returns the Grayscale type name of any value as a string at runtime.
  *@example
  *   println(type_of(42))
  *   println(type_of("hi"))
@@ -349,7 +350,7 @@ void gray_builtin_sleep_ns(int64_t ns);
 
 /*@man c_string
  *@sig c_string(ptr ^u8) -> string
- *@desc Wraps a null-terminated C char* pointer as an EZ string. Only valid with values from C interop (import c"header.h").
+ *@desc Wraps a null-terminated C char* pointer as a Grayscale string. Only valid with values from C interop (import c"header.h").
  *@example
  *   import c"mylib.h"
  *   mut s string = c_string(mylib_get_name())
@@ -420,27 +421,27 @@ void gray_builtin_sleep_ns(int64_t ns);
  */
 
 /* to_string — internal runtime overloads, not user-callable by name */
-EzString gray_builtin_to_string_int(EzArena *arena, int64_t v);
-EzString gray_builtin_to_string_uint(EzArena *arena, uint64_t v);
-EzString gray_builtin_to_string_float(EzArena *arena, double v);
-EzString gray_builtin_to_string_bool(EzArena *arena, bool v);
+GrayString gray_builtin_to_string_int(GrayArena *arena, int64_t v);
+GrayString gray_builtin_to_string_uint(GrayArena *arena, uint64_t v);
+GrayString gray_builtin_to_string_float(GrayArena *arena, double v);
+GrayString gray_builtin_to_string_bool(GrayArena *arena, bool v);
 
 /* from_string — internal runtime overloads */
-int64_t gray_builtin_string_to_int(EzString s);
-double gray_builtin_string_to_float(EzString s);
+int64_t gray_builtin_string_to_int(GrayString s);
+double gray_builtin_string_to_float(GrayString s);
 
 /* format float for interpolation */
-EzString gray_builtin_format_float(EzArena *arena, double v);
+GrayString gray_builtin_format_float(GrayArena *arena, double v);
 
 /* composite to_string */
-EzString gray_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind);
-EzString gray_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind);
+GrayString gray_builtin_array_to_string(GrayArena *arena, GrayArray *arr, int elem_kind);
+GrayString gray_builtin_map_to_string(GrayArena *arena, GrayMap *m, int val_kind);
 
 /* to_char / char_count — Unicode codepoint access */
-int32_t gray_builtin_to_char(EzString s, int64_t index, const char *file, int line);
-int64_t gray_builtin_char_count(EzString s);
+int32_t gray_builtin_to_char(GrayString s, int64_t index, const char *file, int line);
+int64_t gray_builtin_char_count(GrayString s);
 
-/* char_to_utf8 — encode a codepoint to an EzString (for interpolation) */
-EzString gray_builtin_char_to_utf8(EzArena *arena, int32_t cp);
+/* char_to_utf8 — encode a codepoint to an GrayString (for interpolation) */
+GrayString gray_builtin_char_to_utf8(GrayArena *arena, int32_t cp);
 
 #endif

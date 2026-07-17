@@ -1,6 +1,9 @@
 /*
- * gray_maps.h - @maps module for EZ
+ * gray_maps.h — Public interface for the maps stdlib module.
+ * Declares key/value extraction, membership testing, removal, and
+ * merge operations on GrayMap values.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -24,7 +27,7 @@
  *@end
  */
 /* maps.keys(m) — return array of keys */
-EzArray gray_maps_get_keys(EzArena *arena, EzMap *m);
+GrayArray gray_maps_get_keys(GrayArena *arena, GrayMap *m);
 
 /*@man get_values
  *@module maps
@@ -38,7 +41,7 @@ EzArray gray_maps_get_keys(EzArena *arena, EzMap *m);
  *@end
  */
 /* maps.values(m) — return array of values */
-EzArray gray_maps_get_values(EzArena *arena, EzMap *m);
+GrayArray gray_maps_get_values(GrayArena *arena, GrayMap *m);
 
 /*@man has_key
  *@module maps
@@ -53,7 +56,7 @@ EzArray gray_maps_get_values(EzArena *arena, EzMap *m);
  *@end
  */
 /* maps.has_key(m, key) — check if key exists */
-bool gray_maps_has_key(EzMap *m, const void *key);
+bool gray_maps_has_key(GrayMap *m, const void *key);
 
 /*@man is_empty
  *@module maps
@@ -67,7 +70,7 @@ bool gray_maps_has_key(EzMap *m, const void *key);
  *@end
  */
 /* maps.is_empty(m) — true if map has no entries */
-bool gray_maps_is_empty(EzMap *m);
+bool gray_maps_is_empty(GrayMap *m);
 
 /*@man contains_value
  *@module maps
@@ -81,7 +84,7 @@ bool gray_maps_is_empty(EzMap *m);
  *@end
  */
 /* maps.contains_value(m, value) — check if any entry has the given value */
-bool gray_maps_contains_value(EzMap *m, const void *value);
+bool gray_maps_contains_value(GrayMap *m, const void *value);
 
 /*@man is_equal
  *@module maps
@@ -96,11 +99,11 @@ bool gray_maps_contains_value(EzMap *m, const void *value);
  *@end
  */
 /* maps.is_equal(a, b) — structural equality.
- * str_keys: true if keys are EzString (look up via gray_map_get_str)
- * str_values: true if values are EzString (compare contents, not blob)
+ * str_keys: true if keys are GrayString (look up via gray_map_get_str)
+ * str_values: true if values are GrayString (compare contents, not blob)
  * Composite key/value types (nested arrays, maps, structs) are rejected
  * at typecheck and never reach this function. */
-bool gray_maps_is_equal(EzMap *a, EzMap *b, bool str_keys, bool str_values);
+bool gray_maps_is_equal(GrayMap *a, GrayMap *b, bool str_keys, bool str_values);
 
 /*@man merge
  *@module maps
@@ -115,7 +118,7 @@ bool gray_maps_is_equal(EzMap *a, EzMap *b, bool str_keys, bool str_values);
  *@end
  */
 /* maps.merge(m1, m2) — combine two maps (m2 overwrites m1 on conflict) */
-EzMap gray_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2);
+GrayMap gray_maps_merge(GrayArena *arena, GrayMap *m1, GrayMap *m2);
 
 /*@man get_or_default
  *@module maps

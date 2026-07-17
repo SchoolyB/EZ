@@ -1,6 +1,9 @@
 /*
- * gray_uuid.c - @uuid module implementation
+ * gray_uuid.c — Implementation of the uuid stdlib module.
+ * Generates RFC 4122 version 4 UUIDs using cryptographically
+ * suitable random bytes (getentropy or /dev/urandom).
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -45,9 +48,9 @@ static void gray_uuid_format_hyphenated(const uint8_t *bytes, char *buf) {
         bytes[12], bytes[13], bytes[14], bytes[15]);
 }
 
-EzUUID gray_uuid_generate(EzArena *arena) {
+GrayUUID gray_uuid_generate(GrayArena *arena) {
     uint8_t bytes[16];
-    EzUUID uuid;
+    GrayUUID uuid;
     if (!gray_uuid_random_bytes(bytes, sizeof(bytes))) {
         uuid.value = gray_string_lit("");
         return uuid;
@@ -60,7 +63,7 @@ EzUUID gray_uuid_generate(EzArena *arena) {
     return uuid;
 }
 
-EzString gray_uuid_generate_compact(EzArena *arena, EzUUID id) {
+GrayString gray_uuid_generate_compact(GrayArena *arena, GrayUUID id) {
     /* Strip hyphens from the canonical 36-char hyphenated form. */
     if (id.value.len != GRAY_UUID_LEN) return gray_string_lit("");
     char buf[GRAY_UUID_COMPACT_LEN + 1];
@@ -74,7 +77,7 @@ EzString gray_uuid_generate_compact(EzArena *arena, EzUUID id) {
     return gray_string_new(arena, buf, GRAY_UUID_COMPACT_LEN);
 }
 
-EzUUID gray_uuid_generate_random(EzArena *arena) {
+GrayUUID gray_uuid_generate_random(GrayArena *arena) {
     /* Alias for the canonical hyphenated v4 form. */
     return gray_uuid_generate(arena);
 }
@@ -86,9 +89,9 @@ EzUUID gray_uuid_generate_random(EzArena *arena) {
  *   bytes[8]      variant 10 (high 2 bits) + 6 random bits
  *   bytes[9..15]  56 random bits
  */
-EzUUID gray_uuid_generate_time_ordered(EzArena *arena) {
+GrayUUID gray_uuid_generate_time_ordered(GrayArena *arena) {
     uint8_t bytes[16];
-    EzUUID uuid;
+    GrayUUID uuid;
     if (!gray_uuid_random_bytes(bytes, sizeof(bytes))) {
         uuid.value = gray_string_lit("");
         return uuid;
@@ -113,7 +116,7 @@ EzUUID gray_uuid_generate_time_ordered(EzArena *arena) {
     return uuid;
 }
 
-bool gray_uuid_is_valid(EzString s) {
+bool gray_uuid_is_valid(GrayString s) {
     if (s.len != GRAY_UUID_LEN) return false;
     for (int i = 0; i < GRAY_UUID_LEN; i++) {
         if (i == 8 || i == 13 || i == 18 || i == 23) {
@@ -130,7 +133,7 @@ bool gray_uuid_is_valid(EzString s) {
 /* Strict parser: panics on invalid input. Callers that want a fallible
  * check should gate with gray_uuid_is_valid() first. Returns the input
  * normalized to lowercase, wrapped in a UUID struct. */
-EzUUID gray_uuid_parse(EzArena *arena, EzString s) {
+GrayUUID gray_uuid_parse(GrayArena *arena, GrayString s) {
     if (!gray_uuid_is_valid(s)) {
         gray_builtin_panic_msg(gray_string_lit("uuid.parse: invalid UUID string"));
     }
@@ -140,18 +143,18 @@ EzUUID gray_uuid_parse(EzArena *arena, EzString s) {
         buf[i] = (c >= 'A' && c <= 'F') ? (char)(c - 'A' + 'a') : c;
     }
     buf[GRAY_UUID_LEN] = '\0';
-    EzUUID uuid;
+    GrayUUID uuid;
     uuid.value.data = buf;
     uuid.value.len = GRAY_UUID_LEN;
     return uuid;
 }
 
-EzString gray_uuid_to_string(EzUUID id) {
+GrayString gray_uuid_to_string(GrayUUID id) {
     return id.value;
 }
 
-EzUUID gray_uuid_nil(void) {
-    EzUUID uuid;
+GrayUUID gray_uuid_nil(void) {
+    GrayUUID uuid;
     uuid.value = gray_string_lit("00000000-0000-0000-0000-000000000000");
     return uuid;
 }

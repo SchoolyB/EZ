@@ -1,6 +1,9 @@
 /*
- * gray_random.c - @random module implementation
+ * gray_random.c — Implementation of the random stdlib module.
+ * Provides pseudo-random number generation for floats and integers,
+ * array shuffling, random element selection, and manual seeding.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -62,9 +65,9 @@ int32_t gray_random_char_range(int32_t min, int32_t max) {
     return min + (int32_t)(rand() % (max - min));
 }
 
-EzArray gray_random_shuffle(EzArena *arena, EzArray *arr) {
+GrayArray gray_random_shuffle(GrayArena *arena, GrayArray *arr) {
     ensure_seed();
-    EzArray result = gray_array_copy(arena, arr);
+    GrayArray result = gray_array_copy(arena, arr);
     char *data = (char *)result.data;
     size_t es = (size_t)result.elem_size;
     /* Scratch slot sized to the actual element width. The previous
@@ -80,12 +83,12 @@ EzArray gray_random_shuffle(EzArena *arena, EzArray *arr) {
     return result;
 }
 
-EzArray gray_random_sample(EzArena *arena, EzArray *arr, int32_t n) {
+GrayArray gray_random_sample(GrayArena *arena, GrayArray *arr, int32_t n) {
     if (n > arr->len)
         gray_panic_code("P0062", "random.sample() count %d exceeds array length %d", (int)n, (int)arr->len);
     if (n < 0)
         gray_panic_code("P0063", "random.sample() count cannot be negative (%d)", (int)n);
-    EzArray shuffled = gray_random_shuffle(arena, arr);
+    GrayArray shuffled = gray_random_shuffle(arena, arr);
     shuffled.len = n;
     return shuffled;
 }

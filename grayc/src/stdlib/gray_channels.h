@@ -1,9 +1,9 @@
 /*
- * gray_channels.h - @channels module for EZ
+ * gray_channels.h — Public interface for the channels stdlib module.
+ * Bounded, blocking channels for message passing between threads,
+ * built on POSIX pthreads.
  *
- * Bounded, blocking channels for message passing between threads.
- * Built on POSIX pthreads.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -16,20 +16,20 @@
 #include <stdbool.h>
 
 typedef struct {
-    void *_internal; /* EzChannelInternal* */
-} EzChannel;
+    void *_internal; /* GrayChannelInternal* */
+} GrayChannel;
 
 /* Create a buffered channel with given capacity. */
-EzChannel gray_channels_open(int64_t capacity);
+GrayChannel gray_channels_open(int64_t capacity);
 
 /* Send a value into the channel. Blocks if full. */
-void gray_channels_send(EzChannel ch, int64_t value);
+void gray_channels_send(GrayChannel ch, int64_t value);
 
 /* Receive a value from the channel. Blocks if empty. */
-int64_t gray_channels_receive(EzChannel ch);
+int64_t gray_channels_receive(GrayChannel ch);
 
 /* Close a channel. */
-void gray_channels_close(EzChannel ch);
+void gray_channels_close(GrayChannel ch);
 
 /*@man
  *@module channels
@@ -40,7 +40,7 @@ void gray_channels_close(EzChannel ch);
  *@returns bool - true if the value was sent, false if the channel is full.
  *@end
  */
-bool gray_channels_try_send(EzChannel ch, int64_t value);
+bool gray_channels_try_send(GrayChannel ch, int64_t value);
 
 /*@man
  *@module channels
@@ -50,7 +50,7 @@ bool gray_channels_try_send(EzChannel ch, int64_t value);
  *@returns (int, bool) - The value and true if one was available, or (0, false) if empty.
  *@end
  */
-typedef struct { int64_t v0; bool v1; } EzChannelTryRecv;
-EzChannelTryRecv gray_channels_try_receive(EzChannel ch);
+typedef struct { int64_t v0; bool v1; } GrayChannelTryRecv;
+GrayChannelTryRecv gray_channels_try_receive(GrayChannel ch);
 
 #endif

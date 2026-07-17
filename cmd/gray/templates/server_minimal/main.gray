@@ -1,6 +1,6 @@
-// main.ez - Minimal HTTP server.
+// main.gray - Minimal HTTP server.
 //
-// Run:   ez main.ez
+// Run:   gray main.gray
 // Test:  curl http://localhost:8080
 
 import @server

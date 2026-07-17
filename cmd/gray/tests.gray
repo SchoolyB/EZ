@@ -1,5 +1,5 @@
 /*
- * tests.ez - EZ language verification test suite
+ * tests.gray - Grayscale language verification test suite
  *
  * Covers: primitives, strings, control flow, loops, functions,
  * structs, enums, arrays, maps, casting, pointers, @math, @strings,
@@ -10,8 +10,8 @@
  * Exits non-zero if any assertion fails.
  *
  * Run with:
- *   ez verify
- *   ./ezc/ezc cmd/ez/tests.ez -o /tmp/out && /tmp/out
+ *   gray verify
+ *   ./grayc/grayc cmd/gray/tests.gray -o /tmp/out && /tmp/out
  */
 
 import @math, @strings, @arrays, @maps, @json, @time, @random, @encoding, @fmt, @strconv, @crypto, @regex, @binary, @bytes, @uuid, @mem
@@ -173,10 +173,10 @@ do main() {
         failed++
     }
 
-    mut lang string = "EZ"
+    mut lang string = "Grayscale"
     mut hello string = "Hello ${lang}"
-    if hello == "Hello EZ" {
-        println("  [PASS] \"Hello ${lang}\" = \"Hello EZ\"")
+    if hello == "Hello Grayscale" {
+        println("  [PASS] \"Hello ${lang}\" = \"Hello Grayscale\"")
         passed++
     } otherwise {
         println("  [FAIL] string interpolation: got \"${hello}\"")

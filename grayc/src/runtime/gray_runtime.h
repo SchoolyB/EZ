@@ -1,8 +1,9 @@
 /*
- * gray_runtime.h - EZC runtime support
+ * gray_runtime.h — Core runtime header included in all generated C code.
+ * Defines the arena allocator, GrayString, GrayError, scope management,
+ * overflow-checked arithmetic, and panic infrastructure.
  *
- * This header is included in all generated C code.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -23,119 +24,119 @@
 
 /* --- Arena Allocator --- */
 
-typedef struct EzArenaBlock {
-    struct EzArenaBlock *next;
+typedef struct GrayArenaBlock {
+    struct GrayArenaBlock *next;
     size_t size;
     size_t used;
     char data[];
-} EzArenaBlock;
+} GrayArenaBlock;
 
 typedef struct {
-    EzArenaBlock *first;
-    EzArenaBlock *current;
+    GrayArenaBlock *first;
+    GrayArenaBlock *current;
     size_t default_block_size;
     bool destroyed;
-} EzArena;
+} GrayArena;
 
-EzArena *gray_arena_create(size_t initial_size);
-void *gray_arena_alloc(EzArena *arena, size_t size);
-void gray_arena_reset(EzArena *arena);
-void gray_arena_destroy(EzArena *arena, const char *file, int line);
-size_t gray_arena_usage(EzArena *arena);
+GrayArena *gray_arena_create(size_t initial_size);
+void *gray_arena_alloc(GrayArena *arena, size_t size);
+void gray_arena_reset(GrayArena *arena);
+void gray_arena_destroy(GrayArena *arena, const char *file, int line);
+size_t gray_arena_usage(GrayArena *arena);
 
 /* Per-thread default arena — each thread (including spawned threads) gets its own. */
-extern _Thread_local EzArena *gray_default_arena;
+extern _Thread_local GrayArena *gray_default_arena;
 
 /* Persistent heap arena — lives for the lifetime of the program.
  * Used by new() so returned pointers are never dangling. */
-extern _Thread_local EzArena *gray_heap_arena;
+extern _Thread_local GrayArena *gray_heap_arena;
 
 /* --- String --- */
 
 typedef struct {
     const char *data;
     int32_t len;
-} EzString;
+} GrayString;
 
 /* --- Error --- */
 
 typedef struct {
-    EzString message;
-    EzString code;
-} EzError;
+    GrayString message;
+    GrayString code;
+} GrayError;
 
 /* Create an error on the default arena */
-EzError *gray_error_new(EzArena *arena, EzString message);
+GrayError *gray_error_new(GrayArena *arena, GrayString message);
 
 /* --- SourceLocation: compile-time substituted by the here() builtin --- */
 
 typedef struct {
-    EzString file;
+    GrayString file;
     int64_t line;
     int64_t column;
-} EzStruct_SourceLocation;
+} GrayStruct_SourceLocation;
 
 /* Create a string from a C string literal (no copy, points to static data) */
-static inline EzString gray_string_lit(const char *s) {
-    EzString str;
+static inline GrayString gray_string_lit(const char *s) {
+    GrayString str;
     str.data = s;
     str.len = (int32_t)strlen(s);
     return str;
 }
 
 /* String literal with explicit length — for strings containing null bytes */
-static inline EzString gray_string_lit_len(const char *s, int32_t len) {
-    EzString str;
+static inline GrayString gray_string_lit_len(const char *s, int32_t len) {
+    GrayString str;
     str.data = s;
     str.len = len;
     return str;
 }
 
 /* Compile-time string literal — works at file scope (C11 compliant) */
-#define GRAY_STRING_LIT(s) ((EzString){ (s), sizeof(s) - 1 })
+#define GRAY_STRING_LIT(s) ((GrayString){ (s), sizeof(s) - 1 })
 
 /* Create a string with a copy on the arena */
-EzString gray_string_new(EzArena *arena, const char *s, int32_t len);
+GrayString gray_string_new(GrayArena *arena, const char *s, int32_t len);
 
-/* Create an EZ string from a C char* by copying onto the arena.
+/* Create a Grayscale string from a C char* by copying onto the arena.
  * NULL input -> empty string. Length is clamped at INT32_MAX. The
  * result has the same lifetime contract as every other arena string,
  * regardless of what happens to the source pointer afterwards. */
-EzString gray_c_string_dup(EzArena *arena, const char *s);
+GrayString gray_c_string_dup(GrayArena *arena, const char *s);
 
 /* String formatting (for interpolation) */
-EzString gray_string_format(EzArena *arena, const char *fmt, ...);
+GrayString gray_string_format(GrayArena *arena, const char *fmt, ...);
 
 /* String comparison */
-static inline bool gray_string_eq(EzString a, EzString b) {
+static inline bool gray_string_eq(GrayString a, GrayString b) {
     if (a.len != b.len) return false;
     return memcmp(a.data, b.data, (size_t)a.len) == 0;
 }
 
 /* String concatenation */
-EzString gray_string_concat(EzArena *arena, EzString a, EzString b);
+GrayString gray_string_concat(GrayArena *arena, GrayString a, GrayString b);
 
 /* --- Runtime Init/Shutdown --- */
 
 void gray_runtime_init(void);
 void gray_runtime_shutdown(void);
 
-/* --- Scope-based memory management (#1521) --- */
+/* --- Scope-based memory management --- */
 
 /* Watermark for mark-and-reset scoping. Save the arena's usage at
  * scope entry; on scope exit, reset to the watermark to free all
  * allocations made during the scope. */
 typedef struct {
-    EzArenaBlock *block;
+    GrayArenaBlock *block;
     size_t used;
-} EzScopeMark;
+} GrayScopeMark;
 
 /* Save current arena state */
-EzScopeMark gray_scope_save(EzArena *arena);
+GrayScopeMark gray_scope_save(GrayArena *arena);
 
 /* Restore arena to a saved state — frees everything allocated after
  * the mark. Only called for void scopes (no return value to preserve). */
-void gray_scope_restore(EzArena *arena, EzScopeMark mark);
+void gray_scope_restore(GrayArena *arena, GrayScopeMark mark);
 
 /* --- Panic --- */
 
@@ -350,10 +351,10 @@ static inline uint64_t gray_float_to_uint(double v, const char *file, int line) 
 /* --- Result types for (value, Error) destructuring --- */
 
 /* Forward declarations for types defined in other headers */
-struct EzArray_tag;
-struct EzMap_tag;
+struct GrayArray_tag;
+struct GrayMap_tag;
 
-typedef struct { int64_t v0; EzError *v1; } EzResult_int;
-typedef struct { void *v0; EzError *v1; } EzResult_ptr;
+typedef struct { int64_t v0; GrayError *v1; } GrayResult_int;
+typedef struct { void *v0; GrayError *v1; } GrayResult_ptr;
 
 #endif

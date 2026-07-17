@@ -1,3 +1,10 @@
+// embedded_test.go — Tests for the writeIfMissing helper that powers
+// embedded runtime extraction, verifying write, skip, overwrite, and mode behavior.
+//
+// Author:  Marshall A Burns (@SchoolyB)
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 package grayc
 
 import (

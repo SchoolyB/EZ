@@ -1,8 +1,9 @@
 /*
- * gray_strings.h - @strings module for EZ
+ * gray_strings.h — Public interface for the strings stdlib module.
+ * Declares case conversion, trimming, splitting, joining, searching,
+ * replacing, padding, and character classification functions.
  *
- * String manipulation functions.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -23,7 +24,7 @@
  *   println(strings.to_upper("hello"))
  *@end
  */
-EzString gray_strings_to_upper(EzArena *arena, EzString s);
+GrayString gray_strings_to_upper(GrayArena *arena, GrayString s);
 
 /*@man to_lower
  *@module strings
@@ -35,7 +36,7 @@ EzString gray_strings_to_upper(EzArena *arena, EzString s);
  *   println(strings.to_lower("HELLO"))
  *@end
  */
-EzString gray_strings_to_lower(EzArena *arena, EzString s);
+GrayString gray_strings_to_lower(GrayArena *arena, GrayString s);
 
 /*@man trim
  *@module strings
@@ -47,7 +48,7 @@ EzString gray_strings_to_lower(EzArena *arena, EzString s);
  *   println(strings.trim("  hello  "))
  *@end
  */
-EzString gray_strings_trim(EzArena *arena, EzString s);
+GrayString gray_strings_trim(GrayArena *arena, GrayString s);
 
 /*@man trim_left
  *@module strings
@@ -59,7 +60,7 @@ EzString gray_strings_trim(EzArena *arena, EzString s);
  *   println(strings.trim_left("  hello  "))
  *@end
  */
-EzString gray_strings_trim_left(EzArena *arena, EzString s);
+GrayString gray_strings_trim_left(GrayArena *arena, GrayString s);
 
 /*@man trim_right
  *@module strings
@@ -71,7 +72,7 @@ EzString gray_strings_trim_left(EzArena *arena, EzString s);
  *   println(strings.trim_right("  hello  "))
  *@end
  */
-EzString gray_strings_trim_right(EzArena *arena, EzString s);
+GrayString gray_strings_trim_right(GrayArena *arena, GrayString s);
 
 /*@man contains
  *@module strings
@@ -84,7 +85,7 @@ EzString gray_strings_trim_right(EzArena *arena, EzString s);
  *   println(strings.contains("hello world", "xyz"))
  *@end
  */
-bool gray_strings_contains(EzString s, EzString sub);
+bool gray_strings_contains(GrayString s, GrayString sub);
 
 /*@man starts_with
  *@module strings
@@ -96,7 +97,7 @@ bool gray_strings_contains(EzString s, EzString sub);
  *   println(strings.starts_with("hello", "hel"))
  *@end
  */
-bool gray_strings_starts_with(EzString s, EzString prefix);
+bool gray_strings_starts_with(GrayString s, GrayString prefix);
 
 /*@man ends_with
  *@module strings
@@ -108,7 +109,7 @@ bool gray_strings_starts_with(EzString s, EzString prefix);
  *   println(strings.ends_with("hello", "llo"))
  *@end
  */
-bool gray_strings_ends_with(EzString s, EzString suffix);
+bool gray_strings_ends_with(GrayString s, GrayString suffix);
 
 /*@man index_of
  *@module strings
@@ -121,7 +122,7 @@ bool gray_strings_ends_with(EzString s, EzString suffix);
  *   println(strings.index_of("hello world", "xyz"))
  *@end
  */
-int64_t gray_strings_index_of(EzString s, EzString sub);
+int64_t gray_strings_index_of(GrayString s, GrayString sub);
 
 /*@man last_index_of
  *@module strings
@@ -134,7 +135,7 @@ int64_t gray_strings_index_of(EzString s, EzString sub);
  *   println(strings.last_index_of("hello world", "xyz"))
  *@end
  */
-int64_t gray_strings_last_index_of(EzString s, EzString sub);
+int64_t gray_strings_last_index_of(GrayString s, GrayString sub);
 
 /*@man count
  *@module strings
@@ -146,7 +147,7 @@ int64_t gray_strings_last_index_of(EzString s, EzString sub);
  *   println(strings.count("banana", "a"))
  *@end
  */
-int64_t gray_strings_count(EzString s, EzString sub);
+int64_t gray_strings_count(GrayString s, GrayString sub);
 
 /*@man is_empty
  *@module strings
@@ -159,7 +160,7 @@ int64_t gray_strings_count(EzString s, EzString sub);
  *   println(strings.is_empty("hi"))
  *@end
  */
-bool gray_strings_is_empty(EzString s);
+bool gray_strings_is_empty(GrayString s);
 
 /*@man remove_prefix
  *@module strings
@@ -172,7 +173,7 @@ bool gray_strings_is_empty(EzString s);
  *   println(strings.remove_prefix("hello world", "xyz"))
  *@end
  */
-EzString gray_strings_remove_prefix(EzArena *arena, EzString s, EzString prefix);
+GrayString gray_strings_remove_prefix(GrayArena *arena, GrayString s, GrayString prefix);
 
 /*@man remove_suffix
  *@module strings
@@ -185,7 +186,7 @@ EzString gray_strings_remove_prefix(EzArena *arena, EzString s, EzString prefix)
  *   println(strings.remove_suffix("hello world", "xyz"))
  *@end
  */
-EzString gray_strings_remove_suffix(EzArena *arena, EzString s, EzString suffix);
+GrayString gray_strings_remove_suffix(GrayArena *arena, GrayString s, GrayString suffix);
 
 /*@man replace
  *@module strings
@@ -194,10 +195,10 @@ EzString gray_strings_remove_suffix(EzArena *arena, EzString s, EzString suffix)
  *@desc Returns a copy of s with all occurrences of old replaced by new.
  *@example
  *   import @strings
- *   println(strings.replace("hello world", "world", "EZ"))
+ *   println(strings.replace("hello world", "world", "Grayscale"))
  *@end
  */
-EzString gray_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString new_s);
+GrayString gray_strings_replace(GrayArena *arena, GrayString s, GrayString old_s, GrayString new_s);
 
 /*@man repeat
  *@module strings
@@ -209,7 +210,7 @@ EzString gray_strings_replace(EzArena *arena, EzString s, EzString old_s, EzStri
  *   println(strings.repeat("ab", 3))
  *@end
  */
-EzString gray_strings_repeat(EzArena *arena, EzString s, int64_t count);
+GrayString gray_strings_repeat(GrayArena *arena, GrayString s, int64_t count);
 
 /*@man reverse
  *@module strings
@@ -221,7 +222,7 @@ EzString gray_strings_repeat(EzArena *arena, EzString s, int64_t count);
  *   println(strings.reverse("hello"))
  *@end
  */
-EzString gray_strings_reverse(EzArena *arena, EzString s);
+GrayString gray_strings_reverse(GrayArena *arena, GrayString s);
 
 /*@man slice
  *@module strings
@@ -233,7 +234,7 @@ EzString gray_strings_reverse(EzArena *arena, EzString s);
  *   println(strings.slice("hello world", 6, 11))
  *@end
  */
-EzString gray_strings_slice(EzArena *arena, EzString s, int64_t start, int64_t end);
+GrayString gray_strings_slice(GrayArena *arena, GrayString s, int64_t start, int64_t end);
 
 /*@man split
  *@module strings
@@ -246,7 +247,7 @@ EzString gray_strings_slice(EzArena *arena, EzString s, int64_t start, int64_t e
  *   println(parts[0])
  *@end
  */
-EzArray gray_strings_split(EzArena *arena, EzString s, EzString sep);
+GrayArray gray_strings_split(GrayArena *arena, GrayString s, GrayString sep);
 
 /*@man join
  *@module strings
@@ -259,7 +260,7 @@ EzArray gray_strings_split(EzArena *arena, EzString s, EzString sep);
  *   println(strings.join(parts, "-"))
  *@end
  */
-EzString gray_strings_join(EzArena *arena, EzArray arr, EzString sep);
+GrayString gray_strings_join(GrayArena *arena, GrayArray arr, GrayString sep);
 
 /*@man char_at
  *@module strings
@@ -272,7 +273,7 @@ EzString gray_strings_join(EzArena *arena, EzArray arr, EzString sep);
  *   println(strings.char_at("hello", 4))
  *@end
  */
-char gray_strings_char_at(EzString s, int64_t index);
+char gray_strings_char_at(GrayString s, int64_t index);
 
 /*@man to_chars
  *@module strings
@@ -285,7 +286,7 @@ char gray_strings_char_at(EzString s, int64_t index);
  *   println(chars[0])
  *@end
  */
-EzArray gray_strings_to_chars(EzArena *arena, EzString s);
+GrayArray gray_strings_to_chars(GrayArena *arena, GrayString s);
 
 /*@man from_chars
  *@module strings
@@ -299,7 +300,7 @@ EzArray gray_strings_to_chars(EzArena *arena, EzString s);
  *   println(s)
  *@end
  */
-EzString gray_strings_from_chars(EzArena *arena, EzArray *chars);
+GrayString gray_strings_from_chars(GrayArena *arena, GrayArray *chars);
 
 /*@man is_alpha
  *@module strings

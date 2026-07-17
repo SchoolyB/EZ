@@ -1,8 +1,9 @@
 /*
- * gray_channels.c - @channels module implementation
+ * gray_channels.c — Implementation of the channels stdlib module.
+ * Bounded, blocking channels for inter-thread message passing, built
+ * on POSIX pthreads mutexes and condition variables.
  *
- * Bounded, blocking channels built on POSIX pthreads.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -21,11 +22,11 @@ typedef struct {
     pthread_cond_t not_full;
     pthread_cond_t not_empty;
     bool closed;
-} EzChannelInternal;
+} GrayChannelInternal;
 
-EzChannel gray_channels_open(int64_t capacity) {
+GrayChannel gray_channels_open(int64_t capacity) {
     if (capacity < 1) capacity = 1;
-    EzChannelInternal *ch = malloc(sizeof(EzChannelInternal));
+    GrayChannelInternal *ch = malloc(sizeof(GrayChannelInternal));
     ch->buffer = malloc(sizeof(int64_t) * (size_t)capacity);
     ch->capacity = capacity;
     ch->count = 0;
@@ -35,13 +36,13 @@ EzChannel gray_channels_open(int64_t capacity) {
     pthread_mutex_init(&ch->mutex, NULL);
     pthread_cond_init(&ch->not_full, NULL);
     pthread_cond_init(&ch->not_empty, NULL);
-    EzChannel result;
+    GrayChannel result;
     result._internal = ch;
     return result;
 }
 
-void gray_channels_send(EzChannel handle, int64_t value) {
-    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+void gray_channels_send(GrayChannel handle, int64_t value) {
+    GrayChannelInternal *ch = (GrayChannelInternal *)handle._internal;
     if (!ch || ch->closed) return;
 
     pthread_mutex_lock(&ch->mutex);
@@ -59,8 +60,8 @@ void gray_channels_send(EzChannel handle, int64_t value) {
     pthread_mutex_unlock(&ch->mutex);
 }
 
-int64_t gray_channels_receive(EzChannel handle) {
-    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+int64_t gray_channels_receive(GrayChannel handle) {
+    GrayChannelInternal *ch = (GrayChannelInternal *)handle._internal;
     if (!ch) return 0;
 
     pthread_mutex_lock(&ch->mutex);
@@ -79,8 +80,8 @@ int64_t gray_channels_receive(EzChannel handle) {
     return value;
 }
 
-bool gray_channels_try_send(EzChannel handle, int64_t value) {
-    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+bool gray_channels_try_send(GrayChannel handle, int64_t value) {
+    GrayChannelInternal *ch = (GrayChannelInternal *)handle._internal;
     if (!ch || ch->closed) return false;
 
     pthread_mutex_lock(&ch->mutex);
@@ -96,9 +97,9 @@ bool gray_channels_try_send(EzChannel handle, int64_t value) {
     return true;
 }
 
-EzChannelTryRecv gray_channels_try_receive(EzChannel handle) {
-    EzChannelTryRecv result = {0, false};
-    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+GrayChannelTryRecv gray_channels_try_receive(GrayChannel handle) {
+    GrayChannelTryRecv result = {0, false};
+    GrayChannelInternal *ch = (GrayChannelInternal *)handle._internal;
     if (!ch) return result;
 
     pthread_mutex_lock(&ch->mutex);
@@ -115,8 +116,8 @@ EzChannelTryRecv gray_channels_try_receive(EzChannel handle) {
     return result;
 }
 
-void gray_channels_close(EzChannel handle) {
-    EzChannelInternal *ch = (EzChannelInternal *)handle._internal;
+void gray_channels_close(GrayChannel handle) {
+    GrayChannelInternal *ch = (GrayChannelInternal *)handle._internal;
     if (!ch) return;
 
     pthread_mutex_lock(&ch->mutex);

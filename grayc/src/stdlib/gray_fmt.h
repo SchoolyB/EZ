@@ -1,8 +1,9 @@
 /*
- * gray_fmt.h - @fmt module for EZ (formatted output)
+ * gray_fmt.h — Public interface for the fmt stdlib module.
+ * Declares string padding, centering, printf/sprintf-style formatted
+ * output, and numeric base conversion functions.
  *
- * EZC-only module for C-style formatted I/O.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -15,7 +16,7 @@
 
 /*
  * fmt.printf and fmt.sprintf are handled directly by the codegen —
- * the compiler translates EZ format strings to C printf format strings
+ * the compiler translates Grayscale format strings to C printf format strings
  * at compile time, so no runtime function is needed for those.
  *
  * These helpers are for operations that need runtime support.
@@ -118,7 +119,7 @@
  *   println(fmt.pad_left("42", 5, '0'))
  *@end
  */
-EzString gray_fmt_pad_left(EzArena *arena, EzString s, int64_t width, char ch);
+GrayString gray_fmt_pad_left(GrayArena *arena, GrayString s, int64_t width, char ch);
 
 /*@man pad_right
  *@module fmt
@@ -130,7 +131,7 @@ EzString gray_fmt_pad_left(EzArena *arena, EzString s, int64_t width, char ch);
  *   println(fmt.pad_right("hi", 6, '.'))
  *@end
  */
-EzString gray_fmt_pad_right(EzArena *arena, EzString s, int64_t width, char ch);
+GrayString gray_fmt_pad_right(GrayArena *arena, GrayString s, int64_t width, char ch);
 
 /*@man center
  *@module fmt
@@ -142,7 +143,7 @@ EzString gray_fmt_pad_right(EzArena *arena, EzString s, int64_t width, char ch);
  *   println(fmt.center("hi", 8, '-'))
  *@end
  */
-EzString gray_fmt_center(EzArena *arena, EzString s, int64_t width, char ch);
+GrayString gray_fmt_center(GrayArena *arena, GrayString s, int64_t width, char ch);
 
 /*@man int_to_hex
  *@module fmt
@@ -154,7 +155,7 @@ EzString gray_fmt_center(EzArena *arena, EzString s, int64_t width, char ch);
  *   println(fmt.int_to_hex(255))
  *@end
  */
-EzString gray_fmt_int_to_hex(EzArena *arena, int64_t n);
+GrayString gray_fmt_int_to_hex(GrayArena *arena, int64_t n);
 
 /*@man int_to_binary
  *@module fmt
@@ -166,7 +167,7 @@ EzString gray_fmt_int_to_hex(EzArena *arena, int64_t n);
  *   println(fmt.int_to_binary(10))
  *@end
  */
-EzString gray_fmt_int_to_binary(EzArena *arena, int64_t n);
+GrayString gray_fmt_int_to_binary(GrayArena *arena, int64_t n);
 
 /*@man int_to_octal
  *@module fmt
@@ -178,7 +179,7 @@ EzString gray_fmt_int_to_binary(EzArena *arena, int64_t n);
  *   println(fmt.int_to_octal(8))
  *@end
  */
-EzString gray_fmt_int_to_octal(EzArena *arena, int64_t n);
+GrayString gray_fmt_int_to_octal(GrayArena *arena, int64_t n);
 
 /*@man float_fixed
  *@module fmt
@@ -190,7 +191,7 @@ EzString gray_fmt_int_to_octal(EzArena *arena, int64_t n);
  *   println(fmt.float_fixed(3.14159, 2))
  *@end
  */
-EzString gray_fmt_float_fixed(EzArena *arena, double f, int64_t decimals);
+GrayString gray_fmt_float_fixed(GrayArena *arena, double f, int64_t decimals);
 
 /*@man float_sci
  *@module fmt
@@ -202,6 +203,6 @@ EzString gray_fmt_float_fixed(EzArena *arena, double f, int64_t decimals);
  *   println(fmt.float_sci(0.000123))
  *@end
  */
-EzString gray_fmt_float_sci(EzArena *arena, double f);
+GrayString gray_fmt_float_sci(GrayArena *arena, double f);
 
 #endif

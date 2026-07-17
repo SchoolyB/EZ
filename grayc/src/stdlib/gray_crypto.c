@@ -1,8 +1,9 @@
 /*
- * gray_crypto.c - @crypto module implementation
+ * gray_crypto.c — Implementation of the crypto stdlib module.
+ * Embedded SHA-256 and MD5 hash functions plus CSPRNG-backed
+ * random hex generation, with no external dependencies.
  *
- * Embedded SHA-256 and MD5. No external dependencies.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -38,7 +39,7 @@ static uint32_t sha256_k[64] = {
 #define SIG0(x) (ROTR(x,7)^ROTR(x,18)^((x)>>3))
 #define SIG1(x) (ROTR(x,17)^ROTR(x,19)^((x)>>10))
 
-EzString gray_crypto_sha256(EzArena *arena, EzString data) {
+GrayString gray_crypto_sha256(GrayArena *arena, GrayString data) {
     uint32_t h[8] = {
         0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
         0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19
@@ -75,7 +76,7 @@ EzString gray_crypto_sha256(EzArena *arena, EzString data) {
     for (int i = 0; i < 8; i++)
         snprintf(hex + i*8, 9, "%08x", h[i]);
     hex[64] = '\0';
-    EzString r = { hex, 64 };
+    GrayString r = { hex, 64 };
     return r;
 }
 
@@ -88,7 +89,7 @@ EzString gray_crypto_sha256(EzArena *arena, EzString data) {
 #define ROTL(x,n) (((x)<<(n))|((x)>>(32-(n))))
 
 /* WARNING: MD5 is cryptographically broken. See gray_crypto.h for details. */
-EzString gray_crypto_md5(EzArena *arena, EzString data) {
+GrayString gray_crypto_md5(GrayArena *arena, GrayString data) {
     uint32_t a0=0x67452301, b0=0xefcdab89, c0=0x98badcfe, d0=0x10325476;
     static const uint32_t s[64] = {
         7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,
@@ -138,18 +139,18 @@ EzString gray_crypto_md5(EzArena *arena, EzString data) {
     memcpy(digest+8, &c0, 4); memcpy(digest+12, &d0, 4);
     for (int i = 0; i < 16; i++) snprintf(hex + i*2, 3, "%02x", digest[i]);
     hex[32] = '\0';
-    EzString r = { hex, 32 };
+    GrayString r = { hex, 32 };
     return r;
 }
 
-EzString gray_crypto_random_hex(EzArena *arena, int64_t length) {
+GrayString gray_crypto_random_hex(GrayArena *arena, int64_t length) {
     if (length < 0) {
         gray_panic_code("P0051", "crypto.random_hex: length must be non-negative (got %lld)", (long long)length);
     }
     if (length == 0) {
         char *empty = gray_arena_alloc(arena, 1);
         empty[0] = '\0';
-        return (EzString){empty, 0};
+        return (GrayString){empty, 0};
     }
 
     int64_t nbytes = (length + 1) / 2;
@@ -173,5 +174,5 @@ EzString gray_crypto_random_hex(EzArena *arena, int64_t length) {
         hex[i] = hex_chars[nibble];
     }
     hex[length] = '\0';
-    return (EzString){hex, (int32_t)length};
+    return (GrayString){hex, (int32_t)length};
 }

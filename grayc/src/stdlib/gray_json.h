@@ -1,8 +1,9 @@
 /*
- * gray_json.h - @json module for EZ
+ * gray_json.h — Public interface for the json stdlib module.
+ * Declares JSON parsing, stringification, field access, and
+ * validation functions.
  *
- * Minimal JSON parser and emitter.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -15,8 +16,8 @@
 #include "../runtime/gray_map.h"
 
 /* JSON string escaping helpers (used by generated #json struct code) */
-size_t json_escaped_len(EzString s);
-void json_append_escaped(char *buf, int *pos, EzString s);
+size_t json_escaped_len(GrayString s);
+void json_append_escaped(char *buf, int *pos, GrayString s);
 
 /*@man encode
  *@module json
@@ -34,18 +35,18 @@ void json_append_escaped(char *buf, int *pos, EzString s);
  *@end
  */
 /* json.encode(value) — convert map to JSON string */
-EzString gray_json_encode_map(EzArena *arena, EzMap *m);
+GrayString gray_json_encode_map(GrayArena *arena, GrayMap *m);
 
 /* json.encode(array) — convert typed arrays to JSON */
-EzString gray_json_encode_array_int(EzArena *arena, EzArray *arr);
-EzString gray_json_encode_array_float(EzArena *arena, EzArray *arr);
-EzString gray_json_encode_array_string(EzArena *arena, EzArray *arr);
-EzString gray_json_encode_array_bool(EzArena *arena, EzArray *arr);
+GrayString gray_json_encode_array_int(GrayArena *arena, GrayArray *arr);
+GrayString gray_json_encode_array_float(GrayArena *arena, GrayArray *arr);
+GrayString gray_json_encode_array_string(GrayArena *arena, GrayArray *arr);
+GrayString gray_json_encode_array_bool(GrayArena *arena, GrayArray *arr);
 
 /* json.encode(map) — convert typed maps to JSON */
-EzString gray_json_encode_map_int(EzArena *arena, EzMap *m);
-EzString gray_json_encode_map_float(EzArena *arena, EzMap *m);
-EzString gray_json_encode_map_bool(EzArena *arena, EzMap *m);
+GrayString gray_json_encode_map_int(GrayArena *arena, GrayMap *m);
+GrayString gray_json_encode_map_float(GrayArena *arena, GrayMap *m);
+GrayString gray_json_encode_map_bool(GrayArena *arena, GrayMap *m);
 
 /*@man stringify
  *@module json
@@ -79,7 +80,7 @@ EzString gray_json_encode_map_bool(EzArena *arena, EzMap *m);
  *@end
  */
 /* json.decode(text) — parse JSON string to map */
-EzMap gray_json_decode(EzArena *arena, EzString text);
+GrayMap gray_json_decode(GrayArena *arena, GrayString text);
 
 /*@man parse
  *@module json
@@ -113,7 +114,7 @@ EzMap gray_json_decode(EzArena *arena, EzString text);
  *@end
  */
 /* json.is_valid(text) — check if string is valid JSON */
-bool gray_json_is_valid(EzString text);
+bool gray_json_is_valid(GrayString text);
 
 /*@man pretty_print
  *@module json
@@ -127,15 +128,15 @@ bool gray_json_is_valid(EzString text);
  *@end
  */
 /* json.pretty(value, indent) — pretty-print JSON */
-EzString gray_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent);
+GrayString gray_json_pretty_map(GrayArena *arena, GrayMap *m, int64_t indent);
 
-/* json array splitting: returns an EzArray of EzString, each being one
+/* json array splitting: returns an GrayArray of GrayString, each being one
  * top-level JSON element from a JSON array string like "[{...},{...}]". */
-EzArray gray_json_split_array(EzArena *arena, EzString text);
+GrayArray gray_json_split_array(GrayArena *arena, GrayString text);
 
 /* _result variant */
-typedef struct { EzMap v0; EzError *v1; } EzResult_map;
+typedef struct { GrayMap v0; GrayError *v1; } GrayResult_map;
 
-EzResult_map gray_json_decode_result(EzArena *arena, EzString text);
+GrayResult_map gray_json_decode_result(GrayArena *arena, GrayString text);
 
 #endif

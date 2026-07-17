@@ -1,9 +1,9 @@
 /*
- * gray_sync.h - @sync module for EZ
+ * gray_sync.h — Public interface for the sync stdlib module.
+ * Declares mutex type and lock/unlock/try_lock operations built
+ * on POSIX pthreads.
  *
- * Synchronization primitives: mutex lock/unlock.
- * Built on POSIX pthreads.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -17,12 +17,12 @@
 
 typedef struct {
     void *_internal; /* pthread_mutex_t* */
-} EzMutex;
+} GrayMutex;
 
-EzMutex gray_sync_mutex(void);
-void gray_sync_lock(EzMutex m);
-void gray_sync_unlock(EzMutex m);
-bool gray_sync_try_lock(EzMutex m);
-void gray_sync_destroy(EzMutex m);
+GrayMutex gray_sync_mutex(void);
+void gray_sync_lock(GrayMutex m);
+void gray_sync_unlock(GrayMutex m);
+bool gray_sync_try_lock(GrayMutex m);
+void gray_sync_destroy(GrayMutex m);
 
 #endif

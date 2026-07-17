@@ -1,9 +1,9 @@
 /*
- * gray_map.h - Hash map type for EZ
+ * gray_map.h — Hash map type for the Grayscale runtime.
+ * Open-addressing hash table with linear probing, storing keys and
+ * values as fixed-size blobs with insertion-order tracking.
  *
- * Open-addressing hash table with linear probing.
- * Keys and values stored as fixed-size blobs.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -17,11 +17,11 @@
 #define GRAY_MAP_LOAD_NUM     3
 #define GRAY_MAP_LOAD_DEN     4
 
-/* Key-kind discriminator. Multiple EZ key types share a key_size
+/* Key-kind discriminator. Multiple Grayscale key types share a key_size
  * (e.g. int64/uint64/double/pointer all 8), so size alone cannot pick
  * the right hash/equality. Codegen tags each map with its kind. */
 #define GRAY_MAP_KEY_BYTES    0   /* int, bool, pointer, struct: bytewise */
-#define GRAY_MAP_KEY_STRING   1   /* EzString: hash content, not struct bytes */
+#define GRAY_MAP_KEY_STRING   1   /* GrayString: hash content, not struct bytes */
 #define GRAY_MAP_KEY_F32      2   /* f32: normalize -0.0 and NaN */
 #define GRAY_MAP_KEY_F64      3   /* f64/float: normalize -0.0 and NaN */
 
@@ -37,42 +37,42 @@ typedef struct {
     int32_t order_len;      /* number of entries in order array */
     int32_t iterating;      /* >0 while a for_each is active */
     int8_t  key_kind;       /* GRAY_MAP_KEY_* */
-} EzMap;
+} GrayMap;
 
-/* Create an empty map. Auto-detects EzString by key_size; defaults to
+/* Create an empty map. Auto-detects GrayString by key_size; defaults to
  * KEY_BYTES otherwise. Callers that need a specific kind (e.g. float
  * keys) should use gray_map_new_kind. */
-EzMap gray_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap);
+GrayMap gray_map_new(GrayArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap);
 
 /* Create an empty map with an explicit key kind. */
-EzMap gray_map_new_kind(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap, int8_t key_kind);
+GrayMap gray_map_new_kind(GrayArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap, int8_t key_kind);
 
 /* Get a pointer to the value for a key, or NULL if not found */
-void *gray_map_get(EzMap *m, const void *key);
+void *gray_map_get(GrayMap *m, const void *key);
 
 /* Set a key-value pair (inserts or updates) */
-void gray_map_set(EzArena *arena, EzMap *m, const void *key, const void *value);
+void gray_map_set(GrayArena *arena, GrayMap *m, const void *key, const void *value);
 
 /* Check if a key exists */
-bool gray_map_has(EzMap *m, const void *key);
+bool gray_map_has(GrayMap *m, const void *key);
 
 /* Remove a key */
-bool gray_map_remove(EzMap *m, const void *key);
+bool gray_map_remove(GrayMap *m, const void *key);
 
 /* Clear all entries */
-void gray_map_clear(EzMap *m);
+void gray_map_clear(GrayMap *m);
 
 /* String-keyed convenience functions */
-void *gray_map_get_str(EzMap *m, EzString key);
-void gray_map_set_str(EzArena *arena, EzMap *m, EzString key, const void *value);
+void *gray_map_get_str(GrayMap *m, GrayString key);
+void gray_map_set_str(GrayArena *arena, GrayMap *m, GrayString key, const void *value);
 
 /* Get key at internal index (for iteration) */
-void *gray_map_key_at(EzMap *m, int32_t internal_idx);
-void *gray_map_value_at(EzMap *m, int32_t internal_idx);
+void *gray_map_key_at(GrayMap *m, int32_t internal_idx);
+void *gray_map_value_at(GrayMap *m, int32_t internal_idx);
 
 /* Deep copy: allocate a fresh map with independent backing storage
  * (keys, values, states, order) so mutations to the copy do not affect
  * the original. */
-EzMap gray_map_copy(EzArena *arena, const EzMap *src);
+GrayMap gray_map_copy(GrayArena *arena, const GrayMap *src);
 
 #endif

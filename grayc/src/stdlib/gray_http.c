@@ -1,9 +1,9 @@
 /*
- * gray_http.c - @http module implementation
+ * gray_http.c — Implementation of the http stdlib module.
+ * Minimal HTTP/1.1 client using raw POSIX sockets with support for
+ * GET, POST, PUT, DELETE, and custom headers. No TLS.
  *
- * Minimal HTTP/1.1 client using raw POSIX sockets.
- * No TLS support in this initial version — HTTP only.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -23,8 +23,8 @@
 #define GRAY_HTTP_RESP_BUF        1048576
 #define GRAY_HTTP_MIN_RESP_LEN    12
 
-/* Helper: null-terminate an EzString */
-static const char *http_cstr(EzString s, char *buf, size_t bufsz) {
+/* Helper: null-terminate an GrayString */
+static const char *http_cstr(GrayString s, char *buf, size_t bufsz) {
     size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
     memcpy(buf, s.data, len);
     buf[len] = '\0';
@@ -88,11 +88,11 @@ static bool parse_url(const char *url, char *host, size_t host_sz,
 }
 
 /* Parse HTTP response: extract status code, headers, body */
-static EzHttpResponse parse_response(EzArena *arena, const char *data, int data_len) {
-    EzHttpResponse resp;
+static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int data_len) {
+    GrayHttpResponse resp;
     resp.status = 0;
-    resp.body = (EzString){"", 0};
-    resp.headers = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 16);
+    resp.body = (GrayString){"", 0};
+    resp.headers = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 16);
 
     if (data_len < GRAY_HTTP_MIN_RESP_LEN) return resp;
 
@@ -127,8 +127,8 @@ static EzHttpResponse parse_response(EzArena *arena, const char *data, int data_
             int32_t vlen = (int32_t)(eol - vstart);
             if (vlen > 0 && vstart[vlen - 1] == '\r') vlen--;
 
-            EzString key = gray_string_new(arena, line, klen);
-            EzString val = gray_string_new(arena, vstart, vlen);
+            GrayString key = gray_string_new(arena, line, klen);
+            GrayString val = gray_string_new(arena, vstart, vlen);
             gray_map_set(arena, &resp.headers, &key, &val);
         }
         line = eol + 1;
@@ -146,12 +146,12 @@ static EzHttpResponse parse_response(EzArena *arena, const char *data, int data_
 }
 
 /* Core HTTP request function */
-static EzHttpResponse do_request(EzArena *arena, const char *method,
-                                  EzString url, EzString body, EzMap *custom_headers) {
-    EzHttpResponse err_resp;
+static GrayHttpResponse do_request(GrayArena *arena, const char *method,
+                                  GrayString url, GrayString body, GrayMap *custom_headers) {
+    GrayHttpResponse err_resp;
     err_resp.status = 0;
-    err_resp.body = (EzString){"", 0};
-    err_resp.headers = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 4);
+    err_resp.body = (GrayString){"", 0};
+    err_resp.headers = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 4);
 
     char url_buf[GRAY_HTTP_URL_BUF];
     http_cstr(url, url_buf, sizeof(url_buf));
@@ -171,8 +171,8 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     }
 
     /* Connect */
-    EzString host_str = gray_string_new(arena, host, (int32_t)strlen(host));
-    EzSocket sock = gray_net_dial(arena, host_str, port);
+    GrayString host_str = gray_string_new(arena, host, (int32_t)strlen(host));
+    GraySocket sock = gray_net_dial(arena, host_str, port);
     if (sock.fd < 0) {
         err_resp.body = gray_string_new(arena, "connection failed", 17);
         return err_resp;
@@ -206,8 +206,8 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
         for (int32_t i = 0; i < custom_headers->order_len; i++) {
             int32_t slot = custom_headers->order[i];
             if (slot < 0) continue;
-            EzString *k = (EzString *)gray_map_key_at(custom_headers, slot);
-            EzString *v = (EzString *)gray_map_value_at(custom_headers, slot);
+            GrayString *k = (GrayString *)gray_map_key_at(custom_headers, slot);
+            GrayString *v = (GrayString *)gray_map_value_at(custom_headers, slot);
             if (!k || !v) continue;
             int n = snprintf(hdr + hdr_len, sizeof(hdr) - (size_t)hdr_len,
                 "%.*s: %.*s\r\n", (int)k->len, k->data, (int)v->len, v->data);
@@ -228,7 +228,7 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
         return err_resp;
     }
 
-    EzString hdr_str = {hdr, (int32_t)hdr_len};
+    GrayString hdr_str = {hdr, (int32_t)hdr_len};
     gray_net_send(sock, hdr_str);
     if (body.data && body.len > 0) {
         gray_net_send(sock, body);
@@ -242,7 +242,7 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
     }
     int total = 0;
     while (total < GRAY_HTTP_RESP_BUF - 1) {
-        EzString chunk = gray_net_recv(arena, sock, GRAY_HTTP_RESP_BUF - total);
+        GrayString chunk = gray_net_recv(arena, sock, GRAY_HTTP_RESP_BUF - total);
         if (chunk.len <= 0) break;
         memcpy(resp_buf + total, chunk.data, (size_t)chunk.len);
         total += chunk.len;
@@ -251,39 +251,39 @@ static EzHttpResponse do_request(EzArena *arena, const char *method,
 
     gray_net_close(sock);
 
-    EzHttpResponse result = parse_response(arena, resp_buf, total);
+    GrayHttpResponse result = parse_response(arena, resp_buf, total);
     free(resp_buf);
     return result;
 }
 
-EzHttpResponse gray_http_get(EzArena *arena, EzString url, EzMap *headers) {
-    return do_request(arena, "GET", url, (EzString){"", 0}, headers);
+GrayHttpResponse gray_http_get(GrayArena *arena, GrayString url, GrayMap *headers) {
+    return do_request(arena, "GET", url, (GrayString){"", 0}, headers);
 }
 
-EzHttpResponse gray_http_post(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+GrayHttpResponse gray_http_post(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
     return do_request(arena, "POST", url, body, headers);
 }
 
-EzHttpResponse gray_http_put(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+GrayHttpResponse gray_http_put(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
     return do_request(arena, "PUT", url, body, headers);
 }
 
-EzHttpResponse gray_http_delete(EzArena *arena, EzString url, EzMap *headers) {
-    return do_request(arena, "DELETE", url, (EzString){"", 0}, headers);
+GrayHttpResponse gray_http_delete(GrayArena *arena, GrayString url, GrayMap *headers) {
+    return do_request(arena, "DELETE", url, (GrayString){"", 0}, headers);
 }
 
-EzHttpResponse gray_http_head(EzArena *arena, EzString url, EzMap *headers) {
-    return do_request(arena, "HEAD", url, (EzString){"", 0}, headers);
+GrayHttpResponse gray_http_head(GrayArena *arena, GrayString url, GrayMap *headers) {
+    return do_request(arena, "HEAD", url, (GrayString){"", 0}, headers);
 }
 
-EzHttpResponse gray_http_patch(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+GrayHttpResponse gray_http_patch(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
     return do_request(arena, "PATCH", url, body, headers);
 }
 
 /* _result variants — status==0 indicates connection/request failure */
 
-static EzResult_http http_result(EzArena *arena, EzHttpResponse resp, const char *method, EzString url) {
-    EzResult_http r;
+static GrayResult_http http_result(GrayArena *arena, GrayHttpResponse resp, const char *method, GrayString url) {
+    GrayResult_http r;
     r.v0 = resp;
     if (resp.status == 0) {
         r.v1 = gray_error_new(arena, gray_string_format(arena, "HTTP %s failed: %.*s",
@@ -294,26 +294,26 @@ static EzResult_http http_result(EzArena *arena, EzHttpResponse resp, const char
     return r;
 }
 
-EzResult_http gray_http_get_result(EzArena *arena, EzString url, EzMap *headers) {
+GrayResult_http gray_http_get_result(GrayArena *arena, GrayString url, GrayMap *headers) {
     return http_result(arena, gray_http_get(arena, url, headers), "GET", url);
 }
 
-EzResult_http gray_http_post_result(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+GrayResult_http gray_http_post_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
     return http_result(arena, gray_http_post(arena, url, body, headers), "POST", url);
 }
 
-EzResult_http gray_http_put_result(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+GrayResult_http gray_http_put_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
     return http_result(arena, gray_http_put(arena, url, body, headers), "PUT", url);
 }
 
-EzResult_http gray_http_delete_result(EzArena *arena, EzString url, EzMap *headers) {
+GrayResult_http gray_http_delete_result(GrayArena *arena, GrayString url, GrayMap *headers) {
     return http_result(arena, gray_http_delete(arena, url, headers), "DELETE", url);
 }
 
-EzResult_http gray_http_head_result(EzArena *arena, EzString url, EzMap *headers) {
+GrayResult_http gray_http_head_result(GrayArena *arena, GrayString url, GrayMap *headers) {
     return http_result(arena, gray_http_head(arena, url, headers), "HEAD", url);
 }
 
-EzResult_http gray_http_patch_result(EzArena *arena, EzString url, EzString body, EzMap *headers) {
+GrayResult_http gray_http_patch_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
     return http_result(arena, gray_http_patch(arena, url, body, headers), "PATCH", url);
 }

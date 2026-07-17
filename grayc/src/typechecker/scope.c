@@ -1,6 +1,8 @@
 /*
- * scope.c - Lexical scope and symbol table
+ * scope.c — Manages lexical scopes and the symbol table, providing variable
+ * declaration, lookup, and scope push/pop operations for the type checker.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -48,7 +50,7 @@ Scope *scope_create(Scope *parent) {
     return s;
 }
 
-void scope_define(Scope *s, const char *name, EzType *type, bool mutable) {
+void scope_define(Scope *s, const char *name, GrayType *type, bool mutable) {
     /* Check for redefinition in current scope */
     Symbol *existing = scope_lookup_local(s, name);
     if (existing) {

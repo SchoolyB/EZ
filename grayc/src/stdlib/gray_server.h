@@ -1,9 +1,9 @@
 /*
- * gray_server.h - @server module for EZ
+ * gray_server.h — Public interface for the server stdlib module.
+ * Declares HTTP server types, routing, path parameters, CORS
+ * configuration, and handler function signatures.
  *
- * HTTP server with routing, path params, and handler functions.
- * Uses @net for sockets and @threads for concurrency.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -35,13 +35,13 @@
  */
 /* Request struct passed to handlers */
 typedef struct {
-    EzString method;
-    EzString path;
-    EzString body;
-    EzMap query;       /* map[string:string] */
-    EzMap headers;     /* map[string:string] */
-    EzMap params;      /* map[string:string] — path params from :id patterns */
-} EzRequest;
+    GrayString method;
+    GrayString path;
+    GrayString body;
+    GrayMap query;       /* map[string:string] */
+    GrayMap headers;     /* map[string:string] */
+    GrayMap params;      /* map[string:string] — path params from :id patterns */
+} GrayRequest;
 
 /*@man HttpResponse
  *@module server
@@ -61,19 +61,19 @@ typedef struct {
 /* Response struct returned by handlers */
 typedef struct {
     int64_t status;
-    EzString body;
-    EzString content_type;
-} EzResponse;
+    GrayString body;
+    GrayString content_type;
+} GrayResponse;
 
 /* Route entry */
 typedef struct {
     const char *method;
     const char *pattern;
-    EzResponse (*handler)(EzRequest);
-} EzRoute;
+    GrayResponse (*handler)(GrayRequest);
+} GrayRoute;
 
 /* Middleware function pointer */
-typedef void (*EzMiddleware)(EzRequest *req, EzResponse *resp);
+typedef void (*GrayMiddleware)(GrayRequest *req, GrayResponse *resp);
 
 /*@man Router
  *@module server
@@ -89,14 +89,14 @@ typedef void (*EzMiddleware)(EzRequest *req, EzResponse *resp);
  */
 /* Router — holds registered routes */
 typedef struct {
-    EzRoute *routes;
+    GrayRoute *routes;
     int count;
     int capacity;
     const char *cors_origin;    /* NULL = no CORS */
-    EzMiddleware *middlewares;
+    GrayMiddleware *middlewares;
     int mw_count;
     int mw_capacity;
-} EzRouter;
+} GrayRouter;
 
 /*@man add_router
  *@module server
@@ -109,7 +109,7 @@ typedef struct {
  *@end
  */
 /* Create a new router */
-EzRouter gray_server_router(void);
+GrayRouter gray_server_router(void);
 
 /*@man add_route
  *@module server
@@ -126,8 +126,8 @@ EzRouter gray_server_router(void);
  *@end
  */
 /* Register a route: server.route(router, method, pattern, handler) */
-void gray_server_route(EzRouter *r, EzString method, EzString pattern,
-                     EzResponse (*handler)(EzRequest));
+void gray_server_route(GrayRouter *r, GrayString method, GrayString pattern,
+                     GrayResponse (*handler)(GrayRequest));
 
 /*@man listen
  *@module server
@@ -142,8 +142,8 @@ void gray_server_route(EzRouter *r, EzString method, EzString pattern,
  *@end
  */
 /* Start listening — blocks until killed */
-void gray_server_listen(int64_t port, EzRouter *r);
-void gray_server_listen_host(int64_t port, EzString host, EzRouter *r);
+void gray_server_listen(int64_t port, GrayRouter *r);
+void gray_server_listen_host(int64_t port, GrayString host, GrayRouter *r);
 
 /*@man cors
  *@module server
@@ -157,7 +157,7 @@ void gray_server_listen_host(int64_t port, EzString host, EzRouter *r);
  *@end
  */
 /* Enable CORS with the given origin (e.g. "*" or "http://example.com") */
-void gray_server_cors(EzRouter *r, EzString origin);
+void gray_server_cors(GrayRouter *r, GrayString origin);
 
 /*@man use
  *@module server
@@ -171,7 +171,7 @@ void gray_server_cors(EzRouter *r, EzString origin);
  *@end
  */
 /* Register a middleware function */
-void gray_server_use(EzRouter *r, EzMiddleware fn);
+void gray_server_use(GrayRouter *r, GrayMiddleware fn);
 
 /*@man text
  *@module server
@@ -186,7 +186,7 @@ void gray_server_use(EzRouter *r, EzMiddleware fn);
  *@end
  */
 /* Response builders */
-EzResponse gray_server_text(int64_t status, EzString body);
+GrayResponse gray_server_text(int64_t status, GrayString body);
 
 /*@man json
  *@module server
@@ -200,7 +200,7 @@ EzResponse gray_server_text(int64_t status, EzString body);
  *   }
  *@end
  */
-EzResponse gray_server_json(int64_t status, EzString body);
+GrayResponse gray_server_json(int64_t status, GrayString body);
 
 /*@man html
  *@module server
@@ -214,7 +214,7 @@ EzResponse gray_server_json(int64_t status, EzString body);
  *   }
  *@end
  */
-EzResponse gray_server_html(int64_t status, EzString body);
+GrayResponse gray_server_html(int64_t status, GrayString body);
 
 /*@man redirect
  *@module server
@@ -228,6 +228,6 @@ EzResponse gray_server_html(int64_t status, EzString body);
  *   }
  *@end
  */
-EzResponse gray_server_redirect(int64_t status, EzString location);
+GrayResponse gray_server_redirect(int64_t status, GrayString location);
 
 #endif

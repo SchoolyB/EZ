@@ -1,4 +1,4 @@
-// main.ez - HTTP client with GET and POST examples.
+// main.gray - HTTP client with GET and POST examples.
 //
 // Demonstrates a simple GET request and a POST with a JSON body.
 // Errors surface as a non-nil Error; check against nil before use.
@@ -17,7 +17,7 @@ do main() {
     println("GET Status: ${resp.status}")
     println("GET Body: ${resp.body}")
 
-    mut payload map[string:string] = {"title": "Hello from EZ!", "body": "This is a test post."}
+    mut payload map[string:string] = {"title": "Hello from Grayscale!", "body": "This is a test post."}
     mut post_resp, post_err = http.post("http://httpbin.org/post", json.encode(payload))
     if post_err != nil {
         println("POST failed.")

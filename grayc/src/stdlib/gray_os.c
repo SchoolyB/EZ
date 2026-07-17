@@ -1,6 +1,9 @@
 /*
- * gray_os.c - @os module implementation
+ * gray_os.c — Implementation of the os stdlib module.
+ * Provides access to command-line args, environment variables,
+ * working directory, hostname, process execution, and signal handling.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -30,30 +33,30 @@ void gray_os_init(int argc, char **argv) {
     _os_argv = argv;
 }
 
-EzArray gray_os_args(EzArena *arena) {
-    EzArray arr = gray_array_new(arena, sizeof(EzString), _os_argc > 0 ? _os_argc : 1);
+GrayArray gray_os_args(GrayArena *arena) {
+    GrayArray arr = gray_array_new(arena, sizeof(GrayString), _os_argc > 0 ? _os_argc : 1);
     for (int i = 0; i < _os_argc; i++) {
-        EzString s = gray_string_new(arena, _os_argv[i], (int32_t)strlen(_os_argv[i]));
+        GrayString s = gray_string_new(arena, _os_argv[i], (int32_t)strlen(_os_argv[i]));
         gray_array_push(arena, &arr, &s);
     }
     return arr;
 }
 
-EzString gray_os_get_env(EzArena *arena, EzString name) {
+GrayString gray_os_get_env(GrayArena *arena, GrayString name) {
     const char *val = getenv(name.data);
     if (!val) return gray_string_lit("");
     return gray_string_new(arena, val, (int32_t)strlen(val));
 }
 
-void gray_os_set_env(EzString name, EzString value) {
+void gray_os_set_env(GrayString name, GrayString value) {
     setenv(name.data, value.data, 1);
 }
 
-void gray_os_unset_env(EzString name) {
+void gray_os_unset_env(GrayString name) {
     unsetenv(name.data);
 }
 
-EzString gray_os_cwd(EzArena *arena) {
+GrayString gray_os_cwd(GrayArena *arena) {
     char buf[PATH_MAX];
     if (getcwd(buf, sizeof(buf))) {
         return gray_string_new(arena, buf, (int32_t)strlen(buf));
@@ -61,7 +64,7 @@ EzString gray_os_cwd(EzArena *arena) {
     return gray_string_lit("");
 }
 
-EzString gray_os_hostname(EzArena *arena) {
+GrayString gray_os_hostname(GrayArena *arena) {
     char buf[GRAY_HOSTNAME_BUF];
     if (gethostname(buf, sizeof(buf)) == 0) {
         return gray_string_new(arena, buf, (int32_t)strlen(buf));
@@ -81,7 +84,7 @@ int64_t gray_os_current_os(void) {
 #endif
 }
 
-EzString gray_os_arch(void) {
+GrayString gray_os_arch(void) {
 #if defined(__aarch64__) || defined(__arm64__)
     return gray_string_lit("arm64");
 #elif defined(__x86_64__) || defined(__amd64__)
@@ -99,15 +102,15 @@ int64_t gray_os_pid(void) {
     return (int64_t)getpid();
 }
 
-EzOsExecResult gray_os_exec(EzArena *arena, EzString cmd, EzArray args) {
-    EzOsExecResult fail = {0, gray_string_lit(""), gray_string_lit(""), false};
+GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString cmd, GrayArray args) {
+    GrayOsExecResult fail = {0, gray_string_lit(""), gray_string_lit(""), false};
 
     /* Build null-terminated argv: argv[0] = cmd, argv[1..n] = args, argv[n+1] = NULL */
     int argc = 1 + args.len;
     char **argv = gray_arena_alloc(arena, sizeof(char *) * (size_t)(argc + 1));
     argv[0] = (char *)cmd.data;
     for (int i = 0; i < args.len; i++) {
-        EzString s = GRAY_ARRAY_GET(args, EzString, i);
+        GrayString s = GRAY_ARRAY_GET(args, GrayString, i);
         argv[1 + i] = (char *)s.data;
     }
     argv[argc] = NULL;
@@ -223,9 +226,9 @@ EzOsExecResult gray_os_exec(EzArena *arena, EzString cmd, EzArray args) {
     /* exit_code 127 means execvp failed (command not found / bad path) */
     if (exit_code == 127 || truncated) return fail;
 
-    EzString stdout_str = gray_string_new(arena, out_buf, (int32_t)out_total);
-    EzString stderr_str = gray_string_new(arena, err_buf, (int32_t)err_total);
-    EzOsExecResult r = {(int64_t)exit_code, stdout_str, stderr_str, true};
+    GrayString stdout_str = gray_string_new(arena, out_buf, (int32_t)out_total);
+    GrayString stderr_str = gray_string_new(arena, err_buf, (int32_t)err_total);
+    GrayOsExecResult r = {(int64_t)exit_code, stdout_str, stderr_str, true};
     return r;
 }
 

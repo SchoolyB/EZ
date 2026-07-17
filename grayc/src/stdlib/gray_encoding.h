@@ -1,6 +1,8 @@
 /*
- * gray_encoding.h - @encoding module for EZ
+ * gray_encoding.h — Public interface for the encoding stdlib module.
+ * Declares base64, hex, and URL encode/decode functions.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -10,11 +12,11 @@
 
 #include "../runtime/gray_runtime.h"
 
-EzString gray_encoding_base64_encode(EzArena *arena, EzString s);
-EzString gray_encoding_base64_decode(EzArena *arena, EzString s);
-EzString gray_encoding_hex_encode(EzArena *arena, EzString s);
-EzString gray_encoding_hex_decode(EzArena *arena, EzString s);
-EzString gray_encoding_url_encode(EzArena *arena, EzString s);
-EzString gray_encoding_url_decode(EzArena *arena, EzString s);
+GrayString gray_encoding_base64_encode(GrayArena *arena, GrayString s);
+GrayString gray_encoding_base64_decode(GrayArena *arena, GrayString s);
+GrayString gray_encoding_hex_encode(GrayArena *arena, GrayString s);
+GrayString gray_encoding_hex_decode(GrayArena *arena, GrayString s);
+GrayString gray_encoding_url_encode(GrayArena *arena, GrayString s);
+GrayString gray_encoding_url_decode(GrayArena *arena, GrayString s);
 
 #endif

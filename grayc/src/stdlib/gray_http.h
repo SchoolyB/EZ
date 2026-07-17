@@ -1,8 +1,8 @@
 /*
- * gray_http.h - @http module for EZ
+ * gray_http.h — Public interface for the http stdlib module.
+ * HTTP/1.1 client using raw sockets with no libcurl dependency.
  *
- * HTTP client using raw sockets (no libcurl dependency).
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -31,9 +31,9 @@
 /* HTTP response: status code, body, headers */
 typedef struct {
     int64_t status;
-    EzString body;
-    EzMap headers;
-} EzHttpResponse;
+    GrayString body;
+    GrayMap headers;
+} GrayHttpResponse;
 
 /*@man get
  *@module http
@@ -115,21 +115,21 @@ typedef struct {
  */
 
 /* HTTP methods */
-EzHttpResponse gray_http_get(EzArena *arena, EzString url, EzMap *headers);
-EzHttpResponse gray_http_post(EzArena *arena, EzString url, EzString body, EzMap *headers);
-EzHttpResponse gray_http_put(EzArena *arena, EzString url, EzString body, EzMap *headers);
-EzHttpResponse gray_http_delete(EzArena *arena, EzString url, EzMap *headers);
-EzHttpResponse gray_http_head(EzArena *arena, EzString url, EzMap *headers);
-EzHttpResponse gray_http_patch(EzArena *arena, EzString url, EzString body, EzMap *headers);
+GrayHttpResponse gray_http_get(GrayArena *arena, GrayString url, GrayMap *headers);
+GrayHttpResponse gray_http_post(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers);
+GrayHttpResponse gray_http_put(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers);
+GrayHttpResponse gray_http_delete(GrayArena *arena, GrayString url, GrayMap *headers);
+GrayHttpResponse gray_http_head(GrayArena *arena, GrayString url, GrayMap *headers);
+GrayHttpResponse gray_http_patch(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers);
 
 /* _result variants */
-typedef struct { EzHttpResponse v0; EzError *v1; } EzResult_http;
+typedef struct { GrayHttpResponse v0; GrayError *v1; } GrayResult_http;
 
-EzResult_http gray_http_get_result(EzArena *arena, EzString url, EzMap *headers);
-EzResult_http gray_http_post_result(EzArena *arena, EzString url, EzString body, EzMap *headers);
-EzResult_http gray_http_put_result(EzArena *arena, EzString url, EzString body, EzMap *headers);
-EzResult_http gray_http_delete_result(EzArena *arena, EzString url, EzMap *headers);
-EzResult_http gray_http_head_result(EzArena *arena, EzString url, EzMap *headers);
-EzResult_http gray_http_patch_result(EzArena *arena, EzString url, EzString body, EzMap *headers);
+GrayResult_http gray_http_get_result(GrayArena *arena, GrayString url, GrayMap *headers);
+GrayResult_http gray_http_post_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers);
+GrayResult_http gray_http_put_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers);
+GrayResult_http gray_http_delete_result(GrayArena *arena, GrayString url, GrayMap *headers);
+GrayResult_http gray_http_head_result(GrayArena *arena, GrayString url, GrayMap *headers);
+GrayResult_http gray_http_patch_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers);
 
 #endif

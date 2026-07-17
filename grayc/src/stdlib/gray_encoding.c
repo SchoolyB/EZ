@@ -1,6 +1,9 @@
 /*
- * gray_encoding.c - @encoding module implementation
+ * gray_encoding.c — Implementation of the encoding stdlib module.
+ * Provides base64, hex, and URL encode/decode transformations on
+ * Grayscale strings.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -12,7 +15,7 @@
 
 static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-EzString gray_encoding_base64_encode(EzArena *arena, EzString s) {
+GrayString gray_encoding_base64_encode(GrayArena *arena, GrayString s) {
     int32_t out_len = ((s.len + 2) / 3) * 4;
     char *out = gray_arena_alloc(arena, (size_t)out_len + 1);
     int j = 0;
@@ -27,7 +30,7 @@ EzString gray_encoding_base64_encode(EzArena *arena, EzString s) {
         out[j++] = (i + 2 < s.len) ? b64_table[triple & 0x3F] : '=';
     }
     out[j] = '\0';
-    EzString r = { out, (int32_t)j };
+    GrayString r = { out, (int32_t)j };
     return r;
 }
 
@@ -40,7 +43,7 @@ static int b64_val(char c) {
     return -1;
 }
 
-EzString gray_encoding_base64_decode(EzArena *arena, EzString s) {
+GrayString gray_encoding_base64_decode(GrayArena *arena, GrayString s) {
     if (s.len == 0) return gray_string_lit("");
     if (s.len % 4 != 0) {
         gray_panic_code("P0036",
@@ -87,22 +90,22 @@ EzString gray_encoding_base64_decode(EzArena *arena, EzString s) {
         if (!d_pad) out[j++] = (char)(triple & 0xFF);
     }
     out[j] = '\0';
-    EzString r = { out, j };
+    GrayString r = { out, j };
     return r;
 }
 
-EzString gray_encoding_hex_encode(EzArena *arena, EzString s) {
+GrayString gray_encoding_hex_encode(GrayArena *arena, GrayString s) {
     int32_t out_len = s.len * 2;
     char *out = gray_arena_alloc(arena, (size_t)out_len + 1);
     for (int i = 0; i < s.len; i++) {
         snprintf(out + i * 2, 3, "%02x", (uint8_t)s.data[i]);
     }
     out[out_len] = '\0';
-    EzString r = { out, out_len };
+    GrayString r = { out, out_len };
     return r;
 }
 
-EzString gray_encoding_hex_decode(EzArena *arena, EzString s) {
+GrayString gray_encoding_hex_decode(GrayArena *arena, GrayString s) {
     if (s.len % 2 != 0) {
         gray_panic_code("P0040", "encoding.hex_decode: input length %d is not even", s.len);
     }
@@ -119,11 +122,11 @@ EzString gray_encoding_hex_decode(EzArena *arena, EzString s) {
         out[i] = (char)((hi_v << 4) | lo_v);
     }
     out[out_len] = '\0';
-    EzString r = { out, out_len };
+    GrayString r = { out, out_len };
     return r;
 }
 
-EzString gray_encoding_url_encode(EzArena *arena, EzString s) {
+GrayString gray_encoding_url_encode(GrayArena *arena, GrayString s) {
     /* Worst case: every char becomes %XX (3x) */
     char *out = gray_arena_alloc(arena, (size_t)s.len * 3 + 1);
     int j = 0;
@@ -136,11 +139,11 @@ EzString gray_encoding_url_encode(EzArena *arena, EzString s) {
         }
     }
     out[j] = '\0';
-    EzString r = { out, (int32_t)j };
+    GrayString r = { out, (int32_t)j };
     return r;
 }
 
-EzString gray_encoding_url_decode(EzArena *arena, EzString s) {
+GrayString gray_encoding_url_decode(GrayArena *arena, GrayString s) {
     char *out = gray_arena_alloc(arena, (size_t)s.len + 1);
     int j = 0;
     for (int i = 0; i < s.len; i++) {
@@ -161,6 +164,6 @@ EzString gray_encoding_url_decode(EzArena *arena, EzString s) {
         }
     }
     out[j] = '\0';
-    EzString r = { out, (int32_t)j };
+    GrayString r = { out, (int32_t)j };
     return r;
 }

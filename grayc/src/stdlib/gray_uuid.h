@@ -1,6 +1,9 @@
 /*
- * gray_uuid.h - @uuid module for EZ
+ * gray_uuid.h — Public interface for the uuid stdlib module.
+ * Declares UUID v4 generation, parsing, comparison, and
+ * string conversion functions.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -11,16 +14,16 @@
 #include "../runtime/gray_runtime.h"
 
 typedef struct {
-    EzString value;
-} EzUUID;
+    GrayString value;
+} GrayUUID;
 
-EzUUID gray_uuid_generate(EzArena *arena);
-EzString gray_uuid_generate_compact(EzArena *arena, EzUUID id);
-EzUUID gray_uuid_generate_random(EzArena *arena);
-EzUUID gray_uuid_generate_time_ordered(EzArena *arena);
-bool gray_uuid_is_valid(EzString s);
-EzUUID gray_uuid_parse(EzArena *arena, EzString s);
-EzString gray_uuid_to_string(EzUUID id);
-EzUUID gray_uuid_nil(void);
+GrayUUID gray_uuid_generate(GrayArena *arena);
+GrayString gray_uuid_generate_compact(GrayArena *arena, GrayUUID id);
+GrayUUID gray_uuid_generate_random(GrayArena *arena);
+GrayUUID gray_uuid_generate_time_ordered(GrayArena *arena);
+bool gray_uuid_is_valid(GrayString s);
+GrayUUID gray_uuid_parse(GrayArena *arena, GrayString s);
+GrayString gray_uuid_to_string(GrayUUID id);
+GrayUUID gray_uuid_nil(void);
 
 #endif

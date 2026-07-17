@@ -1,6 +1,6 @@
-// main.ez - HTTP server with multiple routes and response types.
+// main.gray - HTTP server with multiple routes and response types.
 //
-// Run:   ez main.ez
+// Run:   gray main.gray
 // Test:
 //   curl http://localhost:8080/
 //   curl http://localhost:8080/health
@@ -10,7 +10,7 @@ import @server
 import @json
 
 do home(req HttpRequest) -> HttpResponse {
-    return server.html(200, "<h1>Welcome to EZ!</h1>")
+    return server.html(200, "<h1>Welcome to Grayscale!</h1>")
 }
 
 do health(req HttpRequest) -> HttpResponse {

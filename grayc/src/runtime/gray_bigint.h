@@ -1,8 +1,9 @@
 /*
- * gray_bigint.h - Wide integer types (i128, u128, i256, u256) for EZ
+ * gray_bigint.h — Wide integer types (i128, u128, i256, u256) for
+ * the Grayscale runtime. Portable struct-based implementation backed
+ * by uint64_t limbs with inline arithmetic, comparison, and printing.
  *
- * Struct-based portable implementation backed by uint64_t limbs.
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -769,14 +770,14 @@ static inline gray_u256 gray_u256_mul_checked(gray_u256 a, gray_u256 b, const ch
 /* --- Printing (to_string) --- */
 
 /* Helper: convert unsigned 128-bit to decimal string */
-static inline EzString gray_u128_to_string(EzArena *arena, gray_u128 val) {
+static inline GrayString gray_u128_to_string(GrayArena *arena, gray_u128 val) {
     if (val.hi == 0) {
         char buf[U128_MAX_DIGITS];
         snprintf(buf, sizeof(buf), "%" PRIu64, val.lo);
         size_t len = strlen(buf);
         char *s = (char *)gray_arena_alloc(arena, len + 1);
         memcpy(s, buf, len + 1);
-        return (EzString){ s, (int32_t)len };
+        return (GrayString){ s, (int32_t)len };
     }
     /* For large values, extract digits by repeated division */
     char buf[I256_MAX_DIGITS];
@@ -794,19 +795,19 @@ static inline EzString gray_u128_to_string(EzArena *arena, gray_u128 val) {
     size_t len = (I256_MAX_DIGITS - 1) - pos;
     char *s = (char *)gray_arena_alloc(arena, len + 1);
     memcpy(s, buf + pos, len + 1);
-    return (EzString){ s, (int32_t)len };
+    return (GrayString){ s, (int32_t)len };
 }
 
-static inline EzString gray_i128_to_string(EzArena *arena, gray_i128 val) {
+static inline GrayString gray_i128_to_string(GrayArena *arena, gray_i128 val) {
     if (val.hi < 0) {
         gray_i128 neg = gray_i128_neg(val);
         gray_u128 uval;
         uval.lo = neg.lo; uval.hi = (uint64_t)neg.hi;
-        EzString digits = gray_u128_to_string(arena, uval);
+        GrayString digits = gray_u128_to_string(arena, uval);
         char *s = (char *)gray_arena_alloc(arena, digits.len + 2);
         s[0] = '-';
         memcpy(s + 1, digits.data, digits.len + 1);
-        return (EzString){ s, digits.len + 1 };
+        return (GrayString){ s, digits.len + 1 };
     }
     gray_u128 uval;
     uval.lo = val.lo; uval.hi = (uint64_t)val.hi;
@@ -814,14 +815,14 @@ static inline EzString gray_i128_to_string(EzArena *arena, gray_i128 val) {
 }
 
 /* Helper: convert unsigned 256-bit to decimal string */
-static inline EzString gray_u256_to_string(EzArena *arena, gray_u256 val) {
+static inline GrayString gray_u256_to_string(GrayArena *arena, gray_u256 val) {
     if (val.w[1] == 0 && val.w[2] == 0 && val.w[3] == 0) {
         char buf[U128_MAX_DIGITS];
         snprintf(buf, sizeof(buf), "%" PRIu64, val.w[0]);
         size_t len = strlen(buf);
         char *s = (char *)gray_arena_alloc(arena, len + 1);
         memcpy(s, buf, len + 1);
-        return (EzString){ s, (int32_t)len };
+        return (GrayString){ s, (int32_t)len };
     }
     char buf[U256_MAX_DIGITS];
     int pos = U256_MAX_DIGITS - 1;
@@ -839,18 +840,18 @@ static inline EzString gray_u256_to_string(EzArena *arena, gray_u256 val) {
     size_t len = (U256_MAX_DIGITS - 1) - pos;
     char *s = (char *)gray_arena_alloc(arena, len + 1);
     memcpy(s, buf + pos, len + 1);
-    return (EzString){ s, (int32_t)len };
+    return (GrayString){ s, (int32_t)len };
 }
 
-static inline EzString gray_i256_to_string(EzArena *arena, gray_i256 val) {
+static inline GrayString gray_i256_to_string(GrayArena *arena, gray_i256 val) {
     if (gray_i256_is_neg(val)) {
         gray_i256 neg = gray_i256_neg(val);
         gray_u256 uval; memcpy(&uval, &neg, sizeof(uval));
-        EzString digits = gray_u256_to_string(arena, uval);
+        GrayString digits = gray_u256_to_string(arena, uval);
         char *s = (char *)gray_arena_alloc(arena, digits.len + 2);
         s[0] = '-';
         memcpy(s + 1, digits.data, digits.len + 1);
-        return (EzString){ s, digits.len + 1 };
+        return (GrayString){ s, digits.len + 1 };
     }
     gray_u256 uval; memcpy(&uval, &val, sizeof(uval));
     return gray_u256_to_string(arena, uval);

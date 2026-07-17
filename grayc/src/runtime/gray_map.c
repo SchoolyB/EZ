@@ -1,6 +1,9 @@
 /*
- * gray_map.c - Hash map implementation
+ * gray_map.c — Hash map implementation for the Grayscale runtime.
+ * Open-addressing table with linear probing, FNV-1a hashing, and
+ * special handling for float key normalization and string keys.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -20,7 +23,7 @@ static uint64_t hash_bytes(const void *data, int32_t size) {
 }
 
 /* Float key normalization: -0.0 hashes/compares as +0.0; all NaN
- * payloads collide on a canonical quiet NaN. Matches EZ's `==` on
+ * payloads collide on a canonical quiet NaN. Matches Grayscale's `==` on
  * floats (which says +0.0 == -0.0) and gives NaN keys a single bucket
  * instead of one per source-of-NaN. */
 
@@ -74,7 +77,7 @@ static bool floats_equal_f32(const void *a, const void *b) {
 static uint64_t hash_key(const void *key, int32_t key_size, int8_t key_kind) {
     switch (key_kind) {
         case GRAY_MAP_KEY_STRING: {
-            const EzString *s = (const EzString *)key;
+            const GrayString *s = (const GrayString *)key;
             return hash_bytes(s->data, s->len);
         }
         case GRAY_MAP_KEY_F64:
@@ -90,8 +93,8 @@ static uint64_t hash_key(const void *key, int32_t key_size, int8_t key_kind) {
 static bool keys_equal(const void *a, const void *b, int32_t key_size, int8_t key_kind) {
     switch (key_kind) {
         case GRAY_MAP_KEY_STRING: {
-            const EzString *sa = (const EzString *)a;
-            const EzString *sb = (const EzString *)b;
+            const GrayString *sa = (const GrayString *)a;
+            const GrayString *sb = (const GrayString *)b;
             if (sa->len != sb->len) return false;
             return memcmp(sa->data, sb->data, (size_t)sa->len) == 0;
         }
@@ -104,17 +107,17 @@ static bool keys_equal(const void *a, const void *b, int32_t key_size, int8_t ke
     }
 }
 
-static void *key_ptr(EzMap *m, int32_t idx) {
+static void *key_ptr(GrayMap *m, int32_t idx) {
     return (char *)m->keys + (size_t)idx * (size_t)m->key_size;
 }
 
-static void *val_ptr(EzMap *m, int32_t idx) {
+static void *val_ptr(GrayMap *m, int32_t idx) {
     return (char *)m->values + (size_t)idx * (size_t)m->value_size;
 }
 
-EzMap gray_map_new_kind(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap, int8_t key_kind) {
+GrayMap gray_map_new_kind(GrayArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap, int8_t key_kind) {
     if (initial_cap < GRAY_MAP_MIN_CAP) initial_cap = GRAY_MAP_MIN_CAP;
-    EzMap m;
+    GrayMap m;
     m.key_size = key_size;
     m.value_size = value_size;
     m.count = 0;
@@ -130,14 +133,14 @@ EzMap gray_map_new_kind(EzArena *arena, int32_t key_size, int32_t value_size, in
     return m;
 }
 
-EzMap gray_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap) {
-    int8_t kind = (key_size == (int32_t)sizeof(EzString))
+GrayMap gray_map_new(GrayArena *arena, int32_t key_size, int32_t value_size, int32_t initial_cap) {
+    int8_t kind = (key_size == (int32_t)sizeof(GrayString))
         ? GRAY_MAP_KEY_STRING
         : GRAY_MAP_KEY_BYTES;
     return gray_map_new_kind(arena, key_size, value_size, initial_cap, kind);
 }
 
-static int32_t find_slot(EzMap *m, const void *key) {
+static int32_t find_slot(GrayMap *m, const void *key) {
     uint64_t h = hash_key(key, m->key_size, m->key_kind);
     int32_t idx = (int32_t)(h % (uint64_t)m->capacity);
     for (int32_t i = 0; i < m->capacity; i++) {
@@ -150,7 +153,7 @@ static int32_t find_slot(EzMap *m, const void *key) {
     return -1;
 }
 
-static void rehash(EzArena *arena, EzMap *m) {
+static void rehash(GrayArena *arena, GrayMap *m) {
     int32_t old_cap = m->capacity;
     void *old_keys = m->keys;
     void *old_values = m->values;
@@ -178,13 +181,13 @@ static void rehash(EzArena *arena, EzMap *m) {
     }
 }
 
-void *gray_map_get(EzMap *m, const void *key) {
+void *gray_map_get(GrayMap *m, const void *key) {
     int32_t idx = find_slot(m, key);
     if (idx < 0) return NULL;
     return val_ptr(m, idx);
 }
 
-void gray_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
+void gray_map_set(GrayArena *arena, GrayMap *m, const void *key, const void *value) {
     if (m->iterating > 0)
         gray_panic_code("P0035", "cannot modify map during for_each iteration");
     /* Check load factor */
@@ -228,11 +231,11 @@ void gray_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) 
     }
 }
 
-bool gray_map_has(EzMap *m, const void *key) {
+bool gray_map_has(GrayMap *m, const void *key) {
     return find_slot(m, key) >= 0;
 }
 
-bool gray_map_remove(EzMap *m, const void *key) {
+bool gray_map_remove(GrayMap *m, const void *key) {
     if (m->iterating > 0)
         gray_panic_code("P0035", "cannot modify map during for_each iteration");
     int32_t idx = find_slot(m, key);
@@ -253,30 +256,30 @@ bool gray_map_remove(EzMap *m, const void *key) {
     return true;
 }
 
-void gray_map_clear(EzMap *m) {
+void gray_map_clear(GrayMap *m) {
     if (m->states) memset(m->states, 0, sizeof(uint8_t) * (size_t)m->capacity);
     m->count = 0;
     m->order_len = 0;
 }
 
-void *gray_map_get_str(EzMap *m, EzString key) {
+void *gray_map_get_str(GrayMap *m, GrayString key) {
     return gray_map_get(m, &key);
 }
 
-void gray_map_set_str(EzArena *arena, EzMap *m, EzString key, const void *value) {
+void gray_map_set_str(GrayArena *arena, GrayMap *m, GrayString key, const void *value) {
     gray_map_set(arena, m, &key, value);
 }
 
-void *gray_map_key_at(EzMap *m, int32_t internal_idx) {
+void *gray_map_key_at(GrayMap *m, int32_t internal_idx) {
     return key_ptr(m, internal_idx);
 }
 
-void *gray_map_value_at(EzMap *m, int32_t internal_idx) {
+void *gray_map_value_at(GrayMap *m, int32_t internal_idx) {
     return val_ptr(m, internal_idx);
 }
 
-EzMap gray_map_copy(EzArena *arena, const EzMap *src) {
-    EzMap m;
+GrayMap gray_map_copy(GrayArena *arena, const GrayMap *src) {
+    GrayMap m;
     m.key_size = src->key_size;
     m.value_size = src->value_size;
     m.count = src->count;
@@ -304,7 +307,7 @@ EzMap gray_map_copy(EzArena *arena, const EzMap *src) {
     if (src->key_kind == GRAY_MAP_KEY_STRING) {
         for (int32_t i = 0; i < src->capacity; i++) {
             if (m.states[i] == 1) {
-                EzString *ks = (EzString *)((char *)m.keys + (size_t)i * (size_t)m.key_size);
+                GrayString *ks = (GrayString *)((char *)m.keys + (size_t)i * (size_t)m.key_size);
                 *ks = gray_string_new(arena, ks->data, ks->len);
             }
         }

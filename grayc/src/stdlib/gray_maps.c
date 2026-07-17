@@ -1,6 +1,9 @@
 /*
- * gray_maps.c - @maps module implementation
+ * gray_maps.c — Implementation of the maps stdlib module.
+ * Provides key/value extraction, membership testing, removal, and
+ * merge operations on GrayMap values.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -8,8 +11,8 @@
 #include "gray_maps.h"
 #include <string.h>
 
-EzArray gray_maps_get_keys(EzArena *arena, EzMap *m) {
-    EzArray arr = gray_array_new(arena, m->key_size, m->count > 0 ? m->count : 4);
+GrayArray gray_maps_get_keys(GrayArena *arena, GrayMap *m) {
+    GrayArray arr = gray_array_new(arena, m->key_size, m->count > 0 ? m->count : 4);
     /* Iterate in insertion order */
     for (int32_t oi = 0; oi < m->order_len; oi++) {
         int32_t slot = m->order[oi];
@@ -21,8 +24,8 @@ EzArray gray_maps_get_keys(EzArena *arena, EzMap *m) {
     return arr;
 }
 
-EzArray gray_maps_get_values(EzArena *arena, EzMap *m) {
-    EzArray arr = gray_array_new(arena, m->value_size, m->count > 0 ? m->count : 4);
+GrayArray gray_maps_get_values(GrayArena *arena, GrayMap *m) {
+    GrayArray arr = gray_array_new(arena, m->value_size, m->count > 0 ? m->count : 4);
     /* Iterate in insertion order */
     for (int32_t oi = 0; oi < m->order_len; oi++) {
         int32_t slot = m->order[oi];
@@ -34,16 +37,16 @@ EzArray gray_maps_get_values(EzArena *arena, EzMap *m) {
     return arr;
 }
 
-bool gray_maps_has_key(EzMap *m, const void *key) {
+bool gray_maps_has_key(GrayMap *m, const void *key) {
     return gray_map_has(m, key);
 }
 
-bool gray_maps_is_empty(EzMap *m) {
+bool gray_maps_is_empty(GrayMap *m) {
     return m->count == 0;
 }
 
-EzMap gray_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2) {
-    EzMap result = gray_map_new_kind(arena, m1->key_size, m1->value_size,
+GrayMap gray_maps_merge(GrayArena *arena, GrayMap *m1, GrayMap *m2) {
+    GrayMap result = gray_map_new_kind(arena, m1->key_size, m1->value_size,
         m1->count + m2->count > 8 ? (m1->count + m2->count) * 2 : 8,
         m1->key_kind);
     /* Copy all entries from m1 */
@@ -67,7 +70,7 @@ EzMap gray_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2) {
     return result;
 }
 
-bool gray_maps_contains_value(EzMap *m, const void *value) {
+bool gray_maps_contains_value(GrayMap *m, const void *value) {
     for (int32_t oi = 0; oi < m->order_len; oi++) {
         int32_t slot = m->order[oi];
         if (m->states[slot] == 1) {
@@ -78,7 +81,7 @@ bool gray_maps_contains_value(EzMap *m, const void *value) {
     return false;
 }
 
-bool gray_maps_is_equal(EzMap *a, EzMap *b, bool str_keys, bool str_values) {
+bool gray_maps_is_equal(GrayMap *a, GrayMap *b, bool str_keys, bool str_values) {
     if (a->count != b->count) return false;
     if (a->key_size != b->key_size) return false;
     if (a->value_size != b->value_size) return false;
@@ -88,12 +91,12 @@ bool gray_maps_is_equal(EzMap *a, EzMap *b, bool str_keys, bool str_values) {
         void *ka = (char *)a->keys + (size_t)slot * (size_t)a->key_size;
         void *va = (char *)a->values + (size_t)slot * (size_t)a->value_size;
         void *vb = str_keys
-            ? gray_map_get_str(b, *(EzString *)ka)
+            ? gray_map_get_str(b, *(GrayString *)ka)
             : gray_map_get(b, ka);
         if (!vb) return false;
         if (str_values) {
-            EzString *sa = (EzString *)va;
-            EzString *sb = (EzString *)vb;
+            GrayString *sa = (GrayString *)va;
+            GrayString *sb = (GrayString *)vb;
             if (sa->len != sb->len) return false;
             if (sa->len > 0 && memcmp(sa->data, sb->data, (size_t)sa->len) != 0) return false;
         } else {

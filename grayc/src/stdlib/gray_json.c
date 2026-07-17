@@ -1,10 +1,10 @@
 /*
- * gray_json.c - @json module implementation
+ * gray_json.c — Implementation of the json stdlib module.
+ * Minimal recursive-descent JSON parser and emitter supporting
+ * strings, numbers, bools, null, objects, and arrays. Objects are
+ * represented as GrayMap[string:string].
  *
- * Minimal recursive descent JSON parser.
- * Supports: strings, numbers, bools, null, objects, arrays.
- * Objects are parsed as EzMap[string:string] (values stored as strings).
- *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -18,7 +18,7 @@
 /* --- Encoder --- */
 
 /* Exact byte count that json_append_escaped would write (includes quotes). */
-size_t json_escaped_len(EzString s) {
+size_t json_escaped_len(GrayString s) {
     size_t n = 2; /* opening + closing quote */
     for (int32_t i = 0; i < s.len; i++) {
         unsigned char c = (unsigned char)s.data[i];
@@ -30,7 +30,7 @@ size_t json_escaped_len(EzString s) {
     return n;
 }
 
-void json_append_escaped(char *buf, int *pos, EzString s) {
+void json_append_escaped(char *buf, int *pos, GrayString s) {
     static const char hex[] = "0123456789abcdef";
     buf[(*pos)++] = '"';
     for (int32_t i = 0; i < s.len; i++) {
@@ -54,19 +54,19 @@ void json_append_escaped(char *buf, int *pos, EzString s) {
 
 /* Helper: byte length of a map[string:string] value in JSON output.
  * All string values are always quoted — never infer JSON types from content. */
-static size_t json_map_val_len(EzString *val) {
+static size_t json_map_val_len(GrayString *val) {
     return json_escaped_len(*val);
 }
 
-EzString gray_json_encode_map(EzArena *arena, EzMap *m) {
+GrayString gray_json_encode_map(GrayArena *arena, GrayMap *m) {
     /* Pass 1: compute exact size */
     size_t need = 2; /* { } */
     int counted = 0;
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (counted > 0) need += 1; /* comma */
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
-        EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *val = (GrayString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         need += json_escaped_len(*key) + 1 /* colon */ + json_map_val_len(val);
         counted++;
     }
@@ -78,8 +78,8 @@ EzString gray_json_encode_map(EzArena *arena, EzMap *m) {
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; }
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
-        EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *val = (GrayString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
         json_append_escaped(buf, &pos, *val);
@@ -87,13 +87,13 @@ EzString gray_json_encode_map(EzArena *arena, EzMap *m) {
     }
     buf[pos++] = '}';
     buf[pos] = '\0';
-    EzString r = { buf, (int32_t)pos };
+    GrayString r = { buf, (int32_t)pos };
     return r;
 }
 
 /* --- Array Encoders --- */
 
-EzString gray_json_encode_array_int(EzArena *arena, EzArray *arr) {
+GrayString gray_json_encode_array_int(GrayArena *arena, GrayArray *arr) {
     /* 21 chars max per int64 + comma, plus brackets + nul */
     size_t need = 2 + (arr->len > 0 ? (size_t)arr->len * 22 - 1 : 0);
     char *buf = gray_arena_alloc(arena, need + 1);
@@ -108,10 +108,10 @@ EzString gray_json_encode_array_int(EzArena *arena, EzArray *arr) {
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
-EzString gray_json_encode_array_float(EzArena *arena, EzArray *arr) {
+GrayString gray_json_encode_array_float(GrayArena *arena, GrayArray *arr) {
     /* 24 chars max per %g double + comma, plus brackets + nul */
     size_t need = 2 + (arr->len > 0 ? (size_t)arr->len * 25 - 1 : 0);
     char *buf = gray_arena_alloc(arena, need + 1);
@@ -126,15 +126,15 @@ EzString gray_json_encode_array_float(EzArena *arena, EzArray *arr) {
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
-EzString gray_json_encode_array_string(EzArena *arena, EzArray *arr) {
+GrayString gray_json_encode_array_string(GrayArena *arena, GrayArray *arr) {
     /* Pass 1: exact size */
     size_t need = 2; /* [ ] */
     for (int32_t i = 0; i < arr->len; i++) {
         if (i > 0) need += 1; /* comma */
-        EzString *val = (EzString *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        GrayString *val = (GrayString *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
         need += json_escaped_len(*val);
     }
     /* Pass 2: write */
@@ -143,15 +143,15 @@ EzString gray_json_encode_array_string(EzArena *arena, EzArray *arr) {
     buf[pos++] = '[';
     for (int32_t i = 0; i < arr->len; i++) {
         if (i > 0) { buf[pos++] = ','; }
-        EzString *val = (EzString *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        GrayString *val = (GrayString *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
         json_append_escaped(buf, &pos, *val);
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
-EzString gray_json_encode_array_bool(EzArena *arena, EzArray *arr) {
+GrayString gray_json_encode_array_bool(GrayArena *arena, GrayArray *arr) {
     /* Pass 1: exact size */
     size_t need = 2; /* [ ] */
     for (int32_t i = 0; i < arr->len; i++) {
@@ -171,19 +171,19 @@ EzString gray_json_encode_array_bool(EzArena *arena, EzArray *arr) {
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
 /* --- Typed Map Encoders --- */
 
-EzString gray_json_encode_map_int(EzArena *arena, EzMap *m) {
+GrayString gray_json_encode_map_int(GrayArena *arena, GrayMap *m) {
     /* Pass 1: exact size — key (escaped) + colon + int (max 21) */
     size_t need = 2;
     int counted = 0;
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (counted > 0) need += 1;
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         need += json_escaped_len(*key) + 1 + 21;
         counted++;
     }
@@ -195,7 +195,7 @@ EzString gray_json_encode_map_int(EzArena *arena, EzMap *m) {
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; }
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         int64_t *val = (int64_t *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
@@ -206,17 +206,17 @@ EzString gray_json_encode_map_int(EzArena *arena, EzMap *m) {
     }
     buf[pos++] = '}';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
-EzString gray_json_encode_map_float(EzArena *arena, EzMap *m) {
+GrayString gray_json_encode_map_float(GrayArena *arena, GrayMap *m) {
     /* Pass 1: exact size — key (escaped) + colon + float (max 24) */
     size_t need = 2;
     int counted = 0;
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (counted > 0) need += 1;
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         need += json_escaped_len(*key) + 1 + 24;
         counted++;
     }
@@ -228,7 +228,7 @@ EzString gray_json_encode_map_float(EzArena *arena, EzMap *m) {
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; }
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         double *val = (double *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
@@ -239,17 +239,17 @@ EzString gray_json_encode_map_float(EzArena *arena, EzMap *m) {
     }
     buf[pos++] = '}';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
-EzString gray_json_encode_map_bool(EzArena *arena, EzMap *m) {
+GrayString gray_json_encode_map_bool(GrayArena *arena, GrayMap *m) {
     /* Pass 1: exact size */
     size_t need = 2;
     int counted = 0;
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (counted > 0) need += 1;
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         bool *val = (bool *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         need += json_escaped_len(*key) + 1 + (*val ? 4 : 5);
         counted++;
@@ -262,7 +262,7 @@ EzString gray_json_encode_map_bool(EzArena *arena, EzMap *m) {
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; }
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         bool *val = (bool *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
@@ -272,7 +272,7 @@ EzString gray_json_encode_map_bool(EzArena *arena, EzMap *m) {
     }
     buf[pos++] = '}';
     buf[pos] = '\0';
-    return (EzString){ buf, (int32_t)pos };
+    return (GrayString){ buf, (int32_t)pos };
 }
 
 /* --- Decoder --- */
@@ -281,7 +281,7 @@ static void skip_ws(const char **s, const char *end) {
     while (*s < end && isspace((unsigned char)**s)) (*s)++;
 }
 
-static EzString parse_json_string(EzArena *arena, const char **s, const char *end) {
+static GrayString parse_json_string(GrayArena *arena, const char **s, const char *end) {
     if (**s != '"') return gray_string_lit("");
     (*s)++;
     const char *start = *s;
@@ -289,12 +289,12 @@ static EzString parse_json_string(EzArena *arena, const char **s, const char *en
         if (**s == '\\') (*s)++;
         (*s)++;
     }
-    EzString r = gray_string_new(arena, start, (int32_t)(*s - start));
+    GrayString r = gray_string_new(arena, start, (int32_t)(*s - start));
     if (*s < end) (*s)++; /* skip closing quote */
     return r;
 }
 
-static EzString parse_json_value_as_string(EzArena *arena, const char **s, const char *end) {
+static GrayString parse_json_value_as_string(GrayArena *arena, const char **s, const char *end) {
     skip_ws(s, end);
     if (*s >= end) return gray_string_lit("");
 
@@ -308,8 +308,8 @@ static EzString parse_json_value_as_string(EzArena *arena, const char **s, const
     return gray_string_new(arena, start, (int32_t)(*s - start));
 }
 
-EzMap gray_json_decode(EzArena *arena, EzString text) {
-    EzMap m = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 8);
+GrayMap gray_json_decode(GrayArena *arena, GrayString text) {
+    GrayMap m = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 8);
     const char *s = text.data;
     const char *end = s + text.len;
     skip_ws(&s, end);
@@ -320,10 +320,10 @@ EzMap gray_json_decode(EzArena *arena, EzString text) {
         skip_ws(&s, end);
         if (s >= end || *s == '}') break;
 
-        EzString key = parse_json_string(arena, &s, end);
+        GrayString key = parse_json_string(arena, &s, end);
         skip_ws(&s, end);
         if (s < end && *s == ':') s++;
-        EzString val = parse_json_value_as_string(arena, &s, end);
+        GrayString val = parse_json_value_as_string(arena, &s, end);
         gray_map_set(arena, &m, &key, &val);
 
         skip_ws(&s, end);
@@ -332,7 +332,7 @@ EzMap gray_json_decode(EzArena *arena, EzString text) {
     return m;
 }
 
-/* --- Validator (#1498) ---
+/* --- Validator ---
  *
  * Proper recursive descent validator. The old implementation just
  * peeked at the first non-whitespace character and dispatched on it,
@@ -474,7 +474,7 @@ static bool v_value(const char **s, const char *end, int depth) {
     return false;
 }
 
-bool gray_json_is_valid(EzString text) {
+bool gray_json_is_valid(GrayString text) {
     if (text.len <= 0 || !text.data) return false;
     const char *s = text.data;
     const char *end = s + text.len;
@@ -485,7 +485,7 @@ bool gray_json_is_valid(EzString text) {
     return s == end;
 }
 
-EzString gray_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
+GrayString gray_json_pretty_map(GrayArena *arena, GrayMap *m, int64_t indent_size) {
     /* Pass 1: exact size */
     size_t ind = indent_size > 0 ? (size_t)indent_size : 0;
     size_t need = 3; /* { \n } */
@@ -493,8 +493,8 @@ EzString gray_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (counted > 0) need += 2; /* ,\n */
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
-        EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *val = (GrayString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         need += ind + json_escaped_len(*key) + 2 /* ": " */ + json_escaped_len(*val);
         counted++;
     }
@@ -509,8 +509,8 @@ EzString gray_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; buf[pos++] = '\n'; }
         for (size_t j = 0; j < ind; j++) buf[pos++] = ' ';
-        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
-        EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        GrayString *val = (GrayString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':'; buf[pos++] = ' ';
         json_append_escaped(buf, &pos, *val);
@@ -519,17 +519,17 @@ EzString gray_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
     buf[pos++] = '\n';
     buf[pos++] = '}';
     buf[pos] = '\0';
-    EzString r = { buf, (int32_t)pos };
+    GrayString r = { buf, (int32_t)pos };
     return r;
 }
 
 /* --- Array splitter ---
- * Splits a JSON array "[{...},{...},...]" into an EzArray of EzString,
+ * Splits a JSON array "[{...},{...},...]" into an GrayArray of GrayString,
  * where each element is the raw JSON text of one top-level element.
  * Handles nested braces, brackets, and quoted strings correctly. */
 
-EzArray gray_json_split_array(EzArena *arena, EzString text) {
-    EzArray arr = gray_array_new(arena, sizeof(EzString), 4);
+GrayArray gray_json_split_array(GrayArena *arena, GrayString text) {
+    GrayArray arr = gray_array_new(arena, sizeof(GrayString), 4);
     const char *s = text.data;
     const char *end = s + text.len;
     skip_ws(&s, end);
@@ -570,7 +570,7 @@ EzArray gray_json_split_array(EzArena *arena, EzString text) {
 
         int32_t elem_len = (int32_t)(s - elem_start);
         if (elem_len > 0) {
-            EzString elem = gray_string_new(arena, elem_start, elem_len);
+            GrayString elem = gray_string_new(arena, elem_start, elem_len);
             gray_array_push(arena, &arr, &elem);
         }
 
@@ -582,15 +582,15 @@ EzArray gray_json_split_array(EzArena *arena, EzString text) {
 
 /* _result variant */
 
-EzResult_map gray_json_decode_result(EzArena *arena, EzString text) {
-    EzResult_map r;
+GrayResult_map gray_json_decode_result(GrayArena *arena, GrayString text) {
+    GrayResult_map r;
     if (text.len <= 0 || !text.data) {
-        r.v0 = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 0);
+        r.v0 = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 0);
         r.v1 = gray_error_new(arena, gray_string_format(arena, "empty JSON input"));
         return r;
     }
     if (!gray_json_is_valid(text)) {
-        r.v0 = gray_map_new(arena, sizeof(EzString), sizeof(EzString), 0);
+        r.v0 = gray_map_new(arena, sizeof(GrayString), sizeof(GrayString), 0);
         r.v1 = gray_error_new(arena, gray_string_format(arena, "invalid JSON"));
         return r;
     }

@@ -1,6 +1,9 @@
 /*
- * gray_time.h - @time module for EZ
+ * gray_time.h — Public interface for the time stdlib module.
+ * Declares current time queries, date/time component extraction,
+ * formatting, and elapsed-time measurement functions.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -146,7 +149,7 @@ int64_t gray_time_weekday(int64_t ts);
  *   println(time.format("%Y-%m-%d", time.now()))
  *@end
  */
-EzString gray_time_format(EzArena *arena, EzString fmt, int64_t ts);
+GrayString gray_time_format(GrayArena *arena, GrayString fmt, int64_t ts);
 
 /*@man to_iso
  *@module time
@@ -158,7 +161,7 @@ EzString gray_time_format(EzArena *arena, EzString fmt, int64_t ts);
  *   println(time.to_iso(time.now()))
  *@end
  */
-EzString gray_time_to_iso(EzArena *arena, int64_t ts);
+GrayString gray_time_to_iso(GrayArena *arena, int64_t ts);
 
 /*@man date
  *@module time
@@ -170,7 +173,7 @@ EzString gray_time_to_iso(EzArena *arena, int64_t ts);
  *   println(time.date(time.now()))
  *@end
  */
-EzString gray_time_date(EzArena *arena, int64_t ts);
+GrayString gray_time_date(GrayArena *arena, int64_t ts);
 
 /*@man to_clock
  *@module time
@@ -182,7 +185,7 @@ EzString gray_time_date(EzArena *arena, int64_t ts);
  *   println(time.to_clock(time.now()))
  *@end
  */
-EzString gray_time_to_clock(EzArena *arena, int64_t ts);
+GrayString gray_time_to_clock(GrayArena *arena, int64_t ts);
 
 /* Arithmetic */
 

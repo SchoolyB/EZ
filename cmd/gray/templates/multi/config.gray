@@ -1,4 +1,4 @@
-// config.ez - Application configuration.
+// config.gray - Application configuration.
 
 const Config struct {
     name string

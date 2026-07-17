@@ -1,6 +1,10 @@
 /*
- * gray_time.c - @time module implementation
+ * gray_time.c — Implementation of the time stdlib module.
+ * Provides current time queries (seconds, milliseconds, nanoseconds),
+ * date/time component extraction, formatting, and elapsed-time
+ * measurement.
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */
@@ -38,22 +42,22 @@ int64_t gray_time_minute(int64_t ts) { return get_tm(ts)->tm_min; }
 int64_t gray_time_second(int64_t ts) { return get_tm(ts)->tm_sec; }
 int64_t gray_time_weekday(int64_t ts) { return get_tm(ts)->tm_wday; }
 
-EzString gray_time_format(EzArena *arena, EzString fmt, int64_t ts) {
+GrayString gray_time_format(GrayArena *arena, GrayString fmt, int64_t ts) {
     char buf[GRAY_MSG_BUF_SIZE];
     struct tm *tm = get_tm(ts);
     int len = (int)strftime(buf, sizeof(buf), fmt.data, tm);
     return gray_string_new(arena, buf, len);
 }
 
-EzString gray_time_to_iso(EzArena *arena, int64_t ts) {
+GrayString gray_time_to_iso(GrayArena *arena, int64_t ts) {
     return gray_time_format(arena, gray_string_lit("%Y-%m-%dT%H:%M:%S"), ts);
 }
 
-EzString gray_time_date(EzArena *arena, int64_t ts) {
+GrayString gray_time_date(GrayArena *arena, int64_t ts) {
     return gray_time_format(arena, gray_string_lit("%Y-%m-%d"), ts);
 }
 
-EzString gray_time_to_clock(EzArena *arena, int64_t ts) {
+GrayString gray_time_to_clock(GrayArena *arena, int64_t ts) {
     return gray_time_format(arena, gray_string_lit("%H:%M:%S"), ts);
 }
 

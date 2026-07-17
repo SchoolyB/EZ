@@ -1,3 +1,13 @@
+/*
+ * gray_atomic.h — Low-level atomic operation declarations for the
+ * Grayscale runtime. Backed by hand-written assembly (ARM64 and
+ * x86_64) providing lock-free 64-bit, 32-bit, and 8-bit primitives.
+ *
+ * Author:  Marshall A Burns (@SchoolyB)
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
+ */
+
 #ifndef GRAY_ATOMIC_H
 #define GRAY_ATOMIC_H
 
