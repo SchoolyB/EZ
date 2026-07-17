@@ -24,6 +24,7 @@
 #define MAX_MEMBER_CHAIN     32
 #define VAR_NAME_BUF         64
 #define SHORT_VAR_BUF        32
+#define CYCLE_GUARD_DEPTH    64
 
 /* Return the C-syntax string for an operator TokenType. Used when emitting
  * the operator literally into C source code. */
@@ -447,8 +448,7 @@ static AstNode *find_struct_declaration(CodeGen *codegen, const char *name);
 /* Cycle guard for type_needs_deep_copy: tracks struct names currently being
  * visited so circular references (A -> [B] -> B -> A) don't cause infinite
  * recursion and a stack-overflow crash. */
-#define TNDC_MAX_DEPTH 64
-static const char *tndc_visiting[TNDC_MAX_DEPTH];
+static const char *tndc_visiting[CYCLE_GUARD_DEPTH];
 static int tndc_depth = 0;
 
 static bool type_needs_deep_copy(CodeGen *codegen, const char *gray_tn) {
@@ -463,7 +463,7 @@ static bool type_needs_deep_copy(CodeGen *codegen, const char *gray_tn) {
     for (int j = 0; j < tndc_depth; j++) {
         if (strcmp(tndc_visiting[j], gray_tn) == 0) return false;
     }
-    if (tndc_depth < TNDC_MAX_DEPTH) tndc_visiting[tndc_depth++] = gray_tn;
+    if (tndc_depth < CYCLE_GUARD_DEPTH) tndc_visiting[tndc_depth++] = gray_tn;
     for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
         const char *ft = sdecl->data.struct_decl.fields[i].type_name;
         if (type_needs_deep_copy(codegen, ft)) { tndc_depth--; return true; }
@@ -618,8 +618,7 @@ static void emit_map_deep_copy(CodeGen *codegen, const char *gray_tn, const char
 
 /* Cycle guard for emit_struct_deep_copy: prevents infinite recursion when
  * struct types reference each other in a cycle (e.g. A has [B], B has A). */
-#define ESDC_MAX_DEPTH 64
-static const char *esdc_visiting[ESDC_MAX_DEPTH];
+static const char *esdc_visiting[CYCLE_GUARD_DEPTH];
 static int esdc_depth = 0;
 
 static void emit_struct_deep_copy(CodeGen *codegen, const char *struct_tn, const char *src_var) {
@@ -637,7 +636,7 @@ static void emit_struct_deep_copy(CodeGen *codegen, const char *struct_tn, const
             return;
         }
     }
-    if (esdc_depth < ESDC_MAX_DEPTH) esdc_visiting[esdc_depth++] = struct_tn;
+    if (esdc_depth < CYCLE_GUARD_DEPTH) esdc_visiting[esdc_depth++] = struct_tn;
     const char *c_struct = gray_type_to_c_codegen(codegen, struct_tn);
     int tag = next_deep_copy_tag();
     emit_formatted(codegen,
@@ -3089,8 +3088,7 @@ static AstNode *find_struct_declaration(CodeGen *codegen, const char *name) {
 /* Emit C statements that print the value of c_expr (of type t) to stream.
  * stream is "stdout" or "stderr". Handles all types recursively. */
 /* Cycle guard for emit_value_print struct recursion. */
-#define EVP_MAX_DEPTH 64
-static const char *evp_visiting[EVP_MAX_DEPTH];
+static const char *evp_visiting[CYCLE_GUARD_DEPTH];
 static int evp_depth = 0;
 
 static void emit_value_print(CodeGen *codegen, const char *c_expr, GrayType *type, const char *stream, bool in_container) {
@@ -3264,7 +3262,7 @@ static void emit_value_print(CodeGen *codegen, const char *c_expr, GrayType *typ
         }
         if (_already) break;
 
-        if (evp_depth < EVP_MAX_DEPTH) evp_visiting[evp_depth++] = struct_name;
+        if (evp_depth < CYCLE_GUARD_DEPTH) evp_visiting[evp_depth++] = struct_name;
 
         emit_indent(codegen);
         emit_formatted(codegen, "fprintf(%s, \"%s{\");\n", stream, display_name);
