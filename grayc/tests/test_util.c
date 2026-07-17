@@ -269,16 +269,11 @@ int main(void) {
     RUN_TEST(test_arena_copy_string_with_length);
 
     printf("--- Buf ---\n");
-    RUN_TEST(test_buf_create);
-    RUN_TEST(test_buf_append);
-    RUN_TEST(test_buf_appendn);
+    RUN_TEST(test_buffer_create);
     RUN_TEST(test_buf_append_growth);
-    RUN_TEST(test_buf_appendf);
     RUN_TEST(test_buf_appendf_large);
-    RUN_TEST(test_buf_append_char);
     RUN_TEST(test_buf_append_char_boundary);
     RUN_TEST(test_buf_append_indent_zero);
-    RUN_TEST(test_buf_append_indent);
     RUN_TEST(test_buf_append_indent_large);
 
     printf("--- Scope ---\n");

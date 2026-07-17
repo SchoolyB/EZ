@@ -17,7 +17,7 @@
 static Arena *arena;
 
 static TypeTable *check(const char *input) {
-    DiagnosticList *diag = diag_create();
+    DiagnosticList *diag = diagnostic_create();
     diag->use_color = false;
     Lexer *lexer =lexer_create(arena, input, "test.gray");
     Parser *parser = parser_create(arena, lexer, "test.gray", diag);
@@ -32,7 +32,7 @@ static GrayType *expr_type(const char *expr_code) {
     char buf[512];
     snprintf(buf, sizeof(buf),
         "do main() { mut _result = %s }", expr_code);
-    DiagnosticList *diag = diag_create();
+    DiagnosticList *diag = diagnostic_create();
     diag->use_color = false;
     Lexer *lexer =lexer_create(arena, buf, "test.gray");
     Parser *parser = parser_create(arena, lexer, "test.gray", diag);
@@ -220,9 +220,9 @@ static void test_resolve_typed_var(void) {
         "    mut x int = 42\n"
         "    mut y string = \"hello\"\n"
         "}");
-    (void)tt;
+    (void)table;
     /* If it doesn't crash, the scope correctly handled the declarations */
-    ASSERT_NOT_NULL(tt);
+    ASSERT_NOT_NULL(table);
 }
 
 /* --- Builtin Function Types --- */
@@ -257,8 +257,8 @@ static void test_resolve_struct_field(void) {
         "    mut p Person = Person{name: \"Alice\", age: 30}\n"
         "    mut n = p.name\n"
         "}");
-    (void)tt;
-    ASSERT_NOT_NULL(tt);
+    (void)table;
+    ASSERT_NOT_NULL(table);
 }
 
 /* --- Function Return Type Resolution --- */
@@ -269,8 +269,8 @@ static void test_resolve_func_return(void) {
         "do main() {\n"
         "    mut result = add(1, 2)\n"
         "}");
-    (void)tt;
-    ASSERT_NOT_NULL(tt);
+    (void)table;
+    ASSERT_NOT_NULL(table);
 }
 
 /* --- Pointer Type Tests --- */
@@ -295,7 +295,7 @@ static void test_resolve_addr(void) {
 
 /* Helper: parse and typecheck, return diagnostics */
 static DiagnosticList *check_diag(const char *input) {
-    DiagnosticList *d = diag_create();
+    DiagnosticList *d = diagnostic_create();
     d->use_color = false;
     Lexer *lexer =lexer_create(arena, input, "test.gray");
     Parser *parser = parser_create(arena, lexer, "test.gray", d);
@@ -316,23 +316,23 @@ static bool has_code(DiagnosticList *d, const char *code) {
 static void test_error_type_mismatch(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x string = 42 }");
-    ASSERT(diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_error_wrong_arg_count(void) {
     DiagnosticList *d = check_diag(
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() { add(1, 2, 3) }");
-    ASSERT(diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_error_deref_non_pointer(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 42\n mut y = x^ }");
-    ASSERT(diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_resolve_map_type(void) {
@@ -345,7 +345,7 @@ static void test_resolve_string_enum(void) {
     TypeTable *table =check(
         "const Status enum { TODO = \"todo\" DONE = \"done\" }\n"
         "do main() { mut s = Status.TODO }");
-    (void)tt;
+    (void)table;
     /* Should not crash — string enum member resolves correctly */
 }
 
@@ -361,28 +361,28 @@ static void test_error_E3001_type_mismatch_assign(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = \"hello\" }");
     ASSERT(has_code(d, "E3001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3002_invalid_operator(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x = \"a\" - \"b\" }");
     ASSERT(has_code(d, "E3002"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3003_non_int_index(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut a [int] = {1,2,3}\n mut x = a[\"bad\"] }");
     ASSERT(has_code(d, "E3003"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3005_const_reassign(void) {
     DiagnosticList *d = check_diag(
         "do main() { const x int = 5\n x = 10 }");
     ASSERT(has_code(d, "E3005"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3006_return_from_void(void) {
@@ -390,28 +390,28 @@ static void test_error_E3006_return_from_void(void) {
         "do foo() { return 42 }\n"
         "do main() { foo() }");
     ASSERT(has_code(d, "E3006"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E5023_increment_float(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x float = 1.0\n x++ }");
     ASSERT(has_code(d, "E5023"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3008_index_non_array(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 5\n mut y = x[0] }");
     ASSERT(has_code(d, "E3008"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3009_foreach_non_iterable(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 5\n for_each item in x { } }");
     ASSERT(has_code(d, "E3009"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3010_struct_no_field(void) {
@@ -419,35 +419,35 @@ static void test_error_E3010_struct_no_field(void) {
         "const Point struct { x int\n y int }\n"
         "do main() { mut p Point = Point{x: 1, y: 2}\n mut z = p.z }");
     ASSERT(has_code(d, "E3010"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3013_field_on_primitive(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 42\n mut y = x.foo }");
     ASSERT(has_code(d, "E3013"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3015_call_non_function(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 42\n x() }");
     ASSERT(has_code(d, "E3015"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3016_deref_non_pointer(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 42\n mut y = x^ }");
     ASSERT(has_code(d, "E3016"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3036_out_of_range(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x uint = -5 }");
     ASSERT(has_code(d, "E3036"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3024_missing_return(void) {
@@ -455,7 +455,7 @@ static void test_error_E3024_missing_return(void) {
         "do foo() -> int { }\n"
         "do main() { foo() }");
     ASSERT(has_code(d, "E3024"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3027_const_to_mut_param(void) {
@@ -463,28 +463,28 @@ static void test_error_E3027_const_to_mut_param(void) {
         "do modify(&arr [int]) { arr[0] = 999 }\n"
         "do main() { const nums [int] = {1, 2, 3}\n modify(nums) }");
     ASSERT(has_code(d, "E3027"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3034_any_type(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x any = 42 }");
     ASSERT(has_code(d, "E3034"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3038_void_variable(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x void = 42 }");
     ASSERT(has_code(d, "E3038"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3018_when_type_mismatch(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 5\n when x { is \"bad\" { } default { } } }");
     ASSERT(has_code(d, "E3018"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E4xxx: Name Problems --- */
@@ -493,21 +493,21 @@ static void test_error_E4001_undefined_var(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x = y }");
     ASSERT(has_code(d, "E4001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4002_undefined_func(void) {
     DiagnosticList *d = check_diag(
         "do main() { nonexistent() }");
     ASSERT(has_code(d, "E4002"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4003_duplicate_var(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 1\n mut x int = 2 }");
     ASSERT(has_code(d, "E4003"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4004_duplicate_func(void) {
@@ -516,14 +516,14 @@ static void test_error_E4004_duplicate_func(void) {
         "do foo() { }\n"
         "do main() { }");
     ASSERT(has_code(d, "E4004"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4005_no_main(void) {
     DiagnosticList *d = check_diag(
         "do foo() { }");
     ASSERT(has_code(d, "E4005"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E5xxx: Usage Problems --- */
@@ -533,14 +533,14 @@ static void test_error_E5008_wrong_arg_count_specific(void) {
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() { add(1) }");
     ASSERT(has_code(d, "E5008"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E5015_incr_literal(void) {
     DiagnosticList *d = check_diag(
         "do main() { 42++ }");
     ASSERT(has_code(d, "E5015"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- Warnings --- */
@@ -548,25 +548,25 @@ static void test_error_E5015_incr_literal(void) {
 static void test_warning_W1001_unused_var(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 42 }");
-    ASSERT(diag_warning_count(d) > 0);
+    ASSERT(diagnostic_warning_count(d) > 0);
     ASSERT(has_code(d, "W1001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_warning_W1003_unused_func(void) {
     DiagnosticList *d = check_diag(
         "do unused() { }\n"
         "do main() { }");
-    ASSERT(diag_warning_count(d) > 0);
+    ASSERT(diagnostic_warning_count(d) > 0);
     ASSERT(has_code(d, "W1003"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_warning_W2002_shadow_var(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 1\n if true { mut x int = 2 } }");
     ASSERT(has_code(d, "W2002"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- More E3xxx --- */
@@ -575,14 +575,14 @@ static void test_error_E3011_type_as_value(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x = int }");
     ASSERT(has_code(d, "E3011"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3012_addr_literal(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut p = addr(42) }");
     ASSERT(has_code(d, "E3012"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3032_compare_diff_enums(void) {
@@ -591,14 +591,14 @@ static void test_error_E3032_compare_diff_enums(void) {
         "const Size enum { SMALL\n BIG }\n"
         "do main() { mut x bool = Color.RED == Size.SMALL }");
     ASSERT(has_code(d, "E3032"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3007_negate_non_numeric(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x = -\"hello\" }");
     ASSERT(has_code(d, "E3007"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3035_not_all_paths_return(void) {
@@ -608,14 +608,14 @@ static void test_error_E3035_not_all_paths_return(void) {
         "}\n"
         "do main() { foo(1) }");
     ASSERT(has_code(d, "E3035"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3039_ensure_non_call(void) {
     DiagnosticList *d = check_diag(
         "do main() { ensure 42 }");
     ASSERT(has_code(d, "E3039"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3040_multi_return_single_var(void) {
@@ -623,7 +623,7 @@ static void test_error_E3040_multi_return_single_var(void) {
         "do pair() -> (int, int) { return 1, 2 }\n"
         "do main() { mut x = pair() }");
     ASSERT(has_code(d, "E3040"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3044_field_on_type(void) {
@@ -631,7 +631,7 @@ static void test_error_E3044_field_on_type(void) {
         "const Point struct { x int\n y int }\n"
         "do main() { mut v = Point.x }");
     ASSERT(has_code(d, "E3044"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- More E4xxx --- */
@@ -640,7 +640,7 @@ static void test_error_E4006_reserved_name(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut gray_internal int = 5 }");
     ASSERT(has_code(d, "E4006"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4012_shadow_type(void) {
@@ -648,7 +648,7 @@ static void test_error_E4012_shadow_type(void) {
         "const Point struct { x int }\n"
         "do main() { mut Point int = 5 }");
     ASSERT(has_code(d, "E4012"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4013_shadow_func(void) {
@@ -656,7 +656,7 @@ static void test_error_E4013_shadow_func(void) {
         "do helper() { }\n"
         "do main() { mut helper int = 5 }");
     ASSERT(has_code(d, "E4013"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- More E5xxx --- */
@@ -666,7 +666,7 @@ static void test_error_E5007_append_const_array(void) {
         "import @arrays\n"
         "do main() { const arr [int] = {1, 2}\n arrays.append(arr, 3) }");
     ASSERT(has_code(d, "E5007"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E5011_unused_return(void) {
@@ -674,14 +674,14 @@ static void test_error_E5011_unused_return(void) {
         "do get() -> int { return 42 }\n"
         "do main() { get() }");
     ASSERT(has_code(d, "E5011"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3019_signed_to_unsigned(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = -5\n mut y uint = x }");
     ASSERT(has_code(d, "E3019"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E2xxx: Parser errors detected during typechecking --- */
@@ -690,28 +690,28 @@ static void test_error_E2050_break_outside_loop(void) {
     DiagnosticList *d = check_diag(
         "do main() { break }");
     ASSERT(has_code(d, "E2050"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2051_nested_func(void) {
     DiagnosticList *d = check_diag(
         "do main() { do inner() { } }");
     ASSERT(has_code(d, "E2051"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2053_struct_in_func(void) {
     DiagnosticList *d = check_diag(
         "do main() { const Foo struct { x int } }");
     ASSERT(has_code(d, "E2053"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2043_duplicate_case(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 1\n when x { is 1 { } is 1 { } default { } } }");
     ASSERT(has_code(d, "E2043"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* Note: compiler emits E2037 for reserved struct names (should be E2038) */
@@ -720,7 +720,7 @@ static void test_error_E2037_reserved_struct_name(void) {
         "const string struct { x int }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2037"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2016_empty_enum(void) {
@@ -728,7 +728,7 @@ static void test_error_E2016_empty_enum(void) {
         "const Empty enum { }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2016"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2012_duplicate_param(void) {
@@ -736,7 +736,7 @@ static void test_error_E2012_duplicate_param(void) {
         "do foo(a int, a int) -> int { return a }\n"
         "do main() { foo(1, 2) }");
     ASSERT(has_code(d, "E2012"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2013_duplicate_struct_field(void) {
@@ -744,7 +744,7 @@ static void test_error_E2013_duplicate_struct_field(void) {
         "const Bad struct { x int\n x int }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2013"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- Stdlib errors emitted by typechecker --- */
@@ -753,7 +753,7 @@ static void test_error_E12006_duplicate_map_key(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut m = {\"a\": 1, \"a\": 2} }");
     ASSERT(has_code(d, "E12006"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E2xxx: Additional parser-level errors in typechecker --- */
@@ -762,14 +762,14 @@ static void test_error_E2011_const_no_value(void) {
     DiagnosticList *d = check_diag(
         "do main() { const x int }");
     ASSERT(has_code(d, "E2011"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2036_import_in_func(void) {
     DiagnosticList *d = check_diag(
         "do main() { import @math }");
     ASSERT(has_code(d, "E2036"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2038_reserved_enum_name(void) {
@@ -777,7 +777,7 @@ static void test_error_E2038_reserved_enum_name(void) {
         "const int enum { A\n B }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2038"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2039_required_after_default_param(void) {
@@ -785,7 +785,7 @@ static void test_error_E2039_required_after_default_param(void) {
         "do foo(a int = 1, b int) { }\n"
         "do main() { foo(1, 2) }");
     ASSERT(has_code(d, "E2039"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2056_stmt_at_file_scope(void) {
@@ -793,7 +793,7 @@ static void test_error_E2056_stmt_at_file_scope(void) {
         "if true { }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2056"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E3xxx: Additional type errors --- */
@@ -807,7 +807,7 @@ static void test_error_E3017_fmt_struct(void) {
         "    fmt.printf(\"%s\", p)\n"
         "}");
     ASSERT(has_code(d, "E3017"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3033_duplicate_enum_value(void) {
@@ -815,14 +815,14 @@ static void test_error_E3033_duplicate_enum_value(void) {
         "const Color enum { RED = 1\n BLUE = 1 }\n"
         "do main() { }");
     ASSERT(has_code(d, "E3033"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3041_new_non_struct(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut p = new(int) }");
     ASSERT(has_code(d, "E3041"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3041_interpolate_void(void) {
@@ -830,7 +830,7 @@ static void test_error_E3041_interpolate_void(void) {
         "do noop() { }\n"
         "do main() { mut s string = \"result: ${noop()}\" }");
     ASSERT(has_code(d, "E3041"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3043_invalid_cast(void) {
@@ -841,7 +841,7 @@ static void test_error_E3043_invalid_cast(void) {
         "    mut x = cast(p, int)\n"
         "}");
     ASSERT(has_code(d, "E3043"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3045_or_return_no_error(void) {
@@ -849,7 +849,7 @@ static void test_error_E3045_or_return_no_error(void) {
         "do get() -> int { return 42 }\n"
         "do main() { mut x = get() or_return }");
     ASSERT(has_code(d, "E3045"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E4xxx: Additional name errors --- */
@@ -859,7 +859,7 @@ static void test_error_E4014_shadow_module(void) {
         "import @math\n"
         "do main() { mut math int = 5 }");
     ASSERT(has_code(d, "E4014"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E5xxx: Additional usage errors --- */
@@ -872,7 +872,7 @@ static void test_error_E5024_signed_return_as_unsigned(void) {
         "}\n"
         "do main() { foo() }");
     ASSERT(has_code(d, "E5024"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- E6xxx: Module errors --- */
@@ -882,7 +882,7 @@ static void test_error_E6001_unknown_module(void) {
         "import @nonexistent\n"
         "do main() { }");
     ASSERT(has_code(d, "E6001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- Stdlib type errors in typechecker --- */
@@ -892,7 +892,7 @@ static void test_error_E7004_repeat_float_count(void) {
         "import @strings\n"
         "do main() { mut s = strings.repeat(\"ha\", 3.5) }");
     ASSERT(has_code(d, "E7004"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E9002_sum_non_numeric(void) {
@@ -900,14 +900,14 @@ static void test_error_E9002_sum_non_numeric(void) {
         "import @arrays\n"
         "do main() { mut a [string] = {\"a\", \"b\"}\n arrays.sum(a) }");
     ASSERT(has_code(d, "E9002"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E9005_invalid_range(void) {
     DiagnosticList *d = check_diag(
         "do main() { for i in range(10, 1) { } }");
     ASSERT(has_code(d, "E9005"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E12001_map_func_on_array(void) {
@@ -915,7 +915,7 @@ static void test_error_E12001_map_func_on_array(void) {
         "import @maps\n"
         "do main() { mut a [int] = {1, 2}\n maps.keys(a) }");
     ASSERT(has_code(d, "E12001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- Additional Warnings --- */
@@ -925,7 +925,7 @@ static void test_warning_W1005_typed_blank(void) {
         "do pair() -> (int, int) { return 1, 2 }\n"
         "do main() { mut x int, _ int = pair() }");
     ASSERT(has_code(d, "W1005"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_warning_W2001_unused_import(void) {
@@ -933,14 +933,14 @@ static void test_warning_W2001_unused_import(void) {
         "import @math\n"
         "do main() { }");
     ASSERT(has_code(d, "W1002"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_warning_W3003_partial_array_init(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut a [int, 5] = {1, 2} }");
     ASSERT(has_code(d, "W3003"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* --- Additional typechecker coverage --- */
@@ -1037,42 +1037,42 @@ static void test_error_E3002_bool_arithmetic(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x = true + false }");
     ASSERT(has_code(d, "E3002"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3001_bool_to_int(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = true }");
     ASSERT(has_code(d, "E3001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3001_int_to_string(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x string = 42 }");
     ASSERT(has_code(d, "E3001"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3005_const_array_reassign(void) {
     DiagnosticList *d = check_diag(
         "do main() { const arr [int] = {1,2,3}\n arr = {4,5,6} }");
     ASSERT(has_code(d, "E3005"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3009_foreach_int(void) {
     DiagnosticList *d = check_diag(
         "do main() { for_each x in 42 { } }");
     ASSERT(has_code(d, "E3009"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4003_duplicate_var_same_scope(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 1\n mut x string = \"hi\" }");
     ASSERT(has_code(d, "E4003"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E5008_too_many_args(void) {
@@ -1080,7 +1080,7 @@ static void test_error_E5008_too_many_args(void) {
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() { add(1, 2, 3) }");
     ASSERT(has_code(d, "E5008"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3008_index_string(void) {
@@ -1088,7 +1088,7 @@ static void test_error_E3008_index_string(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut s string = \"hello\"\n mut c = s[0] }");
     ASSERT(!has_code(d, "E3008"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_valid_nested_struct(void) {
@@ -1105,8 +1105,8 @@ static void test_valid_nested_struct(void) {
         "    mut v int = o.inner.val\n"
         "    println(\"${v}\")\n"
         "}");
-    ASSERT(!diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(!diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_valid_enum_member_access(void) {
@@ -1117,16 +1117,16 @@ static void test_valid_enum_member_access(void) {
         "    BLUE\n"
         "}\n"
         "do main() { mut c = Color.RED\n println(\"${c}\") }");
-    ASSERT(!diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(!diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_valid_multi_return(void) {
     DiagnosticList *d = check_diag(
         "do swap(a int, b int) -> (int, int) { return b, a }\n"
         "do main() { mut x int, y int = swap(1, 2)\n println(\"${x} ${y}\") }");
-    ASSERT(!diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(!diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_valid_when_stmt(void) {
@@ -1139,8 +1139,8 @@ static void test_valid_when_stmt(void) {
         "        default { println(\"other\") }\n"
         "    }\n"
         "}");
-    ASSERT(!diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(!diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_valid_struct_function_return(void) {
@@ -1153,15 +1153,15 @@ static void test_valid_struct_function_return(void) {
         "    }\n"
         "}\n"
         "do main() { mut p Point = Point.origin()\n println(\"${p.x}\") }");
-    ASSERT(!diag_has_errors(d));
-    diag_destroy(d);
+    ASSERT(!diagnostic_has_errors(d));
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2050_continue_outside_loop(void) {
     DiagnosticList *d = check_diag(
         "do main() { continue }");
     ASSERT(has_code(d, "E2050"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3024_some_paths_missing_return(void) {
@@ -1172,7 +1172,7 @@ static void test_error_E3024_some_paths_missing_return(void) {
         "}\n"
         "do main() { foo(1) }");
     ASSERT(has_code(d, "E3035") || has_code(d, "E3024"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4007_duplicate_struct(void) {
@@ -1181,7 +1181,7 @@ static void test_error_E4007_duplicate_struct(void) {
         "const Foo struct { y int }\n"
         "do main() { }");
     ASSERT(has_code(d, "E4007"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* ===== Batch: untested error codes ===== */
@@ -1191,14 +1191,14 @@ static void test_error_E3047_enum_no_member(void) {
         "const Color enum { RED GREEN BLUE }\n"
         "do main() { mut c = Color.YELLOW }");
     ASSERT(has_code(d, "E3047"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3048_string_plus(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut s string = \"a\" + \"b\" }");
     ASSERT(has_code(d, "E3048"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* E3049, E3077, E5026 need full compilation to trigger — tested via integration */
@@ -1208,14 +1208,14 @@ static void test_error_E3057_invalid_map_key(void) {
         "const P struct { x int }\n"
         "do main() { mut m map[P:int] = {} }");
     ASSERT(has_code(d, "E3057"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3059_const_map(void) {
     DiagnosticList *d = check_diag(
         "do main() { const m map[string:int] = {\"a\": 1} }");
     ASSERT(has_code(d, "E3059"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3061_recursive_struct(void) {
@@ -1223,7 +1223,7 @@ static void test_error_E3061_recursive_struct(void) {
         "const Node struct { next Node }\n"
         "do main() { }");
     ASSERT(has_code(d, "E3061"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_valid_recursive_pointer_struct(void) {
@@ -1231,7 +1231,7 @@ static void test_valid_recursive_pointer_struct(void) {
         "const Node struct {\n value int\n next ^Node\n}\n"
         "do main() { }");
     ASSERT(d->count == 0);
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3063_return_addr_local(void) {
@@ -1241,7 +1241,7 @@ static void test_error_E3063_return_addr_local(void) {
         "  return addr(x)\n"
         "}");
     ASSERT(has_code(d, "E3063"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 /* E3068 requires parsing "void" as a return type, which the parser may
@@ -1251,14 +1251,14 @@ static void test_error_E3072_return_nil_non_pointer(void) {
     DiagnosticList *d = check_diag(
         "do bad() -> int { return nil }");
     ASSERT(has_code(d, "E3072"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3073_return_in_main(void) {
     DiagnosticList *d = check_diag(
         "do main() { return }");
     ASSERT(has_code(d, "E3073"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3074_array_compare(void) {
@@ -1269,7 +1269,7 @@ static void test_error_E3074_array_compare(void) {
         "  if a == b { }\n"
         "}");
     ASSERT(has_code(d, "E3074"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3076_map_compare(void) {
@@ -1280,7 +1280,7 @@ static void test_error_E3076_map_compare(void) {
         "  if a == b { }\n"
         "}");
     ASSERT(has_code(d, "E3076"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3078_pointer_arithmetic(void) {
@@ -1291,7 +1291,7 @@ static void test_error_E3078_pointer_arithmetic(void) {
         "  mut q = p + 1\n"
         "}");
     ASSERT(has_code(d, "E3078"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3080_named_return_mismatch(void) {
@@ -1301,7 +1301,7 @@ static void test_error_E3080_named_return_mismatch(void) {
         "  return other\n"
         "}");
     ASSERT(has_code(d, "E3080"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3082_wildcard_named_return(void) {
@@ -1309,7 +1309,7 @@ static void test_error_E3082_wildcard_named_return(void) {
         "do get(x ?) -> (val ?) { return x }\n"
         "do main() { println(get(1)) }");
     ASSERT(has_code(d, "E3082"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2014_duplicate_enum_variant(void) {
@@ -1317,7 +1317,7 @@ static void test_error_E2014_duplicate_enum_variant(void) {
         "const Color enum { RED RED }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2014"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2015_duplicate_struct_field_init(void) {
@@ -1325,7 +1325,7 @@ static void test_error_E2015_duplicate_struct_field_init(void) {
         "const P struct { x int }\n"
         "do main() { mut p = P{x: 1, x: 2} }");
     ASSERT(has_code(d, "E2015"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2063_duplicate_named_return(void) {
@@ -1336,7 +1336,7 @@ static void test_error_E2063_duplicate_named_return(void) {
         "}\n"
         "do main() { }");
     ASSERT(has_code(d, "E2063"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2064_field_func_conflict(void) {
@@ -1347,7 +1347,7 @@ static void test_error_E2064_field_func_conflict(void) {
         "}\n"
         "do main() { }");
     ASSERT(has_code(d, "E2064"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2065_enum_variant_same_as_type(void) {
@@ -1355,7 +1355,7 @@ static void test_error_E2065_enum_variant_same_as_type(void) {
         "const Color enum { Color }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2065"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2066_struct_field_same_as_type(void) {
@@ -1363,7 +1363,7 @@ static void test_error_E2066_struct_field_same_as_type(void) {
         "const Foo struct { Foo int }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2066"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E2067_empty_struct(void) {
@@ -1371,28 +1371,28 @@ static void test_error_E2067_empty_struct(void) {
         "const Empty struct { }\n"
         "do main() { }");
     ASSERT(has_code(d, "E2067"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E3083_c_string_non_pointer(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut msg = c_string(\"hello\") }");
     ASSERT(has_code(d, "E3083"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E4008_main_with_params(void) {
     DiagnosticList *d = check_diag(
         "do main(x int) { }");
     ASSERT(has_code(d, "E4008"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 static void test_error_E5025_invalid_assign_target(void) {
     DiagnosticList *d = check_diag(
         "do main() { 42 = 10 }");
     ASSERT(has_code(d, "E5025"));
-    diag_destroy(d);
+    diagnostic_destroy(d);
 }
 
 

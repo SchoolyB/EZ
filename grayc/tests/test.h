@@ -45,6 +45,42 @@ static int _test_failed_this = 0;
     } \
 } while(0)
 
+#define ASSERT_NE(a, b) do { \
+    if ((a) == (b)) { \
+        fprintf(stderr, "  \033[0;31mFAIL\033[0m %s:%d: %s == %s (%lld)\n", \
+            __FILE__, __LINE__, #a, #b, (long long)(a)); \
+        _test_failed_this = 1; \
+        return; \
+    } \
+} while(0)
+
+#define ASSERT_GT(a, b) do { \
+    if (!((a) > (b))) { \
+        fprintf(stderr, "  \033[0;31mFAIL\033[0m %s:%d: %s <= %s (%lld <= %lld)\n", \
+            __FILE__, __LINE__, #a, #b, (long long)(a), (long long)(b)); \
+        _test_failed_this = 1; \
+        return; \
+    } \
+} while(0)
+
+#define ASSERT_LT(a, b) do { \
+    if (!((a) < (b))) { \
+        fprintf(stderr, "  \033[0;31mFAIL\033[0m %s:%d: %s >= %s (%lld >= %lld)\n", \
+            __FILE__, __LINE__, #a, #b, (long long)(a), (long long)(b)); \
+        _test_failed_this = 1; \
+        return; \
+    } \
+} while(0)
+
+#define ASSERT_GE(a, b) do { \
+    if (!((a) >= (b))) { \
+        fprintf(stderr, "  \033[0;31mFAIL\033[0m %s:%d: %s < %s (%lld < %lld)\n", \
+            __FILE__, __LINE__, #a, #b, (long long)(a), (long long)(b)); \
+        _test_failed_this = 1; \
+        return; \
+    } \
+} while(0)
+
 #define ASSERT_NOT_NULL(ptr) do { \
     if ((ptr) == NULL) { \
         fprintf(stderr, "  \033[0;31mFAIL\033[0m %s:%d: %s is NULL\n", __FILE__, __LINE__, #ptr); \

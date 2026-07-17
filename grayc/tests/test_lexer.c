@@ -297,88 +297,88 @@ static void test_error_E1003_unclosed_comment(void) {
     Lexer *lexer = lex("/* unclosed comment");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1003");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1003");
 }
 
 static void test_error_E1005_unclosed_char(void) {
     Lexer *lexer = lex("'a");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1005");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1005");
 }
 
 static void test_error_E1006_bad_escape_string(void) {
     Lexer *lexer = lex("\"hello\\q\"");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1006");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1006");
 }
 
 static void test_error_E1007_bad_escape_char(void) {
     Lexer *lexer = lex("'\\q'");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1007");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1007");
 }
 
 static void test_error_E1010_bad_number_format(void) {
     Lexer *lexer = lex("0x");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1010");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1010");
 }
 
 static void test_error_E1011_consecutive_underscores(void) {
     Lexer *lexer = lex("1__000");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1011");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1011");
 }
 
 static void test_error_E1013_trailing_underscore(void) {
     Lexer *lexer = lex("100_");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1013");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1013");
 }
 
 static void test_error_E1014_underscore_before_decimal(void) {
     Lexer *lexer = lex("1_.5");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1014");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1014");
 }
 
 static void test_error_E1017_unclosed_raw_string(void) {
     Lexer *lexer = lex("`unclosed raw");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1017");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1017");
 }
 
 static void test_error_E1010_bad_octal(void) {
     Lexer *lexer = lex("0o");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1010");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1010");
 }
 
 static void test_error_E1010_bad_binary(void) {
     Lexer *lexer = lex("0b");
     Token t = next(lexer);
     ASSERT_EQ(t.type, TOK_ILLEGAL);
-    ASSERT_NOT_NULL(l->error_code);
-    ASSERT_STR_EQ(l->error_code, "E1010");
+    ASSERT_NOT_NULL(lexer->error_code);
+    ASSERT_STR_EQ(lexer->error_code, "E1010");
 }
 
 /* --- Single-character operator tokens --- */
