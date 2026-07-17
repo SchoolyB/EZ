@@ -69,16 +69,16 @@ GrayArray gray_random_shuffle(GrayArena *arena, GrayArray *arr) {
     ensure_seed();
     GrayArray result = gray_array_copy(arena, arr);
     char *data = (char *)result.data;
-    size_t es = (size_t)result.elem_size;
+    size_t element_size = (size_t)result.elem_size;
     /* Scratch slot sized to the actual element width. The previous
      * fixed char tmp[64] overflowed the stack for any element type
      * larger than 64 bytes (struct arrays, nested arrays/maps). */
-    void *tmp = gray_arena_alloc(arena, es);
+    void *tmp = gray_arena_alloc(arena, element_size);
     for (int32_t i = result.len - 1; i > 0; i--) {
         int32_t j = rand() % (i + 1);
-        memcpy(tmp, data + i * es, es);
-        memcpy(data + i * es, data + j * es, es);
-        memcpy(data + j * es, tmp, es);
+        memcpy(tmp, data + i * element_size, element_size);
+        memcpy(data + i * element_size, data + j * element_size, element_size);
+        memcpy(data + j * element_size, tmp, element_size);
     }
     return result;
 }

@@ -1,6 +1,9 @@
 /*
- * math.c - @math module implementation (non-inline functions)
+ * math.c — Implementation of the math stdlib module.
+ * Provides factorial, GCD/LCM, primality testing, and random number
+ * generation (non-inline functions).
  *
+ * Author:  Marshall A Burns (@SchoolyB)
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
  */

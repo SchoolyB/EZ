@@ -56,27 +56,27 @@ static bool parse_url(const char *url, char *host, size_t host_sz,
 
     if (colon && (!slash || colon < slash)) {
         /* host:port */
-        size_t hlen = (size_t)(colon - p);
-        if (hlen >= host_sz) hlen = host_sz - 1;
-        memcpy(host, p, hlen);
-        host[hlen] = '\0';
+        size_t host_length = (size_t)(colon - p);
+        if (host_length >= host_sz) host_length = host_sz - 1;
+        memcpy(host, p, host_length);
+        host[host_length] = '\0';
         *port = atoi(colon + 1);
     } else {
         /* host only */
-        size_t hlen = slash ? (size_t)(slash - p) : strlen(p);
-        if (hlen >= host_sz) hlen = host_sz - 1;
-        memcpy(host, p, hlen);
-        host[hlen] = '\0';
+        size_t host_length = slash ? (size_t)(slash - p) : strlen(p);
+        if (host_length >= host_sz) host_length = host_sz - 1;
+        memcpy(host, p, host_length);
+        host[host_length] = '\0';
         *port = GRAY_HTTP_DEFAULT_PORT;
     }
 
     /* Path — reject CR/LF to prevent header injection via request line */
     if (slash) {
-        size_t plen = strlen(slash);
-        if (plen >= path_sz) plen = path_sz - 1;
-        memcpy(path, slash, plen);
-        path[plen] = '\0';
-        for (size_t i = 0; i < plen; i++) {
+        size_t path_length = strlen(slash);
+        if (path_length >= path_sz) path_length = path_sz - 1;
+        memcpy(path, slash, path_length);
+        path[path_length] = '\0';
+        for (size_t i = 0; i < path_length; i++) {
             if (path[i] == '\r' || path[i] == '\n') return false;
         }
     } else {

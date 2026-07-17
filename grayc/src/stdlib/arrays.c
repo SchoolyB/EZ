@@ -43,13 +43,13 @@ void gray_arrays_insert_at(GrayArena *arena, GrayArray *arr, int32_t index, cons
         arr->cap = new_cap;
     }
 
-    size_t es = (size_t)arr->elem_size;
+    size_t element_size = (size_t)arr->elem_size;
     char *data = (char *)arr->data;
     if (index < arr->len) {
-        memmove(data + (index + 1) * es, data + index * es,
-                (size_t)(arr->len - index) * es);
+        memmove(data + (index + 1) * element_size, data + index * element_size,
+                (size_t)(arr->len - index) * element_size);
     }
-    memcpy(data + index * es, value, es);
+    memcpy(data + index * element_size, value, element_size);
     arr->len++;
 }
 
@@ -65,8 +65,8 @@ void gray_arrays_remove_at(GrayArray *arr, int32_t index) {
             "arrays.remove_at: index %d is out of bounds for an array of length %d",
             index, arr->len);
     char *data = (char *)arr->data;
-    size_t es = (size_t)arr->elem_size;
-    memmove(data + index * es, data + (index + 1) * es, (arr->len - 1 - index) * es);
+    size_t element_size = (size_t)arr->elem_size;
+    memmove(data + index * element_size, data + (index + 1) * element_size, (arr->len - 1 - index) * element_size);
     arr->len--;
 }
 
@@ -269,14 +269,14 @@ GrayArray gray_arrays_concat(GrayArena *arena, GrayArray *a, GrayArray *b) {
 GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *arr) {
     GrayArray result = gray_array_new(arena, arr->elem_size, arr->len);
     char *data = (char *)arr->data;
-    size_t es = (size_t)arr->elem_size;
+    size_t element_size = (size_t)arr->elem_size;
     for (int32_t i = 0; i < arr->len; i++) {
         bool found = false;
         char *rdata = (char *)result.data;
         for (int32_t j = 0; j < result.len; j++) {
-            if (memcmp(data + i * es, rdata + j * es, es) == 0) { found = true; break; }
+            if (memcmp(data + i * element_size, rdata + j * element_size, element_size) == 0) { found = true; break; }
         }
-        if (!found) gray_array_push(arena, &result, data + i * es);
+        if (!found) gray_array_push(arena, &result, data + i * element_size);
     }
     return result;
 }
@@ -298,10 +298,10 @@ GrayArray gray_arrays_split_every(GrayArena *arena, GrayArray *arr, int32_t size
     if (size <= 0) size = 1;
     GrayArray result = gray_array_new(arena, sizeof(GrayArray), 4);
     char *data = (char *)arr->data;
-    size_t es = (size_t)arr->elem_size;
+    size_t element_size = (size_t)arr->elem_size;
     for (int32_t i = 0; i < arr->len; i += size) {
         int32_t chunk_len = (i + size <= arr->len) ? size : (arr->len - i);
-        GrayArray chunk = gray_array_from(arena, data + i * es, arr->elem_size, chunk_len);
+        GrayArray chunk = gray_array_from(arena, data + i * element_size, arr->elem_size, chunk_len);
         gray_array_push(arena, &result, &chunk);
     }
     return result;
