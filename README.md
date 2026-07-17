@@ -207,3 +207,4 @@ Thank you to everyone who has contributed to Grayscale!
 <a href="https://github.com/mvanhorn"><img src="https://github.com/mvanhorn.png" width="50" height="50" alt="mvanhorn"/></a>
 <a href="https://github.com/kas2804"><img src="https://github.com/kas2804.png" width="50" height="50" alt="kas2804"/></a>
 <a href="https://github.com/su-s2008"><img src="https://github.com/su-s2008.png" width="50" height="50" alt="su-s2008"/></a>
+<a href="https://github.com/rb152080"><img src="https://github.com/rb152080.png" width="50" height="50" alt="rb152080"/></a>
