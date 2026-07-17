@@ -1,8 +1,8 @@
-# Contributing to EZ
+# Contributing to Grayscale
 
-Thanks for your interest in contributing to EZ! This guide will help you get started.
+Thanks for your interest in contributing to Grayscale! This guide will help you get started.
 
-> **Platform note:** EZ v3.0^ supports **macOS** and **Linux** only. Windows is not a supported contributor platform — you won't be able to build or test locally.
+> **Platform note:** Grayscale supports **macOS** and **Linux** only. Windows is not a supported contributor platform — you won't be able to build or test locally.
 
 Before you start coding, skim [`STANDARD.md`](./STANDARD.md) — the language specification. It's the canonical reference for syntax, types, and every stdlib module.
 
@@ -29,7 +29,7 @@ Before you start coding, skim [`STANDARD.md`](./STANDARD.md) — the language sp
 
 ### Prerequisites
 
-- **Go 1.23 or higher** (for the `ez` CLI tooling)
+- **Go 1.23 or higher** (for the `gray` CLI tooling)
 - **C compiler** (gcc or clang)
 - Git
 
@@ -39,14 +39,14 @@ Before you start coding, skim [`STANDARD.md`](./STANDARD.md) — the language sp
 2. Clone your fork:
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/EZ.git
-cd EZ
+git clone https://github.com/YOUR-USERNAME/grayscale.git
+cd grayscale
 ```
 
 3. Add the upstream remote:
 
 ```bash
-git remote add upstream https://github.com/SchoolyB/EZ.git
+git remote add upstream https://github.com/grayscale-lang/grayscale.git
 ```
 
 ---
@@ -101,10 +101,10 @@ go version
 make build
 
 # Verify it works — scaffold a throwaway project and run it
-./gray pz /tmp/hello-ez && ./gray /tmp/hello-gray/main.gray
+./gray pz /tmp/hello-gray && ./gray /tmp/hello-gray/main.gray
 ```
 
-> **Iterating on the compiler?** When you edit anything under `grayc/src/` and rebuild locally, you need to tell the `gray` wrapper to use your *local* `ezc` binary instead of the system-installed one. Set `GRAY_COMPILER_PATH=./grayc/grayc` on every command while iterating:
+> **Iterating on the compiler?** When you edit anything under `grayc/src/` and rebuild locally, you need to tell the `gray` wrapper to use your *local* `grayc` binary instead of the system-installed one. Set `GRAY_COMPILER_PATH=./grayc/grayc` on every command while iterating:
 >
 > ```bash
 > GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/hello-gray/main.gray
@@ -116,7 +116,7 @@ make build
 
 | Command | Description |
 |---------|-------------|
-| `make build` | Build the `ez` binary |
+| `make build` | Build the `gray` binary |
 | `make install` | Install to `/usr/local/bin` |
 | `make clean` | Remove build artifacts |
 | `make test` | Run the full test suite |
@@ -133,11 +133,11 @@ All test targets can be run from the repo root — no need to `cd` into subdirec
 
 ## How the Compiler Works
 
-EZ compiles source code to native binaries through a pipeline of stages. Understanding this helps you know which files to touch for different kinds of changes.
+Grayscale compiles source code to native binaries through a pipeline of stages. Understanding this helps you know which files to touch for different kinds of changes.
 
 ```
 Source Code → Lexer → Parser → Type Checker → Code Gen → C Compiler → Binary
-  (.ez)      tokens    AST     validated AST    .c file    cc/gcc       native
+  (.gray)    tokens    AST     validated AST    .c file    cc/gcc       native
 ```
 
 All compiler stages live in `grayc/src/`:
@@ -149,7 +149,7 @@ All compiler stages live in `grayc/src/`:
 5. **Runtime** (`grayc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
 6. **Stdlib** (`grayc/src/stdlib/`) — Standard library modules compiled into `libgrayrt.a`.
 
-The `ez` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
+The `gray` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
 
 **What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (REPL, watch, etc.), you work in the Go code under `cmd/gray/`.
 
@@ -160,13 +160,13 @@ The `ez` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler for
 The fastest way to iterate on a change:
 
 ```bash
-# 1. Edit a file (e.g., grayc/src/stdlib/gray_strings.c)
+# 1. Edit a file (e.g., grayc/src/stdlib/strings.c)
 
 # 2. Rebuild
 make build
 
-# 3. Test with a quick .ez file (scaffolded via the project templates)
-./gray pz /tmp/hello-ez
+# 3. Test with a quick .gray file (scaffolded via the project templates)
+./gray pz /tmp/hello-gray
 GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/hello-gray/main.gray
 
 # Or test with the REPL
@@ -181,8 +181,8 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 
 #### C Implementation
 
-- [ ] `grayc/src/stdlib/gray_<module>.h` — declare the C function and add a `@man` block following the existing format
-- [ ] `grayc/src/stdlib/gray_<module>.c` — implement it
+- [ ] `grayc/src/stdlib/<module>.h` — declare the C function and add a `@man` block following the existing format
+- [ ] `grayc/src/stdlib/<module>.c` — implement it
 
 #### Typechecker (`grayc/src/typechecker/typechecker.c`) — 4 locations
 
@@ -211,29 +211,29 @@ PRs that add user-facing functionality without completing this checklist will no
 ## Project Structure
 
 ```
-EZ/
+grayscale/
 ├── cmd/gray/              # Go CLI tooling wrapper
-│   ├── main.go          # Entry point, version
-│   ├── commands.go      # Subcommand definitions
-│   ├── repl.go          # Interactive REPL (backed by grayc)
-│   ├── watch.go         # File watcher
-│   ├── doc.go           # Documentation generator
-│   ├── pz.go            # Project scaffolding
-│   └── update.go        # Self-update
+│   ├── main.go            # Entry point, version
+│   ├── commands.go        # Subcommand definitions
+│   ├── repl.go            # Interactive REPL (backed by grayc)
+│   ├── watch.go           # File watcher
+│   ├── doc.go             # Documentation generator
+│   ├── pz.go              # Project scaffolding
+│   └── update.go          # Self-update
 ├── internal/grayc/        # Go wrapper for invoking grayc binary
-├── pkg/                 # Go packages (tooling only)
-│   └── lineeditor/      # REPL line editor
-├── ezc/                 # EZ compiler (C)
-│   ├── src/lexer/       # Tokenization
-│   ├── src/parser/      # Parsing (tokens → AST)
-│   ├── src/typechecker/ # Static type checking
-│   ├── src/codegen/     # Code generation (AST → C)
-│   ├── src/runtime/     # Runtime (strings, arrays, maps, arenas)
-│   ├── src/stdlib/      # Standard library modules
-│   └── tests/           # Unit, e2e, integration tests
-├── integration-tests/   # End-to-end test suite
-├── STANDARD.md          # Language specification
-└── Makefile             # Build commands (builds both gray + grayc)
+├── pkg/                   # Go packages (tooling only)
+│   └── lineeditor/        # REPL line editor
+├── grayc/                 # Grayscale compiler (C)
+│   ├── src/lexer/         # Tokenization
+│   ├── src/parser/        # Parsing (tokens → AST)
+│   ├── src/typechecker/   # Static type checking
+│   ├── src/codegen/       # Code generation (AST → C)
+│   ├── src/runtime/       # Runtime (strings, arrays, maps, arenas)
+│   ├── src/stdlib/        # Standard library modules
+│   └── tests/             # Unit, e2e, integration tests
+├── integration-tests/     # End-to-end test suite
+├── STANDARD.md            # Language specification
+└── Makefile               # Build commands (builds both gray + grayc)
 ```
 
 ### Key Files for Common Tasks
@@ -267,7 +267,7 @@ This builds the compiler, then runs unit tests, e2e tests, integration tests, an
 ```bash
 make test-unit        # C unit tests (lexer, parser, typechecker)
 make test-e2e         # End-to-end codegen tests
-make test-integration # Integration tests (pass + fail .ez programs)
+make test-integration # Integration tests (pass + fail .gray programs)
 make test-go          # Go unit tests (lineeditor, CLI, grayc wrapper)
 make test-ubsan       # UBSan sanitizer tests
 make test-asan        # ASan+UBSan tests (Linux recommended)
@@ -291,13 +291,13 @@ make test-unit          # lexer, parser, typechecker tests
 make test-e2e           # full compilation pipeline tests
 ```
 
-### Integration Tests (EZ)
+### Integration Tests (Grayscale)
 
-For end-to-end behavior — verifying that EZ programs produce the right output. These are `.ez` files in the `integration-tests/` directory.
+For end-to-end behavior — verifying that Grayscale programs produce the right output. These are `.gray` files in the `integration-tests/` directory.
 
 **Pass tests** (`integration-tests/pass/core/`) should run successfully and verify results:
 
-```ez
+```gray
 
 do main() {
     mut passed int = 0
@@ -326,7 +326,7 @@ The test runner checks for `SOME TESTS FAILED` in the output — if it's present
 
 **Fail tests** (`integration-tests/fail/errors/`) are minimal programs that should trigger a specific error. The test runner expects a non-zero exit code:
 
-```ez
+```gray
 /*
  * Error Test: E3001 - type-mismatch
  * Expected: "type mismatch"
@@ -337,9 +337,9 @@ do main() {
 }
 ```
 
-Name fail tests by error code: `E3001_type_mismatch.ez`.
+Name fail tests by error code: `E3001_type_mismatch.gray`.
 
-**Multi-file tests** (`integration-tests/pass/multi-file/`) use subdirectories with a `main.ez` and supporting module files. Useful for testing imports, module visibility, and cross-file features.
+**Multi-file tests** (`integration-tests/pass/multi-file/`) use subdirectories with a `main.gray` and supporting module files. Useful for testing imports, module visibility, and cross-file features.
 
 For more details, see `TESTING.md`.
 
@@ -426,7 +426,7 @@ Keep the description short (under ~72 characters), lowercase, no period at the e
 
 3. **Commit** with a clear message:
    ```bash
-   git commit -m "feat(stdlib): add `shout()` function to strings module"
+   git commit -m "feat(stdlib): add shout() function to strings module"
    ```
 
 4. **Push** to your fork:
@@ -457,7 +457,7 @@ Keep the description short (under ~72 characters), lowercase, no period at the e
 
 ### Bug Reports
 
-**Every bug report must include the full output of `ez report`.** No exceptions. Run it and paste the complete output at the top of your issue — version, commit, install path, OS, CPU, RAM, and C compiler info are all load-bearing for triage. Bugs filed without `ez report` output will be asked for it before anything else happens.
+**Every bug report must include the full output of `gray report`.** No exceptions. Run it and paste the complete output at the top of your issue — version, commit, install path, OS, CPU, RAM, and C compiler info are all load-bearing for triage. Bugs filed without `gray report` output will be asked for it before anything else happens.
 
 Use this template:
 
@@ -466,13 +466,13 @@ Use this template:
 Critical / High / Medium / Low — and why.
 
 ## System info
-(paste full `ez report` output here)
+(paste full `gray report` output here)
 
 ## Summary
 One paragraph. What's broken, in plain language.
 
 ## Reproduction
-Minimal `.ez` program that triggers the bug. Inline the code in a fenced block.
+Minimal `.gray` program that triggers the bug. Inline the code in a fenced block.
 
 ## Expected
 What should happen.
@@ -499,7 +499,7 @@ Bugs filed in this shape get triaged quickly. One-paragraph bugs without a repro
 
 ## AI-Assisted Contributions
 
-EZ was built with heavy use of AI tooling from day one, and AI-assisted contributions are absolutely welcome. Whether you're using Claude, Copilot, ChatGPT, or any other tool to help write code, that's fine. What matters is the end result.
+Grayscale was built with heavy use of AI tooling from day one, and AI-assisted contributions are absolutely welcome. Whether you're using Claude, Copilot, ChatGPT, or any other tool to help write code, that's fine. What matters is the end result.
 
 That said, AI-generated code still needs a human behind it. You're responsible for what you submit. Don't just paste AI output into a PR — build it, run it, and make sure it actually works. If you can't explain what your code does and why, it's not ready to submit. AI gets things wrong all the time: hallucinated APIs, subtle logic bugs, code that looks right but breaks edge cases. Read through it critically before pushing.
 
@@ -511,7 +511,7 @@ The bar for AI-assisted contributions is the same as any other contribution: doe
 
 Looking for something to work on? Check out issues labeled **"good first issue"**:
 
-👉 [Good First Issues](https://github.com/SchoolyB/EZ/labels/good%20first%20issue)
+👉 [Good First Issues](https://github.com/grayscale-lang/grayscale/labels/good%20first%20issue)
 
 Some ideas:
 - Add documentation comments to stdlib functions
