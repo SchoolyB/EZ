@@ -1553,10 +1553,10 @@ int main(int argc, char **argv) {
     }
 
     /* Generate C code */
-    CodeGen cg = codegen_create(input_file);
-    cg.type_table = typechecker_get_table(tc);
-    codegen_generate(&cg, program);
-    const char *c_code = codegen_result(&cg);
+    CodeGen codegen = codegen_create(input_file);
+    codegen.type_table = typechecker_get_table(tc);
+    codegen_generate(&codegen, program);
+    const char *c_code = codegen_result(&codegen);
 
     /* Determine output name */
     char *default_output = NULL;
@@ -1577,7 +1577,7 @@ int main(int argc, char **argv) {
     snprintf(c_file, sizeof(c_file), "/tmp/gray_%s.c", out_base);
 
     if (!write_file(c_file, c_code)) {
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         arena_destroy(arena);
         free(source);
@@ -1608,7 +1608,7 @@ int main(int argc, char **argv) {
         if (!write_file(c_out, c_code)) {
             fprintf(stderr, "gray: failed to write C output: %s\n", c_out);
             free(c_out_default);
-            codegen_destroy(&cg);
+            codegen_destroy(&codegen);
             typechecker_free(tc);
             arena_destroy(arena);
             free(source);
@@ -1617,7 +1617,7 @@ int main(int argc, char **argv) {
         }
         printf("Generated: %s\n", c_out);
         free(c_out_default);
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         arena_destroy(arena);
         free(source);
@@ -1633,7 +1633,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  Install gcc or clang to compile Grayscale programs.\n");
         fprintf(stderr, "  On macOS: xcode-select --install\n");
         fprintf(stderr, "  On Ubuntu: sudo apt install gcc\n");
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         arena_destroy(arena);
         free(source);
@@ -1651,7 +1651,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "    - ./grayc/src/ (project root)\n");
         fprintf(stderr, "    - /usr/local/lib/grayc/\n");
         fprintf(stderr, "  Try: cd <project-root> && make -C grayc install\n");
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         arena_destroy(arena);
         free(source);
@@ -1660,7 +1660,7 @@ int main(int argc, char **argv) {
     }
     if (strchr(runtime_dir, '\'')) {
         fprintf(stderr, "gray: GRAY_RUNTIME path must not contain single quotes\n");
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         arena_destroy(arena);
         free(source);
@@ -1669,7 +1669,7 @@ int main(int argc, char **argv) {
     }
     if (strchr(output_file, '\'')) {
         fprintf(stderr, "gray: output path must not contain single quotes\n");
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         arena_destroy(arena);
         free(source);
@@ -1768,7 +1768,7 @@ int main(int argc, char **argv) {
 
     if (strlen(cmd) >= CMD_BUF_SIZE - 1) {
         fprintf(stderr, "gray: compile command too long (paths may be too deep)\n");
-        codegen_destroy(&cg);
+        codegen_destroy(&codegen);
         typechecker_free(tc);
         diag_destroy(diag);
         arena_destroy(arena);
@@ -1838,7 +1838,7 @@ int main(int argc, char **argv) {
         unlink(output_file);
     }
 
-    codegen_destroy(&cg);
+    codegen_destroy(&codegen);
     typechecker_free(tc);
     diag_destroy(diag);
     arena_destroy(arena);
