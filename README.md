@@ -2,13 +2,11 @@
   <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200">
 </p>
 
-<h1 align="center">Grayscale</h1>
+<h1 align="center">The Grayscale Programming Language</h1>
 
 <p align="center">
   A compiled language that's actually approachable!
 </p>
-
-<h3 align="center">The Grayscale Programming Language</h3>
 
 <p align="center">
   <a href="STANDARD.md">Learn More About Grayscale</a>
