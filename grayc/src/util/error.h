@@ -69,19 +69,19 @@ typedef struct {
 
 /* Create/destroy */
 DiagnosticList *diag_create(void);
-void diag_destroy(DiagnosticList *dl);
+void diag_destroy(DiagnosticList *diagnostics);
 
 /* Add diagnostics */
-void diag_error(DiagnosticList *dl, const char *code, const char *message,
+void diag_error(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_error_help(DiagnosticList *dl, const char *code, const char *message,
+void diag_error_help(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col, const char *help);
 
-void diag_warning(DiagnosticList *dl, const char *code, const char *message,
+void diag_warning(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_warning_help(DiagnosticList *dl, const char *code, const char *message,
+void diag_warning_help(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col, const char *help);
 
 /* Code-aware emission. Every new emission site should pick one of:
@@ -95,45 +95,45 @@ void diag_warning_help(DiagnosticList *dl, const char *code, const char *message
  *                                             the site adds context,
  *                                             e.g. most parser syntax
  *                                             errors). */
-void diag_error_code(DiagnosticList *dl, const char *code,
+void diag_error_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col);
 
 /* Same shape as diag_error_code, plus an actionable hint shown as `= help:`
  * under the diagnostic. Use this when the registry message states the
  * problem and the hint tells the user how to fix it. */
-void diag_error_code_help(DiagnosticList *dl, const char *code,
+void diag_error_code_help(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col, const char *help);
 
-void diag_error_codef(DiagnosticList *dl, const char *code,
+void diag_error_codef(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col, ...);
 
-void diag_error_msg(DiagnosticList *dl, const char *code, const char *message,
+void diag_error_msg(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_warning_code(DiagnosticList *dl, const char *code,
+void diag_warning_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col);
 
-void diag_warning_codef(DiagnosticList *dl, const char *code,
+void diag_warning_codef(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col, ...);
 
-void diag_warning_msg(DiagnosticList *dl, const char *code, const char *message,
+void diag_warning_msg(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_note(DiagnosticList *dl, const char *message,
+void diag_note(DiagnosticList *diagnostics, const char *message,
     const char *file, int line, int col, int end_col);
 
 /* Set the source text for a file (avoids re-reading from disk) */
-void diag_set_source(DiagnosticList *dl, const char *file, const char *source);
+void diag_set_source(DiagnosticList *diagnostics, const char *file, const char *source);
 
 /* Query */
-bool diag_has_errors(DiagnosticList *dl);
-int diag_error_count(DiagnosticList *dl);
-int diag_warning_count(DiagnosticList *dl);
+bool diag_has_errors(DiagnosticList *diagnostics);
+int diag_error_count(DiagnosticList *diagnostics);
+int diag_warning_count(DiagnosticList *diagnostics);
 
 /* Render all diagnostics to stderr */
-void diag_print_all(DiagnosticList *dl);
+void diag_print_all(DiagnosticList *diagnostics);
 
 /* Print summary line: "grayc: 2 errors, 1 warning" */
-void diag_print_summary(DiagnosticList *dl);
+void diag_print_summary(DiagnosticList *diagnostics);
 
 #endif

@@ -147,8 +147,8 @@ typedef struct {
 } CodeGen;
 
 CodeGen codegen_create(const char *file);
-void codegen_generate(CodeGen *cg, AstNode *program);
-const char *codegen_result(CodeGen *cg);
-void codegen_destroy(CodeGen *cg);
+void codegen_generate(CodeGen *codegen, AstNode *program);
+const char *codegen_result(CodeGen *codegen);
+void codegen_destroy(CodeGen *codegen);
 
 #endif

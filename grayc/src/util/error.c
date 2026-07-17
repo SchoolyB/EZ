@@ -31,8 +31,8 @@
 #define COL_BLUE    "\033[34m"
 #define COL_WHITE   "\033[37m"
 
-static const char *col(DiagnosticList *dl, const char *code) {
-    return dl->use_color ? code : "";
+static const char *col(DiagnosticList *diagnostics, const char *code) {
+    return diagnostics->use_color ? code : "";
 }
 
 /* --- Source line reading --- */
@@ -87,34 +87,34 @@ static const char *read_file_to_string(const char *path) {
 /* --- DiagnosticList management --- */
 
 DiagnosticList *diag_create(void) {
-    DiagnosticList *dl = xmalloc(sizeof(DiagnosticList));
-    memset(dl, 0, sizeof(DiagnosticList));
-    dl->use_color = isatty(STDERR_FILENO);
-    return dl;
+    DiagnosticList *diagnostics = xmalloc(sizeof(DiagnosticList));
+    memset(diagnostics, 0, sizeof(DiagnosticList));
+    diagnostics->use_color = isatty(STDERR_FILENO);
+    return diagnostics;
 }
 
-void diag_destroy(DiagnosticList *dl) {
-    free(dl->items);
+void diag_destroy(DiagnosticList *diagnostics) {
+    free(diagnostics->items);
     for (int i = 0; i < DIAG_FILE_CACHE_SIZE; i++) {
-        if (dl->file_cache[i].owned) free((void *)dl->file_cache[i].source);
-        free(dl->file_cache[i].line_offsets);
+        if (diagnostics->file_cache[i].owned) free((void *)diagnostics->file_cache[i].source);
+        free(diagnostics->file_cache[i].line_offsets);
     }
-    free(dl);
+    free(diagnostics);
 }
 
-static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
+static void diag_add(DiagnosticList *diagnostics, Severity sev, const char *code,
     const char *message, const char *file, int line, int col_start,
     int end_col, const char *help) {
 
     /* Cap errors at 20 to avoid flooding output */
-    if (sev == SEV_ERROR && dl->error_count >= MAX_ERRORS_DISPLAYED) return;
+    if (sev == SEV_ERROR && diagnostics->error_count >= MAX_ERRORS_DISPLAYED) return;
 
-    if (dl->count >= dl->cap) {
-        dl->cap = dl->cap ? dl->cap * 2 : DIAG_INITIAL_CAP;
-        dl->items = xrealloc(dl->items, sizeof(Diagnostic) * dl->cap);
+    if (diagnostics->count >= diagnostics->cap) {
+        diagnostics->cap = diagnostics->cap ? diagnostics->cap * 2 : DIAG_INITIAL_CAP;
+        diagnostics->items = xrealloc(diagnostics->items, sizeof(Diagnostic) * diagnostics->cap);
     }
 
-    Diagnostic *d = &dl->items[dl->count++];
+    Diagnostic *d = &diagnostics->items[diagnostics->count++];
     d->severity = sev;
     d->code = code;
     d->message = message;
@@ -125,33 +125,33 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     d->source_line = NULL;
     d->help = help;
 
-    if (sev == SEV_ERROR) dl->error_count++;
-    else if (sev == SEV_WARNING) dl->warning_count++;
+    if (sev == SEV_ERROR) diagnostics->error_count++;
+    else if (sev == SEV_WARNING) diagnostics->warning_count++;
 }
 
-void diag_error(DiagnosticList *dl, const char *code, const char *message,
+void diag_error(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_ERROR, code, message, file, line, col_start, end_col, NULL);
+    diag_add(diagnostics, SEV_ERROR, code, message, file, line, col_start, end_col, NULL);
 }
 
-void diag_error_help(DiagnosticList *dl, const char *code, const char *message,
+void diag_error_help(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col_start, int end_col, const char *help) {
-    diag_add(dl, SEV_ERROR, code, message, file, line, col_start, end_col, help);
+    diag_add(diagnostics, SEV_ERROR, code, message, file, line, col_start, end_col, help);
 }
 
-void diag_warning(DiagnosticList *dl, const char *code, const char *message,
+void diag_warning(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_WARNING, code, message, file, line, col_start, end_col, NULL);
+    diag_add(diagnostics, SEV_WARNING, code, message, file, line, col_start, end_col, NULL);
 }
 
-void diag_warning_help(DiagnosticList *dl, const char *code, const char *message,
+void diag_warning_help(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col_start, int end_col, const char *help) {
-    diag_add(dl, SEV_WARNING, code, message, file, line, col_start, end_col, help);
+    diag_add(diagnostics, SEV_WARNING, code, message, file, line, col_start, end_col, help);
 }
 
-void diag_note(DiagnosticList *dl, const char *message,
+void diag_note(DiagnosticList *diagnostics, const char *message,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_NOTE, NULL, message, file, line, col_start, end_col, NULL);
+    diag_add(diagnostics, SEV_NOTE, NULL, message, file, line, col_start, end_col, NULL);
 }
 
 static const char *lookup_or_placeholder(const char *code) {
@@ -159,64 +159,64 @@ static const char *lookup_or_placeholder(const char *code) {
     return msg ? msg : "<unknown error code>";
 }
 
-void diag_error_code(DiagnosticList *dl, const char *code,
+void diag_error_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_ERROR, code, lookup_or_placeholder(code),
+    diag_add(diagnostics, SEV_ERROR, code, lookup_or_placeholder(code),
         file, line, col_start, end_col, NULL);
 }
 
-void diag_error_code_help(DiagnosticList *dl, const char *code,
+void diag_error_code_help(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col_start, int end_col, const char *help) {
-    diag_add(dl, SEV_ERROR, code, lookup_or_placeholder(code),
+    diag_add(diagnostics, SEV_ERROR, code, lookup_or_placeholder(code),
         file, line, col_start, end_col, help);
 }
 
-void diag_warning_code(DiagnosticList *dl, const char *code,
+void diag_warning_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_WARNING, code, lookup_or_placeholder(code),
+    diag_add(diagnostics, SEV_WARNING, code, lookup_or_placeholder(code),
         file, line, col_start, end_col, NULL);
 }
 
-void diag_error_msg(DiagnosticList *dl, const char *code, const char *message,
+void diag_error_msg(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_ERROR, code, message, file, line, col_start, end_col, NULL);
+    diag_add(diagnostics, SEV_ERROR, code, message, file, line, col_start, end_col, NULL);
 }
 
-void diag_warning_msg(DiagnosticList *dl, const char *code, const char *message,
+void diag_warning_msg(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col_start, int end_col) {
-    diag_add(dl, SEV_WARNING, code, message, file, line, col_start, end_col, NULL);
+    diag_add(diagnostics, SEV_WARNING, code, message, file, line, col_start, end_col, NULL);
 }
 
 /* strdup is used so the formatted buffer outlives this stack frame;
  * the diagnostic list stores the pointer by reference. The tiny leak
  * per error is acceptable for a short-lived compiler invocation. */
-static void emit_codef(DiagnosticList *dl, Severity sev, const char *code,
+static void emit_codef(DiagnosticList *diagnostics, Severity sev, const char *code,
     const char *file, int line, int col_start, int end_col, va_list ap) {
     const char *tmpl = lookup_or_placeholder(code);
     char buf[DIAG_FORMAT_BUF];
     vsnprintf(buf, sizeof(buf), tmpl, ap);
-    diag_add(dl, sev, code, strdup(buf), file, line, col_start, end_col, NULL);
+    diag_add(diagnostics, sev, code, strdup(buf), file, line, col_start, end_col, NULL);
 }
 
-void diag_error_codef(DiagnosticList *dl, const char *code,
+void diag_error_codef(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col_start, int end_col, ...) {
     va_list ap;
     va_start(ap, end_col);
-    emit_codef(dl, SEV_ERROR, code, file, line, col_start, end_col, ap);
+    emit_codef(diagnostics, SEV_ERROR, code, file, line, col_start, end_col, ap);
     va_end(ap);
 }
 
-void diag_warning_codef(DiagnosticList *dl, const char *code,
+void diag_warning_codef(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col_start, int end_col, ...) {
     va_list ap;
     va_start(ap, end_col);
-    emit_codef(dl, SEV_WARNING, code, file, line, col_start, end_col, ap);
+    emit_codef(diagnostics, SEV_WARNING, code, file, line, col_start, end_col, ap);
     va_end(ap);
 }
 
-void diag_set_source(DiagnosticList *dl, const char *file, const char *source) {
+void diag_set_source(DiagnosticList *diagnostics, const char *file, const char *source) {
     /* Slot 0 is the primary entry-file slot. Source is caller-owned — never freed here. */
-    DiagSourceSlot *s = &dl->file_cache[0];
+    DiagSourceSlot *s = &diagnostics->file_cache[0];
     free(s->line_offsets);
     s->path = file;
     s->source = source;
@@ -227,21 +227,21 @@ void diag_set_source(DiagnosticList *dl, const char *file, const char *source) {
     if (source) build_line_index(s);
 }
 
-bool diag_has_errors(DiagnosticList *dl) {
-    return diag_error_count(dl) > 0;
+bool diag_has_errors(DiagnosticList *diagnostics) {
+    return diag_error_count(diagnostics) > 0;
 }
 
-int diag_error_count(DiagnosticList *dl) {
-    return dl->error_count;
+int diag_error_count(DiagnosticList *diagnostics) {
+    return diagnostics->error_count;
 }
 
-int diag_warning_count(DiagnosticList *dl) {
-    return dl->warning_count;
+int diag_warning_count(DiagnosticList *diagnostics) {
+    return diagnostics->warning_count;
 }
 
 /* --- Rendering --- */
 
-static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
+static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *d) {
     const char *sev_str;
     const char *sev_color;
 
@@ -261,16 +261,16 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
     }
 
     /* Line 1: severity[code]: message */
-    fprintf(stderr, "%s%s%s%s", col(dl, COL_BOLD), col(dl, sev_color), sev_str, col(dl, COL_RESET));
+    fprintf(stderr, "%s%s%s%s", col(diagnostics, COL_BOLD), col(diagnostics, sev_color), sev_str, col(diagnostics, COL_RESET));
     if (d->code) {
-        fprintf(stderr, "%s%s[%s]%s", col(dl, COL_BOLD), col(dl, sev_color), d->code, col(dl, COL_RESET));
+        fprintf(stderr, "%s%s[%s]%s", col(diagnostics, COL_BOLD), col(diagnostics, sev_color), d->code, col(diagnostics, COL_RESET));
     }
-    fprintf(stderr, "%s: %s%s\n", col(dl, COL_BOLD), d->message, col(dl, COL_RESET));
+    fprintf(stderr, "%s: %s%s\n", col(diagnostics, COL_BOLD), d->message, col(diagnostics, COL_RESET));
 
     /* Line 2: --> file:line:column */
     if (d->file && d->line > 0) {
         fprintf(stderr, "  %s-->%s %s:%d:%d\n",
-            col(dl, COL_BLUE), col(dl, COL_RESET),
+            col(diagnostics, COL_BLUE), col(diagnostics, COL_RESET),
             d->file, d->line, d->column);
     }
 
@@ -280,7 +280,7 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
         /* Search cache slots for this file */
         DiagSourceSlot *slot = NULL;
         for (int ci = 0; ci < DIAG_FILE_CACHE_SIZE; ci++) {
-            DiagSourceSlot *s = &dl->file_cache[ci];
+            DiagSourceSlot *s = &diagnostics->file_cache[ci];
             if (s->source && s->path && strcmp(s->path, d->file) == 0) {
                 slot = s;
                 break;
@@ -292,10 +292,10 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
             if (content) {
                 int evict = 1;
                 for (int ci = 2; ci < DIAG_FILE_CACHE_SIZE; ci++) {
-                    if (dl->file_cache[ci].last_use < dl->file_cache[evict].last_use)
+                    if (diagnostics->file_cache[ci].last_use < diagnostics->file_cache[evict].last_use)
                         evict = ci;
                 }
-                DiagSourceSlot *s = &dl->file_cache[evict];
+                DiagSourceSlot *s = &diagnostics->file_cache[evict];
                 if (s->owned) free((void *)s->source);
                 free(s->line_offsets);
                 s->path = d->file;
@@ -308,17 +308,17 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
             }
         }
         if (slot) {
-            slot->last_use = ++dl->cache_clock;
+            slot->last_use = ++diagnostics->cache_clock;
             src_line = read_source_line_indexed(slot->line_offsets, slot->line_count, d->line);
         }
     }
 
     if (src_line && d->line > 0) {
         /* Line number gutter */
-        fprintf(stderr, "   %s|%s\n", col(dl, COL_BLUE), col(dl, COL_RESET));
+        fprintf(stderr, "   %s|%s\n", col(diagnostics, COL_BLUE), col(diagnostics, COL_RESET));
         fprintf(stderr, "%s%3d%s %s|%s %s\n",
-            col(dl, COL_BLUE), d->line, col(dl, COL_RESET),
-            col(dl, COL_BLUE), col(dl, COL_RESET),
+            col(diagnostics, COL_BLUE), d->line, col(diagnostics, COL_RESET),
+            col(diagnostics, COL_BLUE), col(diagnostics, COL_RESET),
             src_line);
 
         /* Underline */
@@ -327,76 +327,76 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
         int span_len = end - start + 1;
         if (span_len < 1) span_len = 1;
 
-        fprintf(stderr, "   %s|%s ", col(dl, COL_BLUE), col(dl, COL_RESET));
+        fprintf(stderr, "   %s|%s ", col(diagnostics, COL_BLUE), col(diagnostics, COL_RESET));
         for (int i = 1; i < start; i++) {
             fputc(' ', stderr);
         }
-        fprintf(stderr, "%s%s", col(dl, COL_BOLD), col(dl, sev_color));
+        fprintf(stderr, "%s%s", col(diagnostics, COL_BOLD), col(diagnostics, sev_color));
         for (int i = 0; i < span_len; i++) {
             fputc('^', stderr);
         }
-        fprintf(stderr, "%s\n", col(dl, COL_RESET));
+        fprintf(stderr, "%s\n", col(diagnostics, COL_RESET));
     }
 
     /* Help text */
     if (d->help) {
-        fprintf(stderr, "   %s|%s\n", col(dl, COL_BLUE), col(dl, COL_RESET));
+        fprintf(stderr, "   %s|%s\n", col(diagnostics, COL_BLUE), col(diagnostics, COL_RESET));
         fprintf(stderr, "   %s=%s %shelp%s: %s\n",
-            col(dl, COL_BLUE), col(dl, COL_RESET),
-            col(dl, COL_CYAN), col(dl, COL_RESET),
+            col(diagnostics, COL_BLUE), col(diagnostics, COL_RESET),
+            col(diagnostics, COL_CYAN), col(diagnostics, COL_RESET),
             d->help);
     }
 
     fprintf(stderr, "\n");
 }
 
-static bool is_warning_suppressed(DiagnosticList *dl, Diagnostic *d) {
+static bool is_warning_suppressed(DiagnosticList *diagnostics, Diagnostic *d) {
     if (d->severity != SEV_WARNING) return false;
-    if (dl->suppress_all_warnings) return true;
+    if (diagnostics->suppress_all_warnings) return true;
     if (d->code) {
-        for (int i = 0; i < dl->suppressed_count; i++) {
-            if (strcmp(d->code, dl->suppressed_codes[i]) == 0) return true;
+        for (int i = 0; i < diagnostics->suppressed_count; i++) {
+            if (strcmp(d->code, diagnostics->suppressed_codes[i]) == 0) return true;
         }
     }
     return false;
 }
 
-void diag_print_all(DiagnosticList *dl) {
-    for (int i = 0; i < dl->count; i++) {
-        if (is_warning_suppressed(dl, &dl->items[i])) continue;
-        print_diagnostic(dl, &dl->items[i]);
+void diag_print_all(DiagnosticList *diagnostics) {
+    for (int i = 0; i < diagnostics->count; i++) {
+        if (is_warning_suppressed(diagnostics, &diagnostics->items[i])) continue;
+        print_diagnostic(diagnostics, &diagnostics->items[i]);
     }
 }
 
-void diag_print_summary(DiagnosticList *dl) {
-    int errors = dl->error_count;
+void diag_print_summary(DiagnosticList *diagnostics) {
+    int errors = diagnostics->error_count;
 
     /* visible_warnings excludes suppressed entries — checked at render time */
     int warnings = 0;
-    for (int i = 0; i < dl->count; i++) {
-        if (dl->items[i].severity == SEV_WARNING &&
-            !is_warning_suppressed(dl, &dl->items[i]))
+    for (int i = 0; i < diagnostics->count; i++) {
+        if (diagnostics->items[i].severity == SEV_WARNING &&
+            !is_warning_suppressed(diagnostics, &diagnostics->items[i]))
             warnings++;
     }
 
     if (errors == 0 && warnings == 0) return;
 
-    fprintf(stderr, "%sgrayscale:%s ", col(dl, COL_BOLD), col(dl, COL_RESET));
+    fprintf(stderr, "%sgrayscale:%s ", col(diagnostics, COL_BOLD), col(diagnostics, COL_RESET));
 
     if (errors > 0) {
         fprintf(stderr, "%s%s%d error%s%s",
-            col(dl, COL_BOLD), col(dl, COL_RED),
+            col(diagnostics, COL_BOLD), col(diagnostics, COL_RED),
             errors, errors == 1 ? "" : "s",
-            col(dl, COL_RESET));
+            col(diagnostics, COL_RESET));
     }
     if (errors > 0 && warnings > 0) {
         fprintf(stderr, ", ");
     }
     if (warnings > 0) {
         fprintf(stderr, "%s%s%d warning%s%s",
-            col(dl, COL_BOLD), col(dl, COL_YELLOW),
+            col(diagnostics, COL_BOLD), col(diagnostics, COL_YELLOW),
             warnings, warnings == 1 ? "" : "s",
-            col(dl, COL_RESET));
+            col(diagnostics, COL_RESET));
     }
 
     if (errors > 0) {
@@ -405,8 +405,8 @@ void diag_print_summary(DiagnosticList *dl) {
         fprintf(stderr, "\n");
     }
 
-    if (warnings > 0 && !dl->suppress_all_warnings && dl->suppressed_count == 0) {
+    if (warnings > 0 && !diagnostics->suppress_all_warnings && diagnostics->suppressed_count == 0) {
         fprintf(stderr, "%shint:%s suppress warnings with -q <W1001,W1002,...> or -q 'all'\n",
-            col(dl, COL_BOLD), col(dl, COL_RESET));
+            col(diagnostics, COL_BOLD), col(diagnostics, COL_RESET));
     }
 }
