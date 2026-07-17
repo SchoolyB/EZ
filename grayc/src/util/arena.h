@@ -26,9 +26,9 @@ typedef struct {
 } Arena;
 
 Arena *arena_create(size_t initial_size);
-void *arena_alloc(Arena *a, size_t size);
-char *arena_strdup(Arena *a, const char *s);
-char *arena_strndup(Arena *a, const char *s, size_t len);
-void arena_destroy(Arena *a);
+void *arena_alloc(Arena *arena, size_t size);
+char *arena_strdup(Arena *arena, const char *source);
+char *arena_strndup(Arena *arena, const char *source, size_t len);
+void arena_destroy(Arena *arena);
 
 #endif

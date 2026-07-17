@@ -27,55 +27,55 @@ static ArenaBlock *arena_block_create(size_t size) {
 }
 
 Arena *arena_create(size_t initial_size) {
-    Arena *a = malloc(sizeof(Arena));
-    if (!a) {
+    Arena *arena = malloc(sizeof(Arena));
+    if (!arena) {
         fprintf(stderr, "grayc: out of memory\n");
         exit(1);
     }
-    a->default_block_size = initial_size;
-    a->first = arena_block_create(initial_size);
-    a->current = a->first;
-    return a;
+    arena->default_block_size = initial_size;
+    arena->first = arena_block_create(initial_size);
+    arena->current = arena->first;
+    return arena;
 }
 
-void *arena_alloc(Arena *a, size_t size) {
+void *arena_alloc(Arena *arena, size_t size) {
     size = ALIGN_UP(size, 8);
 
-    if (a->current->used + size > a->current->size) {
-        size_t block_size = a->default_block_size;
+    if (arena->current->used + size > arena->current->size) {
+        size_t block_size = arena->default_block_size;
         if (size > block_size) {
             block_size = size;
         }
         ArenaBlock *block = arena_block_create(block_size);
-        a->current->next = block;
-        a->current = block;
+        arena->current->next = block;
+        arena->current = block;
     }
 
-    void *ptr = a->current->data + a->current->used;
-    a->current->used += size;
+    void *ptr = arena->current->data + arena->current->used;
+    arena->current->used += size;
     return ptr;
 }
 
-char *arena_strdup(Arena *a, const char *s) {
-    size_t len = strlen(s);
-    char *dup = arena_alloc(a, len + 1);
-    memcpy(dup, s, len + 1);
-    return dup;
+char *arena_strdup(Arena *arena, const char *source) {
+    size_t len = strlen(source);
+    char *duplicated = arena_alloc(arena, len + 1);
+    memcpy(duplicated, source, len + 1);
+    return duplicated;
 }
 
-char *arena_strndup(Arena *a, const char *s, size_t len) {
-    char *dup = arena_alloc(a, len + 1);
-    memcpy(dup, s, len);
-    dup[len] = '\0';
-    return dup;
+char *arena_strndup(Arena *arena, const char *source, size_t len) {
+    char *duplicated = arena_alloc(arena, len + 1);
+    memcpy(duplicated, source, len);
+    duplicated[len] = '\0';
+    return duplicated;
 }
 
-void arena_destroy(Arena *a) {
-    ArenaBlock *block = a->first;
+void arena_destroy(Arena *arena) {
+    ArenaBlock *block = arena->first;
     while (block) {
         ArenaBlock *next = block->next;
         free(block);
         block = next;
     }
-    free(a);
+    free(arena);
 }
