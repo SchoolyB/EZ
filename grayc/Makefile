@@ -113,16 +113,20 @@ $(ATOMIC_OBJ): $(ATOMIC_SRC)
 	$(CC) -c -o $@ $<
 endif
 
-# Runtime objects need different flags (no -Wpedantic for GCC statement expressions)
+# Runtime/stdlib flags: same as CFLAGS but no -Wpedantic (GCC statement expressions)
+RT_CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2
+
 src/runtime/%.o: src/runtime/%.c
-	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc $(DEPFLAGS) -c -o $@ $<
+	$(CC) $(RT_CFLAGS) $(INCLUDES) $(DEPFLAGS) -c -o $@ $<
 
 src/stdlib/%.o: src/stdlib/%.c
-	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc $(DEPFLAGS) -c -o $@ $<
+	$(CC) $(RT_CFLAGS) $(INCLUDES) $(DEPFLAGS) -c -o $@ $<
 
 # SQLite amalgamation — relaxed warnings, single-threaded mode
+VENDOR_CFLAGS = -std=c11 -w -O2 -DSQLITE_THREADSAFE=0
+
 src/vendor/sqlite3.o: src/vendor/sqlite3.c
-	$(CC) -std=c11 -w -O2 -DSQLITE_THREADSAFE=0 -c -o $@ $<
+	$(CC) $(VENDOR_CFLAGS) -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) $(DEPFLAGS) -c -o $@ $<
