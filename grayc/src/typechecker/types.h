@@ -76,10 +76,10 @@ GrayType *type_pointer(const char *pointee_type);
 GrayType *type_alloc(void);
 
 /* Type queries */
-bool type_is_numeric(GrayType *t);
-bool type_is_integer(GrayType *t);
-bool type_eq(GrayType *a, GrayType *b);
-const char *type_name(GrayType *t);
+bool type_is_numeric(GrayType *type);
+bool type_is_integer(GrayType *type);
+bool type_eq(GrayType *left, GrayType *right);
+const char *type_name(GrayType *type);
 
 /* Resolve a type name string to an GrayType */
 GrayType *type_from_name(const char *name);

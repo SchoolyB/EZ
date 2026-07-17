@@ -12,10 +12,10 @@
 #include "../util/arena.h"
 #include <string.h>
 
-AstNode *ast_alloc(Arena *a, NodeKind kind, Token tok) {
-    AstNode *node = arena_alloc(a, sizeof(AstNode));
+AstNode *ast_alloc(Arena *arena, NodeKind kind, Token token) {
+    AstNode *node = arena_alloc(arena, sizeof(AstNode));
     memset(node, 0, sizeof(AstNode));
     node->kind = kind;
-    node->token = tok;
+    node->token = token;
     return node;
 }

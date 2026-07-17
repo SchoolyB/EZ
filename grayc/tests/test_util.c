@@ -179,80 +179,80 @@ static void test_buf_append_indent_large(void) {
 /* ===== Scope Tests ===== */
 
 static void test_scope_empty_lookup(void) {
-    Scope *s = scope_create(NULL);
-    Symbol *sym = scope_lookup(s, "nonexistent");
+    Scope *scope = scope_create(NULL);
+    Symbol *sym = scope_lookup(scope, "nonexistent");
     ASSERT(sym == NULL);
-    scope_destroy(s);
+    scope_destroy(scope);
 }
 
 static void test_scope_define_update(void) {
-    Scope *s = scope_create(NULL);
+    Scope *scope = scope_create(NULL);
     GrayType *t_int = type_from_name("int");
     GrayType *t_str = type_from_name("string");
-    scope_define(s, "x", t_int, true);
-    scope_define(s, "x", t_str, false);
-    Symbol *sym = scope_lookup(s, "x");
+    scope_define(scope, "x", t_int, true);
+    scope_define(scope, "x", t_str, false);
+    Symbol *sym = scope_lookup(scope, "x");
     ASSERT_NOT_NULL(sym);
     ASSERT(sym->type == t_str);
     ASSERT_EQ(sym->mutable, false);
-    ASSERT_EQ(s->count, 1);  /* still one symbol, not two */
-    scope_destroy(s);
+    ASSERT_EQ(scope->count, 1);  /* still one symbol, not two */
+    scope_destroy(scope);
 }
 
 static void test_scope_hash_rebuild(void) {
-    Scope *s = scope_create(NULL);
+    Scope *scope = scope_create(NULL);
     GrayType *t = type_from_name("int");
     char names[12][16];
     for (int i = 0; i < 12; i++) {
         snprintf(names[i], sizeof(names[i]), "var_%d", i);
-        scope_define(s, names[i], t, true);
+        scope_define(scope, names[i], t, true);
     }
     /* 12 symbols should have triggered at least one hash rebuild (initial hash_cap=16, rebuild when count*2 > hash_cap) */
-    ASSERT(s->hash_cap >= 32);
+    ASSERT(scope->hash_cap >= 32);
     /* Verify all symbols are still findable */
     for (int i = 0; i < 12; i++) {
-        Symbol *sym = scope_lookup(s, names[i]);
+        Symbol *sym = scope_lookup(scope, names[i]);
         ASSERT_NOT_NULL(sym);
     }
-    scope_destroy(s);
+    scope_destroy(scope);
 }
 
 static void test_scope_many_symbols(void) {
-    Scope *s = scope_create(NULL);
+    Scope *scope = scope_create(NULL);
     GrayType *t = type_from_name("int");
     char names[60][16];
     for (int i = 0; i < 60; i++) {
         snprintf(names[i], sizeof(names[i]), "sym_%d", i);
-        scope_define(s, names[i], t, true);
+        scope_define(scope, names[i], t, true);
     }
-    ASSERT_EQ(s->count, 60);
+    ASSERT_EQ(scope->count, 60);
     /* Verify all symbols are retrievable */
     for (int i = 0; i < 60; i++) {
-        Symbol *sym = scope_lookup(s, names[i]);
+        Symbol *sym = scope_lookup(scope, names[i]);
         ASSERT_NOT_NULL(sym);
     }
-    scope_destroy(s);
+    scope_destroy(scope);
 }
 
 static void test_scope_destroy(void) {
-    Scope *s = scope_create(NULL);
+    Scope *scope = scope_create(NULL);
     GrayType *t = type_from_name("int");
-    scope_define(s, "a", t, true);
-    scope_define(s, "b", t, false);
-    scope_define(s, "c", t, true);
-    scope_destroy(s);
+    scope_define(scope, "a", t, true);
+    scope_define(scope, "b", t, false);
+    scope_define(scope, "c", t, true);
+    scope_destroy(scope);
     /* If we get here without crashing, the test passes */
     ASSERT(1);
 }
 
 static void test_scope_immutable(void) {
-    Scope *s = scope_create(NULL);
+    Scope *scope = scope_create(NULL);
     GrayType *t = type_from_name("int");
-    scope_define(s, "constant", t, false);
-    Symbol *sym = scope_lookup(s, "constant");
+    scope_define(scope, "constant", t, false);
+    Symbol *sym = scope_lookup(scope, "constant");
     ASSERT_NOT_NULL(sym);
     ASSERT_EQ(sym->mutable, false);
-    scope_destroy(s);
+    scope_destroy(scope);
 }
 
 int main(void) {

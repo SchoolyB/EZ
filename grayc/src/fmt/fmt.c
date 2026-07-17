@@ -50,20 +50,20 @@ static int *build_depth_table(const char *src, const char *filename, int max_lin
     Arena *arena = arena_create(FMT_ARENA_SIZE);
     if (!arena) { free(table); return NULL; }
 
-    Lexer *l = lexer_create(arena, src, filename);
-    if (!l) { arena_destroy(arena); free(table); return NULL; }
+    Lexer *lexer = lexer_create(arena, src, filename);
+    if (!lexer) { arena_destroy(arena); free(table); return NULL; }
 
     int depth = 0;
-    Token tok;
-    while ((tok = lexer_next_token(l)).type != TOK_EOF) {
-        if (tok.type == TOK_ILLEGAL) break;
-        if (tok.type == TOK_NEWLINE) continue;
+    Token token;
+    while ((token = lexer_next_token(lexer)).type != TOK_EOF) {
+        if (token.type == TOK_ILLEGAL) break;
+        if (token.type == TOK_NEWLINE) continue;
 
-        int line = tok.line;
+        int line = token.line;
         if (line < 1 || line > max_line) continue;
 
         /* Closing brace: dedent first, then record */
-        if (tok.type == TOK_RBRACE) {
+        if (token.type == TOK_RBRACE) {
             if (depth > 0) depth--;
         }
 
@@ -73,7 +73,7 @@ static int *build_depth_table(const char *src, const char *filename, int max_lin
         }
 
         /* Opening brace: indent for subsequent lines */
-        if (tok.type == TOK_LBRACE) {
+        if (token.type == TOK_LBRACE) {
             depth++;
         }
     }

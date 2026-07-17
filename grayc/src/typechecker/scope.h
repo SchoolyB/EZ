@@ -52,9 +52,9 @@ typedef struct Scope {
 } Scope;
 
 Scope *scope_create(Scope *parent);
-void scope_destroy(Scope *s);
-void scope_define(Scope *s, const char *name, GrayType *type, bool mutable);
-Symbol *scope_lookup(Scope *s, const char *name);
-Symbol *scope_lookup_local(Scope *s, const char *name);
+void scope_destroy(Scope *scope);
+void scope_define(Scope *scope, const char *name, GrayType *type, bool mutable);
+Symbol *scope_lookup(Scope *scope, const char *name);
+Symbol *scope_lookup_local(Scope *scope, const char *name);
 
 #endif

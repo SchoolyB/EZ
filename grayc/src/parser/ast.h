@@ -360,6 +360,6 @@ struct AstNode {
 };
 
 /* Node constructor helpers */
-AstNode *ast_alloc(Arena *a, NodeKind kind, Token tok);
+AstNode *ast_alloc(Arena *arena, NodeKind kind, Token token);
 
 #endif
