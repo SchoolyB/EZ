@@ -297,7 +297,7 @@ bool type_is_integer(GrayType *type) {
            type->kind == TK_CHAR || type->kind == TK_BYTE;
 }
 
-bool type_eq(GrayType *left, GrayType *right) {
+bool type_equals(GrayType *left, GrayType *right) {
     if (left->kind != right->kind) return false;
     if (left->kind == TK_STRUCT || left->kind == TK_ENUM) {
         return strcmp(left->name, right->name) == 0;
@@ -388,7 +388,7 @@ static BuiltinTypeEntry builtin_types[] = {
 
 #define BUILTIN_TYPES_COUNT (sizeof(builtin_types) / sizeof(builtin_types[0]))
 
-static int builtin_type_cmp(const void *a, const void *b) {
+static int builtin_type_compare(const void *a, const void *b) {
     return strcmp(((const BuiltinTypeEntry *)a)->name,
                   ((const BuiltinTypeEntry *)b)->name);
 }
@@ -411,7 +411,7 @@ GrayType *type_from_name(const char *name) {
 
     BuiltinTypeEntry key = { name, NULL, 0, NULL };
     BuiltinTypeEntry *hit = bsearch(&key, builtin_types, BUILTIN_TYPES_COUNT,
-                                    sizeof(BuiltinTypeEntry), builtin_type_cmp);
+                                    sizeof(BuiltinTypeEntry), builtin_type_compare);
     if (hit) {
         if (hit->singleton) return hit->singleton;
         const char *resolved_name = hit->alloc_name ? hit->alloc_name : name;
