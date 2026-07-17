@@ -555,7 +555,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
  * Open-addressing hash set keyed on canonical file path. */
 
 /* Must be a power of 2 and >= 2*MAX_IMPORTS for safe linear probing. */
-#define IMPORT_HASH_BUCKETS 512
+#define IMPORT_HASH_BUCKETS (MAX_IMPORTS * 2)
 
 #define FNV1A_OFFSET_BASIS 2166136261u
 #define FNV1A_PRIME        16777619u

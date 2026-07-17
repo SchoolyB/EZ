@@ -20,7 +20,8 @@
 #define MAX_SHARED_RETURNS 16
 #define FLOAT_LIT_BUF    128
 #define TMP_NAME_BUF     32
-#define FIELD_NAME_BUF   8
+#define FIELD_NAME_BUF           8
+#define STRUCT_NAME_INITIAL_CAP  16
 
 /* Operator precedence levels */
 typedef enum {
@@ -1899,7 +1900,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                     next_token(parser);
                     int idx = node->data.func_decl.return_type_count;
                     if (idx >= ret_cap) {
-                        diagnostic_error_code(parser->diag, "E2060", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
+                        diagnostic_error_code_formatted(parser->diag, "E2060", parser->file, parser->cur_token.line, parser->cur_token.column, 0, MAX_SHARED_RETURNS);
                         return NULL;
                     }
                     node->data.func_decl.return_names[idx] = ret_name;
@@ -1923,7 +1924,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                         for (int s = 0; s < shared; s++) {
                             int idx = node->data.func_decl.return_type_count;
                             if (idx >= ret_cap) {
-                                diagnostic_error_code(parser->diag, "E2060", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
+                                diagnostic_error_code_formatted(parser->diag, "E2060", parser->file, parser->cur_token.line, parser->cur_token.column, 0, MAX_SHARED_RETURNS);
                                 return NULL;
                             }
                             node->data.func_decl.return_names[idx] = names[s];
@@ -1937,7 +1938,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                      * [string], map[K:V], ^T, not just simple idents. */
                     int idx = node->data.func_decl.return_type_count;
                     if (idx >= ret_cap) {
-                        diagnostic_error_code(parser->diag, "E2060", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
+                        diagnostic_error_code_formatted(parser->diag, "E2060", parser->file, parser->cur_token.line, parser->cur_token.column, 0, MAX_SHARED_RETURNS);
                         return NULL;
                     }
                     node->data.func_decl.return_names[idx] = NULL;
@@ -3129,8 +3130,8 @@ Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticLi
     parser->depth = 0;
     parser->no_struct_literal = false;
     parser->struct_name_count = 0;
-    parser->struct_name_cap = 16;
-    parser->struct_names = arena_alloc(arena, sizeof(const char *) * 16);
+    parser->struct_name_cap = STRUCT_NAME_INITIAL_CAP;
+    parser->struct_names = arena_alloc(arena, sizeof(const char *) * STRUCT_NAME_INITIAL_CAP);
 
     /* Pre-scan for struct/enum names before the main parse so we can
      * disambiguate struct literals without capitalization heuristics. */
