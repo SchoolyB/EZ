@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # generate_stdlib_man.sh — extract @man blocks from stdlib headers
 # Usage: ./scripts/generate_stdlib_man.sh
-# Reads all gray_*.h files under grayc/src/stdlib/ that contain @module tags.
+# Reads all *.h files under grayc/src/stdlib/ that contain @module tags.
 # Generates cmd/gray/stdlib_man_data.go (committed, do not edit by hand).
 set -e
 
@@ -15,7 +15,7 @@ OUT="$ROOT/cmd/gray/stdlib_man_data.go"
 TMPFILE="$(mktemp /tmp/gray_stdlib_man_XXXXXX.tsv)"
 trap 'rm -f "$TMPFILE"' EXIT
 
-for header in "$STDLIB_DIR"/gray_*.h; do
+for header in "$STDLIB_DIR"/*.h; do
   awk '
     /^\/\*@man / {
       name = substr($0, 8); gsub(/[[:space:]]/, "", name)

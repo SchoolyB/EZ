@@ -40,37 +40,37 @@ OBJ = $(SRC:.c=.o)
 BIN = grayc
 
 # Runtime/stdlib files compiled into a static library for fast linking
-RT_SRC = src/runtime/gray_runtime.c \
-         src/runtime/gray_array.c \
-         src/runtime/gray_map.c \
-         src/stdlib/gray_builtins.c \
-         src/stdlib/gray_mem.c \
-         src/stdlib/gray_fmt.c \
-         src/stdlib/gray_math.c \
-         src/stdlib/gray_strings.c \
-         src/stdlib/gray_io.c \
-         src/stdlib/gray_maps.c \
-         src/stdlib/gray_os.c \
-         src/stdlib/gray_arrays.c \
-         src/stdlib/gray_random.c \
-         src/stdlib/gray_time.c \
-         src/stdlib/gray_uuid.c \
-         src/stdlib/gray_encoding.c \
-         src/stdlib/gray_crypto.c \
-         src/stdlib/gray_bytes.c \
-         src/stdlib/gray_binary.c \
-         src/stdlib/gray_csv.c \
-         src/stdlib/gray_json.c \
-         src/stdlib/gray_sqlite.c \
-         src/stdlib/gray_threads.c \
-         src/stdlib/gray_sync.c \
-         src/stdlib/gray_atomic.c \
-         src/stdlib/gray_channels.c \
-         src/stdlib/gray_regex.c \
-         src/stdlib/gray_net.c \
-         src/stdlib/gray_http.c \
-         src/stdlib/gray_server.c \
-         src/stdlib/gray_strconv.c \
+RT_SRC = src/runtime/runtime.c \
+         src/runtime/array.c \
+         src/runtime/map.c \
+         src/stdlib/builtins.c \
+         src/stdlib/mem.c \
+         src/stdlib/fmt.c \
+         src/stdlib/math.c \
+         src/stdlib/strings.c \
+         src/stdlib/io.c \
+         src/stdlib/maps.c \
+         src/stdlib/os.c \
+         src/stdlib/arrays.c \
+         src/stdlib/random.c \
+         src/stdlib/time.c \
+         src/stdlib/uuid.c \
+         src/stdlib/encoding.c \
+         src/stdlib/crypto.c \
+         src/stdlib/bytes.c \
+         src/stdlib/binary.c \
+         src/stdlib/csv.c \
+         src/stdlib/json.c \
+         src/stdlib/sqlite.c \
+         src/stdlib/threads.c \
+         src/stdlib/sync.c \
+         src/stdlib/atomic.c \
+         src/stdlib/channels.c \
+         src/stdlib/regex.c \
+         src/stdlib/net.c \
+         src/stdlib/http.c \
+         src/stdlib/server.c \
+         src/stdlib/strconv.c \
          src/vendor/sqlite3.c
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libgrayrt.a
@@ -138,11 +138,11 @@ install: build
 	install -m 755 $(BIN) /usr/local/bin/
 	install -d /usr/local/lib/grayc/runtime
 	install -d /usr/local/lib/grayc/stdlib
-	install -m 644 src/runtime/gray_runtime.h /usr/local/lib/grayc/runtime/
-	install -m 644 src/runtime/gray_array.h /usr/local/lib/grayc/runtime/
-	install -m 644 src/runtime/gray_map.h /usr/local/lib/grayc/runtime/
-	install -m 644 src/stdlib/gray_std.h /usr/local/lib/grayc/stdlib/
-	install -m 644 src/stdlib/gray_mem.h /usr/local/lib/grayc/stdlib/
+	install -m 644 src/runtime/runtime.h /usr/local/lib/grayc/runtime/
+	install -m 644 src/runtime/array.h /usr/local/lib/grayc/runtime/
+	install -m 644 src/runtime/map.h /usr/local/lib/grayc/runtime/
+	install -m 644 src/stdlib/builtins.h /usr/local/lib/grayc/stdlib/
+	install -m 644 src/stdlib/mem.h /usr/local/lib/grayc/stdlib/
 	install -m 644 $(RT_LIB) /usr/local/lib/grayc/
 
 # Shared objects needed by test binaries (everything except main.o)

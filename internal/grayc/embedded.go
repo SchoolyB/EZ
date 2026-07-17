@@ -108,7 +108,7 @@ func extractSourceTree(dir string) error {
 		if err != nil {
 			return err
 		}
-		// path is like "runtime/src/runtime/gray_runtime.h" or "runtime/src/stdlib/gray_fmt.c"
+		// path is like "runtime/src/runtime/runtime.h" or "runtime/src/stdlib/fmt.c"
 		// Strip the leading "runtime/" prefix to get "src/runtime/..." on disk.
 		rel := path[len("runtime/"):]
 		dest := filepath.Join(dir, rel)

@@ -1,0 +1,27 @@
+/*
+ * crypto.h — Public interface for the crypto stdlib module.
+ * Declares SHA-256, MD5 hashing, and cryptographic random hex
+ * generation with no OpenSSL dependency.
+ *
+ * Author:  Marshall A Burns (@SchoolyB)
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
+ */
+
+#ifndef GRAY_CRYPTO_H
+#define GRAY_CRYPTO_H
+
+#include "../runtime/runtime.h"
+
+GrayString gray_crypto_sha256(GrayArena *arena, GrayString data);
+
+/* WARNING: MD5 is a cryptographically broken hash function. It has known
+ * collision vulnerabilities and must not be used for password hashing,
+ * certificate fingerprinting, integrity verification in security contexts,
+ * or HMAC construction. Use crypto.sha256() for any security purpose.
+ * crypto.md5() is provided only for legacy compatibility and non-security
+ * checksum use cases (e.g. cache keys, non-sensitive deduplication). */
+GrayString gray_crypto_md5(GrayArena *arena, GrayString data);
+GrayString gray_crypto_random_hex(GrayArena *arena, int64_t length);
+
+#endif

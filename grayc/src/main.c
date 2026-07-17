@@ -210,7 +210,7 @@ static char *output_name_from_input(const char *input) {
 }
 
 /*
- * Find the runtime directory containing gray_runtime.h and gray_std.h.
+ * Find the runtime directory containing runtime.h and std.h.
  *
  * Search order:
  *   1. GRAY_RUNTIME env var (explicit override)
@@ -225,7 +225,7 @@ static const char *find_runtime_dir(const char *argv0) {
     /* 1. Environment variable override */
     const char *env = getenv("GRAY_RUNTIME");
     if (env && access(env, R_OK) == 0) {
-        snprintf(path, sizeof(path), "%s/runtime/gray_runtime.h", env);
+        snprintf(path, sizeof(path), "%s/runtime/runtime.h", env);
         if (access(path, R_OK) == 0) return env;
     }
 
@@ -233,14 +233,14 @@ static const char *find_runtime_dir(const char *argv0) {
     const char *self_dir = get_self_dir(argv0);
     if (self_dir) {
         /* Installed layout: binary in /usr/local/bin, runtime in /usr/local/lib/grayc */
-        snprintf(path, sizeof(path), "%s/../lib/grayc/runtime/gray_runtime.h", self_dir);
+        snprintf(path, sizeof(path), "%s/../lib/grayc/runtime/runtime.h", self_dir);
         if (access(path, R_OK) == 0) {
             snprintf(path, sizeof(path), "%s/../lib/grayc", self_dir);
             return path;
         }
 
         /* Development layout: binary in grayc/, runtime in grayc/src/runtime */
-        snprintf(path, sizeof(path), "%s/src/runtime/gray_runtime.h", self_dir);
+        snprintf(path, sizeof(path), "%s/src/runtime/runtime.h", self_dir);
         if (access(path, R_OK) == 0) {
             snprintf(path, sizeof(path), "%s/src", self_dir);
             return path;
@@ -254,7 +254,7 @@ static const char *find_runtime_dir(const char *argv0) {
             char probe[PATH_BUF_SIZE];
             char *dir = cwd;
             while (*dir) {
-                snprintf(probe, sizeof(probe), "%s/grayc/src/runtime/gray_runtime.h", dir);
+                snprintf(probe, sizeof(probe), "%s/grayc/src/runtime/runtime.h", dir);
                 if (access(probe, R_OK) == 0) {
                     snprintf(path, sizeof(path), "%s/grayc/src", dir);
                     return path;
@@ -268,7 +268,7 @@ static const char *find_runtime_dir(const char *argv0) {
     }
 
     /* 5. System install location */
-    if (access("/usr/local/lib/grayc/runtime/gray_runtime.h", R_OK) == 0) {
+    if (access("/usr/local/lib/grayc/runtime/runtime.h", R_OK) == 0) {
         return "/usr/local/lib/grayc";
     }
 
@@ -1715,7 +1715,7 @@ int main(int argc, char **argv) {
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
             "-Wno-tautological-compare "
-            "-I'%s'/runtime -I'%s'/stdlib "
+            "-isystem '%s'/runtime -isystem '%s'/stdlib "
             "-o '%s' '%s' '%s' "
             "-lm -lpthread -Wl,-w 2>&1",
             extra_flags,
@@ -1724,19 +1724,19 @@ int main(int argc, char **argv) {
     } else {
         /* Build source list from all runtime and stdlib .c files */
         static const char *runtime_srcs[] = {
-            "runtime/gray_runtime.c", "runtime/gray_array.c", "runtime/gray_map.c",
+            "runtime/runtime.c", "runtime/array.c", "runtime/map.c",
         };
         static const char *stdlib_srcs[] = {
-            "stdlib/gray_arrays.c",   "stdlib/gray_binary.c",   "stdlib/gray_builtins.c",
-            "stdlib/gray_bytes.c",    "stdlib/gray_channels.c", "stdlib/gray_crypto.c",
-            "stdlib/gray_csv.c",      "stdlib/gray_encoding.c", "stdlib/gray_fmt.c",
-            "stdlib/gray_http.c",     "stdlib/gray_io.c",       "stdlib/gray_json.c",
-            "stdlib/gray_maps.c",     "stdlib/gray_math.c",     "stdlib/gray_mem.c",
-            "stdlib/gray_net.c",      "stdlib/gray_os.c",       "stdlib/gray_random.c",
-            "stdlib/gray_regex.c",    "stdlib/gray_server.c",   "stdlib/gray_sqlite.c",
-            "stdlib/gray_strings.c",  "stdlib/gray_sync.c",     "stdlib/gray_atomic.c",
-            "stdlib/gray_threads.c",
-            "stdlib/gray_time.c",     "stdlib/gray_uuid.c", "stdlib/gray_strconv.c"
+            "stdlib/arrays.c",   "stdlib/binary.c",   "stdlib/builtins.c",
+            "stdlib/bytes.c",    "stdlib/channels.c", "stdlib/crypto.c",
+            "stdlib/csv.c",      "stdlib/encoding.c", "stdlib/fmt.c",
+            "stdlib/http.c",     "stdlib/io.c",       "stdlib/json.c",
+            "stdlib/maps.c",     "stdlib/math.c",     "stdlib/mem.c",
+            "stdlib/net.c",      "stdlib/os.c",       "stdlib/random.c",
+            "stdlib/regex.c",    "stdlib/server.c",   "stdlib/sqlite.c",
+            "stdlib/strings.c",  "stdlib/sync.c",     "stdlib/atomic.c",
+            "stdlib/threads.c",
+            "stdlib/time.c",     "stdlib/uuid.c", "stdlib/strconv.c"
         };
         char srcs[CMD_BUF_SIZE];
         int off = 0;
@@ -1754,7 +1754,7 @@ int main(int argc, char **argv) {
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
             "-Wno-tautological-compare "
-            "-I'%s'/runtime -I'%s'/stdlib "
+            "-isystem '%s'/runtime -isystem '%s'/stdlib "
             "-o '%s' '%s' %s"
             "-lm -lpthread -Wl,-w 2>&1",
             extra_flags,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# generate_builtins_man.sh — extract @man blocks from gray_builtins.h
+# generate_builtins_man.sh — extract @man blocks from builtins.h
 # and generate cmd/gray/builtins_man_data.go
 #
 # Run from repo root or any subdirectory.
@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
-HEADER="$ROOT/grayc/src/stdlib/gray_builtins.h"
+HEADER="$ROOT/grayc/src/stdlib/builtins.h"
 OUT="$ROOT/cmd/gray/builtins_man_data.go"
 
 if [ ! -f "$HEADER" ]; then
