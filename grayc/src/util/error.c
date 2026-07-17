@@ -29,7 +29,6 @@
 #define COL_YELLOW  "\033[33m"
 #define COL_CYAN    "\033[36m"
 #define COL_BLUE    "\033[34m"
-#define COL_WHITE   "\033[37m"
 
 static const char *col(DiagnosticList *diagnostics, const char *code) {
     return diagnostics->use_color ? code : "";
@@ -149,11 +148,6 @@ void diagnostic_warning_help(DiagnosticList *diagnostics, const char *code, cons
     diagnostic_add(diagnostics, SEV_WARNING, code, message, file, line, col_start, end_col, help);
 }
 
-void diagnostic_note(DiagnosticList *diagnostics, const char *message,
-    const char *file, int line, int col_start, int end_col) {
-    diagnostic_add(diagnostics, SEV_NOTE, NULL, message, file, line, col_start, end_col, NULL);
-}
-
 static const char *lookup_or_placeholder(const char *code) {
     const char *msg = gray_error_message(code);
     return msg ? msg : "<unknown error code>";
@@ -206,14 +200,6 @@ void diagnostic_error_code_formatted(DiagnosticList *diagnostics, const char *co
     va_end(ap);
 }
 
-void diagnostic_warning_code_formatted(DiagnosticList *diagnostics, const char *code,
-    const char *file, int line, int col_start, int end_col, ...) {
-    va_list ap;
-    va_start(ap, end_col);
-    emit_code_formatted(diagnostics, SEV_WARNING, code, file, line, col_start, end_col, ap);
-    va_end(ap);
-}
-
 void diagnostic_set_source(DiagnosticList *diagnostics, const char *file, const char *source) {
     /* Slot 0 is the primary entry-file slot. Source is caller-owned — never freed here. */
     DiagSourceSlot *s = &diagnostics->file_cache[0];
@@ -253,10 +239,6 @@ static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *d) {
     case SEV_WARNING:
         sev_str = "warning";
         sev_color = COL_YELLOW;
-        break;
-    case SEV_NOTE:
-        sev_str = "note";
-        sev_color = COL_CYAN;
         break;
     }
 

@@ -29,7 +29,6 @@ typedef struct {
 typedef enum {
     SEV_ERROR,
     SEV_WARNING,
-    SEV_NOTE,
 } Severity;
 
 typedef struct {
@@ -113,13 +112,7 @@ void diagnostic_error_message(DiagnosticList *diagnostics, const char *code, con
 void diagnostic_warning_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col);
 
-void diagnostic_warning_code_formatted(DiagnosticList *diagnostics, const char *code,
-    const char *file, int line, int col, int end_col, ...);
-
 void diagnostic_warning_message(DiagnosticList *diagnostics, const char *code, const char *message,
-    const char *file, int line, int col, int end_col);
-
-void diagnostic_note(DiagnosticList *diagnostics, const char *message,
     const char *file, int line, int col, int end_col);
 
 /* Set the source text for a file (avoids re-reading from disk) */
