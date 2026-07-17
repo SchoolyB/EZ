@@ -130,7 +130,7 @@ static void next_token(Parser *parser) {
     }
 }
 
-static bool cur_token_is(Parser *parser, TokenType type) {
+static bool current_token_is(Parser *parser, TokenType type) {
     return parser->cur_token.type == type;
 }
 
@@ -138,7 +138,7 @@ static bool peek_token_is(Parser *parser, TokenType type) {
     return parser->peek_token.type == type;
 }
 
-static bool expect_peek(Parser *parser, TokenType type) {
+static bool expect_peek_token(Parser *parser, TokenType type) {
     if (peek_token_is(parser, type)) {
         next_token(parser);
         return true;
@@ -173,14 +173,14 @@ static bool is_keyword_token(TokenType type) {
 
 /* Synchronize parser after an error; skip to a safe point.
  * Advances past the current line and stops at the next statement boundary. */
-static void synchronize(Parser *parser) {
+static void synchronize_parser(Parser *parser) {
     int error_line = parser->cur_token.line;
     /* First, skip past the current line to avoid re-parsing the same error */
-    while (!cur_token_is(parser, TOK_EOF) && parser->cur_token.line == error_line) {
+    while (!current_token_is(parser, TOK_EOF) && parser->cur_token.line == error_line) {
         next_token(parser);
     }
     /* Then find the next statement-starting token */
-    while (!cur_token_is(parser, TOK_EOF)) {
+    while (!current_token_is(parser, TOK_EOF)) {
         switch (parser->cur_token.type) {
         case TOK_DO: case TOK_MUT: case TOK_CONST:
         case TOK_RETURN: case TOK_IF: case TOK_FOR:
@@ -196,7 +196,7 @@ static void synchronize(Parser *parser) {
     }
 }
 
-static Precedence token_precedence(TokenType type) {
+static Precedence get_token_precedence(TokenType type) {
     switch (type) {
     case TOK_OR:              return PREC_OR;
     case TOK_AND:             return PREC_AND;
@@ -246,7 +246,7 @@ static bool type_string_has_wildcard(const char *type_name) {
 
 static const char *read_type_name(Parser *parser) {
     /* Wildcard type placeholder: `?` in a type position */
-    if (cur_token_is(parser, TOK_QUESTION)) {
+    if (current_token_is(parser, TOK_QUESTION)) {
         return "?";
     }
     const char *name = parser->cur_token.literal;
@@ -268,17 +268,17 @@ static const char *read_type_name(Parser *parser) {
  * Postcondition: returns the type string, parser on the last token of the type.
  * Returns NULL on parse error (diagnostic already emitted). */
 static const char *parse_complex_type(Parser *parser) {
-    if (cur_token_is(parser, TOK_QUESTION)) {
+    if (current_token_is(parser, TOK_QUESTION)) {
         /* Bare wildcard type: ? */
         return "?";
     }
-    if (cur_token_is(parser, TOK_LBRACKET)) {
+    if (current_token_is(parser, TOK_LBRACKET)) {
         /* Array type: [int], [int,3], [[int]], [[[int]]], etc. */
         next_token(parser); /* element type or nested [ */
-        if (cur_token_is(parser, TOK_LBRACKET)) {
+        if (current_token_is(parser, TOK_LBRACKET)) {
             /* Nested array type: count depth of brackets */
             int depth = 1;
-            while (cur_token_is(parser, TOK_LBRACKET)) {
+            while (current_token_is(parser, TOK_LBRACKET)) {
                 depth++;
                 next_token(parser);
             }
@@ -290,7 +290,7 @@ static const char *parse_complex_type(Parser *parser) {
                 next_token(parser); /* value type */
                 const char *val_type = parse_complex_type(parser);
                 if (!val_type) return NULL;
-                if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+                if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
                 size_t klen = strlen(inner), vlen = strlen(val_type);
                 size_t map_len = klen + vlen + 7;
                 char *map_str = arena_alloc(parser->arena, map_len);
@@ -298,7 +298,7 @@ static const char *parse_complex_type(Parser *parser) {
                 inner = map_str;
             }
             for (int d = 0; d < depth; d++) {
-                if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+                if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
             }
             size_t ts_len = strlen(inner) + (size_t)depth * 2 + 1;
             char *type_str = arena_alloc(parser->arena, ts_len);
@@ -309,16 +309,16 @@ static const char *parse_complex_type(Parser *parser) {
             for (int d = 0; d < depth; d++) type_str[pos++] = ']';
             type_str[pos] = '\0';
             return type_str;
-        } else if (cur_token_is(parser, TOK_CARET)) {
+        } else if (current_token_is(parser, TOK_CARET)) {
             /* Array of pointers: [^Type] */
             next_token(parser); /* skip ^ to type name */
             const char *pointee = read_type_name(parser);
-            if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+            if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
             size_t ts_len = strlen(pointee) + 4;
             char *type_str = arena_alloc(parser->arena, ts_len);
             snprintf(type_str, ts_len, "[^%s]", pointee);
             return type_str;
-        } else if (cur_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "map") == 0 &&
+        } else if (current_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "map") == 0 &&
                    peek_token_is(parser, TOK_LBRACKET)) {
             /* Array of maps: [map[K:V]] or fixed-size [map[K:V], N] */
             const char *elem = parse_complex_type(parser);
@@ -326,23 +326,23 @@ static const char *parse_complex_type(Parser *parser) {
             if (peek_token_is(parser, TOK_COMMA)) {
                 next_token(parser); /* skip , */
                 next_token(parser); /* size */
-                if (!cur_token_is(parser, TOK_INT) && !cur_token_is(parser, TOK_IDENT)) {
+                if (!current_token_is(parser, TOK_INT) && !current_token_is(parser, TOK_IDENT)) {
                     diagnostic_error_code(parser->diag, "E2025", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 }
                 const char *sz = parser->cur_token.literal;
-                if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+                if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
                 size_t elen = strlen(elem), szlen = strlen(sz);
                 size_t ts_len = elen + szlen + 4;
                 char *type_str = arena_alloc(parser->arena, ts_len);
                 snprintf(type_str, ts_len, "[%s,%s]", elem, sz);
                 return type_str;
             }
-            if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+            if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
             size_t ts_len = strlen(elem) + 3;
             char *type_str = arena_alloc(parser->arena, ts_len);
             snprintf(type_str, ts_len, "[%s]", elem);
             return type_str;
-        } else if (cur_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "func") == 0 &&
+        } else if (current_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "func") == 0 &&
                    peek_token_is(parser, TOK_LPAREN)) {
             /* Arrays of typed func signatures are not supported. */
             diagnostic_error_code(parser->diag, "E2082", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
@@ -355,7 +355,7 @@ static const char *parse_complex_type(Parser *parser) {
                 next_token(parser); /* value type */
                 const char *val_type = parse_complex_type(parser);
                 if (!val_type) return NULL;
-                if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+                if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
                 size_t klen = strlen(elem), vlen = strlen(val_type);
                 size_t ts_len = klen + vlen + 7;
                 char *type_str = arena_alloc(parser->arena, ts_len);
@@ -365,11 +365,11 @@ static const char *parse_complex_type(Parser *parser) {
                 /* Fixed-size array: [int, 3] or [int, SIZE] */
                 next_token(parser); /* skip , */
                 next_token(parser); /* size */
-                if (!cur_token_is(parser, TOK_INT) && !cur_token_is(parser, TOK_IDENT)) {
+                if (!current_token_is(parser, TOK_INT) && !current_token_is(parser, TOK_IDENT)) {
                     diagnostic_error_code(parser->diag, "E2025", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 }
                 const char *sz = parser->cur_token.literal;
-                if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+                if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
                 size_t elen = strlen(elem), szlen = strlen(sz);
                 size_t ts_len = elen + szlen + 4;
                 char *type_str = arena_alloc(parser->arena, ts_len);
@@ -377,14 +377,14 @@ static const char *parse_complex_type(Parser *parser) {
                 return type_str;
             } else {
                 /* Dynamic array: [int] */
-                if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+                if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
                 size_t ts_len = strlen(elem) + 3;
                 char *type_str = arena_alloc(parser->arena, ts_len);
                 snprintf(type_str, ts_len, "[%s]", elem);
                 return type_str;
             }
         }
-    } else if (cur_token_is(parser, TOK_CARET)) {
+    } else if (current_token_is(parser, TOK_CARET)) {
         /* Pointer type: ^T; recurse to support ^^T, ^^^T, etc. */
         next_token(parser);
         const char *pointee = parse_complex_type(parser);
@@ -393,24 +393,24 @@ static const char *parse_complex_type(Parser *parser) {
         char *type_str = arena_alloc(parser->arena, ts_len);
         snprintf(type_str, ts_len, "^%s", pointee);
         return type_str;
-    } else if (cur_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "map") == 0 &&
+    } else if (current_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "map") == 0 &&
                peek_token_is(parser, TOK_LBRACKET)) {
         /* Map type: map[K:V]; V is parsed recursively to support nesting */
         next_token(parser); /* skip [ */
         next_token(parser); /* key type */
         const char *key_type = parser->cur_token.literal;
-        if (!expect_peek(parser, TOK_COLON)) return NULL;
+        if (!expect_peek_token(parser, TOK_COLON)) return NULL;
         next_token(parser); /* value type */
         const char *val_type = parse_complex_type(parser);
         if (!val_type) return NULL;
-        if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+        if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
         /* "map[" + key + ":" + val + "]" + '\0' = klen + vlen + 7 */
         size_t klen = strlen(key_type), vlen = strlen(val_type);
         size_t ts_len = klen + vlen + 7;
         char *type_str = arena_alloc(parser->arena, ts_len);
         snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
         return type_str;
-    } else if (cur_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "func") == 0) {
+    } else if (current_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "func") == 0) {
         /* Typed function reference: func(P1, P2, ...) [-> R | -> (R1, R2, ...)]
          * Encoded as a flat string: "func(p1,p2,...)->ret" so the existing
          * type-string plumbing can carry it. `&` on a param is preserved. */
@@ -427,7 +427,7 @@ static const char *parse_complex_type(Parser *parser) {
             next_token(parser); /* first param */
             for (;;) {
                 bool mut_p = false;
-                if (cur_token_is(parser, TOK_AMPERSAND)) {
+                if (current_token_is(parser, TOK_AMPERSAND)) {
                     mut_p = true;
                     next_token(parser);
                 }
@@ -442,7 +442,7 @@ static const char *parse_complex_type(Parser *parser) {
                 next_token(parser); /* next param */
             }
         }
-        if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
         /* Optional -> R | -> (R1, R2, ...).
          * Absence of -> means "no return value" (the canonical encoding
          * just omits the suffix; there is no user-facing 'void' type). */
@@ -452,7 +452,7 @@ static const char *parse_complex_type(Parser *parser) {
             next_token(parser); /* -> */
             next_token(parser); /* first return type or ( */
             has_return = true;
-            if (cur_token_is(parser, TOK_LPAREN)) {
+            if (current_token_is(parser, TOK_LPAREN)) {
                 size_t rlen = 0;
                 ret[rlen++] = '(';
                 next_token(parser); /* first return type */
@@ -471,7 +471,7 @@ static const char *parse_complex_type(Parser *parser) {
                     next_token(parser); /* , */
                     next_token(parser); /* next return type */
                 }
-                if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+                if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
                 if (rlen + 2 >= sizeof(ret)) return NULL;
                 ret[rlen++] = ')';
                 ret[rlen] = '\0';
@@ -579,7 +579,7 @@ static AstNode *parse_float_literal(Parser *parser) {
     return node;
 }
 
-static bool has_interpolation(const char *str) {
+static bool string_has_interpolation(const char *str) {
     for (int i = 0; str[i]; i++) {
         if (str[i] == '$' && str[i + 1] == '{') return true;
         if (str[i] == '\\') i++;
@@ -710,7 +710,7 @@ static AstNode *parse_interpolated_string(Parser *parser, const char *raw) {
 static AstNode *parse_string_literal(Parser *parser) {
     const char *raw = parser->cur_token.literal;
     bool is_raw = (parser->cur_token.type == TOK_RAW_STRING);
-    if (!is_raw && has_interpolation(raw)) {
+    if (!is_raw && string_has_interpolation(raw)) {
         return parse_interpolated_string(parser, raw);
     }
     if (!is_raw) {
@@ -779,7 +779,7 @@ static AstNode *parse_grouped_expression(Parser *parser) {
 
     next_token(parser);
     AstNode *expr = parse_expression(parser, PREC_LOWEST);
-    if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+    if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
     return expr;
 }
 
@@ -891,7 +891,7 @@ static AstNode *parse_prefix(Parser *parser) {
         next_token(parser); /* skip { */
 
         /* Empty: {}; treat as empty array (context-dependent) */
-        if (cur_token_is(parser, TOK_RBRACE)) {
+        if (current_token_is(parser, TOK_RBRACE)) {
             AstNode *node = ast_alloc(parser->arena, NODE_ARRAY_VALUE, brace_tok);
             node->data.array_value.count = 0;
             node->data.array_value.elements = NULL;
@@ -899,7 +899,7 @@ static AstNode *parse_prefix(Parser *parser) {
         }
 
         /* Empty map: {:} */
-        if (cur_token_is(parser, TOK_COLON) && peek_token_is(parser, TOK_RBRACE)) {
+        if (current_token_is(parser, TOK_COLON) && peek_token_is(parser, TOK_RBRACE)) {
             next_token(parser); /* skip } */
             AstNode *node = ast_alloc(parser->arena, NODE_MAP_VALUE, brace_tok);
             node->data.map_value.count = 0;
@@ -909,7 +909,7 @@ static AstNode *parse_prefix(Parser *parser) {
         }
 
         /* Leading comma: {, 1, 2} — reuse the trailing-comma diagnostic. */
-        if (cur_token_is(parser, TOK_COMMA)) {
+        if (current_token_is(parser, TOK_COMMA)) {
             diagnostic_error_code(parser->diag, "E2017",
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             next_token(parser); /* skip the stray , and keep parsing */
@@ -936,7 +936,7 @@ static AstNode *parse_prefix(Parser *parser) {
             while (peek_token_is(parser, TOK_COMMA)) {
                 next_token(parser); /* skip , */
                 next_token(parser);
-                if (cur_token_is(parser, TOK_RBRACE)) break;
+                if (current_token_is(parser, TOK_RBRACE)) break;
                 if (node->data.map_value.count >= cap) {
                     cap *= 2;
                     AstNode **nk = arena_alloc(parser->arena, sizeof(AstNode *) * cap);
@@ -948,7 +948,7 @@ static AstNode *parse_prefix(Parser *parser) {
                 }
                 node->data.map_value.keys[node->data.map_value.count] =
                     parse_expression(parser, PREC_LOWEST);
-                if (!expect_peek(parser, TOK_COLON)) return NULL;
+                if (!expect_peek_token(parser, TOK_COLON)) return NULL;
                 next_token(parser);
                 node->data.map_value.values[node->data.map_value.count] =
                     parse_expression(parser, PREC_LOWEST);
@@ -968,7 +968,7 @@ static AstNode *parse_prefix(Parser *parser) {
         while (peek_token_is(parser, TOK_COMMA)) {
             next_token(parser); /* skip , */
             next_token(parser);
-            if (cur_token_is(parser, TOK_RBRACE)) {
+            if (current_token_is(parser, TOK_RBRACE)) {
                 diagnostic_error_code(parser->diag, "E2017",
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 break;
@@ -991,16 +991,16 @@ static AstNode *parse_prefix(Parser *parser) {
         AstNode *node = ast_alloc(parser->arena, NODE_CAST_EXPR, parser->cur_token);
         node->data.cast.is_array = false;
         node->data.cast.element_type = NULL;
-        if (!expect_peek(parser, TOK_LPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_LPAREN)) return NULL;
         next_token(parser);
         node->data.cast.value = parse_expression(parser, PREC_LOWEST);
-        if (!expect_peek(parser, TOK_COMMA)) return NULL;
+        if (!expect_peek_token(parser, TOK_COMMA)) return NULL;
         next_token(parser);
-        if (cur_token_is(parser, TOK_LBRACKET)) {
+        if (current_token_is(parser, TOK_LBRACKET)) {
             /* Array type: cast(value, [type]) */
             next_token(parser); /* element type */
             const char *elem = parser->cur_token.literal;
-            if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+            if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
             size_t ts_len = strlen(elem) + 3;
             char *type_str = arena_alloc(parser->arena, ts_len);
             snprintf(type_str, ts_len, "[%s]", elem);
@@ -1010,13 +1010,13 @@ static AstNode *parse_prefix(Parser *parser) {
         } else {
             node->data.cast.target_type = parser->cur_token.literal;
         }
-        if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
         return node;
     }
     case TOK_NEW: {
         /* new(Type); allocate zeroed value on default arena */
         AstNode *node = ast_alloc(parser->arena, NODE_NEW_EXPR, parser->cur_token);
-        if (!expect_peek(parser, TOK_LPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_LPAREN)) return NULL;
         next_token(parser);
         node->data.new_expr.type_name = read_type_name(parser);
         if (type_string_has_wildcard(node->data.new_expr.type_name)) {
@@ -1025,7 +1025,7 @@ static AstNode *parse_prefix(Parser *parser) {
                     "wildcard type '?' cannot be used with new(); new() requires a concrete type"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
         }
-        if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
         return node;
     }
     case TOK_RANGE: {
@@ -1034,7 +1034,7 @@ static AstNode *parse_prefix(Parser *parser) {
         node->data.range_expr.start = NULL;
         node->data.range_expr.end = NULL;
         node->data.range_expr.step = NULL;
-        if (!expect_peek(parser, TOK_LPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_LPAREN)) return NULL;
         next_token(parser);
         AstNode *first = parse_expression(parser, PREC_LOWEST);
         if (peek_token_is(parser, TOK_COMMA)) {
@@ -1051,7 +1051,7 @@ static AstNode *parse_prefix(Parser *parser) {
             /* range(end) - start defaults to 0 */
             node->data.range_expr.end = first;
         }
-        if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
         return node;
     }
     case TOK_IN:
@@ -1099,7 +1099,7 @@ static AstNode *parse_infix_expression(Parser *parser, AstNode *left) {
     AstNode *node = ast_alloc(parser->arena, NODE_INFIX_EXPR, parser->cur_token);
     node->data.infix.left = left;
     node->data.infix.op = parser->cur_token.type;
-    Precedence prec = token_precedence(parser->cur_token.type);
+    Precedence prec = get_token_precedence(parser->cur_token.type);
     bool is_membership = (parser->cur_token.type == TOK_IN || parser->cur_token.type == TOK_NOT_IN);
     /* Suppress struct-literal parsing on the RHS of comparisons and
      * membership operators.  In `if x < Foo {`, the `{` is the
@@ -1152,7 +1152,7 @@ static AstNode *parse_call_expression(Parser *parser, AstNode *function) {
             }
 
             /* Check for named arg: ident followed by colon */
-            if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_COLON)) {
+            if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_COLON)) {
                 names[count] = arena_copy_string(parser->arena, parser->cur_token.literal);
                 has_named = true;
                 next_token(parser); /* skip ident */
@@ -1165,7 +1165,7 @@ static AstNode *parse_call_expression(Parser *parser, AstNode *function) {
             if (!peek_token_is(parser, TOK_COMMA)) break;
             next_token(parser); /* skip comma */
         }
-        if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
     }
 
     node->data.call.args = args;
@@ -1196,7 +1196,7 @@ static AstNode *parse_index_expression(Parser *parser, AstNode *left) {
     node->data.index_expr.left = left;
     next_token(parser);
     node->data.index_expr.index = parse_expression(parser, PREC_LOWEST);
-    if (!expect_peek(parser, TOK_RBRACKET)) return NULL;
+    if (!expect_peek_token(parser, TOK_RBRACKET)) return NULL;
     return node;
 }
 
@@ -1250,7 +1250,7 @@ static AstNode *parse_expression(Parser *parser, Precedence prec) {
     AstNode *left = parse_prefix(parser);
     if (!left) { parser->depth--; return NULL; }
 
-    while (!peek_token_is(parser, TOK_EOF) && prec < token_precedence(parser->peek_token.type)) {
+    while (!peek_token_is(parser, TOK_EOF) && prec < get_token_precedence(parser->peek_token.type)) {
         next_token(parser);
         left = parse_infix(parser, left);
         if (!left) { parser->depth--; return NULL; }
@@ -1384,7 +1384,7 @@ static AstNode *maybe_apply_or_return(Parser *parser, AstNode *var_decl) {
  * dead code with a misleading name. Checked at parse time (before
  * or_return desugaring) so the user-written RHS, not the rewritten
  * member-access, is what gets validated. */
-static void check_throwaway_target(Parser *parser, AstNode *value) {
+static void check_discard_target(Parser *parser, AstNode *value) {
     if (!value || value->kind == NODE_CALL_EXPR) return;
     diagnostic_error_code(parser->diag, "E5012",
         parser->file, value->token.line, value->token.column, 0);
@@ -1402,7 +1402,7 @@ static AstNode *parse_discard_statement(Parser *parser) {
     node->data.var_decl.value = parse_expression(parser, PREC_LOWEST);
     if (!node->data.var_decl.value) return NULL;
 
-    check_throwaway_target(parser, node->data.var_decl.value);
+    check_discard_target(parser, node->data.var_decl.value);
 
     AstNode *desugared = maybe_apply_or_return(parser, node);
     if (desugared) return desugared;
@@ -1422,10 +1422,10 @@ static AstNode *parse_var_declaration(Parser *parser) {
             parser->peek_token.literal);
         diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
             parser->file, parser->peek_token.line, parser->peek_token.column, 0);
-        synchronize(parser);
+        synchronize_parser(parser);
         return NULL;
     } else {
-        expect_peek(parser, TOK_IDENT); /* will error */
+        expect_peek_token(parser, TOK_IDENT); /* will error */
         return NULL;
     }
     node->data.var_decl.name = parser->cur_token.literal;
@@ -1479,7 +1479,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
             "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result", kw);
         diagnostic_error_message(parser->diag, "E2084", arena_copy_string(parser->arena, msg),
             parser->file, node->token.line, node->token.column, 0);
-        synchronize(parser);
+        synchronize_parser(parser);
         return NULL;
     }
 
@@ -1497,7 +1497,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
                 next_token(parser); /* skip comma */
                 next_token(parser); /* name (IDENT or _) */
                 names[var_count] = parser->cur_token.literal;
-                if (cur_token_is(parser, TOK_BLANK)) names[var_count] = "_";
+                if (current_token_is(parser, TOK_BLANK)) names[var_count] = "_";
                 if (peek_token_is(parser, TOK_IDENT) || peek_token_is(parser, TOK_CARET) ||
                     peek_token_is(parser, TOK_LBRACKET) || peek_token_is(parser, TOK_STRUCT) ||
                     peek_token_is(parser, TOK_ENUM) || peek_token_is(parser, TOK_QUESTION)) {
@@ -1515,7 +1515,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
             }
 
             /* Expect = expr */
-            if (!expect_peek(parser, TOK_ASSIGN)) return NULL;
+            if (!expect_peek_token(parser, TOK_ASSIGN)) return NULL;
             next_token(parser);
             AstNode *value = parse_expression(parser, PREC_LOWEST);
 
@@ -1567,7 +1567,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
 
         if (node->data.var_decl.value &&
             strcmp(node->data.var_decl.name, "_") == 0) {
-            check_throwaway_target(parser, node->data.var_decl.value);
+            check_discard_target(parser, node->data.var_decl.value);
         }
 
         AstNode *desugared = maybe_apply_or_return(parser, node);
@@ -1615,7 +1615,7 @@ static AstNode *parse_block_statement(Parser *parser) {
 
     next_token(parser); /* skip { */
 
-    while (!cur_token_is(parser, TOK_RBRACE) && !cur_token_is(parser, TOK_EOF)) {
+    while (!current_token_is(parser, TOK_RBRACE) && !current_token_is(parser, TOK_EOF)) {
         AstNode *stmt = parse_statement(parser);
         if (stmt) {
             if (node->data.block.count >= node->data.block.cap) {
@@ -1627,8 +1627,8 @@ static AstNode *parse_block_statement(Parser *parser) {
             node->data.block.stmts[node->data.block.count++] = stmt;
         } else {
             /* Error recovery: skip to next statement boundary */
-            synchronize(parser);
-            if (cur_token_is(parser, TOK_RBRACE)) break;
+            synchronize_parser(parser);
+            if (current_token_is(parser, TOK_RBRACE)) break;
             continue;
         }
         next_token(parser);
@@ -1647,14 +1647,14 @@ static AstNode *parse_func_declaration(Parser *parser) {
             parser->peek_token.literal);
         diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
             parser->file, parser->peek_token.line, parser->peek_token.column, 0);
-        synchronize(parser);
+        synchronize_parser(parser);
         return NULL;
     }
-    if (!expect_peek(parser, TOK_IDENT)) return NULL;
+    if (!expect_peek_token(parser, TOK_IDENT)) return NULL;
     node->data.func_decl.name = parser->cur_token.literal;
 
     /* Parameters */
-    if (!expect_peek(parser, TOK_LPAREN)) return NULL;
+    if (!expect_peek_token(parser, TOK_LPAREN)) return NULL;
 
     int param_cap = 4;
     node->data.func_decl.param_count = 0;
@@ -1675,7 +1675,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
             memset(param, 0, sizeof(Param));
 
             /* Check for mutable parameter (&) */
-            if (cur_token_is(parser, TOK_AMPERSAND)) {
+            if (current_token_is(parser, TOK_AMPERSAND)) {
                 param->mutable = true;
                 next_token(parser);
             }
@@ -1728,10 +1728,10 @@ static AstNode *parse_func_declaration(Parser *parser) {
                 peek_token_is(parser, TOK_LBRACKET) || peek_token_is(parser, TOK_QUESTION) ||
                 peek_token_is(parser, TOK_LT)) {
                 next_token(parser);
-                if (cur_token_is(parser, TOK_LT)) {
+                if (current_token_is(parser, TOK_LT)) {
                     /* <?> type parameter syntax */
-                    if (!expect_peek(parser, TOK_QUESTION)) return NULL;
-                    if (!expect_peek(parser, TOK_GT)) return NULL;
+                    if (!expect_peek_token(parser, TOK_QUESTION)) return NULL;
+                    if (!expect_peek_token(parser, TOK_GT)) return NULL;
                     param->type_name = "?";
                     param->is_type_param = true;
                 } else {
@@ -1758,8 +1758,8 @@ static AstNode *parse_func_declaration(Parser *parser) {
             if (peek_token_is(parser, TOK_COMMA)) {
                 next_token(parser); /* skip comma */
                 next_token(parser);
-            } else if (!peek_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_RPAREN) &&
-                       !cur_token_is(parser, TOK_EOF)) {
+            } else if (!peek_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_RPAREN) &&
+                       !current_token_is(parser, TOK_EOF)) {
                 /* Forward-progress guard: any unexpected token between
                  * params that isn't ',' or ')' would otherwise loop
                  * forever. Surface it as a parse error and bail. */
@@ -1771,10 +1771,10 @@ static AstNode *parse_func_declaration(Parser *parser) {
                     parser->file, parser->peek_token.line, parser->peek_token.column, 0);
                 return NULL;
             }
-        } while (!cur_token_is(parser, TOK_RPAREN) && !peek_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF));
+        } while (!current_token_is(parser, TOK_RPAREN) && !peek_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF));
     }
 
-    if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+    if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
 
     /* Backfill grouped param types and defaults (a, b int = 0 → both get int, both default to 0) */
     for (int i = node->data.func_decl.param_count - 1; i >= 0; i--) {
@@ -1820,7 +1820,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
         next_token(parser);
 
         /* E2002: missing return type after -> */
-        if (cur_token_is(parser, TOK_LBRACE)) {
+        if (current_token_is(parser, TOK_LBRACE)) {
             diagnostic_error_message(parser->diag, "E2002",
                 arena_copy_string(parser->arena, "expected return type after '->', got '{'; either specify a type or remove the '->'"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
@@ -1831,13 +1831,13 @@ static AstNode *parse_func_declaration(Parser *parser) {
 
         /* E2079: reject 'nil' as a return type. For a function that
          * returns nothing, the user should omit the '-> ...' clause. */
-        if (cur_token_is(parser, TOK_NIL)) {
+        if (current_token_is(parser, TOK_NIL)) {
             diagnostic_error_code(parser->diag, "E2079",
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             /* Skip the nil and parse the body so the error doesn't
              * cascade into a codegen crash on an unknown C type. */
             next_token(parser);
-            if (!cur_token_is(parser, TOK_LBRACE)) {
+            if (!current_token_is(parser, TOK_LBRACE)) {
                 /* Malformed; bail with what we have. */
                 return node;
             }
@@ -1850,7 +1850,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
         node->data.func_decl.return_names = arena_alloc(parser->arena, sizeof(const char *) * ret_cap);
         memset(node->data.func_decl.return_names, 0, sizeof(const char *) * ret_cap);
 
-        if (cur_token_is(parser, TOK_LPAREN)) {
+        if (current_token_is(parser, TOK_LPAREN)) {
             /* Multiple/named return types:
              *   -> (int, string)        plain types
              *   -> (x int, y int)       named returns
@@ -1860,10 +1860,10 @@ static AstNode *parse_func_declaration(Parser *parser) {
              * it's a plain type list, not names.
              */
             next_token(parser);
-            while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
+            while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
                 /* Check if current ident is a type name (not a variable name) */
                 bool is_type = false;
-                if (cur_token_is(parser, TOK_IDENT)) {
+                if (current_token_is(parser, TOK_IDENT)) {
                     const char *lit = parser->cur_token.literal;
                     is_type = (strcmp(lit, "int") == 0 || strcmp(lit, "uint") == 0 ||
                         strcmp(lit, "i8") == 0 || strcmp(lit, "i16") == 0 ||
@@ -1883,11 +1883,11 @@ static AstNode *parse_func_declaration(Parser *parser) {
                 }
 
                 /* map[K:V] and func(...) are complex types, not named returns */
-                bool is_complex_type_start = is_type && cur_token_is(parser, TOK_IDENT) &&
+                bool is_complex_type_start = is_type && current_token_is(parser, TOK_IDENT) &&
                     ((strcmp(parser->cur_token.literal, "map") == 0 && peek_token_is(parser, TOK_LBRACKET)) ||
                      (strcmp(parser->cur_token.literal, "func") == 0 && peek_token_is(parser, TOK_LPAREN)));
 
-                if (cur_token_is(parser, TOK_IDENT) && !is_complex_type_start &&
+                if (current_token_is(parser, TOK_IDENT) && !is_complex_type_start &&
                     (peek_token_is(parser, TOK_IDENT) || peek_token_is(parser, TOK_QUESTION) ||
                      peek_token_is(parser, TOK_LBRACKET) || peek_token_is(parser, TOK_CARET)) &&
                     (!is_type || peek_token_is(parser, TOK_IDENT) ||
@@ -1906,7 +1906,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                     node->data.func_decl.return_names[idx] = ret_name;
                     node->data.func_decl.return_types[idx] = parse_complex_type(parser);
                     node->data.func_decl.return_type_count++;
-                } else if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_COMMA) && !is_type) {
+                } else if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_COMMA) && !is_type) {
                     /* Shared type: (x, y int); collect names, assign same type */
                     const char *names[MAX_SHARED_RETURNS];
                     int shared = 0;
@@ -1979,7 +1979,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
     }
 
     /* Body */
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     node->data.func_decl.body = parse_block_statement(parser);
 
     return node;
@@ -1998,7 +1998,7 @@ static AstNode *parse_import_statement(Parser *parser) {
         ImportItem *item = &node->data.import_stmt.items[node->data.import_stmt.count];
         memset(item, 0, sizeof(ImportItem));
 
-        if (cur_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "and") == 0) {
+        if (current_token_is(parser, TOK_IDENT) && strcmp(parser->cur_token.literal, "and") == 0) {
             /* import and use syntax; consume 'and' then 'use' */
             node->data.import_stmt.auto_use = true;
             next_token(parser); /* consume 'use' */
@@ -2006,7 +2006,7 @@ static AstNode *parse_import_statement(Parser *parser) {
         }
 
         /* Check for C interop import: import c"header.h" */
-        if (cur_token_is(parser, TOK_IDENT) &&
+        if (current_token_is(parser, TOK_IDENT) &&
             strcmp(parser->cur_token.literal, "c") == 0 &&
             peek_token_is(parser, TOK_STRING)) {
             next_token(parser); /* consume 'c', now on string */
@@ -2032,7 +2032,7 @@ static AstNode *parse_import_statement(Parser *parser) {
         }
 
         /* Check for alias: identifier followed by @ or string */
-        if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_AT)) {
+        if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_AT)) {
             if (strcmp(parser->cur_token.literal, "c") == 0) {
                 diagnostic_error_message(parser->diag, "E2002",
                     strdup("'c' is reserved for C interop; choose a different alias"),
@@ -2040,17 +2040,17 @@ static AstNode *parse_import_statement(Parser *parser) {
             }
             item->alias = parser->cur_token.literal;
             next_token(parser); /* consume alias, now on @ */
-        } else if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_STRING)) {
+        } else if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_STRING)) {
             item->alias = parser->cur_token.literal;
             next_token(parser); /* consume alias, now on string */
         }
 
-        if (cur_token_is(parser, TOK_AT)) {
+        if (current_token_is(parser, TOK_AT)) {
             item->is_stdlib = true;
             next_token(parser);
             item->module = parser->cur_token.literal;
             if (!item->alias) item->alias = parser->cur_token.literal;
-        } else if (cur_token_is(parser, TOK_STRING)) {
+        } else if (current_token_is(parser, TOK_STRING)) {
             item->is_stdlib = false;
             item->path = parser->cur_token.literal;
             /* Derive module name from filename/directory if no alias */
@@ -2080,7 +2080,7 @@ static AstNode *parse_import_statement(Parser *parser) {
                     strdup("'c' is reserved for C interop; rename the file or use an alias (e.g., import myc\"./c.gray\")"),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             }
-        } else if (cur_token_is(parser, TOK_IDENT)) {
+        } else if (current_token_is(parser, TOK_IDENT)) {
             char buf[MSG_BUF_SIZE];
             snprintf(buf, sizeof(buf),
                 "expected @module or \"path\" after import, got '%s'",
@@ -2126,7 +2126,7 @@ static AstNode *parse_if_statement(Parser *parser) {
     next_token(parser);
     node->data.if_stmt.condition = parse_expression(parser, PREC_LOWEST);
 
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     node->data.if_stmt.consequence = parse_block_statement(parser);
 
     node->data.if_stmt.alternative = NULL;
@@ -2137,7 +2137,7 @@ static AstNode *parse_if_statement(Parser *parser) {
         node->data.if_stmt.alternative = parse_if_statement(parser);
     } else if (peek_token_is(parser, TOK_OTHERWISE)) {
         next_token(parser); /* skip 'otherwise' */
-        if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+        if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
         node->data.if_stmt.alternative = parse_block_statement(parser);
     }
 
@@ -2150,12 +2150,12 @@ static AstNode *parse_struct_declaration(Parser *parser) {
     node->data.struct_decl.name = parser->cur_token.literal;
 
     next_token(parser); /* skip 'struct' keyword */
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     int brace_line = parser->cur_token.line;
     next_token(parser); /* skip { */
 
     /* Reject inline struct declarations; fields must be on separate lines */
-    if (parser->cur_token.line == brace_line && !cur_token_is(parser, TOK_RBRACE)) {
+    if (parser->cur_token.line == brace_line && !current_token_is(parser, TOK_RBRACE)) {
         diagnostic_error_message(parser->diag, "E2002",
             strdup("struct fields must be on separate lines; inline struct declarations are not allowed"),
             parser->file, parser->cur_token.line, parser->cur_token.column, 0);
@@ -2169,21 +2169,21 @@ static AstNode *parse_struct_declaration(Parser *parser) {
     node->data.struct_decl.func_count = 0;
     node->data.struct_decl.funcs = arena_alloc(parser->arena, sizeof(StructFunc) * func_cap);
 
-    while (!cur_token_is(parser, TOK_RBRACE) && !cur_token_is(parser, TOK_EOF)) {
+    while (!current_token_is(parser, TOK_RBRACE) && !current_token_is(parser, TOK_EOF)) {
         /* : skip #doc attributes on struct functions. Consume
          * the attribute + any parenthesised args, then continue so
          * the next token (do/private do) is handled normally. */
-        if (cur_token_is(parser, TOK_DOC)) {
+        if (current_token_is(parser, TOK_DOC)) {
             if (peek_token_is(parser, TOK_LPAREN)) {
                 next_token(parser);
-                while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF))
+                while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF))
                     next_token(parser);
             }
             next_token(parser);
             continue;
         }
         /* Check for struct-namespaced function: do func() or private do func() */
-        if (cur_token_is(parser, TOK_DO)) {
+        if (current_token_is(parser, TOK_DO)) {
             AstNode *fn = parse_func_declaration(parser);
             if (fn) {
                 if (node->data.struct_decl.func_count >= func_cap) {
@@ -2198,7 +2198,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
             next_token(parser);
             continue;
         }
-        if (cur_token_is(parser, TOK_PRIVATE) && peek_token_is(parser, TOK_DO)) {
+        if (current_token_is(parser, TOK_PRIVATE) && peek_token_is(parser, TOK_DO)) {
             next_token(parser); /* consume 'private' */
             AstNode *fn = parse_func_declaration(parser);
             if (fn) {
@@ -2219,15 +2219,15 @@ static AstNode *parse_struct_declaration(Parser *parser) {
         }
 
         /* E2058: nested struct/enum declaration */
-        if (cur_token_is(parser, TOK_CONST)) {
+        if (current_token_is(parser, TOK_CONST)) {
             diagnostic_error_code_formatted(parser->diag, "E2058",
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0,
                 "struct", node->data.struct_decl.name);
             /* Skip to the end of the nested declaration to avoid cascading errors */
             int depth = 0;
-            while (!cur_token_is(parser, TOK_EOF)) {
-                if (cur_token_is(parser, TOK_LBRACE)) depth++;
-                if (cur_token_is(parser, TOK_RBRACE)) {
+            while (!current_token_is(parser, TOK_EOF)) {
+                if (current_token_is(parser, TOK_LBRACE)) depth++;
+                if (current_token_is(parser, TOK_RBRACE)) {
                     if (depth <= 1) { next_token(parser); break; }
                     depth--;
                 }
@@ -2249,14 +2249,14 @@ static AstNode *parse_struct_declaration(Parser *parser) {
          * further down only inspects the type slot; and embed '?' in
          * the generated C struct identifier, where clang rejected it
          * with a raw C error. Catch it here before reading the name. */
-        if (cur_token_is(parser, TOK_QUESTION)) {
+        if (current_token_is(parser, TOK_QUESTION)) {
             diagnostic_error_message(parser->diag, "E2070",
                 arena_copy_string(parser->arena,
                     "wildcard type '?' is not allowed as a struct field name; only in function parameter and return types"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             next_token(parser); /* skip the '?' */
             /* Skip the trailing type token (if any) so we don't cascade. */
-            if (!cur_token_is(parser, TOK_RBRACE) && !cur_token_is(parser, TOK_EOF)) {
+            if (!current_token_is(parser, TOK_RBRACE) && !current_token_is(parser, TOK_EOF)) {
                 parse_complex_type(parser);
                 next_token(parser);
             }
@@ -2291,37 +2291,37 @@ static AstNode *parse_struct_declaration(Parser *parser) {
                     parser->cur_token.literal);
                 diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-                synchronize(parser);
+                synchronize_parser(parser);
                 break;
             }
-            if (cur_token_is(parser, TOK_IDENT) && is_reserved_type_name(parser->cur_token.literal)) {
+            if (current_token_is(parser, TOK_IDENT) && is_reserved_type_name(parser->cur_token.literal)) {
                 char msg[MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a reserved type name and cannot be used as a struct field name",
                     parser->cur_token.literal);
                 diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-                synchronize(parser);
+                synchronize_parser(parser);
                 break;
             }
-            if (cur_token_is(parser, TOK_IDENT) && is_reserved_builtin_func_name(parser->cur_token.literal)) {
+            if (current_token_is(parser, TOK_IDENT) && is_reserved_builtin_func_name(parser->cur_token.literal)) {
                 char msg[MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a builtin function and cannot be used as a struct field name",
                     parser->cur_token.literal);
                 diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-                synchronize(parser);
+                synchronize_parser(parser);
                 break;
             }
-            if (cur_token_is(parser, TOK_IDENT) && is_stdlib_module_name(parser->cur_token.literal)) {
+            if (current_token_is(parser, TOK_IDENT) && is_stdlib_module_name(parser->cur_token.literal)) {
                 char msg[MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'%s' is a standard library module and cannot be used as a struct field name",
                     parser->cur_token.literal);
                 diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-                synchronize(parser);
+                synchronize_parser(parser);
                 break;
             }
             StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
@@ -2329,7 +2329,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
             field->type_name = NULL;
             node->data.struct_decl.field_count++;
             next_token(parser);
-            if (cur_token_is(parser, TOK_COMMA)) {
+            if (current_token_is(parser, TOK_COMMA)) {
                 next_token(parser); /* skip comma, loop for next name */
             } else {
                 break;
@@ -2348,7 +2348,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
         next_token(parser);
 
         /* Parse optional default value: `= expr` */
-        if (cur_token_is(parser, TOK_ASSIGN)) {
+        if (current_token_is(parser, TOK_ASSIGN)) {
             next_token(parser); /* skip '=' */
             AstNode *def = parse_expression(parser, PREC_LOWEST);
             for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
@@ -2358,10 +2358,10 @@ static AstNode *parse_struct_declaration(Parser *parser) {
         }
 
         /* Skip optional trailing comma after a field type */
-        if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
+        if (current_token_is(parser, TOK_COMMA)) next_token(parser);
 
         /* Reject semicolons */
-        if (cur_token_is(parser, TOK_SEMICOLON)) {
+        if (current_token_is(parser, TOK_SEMICOLON)) {
             diagnostic_error_message(parser->diag, "E2069",
                 strdup("semicolons are not used; put each struct field on its own line"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
@@ -2380,12 +2380,12 @@ static AstNode *parse_enum_declaration(Parser *parser) {
     node->data.enum_decl.is_tagged = false;
 
     next_token(parser); /* skip 'enum' keyword */
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     int enum_brace_line = parser->cur_token.line;
     next_token(parser); /* skip { */
 
     /* Reject inline enum declarations; variants must be on separate lines */
-    if (parser->cur_token.line == enum_brace_line && !cur_token_is(parser, TOK_RBRACE)) {
+    if (parser->cur_token.line == enum_brace_line && !current_token_is(parser, TOK_RBRACE)) {
         diagnostic_error_message(parser->diag, "E2002",
             strdup("enum variants must be on separate lines; inline enum declarations are not allowed"),
             parser->file, parser->cur_token.line, parser->cur_token.column, 0);
@@ -2396,7 +2396,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
     node->data.enum_decl.value_count = 0;
     node->data.enum_decl.values = arena_alloc(parser->arena, sizeof(EnumVal) * val_cap);
 
-    while (!cur_token_is(parser, TOK_RBRACE) && !cur_token_is(parser, TOK_EOF)) {
+    while (!current_token_is(parser, TOK_RBRACE) && !current_token_is(parser, TOK_EOF)) {
         if (node->data.enum_decl.value_count >= val_cap) {
             val_cap *= 2;
             EnumVal *new_vals = arena_alloc(parser->arena, sizeof(EnumVal) * val_cap);
@@ -2406,15 +2406,15 @@ static AstNode *parse_enum_declaration(Parser *parser) {
         }
 
         /* E2058: nested struct/enum declaration */
-        if (cur_token_is(parser, TOK_CONST)) {
+        if (current_token_is(parser, TOK_CONST)) {
             diagnostic_error_code_formatted(parser->diag, "E2058",
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0,
                 "enum", node->data.enum_decl.name);
             /* Skip to the end of the nested declaration to avoid cascading errors */
             int depth = 0;
-            while (!cur_token_is(parser, TOK_EOF)) {
-                if (cur_token_is(parser, TOK_LBRACE)) depth++;
-                if (cur_token_is(parser, TOK_RBRACE)) {
+            while (!current_token_is(parser, TOK_EOF)) {
+                if (current_token_is(parser, TOK_LBRACE)) depth++;
+                if (current_token_is(parser, TOK_RBRACE)) {
                     if (depth <= 1) { next_token(parser); break; }
                     depth--;
                 }
@@ -2427,7 +2427,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
          * used to slip past the parser and embed '?' in the generated C
          * enum identifier, where clang rejected it with a raw C error.
          * Catch it here before reading the variant name. */
-        if (cur_token_is(parser, TOK_QUESTION)) {
+        if (current_token_is(parser, TOK_QUESTION)) {
             diagnostic_error_message(parser->diag, "E2070",
                 arena_copy_string(parser->arena,
                     "wildcard type '?' is not allowed in enum declarations; only in function parameter and return types"),
@@ -2435,7 +2435,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
             next_token(parser); /* skip the '?' */
             /* Skip an optional trailing ',' so we don't cascade into the
              * next variant with a stale cur_token. */
-            if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
+            if (current_token_is(parser, TOK_COMMA)) next_token(parser);
             continue;
         }
 
@@ -2447,37 +2447,37 @@ static AstNode *parse_enum_declaration(Parser *parser) {
                 parser->cur_token.literal);
             diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-            synchronize(parser);
+            synchronize_parser(parser);
             continue;
         }
-        if (cur_token_is(parser, TOK_IDENT) && is_reserved_type_name(parser->cur_token.literal)) {
+        if (current_token_is(parser, TOK_IDENT) && is_reserved_type_name(parser->cur_token.literal)) {
             char msg[MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved type name and cannot be used as an enum variant name",
                 parser->cur_token.literal);
             diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-            synchronize(parser);
+            synchronize_parser(parser);
             continue;
         }
-        if (cur_token_is(parser, TOK_IDENT) && is_reserved_builtin_func_name(parser->cur_token.literal)) {
+        if (current_token_is(parser, TOK_IDENT) && is_reserved_builtin_func_name(parser->cur_token.literal)) {
             char msg[MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a builtin function and cannot be used as an enum variant name",
                 parser->cur_token.literal);
             diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-            synchronize(parser);
+            synchronize_parser(parser);
             continue;
         }
-        if (cur_token_is(parser, TOK_IDENT) && is_stdlib_module_name(parser->cur_token.literal)) {
+        if (current_token_is(parser, TOK_IDENT) && is_stdlib_module_name(parser->cur_token.literal)) {
             char msg[MSG_BUF_SIZE];
             snprintf(msg, sizeof(msg),
                 "'%s' is a standard library module and cannot be used as an enum variant name",
                 parser->cur_token.literal);
             diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-            synchronize(parser);
+            synchronize_parser(parser);
             continue;
         }
 
@@ -2501,7 +2501,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
             next_token(parser); /* first type */
             int pt_cap = 4;
             ev->payload_types = arena_alloc(parser->arena, sizeof(const char *) * pt_cap);
-            while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
+            while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
                 if (ev->payload_count >= pt_cap) {
                     pt_cap *= 2;
                     const char **new_pt = arena_alloc(parser->arena, sizeof(const char *) * pt_cap);
@@ -2510,7 +2510,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
                 }
                 ev->payload_types[ev->payload_count++] = parser->cur_token.literal;
                 next_token(parser);
-                if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
+                if (current_token_is(parser, TOK_COMMA)) next_token(parser);
             }
             /* cur_token is now TOK_RPAREN */
         }
@@ -2536,7 +2536,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
         next_token(parser);
 
         /* Reject semicolons */
-        if (cur_token_is(parser, TOK_SEMICOLON)) {
+        if (current_token_is(parser, TOK_SEMICOLON)) {
             diagnostic_error_message(parser->diag, "E2069",
                 strdup("semicolons are not used; put each enum variant on its own line"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
@@ -2567,7 +2567,7 @@ static AstNode *parse_struct_literal(Parser *parser, const char *name) {
 
     next_token(parser); /* skip { */
 
-    while (!cur_token_is(parser, TOK_RBRACE) && !cur_token_is(parser, TOK_EOF)) {
+    while (!current_token_is(parser, TOK_RBRACE) && !current_token_is(parser, TOK_EOF)) {
         if (node->data.struct_value.count >= cap) {
             cap *= 2;
             const char **new_names = arena_alloc(parser->arena, sizeof(const char *) * cap);
@@ -2582,7 +2582,7 @@ static AstNode *parse_struct_literal(Parser *parser, const char *name) {
 
         node->data.struct_value.field_names[node->data.struct_value.count] = parser->cur_token.literal;
 
-        if (!expect_peek(parser, TOK_COLON)) return NULL;
+        if (!expect_peek_token(parser, TOK_COLON)) return NULL;
         next_token(parser);
         node->data.struct_value.field_values[node->data.struct_value.count] =
             parse_expression(parser, PREC_LOWEST);
@@ -2623,19 +2623,19 @@ static AstNode *parse_for_statement(Parser *parser) {
             node->data.for_stmt.var_type = NULL;
             next_token(parser);  /* consume IN */
             next_token(parser);  /* advance to iterable start */
-            if (!cur_token_is(parser, TOK_RANGE)) {
+            if (!current_token_is(parser, TOK_RANGE)) {
                 char msg[MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg),
                     "'for %s in ...' only supports range(); use 'for_each %s in ...' to iterate over a collection",
                     var, var);
                 diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, for_tok.line, for_tok.column, 0);
-                synchronize(parser);
+                synchronize_parser(parser);
                 return NULL;
             }
             node->data.for_stmt.iterable = parse_expression(parser, PREC_LOWEST);
             if (has_parens && peek_token_is(parser, TOK_RPAREN)) next_token(parser);
-            if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+            if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
             node->data.for_stmt.body = parse_block_statement(parser);
             return node;
         }
@@ -2648,7 +2648,7 @@ static AstNode *parse_for_statement(Parser *parser) {
     AstNode *wnode = ast_alloc(parser->arena, NODE_WHILE_STMT, for_tok);
     wnode->data.while_stmt.condition = parse_expression(parser, PREC_LOWEST);
     if (has_parens && peek_token_is(parser, TOK_RPAREN)) next_token(parser);
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     wnode->data.while_stmt.body = parse_block_statement(parser);
     return wnode;
 }
@@ -2659,7 +2659,7 @@ static AstNode *parse_for_each_statement(Parser *parser) {
     next_token(parser);
 
     /* Optional parentheses: for_each (val in arr) {} */
-    bool has_paren = cur_token_is(parser, TOK_LPAREN);
+    bool has_paren = current_token_is(parser, TOK_LPAREN);
     if (has_paren) next_token(parser);
 
     node->data.for_each.index_name = NULL;
@@ -2673,16 +2673,16 @@ static AstNode *parse_for_each_statement(Parser *parser) {
         node->data.for_each.var_name = parser->cur_token.literal;
     }
 
-    if (!expect_peek(parser, TOK_IN)) return NULL;
+    if (!expect_peek_token(parser, TOK_IN)) return NULL;
 
     next_token(parser);
     /* Parse collection carefully; prevent struct literal parser from consuming
      * the block-opening { after identifiers or module.Name expressions */
-    if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_LBRACE)) {
+    if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_LBRACE)) {
         /* Bare identifier followed by {; parse as label only */
         node->data.for_each.collection = ast_alloc(parser->arena, NODE_LABEL, parser->cur_token);
         node->data.for_each.collection->data.label.value = parser->cur_token.literal;
-    } else if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_DOT)) {
+    } else if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_DOT)) {
         /* Module-qualified name: mod.Name; parse as member expr manually,
          * don't use parse_expression which would trigger struct literal parsing */
         AstNode *obj = ast_alloc(parser->arena, NODE_LABEL, parser->cur_token);
@@ -2698,10 +2698,10 @@ static AstNode *parse_for_each_statement(Parser *parser) {
     }
 
     if (has_paren) {
-        if (!expect_peek(parser, TOK_RPAREN)) return NULL;
+        if (!expect_peek_token(parser, TOK_RPAREN)) return NULL;
     }
 
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     node->data.for_each.body = parse_block_statement(parser);
 
     return node;
@@ -2713,7 +2713,7 @@ static AstNode *parse_while_statement(Parser *parser) {
     next_token(parser);
     node->data.while_stmt.condition = parse_expression(parser, PREC_LOWEST);
 
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     node->data.while_stmt.body = parse_block_statement(parser);
 
     return node;
@@ -2722,7 +2722,7 @@ static AstNode *parse_while_statement(Parser *parser) {
 static AstNode *parse_loop_statement(Parser *parser) {
     AstNode *node = ast_alloc(parser->arena, NODE_LOOP_STMT, parser->cur_token);
 
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     node->data.loop_stmt.body = parse_block_statement(parser);
 
     return node;
@@ -2738,15 +2738,15 @@ static AstNode *parse_when_statement(Parser *parser) {
     node->data.when_stmt.is_strict = false;
     node->data.when_stmt.default_body = NULL;
 
-    if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+    if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
     next_token(parser); /* skip { */
 
     int case_cap = 8;
     node->data.when_stmt.case_count = 0;
     node->data.when_stmt.cases = arena_alloc(parser->arena, sizeof(WhenCase) * case_cap);
 
-    while (!cur_token_is(parser, TOK_RBRACE) && !cur_token_is(parser, TOK_EOF)) {
-        if (cur_token_is(parser, TOK_IS)) {
+    while (!current_token_is(parser, TOK_RBRACE) && !current_token_is(parser, TOK_EOF)) {
+        if (current_token_is(parser, TOK_IS)) {
             if (node->data.when_stmt.case_count >= case_cap) {
                 case_cap *= 2;
                 WhenCase *new_cases = arena_alloc(parser->arena, sizeof(WhenCase) * case_cap);
@@ -2773,7 +2773,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                 bool is_implicit_pat = false;
                 Token pat_tok = parser->cur_token;
 
-                if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_LPAREN)) {
+                if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_LPAREN)) {
                     /* Save lexer state for lookahead */
                     int sv_pos  = parser->lexer->position;
                     int sv_rpos = parser->lexer->read_position;
@@ -2788,13 +2788,13 @@ static AstNode *parse_when_statement(Parser *parser) {
                     next_token(parser); /* skip ( */
                     bool all_idents = true;
                     int bind_count = 0;
-                    while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
-                        if (!cur_token_is(parser, TOK_IDENT)) { all_idents = false; break; }
+                    while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
+                        if (!current_token_is(parser, TOK_IDENT)) { all_idents = false; break; }
                         bind_count++;
                         next_token(parser);
-                        if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
+                        if (current_token_is(parser, TOK_COMMA)) next_token(parser);
                     }
-                    if (all_idents && bind_count > 0 && cur_token_is(parser, TOK_RPAREN)) {
+                    if (all_idents && bind_count > 0 && current_token_is(parser, TOK_RPAREN)) {
                         try_pattern = true;
                         (void)vname;
                     }
@@ -2806,7 +2806,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                     parser->lexer->column = sv_col;
                     parser->cur_token  = sv_cur;
                     parser->peek_token = sv_peek;
-                } else if (cur_token_is(parser, TOK_DOT) && peek_token_is(parser, TOK_IDENT)) {
+                } else if (current_token_is(parser, TOK_DOT) && peek_token_is(parser, TOK_IDENT)) {
                     /* .IDENT(IDENT,...) form */
                     int sv_pos  = parser->lexer->position;
                     int sv_rpos = parser->lexer->read_position;
@@ -2823,13 +2823,13 @@ static AstNode *parse_when_statement(Parser *parser) {
                         next_token(parser); /* skip ( */
                         bool all_idents = true;
                         int bind_count = 0;
-                        while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
-                            if (!cur_token_is(parser, TOK_IDENT)) { all_idents = false; break; }
+                        while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
+                            if (!current_token_is(parser, TOK_IDENT)) { all_idents = false; break; }
                             bind_count++;
                             next_token(parser);
-                            if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
+                            if (current_token_is(parser, TOK_COMMA)) next_token(parser);
                         }
-                        if (all_idents && bind_count > 0 && cur_token_is(parser, TOK_RPAREN)) {
+                        if (all_idents && bind_count > 0 && current_token_is(parser, TOK_RPAREN)) {
                             try_pattern = true;
                             is_implicit_pat = true;
                             (void)vname;
@@ -2860,7 +2860,7 @@ static AstNode *parse_when_statement(Parser *parser) {
 
                     int bc = 0, bc_cap = 4;
                     pat->data.when_pattern.bindings = arena_alloc(parser->arena, sizeof(const char *) * bc_cap);
-                    while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
+                    while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
                         if (bc >= bc_cap) {
                             bc_cap *= 2;
                             const char **nb = arena_alloc(parser->arena, sizeof(const char *) * bc_cap);
@@ -2869,7 +2869,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                         }
                         pat->data.when_pattern.bindings[bc++] = arena_copy_string(parser->arena, parser->cur_token.literal);
                         next_token(parser);
-                        if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
+                        if (current_token_is(parser, TOK_COMMA)) next_token(parser);
                     }
                     pat->data.when_pattern.binding_count = bc;
                     /* cur_token is RPAREN, peek should be LBRACE */
@@ -2879,7 +2879,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                 }
             }
 
-            if (cur_token_is(parser, TOK_RANGE)) {
+            if (current_token_is(parser, TOK_RANGE)) {
                 wc->is_range = true;
             }
             parser->no_struct_literal = true;
@@ -2895,7 +2895,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                     memcpy(new_vals, wc->values, sizeof(AstNode *) * wc->value_count);
                     wc->values = new_vals;
                 }
-                if (cur_token_is(parser, TOK_RANGE)) {
+                if (current_token_is(parser, TOK_RANGE)) {
                     wc->is_range = true;
                 }
                 wc->values[wc->value_count++] = parse_expression(parser, PREC_LOWEST);
@@ -2903,15 +2903,15 @@ static AstNode *parse_when_statement(Parser *parser) {
 
             when_case_body:
             parser->no_struct_literal = false;
-            if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+            if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
             wc->body = parse_block_statement(parser);
             node->data.when_stmt.case_count++;
 
-        } else if (cur_token_is(parser, TOK_DEFAULT)) {
+        } else if (current_token_is(parser, TOK_DEFAULT)) {
             if (node->data.when_stmt.default_body) {
                 diagnostic_error_code(parser->diag, "E2085", parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             }
-            if (!expect_peek(parser, TOK_LBRACE)) return NULL;
+            if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
             node->data.when_stmt.default_body = parse_block_statement(parser);
         }
 
@@ -2926,7 +2926,7 @@ static AstNode *parse_when_statement(Parser *parser) {
     return node;
 }
 
-static bool is_assignment_op(TokenType type) {
+static bool is_assignment_operator(TokenType type) {
     return type == TOK_ASSIGN || type == TOK_PLUS_ASSIGN || type == TOK_MINUS_ASSIGN ||
            type == TOK_ASTERISK_ASSIGN || type == TOK_SLASH_ASSIGN || type == TOK_PERCENT_ASSIGN;
 }
@@ -2956,7 +2956,7 @@ static AstNode *parse_statement(Parser *parser) {
                 parser->peek_token.literal);
             diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->peek_token.line, parser->peek_token.column, 0);
-            synchronize(parser);
+            synchronize_parser(parser);
             return NULL;
         }
         /* Check if this is a struct or enum declaration: const Name struct { */
@@ -3018,7 +3018,7 @@ static AstNode *parse_statement(Parser *parser) {
     case TOK_STRICT:
         /* #strict; applies to the next when statement */
         next_token(parser);
-        if (cur_token_is(parser, TOK_WHEN)) {
+        if (current_token_is(parser, TOK_WHEN)) {
             AstNode *ws = parse_when_statement(parser);
             if (ws) ws->data.when_stmt.is_strict = true;
             return ws;
@@ -3054,7 +3054,7 @@ static AstNode *parse_statement(Parser *parser) {
         /* Consume the attribute and its args to avoid cascading errors */
         if (peek_token_is(parser, TOK_LPAREN)) {
             next_token(parser);
-            while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
+            while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
                 next_token(parser);
             }
         }
@@ -3064,7 +3064,7 @@ static AstNode *parse_statement(Parser *parser) {
         /* Skip #doc attribute tokens; consume args if present */
         if (peek_token_is(parser, TOK_LPAREN)) {
             next_token(parser);
-            while (!cur_token_is(parser, TOK_RPAREN) && !cur_token_is(parser, TOK_EOF)) {
+            while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
                 next_token(parser);
             }
         }
@@ -3082,7 +3082,7 @@ static AstNode *parse_statement(Parser *parser) {
         diagnostic_error_message(parser->diag, "E2002",
             strdup("unexpected token '_'; the throwaway '_' is only valid as the entire left-hand side of an assignment"),
             parser->file, parser->cur_token.line, parser->cur_token.column, 0);
-        synchronize(parser);
+        synchronize_parser(parser);
         return NULL;
     default: {
         /* IDENT IDENT at statement position means the user tried to
@@ -3090,11 +3090,11 @@ static AstNode *parse_statement(Parser *parser) {
          * (e.g. `cont myVar = 10`). No valid Grayscale statement has this
          * shape, so we can confidently redirect them at 'const' or
          * 'mut'. Consume the botched header and keep parsing. */
-        if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_IDENT)) {
+        if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_IDENT)) {
             diagnostic_error_code_formatted(parser->diag, "E2078",
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0,
                 parser->peek_token.literal, parser->peek_token.literal);
-            synchronize(parser);
+            synchronize_parser(parser);
             return NULL;
         }
         /* Could be assignment or expression statement */
@@ -3102,7 +3102,7 @@ static AstNode *parse_statement(Parser *parser) {
         if (!expr) return NULL;
 
         /* Check for assignment */
-        if (is_assignment_op(parser->peek_token.type)) {
+        if (is_assignment_operator(parser->peek_token.type)) {
             next_token(parser);
             AstNode *node = ast_alloc(parser->arena, NODE_ASSIGN_STMT, parser->cur_token);
             node->data.assign.target = expr;
@@ -3155,7 +3155,7 @@ AstNode *parser_parse_program(Parser *parser) {
     program->data.program.stmts = arena_alloc(parser->arena,
         sizeof(AstNode *) * program->data.program.stmt_cap);
 
-    while (!cur_token_is(parser, TOK_EOF)) {
+    while (!current_token_is(parser, TOK_EOF)) {
         AstNode *stmt = parse_statement(parser);
         if (stmt) {
             if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
@@ -3169,7 +3169,7 @@ AstNode *parser_parse_program(Parser *parser) {
             program->data.program.stmts[program->data.program.stmt_count++] = stmt;
         } else {
             /* Error recovery: skip to next statement boundary */
-            synchronize(parser);
+            synchronize_parser(parser);
             continue;
         }
         next_token(parser);
