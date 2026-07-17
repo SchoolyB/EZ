@@ -25,6 +25,7 @@
 #include "util/arena.h"
 #include "util/error.h"
 #include "util/constants.h"
+#include "util/xalloc.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "typechecker/typechecker.h"
@@ -62,37 +63,17 @@ static void print_usage(void) {
 }
 
 static char *read_file(const char *path) {
+    /* Fast path for regular (seekable) files. */
+    char *fast = read_file_to_string(path);
+    if (fast) return fast;
+
+    /* Streaming fallback for non-seekable inputs (pipes, FIFOs, /dev/stdin). */
     FILE *f = fopen(path, "rb");
     if (!f) {
         fprintf(stderr, "gray: cannot open '%s': ", path);
         perror("");
         return NULL;
     }
-
-    /* Try the seekable fast path. Fall through to streaming on any
-     * failure: pipes, FIFOs, /dev/stdin, /proc, sockets, etc. all make
-     * ftell return -1, which previously wrapped (size_t)-1 + 1 to 0
-     * and caused fread to write past the heap allocation. */
-    long size = -1;
-    if (fseek(f, 0, SEEK_END) == 0) {
-        size = ftell(f);
-        if (size >= 0) (void)fseek(f, 0, SEEK_SET);
-    }
-
-    if (size >= 0) {
-        char *buf = malloc((size_t)size + 1);
-        if (!buf) {
-            fprintf(stderr, "gray: out of memory\n");
-            fclose(f);
-            return NULL;
-        }
-        size_t read = fread(buf, 1, (size_t)size, f);
-        buf[read] = '\0';
-        fclose(f);
-        return buf;
-    }
-
-    /* Streaming fallback for non-seekable inputs. */
     clearerr(f);
     size_t cap = 4096;
     size_t len = 0;

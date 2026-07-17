@@ -41,4 +41,23 @@ static inline void *xcalloc(size_t nmemb, size_t size) {
     return p;
 }
 
+/* Read an entire seekable file into a malloc'd NUL-terminated string.
+ * Returns NULL on open failure or OOM. */
+static inline char *read_file_to_string(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *buf = malloc((size_t)size + 1);
+    if (!buf) { fclose(f); return NULL; }
+
+    size_t n = fread(buf, 1, (size_t)size, f);
+    buf[n] = '\0';
+    fclose(f);
+    return buf;
+}
+
 #endif

@@ -66,22 +66,6 @@ static void build_line_index(DiagSourceSlot *slot) {
     }
 }
 
-static const char *read_file_to_string(const char *path) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return NULL;
-
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *buf = malloc((size_t)size + 1);
-    if (!buf) { fclose(f); return NULL; }
-
-    size_t read = fread(buf, 1, (size_t)size, f);
-    buf[read] = '\0';
-    fclose(f);
-    return buf;
-}
 
 /* --- DiagnosticList management --- */
 
