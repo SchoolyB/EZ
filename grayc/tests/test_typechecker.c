@@ -298,9 +298,9 @@ static DiagnosticList *typecheck_diagnostics(const char *input) {
     DiagnosticList *diagnostics = diagnostic_create();
     diagnostics->use_color = false;
     Lexer *lexer =lexer_create(arena, input, "test.gray");
-    Parser *parser = parser_create(arena, lexer, "test.gray", d);
+    Parser *parser = parser_create(arena, lexer, "test.gray", diagnostics);
     AstNode *program = parser_parse_program(parser);
-    TypeChecker *checker =typechecker_create(d, "test.gray");
+    TypeChecker *checker =typechecker_create(diagnostics, "test.gray");
     typechecker_check(checker, program);
     return diagnostics;
 }
@@ -1068,7 +1068,7 @@ static void test_error_E3009_foreach_int(void) {
     diagnostic_destroy(diagnostics);
 }
 
-static void test_error_E4003_duplicate_variableiable_same_scope(void) {
+static void test_error_E4003_duplicate_variable_same_scope(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "do main() { mut x int = 1\n mut x string = \"hi\" }");
     ASSERT(has_error_code(diagnostics, "E4003"));
@@ -1576,7 +1576,7 @@ int main(void) {
     RUN_TEST(test_error_E3001_int_to_string);
     RUN_TEST(test_error_E3005_const_array_reassign);
     RUN_TEST(test_error_E3009_foreach_int);
-    RUN_TEST(test_error_E4003_duplicate_variableiable_same_scope);
+    RUN_TEST(test_error_E4003_duplicate_variable_same_scope);
     RUN_TEST(test_error_E5008_too_many_args);
     RUN_TEST(test_error_E3008_index_string);
     RUN_TEST(test_valid_nested_struct);
