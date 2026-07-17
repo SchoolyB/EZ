@@ -515,28 +515,28 @@ static void emit_array_deep_copy(CodeGen *codegen, const char *gray_tn, const ch
         snprintf(c_elem_buf, sizeof(c_elem_buf), "%s", c_elem_ptr ? c_elem_ptr : "");
     }
     const char *c_elem = c_elem_buf;
-    int t = next_dc_tag();
+    int tag = next_dc_tag();
     emitf(codegen,
         "({ GrayArray _ds%d = %s; "
         "GrayArray _dd%d = gray_array_new(gray_default_arena, sizeof(%s), _ds%d.len); "
         "_dd%d.len = _ds%d.len; "
         "for (int32_t _di%d = 0; _di%d < _ds%d.len; _di%d++) { "
         "%s _de%d = ",
-        t, src_var,
-        t, c_elem, t,
-        t, t,
-        t, t, t, t,
-        c_elem, t);
+        tag, src_var,
+        tag, c_elem, tag,
+        tag, tag,
+        tag, tag, tag, tag,
+        c_elem, tag);
 
     char inner_var[MSG_BUF_SIZE];
     snprintf(inner_var, sizeof(inner_var),
-        "((%s *)_ds%d.data)[_di%d]", c_elem, t, t);
+        "((%s *)_ds%d.data)[_di%d]", c_elem, tag, tag);
     emit_value_deep_copy(codegen, elem_tn, inner_var);
 
     emitf(codegen,
         "; ((%s *)_dd%d.data)[_di%d] = _de%d; "
         "} _dd%d; })",
-        c_elem, t, t, t, t);
+        c_elem, tag, tag, tag, tag);
 }
 
 static void emit_map_deep_copy(CodeGen *codegen, const char *gray_tn, const char *src_var) {
@@ -578,7 +578,7 @@ static void emit_map_deep_copy(CodeGen *codegen, const char *gray_tn, const char
      * deep-copy each value, and insert into a fresh map. */
     const char *c_key = gray_map_elem_c_type(codegen, key_tn);
     const char *c_val = gray_map_elem_c_type(codegen, val_tn);
-    int t = next_dc_tag();
+    int tag = next_dc_tag();
     emitf(codegen,
         "({ GrayMap _ms%d = %s; "
         "GrayMap _md%d = gray_map_new_kind(gray_default_arena, _ms%d.key_size, _ms%d.value_size, "
@@ -588,16 +588,16 @@ static void emit_map_deep_copy(CodeGen *codegen, const char *gray_tn, const char
         "%s _mk%d = *(%s *)gray_map_key_at(&_ms%d, _mslot%d); "
         "%s _mvs%d = *(%s *)gray_map_value_at(&_ms%d, _mslot%d); "
         "%s _mvd%d = ",
-        t, src_var,
-        t, t, t, t, t, t,
-        t, t, t, t,
-        t, t, t,
-        c_key, t, c_key, t, t,
-        c_val, t, c_val, t, t,
-        c_val, t);
+        tag, src_var,
+        tag, tag, tag, tag, tag, tag,
+        tag, tag, tag, tag,
+        tag, tag, tag,
+        c_key, tag, c_key, tag, tag,
+        c_val, tag, c_val, tag, tag,
+        c_val, tag);
 
     char src_val_var[VAR_NAME_BUF];
-    snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", t);
+    snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", tag);
     emit_value_deep_copy(codegen, val_tn, src_val_var);
 
     /* String keys store a pointer into the source arena — copy the data
@@ -607,12 +607,12 @@ static void emit_map_deep_copy(CodeGen *codegen, const char *gray_tn, const char
             "; _mk%d = gray_string_new(gray_default_arena, _mk%d.data, _mk%d.len); "
             "gray_map_set(gray_default_arena, &_md%d, &_mk%d, &_mvd%d); "
             "} _md%d; })",
-            t, t, t, t, t, t, t);
+            tag, tag, tag, tag, tag, tag, tag);
     } else {
         emitf(codegen,
             "; gray_map_set(gray_default_arena, &_md%d, &_mk%d, &_mvd%d); "
             "} _md%d; })",
-            t, t, t, t);
+            tag, tag, tag, tag);
     }
 }
 
@@ -639,21 +639,21 @@ static void emit_struct_deep_copy(CodeGen *codegen, const char *struct_tn, const
     }
     if (esdc_depth < ESDC_MAX_DEPTH) esdc_visiting[esdc_depth++] = struct_tn;
     const char *c_struct = gray_type_to_c_cg(codegen, struct_tn);
-    int t = next_dc_tag();
+    int tag = next_dc_tag();
     emitf(codegen,
         "({ %s _ss%d = %s; %s _sd%d = _ss%d; ",
-        c_struct, t, src_var, c_struct, t, t);
+        c_struct, tag, src_var, c_struct, tag, tag);
     for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
         StructField *field = &sdecl->data.struct_decl.fields[i];
         if (!field->type_name || !field->name) continue;
         if (!type_needs_deep_copy(codegen, field->type_name)) continue;
         char src_field[MSG_BUF_SIZE];
-        snprintf(src_field, sizeof(src_field), "_ss%d.%s", t, field->name);
-        emitf(codegen, "_sd%d.%s = ", t, field->name);
+        snprintf(src_field, sizeof(src_field), "_ss%d.%s", tag, field->name);
+        emitf(codegen, "_sd%d.%s = ", tag, field->name);
         emit_value_deep_copy(codegen, field->type_name, src_field);
         emit(codegen, "; ");
     }
-    emitf(codegen, "_sd%d; })", t);
+    emitf(codegen, "_sd%d; })", tag);
     esdc_depth--;
 }
 
@@ -685,12 +685,12 @@ static void emit_value_deep_copy(CodeGen *codegen, const char *gray_tn, const ch
  * the temp name to emit_value_deep_copy with a reconstructed "[elem]"
  * type string. */
 static void emit_deep_array_copy(CodeGen *codegen, AstNode *src_node, const char *elem_type_name) {
-    int t = next_dc_tag();
-    emitf(codegen, "({ GrayArray _dtop%d = ", t);
+    int tag = next_dc_tag();
+    emitf(codegen, "({ GrayArray _dtop%d = ", tag);
     emit_expression(codegen, src_node);
     emit(codegen, "; ");
     char src_var[SHORT_VAR_BUF];
-    snprintf(src_var, sizeof(src_var), "_dtop%d", t);
+    snprintf(src_var, sizeof(src_var), "_dtop%d", tag);
     char full_tn[MSG_BUF_SIZE];
     snprintf(full_tn, sizeof(full_tn), "[%s]", elem_type_name ? elem_type_name : "");
     emit_value_deep_copy(codegen, full_tn, src_var);
@@ -2978,10 +2978,10 @@ static void emit_to_string(CodeGen *codegen, AstNode *arg) {
     }
     GrayType *at = codegen->type_table ? typetable_get(codegen->type_table, arg) : NULL;
     if (at && at->kind == TK_ERROR) {
-        int t = next_dc_tag();
-        emitf(codegen, "({ GrayError *_gray_str_err%d = (", t);
+        int tag = next_dc_tag();
+        emitf(codegen, "({ GrayError *_gray_str_err%d = (", tag);
         emit_expression(codegen, arg);
-        emitf(codegen, "); _gray_str_err%d ? _gray_str_err%d->message : gray_c_string_dup(gray_default_arena, \"nil\"); })", t, t);
+        emitf(codegen, "); _gray_str_err%d ? _gray_str_err%d->message : gray_c_string_dup(gray_default_arena, \"nil\"); })", tag, tag);
         return;
     }
     if (at && at->kind == TK_FLOAT)
@@ -3831,15 +3831,15 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *func)
              * collections, collections containing such structs, and any
              * transitive mix of those all come out fully independent
              * of the source , ). */
-            int t = next_dc_tag();
+            int tag = next_dc_tag();
             const char *c_type = (at->kind == TK_ARRAY) ? "GrayArray"
                                : (at->kind == TK_MAP) ? "GrayMap"
                                : gray_type_to_c_cg(codegen, at->name);
-            emitf(codegen, "({ %s _cpy%d = ", c_type, t);
+            emitf(codegen, "({ %s _cpy%d = ", c_type, tag);
             emit_expression(codegen, arg);
             emit(codegen, "; ");
             char src_var[SHORT_VAR_BUF];
-            snprintf(src_var, sizeof(src_var), "_cpy%d", t);
+            snprintf(src_var, sizeof(src_var), "_cpy%d", tag);
             char full_tn[MSG_BUF_SIZE];
             if (at->kind == TK_ARRAY) {
                 snprintf(full_tn, sizeof(full_tn), "[%s]",
@@ -7087,9 +7087,9 @@ static void emit_var_declaration(CodeGen *codegen, AstNode *node) {
             emitf(codegen, "    %s = ", sanitize_name(node->data.var_decl.name));
             if (node->data.var_decl.value &&
                 node->data.var_decl.value->kind == NODE_LABEL) {
-                int t = next_dc_tag();
+                int tag = next_dc_tag();
                 char src_var[VAR_NAME_BUF];
-                snprintf(src_var, sizeof(src_var), "_ms%d", t);
+                snprintf(src_var, sizeof(src_var), "_ms%d", tag);
                 emitf(codegen, "({ GrayMap %s = ", src_var);
                 emit_expression(codegen, node->data.var_decl.value);
                 emit(codegen, "; ");
@@ -7114,9 +7114,9 @@ static void emit_var_declaration(CodeGen *codegen, AstNode *node) {
             node->data.var_decl.value->kind == NODE_LABEL) {
             /* Copy-by-default: deep copy when assigning a map from another
              * variable so mutations to the copy don't alias the original. */
-            int t = next_dc_tag();
+            int tag = next_dc_tag();
             char src_var[VAR_NAME_BUF];
-            snprintf(src_var, sizeof(src_var), "_ms%d", t);
+            snprintf(src_var, sizeof(src_var), "_ms%d", tag);
             emitf(codegen, "({ GrayMap %s = ", src_var);
             emit_expression(codegen, node->data.var_decl.value);
             emit(codegen, "; ");
@@ -7375,9 +7375,9 @@ static void emit_var_declaration(CodeGen *codegen, AstNode *node) {
                    type_name && type_needs_deep_copy(codegen, type_name)) {
             /* Copy-by-default: deep copy structs (and maps) that contain
              * arrays/maps/strings so the copy is fully independent. */
-            int t = next_dc_tag();
+            int tag = next_dc_tag();
             char src_var[VAR_NAME_BUF];
-            snprintf(src_var, sizeof(src_var), "_vdc%d", t);
+            snprintf(src_var, sizeof(src_var), "_vdc%d", tag);
             emitf(codegen, "({ %s %s = ", c_type, src_var);
             emit_expression(codegen, node->data.var_decl.value);
             emit(codegen, "; ");
@@ -7922,9 +7922,9 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
         }
         /* Map copy-by-default: map2 = map1 deep-copies the map. */
         if (tgt_t && tgt_t->kind == TK_MAP) {
-            int t = next_dc_tag();
+            int tag = next_dc_tag();
             char src_var[VAR_NAME_BUF];
-            snprintf(src_var, sizeof(src_var), "_ma%d", t);
+            snprintf(src_var, sizeof(src_var), "_ma%d", tag);
             emit(codegen, "{ GrayMap ");
             emitf(codegen, "%s = ", src_var);
             emit_expression(codegen, node->data.assign.value);
@@ -7940,10 +7940,10 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
          * the outer arena so the copy survives scope destruction. */
         if (tgt_t && tgt_t->kind == TK_STRUCT && tgt_t->name &&
             type_needs_deep_copy(codegen, tgt_t->name)) {
-            int t = next_dc_tag();
+            int tag = next_dc_tag();
             const char *ct = gray_type_to_c_cg(codegen, tgt_t->name);
             char src_var[VAR_NAME_BUF];
-            snprintf(src_var, sizeof(src_var), "_sa%d", t);
+            snprintf(src_var, sizeof(src_var), "_sa%d", tag);
             emitf(codegen, "{ %s %s = ", ct, src_var);
             emit_expression(codegen, node->data.assign.value);
             emit(codegen, "; ");
