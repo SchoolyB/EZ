@@ -69,35 +69,13 @@ func runWatch(cmd *cobra.Command, args []string) {
 	}
 }
 
-// watchFile watches a single file and its imports for changes
-func watchFile(file string, compilerArgs []string) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		fmt.Printf("Error creating watcher: %v\n", err)
-		os.Exit(1)
-	}
-	defer watcher.Close()
+// watchLoop runs the debounced event loop shared by file and directory watch modes.
+// filterEvent decides whether a filesystem event should trigger a rebuild.
+// refreshFiles returns the current set of files to watch (called on each rebuild).
+func watchLoop(watcher *fsnotify.Watcher, mainFile string, compilerArgs []string,
+	filterEvent func(fsnotify.Event) bool, refreshFiles func() []string) {
 
-	// Get the list of files to watch (main file + imports via text scan)
-	filesToWatch := collectFilesToWatch(file)
-
-	for _, f := range filesToWatch {
-		if err := watcher.Add(f); err != nil {
-			fmt.Printf("Error watching %s: %v\n", f, err)
-		}
-	}
-
-	importCount := len(filesToWatch) - 1
-	if importCount > 0 {
-		fmt.Printf("Watching %s (+ %d imports)\n", shortPath(file), importCount)
-	} else {
-		fmt.Printf("Watching %s\n", shortPath(file))
-	}
-	fmt.Println("Press Ctrl+C to stop")
-	fmt.Println()
-
-	// Run initially
-	executeFile(file, compilerArgs)
+	executeFile(mainFile, compilerArgs)
 
 	var mu sync.Mutex
 	var timer *time.Timer
@@ -109,20 +87,20 @@ func watchFile(file string, compilerArgs []string) {
 			if !ok {
 				return
 			}
-			if event.Op&(fsnotify.Write|fsnotify.Create) != 0 {
-				mu.Lock()
-				if timer != nil {
-					timer.Stop()
-				}
-				timer = time.AfterFunc(debounceInterval, func() {
-					newFilesToWatch := collectFilesToWatch(file)
-					for _, f := range newFilesToWatch {
-						watcher.Add(f)
-					}
-					executeFile(file, compilerArgs)
-				})
-				mu.Unlock()
+			if event.Op&(fsnotify.Write|fsnotify.Create) == 0 || !filterEvent(event) {
+				continue
 			}
+			mu.Lock()
+			if timer != nil {
+				timer.Stop()
+			}
+			timer = time.AfterFunc(debounceInterval, func() {
+				for _, f := range refreshFiles() {
+					watcher.Add(f)
+				}
+				executeFile(mainFile, compilerArgs)
+			})
+			mu.Unlock()
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
@@ -130,6 +108,35 @@ func watchFile(file string, compilerArgs []string) {
 			fmt.Printf("Watcher error: %v\n", err)
 		}
 	}
+}
+
+// watchFile watches a single file and its imports for changes
+func watchFile(file string, compilerArgs []string) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		fmt.Printf("Error creating watcher: %v\n", err)
+		os.Exit(1)
+	}
+	defer watcher.Close()
+
+	filesToWatch := collectFilesToWatch(file)
+	for _, f := range filesToWatch {
+		if err := watcher.Add(f); err != nil {
+			fmt.Printf("Error watching %s: %v\n", f, err)
+		}
+	}
+
+	if importCount := len(filesToWatch) - 1; importCount > 0 {
+		fmt.Printf("Watching %s (+ %d imports)\n", shortPath(file), importCount)
+	} else {
+		fmt.Printf("Watching %s\n", shortPath(file))
+	}
+	fmt.Println("Press Ctrl+C to stop")
+	fmt.Println()
+
+	watchLoop(watcher, file, compilerArgs,
+		func(_ fsnotify.Event) bool { return true },
+		func() []string { return collectFilesToWatch(file) })
 }
 
 // watchDirectory watches all .gray files in a directory
@@ -148,7 +155,6 @@ func watchDirectory(dirPath string, compilerArgs []string) {
 	defer watcher.Close()
 
 	filesToWatch := collectGrayFilesInDir(dirPath)
-
 	for _, f := range filesToWatch {
 		if err := watcher.Add(f); err != nil {
 			fmt.Printf("Error watching %s: %v\n", f, err)
@@ -159,42 +165,9 @@ func watchDirectory(dirPath string, compilerArgs []string) {
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println()
 
-	executeFile(mainFile, compilerArgs)
-
-	var mu sync.Mutex
-	var timer *time.Timer
-	debounceInterval := 100 * time.Millisecond
-
-	for {
-		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				return
-			}
-			if event.Op&(fsnotify.Write|fsnotify.Create) != 0 {
-				if !strings.HasSuffix(event.Name, ".gray") {
-					continue
-				}
-				mu.Lock()
-				if timer != nil {
-					timer.Stop()
-				}
-				timer = time.AfterFunc(debounceInterval, func() {
-					newFilesToWatch := collectGrayFilesInDir(dirPath)
-					for _, f := range newFilesToWatch {
-						watcher.Add(f)
-					}
-					executeFile(mainFile, compilerArgs)
-				})
-				mu.Unlock()
-			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
-			}
-			fmt.Printf("Watcher error: %v\n", err)
-		}
-	}
+	watchLoop(watcher, mainFile, compilerArgs,
+		func(e fsnotify.Event) bool { return strings.HasSuffix(e.Name, ".gray") },
+		func() []string { return collectGrayFilesInDir(dirPath) })
 }
 
 // collectFilesToWatch returns the main file plus imported file paths via text scan.
