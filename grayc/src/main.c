@@ -301,7 +301,7 @@ static const char *rewrite_type_name(const char *t,
 
     /* Array: [T] or [T,N] */
     if (t[0] == '[' && t[len - 1] == ']') {
-        char *inner = arena_strndup(arena, t + 1, len - 2);
+        char *inner = arena_copy_string_with_length(arena, t + 1, len - 2);
         /* Split fixed-size suffix off the element type. We can use the
          * first ',' at depth 0 because element types use brackets, not
          * commas, internally — even nested arrays look like [[T]]. */
@@ -339,7 +339,7 @@ static const char *rewrite_type_name(const char *t,
     /* Map: map[K:V] */
     if (len > 5 && strncmp(t, "map[", 4) == 0 && t[len - 1] == ']') {
         size_t inner_len = len - 5; /* between "map[" and "]" */
-        char *inner = arena_strndup(arena, t + 4, inner_len);
+        char *inner = arena_copy_string_with_length(arena, t + 4, inner_len);
         /* Find ':' at depth 0 — K may itself be a bracketed type. */
         int depth = 0;
         int colon_pos = -1;
@@ -856,7 +856,7 @@ int main(int argc, char **argv) {
          * different relative paths are still detected as duplicates. */
         {
             char *rp = realpath(input_file, NULL);
-            mark_imported(rp ? arena_strdup(arena, rp) : input_file);
+            mark_imported(rp ? arena_copy_string(arena, rp) : input_file);
             free(rp);
         }
 
@@ -1007,7 +1007,7 @@ int main(int argc, char **argv) {
                     char dir_name[MSG_BUF_SIZE];
                     memcpy(dir_name, prev, dlen);
                     dir_name[dlen] = '\0';
-                    mod_base = arena_strdup(arena, dir_name);
+                    mod_base = arena_copy_string(arena, dir_name);
                 }
 
                 char mod_name_buf[MSG_BUF_SIZE];
@@ -1018,7 +1018,7 @@ int main(int argc, char **argv) {
                 } else {
                     snprintf(mod_name_buf, sizeof(mod_name_buf), "%s", mod_base);
                 }
-                const char *mod_name = item->alias ? item->alias : arena_strdup(arena, mod_name_buf);
+                const char *mod_name = item->alias ? item->alias : arena_copy_string(arena, mod_name_buf);
 
                 /* Normalize import_path so diamond deps resolve to the same canonical path */
                 char norm_import[PATH_BUF_SIZE];
@@ -1070,7 +1070,7 @@ int main(int argc, char **argv) {
                 if (collision) continue;
                 if (seen_count < MAX_IMPORTS) {
                     seen_modules[seen_count] = mod_name;
-                    seen_paths[seen_count] = arena_strdup(arena, norm_import);
+                    seen_paths[seen_count] = arena_copy_string(arena, norm_import);
                     seen_count++;
                 }
 
@@ -1108,7 +1108,7 @@ int main(int argc, char **argv) {
                     /* Normalize the path so diamond dependencies (same file
                      * reached via different relative paths) are deduplicated. */
                     char *norm = realpath(cur_file_path, NULL);
-                    const char *norm_path = norm ? arena_strdup(arena, norm) : cur_file_path;
+                    const char *norm_path = norm ? arena_copy_string(arena, norm) : cur_file_path;
                     free(norm);
 
                     /* Skip if already imported (handles cycles and duplicates) */
@@ -1173,7 +1173,7 @@ int main(int argc, char **argv) {
                         char *cd_slash = strrchr(cur_dir, '/');
                         if (cd_slash) *(cd_slash + 1) = '\0';
                         else { cur_dir[0] = '.'; cur_dir[1] = '/'; cur_dir[2] = '\0'; }
-                        const char *src_dir = arena_strdup(arena, cur_dir);
+                        const char *src_dir = arena_copy_string(arena, cur_dir);
 
                         /* Normalize the directory being imported for sibling detection */
                         char *norm_import_dir = realpath(import_path, NULL);
@@ -1241,7 +1241,7 @@ int main(int argc, char **argv) {
                                         } else {
                                             snprintf(sib_buf, sizeof(sib_buf), "%s", sib_base);
                                         }
-                                        sib_alias = arena_strdup(arena, sib_buf);
+                                        sib_alias = arena_copy_string(arena, sib_buf);
                                     }
                                     /* Track unique sibling aliases */
                                     bool already_tracked = false;

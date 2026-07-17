@@ -58,26 +58,26 @@ static void test_arena_alloc_oversized(void) {
     arena_destroy(a);
 }
 
-static void test_arena_strdup(void) {
+static void test_arena_copy_string(void) {
     Arena *a = arena_create(4096);
-    char *s = arena_strdup(a, "hello world");
+    char *s = arena_copy_string(a, "hello world");
     ASSERT_NOT_NULL(s);
     ASSERT_STR_EQ(s, "hello world");
     arena_destroy(a);
 }
 
-static void test_arena_strdup_empty(void) {
+static void test_arena_copy_string_empty(void) {
     Arena *a = arena_create(4096);
-    char *s = arena_strdup(a, "");
+    char *s = arena_copy_string(a, "");
     ASSERT_NOT_NULL(s);
     ASSERT_STR_EQ(s, "");
     ASSERT_EQ(strlen(s), 0);
     arena_destroy(a);
 }
 
-static void test_arena_strndup(void) {
+static void test_arena_copy_string_with_length(void) {
     Arena *a = arena_create(4096);
-    char *s = arena_strndup(a, "hello world", 5);
+    char *s = arena_copy_string_with_length(a, "hello world", 5);
     ASSERT_NOT_NULL(s);
     ASSERT_STR_EQ(s, "hello");
     arena_destroy(a);
@@ -264,9 +264,9 @@ int main(void) {
     RUN_TEST(test_arena_alloc_alignment);
     RUN_TEST(test_arena_alloc_second_block);
     RUN_TEST(test_arena_alloc_oversized);
-    RUN_TEST(test_arena_strdup);
-    RUN_TEST(test_arena_strdup_empty);
-    RUN_TEST(test_arena_strndup);
+    RUN_TEST(test_arena_copy_string);
+    RUN_TEST(test_arena_copy_string_empty);
+    RUN_TEST(test_arena_copy_string_with_length);
 
     printf("--- Buf ---\n");
     RUN_TEST(test_buf_create);

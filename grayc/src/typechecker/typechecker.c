@@ -415,7 +415,7 @@ static char *tc_fmt(TypeChecker *checker, const char *fmt, ...) {
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    return arena_strdup(checker->arena, buf);
+    return arena_copy_string(checker->arena, buf);
 }
 
 static AstNode *find_struct_in_program(AstNode *program, const char *name);
@@ -2488,14 +2488,14 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                         "'%s' is a named return value in the function signature. Did you forget to declare 'mut %s %s' at function scope?",
                         name, name, nr_type ? nr_type : "?");
                     diag_error_help(checker->diag, "E4001", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_strdup(checker->arena, help));
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_copy_string(checker->arena, help));
                 } else {
                     const char *suggestion = suggest_name(checker, name);
                     if (suggestion) {
                         char help[MSG_BUF_SIZE];
                         snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                         diag_error_help(checker->diag, "E4001", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_strdup(checker->arena, help));
+                            NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_copy_string(checker->arena, help));
                     } else {
                         diag_error_msg(checker->diag, "E4001", msg,
                             NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -3300,7 +3300,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s.%s'",
                                     arg_sym->name, found_decl->data.func_decl.params[ai].name,
                                     mod_name, struct_name, func_name);
-                                diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                     NODE_FILE(checker, arg), arg->token.line,
                                     arg->token.column, 0);
                             }
@@ -3312,7 +3312,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 "cannot pass enum constant to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
                                 found_decl->data.func_decl.params[ai].name,
                                 mod_name, struct_name, func_name);
-                            diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                            diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                 NODE_FILE(checker, arg), arg->token.line,
                                 arg->token.column, 0);
                         } else if (arg->kind != NODE_MEMBER_EXPR &&
@@ -3323,7 +3323,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                 "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
                                 found_decl->data.func_decl.params[ai].name,
                                 mod_name, struct_name, func_name);
-                            diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                            diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                 NODE_FILE(checker, arg), arg->token.line,
                                 arg->token.column, 0);
                         }
@@ -4726,7 +4726,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         snprintf(emsg, sizeof(emsg),
                                             "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
                                             arg_sym->name, found_decl->data.func_decl.params[ai].name, display_mod, mfn);
-                                        diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                        diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                             NODE_FILE(checker, arg), arg->token.line,
                                             arg->token.column, 0);
                                     }
@@ -4737,7 +4737,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                         found_decl->data.func_decl.params[ai].name, display_mod, mfn);
-                                    diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                    diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                         NODE_FILE(checker, arg), arg->token.line,
                                         arg->token.column, 0);
                                 } else if (arg->kind != NODE_MEMBER_EXPR &&
@@ -4747,7 +4747,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                         found_decl->data.func_decl.params[ai].name, display_mod, mfn);
-                                    diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                    diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                         NODE_FILE(checker, arg), arg->token.line,
                                         arg->token.column, 0);
                                 }
@@ -4938,7 +4938,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             "function '%s.%s' expects %d-%d argument(s), got %d",
                                             display_sname, mfn, display_min, display_max, display_got);
                                     }
-                                    diag_error_msg(checker->diag, "E5008", arena_strdup(checker->arena, emsg),
+                                    diag_error_msg(checker->diag, "E5008", arena_copy_string(checker->arena, emsg),
                                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                                 }
                             }
@@ -4966,7 +4966,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
                                             ai + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diag_error_msg(checker->diag, "E3001", arena_strdup(checker->arena, amsg),
+                                        diag_error_msg(checker->diag, "E3001", arena_copy_string(checker->arena, amsg),
                                             NODE_FILE(checker, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -4980,7 +4980,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         snprintf(smsg, sizeof(smsg),
                                             "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
                                             ai + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diag_error_msg(checker->diag, "E3001", arena_strdup(checker->arena, smsg),
+                                        diag_error_msg(checker->diag, "E3001", arena_copy_string(checker->arena, smsg),
                                             NODE_FILE(checker, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -4994,7 +4994,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         snprintf(pmsg, sizeof(pmsg),
                                             "argument %d of '%s.%s': expected '%s', got '%s'",
                                             ai + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diag_error_msg(checker->diag, "E3001", arena_strdup(checker->arena, pmsg),
+                                        diag_error_msg(checker->diag, "E3001", arena_copy_string(checker->arena, pmsg),
                                             NODE_FILE(checker, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -5019,7 +5019,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot call '%s.%s' on constant '%s'; function requires a mutable ('&') self parameter",
                                                 display_sname, mfn, self_sym->name);
-                                            diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                            diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                 NODE_FILE(checker, node), node->token.line,
                                                 node->token.column, 0);
                                         }
@@ -5034,7 +5034,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                     "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
                                                     arg_sym->name, ssig->decl->data.func_decl.params[ai].name,
                                                     display_sname, mfn);
-                                                diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                                diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                     NODE_FILE(checker, arg), arg->token.line,
                                                     arg->token.column, 0);
                                             }
@@ -5045,7 +5045,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                                 ssig->decl->data.func_decl.params[ai].name, display_sname, mfn);
-                                            diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                            diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                 NODE_FILE(checker, arg), arg->token.line,
                                                 arg->token.column, 0);
                                         } else if (arg->kind != NODE_MEMBER_EXPR &&
@@ -5055,7 +5055,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
                                                 ssig->decl->data.func_decl.params[ai].name, display_sname, mfn);
-                                            diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                            diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                 NODE_FILE(checker, arg), arg->token.line,
                                                 arg->token.column, 0);
                                         }
@@ -5109,7 +5109,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             "function '%s.%s' expects %d-%d argument(s), got %d",
                                             display_sname, mfn, min_params, ssig->param_count, node->data.call.arg_count);
                                     }
-                                    diag_error_msg(checker->diag, "E5008", arena_strdup(checker->arena, emsg),
+                                    diag_error_msg(checker->diag, "E5008", arena_copy_string(checker->arena, emsg),
                                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                                 }
                             }
@@ -5132,7 +5132,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                         snprintf(amsg, sizeof(amsg),
                                             "argument %d of '%s.%s': expected %s, got %s",
                                             ai + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diag_error_msg(checker->diag, "E3001", arena_strdup(checker->arena, amsg),
+                                        diag_error_msg(checker->diag, "E3001", arena_copy_string(checker->arena, amsg),
                                             NODE_FILE(checker, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
@@ -5604,7 +5604,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 result = resolve_expr(checker, node->data.call.args[0]);
                 if (result->kind == TK_FUNCTION) {
                     diag_error_msg(checker->diag, "E5029",
-                        arena_strdup(checker->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
+                        arena_copy_string(checker->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                     result = &TYPE_UNKNOWN;
                 } else if (result->kind == TK_POINTER) {
@@ -5676,7 +5676,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                 GrayType *src_t = resolve_expr(checker, node->data.call.args[0]);
                 if (src_t->kind == TK_STRING) {
                     diag_error_msg(checker->diag, "E3043",
-                        arena_strdup(checker->arena, "cannot convert string to string; value is already a string"),
+                        arena_copy_string(checker->arena, "cannot convert string to string; value is already a string"),
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
                 } else if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
                            src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
@@ -6218,7 +6218,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                         "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
                                                         arg_sym->name, s->data.func_decl.params[ai].name,
                                                         func_display_name(ref_sig));
-                                                    diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                                    diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                         NODE_FILE(checker, arg), arg->token.line,
                                                         arg->token.column, 0);
                                                 }
@@ -6229,7 +6229,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
                                                     s->data.func_decl.params[ai].name, func_display_name(ref_sig));
-                                                diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                                diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                     NODE_FILE(checker, arg), arg->token.line,
                                                     arg->token.column, 0);
                                             } else if (arg->kind != NODE_MEMBER_EXPR &&
@@ -6239,7 +6239,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
                                                     s->data.func_decl.params[ai].name, func_display_name(ref_sig));
-                                                diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                                diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                     NODE_FILE(checker, arg), arg->token.line,
                                                     arg->token.column, 0);
                                             }
@@ -6296,7 +6296,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                             snprintf(emsg, sizeof(emsg),
                                                 "cannot pass enum constant to '&' parameter %d of '%s'; expected a mutable variable",
                                                 ai + 1, fn_name);
-                                            diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                            diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                 NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
                                         } else if (!is_lvalue) {
                                             diag_error_codef(checker->diag, "E3067", NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0, ai + 1, fn_name);
@@ -6307,7 +6307,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                                 snprintf(emsg, sizeof(emsg),
                                                     "cannot pass constant '%s' to '&' parameter %d of '%s'",
                                                     as->name, ai + 1, fn_name);
-                                                diag_error_msg(checker->diag, "E3027", arena_strdup(checker->arena, emsg),
+                                                diag_error_msg(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
                                                     NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
                                             }
                                         }
@@ -6462,7 +6462,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                                     char help[MSG_BUF_SIZE];
                                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                                     diag_error_help(checker->diag, "E4002", msg,
-                                        NODE_FILE(checker, node), el, ec, 0, arena_strdup(checker->arena, help));
+                                        NODE_FILE(checker, node), el, ec, 0, arena_copy_string(checker->arena, help));
                                 } else {
                                     diag_error_msg(checker->diag, "E4002", msg,
                                         NODE_FILE(checker, node), el, ec, 0);
@@ -7243,7 +7243,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     ref_member_name = member;
                     char buf[MSG_BUF_SIZE];
                     snprintf(buf, sizeof(buf), "%s_%s", obj->data.label.value, member);
-                    ref_name = arena_strdup(checker->arena, buf);
+                    ref_name = arena_copy_string(checker->arena, buf);
                 }
             }
         }
@@ -7288,7 +7288,7 @@ static GrayType *resolve_expr(TypeChecker *checker, AstNode *node) {
                     char help[MSG_BUF_SIZE];
                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                     diag_error_help(checker->diag, "E4002", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_strdup(checker->arena, help));
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_copy_string(checker->arena, help));
                 } else {
                     diag_error_msg(checker->diag, "E4002", msg,
                         NODE_FILE(checker, node), node->token.line, node->token.column, 0);
@@ -8803,7 +8803,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                     snprintf(buf, sizeof(buf), "%s_%s",
                         fref->data.member.object->data.label.value,
                         fref->data.member.member);
-                    rname = arena_strdup(checker->arena, buf);
+                    rname = arena_copy_string(checker->arena, buf);
                 }
                 if (rname) {
                     Symbol *sym = scope_lookup_local(checker->current_scope,
@@ -9187,7 +9187,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
          * variable that main never declares, and the C compile fails. */
         if (checker->current_func_is_main) {
             diag_error_help(checker->diag, "E3073",
-                arena_strdup(checker->arena, "'return' is not allowed in main(); main exits when control reaches the closing brace"),
+                arena_copy_string(checker->arena, "'return' is not allowed in main(); main exits when control reaches the closing brace"),
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                 "use exit(code) to terminate with a status code");
             break;
@@ -11144,7 +11144,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
                 /* Register with prefixed name: StructName_funcName */
                 char buf[MSG_BUF_SIZE];
                 snprintf(buf, sizeof(buf), "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
-                const char *prefixed = arena_strdup(checker->arena, buf);
+                const char *prefixed = arena_copy_string(checker->arena, buf);
                 register_func(checker, prefixed, ptypes, pc, rtypes, rc);
                 checker->funcs[checker->func_count - 1].is_private = fn->data.func_decl.is_private;
                 finalize_generic_sig(&checker->funcs[checker->func_count - 1], fn);

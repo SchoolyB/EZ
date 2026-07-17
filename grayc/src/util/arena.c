@@ -56,14 +56,14 @@ void *arena_alloc(Arena *arena, size_t size) {
     return ptr;
 }
 
-char *arena_strdup(Arena *arena, const char *source) {
+char *arena_copy_string(Arena *arena, const char *source) {
     size_t len = strlen(source);
     char *duplicated = arena_alloc(arena, len + 1);
     memcpy(duplicated, source, len + 1);
     return duplicated;
 }
 
-char *arena_strndup(Arena *arena, const char *source, size_t len) {
+char *arena_copy_string_with_length(Arena *arena, const char *source, size_t len) {
     char *duplicated = arena_alloc(arena, len + 1);
     memcpy(duplicated, source, len);
     duplicated[len] = '\0';

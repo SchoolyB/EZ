@@ -91,7 +91,7 @@ static void prescan_struct_names(Parser *parser) {
                 parser->struct_name_cap = new_cap;
             }
             parser->struct_names[parser->struct_name_count++] =
-                arena_strdup(parser->arena, prev1.literal);
+                arena_copy_string(parser->arena, prev1.literal);
         }
         prev2 = prev1;
         prev1 = tok;
@@ -124,7 +124,7 @@ static void next_token(Parser *parser) {
      * error_code so the same error is not reported twice. */
     if (parser->peek_token.type == TOK_ILLEGAL && parser->lexer->error_code) {
         diag_error_msg(parser->diag, parser->lexer->error_code,
-            arena_strdup(parser->arena, parser->lexer->error_msg),
+            arena_copy_string(parser->arena, parser->lexer->error_msg),
             parser->file, parser->peek_token.line, parser->peek_token.column, 0);
         parser->lexer->error_code = NULL;
     }
@@ -147,7 +147,7 @@ static bool expect_peek(Parser *parser, TokenType type) {
     snprintf(buf, sizeof(buf), "expected '%s', got '%s'",
         token_type_name(type), token_type_name(parser->peek_token.type));
     /* Point at current token (where the expected token should be), not the peek token */
-    diag_error_msg(parser->diag, "E2001", arena_strdup(parser->arena, buf),
+    diag_error_msg(parser->diag, "E2001", arena_copy_string(parser->arena, buf),
         parser->file, parser->cur_token.line, parser->cur_token.column, 0);
     return false;
 }
@@ -612,7 +612,7 @@ static AstNode *parse_interpolated_string(Parser *parser, const char *raw) {
                     parts = new_parts;
                 }
                 AstNode *text = ast_alloc(parser->arena, NODE_STRING_VALUE, parser->cur_token);
-                text->data.string_value.value = arena_strndup(parser->arena, seg_start, s - seg_start);
+                text->data.string_value.value = arena_copy_string_with_length(parser->arena, seg_start, s - seg_start);
                 parts[count++] = text;
             }
 
@@ -634,7 +634,7 @@ static AstNode *parse_interpolated_string(Parser *parser, const char *raw) {
                 parts = new_parts;
             }
 
-            char *expr_text = arena_strndup(parser->arena, expr_start, s - expr_start);
+            char *expr_text = arena_copy_string_with_length(parser->arena, expr_start, s - expr_start);
             /* reject '${}' (and whitespace-only '${ }') before
              * spinning up a sub-parser. Otherwise the sub-parser hits
              * EOF on an empty input and reports E2002 with the stale
@@ -698,7 +698,7 @@ static AstNode *parse_interpolated_string(Parser *parser, const char *raw) {
             parts = new_parts;
         }
         AstNode *text = ast_alloc(parser->arena, NODE_STRING_VALUE, parser->cur_token);
-        text->data.string_value.value = arena_strndup(parser->arena, seg_start, s - seg_start);
+        text->data.string_value.value = arena_copy_string_with_length(parser->arena, seg_start, s - seg_start);
         parts[count++] = text;
     }
 
@@ -874,12 +874,12 @@ static AstNode *parse_prefix(Parser *parser) {
         if (parser->cur_token.type != TOK_IDENT) {
             char buf[256];
             snprintf(buf, sizeof(buf), "expected enum variant name after '.'");
-            diag_error(parser->diag, "E2001", arena_strdup(parser->arena, buf),
+            diag_error(parser->diag, "E2001", arena_copy_string(parser->arena, buf),
                 parser->file, dot_tok.line, dot_tok.column, 0);
             return ast_alloc(parser->arena, NODE_NIL_VALUE, dot_tok);
         }
         AstNode *node = ast_alloc(parser->arena, NODE_IMPLICIT_ENUM, dot_tok);
-        node->data.implicit_enum.variant = arena_strdup(parser->arena, parser->cur_token.literal);
+        node->data.implicit_enum.variant = arena_copy_string(parser->arena, parser->cur_token.literal);
         node->data.implicit_enum.resolved_enum = NULL;
         return node;
     }
@@ -1021,7 +1021,7 @@ static AstNode *parse_prefix(Parser *parser) {
         node->data.new_expr.type_name = read_type_name(parser);
         if (type_string_has_wildcard(node->data.new_expr.type_name)) {
             diag_error_msg(parser->diag, "E2070",
-                arena_strdup(parser->arena,
+                arena_copy_string(parser->arena,
                     "wildcard type '?' cannot be used with new(); new() requires a concrete type"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
         }
@@ -1063,7 +1063,7 @@ static AstNode *parse_prefix(Parser *parser) {
         snprintf(buf, sizeof(buf),
             "'%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range",
             op, op);
-        diag_error_msg(parser->diag, "E2086", arena_strdup(parser->arena, buf),
+        diag_error_msg(parser->diag, "E2086", arena_copy_string(parser->arena, buf),
             parser->file, bad_tok.line, bad_tok.column, 0);
         /* Consume the operator and its right-hand operand so subsequent tokens
          * (like the if-body '{') are seen in the right context. */
@@ -1087,7 +1087,7 @@ static AstNode *parse_prefix(Parser *parser) {
             else
                 snprintf(buf, sizeof(buf), "unexpected token '%s'",
                     token_type_name(parser->cur_token.type));
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, buf),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, buf),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
         }
     }
@@ -1153,7 +1153,7 @@ static AstNode *parse_call_expression(Parser *parser, AstNode *function) {
 
             /* Check for named arg: ident followed by colon */
             if (cur_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_COLON)) {
-                names[count] = arena_strdup(parser->arena, parser->cur_token.literal);
+                names[count] = arena_copy_string(parser->arena, parser->cur_token.literal);
                 has_named = true;
                 next_token(parser); /* skip ident */
                 next_token(parser); /* skip colon, now on value */
@@ -1420,7 +1420,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
         snprintf(msg, sizeof(msg),
             "'%s' is a reserved keyword and cannot be used as a variable name",
             parser->peek_token.literal);
-        diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+        diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
             parser->file, parser->peek_token.line, parser->peek_token.column, 0);
         synchronize(parser);
         return NULL;
@@ -1455,7 +1455,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
         /* E2070: wildcard `?` only allowed in function signatures */
         if (type_string_has_wildcard(node->data.var_decl.type_name)) {
             diag_error_msg(parser->diag, "E2070",
-                arena_strdup(parser->arena,
+                arena_copy_string(parser->arena,
                     "wildcard type '?' is only allowed in function parameter and return types; not in variable declarations"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
         }
@@ -1477,7 +1477,7 @@ static AstNode *parse_var_declaration(Parser *parser) {
         char msg[MSG_BUF_SIZE];
         snprintf(msg, sizeof(msg),
             "blank identifier '_' requires '='; use '%s _ = <expr>' to discard a result", kw);
-        diag_error_msg(parser->diag, "E2084", arena_strdup(parser->arena, msg),
+        diag_error_msg(parser->diag, "E2084", arena_copy_string(parser->arena, msg),
             parser->file, node->token.line, node->token.column, 0);
         synchronize(parser);
         return NULL;
@@ -1645,7 +1645,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
         snprintf(msg, sizeof(msg),
             "'%s' is a reserved keyword and cannot be used as a function name",
             parser->peek_token.literal);
-        diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+        diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
             parser->file, parser->peek_token.line, parser->peek_token.column, 0);
         synchronize(parser);
         return NULL;
@@ -1689,7 +1689,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                 snprintf(buf, sizeof(buf),
                     "'%s' is a keyword and cannot be used as a parameter name",
                     param->name);
-                diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, buf),
+                diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, buf),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             } else if (parser->cur_token.type == TOK_IDENT) {
                 /* Check for builtin function/type names */
@@ -1716,7 +1716,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                         snprintf(buf, sizeof(buf),
                             "'%s' is a built-in name and cannot be used as a parameter name",
                             param->name);
-                        diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, buf),
+                        diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, buf),
                             parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                         break;
                     }
@@ -1767,7 +1767,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                 snprintf(buf, sizeof(buf),
                     "unexpected token '%s' in parameter list; expected ',' or ')'",
                     parser->peek_token.literal ? parser->peek_token.literal : "?");
-                diag_error_msg(parser->diag, "E2001", arena_strdup(parser->arena, buf),
+                diag_error_msg(parser->diag, "E2001", arena_copy_string(parser->arena, buf),
                     parser->file, parser->peek_token.line, parser->peek_token.column, 0);
                 return NULL;
             }
@@ -1790,7 +1790,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
             snprintf(buf, sizeof(buf),
                 "parameter '%s' is missing a type; every parameter must have a type (e.g., %s int)",
                 p_i->name, p_i->name);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, buf),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, buf),
                 parser->file, node->token.line, node->token.column, 0);
         }
     }
@@ -1822,7 +1822,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
         /* E2002: missing return type after -> */
         if (cur_token_is(parser, TOK_LBRACE)) {
             diag_error_msg(parser->diag, "E2002",
-                arena_strdup(parser->arena, "expected return type after '->', got '{'; either specify a type or remove the '->'"),
+                arena_copy_string(parser->arena, "expected return type after '->', got '{'; either specify a type or remove the '->'"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             /* Parse body to avoid cascading errors */
             node->data.func_decl.body = parse_block_statement(parser);
@@ -1966,7 +1966,7 @@ static AstNode *parse_func_declaration(Parser *parser) {
                     "for a pointer return type write '^%s', not '%s^'",
                     type_name, type_name);
                 next_token(parser); /* consume the '^' so we can point at it */
-                diag_error_msg(parser->diag, "E2081", arena_strdup(parser->arena, msg),
+                diag_error_msg(parser->diag, "E2081", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 /* Recover: parse the body to avoid cascading errors. */
                 if (peek_token_is(parser, TOK_LBRACE)) {
@@ -2023,7 +2023,7 @@ static AstNode *parse_import_statement(Parser *parser) {
                           c == '/' || c == '.' || c == '_' || c == '-' || c == '+';
                 if (!ok) {
                     diag_error(parser->diag, "E2080",
-                        arena_strdup(parser->arena, "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted"),
+                        arena_copy_string(parser->arena, "invalid character in C header path; only [A-Za-z0-9./_+-] are permitted"),
                         parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                     break;
                 }
@@ -2085,7 +2085,7 @@ static AstNode *parse_import_statement(Parser *parser) {
             snprintf(buf, sizeof(buf),
                 "expected @module or \"path\" after import, got '%s'",
                 parser->cur_token.literal);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, buf),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, buf),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             return node;
         }
@@ -2251,7 +2251,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
          * with a raw C error. Catch it here before reading the name. */
         if (cur_token_is(parser, TOK_QUESTION)) {
             diag_error_msg(parser->diag, "E2070",
-                arena_strdup(parser->arena,
+                arena_copy_string(parser->arena,
                     "wildcard type '?' is not allowed as a struct field name; only in function parameter and return types"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             next_token(parser); /* skip the '?' */
@@ -2289,7 +2289,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
                 snprintf(msg, sizeof(msg),
                     "'%s' is a reserved keyword and cannot be used as a struct field name",
                     parser->cur_token.literal);
-                diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+                diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 synchronize(parser);
                 break;
@@ -2299,7 +2299,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
                 snprintf(msg, sizeof(msg),
                     "'%s' is a reserved type name and cannot be used as a struct field name",
                     parser->cur_token.literal);
-                diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+                diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 synchronize(parser);
                 break;
@@ -2309,7 +2309,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
                 snprintf(msg, sizeof(msg),
                     "'%s' is a builtin function and cannot be used as a struct field name",
                     parser->cur_token.literal);
-                diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+                diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 synchronize(parser);
                 break;
@@ -2319,7 +2319,7 @@ static AstNode *parse_struct_declaration(Parser *parser) {
                 snprintf(msg, sizeof(msg),
                     "'%s' is a standard library module and cannot be used as a struct field name",
                     parser->cur_token.literal);
-                diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+                diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                 synchronize(parser);
                 break;
@@ -2429,7 +2429,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
          * Catch it here before reading the variant name. */
         if (cur_token_is(parser, TOK_QUESTION)) {
             diag_error_msg(parser->diag, "E2070",
-                arena_strdup(parser->arena,
+                arena_copy_string(parser->arena,
                     "wildcard type '?' is not allowed in enum declarations; only in function parameter and return types"),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             next_token(parser); /* skip the '?' */
@@ -2445,7 +2445,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved keyword and cannot be used as an enum variant name",
                 parser->cur_token.literal);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             synchronize(parser);
             continue;
@@ -2455,7 +2455,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved type name and cannot be used as an enum variant name",
                 parser->cur_token.literal);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             synchronize(parser);
             continue;
@@ -2465,7 +2465,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
             snprintf(msg, sizeof(msg),
                 "'%s' is a builtin function and cannot be used as an enum variant name",
                 parser->cur_token.literal);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             synchronize(parser);
             continue;
@@ -2475,7 +2475,7 @@ static AstNode *parse_enum_declaration(Parser *parser) {
             snprintf(msg, sizeof(msg),
                 "'%s' is a standard library module and cannot be used as an enum variant name",
                 parser->cur_token.literal);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->cur_token.line, parser->cur_token.column, 0);
             synchronize(parser);
             continue;
@@ -2628,7 +2628,7 @@ static AstNode *parse_for_statement(Parser *parser) {
                 snprintf(msg, sizeof(msg),
                     "'for %s in ...' only supports range(); use 'for_each %s in ...' to iterate over a collection",
                     var, var);
-                diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+                diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                     parser->file, for_tok.line, for_tok.column, 0);
                 synchronize(parser);
                 return NULL;
@@ -2854,7 +2854,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                     if (is_implicit_pat) {
                         next_token(parser); /* skip dot */
                     }
-                    pat->data.when_pattern.variant = arena_strdup(parser->arena, parser->cur_token.literal);
+                    pat->data.when_pattern.variant = arena_copy_string(parser->arena, parser->cur_token.literal);
                     next_token(parser); /* skip IDENT (variant) */
                     next_token(parser); /* skip ( */
 
@@ -2867,7 +2867,7 @@ static AstNode *parse_when_statement(Parser *parser) {
                             memcpy(nb, pat->data.when_pattern.bindings, sizeof(const char *) * bc);
                             pat->data.when_pattern.bindings = nb;
                         }
-                        pat->data.when_pattern.bindings[bc++] = arena_strdup(parser->arena, parser->cur_token.literal);
+                        pat->data.when_pattern.bindings[bc++] = arena_copy_string(parser->arena, parser->cur_token.literal);
                         next_token(parser);
                         if (cur_token_is(parser, TOK_COMMA)) next_token(parser);
                     }
@@ -2954,7 +2954,7 @@ static AstNode *parse_statement(Parser *parser) {
             snprintf(msg, sizeof(msg),
                 "'%s' is a reserved keyword and cannot be used as a name",
                 parser->peek_token.literal);
-            diag_error_msg(parser->diag, "E2002", arena_strdup(parser->arena, msg),
+            diag_error_msg(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
                 parser->file, parser->peek_token.line, parser->peek_token.column, 0);
             synchronize(parser);
             return NULL;

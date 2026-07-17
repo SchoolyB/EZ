@@ -86,7 +86,7 @@ static const char *read_identifier(Lexer *lexer) {
     while (isalpha((unsigned char)lexer->ch) || lexer->ch == '_' || isdigit((unsigned char)lexer->ch)) {
         read_char(lexer);
     }
-    return arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+    return arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
 }
 
 static const char *read_number(Lexer *lexer, TokenType *type) {
@@ -104,7 +104,7 @@ static const char *read_number(Lexer *lexer, TokenType *type) {
                 lexer->error_code = "E1010";
                 lexer->error_msg = "invalid number format: '0x' must be followed by hex digits (0-9, a-f)";
             }
-            return arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+            return arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
         }
         if (next == 'o' || next == 'O') {
             read_char(lexer); read_char(lexer);
@@ -114,7 +114,7 @@ static const char *read_number(Lexer *lexer, TokenType *type) {
                 lexer->error_code = "E1010";
                 lexer->error_msg = "invalid number format: '0o' must be followed by octal digits (0-7)";
             }
-            return arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+            return arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
         }
         if (next == 'b' || next == 'B') {
             read_char(lexer); read_char(lexer);
@@ -124,7 +124,7 @@ static const char *read_number(Lexer *lexer, TokenType *type) {
                 lexer->error_code = "E1010";
                 lexer->error_msg = "invalid number format: '0b' must be followed by binary digits (0-1)";
             }
-            return arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+            return arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
         }
     }
 
@@ -146,7 +146,7 @@ static const char *read_number(Lexer *lexer, TokenType *type) {
         }
     }
 
-    const char *num = arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+    const char *num = arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
 
     /* Validate number literal format */
     if (num && !lexer->error_code) {
@@ -240,7 +240,7 @@ static const char *read_string(Lexer *lexer) {
         read_char(lexer);
     }
 
-    const char *str = arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+    const char *str = arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
     if (lexer->ch == '"') {
         read_char(lexer); /* skip closing " */
     } else if (!lexer->error_code) {
@@ -257,7 +257,7 @@ static const char *read_raw_string(Lexer *lexer) {
         read_char(lexer);
     }
 
-    const char *str = arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+    const char *str = arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
     if (lexer->ch == '`') {
         read_char(lexer); /* skip closing ` */
     } else {
@@ -294,7 +294,7 @@ static const char *read_char_literal(Lexer *lexer) {
         lexer->error_msg = "char literal must contain exactly one character; use a string for multiple characters";
     }
 
-    const char *str = arena_strndup(lexer->arena, lexer->input + start, lexer->position - start);
+    const char *str = arena_copy_string_with_length(lexer->arena, lexer->input + start, lexer->position - start);
     if (lexer->ch == '\'') {
         read_char(lexer); /* skip closing ' */
     } else if (!lexer->error_code) {
@@ -563,7 +563,7 @@ Token lexer_next_token(Lexer *lexer) {
             char msg[TYPE_NAME_MAX];
             snprintf(msg, sizeof(msg), "unexpected character '%c'", lexer->ch);
             lexer->error_code = "E1022";
-            lexer->error_msg = arena_strdup(lexer->arena, msg);
+            lexer->error_msg = arena_copy_string(lexer->arena, msg);
             tok = make_token(TOK_ILLEGAL, lexer->error_msg, tok.line, tok.column);
         }
         break;
