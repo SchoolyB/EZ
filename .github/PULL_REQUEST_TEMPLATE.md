@@ -2,9 +2,11 @@
 
 Closes #
 
-## What changed
+## Summary
 
-<!-- Brief description of the changes -->
+<!-- 1-3 bullet points describing what this PR does and why -->
+
+-
 
 ## Type of change
 
@@ -15,8 +17,22 @@ Closes #
 - [ ] Documentation
 - [ ] CI/Build
 
+## Breaking changes
+
+<!-- Does this PR break any existing behavior? If yes, describe what breaks and why. -->
+
+None.
+
 ## Checklist
 
 - [ ] `make build` compiles with zero warnings
-- [ ] Commit message follows conventional format: `type(scope): description (#issue)`
-- [ ] No `@` before module names in any text (tags GitHub users)
+- [ ] Tests added/updated (unit, integration, or both as appropriate)
+- [ ] No `@` before module names in any text (it tags GitHub users)
+
+### If adding user-facing stdlib/builtin/type
+
+- [ ] C implementation in `grayc/src/stdlib/<module>.h` and `.c` (with `@man` block)
+- [ ] Typechecker wired: return type, `stdlib_arg_table[]`, `stdlib_arg_type_table[]`, `_using_funcs[]`
+- [ ] Codegen wired: `emit_<module>_call()`
+- [ ] `STANDARD.md` updated
+- [ ] `./scripts/generate_stdlib_man.sh` run and output committed
