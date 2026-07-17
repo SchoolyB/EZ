@@ -36,8 +36,8 @@
 #endif
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
-#define GRAY_MAX_IMPORTS 256
-#define GRAY_COMPILER_ARENA_SIZE (1024 * 1024)
+#define MAX_IMPORTS 256
+#define COMPILER_ARENA_SIZE (1024 * 1024)
 
 static void print_usage(void) {
     fprintf(stderr, "Grayscale Programming Language v%s\n", GRAY_VERSION);
@@ -320,9 +320,9 @@ static const char *rewrite_type_name(const char *t,
         }
         const char *new_elem = rewrite_type_name(inner, orig_names, new_names, name_count, arena);
         if (new_elem == inner && !comma_pos) return t;
-        char *buf = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-        if (size_suffix) snprintf(buf, GRAY_MSG_BUF_SIZE, "[%s,%s]", new_elem, size_suffix);
-        else             snprintf(buf, GRAY_MSG_BUF_SIZE, "[%s]", new_elem);
+        char *buf = arena_alloc(arena, MSG_BUF_SIZE);
+        if (size_suffix) snprintf(buf, MSG_BUF_SIZE, "[%s,%s]", new_elem, size_suffix);
+        else             snprintf(buf, MSG_BUF_SIZE, "[%s]", new_elem);
         return buf;
     }
 
@@ -331,8 +331,8 @@ static const char *rewrite_type_name(const char *t,
         const char *pointee = t + 1;
         const char *new_pointee = rewrite_type_name(pointee, orig_names, new_names, name_count, arena);
         if (new_pointee == pointee) return t;
-        char *buf = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-        snprintf(buf, GRAY_MSG_BUF_SIZE, "^%s", new_pointee);
+        char *buf = arena_alloc(arena, MSG_BUF_SIZE);
+        snprintf(buf, MSG_BUF_SIZE, "^%s", new_pointee);
         return buf;
     }
 
@@ -355,8 +355,8 @@ static const char *rewrite_type_name(const char *t,
         const char *new_k = rewrite_type_name(k, orig_names, new_names, name_count, arena);
         const char *new_v = rewrite_type_name(v, orig_names, new_names, name_count, arena);
         if (new_k == k && new_v == v) return t;
-        char *buf = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-        snprintf(buf, GRAY_MSG_BUF_SIZE, "map[%s:%s]", new_k, new_v);
+        char *buf = arena_alloc(arena, MSG_BUF_SIZE);
+        snprintf(buf, MSG_BUF_SIZE, "map[%s:%s]", new_k, new_v);
         return buf;
     }
 
@@ -552,7 +552,7 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
 /* Import cache: track already-imported files to avoid duplicates and cycles.
  * Open-addressing hash set keyed on canonical file path. */
 
-/* Must be a power of 2 and >= 2*GRAY_MAX_IMPORTS for safe linear probing. */
+/* Must be a power of 2 and >= 2*MAX_IMPORTS for safe linear probing. */
 #define IMPORT_HASH_BUCKETS 512
 
 #define FNV1A_OFFSET_BASIS 2166136261u
@@ -589,7 +589,7 @@ static const char *imported_by_module(const char *path) {
 }
 
 static void mark_imported_with_module(const char *path, const char *mod) {
-    if (imported_file_count >= GRAY_MAX_IMPORTS) return;
+    if (imported_file_count >= MAX_IMPORTS) return;
     uint32_t slot = import_path_hash(path) & (IMPORT_HASH_BUCKETS - 1);
     for (uint32_t i = slot; ; i = (i + 1) & (IMPORT_HASH_BUCKETS - 1)) {
         if (!import_hash[i].path) {
@@ -788,7 +788,7 @@ int main(int argc, char **argv) {
     }
 
     /* Create compiler arena and diagnostics */
-    Arena *arena = arena_create(GRAY_COMPILER_ARENA_SIZE);
+    Arena *arena = arena_create(COMPILER_ARENA_SIZE);
     DiagnosticList *diag = diag_create();
     diag_set_source(diag, input_file, source);
     if (no_color) diag->use_color = false;
@@ -864,7 +864,7 @@ int main(int argc, char **argv) {
         const char *main_base = input_file;
         const char *main_slash = strrchr(input_file, '/');
         if (main_slash) main_base = main_slash + 1;
-        char main_mod_buf[GRAY_MSG_BUF_SIZE];
+        char main_mod_buf[MSG_BUF_SIZE];
         size_t main_mod_len = strlen(main_base);
         if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".gray") == 0) {
             memcpy(main_mod_buf, main_base, main_mod_len - 3);
@@ -895,11 +895,11 @@ int main(int argc, char **argv) {
         /* Seed import queue once from the initial program stmts — O(N), done once.
          * Transitive imports push onto the tail as they are discovered, so the
          * queue drains naturally without re-scanning the growing program AST. */
-        AstNode *import_queue[GRAY_MAX_IMPORTS];
+        AstNode *import_queue[MAX_IMPORTS];
         int iq_head = 0, iq_tail = 0;
         for (int si = 0; si < program->data.program.stmt_count; si++) {
             if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
-                iq_tail < GRAY_MAX_IMPORTS) {
+                iq_tail < MAX_IMPORTS) {
                 import_queue[iq_tail++] = program->data.program.stmts[si];
             }
         }
@@ -907,8 +907,8 @@ int main(int argc, char **argv) {
         while (iq_head < iq_tail) {
             AstNode *stmt = import_queue[iq_head++];
 
-            const char *seen_modules[GRAY_MAX_IMPORTS];
-            const char *seen_paths[GRAY_MAX_IMPORTS];
+            const char *seen_modules[MAX_IMPORTS];
+            const char *seen_paths[MAX_IMPORTS];
             int seen_count = 0;
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
@@ -959,7 +959,7 @@ int main(int argc, char **argv) {
                             char *norm_dir = realpath(import_path, NULL);
                             char *norm_src = realpath(item->source_dir, NULL);
                             if (norm_dir && norm_src && strcmp(norm_dir, norm_src) == 0) {
-                                char msg[GRAY_MSG_BUF_LARGE];
+                                char msg[MSG_BUF_LARGE];
                                 snprintf(msg, sizeof(msg),
                                     "cannot import own module directory '%s'", item->path);
                                 diag_error(diag, "E6004", strdup(msg),
@@ -975,7 +975,7 @@ int main(int argc, char **argv) {
                         file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]) * MAX_DIR_FILES);
                         file_count = scan_gray_files(import_path, file_list, MAX_DIR_FILES);
                         if (file_count == 0) {
-                            char msg[GRAY_MSG_BUF_LARGE];
+                            char msg[MSG_BUF_LARGE];
                             snprintf(msg, sizeof(msg), "directory '%s' contains no .gray files", item->path);
                             diag_error(diag, "E6003", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
@@ -983,7 +983,7 @@ int main(int argc, char **argv) {
                         }
                     } else {
                         /* Nothing found */
-                        char msg[GRAY_MSG_BUF_LARGE];
+                        char msg[MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", item->path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -1004,13 +1004,13 @@ int main(int argc, char **argv) {
                     while (prev > rel && *prev != '/') prev--;
                     if (*prev == '/') prev++;
                     size_t dlen = (size_t)(slash - prev);
-                    char dir_name[GRAY_MSG_BUF_SIZE];
+                    char dir_name[MSG_BUF_SIZE];
                     memcpy(dir_name, prev, dlen);
                     dir_name[dlen] = '\0';
                     mod_base = arena_strdup(arena, dir_name);
                 }
 
-                char mod_name_buf[GRAY_MSG_BUF_SIZE];
+                char mod_name_buf[MSG_BUF_SIZE];
                 size_t mod_len = strlen(mod_base);
                 if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".gray") == 0) {
                     memcpy(mod_name_buf, mod_base, mod_len - 3);
@@ -1046,7 +1046,7 @@ int main(int argc, char **argv) {
                              * Only warn for direct imports; transitive diamonds
                              * (from inside directory modules) are silently deduped. */
                             if (!item->source_dir) {
-                                char msg[GRAY_MSG_BUF_SIZE];
+                                char msg[MSG_BUF_SIZE];
                                 snprintf(msg, sizeof(msg),
                                     "module '%s' is already imported; duplicate import ignored",
                                     mod_name);
@@ -1057,7 +1057,7 @@ int main(int argc, char **argv) {
                             break;
                         }
                         /* Different file, same module name — genuine collision */
-                        char msg[GRAY_MSG_BUF_SIZE];
+                        char msg[MSG_BUF_SIZE];
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported; use an alias to distinguish them",
                             mod_name);
@@ -1068,7 +1068,7 @@ int main(int argc, char **argv) {
                     }
                 }
                 if (collision) continue;
-                if (seen_count < GRAY_MAX_IMPORTS) {
+                if (seen_count < MAX_IMPORTS) {
                     seen_modules[seen_count] = mod_name;
                     seen_paths[seen_count] = arena_strdup(arena, norm_import);
                     seen_count++;
@@ -1093,12 +1093,12 @@ int main(int argc, char **argv) {
                 /* Sibling import aliases collected during parse pass.
                  * After all names are known, compound mappings (alias_Name → mod_Name)
                  * are generated for each alias × declaration name. */
-                const char *sibling_aliases[GRAY_MAX_IMPORTS];
+                const char *sibling_aliases[MAX_IMPORTS];
                 int sibling_alias_count = 0;
 
                 /* Combined name mapping across all files in this import */
-                const char *orig_names[GRAY_MAX_IMPORTS];
-                const char *new_names[GRAY_MAX_IMPORTS];
+                const char *orig_names[MAX_IMPORTS];
+                const char *new_names[MAX_IMPORTS];
                 int name_count = 0;
 
                 /* Parse pass: parse each file, collect names, inject transitive imports */
@@ -1117,7 +1117,7 @@ int main(int argc, char **argv) {
                          * module referencing a sibling already pulled in by the
                          * directory import, emit an informational warning. */
                         if (item->source_dir && file_count == 1) {
-                            char msg[GRAY_MSG_BUF_SIZE];
+                            char msg[MSG_BUF_SIZE];
                             snprintf(msg, sizeof(msg),
                                 "import of '%s' is redundant; already included by directory import",
                                 item->path);
@@ -1126,7 +1126,7 @@ int main(int argc, char **argv) {
                         } else if (!item->source_dir && file_count == 1) {
                             /* Direct import of a file already pulled in by a directory import */
                             const char *owner_mod = imported_by_module(norm_path);
-                            char msg[GRAY_MSG_BUF_LARGE];
+                            char msg[MSG_BUF_LARGE];
                             if (owner_mod) {
                                 snprintf(msg, sizeof(msg),
                                     "file '%s' was already imported as part of a directory import; "
@@ -1148,7 +1148,7 @@ int main(int argc, char **argv) {
                     /* Read and parse the imported file */
                     char *imp_source = read_file(cur_file_path);
                     if (!imp_source) {
-                        char msg[GRAY_MSG_BUF_LARGE];
+                        char msg[MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", cur_file_path);
                         diag_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
@@ -1233,7 +1233,7 @@ int main(int argc, char **argv) {
                                         const char *sib_base = trel;
                                         const char *sib_slash = strrchr(trel, '/');
                                         if (sib_slash) sib_base = sib_slash + 1;
-                                        char sib_buf[GRAY_MSG_BUF_SIZE];
+                                        char sib_buf[MSG_BUF_SIZE];
                                         size_t sib_len = strlen(sib_base);
                                         if (sib_len > 3 && strcmp(sib_base + sib_len - 3, ".gray") == 0) {
                                             memcpy(sib_buf, sib_base, sib_len - 3);
@@ -1251,7 +1251,7 @@ int main(int argc, char **argv) {
                                             break;
                                         }
                                     }
-                                    if (!already_tracked && sibling_alias_count < GRAY_MAX_IMPORTS) {
+                                    if (!already_tracked && sibling_alias_count < MAX_IMPORTS) {
                                         sibling_aliases[sibling_alias_count++] = sib_alias;
                                     }
                                     /* Null out the sibling import path so it's not injected */
@@ -1274,7 +1274,7 @@ int main(int argc, char **argv) {
                                     program->data.program.stmts = ns;
                                     program->data.program.stmt_cap = nc;
                                 }
-                                if (iq_tail < GRAY_MAX_IMPORTS) import_queue[iq_tail++] = ts;
+                                if (iq_tail < MAX_IMPORTS) import_queue[iq_tail++] = ts;
                                 program->data.program.stmts[program->data.program.stmt_count++] = ts;
                             }
                         }
@@ -1289,10 +1289,10 @@ int main(int argc, char **argv) {
                         else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
                         else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
                         else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
-                        if (oname && name_count < GRAY_MAX_IMPORTS) {
+                        if (oname && name_count < MAX_IMPORTS) {
                             orig_names[name_count] = oname;
-                            char *pn = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                            snprintf(pn, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, oname);
+                            char *pn = arena_alloc(arena, MSG_BUF_SIZE);
+                            snprintf(pn, MSG_BUF_SIZE, "%s_%s", mod_name, oname);
                             new_names[name_count] = pn;
                             name_count++;
                         }
@@ -1312,10 +1312,10 @@ int main(int argc, char **argv) {
                     for (int sa = 0; sa < sibling_alias_count; sa++) {
                         const char *alias = sibling_aliases[sa];
                         for (int ni = 0; ni < base_name_count; ni++) {
-                            if (name_count >= GRAY_MAX_IMPORTS) break;
+                            if (name_count >= MAX_IMPORTS) break;
                             /* Build "alias_OrigName" and map to "mod_OrigName" */
-                            char *compound = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                            snprintf(compound, GRAY_MSG_BUF_SIZE, "%s_%s", alias, orig_names[ni]);
+                            char *compound = arena_alloc(arena, MSG_BUF_SIZE);
+                            snprintf(compound, MSG_BUF_SIZE, "%s_%s", alias, orig_names[ni]);
                             /* Avoid duplicates */
                             bool dup = false;
                             for (int ci = 0; ci < name_count; ci++) {
@@ -1327,7 +1327,7 @@ int main(int argc, char **argv) {
                             name_count++;
                         }
                         /* Also add bare alias → mod_name for label references */
-                        if (name_count < GRAY_MAX_IMPORTS) {
+                        if (name_count < MAX_IMPORTS) {
                             bool dup = false;
                             for (int ci = 0; ci < name_count; ci++) {
                                 if (strcmp(orig_names[ci], alias) == 0) { dup = true; break; }
@@ -1356,8 +1356,8 @@ int main(int argc, char **argv) {
 
                     if (!imp_stmt->data.var_decl.mutable) {
                         imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
-                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, MSG_BUF_SIZE);
+                        snprintf(prefixed, MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         if (imp_stmt->data.var_decl.type_name) {
                             imp_stmt->data.var_decl.type_name = rewrite_type_name(
@@ -1366,8 +1366,8 @@ int main(int argc, char **argv) {
                         }
                     } else {
                         imp_stmt->data.var_decl.original_name = imp_stmt->data.var_decl.name;
-                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        char *prefixed = arena_alloc(arena, MSG_BUF_SIZE);
+                        snprintf(prefixed, MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
                         imp_stmt->data.var_decl.is_private = true;
                     }
@@ -1410,8 +1410,8 @@ int main(int argc, char **argv) {
                     /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
                         imp_stmt->data.func_decl.original_name = imp_stmt->data.func_decl.name;
-                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
+                        char *prefixed = arena_alloc(arena, MSG_BUF_SIZE);
+                        snprintf(prefixed, MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
                         /* Rewrite internal references in function body */
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
@@ -1433,8 +1433,8 @@ int main(int argc, char **argv) {
                     /* Prefix struct names and rewrite field type references */
                     if (imp_stmt->kind == NODE_STRUCT_DECL) {
                         imp_stmt->data.struct_decl.original_name = imp_stmt->data.struct_decl.name;
-                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
+                        char *prefixed = arena_alloc(arena, MSG_BUF_SIZE);
+                        snprintf(prefixed, MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
                         /* Rewrite field types that reference other imported types */
                         for (int fld = 0; fld < imp_stmt->data.struct_decl.field_count; fld++) {
@@ -1468,8 +1468,8 @@ int main(int argc, char **argv) {
                     /* Prefix enum names with module name */
                     if (imp_stmt->kind == NODE_ENUM_DECL) {
                         imp_stmt->data.enum_decl.original_name = imp_stmt->data.enum_decl.name;
-                        char *prefixed = arena_alloc(arena, GRAY_MSG_BUF_SIZE);
-                        snprintf(prefixed, GRAY_MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
+                        char *prefixed = arena_alloc(arena, MSG_BUF_SIZE);
+                        snprintf(prefixed, MSG_BUF_SIZE, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
                         imp_stmt->data.enum_decl.name = prefixed;
                     }
 
@@ -1702,7 +1702,7 @@ int main(int argc, char **argv) {
     }
 
     /* Build debug/optimization flags */
-    char extra_flags[GRAY_TYPE_NAME_MAX] = "";
+    char extra_flags[TYPE_NAME_MAX] = "";
     if (debug_symbols) {
         snprintf(extra_flags, sizeof(extra_flags), "-g %s", opt_level);
     } else {

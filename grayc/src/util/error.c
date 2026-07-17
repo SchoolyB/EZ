@@ -17,9 +17,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#define GRAY_MAX_ERRORS_DISPLAYED 20
-#define GRAY_DIAG_INITIAL_CAP     16
-#define GRAY_DIAG_FORMAT_BUF      1024
+#define MAX_ERRORS_DISPLAYED 20
+#define DIAG_INITIAL_CAP     16
+#define DIAG_FORMAT_BUF      1024
 
 /* --- ANSI color codes --- */
 
@@ -45,7 +45,7 @@ static const char *read_source_line_indexed(const char * const *offsets,
     const char *line_end = line_start;
     while (*line_end && *line_end != '\n') line_end++;
 
-    static char buf[GRAY_SOURCE_LINE_MAX];
+    static char buf[SOURCE_LINE_MAX];
     int len = (int)(line_end - line_start);
     if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
     memcpy(buf, line_start, len);
@@ -107,10 +107,10 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     int end_col, const char *help) {
 
     /* Cap errors at 20 to avoid flooding output */
-    if (sev == SEV_ERROR && dl->error_count >= GRAY_MAX_ERRORS_DISPLAYED) return;
+    if (sev == SEV_ERROR && dl->error_count >= MAX_ERRORS_DISPLAYED) return;
 
     if (dl->count >= dl->cap) {
-        dl->cap = dl->cap ? dl->cap * 2 : GRAY_DIAG_INITIAL_CAP;
+        dl->cap = dl->cap ? dl->cap * 2 : DIAG_INITIAL_CAP;
         dl->items = xrealloc(dl->items, sizeof(Diagnostic) * dl->cap);
     }
 
@@ -193,7 +193,7 @@ void diag_warning_msg(DiagnosticList *dl, const char *code, const char *message,
 static void emit_codef(DiagnosticList *dl, Severity sev, const char *code,
     const char *file, int line, int col_start, int end_col, va_list ap) {
     const char *tmpl = lookup_or_placeholder(code);
-    char buf[GRAY_DIAG_FORMAT_BUF];
+    char buf[DIAG_FORMAT_BUF];
     vsnprintf(buf, sizeof(buf), tmpl, ap);
     diag_add(dl, sev, code, strdup(buf), file, line, col_start, end_col, NULL);
 }

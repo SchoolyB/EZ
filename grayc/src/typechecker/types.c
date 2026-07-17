@@ -323,7 +323,7 @@ const char *type_name(GrayType *t) {
      * A small ring of static buffers lets callers chain type_name() calls
      * inside one snprintf() without clobbering the previous result. */
     if (t->kind == TK_POINTER && t->name) {
-        static char bufs[4][GRAY_TYPE_NAME_MAX];
+        static char bufs[4][TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
@@ -331,7 +331,7 @@ const char *type_name(GrayType *t) {
         return out;
     }
     if (t->kind == TK_ARRAY && t->element_type) {
-        static char bufs[4][GRAY_TYPE_NAME_MAX];
+        static char bufs[4][TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
@@ -339,7 +339,7 @@ const char *type_name(GrayType *t) {
         return out;
     }
     if (t->kind == TK_MAP && t->key_type && t->value_type) {
-        static char bufs[4][GRAY_TYPE_NAME_MAX];
+        static char bufs[4][TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;

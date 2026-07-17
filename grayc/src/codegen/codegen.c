@@ -16,14 +16,14 @@
 #include <string.h>
 #include <ctype.h>
 
-#define CG_IF_ARENA_SIZE        4096
-#define CG_LOOP_ARENA_SIZE      16384
-#define CG_FUNC_ARENA_SIZE      65536
-#define CG_OUTPUT_BUF_INITIAL   4096
-#define CG_MAX_STRUCT_DECLS     256
-#define CG_MAX_MEMBER_CHAIN     32
-#define CG_VAR_NAME_BUF         64
-#define CG_SHORT_VAR_BUF        32
+#define IF_ARENA_SIZE        4096
+#define LOOP_ARENA_SIZE      16384
+#define FUNC_ARENA_SIZE      65536
+#define OUTPUT_BUF_INITIAL   4096
+#define MAX_STRUCT_DECLS     256
+#define MAX_MEMBER_CHAIN     32
+#define VAR_NAME_BUF         64
+#define SHORT_VAR_BUF        32
 
 /* Return the C-syntax string for an operator TokenType. Used when emitting
  * the operator literally into C source code. */
@@ -180,7 +180,7 @@ static int int_type_rank(const char *n) {
 
 static const char *safe_name(const char *name) {
     if (!name || !is_c_keyword(name)) return name;
-    static char bufs[4][GRAY_MSG_BUF_SIZE];
+    static char bufs[4][MSG_BUF_SIZE];
     static int idx = 0;
     int i = idx++ & 3;
     snprintf(bufs[i], sizeof(bufs[i]), "_gray_%s", name);
@@ -199,12 +199,12 @@ static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
     if (!type_name || !cg || !cg->wildcard_binding) return type_name;
     if (!strchr(type_name, '?')) return type_name;
     size_t cl = strlen(cg->wildcard_binding);
-    static char bufs[4][GRAY_TYPE_NAME_MAX];
+    static char bufs[4][TYPE_NAME_MAX];
     static int slot = 0;
     char *out = bufs[slot];
     slot = (slot + 1) & 3;
     char *w = out;
-    char *end = out + GRAY_TYPE_NAME_MAX - 1;
+    char *end = out + TYPE_NAME_MAX - 1;
     for (const char *q = type_name; *q && w < end; q++) {
         if (*q == '?') {
             size_t avail = (size_t)(end - w);
@@ -324,11 +324,11 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
 
     /* Pointer type: ^T; use C pointer (ring buffer avoids aliasing on recursion) */
     if (type_name[0] == '^') {
-        static char ptrbufs[4][GRAY_MSG_BUF_SIZE];
+        static char ptrbufs[4][MSG_BUF_SIZE];
         static int ptridx = 0;
         char *buf = ptrbufs[ptridx++ & 3];
         const char *pointee = gray_type_to_c_cg(cg, type_name + 1);
-        snprintf(buf, GRAY_MSG_BUF_SIZE, "%s *", pointee);
+        snprintf(buf, MSG_BUF_SIZE, "%s *", pointee);
         return buf;
     }
 
@@ -346,7 +346,7 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
     const char *dot = strchr(type_name, '.');
     if (dot) {
         const char *base = dot + 1;
-        static char buf[GRAY_MSG_BUF_SIZE];
+        static char buf[MSG_BUF_SIZE];
         if (cg && codegen_is_enum(cg, base)) {
             snprintf(buf, sizeof(buf), "GrayEnum_%s", base);
         } else {
@@ -363,7 +363,7 @@ static const char *gray_type_to_c_cg(CodeGen *cg, const char *type_name) {
         if (us && us[1] >= 'A' && us[1] <= 'Z') is_user_type = true;
     }
     if (is_user_type) {
-        static char buf[GRAY_MSG_BUF_SIZE];
+        static char buf[MSG_BUF_SIZE];
         const char *resolved = type_name;
         /* Resolve unprefixed names from 'import and use' */
         if (cg && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
@@ -486,7 +486,7 @@ static void emit_array_deep_copy(CodeGen *cg, const char *gray_tn, const char *s
     }
 
     /* Extract element type name from "[T]" (dropping any ",N" sized tail). */
-    char elem_tn[GRAY_MSG_BUF_SIZE];
+    char elem_tn[MSG_BUF_SIZE];
     size_t elen = len - 2;
     if (elen >= sizeof(elem_tn)) elen = sizeof(elem_tn) - 1;
     memcpy(elem_tn, gray_tn + 1, elen);
@@ -509,7 +509,7 @@ static void emit_array_deep_copy(CodeGen *cg, const char *gray_tn, const char *s
      * the element is a struct with a nested struct field) and would
      * clobber that buffer, leaving c_elem pointing at the inner field's
      * C type by the time we emit the outer cast. */
-    char c_elem_buf[GRAY_MSG_BUF_SIZE];
+    char c_elem_buf[MSG_BUF_SIZE];
     {
         const char *c_elem_ptr = gray_type_to_c_cg(cg, elem_tn);
         snprintf(c_elem_buf, sizeof(c_elem_buf), "%s", c_elem_ptr ? c_elem_ptr : "");
@@ -528,7 +528,7 @@ static void emit_array_deep_copy(CodeGen *cg, const char *gray_tn, const char *s
         t, t, t, t,
         c_elem, t);
 
-    char inner_var[GRAY_MSG_BUF_SIZE];
+    char inner_var[MSG_BUF_SIZE];
     snprintf(inner_var, sizeof(inner_var),
         "((%s *)_ds%d.data)[_di%d]", c_elem, t, t);
     emit_value_deep_copy(cg, elem_tn, inner_var);
@@ -556,8 +556,8 @@ static void emit_map_deep_copy(CodeGen *cg, const char *gray_tn, const char *src
         emitf(cg, "gray_map_copy(gray_default_arena, &%s)", src_var);
         return;
     }
-    char key_tn[GRAY_TYPE_NAME_MAX];
-    char val_tn[GRAY_MSG_BUF_SIZE];
+    char key_tn[TYPE_NAME_MAX];
+    char val_tn[MSG_BUF_SIZE];
     size_t klen = (size_t)(colon - start);
     if (klen >= sizeof(key_tn)) klen = sizeof(key_tn) - 1;
     memcpy(key_tn, start, klen);
@@ -596,7 +596,7 @@ static void emit_map_deep_copy(CodeGen *cg, const char *gray_tn, const char *src
         c_val, t, c_val, t, t,
         c_val, t);
 
-    char src_val_var[CG_VAR_NAME_BUF];
+    char src_val_var[VAR_NAME_BUF];
     snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", t);
     emit_value_deep_copy(cg, val_tn, src_val_var);
 
@@ -647,7 +647,7 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
         StructField *f = &sdecl->data.struct_decl.fields[i];
         if (!f->type_name || !f->name) continue;
         if (!type_needs_deep_copy(cg, f->type_name)) continue;
-        char src_field[GRAY_MSG_BUF_SIZE];
+        char src_field[MSG_BUF_SIZE];
         snprintf(src_field, sizeof(src_field), "_ss%d.%s", t, f->name);
         emitf(cg, "_sd%d.%s = ", t, f->name);
         emit_value_deep_copy(cg, f->type_name, src_field);
@@ -689,9 +689,9 @@ static void emit_deep_array_copy(CodeGen *cg, AstNode *src_node, const char *ele
     emitf(cg, "({ GrayArray _dtop%d = ", t);
     emit_expression(cg, src_node);
     emit(cg, "; ");
-    char src_var[CG_SHORT_VAR_BUF];
+    char src_var[SHORT_VAR_BUF];
     snprintf(src_var, sizeof(src_var), "_dtop%d", t);
-    char full_tn[GRAY_MSG_BUF_SIZE];
+    char full_tn[MSG_BUF_SIZE];
     snprintf(full_tn, sizeof(full_tn), "[%s]", elem_type_name ? elem_type_name : "");
     emit_value_deep_copy(cg, full_tn, src_var);
     emit(cg, "; })");
@@ -1022,7 +1022,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_FLOAT_VALUE: {
         /* Emit float with enough precision, ensuring a decimal point so C
          * treats it as double (e.g. 1.0 must emit "1.0", not "1") */
-        char fbuf[CG_VAR_NAME_BUF];
+        char fbuf[VAR_NAME_BUF];
         snprintf(fbuf, sizeof(fbuf), "%.17g", node->data.float_value.value);
         if (!strchr(fbuf, '.') && !strchr(fbuf, 'e')) {
             size_t flen = strlen(fbuf);
@@ -1403,7 +1403,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             strncmp(cg->current_var_type, "[func", 5) != 0) {
             size_t cvt_len = strlen(cg->current_var_type);
             if (cvt_len >= 3 && cg->current_var_type[cvt_len - 1] == ']') {
-                char inferred[GRAY_MSG_BUF_SIZE];
+                char inferred[MSG_BUF_SIZE];
                 size_t copy_len = cvt_len - 2;
                 if (copy_len >= sizeof(inferred)) copy_len = sizeof(inferred) - 1;
                 memcpy(inferred, cg->current_var_type + 1, copy_len);
@@ -1454,7 +1454,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     }
                 }
             }
-            static char enum_arr_buf[GRAY_MSG_BUF_SIZE];
+            static char enum_arr_buf[MSG_BUF_SIZE];
             if (is_str) {
                 c_type = "GrayString";
             } else {
@@ -1466,7 +1466,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         case TK_POINTER: {
             const char *pointee = elem_t->element_type ? elem_t->element_type : "void";
             const char *c_pointee = gray_type_to_c_cg(cg, pointee);
-            static char ptr_buf[GRAY_MSG_BUF_SIZE];
+            static char ptr_buf[MSG_BUF_SIZE];
             snprintf(ptr_buf, sizeof(ptr_buf), "%s *", c_pointee);
             c_type = ptr_buf;
             break;
@@ -1509,7 +1509,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             GrayType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
             if (!decl_mt && kt) c_key_type = gray_map_elem_c_type(cg, type_name(kt));
             if (!decl_mt && vt && vt->kind == TK_POINTER) {
-                static char map_ptr_buf[GRAY_MSG_BUF_SIZE];
+                static char map_ptr_buf[MSG_BUF_SIZE];
                 const char *pointee = vt->element_type ? vt->element_type : "void";
                 snprintf(map_ptr_buf, sizeof(map_ptr_buf), "%s *", gray_type_to_c_cg(cg, pointee));
                 c_val_type = map_ptr_buf;
@@ -1577,7 +1577,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* : use mangled name for generic struct instantiations */
         if (node->data.struct_value.wildcard_binding) {
             const char *binding = node->data.struct_value.wildcard_binding;
-            char mangled[GRAY_MSG_BUF_SIZE];
+            char mangled[MSG_BUF_SIZE];
             size_t mpos = snprintf(mangled, sizeof(mangled), "%s__", sname);
             for (const char *c = binding; *c && mpos < sizeof(mangled) - 1; c++) {
                 mangled[mpos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -2346,7 +2346,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 const char *value = node->data.member.member;
                 if (mod[0] >= 'a' && mod[0] <= 'z' &&
                     type_name[0] >= 'A' && type_name[0] <= 'Z') {
-                    char prefixed[GRAY_MSG_BUF_SIZE];
+                    char prefixed[MSG_BUF_SIZE];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_name);
                     if (codegen_is_enum(cg, prefixed)) {
                         emitf(cg, "GrayEnum_%s_%s_%s", mod, type_name, value);
@@ -2431,7 +2431,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         ? "GrayString" : gray_type_to_c_cg(cg, elem_tn);
                 }
                 else if (et->kind == TK_POINTER) {
-                    static char idx_ptr_buf[GRAY_MSG_BUF_SIZE];
+                    static char idx_ptr_buf[MSG_BUF_SIZE];
                     const char *pointee = et->element_type ? et->element_type : "void";
                     snprintf(idx_ptr_buf, sizeof(idx_ptr_buf), "%s *", gray_type_to_c_cg(cg, pointee));
                     c_elem = idx_ptr_buf;
@@ -3144,7 +3144,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const
         int uid = _gray_print_uid++;
         const char *elem_tn = t->element_type ? t->element_type : "int";
         GrayType *elem_t = type_from_name(elem_tn);
-        char c_elem[GRAY_TYPE_NAME_MAX];
+        char c_elem[TYPE_NAME_MAX];
         strncpy(c_elem, gray_type_to_c_cg(cg, elem_tn), sizeof(c_elem) - 1);
         c_elem[sizeof(c_elem) - 1] = '\0';
 
@@ -3158,7 +3158,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const
         emitf(cg, "if (_gray_pi%d > 0) fprintf(%s, \", \");\n", uid, stream);
 
         /* For composite element types, capture in temp var */
-        char elem_expr[GRAY_MSG_BUF_SIZE];
+        char elem_expr[MSG_BUF_SIZE];
         if (elem_t->kind == TK_STRUCT || elem_t->kind == TK_ARRAY ||
             elem_t->kind == TK_MAP || elem_t->kind == TK_POINTER) {
             int euid = _gray_print_uid++;
@@ -3186,13 +3186,13 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const
         const char *val_tn = t->value_type ? t->value_type : "int";
         GrayType *key_t = type_from_name(key_tn);
         GrayType *val_t = type_from_name(val_tn);
-        char c_key[GRAY_TYPE_NAME_MAX], c_val[GRAY_TYPE_NAME_MAX];
+        char c_key[TYPE_NAME_MAX], c_val[TYPE_NAME_MAX];
         strncpy(c_key, gray_type_to_c_cg(cg, key_tn), sizeof(c_key) - 1);
         c_key[sizeof(c_key) - 1] = '\0';
         strncpy(c_val, gray_type_to_c_cg(cg, val_tn), sizeof(c_val) - 1);
         c_val[sizeof(c_val) - 1] = '\0';
 
-        char mi[CG_SHORT_VAR_BUF], sl[CG_SHORT_VAR_BUF];
+        char mi[SHORT_VAR_BUF], sl[SHORT_VAR_BUF];
         snprintf(mi, sizeof(mi), "_gray_mi%d", uid);
         snprintf(sl, sizeof(sl), "_gray_sl%d", uid);
 
@@ -3210,7 +3210,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const
         emitf(cg, "if (%s > 0) fprintf(%s, \", \");\n", mi, stream);
 
         /* Print key */
-        char key_expr[GRAY_MSG_BUF_SIZE];
+        char key_expr[MSG_BUF_SIZE];
         snprintf(key_expr, sizeof(key_expr),
                  "*(%s *)gray_map_key_at(&(%s), %s)", c_key, c_expr, sl);
         emit_value_print(cg, key_expr, key_t, stream, true);
@@ -3219,7 +3219,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const
         emitf(cg, "fprintf(%s, \": \");\n", stream);
 
         /* Print value */
-        char val_expr[GRAY_MSG_BUF_SIZE];
+        char val_expr[MSG_BUF_SIZE];
         snprintf(val_expr, sizeof(val_expr),
                  "*(%s *)gray_map_value_at(&(%s), %s)", c_val, c_expr, sl);
         emit_value_print(cg, val_expr, val_t, stream, true);
@@ -3279,7 +3279,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, GrayType *t, const
                 emit_indent(cg);
                 emitf(cg, "fprintf(%s, \"%s: \");\n", stream, f->name);
 
-                char field_expr[GRAY_MSG_BUF_SIZE];
+                char field_expr[MSG_BUF_SIZE];
                 snprintf(field_expr, sizeof(field_expr), "(%s).%s", c_expr, f->name);
                 GrayType *ft = type_from_name(f->type_name);
                 emit_value_print(cg, field_expr, ft, stream, true);
@@ -3337,7 +3337,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
 
     /* Capture expression in temp var to evaluate only once */
     int uid = _gray_print_uid++;
-    char c_type[GRAY_TYPE_NAME_MAX];
+    char c_type[TYPE_NAME_MAX];
     if (t->kind == TK_ARRAY) snprintf(c_type, sizeof(c_type), "GrayArray");
     else if (t->kind == TK_MAP) snprintf(c_type, sizeof(c_type), "GrayMap");
     else if (t->kind == TK_POINTER) {
@@ -3351,7 +3351,7 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     emit_expression(cg, arg);
     emit(cg, ";\n");
 
-    char var[CG_SHORT_VAR_BUF];
+    char var[SHORT_VAR_BUF];
     snprintf(var, sizeof(var), "_gray_pv%d", uid);
 
     emit_value_print(cg, var, t, stream, false);
@@ -3838,9 +3838,9 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emitf(cg, "({ %s _cpy%d = ", c_type, t);
             emit_expression(cg, arg);
             emit(cg, "; ");
-            char src_var[CG_SHORT_VAR_BUF];
+            char src_var[SHORT_VAR_BUF];
             snprintf(src_var, sizeof(src_var), "_cpy%d", t);
-            char full_tn[GRAY_MSG_BUF_SIZE];
+            char full_tn[MSG_BUF_SIZE];
             if (at->kind == TK_ARRAY) {
                 snprintf(full_tn, sizeof(full_tn), "[%s]",
                     at->element_type ? at->element_type : "");
@@ -4987,7 +4987,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
             }
             if (val_t->kind == TK_POINTER && val_t->name) {
                 /* val_t->name is the pointee (e.g. "int"); prepend ^ for gray_type_to_c_cg */
-                static char _ptr_tn[GRAY_TYPE_NAME_MAX];
+                static char _ptr_tn[TYPE_NAME_MAX];
                 snprintf(_ptr_tn, sizeof(_ptr_tn), "^%s", val_t->name);
                 c_elem = gray_type_to_c_cg(cg, _ptr_tn);
             }
@@ -5042,7 +5042,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
                 c_elem = gray_type_to_c_cg(cg, val_t->name);
             }
             if (val_t->kind == TK_POINTER && val_t->name) {
-                static char _ia_ptr_tn[GRAY_TYPE_NAME_MAX];
+                static char _ia_ptr_tn[TYPE_NAME_MAX];
                 snprintf(_ia_ptr_tn, sizeof(_ia_ptr_tn), "^%s", val_t->name);
                 c_elem = gray_type_to_c_cg(cg, _ia_ptr_tn);
             }
@@ -6122,7 +6122,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
                 /* 2) Try user-defined module: <module>_<func> */
                 if (!found) {
-                    char prefixed[GRAY_IDENT_BUF];
+                    char prefixed[IDENT_BUF];
                     snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, func);
                     AstNode *uf = find_func(cg, prefixed);
                     if (uf) {
@@ -6223,7 +6223,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             const char *mod = obj->data.member.object->data.label.value;
             const char *type_name = obj->data.member.member;
             /* Build full prefixed name: mod_Struct_func */
-            char full_name[GRAY_MSG_BUF_SIZE];
+            char full_name[MSG_BUF_SIZE];
             snprintf(full_name, sizeof(full_name), "%s_%s_%s", mod, type_name, member);
             AstNode *ns_func = find_func(cg, full_name);
             if (ns_func) {
@@ -6271,7 +6271,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
             const char *resolved_name = resolve_alias(cg, raw_name);
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
-            char ns_name[GRAY_IDENT_BUF];
+            char ns_name[IDENT_BUF];
             snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
             if (!ns_func) {
@@ -6399,7 +6399,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                             if (dyn_binding) binding = dyn_binding;
                         }
                     }
-                    char mangled[GRAY_MSG_BUF_SIZE];
+                    char mangled[MSG_BUF_SIZE];
                     size_t pos = (size_t)snprintf(mangled, sizeof(mangled),
                         "gray_fn_%s_%s__", resolved_name, member);
                     if (binding) {
@@ -6566,7 +6566,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                    fref->data.member.object->kind == NODE_LABEL) {
                             const char *rn_a = fref->data.member.object->data.label.value;
                             const char *rn_b = fref->data.member.member;
-                            char rn[GRAY_IDENT_BUF];
+                            char rn[IDENT_BUF];
                             snprintf(rn, sizeof(rn), "%s_%s", rn_a, rn_b);
                             ref_func = find_func(cg, rn);
                         }
@@ -6725,7 +6725,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         size_t fn_emit_len = 0;
         /* Pull off the just-emitted "gray_fn_<name>" so we can prepend the
          * statement-expression bindings. */
-        char saved_fn[GRAY_TYPE_NAME_MAX] = {0};
+        char saved_fn[TYPE_NAME_MAX] = {0};
         if (out_len > 0) {
             /* Walk back to start of the most recent identifier */
             size_t scan = out_len;
@@ -6849,7 +6849,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
 static const char *extract_array_elem_type(const char *type_name) {
     if (!type_name || type_name[0] != '[') return NULL;
-    static char buf[GRAY_TYPE_NAME_MAX];
+    static char buf[TYPE_NAME_MAX];
     size_t len = strlen(type_name);
     if (len < 3) return NULL;
     /* Dynamic array "[int]" -> "int" */
@@ -7082,7 +7082,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             if (node->data.var_decl.value &&
                 node->data.var_decl.value->kind == NODE_LABEL) {
                 int t = next_dc_tag();
-                char src_var[CG_VAR_NAME_BUF];
+                char src_var[VAR_NAME_BUF];
                 snprintf(src_var, sizeof(src_var), "_ms%d", t);
                 emitf(cg, "({ GrayMap %s = ", src_var);
                 emit_expression(cg, node->data.var_decl.value);
@@ -7109,7 +7109,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Copy-by-default: deep copy when assigning a map from another
              * variable so mutations to the copy don't alias the original. */
             int t = next_dc_tag();
-            char src_var[CG_VAR_NAME_BUF];
+            char src_var[VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_ms%d", t);
             emitf(cg, "({ GrayMap %s = ", src_var);
             emit_expression(cg, node->data.var_decl.value);
@@ -7183,7 +7183,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             if (val->data.struct_value.wildcard_binding) {
                 const char *binding = val->data.struct_value.wildcard_binding;
                 const char *base = val->data.struct_value.name;
-                static char sv_buf[GRAY_MSG_BUF_SIZE];
+                static char sv_buf[MSG_BUF_SIZE];
                 size_t sp = snprintf(sv_buf, sizeof(sv_buf), "%s__", base);
                 for (const char *c = binding; *c && sp < sizeof(sv_buf) - 1; c++)
                     sv_buf[sp++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -7357,7 +7357,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Copy-by-default: deep copy structs (and maps) that contain
              * arrays/maps/strings so the copy is fully independent. */
             int t = next_dc_tag();
-            char src_var[CG_VAR_NAME_BUF];
+            char src_var[VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_vdc%d", t);
             emitf(cg, "({ %s %s = ", c_type, src_var);
             emit_expression(cg, node->data.var_decl.value);
@@ -7682,7 +7682,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     /* Nested pointer field assignment: o.inner.val = value (where some ancestor is ptr<T>)
      * Walk the member chain to find the pointer root, then emit nil-check + chain. */
     if (node->data.assign.target->kind == NODE_MEMBER_EXPR) {
-        const char *chain[CG_MAX_MEMBER_CHAIN];
+        const char *chain[MAX_MEMBER_CHAIN];
         int depth = 0;
         AstNode *cur = node->data.assign.target;
         AstNode *ptr_root = NULL;
@@ -7725,7 +7725,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             if (node->data.assign.op == TOK_ASSIGN && cg->loop_scope_depth > 0) {
                 GrayType *field_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
                 if (field_t && field_t->kind == TK_ARRAY) {
-                    char tn[GRAY_MSG_BUF_SIZE];
+                    char tn[MSG_BUF_SIZE];
                     snprintf(tn, sizeof(tn), "[%s]", field_t->element_type ? field_t->element_type : "");
                     emit(cg, "{ __auto_type _dp = ");
                     emit_expression(cg, obj);
@@ -7904,7 +7904,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         /* Map copy-by-default: map2 = map1 deep-copies the map. */
         if (tgt_t && tgt_t->kind == TK_MAP) {
             int t = next_dc_tag();
-            char src_var[CG_VAR_NAME_BUF];
+            char src_var[VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_ma%d", t);
             emit(cg, "{ GrayMap ");
             emitf(cg, "%s = ", src_var);
@@ -7923,7 +7923,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             type_needs_deep_copy(cg, tgt_t->name)) {
             int t = next_dc_tag();
             const char *ct = gray_type_to_c_cg(cg, tgt_t->name);
-            char src_var[CG_VAR_NAME_BUF];
+            char src_var[VAR_NAME_BUF];
             snprintf(src_var, sizeof(src_var), "_sa%d", t);
             emitf(cg, "{ %s %s = ", ct, src_var);
             emit_expression(cg, node->data.assign.value);
@@ -8269,7 +8269,7 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
     if (cg->loop_scope_depth == 0) {
         emit(cg, "GrayArena *_gray_outer_arena = gray_default_arena; ");
     }
-    emitf(cg, "GrayArena *_if_arena_%d = gray_arena_create(%d); ", isc, CG_IF_ARENA_SIZE);
+    emitf(cg, "GrayArena *_if_arena_%d = gray_arena_create(%d); ", isc, IF_ARENA_SIZE);
     emitf(cg, "GrayArena *_if_saved_%d = gray_default_arena; ", isc);
     emitf(cg, "gray_default_arena = _if_arena_%d;\n", isc);
     cg->loop_scope_depth++;
@@ -8435,7 +8435,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     }
     int f_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", f_depth, CG_LOOP_ARENA_SIZE);
+    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", f_depth, LOOP_ARENA_SIZE);
     emit_indent(cg);
     emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", f_depth);
     emit_indent(cg);
@@ -8473,7 +8473,7 @@ static void emit_while_statement(CodeGen *cg, AstNode *node) {
     }
     int w_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", w_depth, CG_LOOP_ARENA_SIZE);
+    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", w_depth, LOOP_ARENA_SIZE);
     emit_indent(cg);
     emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", w_depth);
     emit_indent(cg);
@@ -8509,7 +8509,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     }
     int l_depth = cg->loop_scope_depth;
     emit_indent(cg);
-    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", l_depth, CG_LOOP_ARENA_SIZE);
+    emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", l_depth, LOOP_ARENA_SIZE);
     emit_indent(cg);
     emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", l_depth);
     emit_indent(cg);
@@ -8539,7 +8539,7 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
  * under the original name. Returns a pointer to a small ring of
  * static buffers so a few concurrent uses stay alive. */
 static const char *multi_base_name(const char *fn_name) {
-    static char bufs[4][GRAY_MSG_BUF_SIZE];
+    static char bufs[4][MSG_BUF_SIZE];
     static int bi = 0;
     char *out = bufs[bi]; bi = (bi + 1) & 3;
     const char *dunder = strstr(fn_name, "__");
@@ -8592,7 +8592,7 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
      * struct → use the base name ). When return types DO contain
      * '?', each instantiation gets its own struct → use the full
      * mangled name ). */
-    static char buf[GRAY_MSG_BUF_SIZE];
+    static char buf[MSG_BUF_SIZE];
     const char *fn_name = node->data.func_decl.name;
     bool has_wc_ret = false;
     for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
@@ -8657,7 +8657,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
             emit(cg, "GrayScopeMark _scope_mark = gray_scope_save(gray_default_arena);\n");
         } else {
             emit_indent(cg);
-            emitf(cg, "GrayArena *_func_arena = gray_arena_create(%d);\n", CG_FUNC_ARENA_SIZE);
+            emitf(cg, "GrayArena *_func_arena = gray_arena_create(%d);\n", FUNC_ARENA_SIZE);
             emit_indent(cg);
             emit(cg, "GrayArena *_func_saved = gray_default_arena;\n");
             emit_indent(cg);
@@ -8752,13 +8752,13 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
          * named C temporary so that .iterating++ and GRAY_ARRAY_GET can
          * operate on an addressable lvalue. */
         bool coll_needs_tmp = false;
-        char arr_tmp_name[CG_SHORT_VAR_BUF];
+        char arr_tmp_name[SHORT_VAR_BUF];
         arr_tmp_name[0] = '\0';
 
         if (is_map_iter) {
             /* for_each on map; iterate occupied slots with internal counter */
             static int map_iter_counter = 0;
-            char mi_name[CG_SHORT_VAR_BUF];
+            char mi_name[SHORT_VAR_BUF];
             snprintf(mi_name, sizeof(mi_name), "_gray_mi%d", map_iter_counter++);
 
             const char *c_key = "GrayString";
@@ -8770,7 +8770,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             if (coll_t->value_type) c_val = gray_map_elem_c_type(cg, coll_t->value_type);
 
             /* Iterate in insertion order using the order array */
-            char slot_name[CG_SHORT_VAR_BUF];
+            char slot_name[SHORT_VAR_BUF];
             snprintf(slot_name, sizeof(slot_name), "_gray_sl%d", map_iter_counter - 1);
             /* Guard against mutation during iteration */
             emit_expression(cg, coll);
@@ -8848,7 +8848,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
              * iteration doesn't cause an infinite loop. The loop visits
              * only the elements that existed when for_each began. */
             static int arr_iter_counter = 0;
-            char len_name[CG_SHORT_VAR_BUF];
+            char len_name[SHORT_VAR_BUF];
             snprintf(len_name, sizeof(len_name), "_gray_alen%d", arr_iter_counter++);
             /* When the collection is a non-lvalue expression (inline array
              * literal, function return, etc.) it is an rvalue in C and
@@ -8885,7 +8885,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         }
         int fe_depth = cg->loop_scope_depth;
         emit_indent(cg);
-        emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", fe_depth, CG_LOOP_ARENA_SIZE);
+        emitf(cg, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", fe_depth, LOOP_ARENA_SIZE);
         emit_indent(cg);
         emitf(cg, "GrayArena *_saved_arena_%d = gray_default_arena;\n", fe_depth);
         emit_indent(cg);
@@ -9120,7 +9120,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 /* Build the mangled name: `<name>__<concrete>` with
                  * non-alnum chars replaced by underscores so array/map
                  * bindings stay legal C identifiers. */
-                char mangled[GRAY_MSG_BUF_SIZE];
+                char mangled[MSG_BUF_SIZE];
                 size_t pos = snprintf(mangled, sizeof(mangled), "%s__", orig_name);
                 for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -9206,8 +9206,8 @@ static int cg_enum_index(CodeGen *cg, const char *name) {
 
 CodeGen codegen_create(const char *file) {
     CodeGen cg;
-    cg.output = buf_create(CG_OUTPUT_BUF_INITIAL);
-    cg.global_init = buf_create(GRAY_MSG_BUF_SIZE);
+    cg.output = buf_create(OUTPUT_BUF_INITIAL);
+    cg.global_init = buf_create(MSG_BUF_SIZE);
     cg.indent = 0;
     cg.has_mem = false;
     cg.has_fmt = false;
@@ -9520,10 +9520,10 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
      * Structs that reference other structs as value fields must come after them. */
     {
         int struct_count = 0;
-        AstNode *structs[CG_MAX_STRUCT_DECLS];
+        AstNode *structs[MAX_STRUCT_DECLS];
         for (int i = 0; i < program->data.program.stmt_count; i++) {
             if (program->data.program.stmts[i]->kind == NODE_STRUCT_DECL &&
-                struct_count < CG_MAX_STRUCT_DECLS) {
+                struct_count < MAX_STRUCT_DECLS) {
                 structs[struct_count++] = program->data.program.stmts[i];
             }
         }
@@ -9539,7 +9539,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (struct_count > 0) emit(cg, "\n");
 
         /* Simple topological sort: repeatedly emit structs with no unresolved deps */
-        bool emitted[CG_MAX_STRUCT_DECLS] = {false};
+        bool emitted[MAX_STRUCT_DECLS] = {false};
         int emit_count = 0;
         for (int pass = 0; pass < struct_count && emit_count < struct_count; pass++) {
             for (int i = 0; i < struct_count; i++) {
@@ -9596,7 +9596,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_generic) continue;
         for (int ii = 0; ii < stmt->data.struct_decl.instantiation_count; ii++) {
             const char *concrete = stmt->data.struct_decl.instantiations[ii];
-            char mangled[GRAY_MSG_BUF_SIZE];
+            char mangled[MSG_BUF_SIZE];
             size_t pos = snprintf(mangled, sizeof(mangled), "%s__", stmt->data.struct_decl.name);
             for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
                 mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -9823,11 +9823,11 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
              * read stmt->data.func_decl.name. */
             char *mangled = NULL;
             if (has_wc) {
-                mangled = xmalloc(GRAY_MSG_BUF_SIZE);
+                mangled = xmalloc(MSG_BUF_SIZE);
                 const char *concrete = stmt->data.func_decl.instantiations[r];
                 cg->wildcard_binding = concrete;
-                size_t pos = snprintf(mangled, GRAY_MSG_BUF_SIZE, "%s__", orig_name);
-                for (const char *c = concrete; *c && pos < GRAY_MSG_BUF_SIZE - 1; c++) {
+                size_t pos = snprintf(mangled, MSG_BUF_SIZE, "%s__", orig_name);
+                for (const char *c = concrete; *c && pos < MSG_BUF_SIZE - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
                 }
                 mangled[pos] = '\0';

@@ -43,7 +43,7 @@ int64_t gray_time_second(int64_t ts) { return get_tm(ts)->tm_sec; }
 int64_t gray_time_weekday(int64_t ts) { return get_tm(ts)->tm_wday; }
 
 GrayString gray_time_format(GrayArena *arena, GrayString fmt, int64_t ts) {
-    char buf[GRAY_MSG_BUF_SIZE];
+    char buf[MSG_BUF_SIZE];
     struct tm *tm = get_tm(ts);
     int len = (int)strftime(buf, sizeof(buf), fmt.data, tm);
     return gray_string_new(arena, buf, len);
