@@ -9784,6 +9784,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error_codef(tc->diag, "E3091", NODE_FILE(tc, c), c->token.line, c->token.column, 0,
                 type_display_name(tc, wh_cond_t));
         }
+        /* E3129: empty loop body hangs forever at runtime */
+        if (node->data.while_stmt.body &&
+            node->data.while_stmt.body->data.block.count == 0) {
+            diag_error_code(tc->diag, "E3129",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         tc->loop_depth++;
         check_block(tc, node->data.while_stmt.body);
         tc->loop_depth--;
@@ -9791,6 +9797,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_LOOP_STMT:
+        /* E3129: empty loop body hangs forever at runtime */
+        if (node->data.loop_stmt.body &&
+            node->data.loop_stmt.body->data.block.count == 0) {
+            diag_error_code(tc->diag, "E3129",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
         tc->loop_depth++;
         check_block(tc, node->data.loop_stmt.body);
         tc->loop_depth--;
