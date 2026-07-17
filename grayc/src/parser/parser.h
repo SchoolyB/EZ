@@ -38,6 +38,6 @@ typedef struct {
 } Parser;
 
 Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticList *diag);
-AstNode *parser_parse_program(Parser *p);
+AstNode *parser_parse_program(Parser *parser);
 
 #endif

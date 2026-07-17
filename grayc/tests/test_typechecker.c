@@ -19,12 +19,12 @@ static Arena *arena;
 static TypeTable *check(const char *input) {
     DiagnosticList *diag = diag_create();
     diag->use_color = false;
-    Lexer *l = lexer_create(arena, input, "test.gray");
-    Parser *p = parser_create(arena, l, "test.gray", diag);
-    AstNode *prog = parser_parse_program(p);
-    TypeChecker *tc = typechecker_create(diag, "test.gray");
-    typechecker_check(tc, prog);
-    return typechecker_get_table(tc);
+    Lexer *lexer =lexer_create(arena, input, "test.gray");
+    Parser *parser = parser_create(arena, lexer, "test.gray", diag);
+    AstNode *prog = parser_parse_program(parser);
+    TypeChecker *checker =typechecker_create(diag, "test.gray");
+    typechecker_check(checker, prog);
+    return typechecker_get_table(checker);
 }
 
 /* Helper: parse, type check, and get the type of the first expression in main */
@@ -34,18 +34,18 @@ static GrayType *expr_type(const char *expr_code) {
         "do main() { mut _result = %s }", expr_code);
     DiagnosticList *diag = diag_create();
     diag->use_color = false;
-    Lexer *l = lexer_create(arena, buf, "test.gray");
-    Parser *p = parser_create(arena, l, "test.gray", diag);
-    AstNode *prog = parser_parse_program(p);
-    TypeChecker *tc = typechecker_create(diag, "test.gray");
-    typechecker_check(tc, prog);
-    TypeTable *tt = typechecker_get_table(tc);
+    Lexer *lexer =lexer_create(arena, buf, "test.gray");
+    Parser *parser = parser_create(arena, lexer, "test.gray", diag);
+    AstNode *prog = parser_parse_program(parser);
+    TypeChecker *checker =typechecker_create(diag, "test.gray");
+    typechecker_check(checker, prog);
+    TypeTable *table =typechecker_get_table(checker);
 
     /* Find the var decl's value and look up its type */
     AstNode *main_fn = prog->data.program.stmts[0];
     AstNode *var_decl = main_fn->data.func_decl.body->data.block.stmts[0];
     if (var_decl->kind == NODE_VAR_DECL && var_decl->data.var_decl.value) {
-        return typetable_get(tt, var_decl->data.var_decl.value);
+        return typetable_get(table, var_decl->data.var_decl.value);
     }
     return NULL;
 }
@@ -53,9 +53,9 @@ static GrayType *expr_type(const char *expr_code) {
 /* --- Scope and Symbol Table --- */
 
 static void test_scope_define_lookup(void) {
-    Scope *s = scope_create(NULL);
-    scope_define(s, "x", &TYPE_INT, true);
-    Symbol *sym = scope_lookup(s, "x");
+    Scope *scope = scope_create(NULL);
+    scope_define(scope, "x", &TYPE_INT, true);
+    Symbol *sym = scope_lookup(scope, "x");
     ASSERT_NOT_NULL(sym);
     ASSERT_EQ(sym->type->kind, TK_INT);
     ASSERT(sym->mutable);
@@ -89,8 +89,8 @@ static void test_scope_shadow(void) {
 }
 
 static void test_scope_undefined(void) {
-    Scope *s = scope_create(NULL);
-    ASSERT(scope_lookup(s, "nonexistent") == NULL);
+    Scope *scope = scope_create(NULL);
+    ASSERT(scope_lookup(scope, "nonexistent") == NULL);
 }
 
 /* --- Type Constructors --- */
@@ -215,7 +215,7 @@ static void test_resolve_array_literal(void) {
 /* --- Variable Type Resolution --- */
 
 static void test_resolve_typed_var(void) {
-    TypeTable *tt = check(
+    TypeTable *table =check(
         "do main() {\n"
         "    mut x int = 42\n"
         "    mut y string = \"hello\"\n"
@@ -248,7 +248,7 @@ static void test_resolve_to_float(void) {
 /* --- Struct Type Resolution --- */
 
 static void test_resolve_struct_field(void) {
-    TypeTable *tt = check(
+    TypeTable *table =check(
         "const Person struct {\n"
         "    name string\n"
         "    age int\n"
@@ -264,7 +264,7 @@ static void test_resolve_struct_field(void) {
 /* --- Function Return Type Resolution --- */
 
 static void test_resolve_func_return(void) {
-    TypeTable *tt = check(
+    TypeTable *table =check(
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() {\n"
         "    mut result = add(1, 2)\n"
@@ -297,11 +297,11 @@ static void test_resolve_addr(void) {
 static DiagnosticList *check_diag(const char *input) {
     DiagnosticList *d = diag_create();
     d->use_color = false;
-    Lexer *l = lexer_create(arena, input, "test.gray");
-    Parser *p = parser_create(arena, l, "test.gray", d);
-    AstNode *prog = parser_parse_program(p);
-    TypeChecker *tc = typechecker_create(d, "test.gray");
-    typechecker_check(tc, prog);
+    Lexer *lexer =lexer_create(arena, input, "test.gray");
+    Parser *parser = parser_create(arena, lexer, "test.gray", d);
+    AstNode *prog = parser_parse_program(parser);
+    TypeChecker *checker =typechecker_create(d, "test.gray");
+    typechecker_check(checker, prog);
     return d;
 }
 
@@ -342,7 +342,7 @@ static void test_resolve_map_type(void) {
 }
 
 static void test_resolve_string_enum(void) {
-    TypeTable *tt = check(
+    TypeTable *table =check(
         "const Status enum { TODO = \"todo\" DONE = \"done\" }\n"
         "do main() { mut s = Status.TODO }");
     (void)tt;

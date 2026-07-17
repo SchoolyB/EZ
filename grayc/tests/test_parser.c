@@ -19,9 +19,9 @@ static DiagnosticList *diag;
 static AstNode *parse(const char *input) {
     diag = diag_create();
     diag->use_color = false;
-    Lexer *l = lexer_create(arena, input, "test.gray");
-    Parser *p = parser_create(arena, l, "test.gray", diag);
-    return parser_parse_program(p);
+    Lexer *lexer = lexer_create(arena, input, "test.gray");
+    Parser *parser = parser_create(arena, lexer, "test.gray", diag);
+    return parser_parse_program(parser);
 }
 
 static AstNode *first_stmt(AstNode *prog) {

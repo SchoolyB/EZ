@@ -198,14 +198,14 @@ typedef struct {
 
 /* Create and run the type checker */
 TypeChecker *typechecker_create(DiagnosticList *diag, const char *file);
-void typechecker_check(TypeChecker *tc, AstNode *program);
-void typechecker_free(TypeChecker *tc);
+void typechecker_check(TypeChecker *checker, AstNode *program);
+void typechecker_free(TypeChecker *checker);
 
 /* Query the type table (used by codegen) */
-GrayType *typetable_get(TypeTable *tt, AstNode *node);
-void typetable_set(TypeTable *tt, AstNode *node, GrayType *type);
+GrayType *typetable_get(TypeTable *table, AstNode *node);
+void typetable_set(TypeTable *table, AstNode *node, GrayType *type);
 
 /* Get the type table from the checker */
-TypeTable *typechecker_get_table(TypeChecker *tc);
+TypeTable *typechecker_get_table(TypeChecker *checker);
 
 #endif
