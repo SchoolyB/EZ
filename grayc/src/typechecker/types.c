@@ -74,7 +74,7 @@ static GrayType *pool_find(TypeKind kind, const char *name) {
 }
 
 /* Insert a newly created type into the hash index. */
-static void pool_insert(TypeKind kind, const char *name, GrayType *t) {
+static void pool_insert(TypeKind kind, const char *name, GrayType *type) {
     uint32_t mask = TYPE_HASH_CAP - 1;
     uint32_t idx  = type_hash(kind, name) & mask;
     for (;;) {
@@ -82,7 +82,7 @@ static void pool_insert(TypeKind kind, const char *name, GrayType *t) {
         if (!e->type) {
             e->kind = kind;
             e->name = name;
-            e->type = t;
+            e->type = type;
             return;
         }
         idx = (idx + 1) & mask;
@@ -92,45 +92,45 @@ static void pool_insert(TypeKind kind, const char *name, GrayType *t) {
 GrayType *type_array(const char *elem_type) {
     GrayType *existing = pool_find(TK_ARRAY, elem_type);
     if (existing) return existing;
-    GrayType *t = type_alloc();
-    t->kind = TK_ARRAY;
+    GrayType *type = type_alloc();
+    type->kind = TK_ARRAY;
     const char *dup = strdup(elem_type);
-    t->element_type = dup;
-    t->name = dup;
-    pool_insert(TK_ARRAY, t->name, t);
-    return t;
+    type->element_type = dup;
+    type->name = dup;
+    pool_insert(TK_ARRAY, type->name, type);
+    return type;
 }
 
 GrayType *type_struct(const char *name) {
     GrayType *existing = pool_find(TK_STRUCT, name);
     if (existing) return existing;
-    GrayType *t = type_alloc();
-    t->kind = TK_STRUCT;
-    t->name = strdup(name);
-    pool_insert(TK_STRUCT, t->name, t);
-    return t;
+    GrayType *type = type_alloc();
+    type->kind = TK_STRUCT;
+    type->name = strdup(name);
+    pool_insert(TK_STRUCT, type->name, type);
+    return type;
 }
 
 GrayType *type_enum(const char *name) {
     GrayType *existing = pool_find(TK_ENUM, name);
     if (existing) return existing;
-    GrayType *t = type_alloc();
-    t->kind = TK_ENUM;
-    t->name = strdup(name);
-    pool_insert(TK_ENUM, t->name, t);
-    return t;
+    GrayType *type = type_alloc();
+    type->kind = TK_ENUM;
+    type->name = strdup(name);
+    pool_insert(TK_ENUM, type->name, type);
+    return type;
 }
 
 GrayType *type_pointer(const char *pointee_type) {
     GrayType *existing = pool_find(TK_POINTER, pointee_type);
     if (existing) return existing;
-    GrayType *t = type_alloc();
-    t->kind = TK_POINTER;
+    GrayType *type = type_alloc();
+    type->kind = TK_POINTER;
     const char *dup = strdup(pointee_type);
-    t->element_type = dup;
-    t->name = dup;
-    pool_insert(TK_POINTER, t->name, t);
-    return t;
+    type->element_type = dup;
+    type->name = dup;
+    pool_insert(TK_POINTER, type->name, type);
+    return type;
 }
 
 /* Find the index of the matching ')' for the '(' at start. Tracks nesting
@@ -246,40 +246,40 @@ static GrayFuncSig *parse_func_sig(const char *name) {
 
 void type_pool_reset(void) {
     for (int i = 0; i < type_pool_count; i++) {
-        GrayType *t = &type_pool[i];
-        switch (t->kind) {
+        GrayType *type = &type_pool[i];
+        switch (type->kind) {
         case TK_STRUCT:
         case TK_ENUM:
         case TK_ARRAY:
         case TK_POINTER:
-            /* For ARRAY and POINTER, t->name == t->element_type (same heap
-             * pointer); free once via t->name. */
-            free((char *)t->name);
+            /* For ARRAY and POINTER, type->name == type->element_type (same heap
+             * pointer); free once via type->name. */
+            free((char *)type->name);
             break;
         case TK_MAP:
-            free((char *)t->name);
-            free((char *)t->key_type);
-            free((char *)t->value_type);
+            free((char *)type->name);
+            free((char *)type->key_type);
+            free((char *)type->value_type);
             break;
         case TK_FUNCTION:
-            free((char *)t->name);
-            if (t->func_sig) {
-                for (int j = 0; j < t->func_sig->param_count; j++)
-                    free((char *)t->func_sig->param_types[j]);
-                free(t->func_sig->param_types);
-                free(t->func_sig->param_mutable);
-                for (int j = 0; j < t->func_sig->return_count; j++)
-                    free((char *)t->func_sig->return_types[j]);
-                free(t->func_sig->return_types);
-                free(t->func_sig);
+            free((char *)type->name);
+            if (type->func_sig) {
+                for (int j = 0; j < type->func_sig->param_count; j++)
+                    free((char *)type->func_sig->param_types[j]);
+                free(type->func_sig->param_types);
+                free(type->func_sig->param_mutable);
+                for (int j = 0; j < type->func_sig->return_count; j++)
+                    free((char *)type->func_sig->return_types[j]);
+                free(type->func_sig->return_types);
+                free(type->func_sig);
             }
             break;
         default:
-            /* Builtin non-singleton pool entries: t->name is either a
+            /* Builtin non-singleton pool entries: type->name is either a
              * string literal (TK_ERROR → "Error", TK_UNKNOWN → "func")
              * or a strdup'd name (i8, f32, u64, …).  Skip literal kinds. */
-            if (t->kind != TK_ERROR && t->kind != TK_UNKNOWN)
-                free((char *)t->name);
+            if (type->kind != TK_ERROR && type->kind != TK_UNKNOWN)
+                free((char *)type->name);
             break;
         }
     }
@@ -287,66 +287,66 @@ void type_pool_reset(void) {
     memset(type_hash_table, 0, sizeof(type_hash_table));
 }
 
-bool type_is_numeric(GrayType *t) {
-    return t->kind == TK_INT || t->kind == TK_UINT || t->kind == TK_FLOAT ||
-           t->kind == TK_CHAR || t->kind == TK_BYTE;
+bool type_is_numeric(GrayType *type) {
+    return type->kind == TK_INT || type->kind == TK_UINT || type->kind == TK_FLOAT ||
+           type->kind == TK_CHAR || type->kind == TK_BYTE;
 }
 
-bool type_is_integer(GrayType *t) {
-    return t->kind == TK_INT || t->kind == TK_UINT ||
-           t->kind == TK_CHAR || t->kind == TK_BYTE;
+bool type_is_integer(GrayType *type) {
+    return type->kind == TK_INT || type->kind == TK_UINT ||
+           type->kind == TK_CHAR || type->kind == TK_BYTE;
 }
 
-bool type_eq(GrayType *a, GrayType *b) {
-    if (a->kind != b->kind) return false;
-    if (a->kind == TK_STRUCT || a->kind == TK_ENUM) {
-        return strcmp(a->name, b->name) == 0;
+bool type_eq(GrayType *left, GrayType *right) {
+    if (left->kind != right->kind) return false;
+    if (left->kind == TK_STRUCT || left->kind == TK_ENUM) {
+        return strcmp(left->name, right->name) == 0;
     }
-    if (a->kind == TK_ARRAY) {
-        return strcmp(a->element_type, b->element_type) == 0;
+    if (left->kind == TK_ARRAY) {
+        return strcmp(left->element_type, right->element_type) == 0;
     }
-    if (a->kind == TK_POINTER) {
-        return a->name && b->name && strcmp(a->name, b->name) == 0;
+    if (left->kind == TK_POINTER) {
+        return left->name && right->name && strcmp(left->name, right->name) == 0;
     }
-    if (a->kind == TK_FUNCTION) {
+    if (left->kind == TK_FUNCTION) {
         /* Canonical encoded form lives in name; signatures equal iff the
          * encoded strings match (parser writes a canonical form). */
-        return a->name && b->name && strcmp(a->name, b->name) == 0;
+        return left->name && right->name && strcmp(left->name, right->name) == 0;
     }
     return true;
 }
 
-const char *type_name(GrayType *t) {
-    if (!t) return "unknown";
-    /* Pointer types store the bare pointee in t->name (and t->element_type).
+const char *type_name(GrayType *type) {
+    if (!type) return "unknown";
+    /* Pointer types store the bare pointee in type->name (and type->element_type).
      * Render them with the leading '^' so error messages match source syntax.
      * A small ring of static buffers lets callers chain type_name() calls
      * inside one snprintf() without clobbering the previous result. */
-    if (t->kind == TK_POINTER && t->name) {
+    if (type->kind == TK_POINTER && type->name) {
         static char bufs[4][TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
-        snprintf(out, sizeof(bufs[0]), "^%s", t->name);
+        snprintf(out, sizeof(bufs[0]), "^%s", type->name);
         return out;
     }
-    if (t->kind == TK_ARRAY && t->element_type) {
+    if (type->kind == TK_ARRAY && type->element_type) {
         static char bufs[4][TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
-        snprintf(out, sizeof(bufs[0]), "[%s]", t->element_type);
+        snprintf(out, sizeof(bufs[0]), "[%s]", type->element_type);
         return out;
     }
-    if (t->kind == TK_MAP && t->key_type && t->value_type) {
+    if (type->kind == TK_MAP && type->key_type && type->value_type) {
         static char bufs[4][TYPE_NAME_MAX];
         static int slot = 0;
         char *out = bufs[slot];
         slot = (slot + 1) & 3;
-        snprintf(out, sizeof(bufs[0]), "map[%s:%s]", t->key_type, t->value_type);
+        snprintf(out, sizeof(bufs[0]), "map[%s:%s]", type->key_type, type->value_type);
         return out;
     }
-    return t->name;
+    return type->name;
 }
 
 /* Builtin type-name dispatch table. MUST stay sorted lexicographically by
@@ -355,7 +355,7 @@ typedef struct {
     const char *name;
     GrayType *singleton;   /* non-NULL: return this singleton directly */
     int alloc_kind;      /* used when singleton is NULL: pool-alloc with this kind */
-    const char *alloc_name; /* if non-NULL, set t->name to this literal instead of strdup(name) */
+    const char *alloc_name; /* if non-NULL, set type->name to this literal instead of strdup(name) */
 } BuiltinTypeEntry;
 
 static BuiltinTypeEntry builtin_types[] = {
@@ -401,12 +401,12 @@ GrayType *type_from_name(const char *name) {
     if (strncmp(name, "func(", 5) == 0) {
         GrayType *existing = pool_find(TK_FUNCTION, name);
         if (existing) return existing;
-        GrayType *t = type_alloc();
-        t->kind = TK_FUNCTION;
-        t->name = strdup(name);
-        t->func_sig = parse_func_sig(name);
-        pool_insert(TK_FUNCTION, t->name, t);
-        return t;
+        GrayType *type = type_alloc();
+        type->kind = TK_FUNCTION;
+        type->name = strdup(name);
+        type->func_sig = parse_func_sig(name);
+        pool_insert(TK_FUNCTION, type->name, type);
+        return type;
     }
 
     BuiltinTypeEntry key = { name, NULL, 0, NULL };
@@ -417,11 +417,11 @@ GrayType *type_from_name(const char *name) {
         const char *resolved_name = hit->alloc_name ? hit->alloc_name : name;
         GrayType *existing = pool_find(hit->alloc_kind, resolved_name);
         if (existing) return existing;
-        GrayType *t = type_alloc();
-        t->kind = hit->alloc_kind;
-        t->name = hit->alloc_name ? hit->alloc_name : strdup(name);
-        pool_insert(t->kind, t->name, t);
-        return t;
+        GrayType *type = type_alloc();
+        type->kind = hit->alloc_kind;
+        type->name = hit->alloc_name ? hit->alloc_name : strdup(name);
+        pool_insert(type->kind, type->name, type);
+        return type;
     }
 
     /* Pointer type: ^int, ^Person, etc. */
@@ -449,9 +449,9 @@ GrayType *type_from_name(const char *name) {
     if (strncmp(name, "map[", 4) == 0) {
         GrayType *existing = pool_find(TK_MAP, name);
         if (existing) return existing;
-        GrayType *t = type_alloc();
-        t->kind = TK_MAP;
-        t->name = strdup(name);
+        GrayType *type = type_alloc();
+        type->kind = TK_MAP;
+        type->name = strdup(name);
         /* Parse key:value types from "map[string:int]" */
         const char *start = name + 4;
         const char *colon = strchr(start, ':');
@@ -460,7 +460,7 @@ GrayType *type_from_name(const char *name) {
             char *key_str = xmalloc(klen + 1);
             memcpy(key_str, start, klen);
             key_str[klen] = '\0';
-            t->key_type = key_str;
+            type->key_type = key_str;
 
             const char *vstart = colon + 1;
             size_t vlen = strlen(vstart);
@@ -468,10 +468,10 @@ GrayType *type_from_name(const char *name) {
             char *val = xmalloc(vlen + 1);
             memcpy(val, vstart, vlen);
             val[vlen] = '\0';
-            t->value_type = val;
+            type->value_type = val;
         }
-        pool_insert(TK_MAP, t->name, t);
-        return t;
+        pool_insert(TK_MAP, type->name, type);
+        return type;
     }
 
     /* Qualified type: module.Type → convert to module_Type */
