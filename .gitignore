@@ -76,8 +76,6 @@ tmp/
 # Project specific
 context/
 *.txt
-# Ignore JSON files
-*.json
 
 # Ignore all .gray files by default (for local scratch/testing)
 *.gray
