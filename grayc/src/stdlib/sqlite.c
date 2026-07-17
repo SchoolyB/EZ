@@ -16,8 +16,8 @@
 GraySqlite *gray_sqlite_open(GrayArena *arena, GrayString path) {
     GraySqlite *db = (GraySqlite *)gray_arena_alloc(arena, sizeof(GraySqlite));
     sqlite3 *handle = NULL;
-    int rc = sqlite3_open(path.data, &handle);
-    if (rc != SQLITE_OK) {
+    int return_code =sqlite3_open(path.data, &handle);
+    if (return_code !=SQLITE_OK) {
         if (handle) sqlite3_close(handle);
         db->handle = NULL;
         return db;
@@ -36,9 +36,9 @@ void gray_sqlite_close(GraySqlite *db) {
 bool gray_sqlite_exec(GraySqlite *db, GrayString sql) {
     if (!db || !db->handle) return false;
     char *err = NULL;
-    int rc = sqlite3_exec((sqlite3 *)db->handle, sql.data, NULL, NULL, &err);
+    int return_code =sqlite3_exec((sqlite3 *)db->handle, sql.data, NULL, NULL, &err);
     if (err) sqlite3_free(err);
-    return rc == SQLITE_OK;
+    return return_code == SQLITE_OK;
 }
 
 GrayArray gray_sqlite_query(GrayArena *arena, GraySqlite *db, GrayString sql) {
@@ -46,8 +46,8 @@ GrayArray gray_sqlite_query(GrayArena *arena, GraySqlite *db, GrayString sql) {
     if (!db || !db->handle) return rows;
 
     sqlite3_stmt *stmt = NULL;
-    int rc = sqlite3_prepare_v2((sqlite3 *)db->handle, sql.data, sql.len, &stmt, NULL);
-    if (rc != SQLITE_OK || !stmt) return rows;
+    int return_code =sqlite3_prepare_v2((sqlite3 *)db->handle, sql.data, sql.len, &stmt, NULL);
+    if (return_code !=SQLITE_OK || !stmt) return rows;
 
     int col_count = sqlite3_column_count(stmt);
 
@@ -96,10 +96,10 @@ GrayResult_bool gray_sqlite_exec_result(GrayArena *arena, GraySqlite *db, GraySt
         return r;
     }
     char *err = NULL;
-    int rc = sqlite3_exec((sqlite3 *)db->handle, sql.data, NULL, NULL, &err);
-    if (rc != SQLITE_OK) {
+    int return_code =sqlite3_exec((sqlite3 *)db->handle, sql.data, NULL, NULL, &err);
+    if (return_code !=SQLITE_OK) {
         GrayString msg = err ? gray_string_format(arena, "exec failed: %s", err)
-                           : gray_string_format(arena, "exec failed (code %d)", rc);
+                           : gray_string_format(arena, "exec failed (code %d)", return_code);
         if (err) sqlite3_free(err);
         r.v0 = false;
         r.v1 = gray_error_new(arena, msg);
@@ -119,8 +119,8 @@ GrayResult_array gray_sqlite_query_result(GrayArena *arena, GraySqlite *db, Gray
         return r;
     }
     sqlite3_stmt *stmt = NULL;
-    int rc = sqlite3_prepare_v2((sqlite3 *)db->handle, sql.data, sql.len, &stmt, NULL);
-    if (rc != SQLITE_OK || !stmt) {
+    int return_code =sqlite3_prepare_v2((sqlite3 *)db->handle, sql.data, sql.len, &stmt, NULL);
+    if (return_code !=SQLITE_OK || !stmt) {
         r.v0 = gray_array_new(arena, sizeof(GrayMap), 0);
         const char *errmsg = sqlite3_errmsg((sqlite3 *)db->handle);
         r.v1 = gray_error_new(arena, gray_string_format(arena, "query failed: %s", errmsg ? errmsg : "unknown error"));

@@ -116,9 +116,9 @@ GrayString gray_strings_remove_suffix(GrayArena *arena, GrayString s, GrayString
 GrayString gray_strings_replace(GrayArena *arena, GrayString s, GrayString old_s, GrayString new_s) {
     if (old_s.len == 0) return s;
     /* Count occurrences to size the buffer */
-    int64_t cnt = gray_strings_count(s, old_s);
-    if (cnt == 0) return s;
-    int64_t new_len64 = (int64_t)s.len + cnt * ((int64_t)new_s.len - (int64_t)old_s.len);
+    int64_t count = gray_strings_count(s, old_s);
+    if (count == 0) return s;
+    int64_t new_len64 = (int64_t)s.len + count * ((int64_t)new_s.len - (int64_t)old_s.len);
     if (new_len64 < 0 || new_len64 > INT32_MAX) {
         gray_panic_code("P0071", "strings.replace() result exceeds maximum string length");
     }

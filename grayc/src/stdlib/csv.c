@@ -21,7 +21,7 @@ GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string) {
         GrayArray row = gray_array_new(arena, sizeof(GrayString), 8);
         while (s < end && *s != '\n' && *s != '\r') {
             const char *field_start;
-            int32_t field_len;
+            int32_t field_length;
 
             if (*s == '"') {
                 /* Quoted field */
@@ -31,16 +31,16 @@ GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string) {
                     if (*s == '"' && *(s + 1) == '"') s += 2;
                     else s++;
                 }
-                field_len = (int32_t)(s - field_start);
+                field_length = (int32_t)(s - field_start);
                 if (s < end) s++; /* skip closing quote */
             } else {
                 /* Unquoted field */
                 field_start = s;
                 while (s < end && *s != ',' && *s != '\n' && *s != '\r') s++;
-                field_len = (int32_t)(s - field_start);
+                field_length = (int32_t)(s - field_start);
             }
 
-            GrayString field = gray_string_new(arena, field_start, field_len);
+            GrayString field = gray_string_new(arena, field_start, field_length);
             gray_array_push(arena, &row, &field);
 
             if (s < end && *s == ',') s++;

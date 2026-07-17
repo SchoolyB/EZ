@@ -27,9 +27,9 @@ GrayString gray_bytes_to_string(GrayArena *arena, GrayArray *bytes) {
 }
 
 GrayArray gray_bytes_from_hex(GrayArena *arena, GrayString hex) {
-    int32_t out_len = hex.len / 2;
-    GrayArray arr = gray_array_new(arena, sizeof(uint8_t), out_len);
-    for (int32_t i = 0; i < out_len; i++) {
+    int32_t output_length = hex.len / 2;
+    GrayArray arr = gray_array_new(arena, sizeof(uint8_t), output_length);
+    for (int32_t i = 0; i < output_length; i++) {
         unsigned int byte;
         sscanf(hex.data + i * 2, "%02x", &byte);
         uint8_t b = (uint8_t)byte;
@@ -39,14 +39,14 @@ GrayArray gray_bytes_from_hex(GrayArena *arena, GrayString hex) {
 }
 
 GrayString gray_bytes_to_hex(GrayArena *arena, GrayArray *bytes) {
-    int32_t out_len = bytes->len * 2;
-    char *hex = gray_arena_alloc(arena, (size_t)out_len + 1);
+    int32_t output_length = bytes->len * 2;
+    char *hex = gray_arena_alloc(arena, (size_t)output_length + 1);
     uint8_t *data = (uint8_t *)bytes->data;
     for (int32_t i = 0; i < bytes->len; i++) {
         snprintf(hex + i * 2, 3, "%02x", data[i]);
     }
-    hex[out_len] = '\0';
-    GrayString r = { hex, out_len };
+    hex[output_length] = '\0';
+    GrayString r = { hex, output_length };
     return r;
 }
 

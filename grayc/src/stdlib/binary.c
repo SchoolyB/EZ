@@ -100,11 +100,11 @@ gray_i128 gray_binary_decode_i128_le(GrayArray *bytes) { gray_i128 v; memcpy(&v,
 gray_i128 gray_binary_decode_i128_be(GrayArray *bytes) {
     uint8_t *d = (uint8_t *)bytes->data;
     gray_i128 v;
-    uint64_t hi = 0, lo = 0;
-    for (int i = 0; i < 8; i++) hi = (hi << 8) | d[i];
-    for (int i = 8; i < 16; i++) lo = (lo << 8) | d[i];
-    v.hi = (int64_t)hi;
-    v.lo = lo;
+    uint64_t high = 0, low = 0;
+    for (int i = 0; i < 8; i++) high = (high << 8) | d[i];
+    for (int i = 8; i < 16; i++) low = (low << 8) | d[i];
+    v.hi = (int64_t)high;
+    v.lo = low;
     return v;
 }
 
@@ -114,11 +114,11 @@ gray_u128 gray_binary_decode_u128_le(GrayArray *bytes) { gray_u128 v; memcpy(&v,
 gray_u128 gray_binary_decode_u128_be(GrayArray *bytes) {
     uint8_t *d = (uint8_t *)bytes->data;
     gray_u128 v;
-    uint64_t hi = 0, lo = 0;
-    for (int i = 0; i < 8; i++) hi = (hi << 8) | d[i];
-    for (int i = 8; i < 16; i++) lo = (lo << 8) | d[i];
-    v.hi = hi;
-    v.lo = lo;
+    uint64_t high = 0, low = 0;
+    for (int i = 0; i < 8; i++) high = (high << 8) | d[i];
+    for (int i = 8; i < 16; i++) low = (low << 8) | d[i];
+    v.hi = high;
+    v.lo = low;
     return v;
 }
 

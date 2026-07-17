@@ -24,10 +24,10 @@
 #define GRAY_INPUT_BUF_SIZE       4096
 
 /* Format a double using the shortest representation that round-trips */
-static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
+static int fmt_shortest_float(char *buf, size_t buffer_size, double v) {
     int n = 0;
     for (int prec = 15; prec <= 17; prec++) {
-        n = snprintf(buf, bufsz, "%.*g", prec, v);
+        n = snprintf(buf, buffer_size, "%.*g", prec, v);
         double rt;
         if (sscanf(buf, "%lf", &rt) == 1 && rt == v) break;
     }
@@ -38,7 +38,7 @@ static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
             break;
         }
     }
-    if (!has_special && n + 2 < (int)bufsz) {
+    if (!has_special && n + 2 < (int)buffer_size) {
         buf[n++] = '.';
         buf[n++] = '0';
         buf[n] = '\0';
@@ -351,9 +351,9 @@ GrayString gray_builtin_array_to_string(GrayArena *arena, GrayArray *arr, int el
                 GRAY_ARRAY_GET(*arr, int64_t, i));
             break;
         case 1: {
-            char fbuf[GRAY_FLOAT_STR_BUF];
-            fmt_shortest_float(fbuf, sizeof(fbuf), GRAY_ARRAY_GET(*arr, double, i));
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
+            char float_buffer[GRAY_FLOAT_STR_BUF];
+            fmt_shortest_float(float_buffer, sizeof(float_buffer), GRAY_ARRAY_GET(*arr, double, i));
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", float_buffer);
             break;
         }
         case 2: {
@@ -376,10 +376,10 @@ GrayString gray_builtin_array_to_string(GrayArena *arena, GrayArray *arr, int el
             break;
         case 6: {
             int32_t cp = GRAY_ARRAY_GET(*arr, int32_t, i);
-            char utf8[4]; int ulen = cp_to_utf8(cp, utf8);
-            if (pos + 2 + ulen < (int)sizeof(buf)) {
+            char utf8[4]; int utf8_length = cp_to_utf8(cp, utf8);
+            if (pos + 2 + utf8_length < (int)sizeof(buf)) {
                 buf[pos++] = '\'';
-                memcpy(buf + pos, utf8, (size_t)ulen); pos += ulen;
+                memcpy(buf + pos, utf8, (size_t)utf8_length); pos += utf8_length;
                 buf[pos++] = '\'';
             }
             break;
@@ -485,10 +485,10 @@ GrayString gray_builtin_map_to_string(GrayArena *arena, GrayMap *m, int val_kind
     char buf[GRAY_TOSTRING_BUF_SIZE];
     int pos = 0;
     buf[pos++] = '{';
-    for (int32_t oi = 0; oi < m->order_len && pos < GRAY_TOSTRING_SAFE_LIMIT; oi++) {
-        int32_t i = m->order[oi];
+    for (int32_t order_index = 0; order_index < m->order_len && pos < GRAY_TOSTRING_SAFE_LIMIT; order_index++) {
+        int32_t i = m->order[order_index];
         if (m->states[i] != 1) continue;
-        if (oi > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
+        if (order_index > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
         GrayString *kp = (GrayString *)((char *)m->keys + (size_t)i * m->key_size);
         pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\": ",
             (int)kp->len, kp->data ? kp->data : "");
@@ -496,9 +496,9 @@ GrayString gray_builtin_map_to_string(GrayArena *arena, GrayMap *m, int val_kind
         switch (val_kind) {
         case 0: pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRId64, *(int64_t *)vp); break;
         case 1: {
-            char fbuf[GRAY_FLOAT_STR_BUF];
-            fmt_shortest_float(fbuf, sizeof(fbuf), *(double *)vp);
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
+            char float_buffer[GRAY_FLOAT_STR_BUF];
+            fmt_shortest_float(float_buffer, sizeof(float_buffer), *(double *)vp);
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", float_buffer);
             break;
         }
         case 2: {
@@ -513,10 +513,10 @@ GrayString gray_builtin_map_to_string(GrayArena *arena, GrayMap *m, int val_kind
         case 5: pos += snprintf(buf + pos, sizeof(buf) - pos, "%u", (unsigned)*(uint8_t *)vp); break;
         case 6: {
             int32_t cp = *(int32_t *)vp;
-            char utf8[4]; int ulen = cp_to_utf8(cp, utf8);
-            if (pos + 2 + ulen < (int)sizeof(buf)) {
+            char utf8[4]; int utf8_length = cp_to_utf8(cp, utf8);
+            if (pos + 2 + utf8_length < (int)sizeof(buf)) {
                 buf[pos++] = '\'';
-                memcpy(buf + pos, utf8, (size_t)ulen); pos += ulen;
+                memcpy(buf + pos, utf8, (size_t)utf8_length); pos += utf8_length;
                 buf[pos++] = '\'';
             }
             break;

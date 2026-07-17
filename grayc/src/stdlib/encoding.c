@@ -16,8 +16,8 @@
 static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 GrayString gray_encoding_base64_encode(GrayArena *arena, GrayString s) {
-    int32_t out_len = ((s.len + 2) / 3) * 4;
-    char *out = gray_arena_alloc(arena, (size_t)out_len + 1);
+    int32_t output_length = ((s.len + 2) / 3) * 4;
+    char *out = gray_arena_alloc(arena, (size_t)output_length + 1);
     int j = 0;
     for (int i = 0; i < s.len; i += 3) {
         uint32_t a = (uint8_t)s.data[i];
@@ -56,8 +56,8 @@ GrayString gray_encoding_base64_decode(GrayArena *arena, GrayString s) {
     if (s.data[s.len - 1] == '=') pad++;
     if (s.len >= 2 && s.data[s.len - 2] == '=') pad++;
 
-    int32_t out_len = (s.len / 4) * 3 - pad;
-    char *out = gray_arena_alloc(arena, (size_t)out_len + 1);
+    int32_t output_length = (s.len / 4) * 3 - pad;
+    char *out = gray_arena_alloc(arena, (size_t)output_length + 1);
     int32_t j = 0;
 
     for (int32_t i = 0; i < s.len; i += 4) {
@@ -95,13 +95,13 @@ GrayString gray_encoding_base64_decode(GrayArena *arena, GrayString s) {
 }
 
 GrayString gray_encoding_hex_encode(GrayArena *arena, GrayString s) {
-    int32_t out_len = s.len * 2;
-    char *out = gray_arena_alloc(arena, (size_t)out_len + 1);
+    int32_t output_length = s.len * 2;
+    char *out = gray_arena_alloc(arena, (size_t)output_length + 1);
     for (int i = 0; i < s.len; i++) {
         snprintf(out + i * 2, 3, "%02x", (uint8_t)s.data[i]);
     }
-    out[out_len] = '\0';
-    GrayString r = { out, out_len };
+    out[output_length] = '\0';
+    GrayString r = { out, output_length };
     return r;
 }
 
@@ -109,9 +109,9 @@ GrayString gray_encoding_hex_decode(GrayArena *arena, GrayString s) {
     if (s.len % 2 != 0) {
         gray_panic_code("P0040", "encoding.hex_decode: input length %d is not even", s.len);
     }
-    int32_t out_len = s.len / 2;
-    char *out = gray_arena_alloc(arena, (size_t)out_len + 1);
-    for (int i = 0; i < out_len; i++) {
+    int32_t output_length = s.len / 2;
+    char *out = gray_arena_alloc(arena, (size_t)output_length + 1);
+    for (int i = 0; i < output_length; i++) {
         unsigned char hi = (unsigned char)s.data[i * 2];
         unsigned char lo = (unsigned char)s.data[i * 2 + 1];
         if (!isxdigit(hi) || !isxdigit(lo)) {
@@ -121,8 +121,8 @@ GrayString gray_encoding_hex_decode(GrayArena *arena, GrayString s) {
         int lo_v = (lo <= '9') ? lo - '0' : (lo <= 'F') ? lo - 'A' + 10 : lo - 'a' + 10;
         out[i] = (char)((hi_v << 4) | lo_v);
     }
-    out[out_len] = '\0';
-    GrayString r = { out, out_len };
+    out[output_length] = '\0';
+    GrayString r = { out, output_length };
     return r;
 }
 

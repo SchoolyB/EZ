@@ -25,8 +25,8 @@
 #define GRAY_NET_LISTEN_BACKLOG   128
 
 /* Helper: null-terminate an GrayString */
-static const char *net_cstr(GrayString s, char *buf, size_t bufsz) {
-    size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
+static const char *net_cstr(GrayString s, char *buf, size_t buffer_size) {
+    size_t len = (size_t)s.len < buffer_size - 1 ? (size_t)s.len : buffer_size - 1;
     memcpy(buf, s.data, len);
     buf[len] = '\0';
     return buf;
@@ -84,11 +84,11 @@ int64_t gray_net_send(GraySocket sock, GrayString data) {
 GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t max_bytes) {
     if (sock.fd < 0 || max_bytes <= 0) return (GrayString){"", 0};
 
-    size_t bufsz = (size_t)max_bytes;
-    if (bufsz > GRAY_NET_MAX_RECV_BUF) bufsz = GRAY_NET_MAX_RECV_BUF; /* cap at 1MB */
-    char *buf = gray_arena_alloc(arena, bufsz);
+    size_t buffer_size = (size_t)max_bytes;
+    if (buffer_size > GRAY_NET_MAX_RECV_BUF) buffer_size = GRAY_NET_MAX_RECV_BUF; /* cap at 1MB */
+    char *buf = gray_arena_alloc(arena, buffer_size);
 
-    ssize_t n = recv(sock.fd, buf, bufsz, 0);
+    ssize_t n = recv(sock.fd, buf, buffer_size, 0);
     if (n <= 0) return (GrayString){"", 0};
 
     return (GrayString){buf, (int32_t)n};

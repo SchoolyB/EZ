@@ -487,7 +487,7 @@ bool gray_json_is_valid(GrayString text) {
 
 GrayString gray_json_pretty_map(GrayArena *arena, GrayMap *m, int64_t indent_size) {
     /* Pass 1: exact size */
-    size_t ind = indent_size > 0 ? (size_t)indent_size : 0;
+    size_t indent = indent_size > 0 ? (size_t)indent_size : 0;
     size_t need = 3; /* { \n } */
     int counted = 0;
     for (int32_t i = 0; i < m->capacity; i++) {
@@ -495,7 +495,7 @@ GrayString gray_json_pretty_map(GrayArena *arena, GrayMap *m, int64_t indent_siz
         if (counted > 0) need += 2; /* ,\n */
         GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         GrayString *val = (GrayString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
-        need += ind + json_escaped_len(*key) + 2 /* ": " */ + json_escaped_len(*val);
+        need += indent + json_escaped_len(*key) + 2 /* ": " */ + json_escaped_len(*val);
         counted++;
     }
     if (counted > 0) need += 1; /* trailing \n before } */
@@ -508,7 +508,7 @@ GrayString gray_json_pretty_map(GrayArena *arena, GrayMap *m, int64_t indent_siz
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; buf[pos++] = '\n'; }
-        for (size_t j = 0; j < ind; j++) buf[pos++] = ' ';
+        for (size_t j = 0; j < indent; j++) buf[pos++] = ' ';
         GrayString *key = (GrayString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         GrayString *val = (GrayString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);

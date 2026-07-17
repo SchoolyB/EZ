@@ -32,34 +32,34 @@ typedef struct {
 
 static void *thread_entry_0(void *arg) {
     ThreadArg0 *ta = (ThreadArg0 *)arg;
-    GrayThreadInternal *st = ta->state;
+    GrayThreadInternal *state = ta->state;
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     ta->fn();
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
     free(gray_default_arena);
     gray_default_arena = NULL;
     atomic_fetch_sub(&gray_threads_live_count, 1);
-    atomic_store(&st->alive, 0);
+    atomic_store(&state->alive, 0);
     /* If detached, the state struct's lifetime ends here too. */
-    if (atomic_load(&st->detached)) free(st);
+    if (atomic_load(&state->detached)) free(state);
     free(ta);
     return NULL;
 }
 
 GrayThread gray_threads_spawn(void (*fn)(void)) {
-    GrayThreadInternal *st = malloc(sizeof(GrayThreadInternal));
+    GrayThreadInternal *state = malloc(sizeof(GrayThreadInternal));
     /* alive=1 set before pthread_create so is_alive() is true immediately
      * after spawn() returns; otherwise callers race the scheduler. The
      * thread wrapper clears it on exit. */
-    atomic_store(&st->alive, 1);
-    atomic_store(&st->detached, 0);
+    atomic_store(&state->alive, 1);
+    atomic_store(&state->detached, 0);
     atomic_fetch_add(&gray_threads_live_count, 1);
     ThreadArg0 *ta = malloc(sizeof(ThreadArg0));
     ta->fn = fn;
-    ta->state = st;
-    pthread_create(&st->pt, NULL, thread_entry_0, ta);
+    ta->state = state;
+    pthread_create(&state->pt, NULL, thread_entry_0, ta);
     GrayThread t;
-    t._internal = st;
+    t._internal = state;
     return t;
 }
 
@@ -72,62 +72,62 @@ typedef struct {
 
 static void *thread_entry_1(void *arg) {
     ThreadArg1 *ta = (ThreadArg1 *)arg;
-    GrayThreadInternal *st = ta->state;
+    GrayThreadInternal *state = ta->state;
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     ta->fn(ta->arg);
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
     free(gray_default_arena);
     gray_default_arena = NULL;
     atomic_fetch_sub(&gray_threads_live_count, 1);
-    atomic_store(&st->alive, 0);
-    if (atomic_load(&st->detached)) free(st);
+    atomic_store(&state->alive, 0);
+    if (atomic_load(&state->detached)) free(state);
     free(ta);
     return NULL;
 }
 
 GrayThread gray_threads_spawn_arg(void (*fn)(int64_t), int64_t arg) {
-    GrayThreadInternal *st = malloc(sizeof(GrayThreadInternal));
-    atomic_store(&st->alive, 1);
-    atomic_store(&st->detached, 0);
+    GrayThreadInternal *state = malloc(sizeof(GrayThreadInternal));
+    atomic_store(&state->alive, 1);
+    atomic_store(&state->detached, 0);
     atomic_fetch_add(&gray_threads_live_count, 1);
     ThreadArg1 *ta = malloc(sizeof(ThreadArg1));
     ta->fn = fn;
     ta->arg = arg;
-    ta->state = st;
-    pthread_create(&st->pt, NULL, thread_entry_1, ta);
+    ta->state = state;
+    pthread_create(&state->pt, NULL, thread_entry_1, ta);
     GrayThread t;
-    t._internal = st;
+    t._internal = state;
     return t;
 }
 
 void gray_threads_join(GrayThread t) {
     if (!t._internal) return;
-    GrayThreadInternal *st = (GrayThreadInternal *)t._internal;
-    pthread_join(st->pt, NULL);
-    free(st);
+    GrayThreadInternal *state = (GrayThreadInternal *)t._internal;
+    pthread_join(state->pt, NULL);
+    free(state);
 }
 
 void gray_threads_detach(GrayThread t) {
     if (!t._internal) return;
-    GrayThreadInternal *st = (GrayThreadInternal *)t._internal;
-    atomic_store(&st->detached, 1);
+    GrayThreadInternal *state = (GrayThreadInternal *)t._internal;
+    atomic_store(&state->detached, 1);
     /* If the thread already exited before detach() was called, the entry
      * function already saw detached=0 and won't free the struct — free
      * it here. Otherwise the entry function frees it once it finishes. */
-    if (!atomic_load(&st->alive)) {
+    if (!atomic_load(&state->alive)) {
         /* Race-safe: pthread_detach is idempotent for a finished thread,
          * and we only free in the branch where alive was already 0. */
-        pthread_detach(st->pt);
-        free(st);
+        pthread_detach(state->pt);
+        free(state);
     } else {
-        pthread_detach(st->pt);
+        pthread_detach(state->pt);
     }
 }
 
 bool gray_threads_is_alive(GrayThread t) {
     if (!t._internal) return false;
-    GrayThreadInternal *st = (GrayThreadInternal *)t._internal;
-    return atomic_load(&st->alive) != 0;
+    GrayThreadInternal *state = (GrayThreadInternal *)t._internal;
+    return atomic_load(&state->alive) != 0;
 }
 
 int64_t gray_threads_id(void) {

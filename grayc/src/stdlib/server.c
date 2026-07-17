@@ -94,16 +94,16 @@ void gray_server_route(GrayRouter *r, GrayString method, GrayString pattern,
     GrayRoute *route = &r->routes[r->count++];
 
     /* Null-terminate method and pattern */
-    GrayArena *a = get_server_arena();
-    char *m = gray_arena_alloc(a, method.len + 1);
-    memcpy(m, method.data, method.len);
-    m[method.len] = '\0';
-    route->method = m;
+    GrayArena *arena = get_server_arena();
+    char *method_copy = gray_arena_alloc(arena, method.len + 1);
+    memcpy(method_copy, method.data, method.len);
+    method_copy[method.len] = '\0';
+    route->method = method_copy;
 
-    char *p = gray_arena_alloc(a, pattern.len + 1);
-    memcpy(p, pattern.data, pattern.len);
-    p[pattern.len] = '\0';
-    route->pattern = p;
+    char *pattern_copy = gray_arena_alloc(arena, pattern.len + 1);
+    memcpy(pattern_copy, pattern.data, pattern.len);
+    pattern_copy[pattern.len] = '\0';
+    route->pattern = pattern_copy;
 
     route->handler = handler;
 }
@@ -114,11 +114,11 @@ void gray_server_cors(GrayRouter *r, GrayString origin) {
             gray_panic_code("P0101", "server.cors: origin contains CR or LF — HTTP header injection is not allowed");
         }
     }
-    GrayArena *a = get_server_arena();
-    char *o = gray_arena_alloc(a, origin.len + 1);
-    memcpy(o, origin.data, origin.len);
-    o[origin.len] = '\0';
-    r->cors_origin = o;
+    GrayArena *arena = get_server_arena();
+    char *origin_copy = gray_arena_alloc(arena, origin.len + 1);
+    memcpy(origin_copy, origin.data, origin.len);
+    origin_copy[origin.len] = '\0';
+    r->cors_origin = origin_copy;
 }
 
 void gray_server_use(GrayRouter *r, GrayMiddleware fn) {
@@ -132,35 +132,35 @@ void gray_server_use(GrayRouter *r, GrayMiddleware fn) {
 /* Check if a route pattern matches a path, extracting params */
 static bool match_route(const char *pattern, const char *path,
                         GrayArena *arena, GrayMap *params) {
-    const char *pp = pattern;
-    const char *rp = path;
+    const char *pattern_ptr = pattern;
+    const char *path_ptr = path;
 
-    while (*pp && *rp) {
-        if (*pp == ':') {
+    while (*pattern_ptr && *path_ptr) {
+        if (*pattern_ptr == ':') {
             /* Path parameter — extract name and value */
-            pp++; /* skip : */
-            const char *name_start = pp;
-            while (*pp && *pp != '/') pp++;
-            int32_t name_len = (int32_t)(pp - name_start);
+            pattern_ptr++; /* skip : */
+            const char *name_start = pattern_ptr;
+            while (*pattern_ptr && *pattern_ptr != '/') pattern_ptr++;
+            int32_t name_len = (int32_t)(pattern_ptr - name_start);
 
-            const char *val_start = rp;
-            while (*rp && *rp != '/') rp++;
-            int32_t val_len = (int32_t)(rp - val_start);
+            const char *val_start = path_ptr;
+            while (*path_ptr && *path_ptr != '/') path_ptr++;
+            int32_t val_len = (int32_t)(path_ptr - val_start);
 
             GrayString key = gray_string_new(arena, name_start, name_len);
             GrayString val = gray_string_new(arena, val_start, val_len);
             gray_map_set(arena, params, &key, &val);
         } else {
-            if (*pp != *rp) return false;
-            pp++;
-            rp++;
+            if (*pattern_ptr != *path_ptr) return false;
+            pattern_ptr++;
+            path_ptr++;
         }
     }
 
     /* Both must be fully consumed (or both at trailing /) */
-    if (*pp == '\0' && *rp == '\0') return true;
-    if (*pp == '\0' && *rp == '/' && *(rp+1) == '\0') return true;
-    if (*rp == '\0' && *pp == '/' && *(pp+1) == '\0') return true;
+    if (*pattern_ptr == '\0' && *path_ptr == '\0') return true;
+    if (*pattern_ptr == '\0' && *path_ptr == '/' && *(path_ptr+1) == '\0') return true;
+    if (*path_ptr == '\0' && *pattern_ptr == '/' && *(pattern_ptr+1) == '\0') return true;
     return false;
 }
 
@@ -170,24 +170,24 @@ static bool parse_request(GrayArena *arena, const char *data, int data_len,
     if (data_len < 10) return false;
 
     /* Parse request line: METHOD /path HTTP/1.1 */
-    const char *sp1 = memchr(data, ' ', data_len);
-    if (!sp1) return false;
-    req->method = gray_string_new(arena, data, (int32_t)(sp1 - data));
+    const char *first_space = memchr(data, ' ', data_len);
+    if (!first_space) return false;
+    req->method = gray_string_new(arena, data, (int32_t)(first_space - data));
 
-    const char *path_start = sp1 + 1;
-    const char *sp2 = memchr(path_start, ' ', data_len - (path_start - data));
-    if (!sp2) return false;
+    const char *path_start = first_space + 1;
+    const char *second_space = memchr(path_start, ' ', data_len - (path_start - data));
+    if (!second_space) return false;
 
     /* Split path and query string */
-    const char *qmark = memchr(path_start, '?', sp2 - path_start);
+    const char *qmark = memchr(path_start, '?', second_space - path_start);
     if (qmark) {
         req->path = gray_string_new(arena, path_start, (int32_t)(qmark - path_start));
         /* Parse query params */
-        const char *qs = qmark + 1;
-        int32_t qs_len = (int32_t)(sp2 - qs);
+        const char *query_string = qmark + 1;
+        int32_t query_string_length = (int32_t)(second_space - query_string);
         /* Simple key=value&key2=value2 parser */
-        const char *cursor = qs;
-        const char *end = qs + qs_len;
+        const char *cursor = query_string;
+        const char *end = query_string + query_string_length;
         while (cursor < end) {
             const char *eq = memchr(cursor, '=', end - cursor);
             if (!eq) break;
@@ -201,38 +201,38 @@ static bool parse_request(GrayArena *arena, const char *data, int data_len,
             cursor = amp + 1;
         }
     } else {
-        req->path = gray_string_new(arena, path_start, (int32_t)(sp2 - path_start));
+        req->path = gray_string_new(arena, path_start, (int32_t)(second_space - path_start));
     }
 
     /* Parse headers */
-    const char *hdr_start = strstr(data, "\r\n");
-    const char *body_sep = strstr(data, "\r\n\r\n");
-    if (hdr_start) hdr_start += 2;
+    const char *header_start = strstr(data, "\r\n");
+    const char *body_separator = strstr(data, "\r\n\r\n");
+    if (header_start) header_start += 2;
 
-    while (hdr_start && hdr_start < body_sep) {
-        const char *eol = strstr(hdr_start, "\r\n");
-        if (!eol) break;
+    while (header_start && header_start < body_separator) {
+        const char *end_of_line = strstr(header_start, "\r\n");
+        if (!end_of_line) break;
 
-        const char *colon = memchr(hdr_start, ':', eol - hdr_start);
+        const char *colon = memchr(header_start, ':', end_of_line - header_start);
         if (colon) {
-            int32_t klen = (int32_t)(colon - hdr_start);
+            int32_t key_length = (int32_t)(colon - header_start);
             const char *vstart = colon + 1;
             while (*vstart == ' ') vstart++;
-            int32_t vlen = (int32_t)(eol - vstart);
+            int32_t value_length = (int32_t)(end_of_line - vstart);
 
-            GrayString key = gray_string_new(arena, hdr_start, klen);
-            GrayString val = gray_string_new(arena, vstart, vlen);
+            GrayString key = gray_string_new(arena, header_start, key_length);
+            GrayString val = gray_string_new(arena, vstart, value_length);
             gray_map_set(arena, &req->headers, &key, &val);
         }
-        hdr_start = eol + 2;
+        header_start = end_of_line + 2;
     }
 
     /* Body */
-    if (body_sep) {
-        const char *bstart = body_sep + 4;
-        int32_t blen = (int32_t)(data_len - (bstart - data));
-        if (blen > 0) {
-            req->body = gray_string_new(arena, bstart, blen);
+    if (body_separator) {
+        const char *body_start = body_separator + 4;
+        int32_t body_length = (int32_t)(data_len - (body_start - data));
+        if (body_length > 0) {
+            req->body = gray_string_new(arena, body_start, body_length);
         }
     }
 
@@ -326,13 +326,13 @@ static void *handle_connection(void *arg) {
             ctx->router->cors_origin);
     }
 
-    char resp_buf[GRAY_SERVER_BUF_SIZE];
-    int resp_len;
+    char response_buffer[GRAY_SERVER_BUF_SIZE];
+    int response_length;
     int status = (int)resp.status;
     bool is_redirect = (status >= 300 && status < 400 && resp.body.len > 0);
 
     if (is_redirect) {
-        resp_len = snprintf(resp_buf, sizeof(resp_buf),
+        response_length = snprintf(response_buffer, sizeof(response_buffer),
             "HTTP/1.1 %d %s\r\n"
             "Location: %.*s\r\n"
             "Content-Length: 0\r\n"
@@ -343,7 +343,7 @@ static void *handle_connection(void *arg) {
             (int)resp.body.len, resp.body.data,
             cors_hdrs);
     } else {
-        resp_len = snprintf(resp_buf, sizeof(resp_buf),
+        response_length = snprintf(response_buffer, sizeof(response_buffer),
             "HTTP/1.1 %d %s\r\n"
             "Content-Type: %.*s\r\n"
             "Content-Length: %d\r\n"
@@ -358,9 +358,9 @@ static void *handle_connection(void *arg) {
             (int)resp.body.len, resp.body.data);
     }
 
-    size_t send_len = (resp_len > 0 && (size_t)resp_len < sizeof(resp_buf))
-        ? (size_t)resp_len : sizeof(resp_buf) - 1;
-    send(ctx->client_fd, resp_buf, send_len, 0);
+    size_t send_len = (response_length > 0 && (size_t)response_length < sizeof(response_buffer))
+        ? (size_t)response_length : sizeof(response_buffer) - 1;
+    send(ctx->client_fd, response_buffer, send_len, 0);
     close(ctx->client_fd);
     free(ctx);
     gray_arena_destroy(arena, __FILE__, __LINE__);

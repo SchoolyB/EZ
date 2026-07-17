@@ -22,16 +22,16 @@
 static int compile_pattern(GrayString pattern, regex_t *re, int flags) {
     /* Null-terminate the pattern */
     char pat_buf[GRAY_REGEX_PAT_BUF];
-    int plen = pattern.len < (int32_t)sizeof(pat_buf) - 1 ? pattern.len : (int32_t)sizeof(pat_buf) - 1;
-    memcpy(pat_buf, pattern.data, (size_t)plen);
-    pat_buf[plen] = '\0';
+    int pattern_length = pattern.len < (int32_t)sizeof(pat_buf) - 1 ? pattern.len : (int32_t)sizeof(pat_buf) - 1;
+    memcpy(pat_buf, pattern.data, (size_t)pattern_length);
+    pat_buf[pattern_length] = '\0';
 
     return regcomp(re, pat_buf, flags | REG_EXTENDED);
 }
 
 /* Helper: null-terminate an GrayString into a buffer */
-static const char *to_cstr(GrayString s, char *buf, size_t bufsz) {
-    size_t len = (size_t)s.len < bufsz - 1 ? (size_t)s.len : bufsz - 1;
+static const char *to_cstr(GrayString s, char *buf, size_t buffer_size) {
+    size_t len = (size_t)s.len < buffer_size - 1 ? (size_t)s.len : buffer_size - 1;
     memcpy(buf, s.data, len);
     buf[len] = '\0';
     return buf;
@@ -71,8 +71,8 @@ GrayString gray_regex_find(GrayArena *arena, GrayString pattern, GrayString text
         return (GrayString){"", 0};
     }
 
-    int32_t mlen = (int32_t)(match.rm_eo - match.rm_so);
-    GrayString result = gray_string_new(arena, txt_buf + match.rm_so, mlen);
+    int32_t match_length = (int32_t)(match.rm_eo - match.rm_so);
+    GrayString result = gray_string_new(arena, txt_buf + match.rm_so, match_length);
     regfree(&re);
     return result;
 }
@@ -89,8 +89,8 @@ GrayArray gray_regex_find_all(GrayArena *arena, GrayString pattern, GrayString t
     regmatch_t match;
 
     while (regexec(&re, cursor, 1, &match, 0) == 0) {
-        int32_t mlen = (int32_t)(match.rm_eo - match.rm_so);
-        GrayString s = gray_string_new(arena, cursor + match.rm_so, mlen);
+        int32_t match_length = (int32_t)(match.rm_eo - match.rm_so);
+        GrayString s = gray_string_new(arena, cursor + match.rm_so, match_length);
         gray_array_push(arena, &arr, &s);
 
         cursor += match.rm_eo;
@@ -167,8 +167,8 @@ GrayArray gray_regex_split(GrayArena *arena, GrayString pattern, GrayString text
 
     while (regexec(&re, cursor, 1, &match, 0) == 0) {
         /* Piece before the match */
-        int32_t plen = (int32_t)match.rm_so;
-        GrayString piece = gray_string_new(arena, cursor, plen);
+        int32_t piece_length = (int32_t)match.rm_so;
+        GrayString piece = gray_string_new(arena, cursor, piece_length);
         gray_array_push(arena, &arr, &piece);
 
         cursor += match.rm_eo;

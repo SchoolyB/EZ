@@ -39,9 +39,9 @@ GrayString gray_io_path_join(GrayArena *arena, GrayArray parts) {
             result = seg;
             continue;
         }
-        bool a_sep = result.len > 0 &&
+        bool already_separated = result.len > 0 &&
             (result.data[result.len - 1] == '/' || result.data[result.len - 1] == '\\');
-        if (a_sep)
+        if (already_separated)
             result = gray_string_format(arena, "%.*s%.*s", result.len, result.data, seg.len, seg.data);
         else
             result = gray_string_format(arena, "%.*s/%.*s", result.len, result.data, seg.len, seg.data);
@@ -52,23 +52,23 @@ GrayString gray_io_path_join(GrayArena *arena, GrayArray parts) {
 GrayString gray_io_dirname(GrayArena *arena, GrayString path) {
     if (path.len == 0) return gray_string_lit(".");
     /* Strip trailing slashes (keep at least 1 char so "/" stays "/") */
-    int eff = path.len;
-    while (eff > 1 && (path.data[eff - 1] == '/' || path.data[eff - 1] == '\\')) eff--;
+    int effective_length = path.len;
+    while (effective_length > 1 && (path.data[effective_length - 1] == '/' || path.data[effective_length - 1] == '\\')) effective_length--;
     /* Find last separator in the stripped range */
-    int last_sep = -1;
-    for (int i = eff - 1; i >= 0; i--) {
+    int last_separator = -1;
+    for (int i = effective_length - 1; i >= 0; i--) {
         if (path.data[i] == '/' || path.data[i] == '\\') {
-            last_sep = i;
+            last_separator = i;
             break;
         }
     }
-    if (last_sep < 0) return gray_string_lit(".");
+    if (last_separator < 0) return gray_string_lit(".");
     /* Collapse leading separator: dirname("/foo") -> "/" */
-    if (last_sep == 0) return gray_string_lit("/");
-    char *buf = gray_arena_alloc(arena, (size_t)last_sep + 1);
-    memcpy(buf, path.data, (size_t)last_sep);
-    buf[last_sep] = '\0';
-    return (GrayString){ buf, (int32_t)last_sep };
+    if (last_separator == 0) return gray_string_lit("/");
+    char *buf = gray_arena_alloc(arena, (size_t)last_separator + 1);
+    memcpy(buf, path.data, (size_t)last_separator);
+    buf[last_separator] = '\0';
+    return (GrayString){ buf, (int32_t)last_separator };
 }
 
 GrayString gray_io_basename(GrayArena *arena, GrayString path) {
@@ -88,21 +88,21 @@ GrayString gray_io_basename(GrayArena *arena, GrayString path) {
 
 GrayString gray_io_extension(GrayArena *arena, GrayString path) {
     (void)arena;
-    int last_sep = -1;
+    int last_separator = -1;
     for (int i = path.len - 1; i >= 0; i--) {
-        if (path.data[i] == '/' || path.data[i] == '\\') { last_sep = i; break; }
+        if (path.data[i] == '/' || path.data[i] == '\\') { last_separator = i; break; }
     }
-    int search_start = last_sep + 1;
-    int dot_pos = -1;
+    int search_start = last_separator + 1;
+    int dot_position = -1;
     for (int i = path.len - 1; i >= search_start; i--) {
-        if (path.data[i] == '.') { dot_pos = i; break; }
+        if (path.data[i] == '.') { dot_position = i; break; }
     }
-    if (dot_pos < 0 || dot_pos == path.len - 1) return gray_string_lit("");
+    if (dot_position < 0 || dot_position == path.len - 1) return gray_string_lit("");
     /* Dotfiles: leading dot with no other dot is part of the name, not an extension */
-    if (dot_pos == search_start) return gray_string_lit("");
-    int32_t len = (int32_t)(path.len - dot_pos);
+    if (dot_position == search_start) return gray_string_lit("");
+    int32_t len = (int32_t)(path.len - dot_position);
     char *buf = gray_arena_alloc(arena, (size_t)len + 1);
-    memcpy(buf, path.data + dot_pos, (size_t)len);
+    memcpy(buf, path.data + dot_position, (size_t)len);
     buf[len] = '\0';
     return (GrayString){ buf, len };
 }
@@ -149,9 +149,9 @@ GrayString gray_io_normalize(GrayArena *arena, GrayString path) {
     if (absolute) out[pos++] = '/';
     for (int i = 0; i < seg_count; i++) {
         if (i > 0) out[pos++] = '/';
-        int slen = (int)strlen(segments[i]);
-        memcpy(out + pos, segments[i], (size_t)slen);
-        pos += slen;
+        int segment_length = (int)strlen(segments[i]);
+        memcpy(out + pos, segments[i], (size_t)segment_length);
+        pos += segment_length;
     }
     if (pos == 0) {
         out[0] = '.';
@@ -190,26 +190,26 @@ GrayString gray_io_read_file(GrayArena *arena, GrayString path) {
 
     /* Streaming fallback for non-seekable inputs. */
     clearerr(f);
-    size_t cap = 4096;
+    size_t capacity = 4096;
     size_t len = 0;
-    char *buf = gray_arena_alloc(arena, cap);
+    char *buf = gray_arena_alloc(arena, capacity);
     for (;;) {
-        if (len == cap) {
-            if (cap > (size_t)INT32_MAX / 2) {
+        if (len == capacity) {
+            if (capacity > (size_t)INT32_MAX / 2) {
                 fclose(f);
                 gray_panic_code("P0053", "io.read_file: input exceeds maximum string length");
             }
-            size_t new_cap = cap * 2;
-            char *new_buf = gray_arena_alloc(arena, new_cap);
-            memcpy(new_buf, buf, len);
-            buf = new_buf;
-            cap = new_cap;
+            size_t new_capacity = capacity * 2;
+            char *new_buffer = gray_arena_alloc(arena, new_capacity);
+            memcpy(new_buffer, buf, len);
+            buf = new_buffer;
+            capacity = new_capacity;
         }
-        size_t got = fread(buf + len, 1, cap - len, f);
+        size_t got = fread(buf + len, 1, capacity - len, f);
         if (got == 0) break;
         len += got;
     }
-    if (len == cap) {
+    if (len == capacity) {
         char *grow = gray_arena_alloc(arena, len + 1);
         memcpy(grow, buf, len);
         buf = grow;
@@ -507,26 +507,26 @@ GrayResult_string gray_io_read_file_result(GrayArena *arena, GrayString path) {
     }
     /* Streaming fallback for non-seekable inputs (pipes, /dev/stdin, etc.) */
     clearerr(f);
-    size_t cap = 4096;
+    size_t capacity = 4096;
     size_t len = 0;
-    char *buf = gray_arena_alloc(arena, cap);
+    char *buf = gray_arena_alloc(arena, capacity);
     for (;;) {
-        if (len == cap) {
-            if (cap > (size_t)INT32_MAX / 2) {
+        if (len == capacity) {
+            if (capacity > (size_t)INT32_MAX / 2) {
                 fclose(f);
                 gray_panic_code("P0053", "io.read_file: input exceeds maximum string length");
             }
-            size_t new_cap = cap * 2;
-            char *new_buf = gray_arena_alloc(arena, new_cap);
-            memcpy(new_buf, buf, len);
-            buf = new_buf;
-            cap = new_cap;
+            size_t new_capacity = capacity * 2;
+            char *new_buffer = gray_arena_alloc(arena, new_capacity);
+            memcpy(new_buffer, buf, len);
+            buf = new_buffer;
+            capacity = new_capacity;
         }
-        size_t got = fread(buf + len, 1, cap - len, f);
+        size_t got = fread(buf + len, 1, capacity - len, f);
         if (got == 0) break;
         len += got;
     }
-    if (len == cap) {
+    if (len == capacity) {
         char *grow = gray_arena_alloc(arena, len + 1);
         memcpy(grow, buf, len);
         buf = grow;
