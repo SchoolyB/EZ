@@ -1,0 +1,7 @@
+/*
+ * Error Test: E3126 - negative array size
+ * Expected: "array size must be greater than zero"
+ */
+
+const NEG i8 = -1
+const arr [string, NEG] = {"a"}

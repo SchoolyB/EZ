@@ -6904,7 +6904,13 @@ static bool emit_narrowing_cast(CodeGen *cg, const char *target,
     else return false;
 
     const char *c_target = gray_type_to_c_cg(cg, target);
-    if (is_unsigned) {
+    if (cg->in_const_decl) {
+        /* File-scope const: typechecker already validated the value fits;
+         * emit a plain cast so C sees a compile-time constant. */
+        emitf(cg, "(%s)(", c_target);
+        emit_expression(cg, val);
+        emit(cg, ")");
+    } else if (is_unsigned) {
         emitf(cg, "(%s)gray_ucast_check(", c_target);
         emit_expression(cg, val);
         emitf(cg, ", %s, \"%s\", __FILE__, %d)", smax, target, line);
