@@ -7662,8 +7662,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             bool is_int_type =
                 strcmp(tn, "int") == 0 || strcmp(tn, "i64") == 0 ||
                 strcmp(tn, "i8") == 0 || strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0 ||
+                strcmp(tn, "i128") == 0 || strcmp(tn, "i256") == 0 ||
                 strcmp(tn, "uint") == 0 || strcmp(tn, "u64") == 0 ||
-                strcmp(tn, "u8") == 0 || strcmp(tn, "u16") == 0 || strcmp(tn, "u32") == 0;
+                strcmp(tn, "u8") == 0 || strcmp(tn, "u16") == 0 || strcmp(tn, "u32") == 0 ||
+                strcmp(tn, "u128") == 0 || strcmp(tn, "u256") == 0;
             if (is_int_type) {
                 int64_t folded = 0;
                 bool overflowed = false;
