@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200">
+</p>
+
 <h1 align="center">Grayscale</h1>
 
 <p align="center">
