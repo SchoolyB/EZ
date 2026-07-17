@@ -17,6 +17,11 @@ import (
 	"github.com/grayscale-lang/grayscale/internal/grayc"
 )
 
+const (
+	tabWidth                 = 4
+	maxConsecutiveBlankLines = 2
+)
+
 // formatGraySource applies text-level normalizations to Grayscale source bytes:
 //   - trailing whitespace stripped from each line
 //   - leading tabs expanded to 4 spaces each
@@ -32,7 +37,7 @@ func formatGraySource(src []byte) []byte {
 		var prefix strings.Builder
 		for j < len(line) && (line[j] == '\t' || line[j] == ' ') {
 			if line[j] == '\t' {
-				prefix.WriteString("    ")
+				prefix.WriteString(strings.Repeat(" ", tabWidth))
 			} else {
 				prefix.WriteByte(' ')
 			}
@@ -48,7 +53,7 @@ func formatGraySource(src []byte) []byte {
 	for _, line := range lines {
 		if line == "" {
 			blank++
-			if blank <= 2 {
+			if blank <= maxConsecutiveBlankLines {
 				out = append(out, line)
 			}
 		} else {
