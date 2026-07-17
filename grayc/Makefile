@@ -131,7 +131,7 @@ src/vendor/sqlite3.o: src/vendor/sqlite3.c
 -include $(OBJ:.o=.d) $(RT_OBJ:.o=.d)
 
 clean:
-	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) $(OBJ:.o=.d) $(RT_OBJ:.o=.d) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_util tests/test_codegen tests/*_san
+	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) $(OBJ:.o=.d) $(RT_OBJ:.o=.d) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_util tests/test_codegen tests/*_san tests/*.d
 
 install: build
 	install -d /usr/local/bin
