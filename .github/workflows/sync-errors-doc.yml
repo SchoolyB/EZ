@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'ezc/src/util/error_codes.h'
+      - 'grayc/src/util/error_codes.h'
   push:
     branches:
       - main

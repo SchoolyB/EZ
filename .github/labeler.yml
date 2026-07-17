@@ -2,31 +2,31 @@
 # Used by .github/workflows/auto-label.yml
 
 # Compiler components
-ezc:
+grayc:
   - changed-files:
-      - any-glob-to-any-file: "ezc/**"
+      - any-glob-to-any-file: "grayc/**"
 
 lexer:
   - changed-files:
-      - any-glob-to-any-file: "ezc/src/lexer/**"
+      - any-glob-to-any-file: "grayc/src/lexer/**"
 
 parser:
   - changed-files:
-      - any-glob-to-any-file: "ezc/src/parser/**"
+      - any-glob-to-any-file: "grayc/src/parser/**"
 
 typechecker:
   - changed-files:
-      - any-glob-to-any-file: "ezc/src/typechecker/**"
+      - any-glob-to-any-file: "grayc/src/typechecker/**"
 
 stdlib:
   - changed-files:
       - any-glob-to-any-file:
-          - "ezc/src/stdlib/**"
+          - "grayc/src/stdlib/**"
 
 error-messages:
   - changed-files:
       - any-glob-to-any-file:
-          - "ezc/src/util/error_codes.h"
+          - "grayc/src/util/error_codes.h"
           - "ERRORS.md"
 
 # Go CLI
@@ -40,7 +40,7 @@ cli:
 tests:
   - changed-files:
       - any-glob-to-any-file:
-          - "ezc/tests/**"
+          - "grayc/tests/**"
           - "integration-tests/**"
           - "**/*_test.go"
 
@@ -63,7 +63,7 @@ CI/CD:
 module-system:
   - changed-files:
       - any-glob-to-any-file:
-          - "ezc/src/main.c"
+          - "grayc/src/main.c"
 
 # Dependencies
 dependencies:
