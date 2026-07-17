@@ -100,14 +100,15 @@ go version
 # Build the binary
 make build
 
-# Verify it works — scaffold a throwaway project and run it
-./gray pz /tmp/hello-gray && ./gray /tmp/hello-gray/main.gray
+# Verify it works — write a quick test file and run it
+echo 'do main() { println("hello") }' > /tmp/test.gray
+GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/test.gray
 ```
 
 > **Iterating on the compiler?** When you edit anything under `grayc/src/` and rebuild locally, you need to tell the `gray` wrapper to use your *local* `grayc` binary instead of the system-installed one. Set `GRAY_COMPILER_PATH=./grayc/grayc` on every command while iterating:
 >
 > ```bash
-> GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/hello-gray/main.gray
+> GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/test.gray
 > ```
 >
 > Without this, you'll silently run against whatever `grayc` is installed on your system and wonder why your changes had no effect.
@@ -149,9 +150,9 @@ All compiler stages live in `grayc/src/`:
 5. **Runtime** (`grayc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
 6. **Stdlib** (`grayc/src/stdlib/`) — Standard library modules compiled into `libgrayrt.a`.
 
-The `gray` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
+The `gray` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler. It provides watch mode, doc generation, and self-update.
 
-**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (REPL, watch, etc.), you work in the Go code under `cmd/gray/`.
+**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (watch, etc.), you work in the Go code under `cmd/gray/`.
 
 ---
 
@@ -165,12 +166,9 @@ The fastest way to iterate on a change:
 # 2. Rebuild
 make build
 
-# 3. Test with a quick .gray file (scaffolded via the project templates)
-./gray pz /tmp/hello-gray
-GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/hello-gray/main.gray
-
-# Or test with the REPL
-GRAY_COMPILER_PATH=./grayc/grayc ./gray repl
+# 3. Test with a quick .gray file
+echo 'do main() { println("hello") }' > /tmp/test.gray
+GRAY_COMPILER_PATH=./grayc/grayc ./gray /tmp/test.gray
 ```
 
 This is a great way to quickly validate your change while developing. When your feature is working, make sure to add proper tests before submitting your PR (see [Writing Tests](#writing-tests)).
@@ -206,6 +204,24 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 
 PRs that add user-facing functionality without completing this checklist will not be merged.
 
+### Adding or Modifying Diagnostics (Errors, Warnings, Panics)
+
+All compiler diagnostics are defined in a single file: `grayc/src/util/error_codes.h`. This is the canonical registry.
+
+1. **Add the code** to the appropriate macro list in `error_codes.h`:
+   - `GRAY_ERROR("E####", "category", "message")` — compile-time errors
+   - `GRAY_WARNING("W####", "category", "message")` — compile-time warnings
+   - `GRAY_PANIC("P####", "category", "message")` — runtime panics
+
+2. **Emit the diagnostic** from the appropriate compiler stage (parser, typechecker, or codegen) using the helpers in `grayc/src/util/error.h`:
+   - `diagnostic_error_code()` / `diagnostic_warning_code()` — registry message, no args
+   - `diagnostic_error_code_formatted()` — registry message template with `%s`/`%d` args
+   - `diagnostic_error_message()` / `diagnostic_warning_message()` — custom message with a code
+
+3. **Regenerate `ERRORS.md`** by running `./scripts/generate_errors.sh` and committing the output.
+
+4. **Add a fail test** in `integration-tests/fail/errors/` named `E####_short_description.gray` that triggers the new error and verifies the compiler rejects it.
+
 ---
 
 ## Project Structure
@@ -215,14 +231,12 @@ grayscale/
 ├── cmd/gray/              # Go CLI tooling wrapper
 │   ├── main.go            # Entry point, version
 │   ├── commands.go        # Subcommand definitions
-│   ├── repl.go            # Interactive REPL (backed by grayc)
 │   ├── watch.go           # File watcher
 │   ├── doc.go             # Documentation generator
-│   ├── pz.go              # Project scaffolding
 │   └── update.go          # Self-update
 ├── internal/grayc/        # Go wrapper for invoking grayc binary
 ├── pkg/                   # Go packages (tooling only)
-│   └── lineeditor/        # REPL line editor
+│   └── lineeditor/        # Line editor utilities
 ├── grayc/                 # Grayscale compiler (C)
 │   ├── src/lexer/         # Tokenization
 │   ├── src/parser/        # Parsing (tokens → AST)
@@ -230,8 +244,10 @@ grayscale/
 │   ├── src/codegen/       # Code generation (AST → C)
 │   ├── src/runtime/       # Runtime (strings, arrays, maps, arenas)
 │   ├── src/stdlib/        # Standard library modules
-│   └── tests/             # Unit, e2e, integration tests
-├── integration-tests/     # End-to-end test suite
+│   ├── src/util/          # Shared utilities (arena, buffer, error system)
+│   └── tests/             # C unit and e2e tests
+├── integration-tests/     # End-to-end test suite (.gray programs)
+├── scripts/               # Code generation and test runner scripts
 ├── STANDARD.md            # Language specification
 └── Makefile               # Build commands (builds both gray + grayc)
 ```
@@ -245,10 +261,11 @@ grayscale/
 | Add a new keyword/token | `grayc/src/lexer/lexer.c` + `grayc/src/lexer/token.h` |
 | Modify type checking | `grayc/src/typechecker/typechecker.c` |
 | Change code generation | `grayc/src/codegen/codegen.c` |
-| Add/modify error codes | `grayc/src/util/error_codes.h` |
+| Add/modify error codes | `grayc/src/util/error_codes.h` + run `scripts/generate_errors.sh` |
+| Add/modify stdlib docs | `@man` block in header + run `scripts/generate_stdlib_man.sh` |
+| Add/modify builtin docs | `@man` block in header + run `scripts/generate_builtins_man.sh` |
 | Improve CLI tooling | `cmd/gray/*.go` |
 | Add a new language feature | Parser → Typechecker → Codegen (all in `grayc/src/`) |
-| Add stdlib/builtin docs | `@man` block in header + run generation script (see below) |
 
 ---
 
@@ -268,7 +285,7 @@ This builds the compiler, then runs unit tests, e2e tests, integration tests, an
 make test-unit        # C unit tests (lexer, parser, typechecker)
 make test-e2e         # End-to-end codegen tests
 make test-integration # Integration tests (pass + fail .gray programs)
-make test-go          # Go unit tests (lineeditor, CLI, grayc wrapper)
+make test-go          # Go unit tests
 make test-ubsan       # UBSan sanitizer tests
 make test-asan        # ASan+UBSan tests (Linux recommended)
 ```
@@ -283,11 +300,10 @@ New features and bug fixes should include tests. The type of test depends on wha
 
 ### Unit Tests (C)
 
-For compiler internals. Run from `grayc/`:
+For compiler internals:
 
 ```bash
-cd grayc
-make test-unit          # lexer, parser, typechecker tests
+make test-unit          # lexer, parser, typechecker, util tests
 make test-e2e           # full compilation pipeline tests
 ```
 
