@@ -34,7 +34,7 @@ static ErrorEntry entries[] = {
 
 #define ENTRY_COUNT (sizeof(entries) / sizeof(entries[0]))
 
-static int entry_cmp(const void *a, const void *b) {
+static int error_code_compare(const void *a, const void *b) {
     return strcmp(((const ErrorEntry *)a)->code, ((const ErrorEntry *)b)->code);
 }
 
@@ -43,10 +43,10 @@ static int sorted = 0;
 const char *gray_error_message(const char *code) {
     if (!code) return NULL;
     if (!sorted) {
-        qsort(entries, ENTRY_COUNT, sizeof(ErrorEntry), entry_cmp);
+        qsort(entries, ENTRY_COUNT, sizeof(ErrorEntry), error_code_compare);
         sorted = 1;
     }
     ErrorEntry key = { code, NULL };
-    ErrorEntry *hit = bsearch(&key, entries, ENTRY_COUNT, sizeof(ErrorEntry), entry_cmp);
+    ErrorEntry *hit = bsearch(&key, entries, ENTRY_COUNT, sizeof(ErrorEntry), error_code_compare);
     return hit ? hit->msg : NULL;
 }

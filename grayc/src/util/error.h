@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 /* Number of source-file slots in the diagnostic source cache.
- * Slot 0 is the primary entry file (set via diag_set_source, never evicted).
+ * Slot 0 is the primary entry file (set via diagnostic_set_source, never evicted).
  * Slots 1+ are LRU-managed for imported files read on-demand. */
 #define DIAG_FILE_CACHE_SIZE 4
 
@@ -49,7 +49,7 @@ typedef struct {
     int count;
     int cap;
 
-    /* Cached counts — incremented in diag_add for O(1) queries */
+    /* Cached counts — incremented in diagnostic_add for O(1) queries */
     int error_count;
     int warning_count;
 
@@ -68,72 +68,72 @@ typedef struct {
 } DiagnosticList;
 
 /* Create/destroy */
-DiagnosticList *diag_create(void);
-void diag_destroy(DiagnosticList *diagnostics);
+DiagnosticList *diagnostic_create(void);
+void diagnostic_destroy(DiagnosticList *diagnostics);
 
 /* Add diagnostics */
-void diag_error(DiagnosticList *diagnostics, const char *code, const char *message,
+void diagnostic_error(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_error_help(DiagnosticList *diagnostics, const char *code, const char *message,
+void diagnostic_error_help(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col, const char *help);
 
-void diag_warning(DiagnosticList *diagnostics, const char *code, const char *message,
+void diagnostic_warning(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_warning_help(DiagnosticList *diagnostics, const char *code, const char *message,
+void diagnostic_warning_help(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col, const char *help);
 
 /* Code-aware emission. Every new emission site should pick one of:
  *
- *   diag_error_code   / diag_warning_code   — registry message, no args.
- *   diag_error_codef  / diag_warning_codef  — registry template + args.
- *   diag_error_msg    / diag_warning_msg    — intentional custom message
+ *   diagnostic_error_code   / diagnostic_warning_code   — registry message, no args.
+ *   diagnostic_error_code_formatted  / diagnostic_warning_code_formatted  — registry template + args.
+ *   diagnostic_error_message    / diagnostic_warning_message    — intentional custom message
  *                                             (same shape as the old
- *                                             diag_error; used when the
+ *                                             diagnostic_error; used when the
  *                                             code is categorical and
  *                                             the site adds context,
  *                                             e.g. most parser syntax
  *                                             errors). */
-void diag_error_code(DiagnosticList *diagnostics, const char *code,
+void diagnostic_error_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col);
 
-/* Same shape as diag_error_code, plus an actionable hint shown as `= help:`
+/* Same shape as diagnostic_error_code, plus an actionable hint shown as `= help:`
  * under the diagnostic. Use this when the registry message states the
  * problem and the hint tells the user how to fix it. */
-void diag_error_code_help(DiagnosticList *diagnostics, const char *code,
+void diagnostic_error_code_help(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col, const char *help);
 
-void diag_error_codef(DiagnosticList *diagnostics, const char *code,
+void diagnostic_error_code_formatted(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col, ...);
 
-void diag_error_msg(DiagnosticList *diagnostics, const char *code, const char *message,
+void diagnostic_error_message(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_warning_code(DiagnosticList *diagnostics, const char *code,
+void diagnostic_warning_code(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col);
 
-void diag_warning_codef(DiagnosticList *diagnostics, const char *code,
+void diagnostic_warning_code_formatted(DiagnosticList *diagnostics, const char *code,
     const char *file, int line, int col, int end_col, ...);
 
-void diag_warning_msg(DiagnosticList *diagnostics, const char *code, const char *message,
+void diagnostic_warning_message(DiagnosticList *diagnostics, const char *code, const char *message,
     const char *file, int line, int col, int end_col);
 
-void diag_note(DiagnosticList *diagnostics, const char *message,
+void diagnostic_note(DiagnosticList *diagnostics, const char *message,
     const char *file, int line, int col, int end_col);
 
 /* Set the source text for a file (avoids re-reading from disk) */
-void diag_set_source(DiagnosticList *diagnostics, const char *file, const char *source);
+void diagnostic_set_source(DiagnosticList *diagnostics, const char *file, const char *source);
 
 /* Query */
-bool diag_has_errors(DiagnosticList *diagnostics);
-int diag_error_count(DiagnosticList *diagnostics);
-int diag_warning_count(DiagnosticList *diagnostics);
+bool diagnostic_has_errors(DiagnosticList *diagnostics);
+int diagnostic_error_count(DiagnosticList *diagnostics);
+int diagnostic_warning_count(DiagnosticList *diagnostics);
 
 /* Render all diagnostics to stderr */
-void diag_print_all(DiagnosticList *diagnostics);
+void diagnostic_print_all(DiagnosticList *diagnostics);
 
 /* Print summary line: "grayc: 2 errors, 1 warning" */
-void diag_print_summary(DiagnosticList *diagnostics);
+void diagnostic_print_summary(DiagnosticList *diagnostics);
 
 #endif

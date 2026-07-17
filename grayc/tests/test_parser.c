@@ -17,7 +17,7 @@ static Arena *arena;
 static DiagnosticList *diag;
 
 static AstNode *parse(const char *input) {
-    diag = diag_create();
+    diag = diagnostic_create();
     diag->use_color = false;
     Lexer *lexer = lexer_create(arena, input, "test.gray");
     Parser *parser = parser_create(arena, lexer, "test.gray", diag);
@@ -232,7 +232,7 @@ static void test_parse_array_return_type(void) {
 static void test_parse_error_reports(void) {
     AstNode *prog = parse("mut x int =");
     (void)prog;
-    ASSERT(diag_has_errors(diag));
+    ASSERT(diagnostic_has_errors(diag));
 }
 
 static void test_parse_func_ref(void) {
@@ -633,13 +633,13 @@ static void test_parse_named_return(void) {
 static void test_parse_error_bad_var_decl(void) {
     AstNode *prog = parse("mut = 42");
     (void)prog;
-    ASSERT(diag_has_errors(diag));
+    ASSERT(diagnostic_has_errors(diag));
 }
 
 static void test_parse_error_unexpected_token(void) {
     AstNode *prog = parse("do 42() { }");
     (void)prog;
-    ASSERT(diag_has_errors(diag));
+    ASSERT(diagnostic_has_errors(diag));
 }
 
 /* --- Additional parser coverage --- */
@@ -793,7 +793,7 @@ static bool parser_has_code(DiagnosticList *d, const char *code) {
 static void test_parse_error_E2025_non_int_array_size(void) {
     AstNode *prog = parse("do main() { mut a [int, \"five\"] = {} }");
     (void)prog;
-    ASSERT(diag_has_errors(diag));
+    ASSERT(diagnostic_has_errors(diag));
 }
 
 static void test_parse_error_E2059_empty_when(void) {

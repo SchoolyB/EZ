@@ -789,8 +789,8 @@ int main(int argc, char **argv) {
 
     /* Create compiler arena and diagnostics */
     Arena *arena = arena_create(COMPILER_ARENA_SIZE);
-    DiagnosticList *diag = diag_create();
-    diag_set_source(diag, input_file, source);
+    DiagnosticList *diag = diagnostic_create();
+    diagnostic_set_source(diag, input_file, source);
     if (no_color) diag->use_color = false;
 
     /* Configure warning suppression */
@@ -840,10 +840,10 @@ int main(int argc, char **argv) {
     Parser *parser = parser_create(arena, lexer, input_file, diag);
     AstNode *program = parser_parse_program(parser);
 
-    if (diag_has_errors(diag)) {
-        diag_print_all(diag);
-        diag_print_summary(diag);
-        diag_destroy(diag);
+    if (diagnostic_has_errors(diag)) {
+        diagnostic_print_all(diag);
+        diagnostic_print_summary(diag);
+        diagnostic_destroy(diag);
         arena_destroy(arena);
         free(source);
         return 1;
@@ -962,7 +962,7 @@ int main(int argc, char **argv) {
                                 char msg[MSG_BUF_LARGE];
                                 snprintf(msg, sizeof(msg),
                                     "cannot import own module directory '%s'", item->path);
-                                diag_error(diag, "E6004", strdup(msg),
+                                diagnostic_error(diag, "E6004", strdup(msg),
                                     input_file, stmt->token.line, stmt->token.column, 0);
                                 free(norm_dir);
                                 free(norm_src);
@@ -977,7 +977,7 @@ int main(int argc, char **argv) {
                         if (file_count == 0) {
                             char msg[MSG_BUF_LARGE];
                             snprintf(msg, sizeof(msg), "directory '%s' contains no .gray files", item->path);
-                            diag_error(diag, "E6003", strdup(msg),
+                            diagnostic_error(diag, "E6003", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
                             continue;
                         }
@@ -985,7 +985,7 @@ int main(int argc, char **argv) {
                         /* Nothing found */
                         char msg[MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", item->path);
-                        diag_error(diag, "E6002", strdup(msg),
+                        diagnostic_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
                         continue;
                     }
@@ -1050,7 +1050,7 @@ int main(int argc, char **argv) {
                                 snprintf(msg, sizeof(msg),
                                     "module '%s' is already imported; duplicate import ignored",
                                     mod_name);
-                                diag_warning(diag, "W2013", strdup(msg),
+                                diagnostic_warning(diag, "W2013", strdup(msg),
                                     input_file, stmt->token.line, stmt->token.column, 0);
                             }
                             collision = true;
@@ -1061,7 +1061,7 @@ int main(int argc, char **argv) {
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported; use an alias to distinguish them",
                             mod_name);
-                        diag_error(diag, "E6001", strdup(msg),
+                        diagnostic_error(diag, "E6001", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
                         collision = true;
                         break;
@@ -1121,7 +1121,7 @@ int main(int argc, char **argv) {
                             snprintf(msg, sizeof(msg),
                                 "import of '%s' is redundant; already included by directory import",
                                 item->path);
-                            diag_warning(diag, "W2014", strdup(msg),
+                            diagnostic_warning(diag, "W2014", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
                         } else if (!item->source_dir && file_count == 1) {
                             /* Direct import of a file already pulled in by a directory import */
@@ -1138,7 +1138,7 @@ int main(int argc, char **argv) {
                                     "this import is redundant",
                                     item->path);
                             }
-                            diag_warning(diag, "W2015", strdup(msg),
+                            diagnostic_warning(diag, "W2015", strdup(msg),
                                 input_file, stmt->token.line, stmt->token.column, 0);
                         }
                         continue;
@@ -1150,7 +1150,7 @@ int main(int argc, char **argv) {
                     if (!imp_source) {
                         char msg[MSG_BUF_LARGE];
                         snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", cur_file_path);
-                        diag_error(diag, "E6002", strdup(msg),
+                        diagnostic_error(diag, "E6002", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
                         continue;
                     }
@@ -1159,7 +1159,7 @@ int main(int argc, char **argv) {
                     Parser *imp_parser = parser_create(arena, imp_lexer, cur_file_path, diag);
                     AstNode *imp_program = parser_parse_program(imp_parser);
 
-                    if (!imp_program || diag_has_errors(diag)) continue;
+                    if (!imp_program || diagnostic_has_errors(diag)) continue;
 
                     /* Inject transitive import statements into the main program.
                      * Sibling imports (pointing to other files in the same directory)
@@ -1522,19 +1522,19 @@ int main(int argc, char **argv) {
     TypeChecker *checker =typechecker_create(diag, input_file);
     typechecker_check(checker, program);
 
-    if (diag_has_errors(diag)) {
-        diag_print_all(diag);
-        diag_print_summary(diag);
-        diag_destroy(diag);
+    if (diagnostic_has_errors(diag)) {
+        diagnostic_print_all(diag);
+        diagnostic_print_summary(diag);
+        diagnostic_destroy(diag);
         arena_destroy(arena);
         free(source);
         return 1;
     }
 
     /* Print warnings even if no errors */
-    if (diag_warning_count(diag) > 0 && !diag_has_errors(diag)) {
-        diag_print_all(diag);
-        diag_print_summary(diag);
+    if (diagnostic_warning_count(diag) > 0 && !diagnostic_has_errors(diag)) {
+        diagnostic_print_all(diag);
+        diagnostic_print_summary(diag);
     }
 
     /* Check-only mode: stop after type checking */
@@ -1546,7 +1546,7 @@ int main(int argc, char **argv) {
         }
         fprintf(stderr, "gray: %s: no errors\n", input_file);
         typechecker_free(checker);
-        diag_destroy(diag);
+        diagnostic_destroy(diag);
         arena_destroy(arena);
         free(source);
         return 0;
@@ -1770,7 +1770,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "gray: compile command too long (paths may be too deep)\n");
         codegen_destroy(&codegen);
         typechecker_free(checker);
-        diag_destroy(diag);
+        diagnostic_destroy(diag);
         arena_destroy(arena);
         free(source);
         free(default_output);
@@ -1840,7 +1840,7 @@ int main(int argc, char **argv) {
 
     codegen_destroy(&codegen);
     typechecker_free(checker);
-    diag_destroy(diag);
+    diagnostic_destroy(diag);
     arena_destroy(arena);
     free(source);
     free(default_output);
