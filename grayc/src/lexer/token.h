@@ -159,7 +159,7 @@ typedef struct {
 } Token;
 
 /* Look up an identifier - returns keyword token type or TOK_IDENT */
-TokenType token_lookup_ident(const char *ident);
+TokenType token_lookup_identifier(const char *ident);
 
 /* Return human-readable name for a token type */
 const char *token_type_name(TokenType type);

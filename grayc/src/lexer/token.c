@@ -64,7 +64,7 @@ static const KeywordEntry keywords[] = {
 
 #define KEYWORD_COUNT (sizeof(keywords) / sizeof(keywords[0]))
 
-TokenType token_lookup_ident(const char *ident) {
+TokenType token_lookup_identifier(const char *ident) {
     int lo = 0;
     int hi = KEYWORD_COUNT - 1;
     while (lo <= hi) {

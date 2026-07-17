@@ -547,7 +547,7 @@ Token lexer_next_token(Lexer *lexer) {
     default:
         if (isalpha((unsigned char)lexer->ch) || lexer->ch == '_') {
             tok.literal = read_identifier(lexer);
-            tok.type = token_lookup_ident(tok.literal);
+            tok.type = token_lookup_identifier(tok.literal);
             goto done;
         } else if (isdigit((unsigned char)lexer->ch)) {
             TokenType num_type;
