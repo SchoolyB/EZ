@@ -14,16 +14,16 @@ make test
 
 The Grayscale compiler has a comprehensive test suite written in C, located in `grayc/tests/`.
 
-### Unit Tests (338 tests)
+### Unit Tests (333 tests)
 
 Unit tests validate individual compiler components:
 
 - **Lexer Tests** (`grayc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, operator disambiguation, and edge cases.
 - **Parser Tests** (`grayc/tests/test_parser.c` — 86 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, grouped params, compound assignments, and parser error codes.
 - **Typechecker Tests** (`grayc/tests/test_typechecker.c` — 158 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, bigint types, and error code coverage.
-- **Util Tests** (`grayc/tests/test_util.c` — 25 tests): Arena allocator (create, alloc, alignment, multi-block, oversized, strdup/strndup), growable buffer (create, append, growth, formatting, indentation), and scope (lookup, define/update, hash rebuild, many symbols, immutability).
+- **Util Tests** (`grayc/tests/test_util.c` — 20 tests): Arena allocator (create, alloc, alignment, multi-block, oversized, strdup/strndup), growable buffer (create, append, growth, formatting, indentation), and scope (lookup, define/update, hash rebuild, many symbols, immutability).
 
-### End-to-End Tests (101 tests)
+### End-to-End Tests (99 tests)
 
 E2E tests (`grayc/tests/test_codegen.c`) compile Grayscale programs, run them, and verify output. Covers variables, control flow, functions, data structures, string features, structs, enums, maps, pointers, runtime checks, and more.
 
