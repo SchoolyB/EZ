@@ -16,17 +16,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_DIR="$PROJECT_ROOT/integration-tests"
 GRAY_BIN="$PROJECT_ROOT/gray"
-GRAYC_BIN="$PROJECT_ROOT/ezc/grayc"
+GRAYC_BIN="$PROJECT_ROOT/grayc/grayc"
 
 # Always rebuild to ensure we test current code
 echo "Building grayc..."
-(cd "$PROJECT_ROOT/ezc" && make build) || { echo "grayc build failed"; exit 1; }
+(cd "$PROJECT_ROOT/grayc" && make build) || { echo "grayc build failed"; exit 1; }
 
 echo "Building gray CLI..."
 (cd "$PROJECT_ROOT" && go build -o gray ./cmd/gray) || { echo "gray build failed"; exit 1; }
 
 # Point gray at the local grayc binary
-export GRAY_COMPILER_PATH="$PROJECT_ROOT/ezc/grayc"
+export GRAY_COMPILER_PATH="$PROJECT_ROOT/grayc/grayc"
 
 echo ""
 

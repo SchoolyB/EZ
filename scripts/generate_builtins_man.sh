@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
-HEADER="$ROOT/ezc/src/stdlib/gray_builtins.h"
+HEADER="$ROOT/grayc/src/stdlib/gray_builtins.h"
 OUT="$ROOT/cmd/gray/builtins_man_data.go"
 
 if [ ! -f "$HEADER" ]; then

@@ -2,7 +2,7 @@
 #
 # generate_errors.sh - Generate ERRORS.md from the centralized error registry
 #
-# Reads error codes from ezc/src/util/error_codes.h and produces
+# Reads error codes from grayc/src/util/error_codes.h and produces
 # ERRORS.md for the documentation website.
 #
 # Usage: ./scripts/generate_errors.sh
@@ -14,7 +14,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CODES_FILE="$ROOT_DIR/ezc/src/util/error_codes.h"
+CODES_FILE="$ROOT_DIR/grayc/src/util/error_codes.h"
 OUTPUT="$ROOT_DIR/ERRORS.md"
 
 if [ ! -f "$CODES_FILE" ]; then
@@ -32,7 +32,7 @@ TOTAL=$((ERROR_COUNT + WARNING_COUNT + PANIC_COUNT))
 cat > "$OUTPUT" << HEADER
 # Grayscale Error Code Reference
 
-> Auto-generated from \`ezc/src/util/error_codes.h\`. Do not edit manually.
+> Auto-generated from \`grayc/src/util/error_codes.h\`. Do not edit manually.
 > Run \`./scripts/generate_errors.sh\` to regenerate.
 
 **Total: ${TOTAL} codes** (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings, ${PANIC_COUNT} panics)

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # generate_stdlib_man.sh — extract @man blocks from stdlib headers
 # Usage: ./scripts/generate_stdlib_man.sh
-# Reads all gray_*.h files under ezc/src/stdlib/ that contain @module tags.
+# Reads all gray_*.h files under grayc/src/stdlib/ that contain @module tags.
 # Generates cmd/gray/stdlib_man_data.go (committed, do not edit by hand).
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
-STDLIB_DIR="$ROOT/ezc/src/stdlib"
+STDLIB_DIR="$ROOT/grayc/src/stdlib"
 OUT="$ROOT/cmd/gray/stdlib_man_data.go"
 
 # Collect all @man blocks from all stdlib headers into a TSV:
