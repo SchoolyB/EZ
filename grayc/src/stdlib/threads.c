@@ -24,17 +24,22 @@ typedef struct {
 
 static _Atomic int64_t gray_threads_live_count = 0;
 
-/* Wrapper for void(*)(void) thread functions */
+/* Unified thread wrapper: fn0 is set for no-arg spawns, fn1 for one-arg. */
 typedef struct {
-    void (*fn)(void);
+    void (*fn0)(void);
+    void (*fn1)(int64_t);
+    int64_t arg;
     GrayThreadInternal *state;
-} ThreadArg0;
+} ThreadArg;
 
-static void *thread_entry_0(void *arg) {
-    ThreadArg0 *ta = (ThreadArg0 *)arg;
+static void *thread_entry(void *raw) {
+    ThreadArg *ta = (ThreadArg *)raw;
     GrayThreadInternal *state = ta->state;
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
-    ta->fn();
+    if (ta->fn1)
+        ta->fn1(ta->arg);
+    else
+        ta->fn0();
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
     free(gray_default_arena);
     gray_default_arena = NULL;
@@ -46,58 +51,36 @@ static void *thread_entry_0(void *arg) {
     return NULL;
 }
 
-GrayThread gray_threads_spawn(void (*fn)(void)) {
-    GrayThreadInternal *state = malloc(sizeof(GrayThreadInternal));
+static GrayThread spawn_thread(ThreadArg *ta) {
+    GrayThreadInternal *state = ta->state;
     /* alive=1 set before pthread_create so is_alive() is true immediately
      * after spawn() returns; otherwise callers race the scheduler. The
      * thread wrapper clears it on exit. */
     atomic_store(&state->alive, 1);
     atomic_store(&state->detached, 0);
     atomic_fetch_add(&gray_threads_live_count, 1);
-    ThreadArg0 *ta = malloc(sizeof(ThreadArg0));
-    ta->fn = fn;
-    ta->state = state;
-    pthread_create(&state->pt, NULL, thread_entry_0, ta);
+    pthread_create(&state->pt, NULL, thread_entry, ta);
     GrayThread t;
     t._internal = state;
     return t;
 }
 
-/* Wrapper for void(*)(int64_t) thread functions */
-typedef struct {
-    void (*fn)(int64_t);
-    int64_t arg;
-    GrayThreadInternal *state;
-} ThreadArg1;
-
-static void *thread_entry_1(void *arg) {
-    ThreadArg1 *ta = (ThreadArg1 *)arg;
-    GrayThreadInternal *state = ta->state;
-    gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
-    ta->fn(ta->arg);
-    gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
-    free(gray_default_arena);
-    gray_default_arena = NULL;
-    atomic_fetch_sub(&gray_threads_live_count, 1);
-    atomic_store(&state->alive, 0);
-    if (atomic_load(&state->detached)) free(state);
-    free(ta);
-    return NULL;
+GrayThread gray_threads_spawn(void (*fn)(void)) {
+    ThreadArg *ta = malloc(sizeof(ThreadArg));
+    ta->fn0 = fn;
+    ta->fn1 = NULL;
+    ta->arg = 0;
+    ta->state = malloc(sizeof(GrayThreadInternal));
+    return spawn_thread(ta);
 }
 
 GrayThread gray_threads_spawn_arg(void (*fn)(int64_t), int64_t arg) {
-    GrayThreadInternal *state = malloc(sizeof(GrayThreadInternal));
-    atomic_store(&state->alive, 1);
-    atomic_store(&state->detached, 0);
-    atomic_fetch_add(&gray_threads_live_count, 1);
-    ThreadArg1 *ta = malloc(sizeof(ThreadArg1));
-    ta->fn = fn;
+    ThreadArg *ta = malloc(sizeof(ThreadArg));
+    ta->fn0 = NULL;
+    ta->fn1 = fn;
     ta->arg = arg;
-    ta->state = state;
-    pthread_create(&state->pt, NULL, thread_entry_1, ta);
-    GrayThread t;
-    t._internal = state;
-    return t;
+    ta->state = malloc(sizeof(GrayThreadInternal));
+    return spawn_thread(ta);
 }
 
 void gray_threads_join(GrayThread t) {
