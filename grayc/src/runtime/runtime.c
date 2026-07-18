@@ -238,3 +238,14 @@ void gray_panic_code(const char *code, const char *fmt, ...) {
     fprintf(stderr, "\n");
     exit(1);
 }
+
+void gray_panic_code_at(const char *file, int line, const char *code, const char *fmt, ...) {
+    fflush(stdout);
+    fprintf(stderr, "panic[%s] at %s:%d: ", code, file, line);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    exit(1);
+}

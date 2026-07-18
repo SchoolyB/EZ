@@ -146,15 +146,17 @@ void gray_panic(const char *file, int line, const char *fmt, ...)
 void gray_panic_code(const char *code, const char *fmt, ...)
     __attribute__((format(printf, 2, 3), noreturn));
 
+void gray_panic_code_at(const char *file, int line, const char *code, const char *fmt, ...)
+    __attribute__((format(printf, 4, 5), noreturn));
+
 /* --- Stack depth guard --- */
 
 #define GRAY_MAX_CALL_DEPTH 10000
 extern int gray_call_depth;
 
 static inline void gray_enter_func(const char *file, int line) {
-    (void)file; (void)line;
     if (++gray_call_depth > GRAY_MAX_CALL_DEPTH) {
-        gray_panic_code("P0003", "maximum recursion depth exceeded (%d calls deep); your function is calling itself too many times",
+        gray_panic_code_at(file, line, "P0003", "maximum recursion depth exceeded (%d calls deep)",
             GRAY_MAX_CALL_DEPTH);
     }
 }
@@ -165,34 +167,30 @@ static inline void gray_exit_func(void) {
 
 /* Overflow-checked integer arithmetic */
 static inline int64_t gray_add_check(int64_t a, int64_t b, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result;
     if (__builtin_add_overflow(a, b, &result))
-        gray_panic_code("P0004", "addition result is too large; value exceeds the range of int");
+        gray_panic_code_at(file, line, "P0004", "addition result is too large; value exceeds the range of int");
     return result;
 }
 
 static inline int64_t gray_sub_check(int64_t a, int64_t b, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result;
     if (__builtin_sub_overflow(a, b, &result))
-        gray_panic_code("P0005", "subtraction result is too large; value exceeds the range of int");
+        gray_panic_code_at(file, line, "P0005", "subtraction result is too large; value exceeds the range of int");
     return result;
 }
 
 static inline int64_t gray_mul_check(int64_t a, int64_t b, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result;
     if (__builtin_mul_overflow(a, b, &result))
-        gray_panic_code("P0006", "multiplication result is too large; value exceeds the range of int");
+        gray_panic_code_at(file, line, "P0006", "multiplication result is too large; value exceeds the range of int");
     return result;
 }
 
 static inline int64_t gray_neg_check(int64_t a, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result;
     if (__builtin_sub_overflow((int64_t)0, a, &result))
-        gray_panic_code("P0007", "negation result is too large; value exceeds the range of int");
+        gray_panic_code_at(file, line, "P0007", "negation result is too large; value exceeds the range of int");
     return result;
 }
 
@@ -206,62 +204,55 @@ static inline int64_t gray_dec_check(int64_t a, const char *file, int line) {
 
 /* Overflow-checked unsigned integer arithmetic */
 static inline uint64_t gray_uadd_check(uint64_t a, uint64_t b, const char *file, int line) {
-    (void)file; (void)line;
     uint64_t result;
     if (__builtin_add_overflow(a, b, &result))
-        gray_panic_code("P0008", "addition result is too large; value exceeds the range of uint");
+        gray_panic_code_at(file, line, "P0008", "addition result is too large; value exceeds the range of uint");
     return result;
 }
 
 static inline uint64_t gray_usub_check(uint64_t a, uint64_t b, const char *file, int line) {
-    (void)file; (void)line;
     if (b > a)
-        gray_panic_code("P0009", "subtraction result is negative, but uint cannot hold negative values");
+        gray_panic_code_at(file, line, "P0009", "subtraction result is negative, but uint cannot hold negative values");
     return a - b;
 }
 
 static inline uint64_t gray_umul_check(uint64_t a, uint64_t b, const char *file, int line) {
-    (void)file; (void)line;
     uint64_t result;
     if (__builtin_mul_overflow(a, b, &result))
-        gray_panic_code("P0010", "multiplication result is too large; value exceeds the range of uint");
+        gray_panic_code_at(file, line, "P0010", "multiplication result is too large; value exceeds the range of uint");
     return result;
 }
 
 /* Sized signed integer overflow checks (i8, i16, i32) */
 static inline int64_t gray_sized_add_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = a + b;
     if (result < min_val || result > max_val)
-        gray_panic_code("P0011", "%s addition result is too large; value exceeds the range of this type", type_name);
+        gray_panic_code_at(file, line, "P0011", "%s addition result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 static inline int64_t gray_sized_sub_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = a - b;
     if (result < min_val || result > max_val)
-        gray_panic_code("P0012", "%s subtraction result is too large; value exceeds the range of this type", type_name);
+        gray_panic_code_at(file, line, "P0012", "%s subtraction result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 static inline int64_t gray_sized_mul_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = a * b;
     if (result < min_val || result > max_val)
-        gray_panic_code("P0013", "%s multiplication result is too large; value exceeds the range of this type", type_name);
+        gray_panic_code_at(file, line, "P0013", "%s multiplication result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
 static inline int64_t gray_sized_neg_check(int64_t a, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = -a;
     if (result < min_val || result > max_val)
-        gray_panic_code("P0014", "%s negation result is too large; value exceeds the range of this type", type_name);
+        gray_panic_code_at(file, line, "P0014", "%s negation result is too large; value exceeds the range of this type", type_name);
     return result;
 }
 
@@ -271,80 +262,72 @@ static inline int64_t gray_sized_neg_check(int64_t a, int64_t min_val, int64_t m
  * silently wrap to a large uint64 and trigger the wrong P0015 path. */
 static inline uint64_t gray_usized_add_check(int64_t a, int64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = a + b;
     if (result < 0)
-        gray_panic_code("P0016", "%s addition result is negative, but this unsigned type cannot hold negative values", type_name);
+        gray_panic_code_at(file, line, "P0016", "%s addition result is negative, but this unsigned type cannot hold negative values", type_name);
     if ((uint64_t)result > max_val)
-        gray_panic_code("P0015", "%s addition result is too large; value exceeds the range of this unsigned type", type_name);
+        gray_panic_code_at(file, line, "P0015", "%s addition result is too large; value exceeds the range of this unsigned type", type_name);
     return (uint64_t)result;
 }
 
 static inline uint64_t gray_usized_sub_check(int64_t a, int64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = a - b;
     if (result < 0)
-        gray_panic_code("P0016", "%s subtraction result is negative, but this unsigned type cannot hold negative values", type_name);
+        gray_panic_code_at(file, line, "P0016", "%s subtraction result is negative, but this unsigned type cannot hold negative values", type_name);
     if ((uint64_t)result > max_val)
-        gray_panic_code("P0015", "%s subtraction result is too large; value exceeds the range of this unsigned type", type_name);
+        gray_panic_code_at(file, line, "P0015", "%s subtraction result is too large; value exceeds the range of this unsigned type", type_name);
     return (uint64_t)result;
 }
 
 static inline uint64_t gray_usized_mul_check(int64_t a, int64_t b, uint64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     int64_t result = a * b;
     if (result < 0)
-        gray_panic_code("P0016", "%s multiplication result is negative, but this unsigned type cannot hold negative values", type_name);
+        gray_panic_code_at(file, line, "P0016", "%s multiplication result is negative, but this unsigned type cannot hold negative values", type_name);
     if ((uint64_t)result > max_val)
-        gray_panic_code("P0017", "%s multiplication result is too large; value exceeds the range of this unsigned type", type_name);
+        gray_panic_code_at(file, line, "P0017", "%s multiplication result is too large; value exceeds the range of this unsigned type", type_name);
     return (uint64_t)result;
 }
 
 /* Safe narrowing cast with overflow check */
 static inline int64_t gray_cast_check(int64_t v, int64_t min_val, int64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     if (v < min_val || v > max_val)
-        gray_panic_code("P0018", "cast to %s failed; value %lld is outside the valid range (%lld to %lld)",
+        gray_panic_code_at(file, line, "P0018", "cast to %s failed; value %lld is outside the valid range (%lld to %lld)",
             type_name, (long long)v, (long long)min_val, (long long)max_val);
     return v;
 }
 
 static inline uint64_t gray_ucast_check(int64_t v, uint64_t max_val,
     const char *type_name, const char *file, int line) {
-    (void)file; (void)line;
     if (v < 0 || (uint64_t)v > max_val)
-        gray_panic_code("P0019", "cast to %s failed; value %lld is outside the valid range (0 to %llu)",
+        gray_panic_code_at(file, line, "P0019", "cast to %s failed; value %lld is outside the valid range (0 to %llu)",
             type_name, (long long)v, (unsigned long long)max_val);
     return (uint64_t)v;
 }
 
 /* Safe uint64 → int64 conversion: panics if value exceeds INT64_MAX */
 static inline int64_t gray_uint_to_int_check(uint64_t v, const char *file, int line) {
-    (void)file; (void)line;
     if (v > (uint64_t)9223372036854775807LL)
-        gray_panic_code("P0018", "cast to int failed; value %llu is outside the valid range (-9223372036854775808 to 9223372036854775807)",
+        gray_panic_code_at(file, line, "P0018", "cast to int failed; value %llu is outside the valid range (-9223372036854775808 to 9223372036854775807)",
             (unsigned long long)v);
     return (int64_t)v;
 }
 
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t gray_float_to_int(double v, const char *file, int line) {
-    (void)file; (void)line;
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||
         v != v /* NaN */)
-        gray_panic_code("P0020", "cannot convert float to int; the value is too large, too small, or NaN");
+        gray_panic_code_at(file, line, "P0020", "cannot convert float to int; the value is too large, too small, or NaN");
     return (int64_t)v;
 }
 
 /* Safe float-to-uint conversion with range check */
 static inline uint64_t gray_float_to_uint(double v, const char *file, int line) {
-    (void)file; (void)line;
     /* 1.8446744073709552e+19 == 2^64 exactly as a double; any value >= it overflows uint64 */
     if (v < 0.0 || v >= 1.8446744073709552e+19 || v != v /* NaN */)
-        gray_panic_code("P0091", "cannot convert float to uint; the value is negative, too large, or NaN");
+        gray_panic_code_at(file, line, "P0091", "cannot convert float to uint; the value is negative, too large, or NaN");
     return (uint64_t)v;
 }
 
