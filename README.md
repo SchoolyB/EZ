@@ -109,7 +109,7 @@ gray install x.y.z       # pin to an exact version
 - [Contributing guide](CONTRIBUTING.md)
 
 ## Tooling
-- [The Grayscale Language Server Protocol](https://github.com/grayscale-lang/grayscale-ls)
+- [The Grayscale Language Server Protocol](https://github.com/grayscale-lang/grayls)
 ---
 
 ## Status
