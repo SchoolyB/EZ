@@ -28,8 +28,13 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build grayc
+        run: make build
+
       - name: Generate ERRORS.md from error_codes.h
-        run: bash scripts/generate_errors.sh
+        run: |
+          ./grayc/grayc scripts/generate_errors.gray
+          ./generate_errors
 
       - name: Check for changes
         id: check
