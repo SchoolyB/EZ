@@ -2281,6 +2281,39 @@ static GrayType *resolve_implicit_enum(TypeChecker *checker, AstNode *node) {
     return type_enum(enum_name);
 }
 
+/* E3027: validate that an argument passed to a mutable (&) parameter is a
+ * mutable assignment target. Emits a diagnostic and returns if the argument
+ * is a constant variable, an enum constant, or a literal/expression. */
+static void check_mutable_arg(TypeChecker *checker, AstNode *arg,
+                               const char *param_name, const char *func_display) {
+    if (arg->kind == NODE_LABEL) {
+        Symbol *sym = scope_lookup(checker->current_scope, arg->data.label.value);
+        if (sym && !sym->mutable) {
+            char *msg = typechecker_format(checker,
+                "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
+                sym->name, param_name, func_display);
+            diagnostic_error_message(checker->diag, "E3027", msg,
+                NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
+        }
+    } else if (arg->kind == NODE_MEMBER_EXPR &&
+               arg->data.member.object->kind == NODE_LABEL &&
+               is_enum_name(checker, arg->data.member.object->data.label.value)) {
+        char *msg = typechecker_format(checker,
+            "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
+            param_name, func_display);
+        diagnostic_error_message(checker->diag, "E3027", msg,
+            NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
+    } else if (arg->kind != NODE_MEMBER_EXPR &&
+               arg->kind != NODE_INDEX_EXPR &&
+               arg->kind != NODE_PREFIX_EXPR) {
+        char *msg = typechecker_format(checker,
+            "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
+            param_name, func_display);
+        diagnostic_error_message(checker->diag, "E3027", msg,
+            NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
+    }
+}
+
 static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
@@ -3291,42 +3324,10 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
                         }
                     }
                     if (found_declaration) {
-                        if (arg->kind == NODE_LABEL) {
-                            Symbol *arg_sym = scope_lookup(checker->current_scope,
-                                arg->data.label.value);
-                            if (arg_sym && !arg_sym->mutable) {
-                                char emsg[MSG_BUF_SIZE];
-                                snprintf(emsg, sizeof(emsg),
-                                    "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s.%s'",
-                                    arg_sym->name, found_declaration->data.func_decl.params[argument_index].name,
-                                    mod_name, struct_name, func_name);
-                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                    NODE_FILE(checker, arg), arg->token.line,
-                                    arg->token.column, 0);
-                            }
-                        } else if (arg->kind == NODE_MEMBER_EXPR &&
-                                   arg->data.member.object->kind == NODE_LABEL &&
-                                   is_enum_name(checker, arg->data.member.object->data.label.value)) {
-                            char emsg[MSG_BUF_SIZE];
-                            snprintf(emsg, sizeof(emsg),
-                                "cannot pass enum constant to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
-                                found_declaration->data.func_decl.params[argument_index].name,
-                                mod_name, struct_name, func_name);
-                            diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                NODE_FILE(checker, arg), arg->token.line,
-                                arg->token.column, 0);
-                        } else if (arg->kind != NODE_MEMBER_EXPR &&
-                                   arg->kind != NODE_INDEX_EXPR &&
-                                   arg->kind != NODE_PREFIX_EXPR) {
-                            char emsg[MSG_BUF_SIZE];
-                            snprintf(emsg, sizeof(emsg),
-                                "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s.%s'; expected a mutable variable",
-                                found_declaration->data.func_decl.params[argument_index].name,
-                                mod_name, struct_name, func_name);
-                            diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                NODE_FILE(checker, arg), arg->token.line,
-                                arg->token.column, 0);
-                        }
+                        char fn_display[MSG_BUF_SIZE];
+                        snprintf(fn_display, sizeof(fn_display), "%s.%s.%s", mod_name, struct_name, func_name);
+                        check_mutable_arg(checker, arg,
+                            found_declaration->data.func_decl.params[argument_index].name, fn_display);
                     }
                 }
             } else {
@@ -4718,39 +4719,10 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
                                 }
                             }
                             if (found_declaration) {
-                                if (arg->kind == NODE_LABEL) {
-                                    Symbol *arg_sym = scope_lookup(checker->current_scope,
-                                        arg->data.label.value);
-                                    if (arg_sym && !arg_sym->mutable) {
-                                        char emsg[MSG_BUF_SIZE];
-                                        snprintf(emsg, sizeof(emsg),
-                                            "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
-                                            arg_sym->name, found_declaration->data.func_decl.params[argument_index].name, display_mod, mfn);
-                                        diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                            NODE_FILE(checker, arg), arg->token.line,
-                                            arg->token.column, 0);
-                                    }
-                                } else if (arg->kind == NODE_MEMBER_EXPR &&
-                                           arg->data.member.object->kind == NODE_LABEL &&
-                                           is_enum_name(checker, arg->data.member.object->data.label.value)) {
-                                    char emsg[MSG_BUF_SIZE];
-                                    snprintf(emsg, sizeof(emsg),
-                                        "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                        found_declaration->data.func_decl.params[argument_index].name, display_mod, mfn);
-                                    diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                        NODE_FILE(checker, arg), arg->token.line,
-                                        arg->token.column, 0);
-                                } else if (arg->kind != NODE_MEMBER_EXPR &&
-                                           arg->kind != NODE_INDEX_EXPR &&
-                                           arg->kind != NODE_PREFIX_EXPR) {
-                                    char emsg[MSG_BUF_SIZE];
-                                    snprintf(emsg, sizeof(emsg),
-                                        "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                        found_declaration->data.func_decl.params[argument_index].name, display_mod, mfn);
-                                    diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                        NODE_FILE(checker, arg), arg->token.line,
-                                        arg->token.column, 0);
-                                }
+                                char fn_display[MSG_BUF_SIZE];
+                                snprintf(fn_display, sizeof(fn_display), "%s.%s", display_mod, mfn);
+                                check_mutable_arg(checker, arg,
+                                    found_declaration->data.func_decl.params[argument_index].name, fn_display);
                             }
                         }
                     }
@@ -5025,40 +4997,10 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
                                         }
                                     } else {
                                         /* User-visible args */
-                                        if (arg->kind == NODE_LABEL) {
-                                            Symbol *arg_sym = scope_lookup(checker->current_scope,
-                                                arg->data.label.value);
-                                            if (arg_sym && !arg_sym->mutable) {
-                                                char emsg[MSG_BUF_SIZE];
-                                                snprintf(emsg, sizeof(emsg),
-                                                    "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
-                                                    arg_sym->name, ssig->decl->data.func_decl.params[argument_index].name,
-                                                    display_sname, mfn);
-                                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                    NODE_FILE(checker, arg), arg->token.line,
-                                                    arg->token.column, 0);
-                                            }
-                                        } else if (arg->kind == NODE_MEMBER_EXPR &&
-                                                   arg->data.member.object->kind == NODE_LABEL &&
-                                                   is_enum_name(checker, arg->data.member.object->data.label.value)) {
-                                            char emsg[MSG_BUF_SIZE];
-                                            snprintf(emsg, sizeof(emsg),
-                                                "cannot pass enum constant to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                                ssig->decl->data.func_decl.params[argument_index].name, display_sname, mfn);
-                                            diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                NODE_FILE(checker, arg), arg->token.line,
-                                                arg->token.column, 0);
-                                        } else if (arg->kind != NODE_MEMBER_EXPR &&
-                                                   arg->kind != NODE_INDEX_EXPR &&
-                                                   arg->kind != NODE_PREFIX_EXPR) {
-                                            char emsg[MSG_BUF_SIZE];
-                                            snprintf(emsg, sizeof(emsg),
-                                                "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s'; expected a mutable variable",
-                                                ssig->decl->data.func_decl.params[argument_index].name, display_sname, mfn);
-                                            diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                NODE_FILE(checker, arg), arg->token.line,
-                                                arg->token.column, 0);
-                                        }
+                                        char fn_display[MSG_BUF_SIZE];
+                                        snprintf(fn_display, sizeof(fn_display), "%s.%s", display_sname, mfn);
+                                        check_mutable_arg(checker, arg,
+                                            ssig->decl->data.func_decl.params[argument_index].name, fn_display);
                                     }
                                 }
                             }
@@ -6067,7 +6009,6 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
                         /* E3027: non-assignable or const passed to mutable (&) param */
                         {
                             AstNode *arg = node->data.call.args[argument_index];
-                            /* Find the func decl to check if this param is mutable */
                             for (int field_index = 0; field_index < checker->program->data.program.stmt_count; field_index++) {
                                 AstNode *s = checker->program->data.program.stmts[field_index];
                                 if (s->kind != NODE_FUNC_DECL ||
@@ -6075,41 +6016,8 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
                                     argument_index >= s->data.func_decl.param_count ||
                                     !s->data.func_decl.params[argument_index].mutable)
                                     continue;
-                                /* Param is mutable; check argument is a valid assignment target */
-                                if (arg->kind == NODE_LABEL) {
-                                    Symbol *arg_sym = scope_lookup(checker->current_scope,
-                                        arg->data.label.value);
-                                    if (arg_sym && !arg_sym->mutable) {
-                                        char *msg = NULL;
-                                        msg = typechecker_format(checker,
-                                            "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
-                                            arg_sym->name, s->data.func_decl.params[argument_index].name, function_name);
-                                        diagnostic_error_message(checker->diag, "E3027", msg,
-                                            NODE_FILE(checker, arg), arg->token.line,
-                                            arg->token.column, 0);
-                                    }
-                                } else if (arg->kind == NODE_MEMBER_EXPR &&
-                                           arg->data.member.object->kind == NODE_LABEL &&
-                                           is_enum_name(checker, arg->data.member.object->data.label.value)) {
-                                    char *msg = NULL;
-                                    msg = typechecker_format(checker,
-                                        "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
-                                        s->data.func_decl.params[argument_index].name, function_name);
-                                    diagnostic_error_message(checker->diag, "E3027", msg,
-                                        NODE_FILE(checker, arg), arg->token.line,
-                                        arg->token.column, 0);
-                                } else if (arg->kind != NODE_MEMBER_EXPR &&
-                                           arg->kind != NODE_INDEX_EXPR &&
-                                           arg->kind != NODE_PREFIX_EXPR) {
-                                    /* Literal, call result, or other non-assignable expression */
-                                    char *msg = NULL;
-                                    msg = typechecker_format(checker,
-                                        "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
-                                        s->data.func_decl.params[argument_index].name, function_name);
-                                    diagnostic_error_message(checker->diag, "E3027", msg,
-                                        NODE_FILE(checker, arg), arg->token.line,
-                                        arg->token.column, 0);
-                                }
+                                check_mutable_arg(checker, arg,
+                                    s->data.func_decl.params[argument_index].name, function_name);
                                 break;
                             }
                         }
@@ -6209,40 +6117,8 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
                                                 argument_index >= s->data.func_decl.param_count ||
                                                 !s->data.func_decl.params[argument_index].mutable)
                                                 continue;
-                                            if (arg->kind == NODE_LABEL) {
-                                                Symbol *arg_sym = scope_lookup(checker->current_scope,
-                                                    arg->data.label.value);
-                                                if (arg_sym && !arg_sym->mutable) {
-                                                    char emsg[MSG_BUF_SIZE];
-                                                    snprintf(emsg, sizeof(emsg),
-                                                        "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
-                                                        arg_sym->name, s->data.func_decl.params[argument_index].name,
-                                                        func_display_name(ref_sig));
-                                                    diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                        NODE_FILE(checker, arg), arg->token.line,
-                                                        arg->token.column, 0);
-                                                }
-                                            } else if (arg->kind == NODE_MEMBER_EXPR &&
-                                                       arg->data.member.object->kind == NODE_LABEL &&
-                                                       is_enum_name(checker, arg->data.member.object->data.label.value)) {
-                                                char emsg[MSG_BUF_SIZE];
-                                                snprintf(emsg, sizeof(emsg),
-                                                    "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
-                                                    s->data.func_decl.params[argument_index].name, func_display_name(ref_sig));
-                                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                    NODE_FILE(checker, arg), arg->token.line,
-                                                    arg->token.column, 0);
-                                            } else if (arg->kind != NODE_MEMBER_EXPR &&
-                                                       arg->kind != NODE_INDEX_EXPR &&
-                                                       arg->kind != NODE_PREFIX_EXPR) {
-                                                char emsg[MSG_BUF_SIZE];
-                                                snprintf(emsg, sizeof(emsg),
-                                                    "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
-                                                    s->data.func_decl.params[argument_index].name, func_display_name(ref_sig));
-                                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                    NODE_FILE(checker, arg), arg->token.line,
-                                                    arg->token.column, 0);
-                                            }
+                                            check_mutable_arg(checker, arg,
+                                                s->data.func_decl.params[argument_index].name, func_display_name(ref_sig));
                                             break;
                                         }
                                     }
