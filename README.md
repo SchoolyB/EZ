@@ -12,13 +12,16 @@
 
 ---
 <p align="center">
-    <img src="images/Example1.png" alt="Grayscale Logo" width="400" >
+    <img src="images/Example1.png" alt="Code_Example1" width="400" >
 </p>
 <p align="center">
-    <img src="images/Example2.png" alt="Grayscale Logo" width="600" >
+    <img src="images/Example2.png" alt="Code_Example2" width="600" >
 </p>
 <p align="center">
-    <img src="images/Example3.png" alt="Grayscale Logo" width="600" >
+    <img src="images/Example3.png" alt="Code_Example3" width="600" >
+</p>
+<p align="center">
+    <img src="images/Example4.png" alt="Code_Example4" width="600" >
 </p>
 
 
