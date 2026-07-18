@@ -2285,13 +2285,13 @@ static GrayType *resolve_implicit_enum(TypeChecker *checker, AstNode *node) {
  * mutable assignment target. Emits a diagnostic and returns if the argument
  * is a constant variable, an enum constant, or a literal/expression. */
 static void check_mutable_arg(TypeChecker *checker, AstNode *arg,
-                               const char *param_name, const char *func_display) {
+                               const char *param_desc, const char *func_display) {
     if (arg->kind == NODE_LABEL) {
         Symbol *sym = scope_lookup(checker->current_scope, arg->data.label.value);
         if (sym && !sym->mutable) {
             char *msg = typechecker_format(checker,
-                "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
-                sym->name, param_name, func_display);
+                "cannot pass constant '%s' to %s of '%s'",
+                sym->name, param_desc, func_display);
             diagnostic_error_message(checker->diag, "E3027", msg,
                 NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
         }
@@ -2299,16 +2299,16 @@ static void check_mutable_arg(TypeChecker *checker, AstNode *arg,
                arg->data.member.object->kind == NODE_LABEL &&
                is_enum_name(checker, arg->data.member.object->data.label.value)) {
         char *msg = typechecker_format(checker,
-            "cannot pass enum constant to mutable parameter '%s' of '%s'; expected a mutable variable",
-            param_name, func_display);
+            "cannot pass enum constant to %s of '%s'; expected a mutable variable",
+            param_desc, func_display);
         diagnostic_error_message(checker->diag, "E3027", msg,
             NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
     } else if (arg->kind != NODE_MEMBER_EXPR &&
                arg->kind != NODE_INDEX_EXPR &&
                arg->kind != NODE_PREFIX_EXPR) {
         char *msg = typechecker_format(checker,
-            "cannot pass a literal or expression to mutable parameter '%s' of '%s'; expected a mutable variable",
-            param_name, func_display);
+            "cannot pass a literal or expression to %s of '%s'; expected a mutable variable",
+            param_desc, func_display);
         diagnostic_error_message(checker->diag, "E3027", msg,
             NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
     }
@@ -3570,8 +3570,10 @@ static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *no
                     if (found_declaration) {
                         char fn_display[MSG_BUF_SIZE];
                         snprintf(fn_display, sizeof(fn_display), "%s.%s", display_mod, mfn);
-                        check_mutable_arg(checker, arg,
-                            found_declaration->data.func_decl.params[argument_index].name, fn_display);
+                        char param_desc[MSG_BUF_SIZE];
+                        snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                            found_declaration->data.func_decl.params[argument_index].name);
+                        check_mutable_arg(checker, arg, param_desc, fn_display);
                     }
                 }
             }
@@ -3848,8 +3850,10 @@ static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *no
                                 /* User-visible args */
                                 char fn_display[MSG_BUF_SIZE];
                                 snprintf(fn_display, sizeof(fn_display), "%s.%s", display_sname, mfn);
-                                check_mutable_arg(checker, arg,
-                                    ssig->decl->data.func_decl.params[argument_index].name, fn_display);
+                                char param_desc[MSG_BUF_SIZE];
+                                snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                                    ssig->decl->data.func_decl.params[argument_index].name);
+                                check_mutable_arg(checker, arg, param_desc, fn_display);
                             }
                         }
                     }
@@ -4848,8 +4852,10 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                         argument_index >= s->data.func_decl.param_count ||
                         !s->data.func_decl.params[argument_index].mutable)
                         continue;
-                    check_mutable_arg(checker, arg,
-                        s->data.func_decl.params[argument_index].name, function_name);
+                    char param_desc[MSG_BUF_SIZE];
+                    snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                        s->data.func_decl.params[argument_index].name);
+                    check_mutable_arg(checker, arg, param_desc, function_name);
                     break;
                 }
             }
@@ -4949,8 +4955,10 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                                     argument_index >= s->data.func_decl.param_count ||
                                     !s->data.func_decl.params[argument_index].mutable)
                                     continue;
-                                check_mutable_arg(checker, arg,
-                                    s->data.func_decl.params[argument_index].name, func_display_name(ref_sig));
+                                char param_desc[MSG_BUF_SIZE];
+                                snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                                    s->data.func_decl.params[argument_index].name);
+                                check_mutable_arg(checker, arg, param_desc, func_display_name(ref_sig));
                                 break;
                             }
                         }
@@ -4990,35 +4998,11 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                             diagnostic_error_message(checker->diag, "E3001", msg,
                                 NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
                         }
-                        /* E3027/E3067: `&` param requires an assignment target */
+                        /* E3027: `&` param requires an assignment target */
                         if (sig->param_mutable[argument_index]) {
-                            bool is_enum_const = (arg->kind == NODE_MEMBER_EXPR &&
-                                                  arg->data.member.object->kind == NODE_LABEL &&
-                                                  is_enum_name(checker, arg->data.member.object->data.label.value));
-                            bool is_assignable = !is_enum_const &&
-                                             (arg->kind == NODE_LABEL ||
-                                              arg->kind == NODE_MEMBER_EXPR ||
-                                              arg->kind == NODE_INDEX_EXPR);
-                            if (is_enum_const) {
-                                char emsg[MSG_BUF_SIZE];
-                                snprintf(emsg, sizeof(emsg),
-                                    "cannot pass enum constant to '&' parameter %d of '%s'; expected a mutable variable",
-                                    argument_index + 1, function_name);
-                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                    NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
-                            } else if (!is_assignable) {
-                                diagnostic_error_code_formatted(checker->diag, "E3067", NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0, argument_index + 1, function_name);
-                            } else if (arg->kind == NODE_LABEL) {
-                                Symbol *as = scope_lookup(checker->current_scope, arg->data.label.value);
-                                if (as && !as->mutable) {
-                                    char emsg[MSG_BUF_SIZE];
-                                    snprintf(emsg, sizeof(emsg),
-                                        "cannot pass constant '%s' to '&' parameter %d of '%s'",
-                                        as->name, argument_index + 1, function_name);
-                                    diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                        NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
-                                }
-                            }
+                            char param_desc[MSG_BUF_SIZE];
+                            snprintf(param_desc, sizeof(param_desc), "'&' parameter %d", argument_index + 1);
+                            check_mutable_arg(checker, arg, param_desc, function_name);
                         }
                     }
                 }
@@ -5458,8 +5442,10 @@ static GrayType *resolve_call_expr(TypeChecker *checker, AstNode *node) {
                 if (found_declaration) {
                     char fn_display[MSG_BUF_SIZE];
                     snprintf(fn_display, sizeof(fn_display), "%s.%s.%s", mod_name, struct_name, func_name);
-                    check_mutable_arg(checker, arg,
-                        found_declaration->data.func_decl.params[argument_index].name, fn_display);
+                    char param_desc[MSG_BUF_SIZE];
+                    snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                        found_declaration->data.func_decl.params[argument_index].name);
+                    check_mutable_arg(checker, arg, param_desc, fn_display);
                 }
             }
         } else {
