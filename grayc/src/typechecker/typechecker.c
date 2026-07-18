@@ -2314,6 +2314,4385 @@ static void check_mutable_arg(TypeChecker *checker, AstNode *arg,
     }
 }
 
+static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const char *mod, const char *mfn) {
+    GrayType *result = &TYPE_UNKNOWN;
+    /* E5034: named arguments are not supported for stdlib functions */
+    if (typechecker_has_named_arguments(node)) {
+        char fname[MSG_BUF_SIZE];
+        snprintf(fname, sizeof(fname), "%s.%s", mod, mfn);
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "named arguments are not supported for builtin function '%s'",
+            fname);
+        diagnostic_error_message(checker->diag, "E5034", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+    }
+    /* Validate argument count for stdlib function calls */
+    typechecker_check_stdlib_arg_count(checker, mod, mfn, node);
+    typechecker_check_stdlib_arg_types(checker, mod, mfn, node);
+    typechecker_check_strconv_base(checker, mod, mfn, node);
+    if (strcmp(mod, "mem") == 0) {
+        if (strcmp(mfn, "arena") == 0) {
+            result = type_struct("Arena"); /* arena pointer; opaque */
+        } else if (strcmp(mfn, "usage") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "init") == 0 && node->data.call.arg_count == 2) {
+            /* mem.init(arena, Type) returns ^Type */
+            AstNode *type_arg = node->data.call.args[1];
+            if (type_arg->kind == NODE_LABEL) {
+                result = type_pointer(type_arg->data.label.value);
+            } else {
+                result = &TYPE_UNKNOWN;
+            }
+        } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
+            /* alloc returns the same type as its second argument */
+            result = resolve_expression(checker, node->data.call.args[1]);
+        } else if (strcmp(mfn, "make") == 0) {
+            result = &TYPE_UNKNOWN;
+        } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
+                   strcmp(mfn, "destroy") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "maps") == 0) {
+        if (strcmp(mfn, "get_keys") == 0) {
+            if (node->data.call.arg_count > 0) {
+                GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
+                result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
+            } else result = type_array("string");
+        } else if (strcmp(mfn, "get_values") == 0) {
+            if (node->data.call.arg_count > 0) {
+                GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
+                result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
+            } else result = type_array("string");
+        } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
+                   strcmp(mfn, "contains_value") == 0 ||
+                   strcmp(mfn, "is_equal") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "merge") == 0) {
+            if (node->data.call.arg_count > 0) {
+                result = resolve_expression(checker, node->data.call.args[0]);
+            } else result = &TYPE_UNKNOWN;
+        } else if (strcmp(mfn, "get_or_default") == 0) {
+            if (node->data.call.arg_count >= 3) {
+                result = resolve_expression(checker, node->data.call.args[2]);
+            } else result = &TYPE_UNKNOWN;
+        } else if (strcmp(mfn, "remove_key") == 0 || strcmp(mfn, "clear") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+        /* E12001: maps functions require map argument */
+        if (node->data.call.arg_count > 0) {
+            AstNode *arg0 = node->data.call.args[0];
+            GrayType *arg0_t = typetable_get(checker->type_table, arg0);
+            if (arg0_t && arg0_t->kind == TK_ARRAY) {
+                diagnostic_error_code_formatted(checker->diag, "E12001", NODE_FILE(checker, arg0), arg0->token.line, arg0->token.column, 0, mfn);
+            }
+        }
+        /* maps.is_equal(a, b): both args must be maps with the same
+         * key/value types, and key/value types must be primitive or
+         * string. Composite element types would require recursive
+         * deep-equality which is out of scope here. */
+        if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
+            AstNode *a0 = node->data.call.args[0];
+            AstNode *a1 = node->data.call.args[1];
+            GrayType *t0 = typetable_get(checker->type_table, a0);
+            GrayType *t1 = typetable_get(checker->type_table, a1);
+            if (t0 && t1 && t0->kind == TK_MAP && t1->kind == TK_MAP) {
+                bool key_match = t0->key_type && t1->key_type &&
+                    strcmp(t0->key_type, t1->key_type) == 0;
+                bool val_match = t0->value_type && t1->value_type &&
+                    strcmp(t0->value_type, t1->value_type) == 0;
+                if (!key_match || !val_match) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "type mismatch: cannot compare map[%s:%s] with map[%s:%s]",
+                        t0->key_type ? t0->key_type : "?",
+                        t0->value_type ? t0->value_type : "?",
+                        t1->key_type ? t1->key_type : "?",
+                        t1->value_type ? t1->value_type : "?");
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, a1), a1->token.line, a1->token.column, 0);
+                }
+                const char *bad_member = NULL;
+                if (t0->value_type) {
+                    GrayType *vt = type_from_name(t0->value_type);
+                    if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT)
+                        bad_member = t0->value_type;
+                }
+                if (bad_member) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "maps.is_equal does not support maps with %s values; only primitive and string element types are supported",
+                        bad_member);
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0);
+                }
+            }
+        }
+        if (strcmp(mfn, "contains_value") == 0 && node->data.call.arg_count >= 1) {
+            AstNode *a0 = node->data.call.args[0];
+            GrayType *t0 = typetable_get(checker->type_table, a0);
+            if (t0 && t0->kind == TK_MAP && t0->value_type) {
+                GrayType *vt = type_from_name(t0->value_type);
+                if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT) {
+                    diagnostic_error_code_formatted(checker->diag, "E12007",
+                        NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0,
+                        t0->value_type);
+                }
+            }
+        }
+        /* E5007: mutating map functions on const map */
+        if ((strcmp(mfn, "clear") == 0 || strcmp(mfn, "remove_key") == 0) &&
+            node->data.call.arg_count > 0) {
+            AstNode *arg0 = node->data.call.args[0];
+            if (arg0->kind == NODE_LABEL) {
+                Symbol *sym = scope_lookup(checker->current_scope, arg0->data.label.value);
+                if (sym && !sym->mutable) {
+                    diagnostic_error_code_formatted(checker->diag, "E5007",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                        "map", arg0->data.label.value);
+                }
+            }
+        }
+    } else if (strcmp(mod, "io") == 0) {
+        /* Fallible I/O: the type checker returns the primary value type.
+         * The codegen emits _result() versions that return (T, Error) tuples.
+         * The .v0 access gets __auto_type in C, but the Grayscale type system
+         * sees it as the value type for interpolation purposes. */
+        if (strcmp(mfn, "read_file") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "write_file") == 0 ||
+            strcmp(mfn, "delete_file") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "file_exists") == 0 ||
+                   strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
+                   strcmp(mfn, "append_file") == 0 || strcmp(mfn, "rename_file") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "file_size") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "read_bytes") == 0) {
+            result = type_array("byte");
+        } else if (strcmp(mfn, "read_lines") == 0) {
+            result = type_array("string");
+        } else if (strcmp(mfn, "list_dir") == 0 || strcmp(mfn, "walk") == 0 ||
+                   strcmp(mfn, "glob") == 0) {
+            result = type_array("string");
+        } else if (strcmp(mfn, "make_dir") == 0 || strcmp(mfn, "make_dir_all") == 0 ||
+                   strcmp(mfn, "remove_dir") == 0 || strcmp(mfn, "remove_dir_all") == 0 ||
+                   strcmp(mfn, "copy_file") == 0 || strcmp(mfn, "move_file") == 0 ||
+                   strcmp(mfn, "is_absolute") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "path_join") == 0 || strcmp(mfn, "dirname") == 0 ||
+                   strcmp(mfn, "basename") == 0 || strcmp(mfn, "extension") == 0 ||
+                   strcmp(mfn, "normalize") == 0) {
+            result = &TYPE_STRING;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "strconv") == 0) {
+        if (strcmp(mfn, "to_int") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "to_uint") == 0) {
+            result = &TYPE_UINT;
+        } else if (strcmp(mfn, "to_float") == 0) {
+            result = &TYPE_FLOAT;
+        } else if (strcmp(mfn, "to_bool") == 0 ||
+                   strcmp(mfn, "is_numeric") == 0 ||
+                   strcmp(mfn, "is_integer") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "from_int") == 0 ||
+                   strcmp(mfn, "from_uint") == 0 ||
+                   strcmp(mfn, "from_float") == 0 ||
+                   strcmp(mfn, "from_bool") == 0) {
+            result = &TYPE_STRING;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "strings") == 0) {
+        if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
+            strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0 ||
+            strcmp(mfn, "is_alpha") == 0 || strcmp(mfn, "is_digit") == 0 ||
+            strcmp(mfn, "is_alnum") == 0 || strcmp(mfn, "is_whitespace") == 0 ||
+            strcmp(mfn, "is_upper") == 0 || strcmp(mfn, "is_lower") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "char_at") == 0) {
+            result = &TYPE_CHAR;
+        } else if (strcmp(mfn, "to_chars") == 0) {
+            result = type_array("char");
+        } else if (strcmp(mfn, "from_chars") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "index_of") == 0 ||
+                   strcmp(mfn, "last_index_of") == 0 ||
+                   strcmp(mfn, "count") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "split") == 0) {
+            result = type_array("string");
+        } else if (strcmp(mfn, "to_upper") == 0 || strcmp(mfn, "to_lower") == 0 ||
+                   strcmp(mfn, "trim") == 0 || strcmp(mfn, "trim_left") == 0 ||
+                   strcmp(mfn, "trim_right") == 0 ||
+                   strcmp(mfn, "remove_prefix") == 0 || strcmp(mfn, "remove_suffix") == 0 ||
+                   strcmp(mfn, "replace") == 0 ||
+                   strcmp(mfn, "repeat") == 0 || strcmp(mfn, "reverse") == 0 ||
+                   strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0) {
+            result = &TYPE_STRING;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+        /* E7004: strings.repeat() second arg must be integer */
+        if (strcmp(mfn, "repeat") == 0 && node->data.call.arg_count >= 2) {
+            GrayType *count_t = typetable_get(checker->type_table, node->data.call.args[1]);
+            if (count_t && count_t->kind == TK_FLOAT) {
+                diagnostic_error_message(checker->diag, "E7004",
+                    "strings.repeat() count must be an integer, not a float",
+                    NODE_FILE(checker, node->data.call.args[1]), node->data.call.args[1]->token.line,
+                    node->data.call.args[1]->token.column, 0);
+            }
+        }
+        /* E7004: strings.slice() bounds must be integers */
+        if (strcmp(mfn, "slice") == 0 && node->data.call.arg_count >= 3) {
+            for (int slice_index = 1; slice_index <= 2 && slice_index < node->data.call.arg_count; slice_index++) {
+                GrayType *bt = typetable_get(checker->type_table, node->data.call.args[slice_index]);
+                if (bt && bt->kind == TK_FLOAT) {
+                    diagnostic_error_message(checker->diag, "E7004",
+                        "strings.slice() bounds must be integers, not floats",
+                        NODE_FILE(checker, node->data.call.args[slice_index]), node->data.call.args[slice_index]->token.line,
+                        node->data.call.args[slice_index]->token.column, 0);
+                }
+            }
+        }
+    } else if (strcmp(mod, "time") == 0) {
+        if (strcmp(mfn, "format") == 0 || strcmp(mfn, "to_iso") == 0 ||
+            strcmp(mfn, "date") == 0 || strcmp(mfn, "to_clock") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "now") == 0 || strcmp(mfn, "now_ms") == 0 ||
+                   strcmp(mfn, "now_ns") == 0 || strcmp(mfn, "tick") == 0 ||
+                   strcmp(mfn, "elapsed_ms") == 0 || strcmp(mfn, "diff") == 0 ||
+                   strcmp(mfn, "year") == 0 || strcmp(mfn, "month") == 0 ||
+                   strcmp(mfn, "day") == 0 || strcmp(mfn, "hour") == 0 ||
+                   strcmp(mfn, "minute") == 0 || strcmp(mfn, "second") == 0 ||
+                   strcmp(mfn, "weekday") == 0) {
+            result = &TYPE_INT;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "uuid") == 0) {
+        if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
+        else if (strcmp(mfn, "generate_compact") == 0 ||
+                 strcmp(mfn, "to_string") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "generate") == 0 ||
+                 strcmp(mfn, "generate_hyphenated") == 0 ||
+                 strcmp(mfn, "generate_random") == 0 ||
+                 strcmp(mfn, "generate_time_ordered") == 0 ||
+                 strcmp(mfn, "parse") == 0) {
+            result = type_struct("UUID");
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "encoding") == 0) {
+        result = &TYPE_STRING;
+    } else if (strcmp(mod, "crypto") == 0) {
+        result = &TYPE_STRING;
+    } else if (strcmp(mod, "bytes") == 0) {
+        if (strcmp(mfn, "from_string") == 0 || strcmp(mfn, "from_hex") == 0 ||
+            strcmp(mfn, "from_base64") == 0) {
+            result = type_array("byte");
+        } else if (strcmp(mfn, "to_string") == 0 || strcmp(mfn, "to_hex") == 0 ||
+                   strcmp(mfn, "to_base64") == 0) {
+            result = &TYPE_STRING;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "binary") == 0) {
+        if (strncmp(mfn, "encode", 6) == 0) result = type_array("byte");
+        else if (strncmp(mfn, "decode_f", 8) == 0) result = &TYPE_FLOAT;
+        else result = &TYPE_INT;
+    } else if (strcmp(mod, "csv") == 0) {
+        if (strcmp(mfn, "parse") == 0 ||
+            strcmp(mfn, "read_file") == 0) {
+            result = type_array("[string]"); /* [[string]] */
+        } else if (strcmp(mfn, "headers") == 0) {
+            result = type_array("string"); /* [string] */
+        } else if (strcmp(mfn, "write_file") == 0) {
+            result = &TYPE_BOOL;
+            /* E5026: second arg must be an array, not a string */
+            if (node->data.call.arg_count >= 2) {
+                GrayType *arg2_type = resolve_expression(checker, node->data.call.args[1]);
+                if (arg2_type && arg2_type->kind == TK_STRING) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "csv.%s() expects an array as the second argument, got string",
+                        mfn);
+                    diagnostic_error_message(checker->diag, "E5026", msg,
+                        NODE_FILE(checker, node), node->data.call.args[1]->token.line,
+                        node->data.call.args[1]->token.column, 0);
+                }
+            }
+        } else if (strcmp(mfn, "encode") == 0) {
+            result = &TYPE_STRING;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "json") == 0) {
+        if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
+        else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
+        else if (strcmp(mfn, "parse") == 0) {
+            /* : json.parse() return type depends on
+             * assignment context. Start as UNKNOWN; the
+             * var_decl handler pushes the declared struct
+             * type onto the call node via 's mechanism. */
+            result = &TYPE_UNKNOWN;
+        } else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
+                   strcmp(mfn, "pretty_print") == 0) {
+            result = &TYPE_STRING;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "sqlite") == 0) {
+        if (strcmp(mfn, "open") == 0) result = &TYPE_UNKNOWN; /* opaque handle */
+        else if (strcmp(mfn, "exec") == 0) result = &TYPE_BOOL;
+        else if (strcmp(mfn, "query") == 0) result = type_array("map");
+        else if (strcmp(mfn, "close") == 0) result = &TYPE_VOID;
+        else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "random") == 0) {
+        if (strcmp(mfn, "rand_float") == 0) result = &TYPE_FLOAT;
+        else if (strcmp(mfn, "rand_int") == 0) result = &TYPE_INT;
+        else if (strcmp(mfn, "rand_bool") == 0) result = &TYPE_BOOL;
+        else if (strcmp(mfn, "rand_byte") == 0) result = &TYPE_BYTE;
+        else if (strcmp(mfn, "rand_char") == 0) result = &TYPE_CHAR;
+        else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
+            /* Preserve input array's element type */
+            if (node->data.call.arg_count > 0) {
+                GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
+                if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
+                    result = type_array(arr_t->element_type);
+                else
+                    result = type_array("int");
+            } else {
+                result = type_array("int");
+            }
+        } else if (strcmp(mfn, "choice") == 0) {
+            /* Return element type of the array argument */
+            if (node->data.call.arg_count > 0) {
+                GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
+                if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
+                    result = type_from_name(arr_t->element_type);
+                else
+                    result = &TYPE_INT;
+            } else {
+                result = &TYPE_INT;
+            }
+        } else if (strcmp(mfn, "seed") == 0) result = &TYPE_VOID;
+        else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "arrays") == 0) {
+        if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0 ||
+            strcmp(mfn, "is_equal") == 0 ||
+            strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "get_sum") == 0 ||
+                   strcmp(mfn, "get_min") == 0 || strcmp(mfn, "get_max") == 0 ||
+                   strcmp(mfn, "count") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "reverse") == 0 || strcmp(mfn, "slice") == 0 ||
+                   strcmp(mfn, "concat") == 0 || strcmp(mfn, "deduplicate") == 0 ||
+                   strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0) {
+            /* Preserve input array element type */
+            if (node->data.call.arg_count > 0) {
+                GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
+                result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
+            } else {
+                result = type_array("int");
+            }
+        } else if (strcmp(mfn, "split_every") == 0 || strcmp(mfn, "pair") == 0) {
+            result = type_array("[int]"); /* nested array */
+        } else if (strcmp(mfn, "flatten") == 0) {
+            if (node->data.call.arg_count > 0) {
+                GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
+                if (arr_t && arr_t->element_type) {
+                    /* arr_t is [[T]]; element_type is "[T]". Unwrap one level. */
+                    GrayType *inner = type_from_name(arr_t->element_type);
+                    if (inner && inner->kind == TK_ARRAY && inner->element_type)
+                        result = type_array(inner->element_type);
+                    else
+                        result = type_array(arr_t->element_type);
+                } else {
+                    result = type_array("int");
+                }
+            } else {
+                result = type_array("int");
+            }
+        } else if (strcmp(mfn, "get_first") == 0 || strcmp(mfn, "get_last") == 0 ||
+                   strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0 ||
+                   strcmp(mfn, "reduce") == 0) {
+            if (node->data.call.arg_count > 0) {
+                GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
+                result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
+            } else {
+                result = &TYPE_INT;
+            }
+        } else if (strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0 ||
+                   strcmp(mfn, "insert_at") == 0 ||
+                   strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
+                   strcmp(mfn, "fill") == 0 ||
+                   strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
+                   strcmp(mfn, "clear") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+        /* E5007: mutating array functions on const array */
+        if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert_at") == 0 ||
+             strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
+             strcmp(mfn, "remove_last") == 0 ||
+             strcmp(mfn, "remove_first") == 0 || strcmp(mfn, "prepend") == 0 ||
+             strcmp(mfn, "fill") == 0 ||
+             strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
+             strcmp(mfn, "clear") == 0) &&
+            node->data.call.arg_count > 0) {
+            AstNode *arg0 = node->data.call.args[0];
+            if (arg0->kind == NODE_LABEL) {
+                Symbol *sym = scope_lookup(checker->current_scope, arg0->data.label.value);
+                if (sym && !sym->mutable) {
+                    diagnostic_error_code_formatted(checker->diag, "E5007",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                        "array", arg0->data.label.value);
+                }
+            }
+        }
+        /* E3001: arrays.append/prepend/insert_at element type mismatch */
+        {
+            AstNode *val_node = NULL;
+            const char *op_name = NULL;
+            if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0) &&
+                node->data.call.arg_count >= 2) {
+                val_node = node->data.call.args[1];
+                op_name = mfn;
+            } else if (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 3) {
+                val_node = node->data.call.args[2];
+                op_name = "insert_at";
+            }
+            if (val_node && op_name) {
+                AstNode *arr_arg = node->data.call.args[0];
+                GrayType *arr_t = typetable_get(checker->type_table, arr_arg);
+                if (!arr_t) arr_t = resolve_expression(checker, arr_arg);
+                GrayType *val_t = resolve_expression(checker, val_node);
+                if (arr_t && arr_t->kind != TK_ARRAY && arr_t->kind != TK_UNKNOWN) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "arrays.%s() expects an array as the first argument, got %s",
+                        op_name, type_name(arr_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, arr_arg), arr_arg->token.line, arr_arg->token.column, 0);
+                } else if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+                    val_t && val_t->kind != TK_UNKNOWN) {
+                    GrayType *elem_t = type_from_name(arr_t->element_type);
+                    if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind &&
+                        !(is_int_kind(elem_t->kind) && is_int_kind(val_t->kind))) {
+                        char *msg = NULL;
+                        msg = typechecker_format(checker,
+                            "type mismatch in arrays.%s(); cannot add %s to array of %s",
+                            op_name, type_name(val_t), arr_t->element_type);
+                        diagnostic_error_message(checker->diag, "E3001", msg,
+                            NODE_FILE(checker, val_node), val_node->token.line, val_node->token.column, 0);
+                    }
+                }
+            }
+        }
+        /* E3001: arrays.remove_at/insert_at index must be int */
+        if ((strcmp(mfn, "remove_at") == 0 && node->data.call.arg_count >= 2) ||
+            (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 2)) {
+            AstNode *idx_node = node->data.call.args[1];
+            GrayType *idx_t = resolve_expression(checker, idx_node);
+            if (idx_t && idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "arrays.%s() expects an int index, got %s",
+                    mfn, type_name(idx_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, idx_node), idx_node->token.line, idx_node->token.column, 0);
+            }
+        }
+        /* E9002: arrays.sum/min/max require numeric array */
+        if ((strcmp(mfn, "sum") == 0 || strcmp(mfn, "min") == 0 ||
+             strcmp(mfn, "max") == 0) && node->data.call.arg_count > 0) {
+            AstNode *arg0 = node->data.call.args[0];
+            GrayType *arr_t = typetable_get(checker->type_table, arg0);
+            if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
+                GrayType *elem_t = type_from_name(arr_t->element_type);
+                if (elem_t->kind == TK_STRING || elem_t->kind == TK_BOOL) {
+                    diagnostic_error_code_formatted(checker->diag, "E9002", NODE_FILE(checker, arg0), arg0->token.line, arg0->token.column, 0, mfn, arr_t->element_type);
+                }
+            }
+        }
+        /* E3001: arrays.concat element type mismatch */
+        if (strcmp(mfn, "concat") == 0 && node->data.call.arg_count >= 2) {
+            AstNode *a0 = node->data.call.args[0];
+            AstNode *a1 = node->data.call.args[1];
+            GrayType *t0 = typetable_get(checker->type_table, a0);
+            GrayType *t1 = typetable_get(checker->type_table, a1);
+            if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
+                t0->element_type && t1->element_type &&
+                strcmp(t0->element_type, t1->element_type) != 0) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "type mismatch: cannot concat array of %s with array of %s",
+                    t0->element_type, t1->element_type);
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, a1), a1->token.line, a1->token.column, 0);
+            }
+        }
+        if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
+            AstNode *a0 = node->data.call.args[0];
+            AstNode *a1 = node->data.call.args[1];
+            GrayType *t0 = typetable_get(checker->type_table, a0);
+            GrayType *t1 = typetable_get(checker->type_table, a1);
+            if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
+                t0->element_type && t1->element_type &&
+                strcmp(t0->element_type, t1->element_type) != 0) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "type mismatch: cannot compare array of %s with array of %s",
+                    t0->element_type, t1->element_type);
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, a1), a1->token.line, a1->token.column, 0);
+            }
+            /* Composite element types (nested arrays, maps, structs) cannot be
+             * compared with the primitive memcmp path; reject for now. */
+            if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
+                GrayType *et = type_from_name(t0->element_type);
+                if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "arrays.is_equal does not support arrays of %s; only primitive and string element types are supported",
+                        t0->element_type);
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0);
+                }
+            }
+        }
+        if (strcmp(mfn, "contains") == 0 && node->data.call.arg_count >= 1) {
+            AstNode *a0 = node->data.call.args[0];
+            GrayType *t0 = typetable_get(checker->type_table, a0);
+            if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
+                GrayType *et = type_from_name(t0->element_type);
+                if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
+                    diagnostic_error_code_formatted(checker->diag, "E9006",
+                        NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0,
+                        t0->element_type);
+                }
+            }
+        }
+        /* E9003/E9004: map/filter/reduce callback validation */
+        if ((strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0 ||
+             strcmp(mfn, "reduce") == 0 ||
+             strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) && node->data.call.arg_count >= 2) {
+            /* Determine which arg is the callback */
+            int cb_idx = (strcmp(mfn, "reduce") == 0) ? 2 : 1;
+            if (cb_idx < node->data.call.arg_count) {
+                AstNode *cb_arg = node->data.call.args[cb_idx];
+                if (cb_arg->kind != NODE_FUNC_REF &&
+                    !(cb_arg->kind == NODE_CALL_EXPR &&
+                      cb_arg->data.call.function->kind == NODE_LABEL &&
+                      strcmp(cb_arg->data.call.function->data.label.value, "ref") == 0)) {
+                    diagnostic_error_code_formatted(checker->diag, "E9003",
+                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                        mfn);
+                } else {
+                    /* Validate callback signature */
+                    const char *ref_name = NULL;
+                    if (cb_arg->kind == NODE_FUNC_REF &&
+                        cb_arg->data.func_ref.function->kind == NODE_LABEL) {
+                        ref_name = cb_arg->data.func_ref.function->data.label.value;
+                    }
+                    if (ref_name) {
+                        FuncSig *cb_fs = find_func(checker, ref_name);
+                        if (cb_fs) {
+                            if (strcmp(mfn, "map") == 0) {
+                                if (cb_fs->param_count != 1) {
+                                    char *msg = NULL;
+                                    msg = typechecker_format(checker,
+                                        "map callback must take 1 parameter, got %d",
+                                        cb_fs->param_count);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
+                                } else if (cb_fs->return_count < 1) {
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, "map callback must return a value");
+                                }
+                            } else if (strcmp(mfn, "filter") == 0 ||
+                                       strcmp(mfn, "any") == 0 ||
+                                       strcmp(mfn, "all") == 0) {
+                                if (cb_fs->param_count != 1) {
+                                    char *msg = NULL;
+                                    msg = typechecker_format(checker,
+                                        "%s callback must take 1 parameter, got %d",
+                                        mfn, cb_fs->param_count);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
+                                } else if (cb_fs->return_count < 1 ||
+                                           cb_fs->return_types[0]->kind != TK_BOOL) {
+                                    char *msg = NULL;
+                                    msg = typechecker_format(checker,
+                                        "%s callback must return bool", mfn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
+                                }
+                            } else { /* reduce */
+                                if (cb_fs->param_count != 2) {
+                                    char *msg = NULL;
+                                    msg = typechecker_format(checker,
+                                        "reduce callback must take 2 parameters, got %d",
+                                        cb_fs->param_count);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
+                                } else if (cb_fs->return_count < 1) {
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, "reduce callback must return a value");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        /* All arrays.* functions expect an array as the first argument */
+        if (node->data.call.arg_count > 0) {
+            AstNode *arg0 = node->data.call.args[0];
+            GrayType *arg0_t = resolve_expression(checker, arg0);
+            if (arg0_t && arg0_t->kind != TK_ARRAY && arg0_t->kind != TK_UNKNOWN) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "arrays.%s() expects an array as the first argument, got '%s'",
+                    mfn, type_name(arg0_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, arg0), arg0->token.line, arg0->token.column, 0);
+            }
+        }
+    } else if (strcmp(mod, "os") == 0) {
+        if (strcmp(mfn, "args") == 0) {
+            result = type_array("string");
+        } else if (strcmp(mfn, "get_env") == 0 ||
+                   strcmp(mfn, "current_dir") == 0 || strcmp(mfn, "hostname") == 0 ||
+                   strcmp(mfn, "arch") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "set_env") == 0 || strcmp(mfn, "unset_env") == 0) {
+            result = &TYPE_VOID;
+        } else if (strcmp(mfn, "exec") == 0) {
+            result = &TYPE_BOOL;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "math") == 0) {
+        /* Math functions return types */
+        if (strcmp(mfn, "is_prime") == 0 || strcmp(mfn, "is_even") == 0 ||
+            strcmp(mfn, "is_odd") == 0 ||
+            strcmp(mfn, "is_nan") == 0 || strcmp(mfn, "is_finite") == 0 ||
+            strcmp(mfn, "is_infinite") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "abs") == 0 || strcmp(mfn, "neg") == 0 ||
+                   strcmp(mfn, "min") == 0 || strcmp(mfn, "max") == 0 ||
+                   strcmp(mfn, "clamp") == 0) {
+            /* Return type matches argument type; float in, float out */
+            if (node->data.call.arg_count > 0) {
+                GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
+                result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
+            } else {
+                result = &TYPE_INT;
+            }
+        } else if (strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
+                   strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "sqrt") == 0 || strcmp(mfn, "pow") == 0 ||
+                   strcmp(mfn, "exp") == 0 || strcmp(mfn, "exp2") == 0 ||
+                   strcmp(mfn, "log") == 0 ||
+                   strcmp(mfn, "log2") == 0 || strcmp(mfn, "log10") == 0 ||
+                   strcmp(mfn, "log_base") == 0 ||
+                   strcmp(mfn, "sin") == 0 || strcmp(mfn, "cos") == 0 ||
+                   strcmp(mfn, "tan") == 0 || strcmp(mfn, "asin") == 0 ||
+                   strcmp(mfn, "acos") == 0 || strcmp(mfn, "atan") == 0 ||
+                   strcmp(mfn, "atan2") == 0 || strcmp(mfn, "sinh") == 0 ||
+                   strcmp(mfn, "cosh") == 0 || strcmp(mfn, "tanh") == 0 ||
+                   strcmp(mfn, "floor") == 0 || strcmp(mfn, "ceil") == 0 ||
+                   strcmp(mfn, "round") == 0 || strcmp(mfn, "trunc") == 0 ||
+                   strcmp(mfn, "cbrt") == 0 || strcmp(mfn, "hypot") == 0 ||
+                   strcmp(mfn, "deg_to_rad") == 0 || strcmp(mfn, "rad_to_deg") == 0 ||
+                   strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0) {
+            result = &TYPE_FLOAT;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "threads") == 0) {
+        if (strcmp(mfn, "spawn") == 0 || strcmp(mfn, "spawn_arg") == 0) {
+            /* Validate first arg is a function reference */
+            if (node->data.call.arg_count >= 1) {
+                AstNode *arg0 = node->data.call.args[0];
+                if (arg0->kind != NODE_FUNC_REF &&
+                    !(arg0->kind == NODE_CALL_EXPR &&
+                      arg0->data.call.function->kind == NODE_LABEL &&
+                      strcmp(arg0->data.call.function->data.label.value, "ref") == 0)) {
+                    diagnostic_error_message(checker->diag, "E7006",
+                        "threads.spawn() requires a function reference; use ()func_name or ref(func_name)",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+            }
+            result = type_struct("Thread"); /* GrayThread; opaque */
+        } else if (strcmp(mfn, "get_id") == 0 ||
+                   strcmp(mfn, "current") == 0 ||
+                   strcmp(mfn, "thread_count") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "is_alive") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "join") == 0 || strcmp(mfn, "detach") == 0 ||
+                   strcmp(mfn, "yield") == 0 ||
+                   strcmp(mfn, "sleep") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "sync") == 0) {
+        if (strcmp(mfn, "mutex") == 0) {
+            result = type_struct("Mutex"); /* GrayMutex; opaque */
+        } else if (strcmp(mfn, "try_lock") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "lock") == 0 || strcmp(mfn, "unlock") == 0 ||
+                   strcmp(mfn, "destroy") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "atomic") == 0) {
+        if (strcmp(mfn, "load") == 0 || strcmp(mfn, "add") == 0 ||
+            strcmp(mfn, "sub") == 0 || strcmp(mfn, "exchange") == 0 ||
+            strcmp(mfn, "and") == 0 || strcmp(mfn, "or") == 0 ||
+            strcmp(mfn, "xor") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "cas") == 0 || strcmp(mfn, "spin_trylock") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "spinlock") == 0) {
+            result = type_struct("SpinLock"); /* GraySpinLock; opaque */
+        } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "fence") == 0 ||
+                   strcmp(mfn, "spin_lock") == 0 ||
+                   strcmp(mfn, "spin_unlock") == 0 ||
+                   strcmp(mfn, "spinlock_destroy") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "channels") == 0) {
+        if (strcmp(mfn, "open") == 0) {
+            result = type_struct("Channel"); /* GrayChannel; opaque */
+        } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "try_receive") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "send") == 0 || strcmp(mfn, "close") == 0) {
+            result = &TYPE_VOID;
+        } else if (strcmp(mfn, "try_send") == 0) {
+            result = &TYPE_BOOL;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "server") == 0) {
+        if (strcmp(mfn, "add_router") == 0) {
+            result = type_struct("Router"); /* GrayRouter; opaque */
+        } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
+                   strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
+            result = type_struct("HttpResponse"); /* GrayResponse */
+        } else if (strcmp(mfn, "add_route") == 0 || strcmp(mfn, "listen") == 0 ||
+                   strcmp(mfn, "cors") == 0 || strcmp(mfn, "use") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "http") == 0) {
+        /* All http methods return GrayHttpResponse struct
+         * with .status (int), .body (string), .headers (map) */
+        result = type_struct("HttpResponse"); /* opaque struct; member access via __auto_type */
+    } else if (strcmp(mod, "net") == 0) {
+        if (strcmp(mfn, "listen") == 0) {
+            result = type_struct("Listener"); /* GraySocket; opaque */
+        } else if (strcmp(mfn, "connect") == 0 || strcmp(mfn, "accept") == 0) {
+            result = type_struct("Socket"); /* GraySocket; opaque */
+        } else if (strcmp(mfn, "send") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "resolve") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+        /* E5026: functions that take a socket/listener as first arg */
+        if (strcmp(mfn, "send") == 0 || strcmp(mfn, "receive") == 0 ||
+            strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0 ||
+            strcmp(mfn, "accept") == 0) {
+            if (node->data.call.arg_count >= 1) {
+                GrayType *arg1_type = resolve_expression(checker, node->data.call.args[0]);
+                if (arg1_type && arg1_type->kind != TK_STRUCT) {
+                    const char *expected = strcmp(mfn, "accept") == 0
+                        ? "Listener" : "Socket";
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "net.%s() expects a %s as the first argument, got %s",
+                        mfn, expected,
+                        arg1_type->name ? arg1_type->name : "non-struct type");
+                    diagnostic_error_message(checker->diag, "E5026", msg,
+                        NODE_FILE(checker, node), node->data.call.args[0]->token.line,
+                        node->data.call.args[0]->token.column, 0);
+                }
+            }
+        }
+    } else if (strcmp(mod, "regex") == 0) {
+        if (strcmp(mfn, "is_match") == 0 || strcmp(mfn, "is_valid") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "find") == 0 || strcmp(mfn, "replace") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "find_all") == 0 || strcmp(mfn, "split") == 0) {
+            result = type_array("string");
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "mem") == 0) {
+        if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
+            AstNode *type_arg = node->data.call.args[1];
+            if (type_arg->kind == NODE_LABEL) {
+                result = type_pointer(type_arg->data.label.value);
+            } else {
+                result = &TYPE_UNKNOWN;
+            }
+        } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
+            GrayType *val_t = resolve_expression(checker, node->data.call.args[1]);
+            result = type_pointer(type_name(val_t));
+        } else if (strcmp(mfn, "arena") == 0) {
+            result = type_struct("Arena");
+        } else if (strcmp(mfn, "usage") == 0) {
+            result = &TYPE_INT;
+        } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
+                   strcmp(mfn, "destroy") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "sqlite") == 0) {
+        if (strcmp(mfn, "open") == 0) {
+            result = type_struct("Database");
+        } else if (strcmp(mfn, "exec") == 0) {
+            result = &TYPE_BOOL;
+        } else if (strcmp(mfn, "query") == 0) {
+            result = type_array("map");
+        } else if (strcmp(mfn, "close") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(mod, "fmt") == 0) {
+        if (strcmp(mfn, "sprintf") == 0 ||
+            strcmp(mfn, "sprintfln") == 0 ||
+            strcmp(mfn, "format") == 0 ||
+            strcmp(mfn, "pad_left") == 0 ||
+            strcmp(mfn, "pad_right") == 0 ||
+            strcmp(mfn, "center") == 0 ||
+            strcmp(mfn, "int_to_hex") == 0 ||
+            strcmp(mfn, "int_to_binary") == 0 ||
+            strcmp(mfn, "int_to_octal") == 0 ||
+            strcmp(mfn, "float_fixed") == 0 ||
+            strcmp(mfn, "float_sci") == 0) {
+            result = &TYPE_STRING;
+        } else if (strcmp(mfn, "printf") == 0 ||
+                   strcmp(mfn, "printfln") == 0 ||
+                   strcmp(mfn, "eprintf") == 0 ||
+                   strcmp(mfn, "eprintfln") == 0) {
+            result = &TYPE_VOID;
+        } else {
+            emit_unknown_stdlib_function(checker, mod, mfn, node);
+            result = &TYPE_UNKNOWN;
+        }
+        /* Validate printf/sprintf/format: literal format string + directive types */
+        {
+            bool is_fmt_fn = strcmp(mfn, "printf") == 0 ||
+                             strcmp(mfn, "printfln") == 0 ||
+                             strcmp(mfn, "eprintf") == 0 ||
+                             strcmp(mfn, "eprintfln") == 0 ||
+                             strcmp(mfn, "sprintf") == 0 ||
+                             strcmp(mfn, "sprintfln") == 0 ||
+                             strcmp(mfn, "format") == 0;
+            if (is_fmt_fn && node->data.call.arg_count >= 1) {
+                AstNode *fmt_arg = node->data.call.args[0];
+                if (fmt_arg->kind != NODE_STRING_VALUE) {
+                    diagnostic_error_code_formatted(checker->diag, "E3086",
+                        NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                        fmt_arg->token.column, 0, mfn);
+                } else {
+                    /* Walk format string, validate each directive against arg type */
+                    const char *fstr = fmt_arg->data.string_value.value;
+                    const char *p = fstr;
+                    int di = 1;
+                    int num_directives = 0;
+                    while (*p) {
+                        if (*p != '%') { p++; continue; }
+                        p++;
+                        if (!*p) {
+                            /* Dangling % at end of format string */
+                            diagnostic_error_code_formatted(checker->diag, "E3106",
+                                NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                                fmt_arg->token.column, 0, mfn);
+                            break;
+                        }
+                        if (*p == '%') { p++; continue; }
+                        if (*p == 'n') {
+                            diagnostic_error_code_formatted(checker->diag, "E3087",
+                                NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                                fmt_arg->token.column, 0);
+                            break;
+                        }
+                        /* Skip flags, width, precision, length modifier */
+                        while (*p == '-' || *p == '+' || *p == ' ' || *p == '0' || *p == '#') p++;
+                        while (*p >= '0' && *p <= '9') p++;
+                        if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+                        if (*p == 'h') { p++; if (*p == 'h') p++; }
+                        else if (*p == 'l') { p++; if (*p == 'l') p++; }
+                        else if (*p == 'L') p++;
+                        char spec = *p ? *p++ : 0;
+                        if (!spec) {
+                            diagnostic_error_code_formatted(checker->diag, "E3106",
+                                NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                                fmt_arg->token.column, 0, mfn);
+                            break;
+                        }
+                        num_directives++;
+                        /* Reject unknown format directives */
+                        bool known = false;
+                        switch (spec) {
+                        case 'd': case 'i': case 'u':
+                        case 'x': case 'X': case 'o':
+                        case 'f': case 'g': case 'e': case 'G': case 'E':
+                        case 's': case 'c': case 'b':
+                            known = true;
+                            break;
+                        default:
+                            known = false;
+                            break;
+                        }
+                        if (!known) {
+                            diagnostic_error_code_formatted(checker->diag, "E3105",
+                                NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                                fmt_arg->token.column, 0, mfn, spec);
+                            di++;
+                            continue;
+                        }
+                        if (di >= node->data.call.arg_count) { di++; continue; }
+                        AstNode *darg = node->data.call.args[di];
+                        GrayType *dt = resolve_expression(checker, darg);
+                        di++;
+                        if (!dt) continue;
+                        const char *expected = NULL;
+                        bool ok = false;
+                        switch (spec) {
+                        case 'd': case 'i':
+                            expected = "int or char";
+                            ok = dt->kind == TK_INT || dt->kind == TK_CHAR || dt->kind == TK_BYTE;
+                            break;
+                        case 'u':
+                            expected = "uint";
+                            ok = dt->kind == TK_UINT || dt->kind == TK_BYTE;
+                            break;
+                        case 'x': case 'X': case 'o':
+                            expected = "int or uint";
+                            ok = dt->kind == TK_INT || dt->kind == TK_UINT || dt->kind == TK_BYTE;
+                            break;
+                        case 'f': case 'g': case 'e': case 'G': case 'E':
+                            expected = "float";
+                            ok = dt->kind == TK_FLOAT;
+                            break;
+                        case 's':
+                            expected = "string";
+                            ok = dt->kind == TK_STRING;
+                            break;
+                        case 'c':
+                            expected = "char";
+                            ok = dt->kind == TK_CHAR || dt->kind == TK_INT;
+                            break;
+                        default:
+                            ok = true;
+                            break;
+                        }
+                        if (!ok && expected) {
+                            char spec_str[2] = { spec, '\0' };
+                            diagnostic_error_code_formatted(checker->diag, "E3088",
+                                NODE_FILE(checker, darg), darg->token.line,
+                                darg->token.column, 0,
+                                mfn, spec_str, expected, di - 1,
+                                type_name(dt));
+                        }
+                    }
+                    /* Check argument count vs directive count */
+                    int num_args = node->data.call.arg_count - 1;
+                    if (num_args < num_directives) {
+                        diagnostic_error_code_formatted(checker->diag, "E3107",
+                            NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                            fmt_arg->token.column, 0,
+                            mfn, num_directives, num_args);
+                    } else if (num_args > num_directives) {
+                        diagnostic_error_code_formatted(checker->diag, "E3108",
+                            NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
+                            fmt_arg->token.column, 0,
+                            mfn, num_directives, num_args);
+                    }
+                }
+            }
+        }
+        /* Validate that non-format args are primitive types */
+        for (int argument_index = 1; argument_index < node->data.call.arg_count; argument_index++) {
+            GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+            if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
+                          arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
+                /* Build a readable type name */
+                char tn[TYPE_NAME_MAX];
+                if (arg_t->kind == TK_ARRAY && arg_t->element_type)
+                    snprintf(tn, sizeof(tn), "[%s]", arg_t->element_type);
+                else if (arg_t->kind == TK_MAP)
+                    snprintf(tn, sizeof(tn), "map[%s:%s]",
+                        arg_t->key_type ? arg_t->key_type : "?",
+                        arg_t->value_type ? arg_t->value_type : "?");
+                else if (arg_t->kind == TK_POINTER && arg_t->element_type)
+                    snprintf(tn, sizeof(tn), "^%s", arg_t->element_type);
+                else {
+                    strncpy(tn, type_name(arg_t), sizeof(tn) - 1);
+                    tn[sizeof(tn) - 1] = '\0';
+                }
+                diagnostic_error_code_formatted(checker->diag, "E3017", NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                    node->data.call.args[argument_index]->token.column, 0, mfn, tn);
+            }
+        }
+    }
+
+    return result;
+}
+
+static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *node, const char *mod, const char *mfn, const char *mod_raw, AstNode *fn) {
+    GrayType *result = &TYPE_UNKNOWN;
+    if (is_struct_name(checker, mod)) {
+        /* Struct-namespaced function call: Type.func(); look up return type */
+        const char *display_mod = struct_display_name(checker, mod);
+        char prefixed[MSG_BUF_SIZE];
+        snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+        FuncSig *sig = find_func(checker, prefixed);
+        if (sig) {
+            sig->used = true;
+            /* Resolve named arguments for struct static calls */
+            if (sig->decl) {
+                char display[MSG_BUF_SIZE];
+                snprintf(display, sizeof(display), "%s.%s", display_mod, mfn);
+                typechecker_resolve_named_arguments(checker, node, sig->decl, display);
+            }
+            /* E4017: private struct function called from outside the struct */
+            if (sig->is_private &&
+                !(checker->current_struct_name && strcmp(checker->current_struct_name, mod) == 0)) {
+                diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
+                    node->token.line, node->token.column, 0, display_mod, mfn);
+            }
+            /* Wildcard (generic) struct function: record instantiation
+             * and substitute the concrete return type. */
+            if (sig->is_generic && sig->decl &&
+                sig->decl->kind == NODE_FUNC_DECL) {
+                char *binding = NULL;
+                int clamped_argument_count = node->data.call.arg_count < sig->decl->data.func_decl.param_count
+                    ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
+                for (int argument_index = 0; argument_index < clamped_argument_count && !binding; argument_index++) {
+                    const char *ptn = sig->decl->data.func_decl.params[argument_index].type_name;
+                    GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
+                    if (!type_name_has_wildcard(ptn)) continue;
+                    binding = bind_wildcard(ptn, at);
+                }
+                if (binding) {
+                    record_instantiation(sig, binding, node);
+                    if (sig->decl->data.func_decl.return_type_count > 0) {
+                        char *rt = substitute_wildcard(
+                            sig->decl->data.func_decl.return_types[0], binding);
+                        result = type_from_name(rt);
+                    } else {
+                        result = &TYPE_VOID;
+                    }
+                    free(binding);
+                } else {
+                    result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+                }
+            } else {
+                result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+            }
+            /* E5008: check argument count, accounting for default params */
+            {
+                int min_params = sig->param_count;
+                if (sig->decl && sig->decl->kind == NODE_FUNC_DECL) {
+                    min_params = 0;
+                    for (int parameter_index = 0; parameter_index < sig->decl->data.func_decl.param_count; parameter_index++) {
+                        if (!sig->decl->data.func_decl.params[parameter_index].default_value)
+                            min_params++;
+                    }
+                }
+                if (node->data.call.arg_count < min_params ||
+                    node->data.call.arg_count > sig->param_count) {
+                    char *msg = NULL;
+                    if (min_params == sig->param_count) {
+                        msg = typechecker_format(checker,
+                            "function '%s.%s' expects %d argument(s), got %d",
+                            display_mod, mfn, sig->param_count, node->data.call.arg_count);
+                    } else {
+                        msg = typechecker_format(checker,
+                            "function '%s.%s' expects %d-%d argument(s), got %d",
+                            display_mod, mfn, min_params, sig->param_count, node->data.call.arg_count);
+                    }
+                    diagnostic_error_message(checker->diag, "E5008", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+            }
+            /* Check argument types */
+            int check_count = node->data.call.arg_count < sig->param_count
+                ? node->data.call.arg_count : sig->param_count;
+            for (int argument_index = 0; argument_index < check_count; argument_index++) {
+                GrayType *param_t = sig->param_types[argument_index];
+                /* Set expected_type for implicit enum resolution */
+                GrayType *saved_expected_m = checker->expected_type;
+                if (param_t && param_t->kind == TK_ENUM && param_t->name)
+                    checker->expected_type = param_t;
+                GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+                checker->expected_type = saved_expected_m;
+                if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                    arg_t->kind != param_t->kind &&
+                    !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                    !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                    !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                    !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                    !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s.%s': expected %s, got %s",
+                        argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+                /* Enum-to-enum: kinds both TK_ENUM but different names */
+                if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
+                    arg_t->name && param_t->name &&
+                    !typechecker_same_enum_type(checker, arg_t->name, param_t->name)) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
+                        argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+                /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                    arg_t->name && param_t->name &&
+                    !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
+                        argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+                /* Pointer-to-pointer: pointee types differ */
+                if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
+                    arg_t->name && param_t->name &&
+                    !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s.%s': expected '%s', got '%s'",
+                        argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+                /* E3027: non-assignable or const passed to mutable (&) param.
+                 * Struct functions live inside NODE_STRUCT_DECL, not as
+                 * top-level stmts, so scan struct declarations. */
+                {
+                    AstNode *arg = node->data.call.args[argument_index];
+                    AstNode *found_declaration = NULL;
+                    for (int field_index = 0; field_index < checker->program->data.program.stmt_count && !found_declaration; field_index++) {
+                        AstNode *s = checker->program->data.program.stmts[field_index];
+                        if (s->kind == NODE_STRUCT_DECL &&
+                            strcmp(s->data.struct_decl.name, mod) == 0) {
+                            for (int sfi = 0; sfi < s->data.struct_decl.func_count; sfi++) {
+                                AstNode *sf = s->data.struct_decl.funcs[sfi].func_decl;
+                                if (sf && sf->kind == NODE_FUNC_DECL &&
+                                    strcmp(sf->data.func_decl.name, mfn) == 0 &&
+                                    argument_index < sf->data.func_decl.param_count &&
+                                    sf->data.func_decl.params[argument_index].mutable) {
+                                    found_declaration = sf;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (found_declaration) {
+                        char fn_display[MSG_BUF_SIZE];
+                        snprintf(fn_display, sizeof(fn_display), "%s.%s", display_mod, mfn);
+                        check_mutable_arg(checker, arg,
+                            found_declaration->data.func_decl.params[argument_index].name, fn_display);
+                    }
+                }
+            }
+        } else {
+            /* E4018: struct has no function with this name */
+            diagnostic_error_code_formatted(checker->diag, "E4018", NODE_FILE(checker, node),
+                node->token.line, node->token.column, 0, display_mod, mfn);
+            result = &TYPE_VOID;
+        }
+    } else {
+        /* Try user-defined module: look up <module>_<func> in function registry */
+        char prefixed[MSG_BUF_SIZE];
+        snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+        FuncSig *sig = find_func(checker, prefixed);
+        if (sig && sig->is_private) {
+            diagnostic_error_code_formatted(checker->diag, "E4015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, mfn);
+        } else if (sig) {
+            sig->used = true;
+            /* Resolve named arguments for user-module function calls */
+            if (sig->decl) {
+                char display[MSG_BUF_SIZE];
+                snprintf(display, sizeof(display), "%s.%s", mod, mfn);
+                typechecker_resolve_named_arguments(checker, node, sig->decl, display);
+            }
+            if (sig->return_count > 0) {
+                result = sig->return_types[0];
+            } else {
+                result = &TYPE_VOID;
+            }
+        } else {
+            /* Check if 'mod' is a variable with a struct type —
+             * user wrote instance.func() instead of Type.func(). */
+            Symbol *sym = scope_lookup(checker->current_scope, mod_raw);
+            if (sym && sym->type && (sym->type->kind == TK_STRUCT ||
+                sym->type->kind == TK_POINTER)) {
+                const char *struct_name = sym->type->kind == TK_POINTER
+                    ? sym->type->element_type : sym->type->name;
+                const char *display_sname = struct_display_name(checker, struct_name);
+                /* : check if `mfn` is a data field of type func
+                 * before trying struct-function dispatch. A func-typed
+                 * field should be called as a function pointer, not
+                 * mistaken for a struct function. The bare "func" type
+                 * was deprecated; modern typed function refs are
+                 * encoded as "func(...)->R" with kind TK_FUNCTION. */
+                GrayType *field_t = struct_field_type(checker, struct_name, mfn);
+                if (field_t && field_t->kind == TK_FUNCTION) {
+                    /* This is a func-typed data field. Accept the call
+                     *; codegen will emit it as a function-pointer
+                     * call through the field access. Resolve the
+                     * return type from the encoded signature so
+                     * downstream uses get a typed value. */
+                    sym->used = true;
+                    result = (field_t->func_sig &&
+                              field_t->func_sig->return_count > 0 &&
+                              field_t->func_sig->return_types &&
+                              field_t->func_sig->return_types[0])
+                        ? type_from_name(field_t->func_sig->return_types[0])
+                        : &TYPE_UNKNOWN;
+                    return result;
+                }
+                char sfn[MSG_BUF_SIZE];
+                snprintf(sfn, sizeof(sfn), "%s_%s", struct_name, mfn);
+                FuncSig *ssig = find_func(checker, sfn);
+                /* Auto-dispatch instance.func() → Type.func(instance)
+                 * whenever the struct function takes the struct (or a
+                 * pointer to it) as its first parameter. This covers
+                 * both `do bar(self Foo)` and `do bar(&self Foo)`, and
+                 * lets users call struct functions on instances without
+                 * having to write the type name at every call site.
+                 * Factory-style functions (e.g. `do make(x int) -> Foo`)
+                 * whose first param isn't a Foo continue to require
+                 * explicit `Foo.make(...)` since there's no instance
+                 * to bind. */
+                bool is_self_func = false;
+                if (ssig && ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
+                    ssig->decl->data.func_decl.param_count > 0) {
+                    const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
+                    if (p0_tn) {
+                        if (strcmp(p0_tn, struct_name) == 0) {
+                            is_self_func = true;
+                        } else if (p0_tn[0] == '^' && strcmp(p0_tn + 1, struct_name) == 0) {
+                            is_self_func = true;
+                        }
+                    }
+                }
+                if (is_self_func) {
+                    /* E4017: private struct function via instance dispatch */
+                    if (ssig->is_private &&
+                        !(checker->current_struct_name && strcmp(checker->current_struct_name, struct_name) == 0)) {
+                        diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
+                            node->token.line, node->token.column, 0, display_sname, mfn);
+                    }
+                    /* Resolve named arguments before AST rewrite.
+                     * User-visible params start at index 1 (after self),
+                     * so build a temporary shifted decl view. Named
+                     * args target param names excluding the self param. */
+                    if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
+                        typechecker_has_named_arguments(node)) {
+                        AstNode *sdecl = ssig->decl;
+                        /* Create a temporary fake decl with params shifted
+                         * to skip the self parameter (param[0]). */
+                        AstNode tmp_decl = *sdecl;
+                        int orig_pc = sdecl->data.func_decl.param_count;
+                        if (orig_pc > 1) {
+                            tmp_decl.data.func_decl.params = &sdecl->data.func_decl.params[1];
+                            tmp_decl.data.func_decl.param_count = orig_pc - 1;
+                        } else {
+                            tmp_decl.data.func_decl.param_count = 0;
+                        }
+                        char display[MSG_BUF_SIZE];
+                        snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
+                        typechecker_resolve_named_arguments(checker, node, &tmp_decl, display);
+                    }
+                    /* Rewrite the call AST: change the member-expr
+                     * object from the instance label to the type
+                     * name, and prepend the instance as arg[0]. */
+                    fn->data.member.object->data.label.value = strdup(struct_name);
+                    int orig_count = node->data.call.arg_count;
+                    AstNode **new_args = xmalloc(sizeof(AstNode *) * (orig_count + 1));
+                    AstNode *self_arg = xcalloc(1, sizeof(AstNode));
+                    self_arg->kind = NODE_LABEL;
+                    self_arg->token = node->token;
+                    self_arg->data.label.value = strdup(mod_raw);
+                    new_args[0] = self_arg;
+                    for (int argument_index = 0; argument_index < orig_count; argument_index++) {
+                        new_args[argument_index + 1] = node->data.call.args[argument_index];
+                    }
+                    node->data.call.args = new_args;
+                    node->data.call.arg_count = orig_count + 1;
+                    /* Mark the function used and resolve return type */
+                    ssig->used = true;
+                    sym->used = true;
+                    if (ssig->is_generic && ssig->decl &&
+                        ssig->decl->kind == NODE_FUNC_DECL) {
+                        char *binding = NULL;
+                        int clamped_argument_count = node->data.call.arg_count < ssig->decl->data.func_decl.param_count
+                            ? node->data.call.arg_count : ssig->decl->data.func_decl.param_count;
+                        for (int argument_index = 0; argument_index < clamped_argument_count && !binding; argument_index++) {
+                            const char *ptn = ssig->decl->data.func_decl.params[argument_index].type_name;
+                            GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
+                            if (!type_name_has_wildcard(ptn)) continue;
+                            binding = bind_wildcard(ptn, at);
+                        }
+                        if (binding) {
+                            record_instantiation(ssig, binding, node);
+                            if (ssig->decl->data.func_decl.return_type_count > 0) {
+                                char *rt = substitute_wildcard(
+                                    ssig->decl->data.func_decl.return_types[0], binding);
+                                result = type_from_name(rt);
+                            } else {
+                                result = &TYPE_VOID;
+                            }
+                            free(binding);
+                        } else {
+                            result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
+                        }
+                    } else {
+                        result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
+                    }
+                    /* E5008: validate argument count (after AST rewrite
+                     * which prepended self as arg[0]). Both arg_count
+                     * and param_count include self, so they compare
+                     * directly. Display counts subtract 1 to hide self. */
+                    {
+                        int min_params = ssig->param_count;
+                        if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                            min_params = 0;
+                            for (int parameter_index = 0; parameter_index < ssig->decl->data.func_decl.param_count; parameter_index++) {
+                                if (!ssig->decl->data.func_decl.params[parameter_index].default_value)
+                                    min_params++;
+                            }
+                        }
+                        if (node->data.call.arg_count < min_params ||
+                            node->data.call.arg_count > ssig->param_count) {
+                            int display_got = node->data.call.arg_count - 1;
+                            int display_max = ssig->param_count - 1;
+                            int display_min = min_params - 1;
+                            char emsg[MSG_BUF_SIZE];
+                            if (display_min == display_max) {
+                                snprintf(emsg, sizeof(emsg),
+                                    "function '%s.%s' expects %d argument(s), got %d",
+                                    display_sname, mfn, display_max, display_got);
+                            } else {
+                                snprintf(emsg, sizeof(emsg),
+                                    "function '%s.%s' expects %d-%d argument(s), got %d",
+                                    display_sname, mfn, display_min, display_max, display_got);
+                            }
+                            diagnostic_error_message(checker->diag, "E5008", arena_copy_string(checker->arena, emsg),
+                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                        }
+                    }
+                    /* Validate argument types (after AST rewrite) */
+                    {
+                        int check_count = node->data.call.arg_count < ssig->param_count
+                            ? node->data.call.arg_count : ssig->param_count;
+                        for (int argument_index = 0; argument_index < check_count; argument_index++) {
+                            GrayType *param_t = ssig->param_types[argument_index];
+                            /* Set expected_type for implicit enum resolution */
+                            GrayType *saved_expected_s = checker->expected_type;
+                            if (param_t && param_t->kind == TK_ENUM && param_t->name)
+                                checker->expected_type = param_t;
+                            GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+                            checker->expected_type = saved_expected_s;
+                            if (arg_t && param_t &&
+                                arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                                arg_t->kind != param_t->kind &&
+                                !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                                !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                                !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                                !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                                !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                                char amsg[MSG_BUF_SIZE];
+                                snprintf(amsg, sizeof(amsg),
+                                    "argument %d of '%s.%s': expected %s, got %s",
+                                    argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                                diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, amsg),
+                                    NODE_FILE(checker, node->data.call.args[argument_index]),
+                                    node->data.call.args[argument_index]->token.line,
+                                    node->data.call.args[argument_index]->token.column, 0);
+                            }
+                            /* Struct-to-struct: kinds both TK_STRUCT but different names */
+                            if (arg_t && param_t &&
+                                arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                                arg_t->name && param_t->name &&
+                                !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
+                                char smsg[MSG_BUF_SIZE];
+                                snprintf(smsg, sizeof(smsg),
+                                    "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
+                                    argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                                diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, smsg),
+                                    NODE_FILE(checker, node->data.call.args[argument_index]),
+                                    node->data.call.args[argument_index]->token.line,
+                                    node->data.call.args[argument_index]->token.column, 0);
+                            }
+                            /* Pointer-to-pointer: pointee types differ */
+                            if (arg_t && param_t &&
+                                arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
+                                arg_t->name && param_t->name &&
+                                !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
+                                char pmsg[MSG_BUF_SIZE];
+                                snprintf(pmsg, sizeof(pmsg),
+                                    "argument %d of '%s.%s': expected '%s', got '%s'",
+                                    argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                                diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, pmsg),
+                                    NODE_FILE(checker, node->data.call.args[argument_index]),
+                                    node->data.call.args[argument_index]->token.line,
+                                    node->data.call.args[argument_index]->token.column, 0);
+                            }
+                        }
+                    }
+                    /* E3027: non-assignable or const passed to mutable (&) param
+                     * in instance dispatch. After the AST rewrite, arg[0]
+                     * is self; user-visible args start at index 1. */
+                    if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                        int parameter_count = ssig->decl->data.func_decl.param_count;
+                        int clamped_argument_count = node->data.call.arg_count < parameter_count ? node->data.call.arg_count : parameter_count;
+                        for (int argument_index = 0; argument_index < clamped_argument_count; argument_index++) {
+                            if (!ssig->decl->data.func_decl.params[argument_index].mutable)
+                                continue;
+                            AstNode *arg = node->data.call.args[argument_index];
+                            if (argument_index == 0) {
+                                /* Self arg: synthetic NODE_LABEL with value mod_raw */
+                                Symbol *self_sym = scope_lookup(checker->current_scope, mod_raw);
+                                if (self_sym && !self_sym->mutable) {
+                                    char emsg[MSG_BUF_SIZE];
+                                    snprintf(emsg, sizeof(emsg),
+                                        "cannot call '%s.%s' on constant '%s'; function requires a mutable ('&') self parameter",
+                                        display_sname, mfn, self_sym->name);
+                                    diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
+                                        NODE_FILE(checker, node), node->token.line,
+                                        node->token.column, 0);
+                                }
+                            } else {
+                                /* User-visible args */
+                                char fn_display[MSG_BUF_SIZE];
+                                snprintf(fn_display, sizeof(fn_display), "%s.%s", display_sname, mfn);
+                                check_mutable_arg(checker, arg,
+                                    ssig->decl->data.func_decl.params[argument_index].name, fn_display);
+                            }
+                        }
+                    }
+                } else if (ssig) {
+                    /* Non-self struct function called on an instance.
+                     * Rewrite the AST so the member-expr object uses
+                     * the struct type name instead of the instance
+                     * name.  Do NOT prepend self as arg[0] — the
+                     * function doesn't take a self parameter. This
+                     * makes the call identical to Type.func() by the
+                     * time codegen sees it. */
+                    /* E4017: private struct function via instance dispatch */
+                    if (ssig->is_private &&
+                        !(checker->current_struct_name && strcmp(checker->current_struct_name, struct_name) == 0)) {
+                        diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
+                            node->token.line, node->token.column, 0, display_sname, mfn);
+                    }
+                    /* Resolve named arguments if present */
+                    if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
+                        typechecker_has_named_arguments(node)) {
+                        char display[MSG_BUF_SIZE];
+                        snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
+                        typechecker_resolve_named_arguments(checker, node, ssig->decl, display);
+                    }
+                    fn->data.member.object->data.label.value = strdup(struct_name);
+                    ssig->used = true;
+                    sym->used = true;
+                    result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
+                    /* Validate argument count */
+                    {
+                        int min_params = ssig->param_count;
+                        if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                            min_params = 0;
+                            for (int parameter_index = 0; parameter_index < ssig->decl->data.func_decl.param_count; parameter_index++) {
+                                if (!ssig->decl->data.func_decl.params[parameter_index].default_value)
+                                    min_params++;
+                            }
+                        }
+                        if (node->data.call.arg_count < min_params ||
+                            node->data.call.arg_count > ssig->param_count) {
+                            char emsg[MSG_BUF_SIZE];
+                            if (min_params == ssig->param_count) {
+                                snprintf(emsg, sizeof(emsg),
+                                    "function '%s.%s' expects %d argument(s), got %d",
+                                    display_sname, mfn, ssig->param_count, node->data.call.arg_count);
+                            } else {
+                                snprintf(emsg, sizeof(emsg),
+                                    "function '%s.%s' expects %d-%d argument(s), got %d",
+                                    display_sname, mfn, min_params, ssig->param_count, node->data.call.arg_count);
+                            }
+                            diagnostic_error_message(checker->diag, "E5008", arena_copy_string(checker->arena, emsg),
+                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                        }
+                    }
+                    /* Validate argument types */
+                    {
+                        int check_count = node->data.call.arg_count < ssig->param_count
+                            ? node->data.call.arg_count : ssig->param_count;
+                        for (int argument_index = 0; argument_index < check_count; argument_index++) {
+                            GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+                            GrayType *param_t = ssig->param_types[argument_index];
+                            if (arg_t && param_t &&
+                                arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                                arg_t->kind != param_t->kind &&
+                                !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                                !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                                !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                                !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                                !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                                char amsg[MSG_BUF_SIZE];
+                                snprintf(amsg, sizeof(amsg),
+                                    "argument %d of '%s.%s': expected %s, got %s",
+                                    argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                                diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, amsg),
+                                    NODE_FILE(checker, node->data.call.args[argument_index]),
+                                    node->data.call.args[argument_index]->token.line,
+                                    node->data.call.args[argument_index]->token.column, 0);
+                            }
+                        }
+                    }
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else {
+                result = &TYPE_VOID;
+            }
+        }
+    }
+    return result;
+}
+
+static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const char *function_name) {
+    GrayType *result = &TYPE_UNKNOWN;
+    if (typechecker_is_builtin(function_name)) {
+        /* E5034: named arguments are not supported for builtins */
+        if (typechecker_has_named_arguments(node)) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "named arguments are not supported for builtin function '%s'",
+                function_name);
+            diagnostic_error_message(checker->diag, "E5034", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+    }
+    /* Check built-in functions first */
+    if (strcmp(function_name, "addr") == 0 && node->data.call.arg_count == 1) {
+        AstNode *arg = node->data.call.args[0];
+        /* addr() requires an assignment target. is_assignment_target recurses into
+         * member/index chains so 'addr(some_call().field)' is
+         * rejected at typecheck instead of leaking an
+         * '&(rvalue)' to clang. */
+        if (path_contains_map_index(checker, arg)) {
+            diagnostic_error_message(checker->diag, "E3013",
+                "addr() cannot take the address of a map index expression; map values may relocate on rehash",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        if (!is_assignment_target(arg)) {
+            diagnostic_error_message(checker->diag, "E3012",
+                "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        /* E3122: addr() of a const variable would allow mutation
+         * through the resulting pointer, bypassing immutability. */
+        const char *root = assignment_target_root_name(arg);
+        if (root) {
+            Symbol *sym = scope_lookup(checker->current_scope, root);
+            if (sym && !sym->mutable) {
+                diagnostic_error_code_formatted(checker->diag, "E3122", NODE_FILE(checker, node),
+                    node->token.line, node->token.column, 0, root);
+            }
+        }
+        GrayType *arg_t = resolve_expression(checker, arg);
+        result = type_pointer(type_name(arg_t));
+    } else if (strcmp(function_name, "ref") == 0 && node->data.call.arg_count == 1) {
+        AstNode *arg = node->data.call.args[0];
+        /* ref(func_name) returns func type; resolve the
+         * function lookup BEFORE calling resolve_expression on the
+         * label, otherwise the E3031 "bare function name as
+         * value" check fires and rejects a legitimate
+         * use ( follow-up). */
+        if (arg->kind == NODE_LABEL &&
+            find_func(checker, arg->data.label.value)) {
+            FuncSig *rfs = find_func(checker, arg->data.label.value);
+            if (rfs) rfs->used = true;
+            result = type_from_name("func");
+        } else {
+            /* Same assignment target requirement as addr(): reject literals,
+             * call results, arithmetic expressions — anything
+             * without a stable address. Without this, ref(42) and
+             * ref(some_call()) leaked '&42' / '&(rvalue)' to clang
+             * and produced opaque generated-C errors. */
+            if (path_contains_map_index(checker, arg)) {
+                diagnostic_error_message(checker->diag, "E3013",
+                    "ref() cannot take a reference to a map index expression; map values may relocate on rehash",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            if (!is_assignment_target(arg)) {
+                diagnostic_error_message(checker->diag, "E3012",
+                    "ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            /* Build a pointer type that preserves the full source type.
+             * For arrays, type_name returns the element type ("int"),
+             * so reconstruct the full name ("[int]"). */
+            GrayType *arg_t = resolve_expression(checker, arg);
+            const char *pointee_name = type_name(arg_t);
+            if (arg_t->kind == TK_ARRAY) {
+                char buffer[MSG_BUF_SIZE];
+                snprintf(buffer, sizeof(buffer), "[%s]", arg_t->element_type);
+                pointee_name = strdup(buffer);
+            } else if (arg_t->kind == TK_MAP) {
+                pointee_name = strdup(arg_t->name);
+            }
+            result = type_pointer(pointee_name);
+        }
+    } else if (strcmp(function_name, "len") == 0) {
+        /* E7015 (): len() only works on string / array / map.
+         * Codegen blindly emits '.len' on the receiver, which
+         * works for the runtime's GrayArray / GrayMap / GrayString
+         * structs but bombs with a raw clang "no member 'len'"
+         * on anything else; structs, enums, primitives,
+         * pointers, func refs, errors. Validate the argument
+         * type here instead of letting it leak. */
+        if (node->data.call.arg_count != 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "len() expects 1 argument, got %d",
+                node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        } else {
+            GrayType *at = resolve_expression(checker, node->data.call.args[0]);
+            reject_void_in_context(checker, node->data.call.args[0], at,
+                "len() argument");
+            if (at && at->kind != TK_UNKNOWN && at->kind != TK_VOID &&
+                at->kind != TK_STRING && at->kind != TK_ARRAY &&
+                at->kind != TK_MAP) {
+                diagnostic_error_code_formatted(checker->diag, "E7015", NODE_FILE(checker, node->data.call.args[0]), node->data.call.args[0]->token.line,
+                    node->data.call.args[0]->token.column, 0, type_name(at));
+            }
+        }
+        result = &TYPE_INT;
+    } else if (strcmp(function_name, "type_of") == 0) {
+        /* E5008: type_of() requires exactly 1 argument */
+        if (node->data.call.arg_count != 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "type_of() expects 1 argument, got %d",
+                node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            result = &TYPE_STRING;
+            return result;
+        }
+        /* E3084: type_of() with a type name instead of a value */
+        if (node->data.call.arg_count > 0) {
+            AstNode *arg = node->data.call.args[0];
+            if (arg->kind == NODE_LABEL) {
+                const char *aname = arg->data.label.value;
+                Symbol *sym = scope_lookup(checker->current_scope, aname);
+                if (!sym && (is_struct_name(checker, aname) || is_enum_name(checker, aname))) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "type_of() expects a value, not a type name '%s'; use type_of(instance) instead",
+                        aname);
+                    diagnostic_error_message(checker->diag, "E3084", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+            }
+        }
+        /* E3038: type_of() on void function result */
+        if (node->data.call.arg_count > 0) {
+            GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
+            if (arg_t->kind == TK_VOID) {
+                diagnostic_error_message(checker->diag, "E3038",
+                    "cannot use type_of() on a void function; the function does not return a value",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+        result = &TYPE_STRING;
+    } else if (strcmp(function_name, "size_of") == 0) {
+        /* Rewrite size_of(T) → size_of(?) when T is a type param */
+        if (node->data.call.arg_count == 1 &&
+            node->data.call.args[0]->kind == NODE_LABEL &&
+            checker->type_param_name &&
+            strcmp(node->data.call.args[0]->data.label.value,
+                   checker->type_param_name) == 0) {
+            node->data.call.args[0]->data.label.value = "?";
+        }
+        result = &TYPE_INT;
+    } else if (strcmp(function_name, "to_char") == 0) {
+        if (node->data.call.arg_count != 2) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "to_char() expects 2 arguments (string, index), got %d",
+                node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        } else {
+            GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
+            GrayType *arg1 = resolve_expression(checker, node->data.call.args[1]);
+            if (arg0->kind != TK_STRING) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "to_char() first argument must be a string, got %s",
+                    type_name(arg0));
+                diagnostic_error_message(checker->diag, "E3043", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            if (arg1->kind != TK_INT && arg1->kind != TK_UINT) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "to_char() second argument must be int or uint, got %s",
+                    type_name(arg1));
+                diagnostic_error_message(checker->diag, "E3043", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+        result = &TYPE_CHAR;
+    } else if (strcmp(function_name, "char_count") == 0) {
+        if (node->data.call.arg_count != 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "char_count() expects 1 argument (string), got %d",
+                node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        } else {
+            GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
+            if (arg0->kind != TK_STRING) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "char_count() argument must be a string, got %s",
+                    type_name(arg0));
+                diagnostic_error_message(checker->diag, "E3043", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+        result = &TYPE_INT;
+    } else if (strcmp(function_name, "c_string") == 0) {
+        if (node->data.call.arg_count >= 1) {
+            GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
+            if (arg0 && arg0->kind != TK_POINTER && arg0->kind != TK_UNKNOWN) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "c_string() requires a raw C pointer; '%s' is not a pointer type. "
+                    "c_string() is only valid with values from C interop (import c\"header.h\")",
+                    type_name(arg0));
+                diagnostic_error_message(checker->diag, "E3083", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+        result = &TYPE_STRING;
+    } else if (strcmp(function_name, "input") == 0) {
+        result = &TYPE_STRING;
+    } else if (strcmp(function_name, "here") == 0) {
+        if (node->data.call.arg_count != 0) {
+            diagnostic_error_code(checker->diag, "E5014",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        result = type_struct("SourceLocation");
+    } else if (strcmp(function_name, "embed") == 0) {
+        if (node->data.call.arg_count != 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "embed() takes exactly 1 argument, got %d",
+                node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        } else {
+            AstNode *arg = node->data.call.args[0];
+            if (arg->kind != NODE_STRING_VALUE) {
+                diagnostic_error_code(checker->diag, "E5017",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            } else {
+                /* Resolve file path relative to source file directory */
+                const char *embed_path = arg->data.string_value.value;
+                char resolved[4096];
+                const char *source_file = NODE_FILE(checker, node);
+                if (embed_path[0] != '/' && source_file) {
+                    const char *last_slash = strrchr(source_file, '/');
+                    if (last_slash) {
+                        snprintf(resolved, sizeof(resolved), "%.*s%s",
+                            (int)(last_slash - source_file + 1), source_file, embed_path);
+                    } else {
+                        snprintf(resolved, sizeof(resolved), "%s", embed_path);
+                    }
+                } else {
+                    snprintf(resolved, sizeof(resolved), "%s", embed_path);
+                }
+                /* Reject path traversal outside the source directory */
+                char real_embed[4096];
+                char real_src_dir[4096];
+                if (realpath(resolved, real_embed)) {
+                    bool escaped = true;
+                    if (source_file) {
+                        const char *last_slash2 = strrchr(source_file, '/');
+                        if (last_slash2) {
+                            char src_dir[4096];
+                            snprintf(src_dir, sizeof(src_dir), "%.*s",
+                                (int)(last_slash2 - source_file), source_file);
+                            if (realpath(src_dir, real_src_dir)) {
+                                size_t dir_len = strlen(real_src_dir);
+                                if (strncmp(real_embed, real_src_dir, dir_len) == 0 &&
+                                    (real_embed[dir_len] == '/' || real_embed[dir_len] == '\0')) {
+                                    escaped = false;
+                                }
+                            }
+                        } else {
+                            /* source file has no directory component — cwd is the root */
+                            if (realpath(".", real_src_dir)) {
+                                size_t dir_len = strlen(real_src_dir);
+                                if (strncmp(real_embed, real_src_dir, dir_len) == 0 &&
+                                    (real_embed[dir_len] == '/' || real_embed[dir_len] == '\0')) {
+                                    escaped = false;
+                                }
+                            }
+                        }
+                    }
+                    if (escaped) {
+                        diagnostic_error_code(checker->diag, "E5027",
+                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                        goto embed_done;
+                    }
+                }
+                FILE *ef = fopen(resolved, "r");
+                if (!ef) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "embed() cannot open '%s': file not found or unreadable",
+                        embed_path);
+                    diagnostic_error_message(checker->diag, "E5018", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                } else {
+                    fclose(ef);
+                }
+                embed_done:;
+            }
+        }
+        result = &TYPE_STRING;
+    } else if (strcmp(function_name, "error") == 0) {
+        result = type_from_name("Error");
+    } else if (strcmp(function_name, "println") == 0 || strcmp(function_name, "eprintln") == 0) {
+        /* println/eprintln accept 0 or 1 arguments */
+        if (node->data.call.arg_count > 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "%s() expects 0 or 1 argument(s), got %d",
+                function_name, node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        if (node->data.call.arg_count >= 1) {
+            GrayType *at = resolve_expression(checker, node->data.call.args[0]);
+            if (at->kind == TK_FUNCTION) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "cannot pass a func reference to %s(); func references are not printable values",
+                    function_name);
+                diagnostic_error_message(checker->diag, "E5028", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            if (at->kind == TK_ENUM && at->name && typechecker_enum_is_tagged(checker, at->name)) {
+                diagnostic_error_code_formatted(checker->diag, "E5038",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                    enum_display_name(checker, at->name), function_name);
+            }
+            char context[TYPE_NAME_MAX];
+            snprintf(context, sizeof(context), "%s() argument", function_name);
+            reject_void_in_context(checker, node->data.call.args[0], at, context);
+        }
+        result = &TYPE_VOID;
+    } else if (strcmp(function_name, "print") == 0 || strcmp(function_name, "eprint") == 0) {
+        /* print/eprint accept exactly 1 argument */
+        if (node->data.call.arg_count != 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "%s() expects 1 argument, got %d",
+                function_name, node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        if (node->data.call.arg_count >= 1) {
+            GrayType *at = resolve_expression(checker, node->data.call.args[0]);
+            if (at->kind == TK_FUNCTION) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "cannot pass a func reference to %s(); func references are not printable values",
+                    function_name);
+                diagnostic_error_message(checker->diag, "E5028", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            if (at->kind == TK_ENUM && at->name && typechecker_enum_is_tagged(checker, at->name)) {
+                diagnostic_error_code_formatted(checker->diag, "E5038",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                    enum_display_name(checker, at->name), function_name);
+            }
+            char context[TYPE_NAME_MAX];
+            snprintf(context, sizeof(context), "%s() argument", function_name);
+            reject_void_in_context(checker, node->data.call.args[0], at, context);
+        }
+        result = &TYPE_VOID;
+    } else if (strcmp(function_name, "exit") == 0 || strcmp(function_name, "panic") == 0 ||
+               strcmp(function_name, "assert") == 0 ||
+               strcmp(function_name, "sleep_s") == 0 ||
+               strcmp(function_name, "sleep_ms") == 0 ||
+               strcmp(function_name, "sleep_ns") == 0) {
+        /* Validate argument types for these builtins */
+        if (strcmp(function_name, "exit") == 0 && node->data.call.arg_count >= 1) {
+            GrayType *at = resolve_expression(checker, node->data.call.args[0]);
+            if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "exit() expects an integer argument, got '%s'", type_name(at));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        } else if (strcmp(function_name, "panic") == 0 && node->data.call.arg_count >= 1) {
+            GrayType *at = resolve_expression(checker, node->data.call.args[0]);
+            if (at->kind != TK_UNKNOWN && at->kind != TK_STRING) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "panic() expects a string argument, got '%s'", type_name(at));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        } else if (strcmp(function_name, "assert") == 0 && node->data.call.arg_count >= 1) {
+            GrayType *cond_t = resolve_expression(checker, node->data.call.args[0]);
+            if (cond_t->kind != TK_UNKNOWN && cond_t->kind != TK_BOOL) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "assert() condition must be a bool, got '%s'", type_name(cond_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            if (node->data.call.arg_count >= 2) {
+                GrayType *msg_t = resolve_expression(checker, node->data.call.args[1]);
+                if (msg_t->kind != TK_UNKNOWN && msg_t->kind != TK_STRING) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "assert() message must be a string, got '%s'", type_display_name(checker, msg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+            }
+        } else if ((strcmp(function_name, "sleep_s") == 0 || strcmp(function_name, "sleep_ms") == 0 ||
+                    strcmp(function_name, "sleep_ns") == 0) && node->data.call.arg_count >= 1) {
+            GrayType *at = resolve_expression(checker, node->data.call.args[0]);
+            if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "%s() expects an integer argument, got '%s'", function_name, type_name(at));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+        result = &TYPE_VOID;
+    } else if (strcmp(function_name, "copy") == 0 && node->data.call.arg_count == 1) {
+        result = resolve_expression(checker, node->data.call.args[0]);
+        if (result->kind == TK_FUNCTION) {
+            diagnostic_error_message(checker->diag, "E5029",
+                arena_copy_string(checker->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            result = &TYPE_UNKNOWN;
+        } else if (result->kind == TK_POINTER) {
+            diagnostic_error_code(checker->diag, "E5037",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (strcmp(function_name, "char") == 0) {
+        /* E5008: char() requires exactly 1 argument */
+        if (node->data.call.arg_count != 1) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "char() expects 1 argument, got %d",
+                node->data.call.arg_count);
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            result = &TYPE_CHAR;
+            return result;
+        }
+        /* E7014: char() with negative integer */
+        int64_t lit_val;
+        if (try_get_literal_int(node->data.call.args[0], &lit_val) && lit_val < 0) {
+            diagnostic_error_code_formatted(checker->diag, "E7014", NODE_FILE(checker, node), node->token.line, node->token.column, 0, (long long)lit_val);
+        }
+        /* E3001: char() with a string literal that is not exactly one character */
+        GrayType *char_arg_t = resolve_expression(checker, node->data.call.args[0]);
+        if (char_arg_t->kind == TK_STRING) {
+            AstNode *arg = node->data.call.args[0];
+            if (arg->kind == NODE_STRING_VALUE) {
+                int slen = (int)strlen(arg->data.string_value.value);
+                if (slen != 1) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "char() requires a single-character string; got a string of length %d",
+                        slen);
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+            }
+        }
+        result = &TYPE_CHAR;
+    } else if ((strcmp(function_name, "int") == 0 ||
+                strcmp(function_name, "i128") == 0 ||
+                strcmp(function_name, "i256") == 0 ||
+                strcmp(function_name, "u128") == 0 ||
+                strcmp(function_name, "u256") == 0 || strcmp(function_name, "uint") == 0 ||
+                strcmp(function_name, "byte") == 0) &&
+               node->data.call.arg_count == 1) {
+        /* E3043: validate source type is convertible to numeric */
+        GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
+        if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+            src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot convert %s to %s; only numeric types, strings, and bools can be converted",
+                type_name(src_t), function_name);
+            diagnostic_error_help(checker->diag, "E3043", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                "only numeric, enum, and string conversions are supported");
+        }
+        if (strcmp(function_name, "byte") == 0)
+            result = &TYPE_BYTE;
+        else if (is_unsigned_type(function_name))
+            result = &TYPE_UINT;
+        else
+            result = &TYPE_INT;
+    } else if (strcmp(function_name, "string") == 0 && node->data.call.arg_count == 1) {
+        /* E3043: validate source type is convertible to string */
+        GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
+        if (src_t->kind == TK_STRING) {
+            diagnostic_error_message(checker->diag, "E3043",
+                arena_copy_string(checker->arena, "cannot convert string to string; value is already a string"),
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        } else if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+                   src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot convert %s to string; use string interpolation or access individual elements",
+                type_name(src_t));
+            diagnostic_error_message(checker->diag, "E3043", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        result = &TYPE_STRING;
+    } else if (strcmp(function_name, "float") == 0 && node->data.call.arg_count == 1) {
+        /* E3043: validate source type is convertible to float */
+        GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
+        if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+            src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
+            src_t->kind == TK_BOOL) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot convert %s to float; only numeric types and strings can be converted",
+                type_name(src_t));
+            diagnostic_error_message(checker->diag, "E3043", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        result = &TYPE_FLOAT;
+    } else if (strcmp(function_name, "bool") == 0 && node->data.call.arg_count == 1) {
+        GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
+        if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+            src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
+            src_t->kind == TK_STRING) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot convert %s to bool; only numeric types and bools can be converted",
+                type_name(src_t));
+            diagnostic_error_message(checker->diag, "E3043", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        result = &TYPE_BOOL;
+    } else if ((strcmp(function_name, "i8") == 0 || strcmp(function_name, "i16") == 0 ||
+                strcmp(function_name, "i32") == 0 || strcmp(function_name, "i64") == 0 ||
+                strcmp(function_name, "u8") == 0 || strcmp(function_name, "u16") == 0 ||
+                strcmp(function_name, "u32") == 0 || strcmp(function_name, "u64") == 0 ||
+                strcmp(function_name, "f32") == 0 || strcmp(function_name, "f64") == 0)) {
+        diagnostic_error_code_formatted(checker->diag, "E5036", NODE_FILE(checker, node),
+            node->token.line, node->token.column, 0, function_name, function_name);
+        result = type_from_name(function_name);
+    } else {
+        return NULL;
+    }
+    return result;
+}
+
+static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const char *function_name) {
+    GrayType *result = &TYPE_UNKNOWN;
+    FuncSig *sig = find_func(checker, function_name);
+    if (sig) {
+        sig->used = true;
+        /* Use the user-facing name in error messages, never
+         * the module-prefixed internal key. */
+        function_name = func_display_name(sig);
+        /* : if this bare name is a using-module alias,
+         * also mark the prefixed sig + import as used so
+         * W1002/W1003 don't fire on the source. */
+        for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
+            if (!using_module_accessible(checker, using_index)) continue;
+            const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
+            char pfx[MSG_BUF_SIZE];
+            snprintf(pfx, sizeof(pfx), "%s_%s", real_mod, function_name);
+            FuncSig *psig = find_func(checker, pfx);
+            if (psig) {
+                psig->used = true;
+                for (int mi = 0; mi < checker->import_count; mi++) {
+                    if (strcmp(checker->imported_modules[mi], checker->using_modules[using_index]) == 0 ||
+                        strcmp(checker->imported_modules[mi], real_mod) == 0) {
+                        checker->import_used[mi] = true;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        /* Resolve named arguments before checking counts/types */
+        if (sig->decl) {
+            typechecker_resolve_named_arguments(checker, node, sig->decl, function_name);
+        }
+        /* Check argument count; account for default parameters */
+        int min_args = sig->param_count;
+        if (sig->decl && sig->decl->kind == NODE_FUNC_DECL) {
+            min_args = 0;
+            for (int parameter_index = 0; parameter_index < sig->decl->data.func_decl.param_count; parameter_index++) {
+                if (!sig->decl->data.func_decl.params[parameter_index].default_value)
+                    min_args++;
+            }
+        }
+        if (node->data.call.arg_count < min_args ||
+            node->data.call.arg_count > sig->param_count) {
+            char *msg = NULL;
+            if (min_args == sig->param_count) {
+                msg = typechecker_format(checker,
+                    "function '%s' expects %d argument(s), got %d",
+                    function_name, sig->param_count, node->data.call.arg_count);
+            } else {
+                msg = typechecker_format(checker,
+                    "function '%s' expects %d-%d argument(s), got %d",
+                    function_name, min_args, sig->param_count, node->data.call.arg_count);
+            }
+            diagnostic_error_message(checker->diag, "E5008", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        /* Generic (wildcard) dispatch: unify each '?' parameter
+         * against the corresponding argument to derive a single
+         * concrete binding T, record the instantiation, and
+         * substitute T into the return type. Skip the normal
+         * per-arg check below since '?' would otherwise collapse
+         * to TK_UNKNOWN and produce no useful errors. */
+        char *generic_binding = NULL;
+        GrayType *generic_return_t = NULL;
+        bool is_generic_call = sig->is_generic && sig->decl &&
+            sig->decl->kind == NODE_FUNC_DECL;
+        if (is_generic_call) {
+            int clamped_argument_count = node->data.call.arg_count < sig->decl->data.func_decl.param_count
+                ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
+            for (int argument_index = 0; argument_index < clamped_argument_count; argument_index++) {
+                const char *ptn = sig->decl->data.func_decl.params[argument_index].type_name;
+                /* Type parameter (<?>) — binding comes from the label
+                 * (a struct name), not from resolve_expression. */
+                if (sig->decl->data.func_decl.params[argument_index].is_type_param) {
+                    if (node->data.call.args[argument_index]->kind != NODE_LABEL) {
+                        diagnostic_error_code(checker->diag, "E3128",
+                            NODE_FILE(checker, node->data.call.args[argument_index]),
+                            node->data.call.args[argument_index]->token.line,
+                            node->data.call.args[argument_index]->token.column, 0);
+                        continue;
+                    }
+                    const char *arg_label = node->data.call.args[argument_index]->data.label.value;
+                    /* Must not be a variable in scope */
+                    if (scope_lookup(checker->current_scope, arg_label)) {
+                        diagnostic_error_code(checker->diag, "E3128",
+                            NODE_FILE(checker, node->data.call.args[argument_index]),
+                            node->data.call.args[argument_index]->token.line,
+                            node->data.call.args[argument_index]->token.column, 0);
+                        continue;
+                    }
+                    /* Must be a struct name */
+                    if (!is_struct_name(checker, arg_label)) {
+                        diagnostic_error_code_formatted(checker->diag, "E3127",
+                            NODE_FILE(checker, node->data.call.args[argument_index]),
+                            node->data.call.args[argument_index]->token.line,
+                            node->data.call.args[argument_index]->token.column, 0,
+                            arg_label);
+                        continue;
+                    }
+                    if (!generic_binding) {
+                        generic_binding = (char *)arg_label;
+                    }
+                    continue;
+                }
+                GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
+                if (!type_name_has_wildcard(ptn)) continue;
+                /* E3100: struct/enum type name passed as a value argument */
+                if (at->kind == TK_UNKNOWN &&
+                    node->data.call.args[argument_index]->kind == NODE_LABEL) {
+                    const char *arg_label = node->data.call.args[argument_index]->data.label.value;
+                    if (!scope_lookup(checker->current_scope, arg_label)) {
+                        if (is_struct_name(checker, arg_label)) {
+                            char *msg = NULL;
+                            msg = typechecker_format(checker,
+                                "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
+                                arg_label, arg_label, arg_label);
+                            diagnostic_error_message(checker->diag, "E3100", msg,
+                                NODE_FILE(checker, node->data.call.args[argument_index]),
+                                node->data.call.args[argument_index]->token.line,
+                                node->data.call.args[argument_index]->token.column, 0);
+                            continue;
+                        } else if (is_enum_name(checker, arg_label)) {
+                            char *msg = NULL;
+                            msg = typechecker_format(checker,
+                                "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
+                                arg_label, arg_label);
+                            diagnostic_error_message(checker->diag, "E3100", msg,
+                                NODE_FILE(checker, node->data.call.args[argument_index]),
+                                node->data.call.args[argument_index]->token.line,
+                                node->data.call.args[argument_index]->token.column, 0);
+                            continue;
+                        }
+                    }
+                }
+                char *bound = bind_wildcard(ptn, at);
+                if (!bound) {
+                    /* arg is TK_UNKNOWN: we are inside a generic
+                     * function body during the main pass and the
+                     * outer param hasn't been bound yet. The
+                     * re-check pass will validate with concrete
+                     * types — skip the false-positive here. */
+                    if (at->kind == TK_UNKNOWN) continue;
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
+                        ptn, argument_index + 1, function_name, type_name(at));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                    continue;
+                }
+                if (!generic_binding) {
+                    generic_binding = bound;
+                } else if (strcmp(generic_binding, bound) != 0) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "wildcard type conflict in '%s': '?' was bound to %s, but argument %d is %s",
+                        function_name, generic_binding, argument_index + 1, bound);
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                    free(bound);
+                } else {
+                    free(bound);
+                }
+            }
+            if (generic_binding) {
+                record_instantiation(sig, generic_binding, node);
+                if (sig->decl->data.func_decl.return_type_count > 0) {
+                    char *rt_str = substitute_wildcard(
+                        sig->decl->data.func_decl.return_types[0],
+                        generic_binding);
+                    generic_return_t = type_from_name(rt_str);
+                    /* rt_str is owned by type_from_name on the
+                     * heap path; leak is fine at compile time. */
+                } else {
+                    generic_return_t = &TYPE_VOID;
+                }
+            }
+        }
+
+        /* Check argument types */
+        int check_count = node->data.call.arg_count < sig->param_count
+            ? node->data.call.arg_count : sig->param_count;
+        for (int argument_index = 0; argument_index < check_count; argument_index++) {
+            /* Skip type parameters — no value to type-check */
+            if (sig->decl && sig->decl->kind == NODE_FUNC_DECL &&
+                argument_index < sig->decl->data.func_decl.param_count &&
+                sig->decl->data.func_decl.params[argument_index].is_type_param)
+                continue;
+            GrayType *param_t = sig->param_types[argument_index];
+            /* Set expected_type for implicit enum resolution */
+            GrayType *saved_expected = checker->expected_type;
+            if (param_t && param_t->kind == TK_ENUM && param_t->name)
+                checker->expected_type = param_t;
+            GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+            checker->expected_type = saved_expected;
+            if (is_generic_call) {
+                /* Generic branch already handled unification;
+                 * suppress the scalar param/arg comparison which
+                 * would compare against TK_UNKNOWN. */
+                continue;
+            }
+            /* E3100: struct/enum type name passed as a value argument */
+            if (arg_t->kind == TK_UNKNOWN &&
+                node->data.call.args[argument_index]->kind == NODE_LABEL &&
+                function_name && strcmp(function_name, "size_of") != 0) {
+                const char *arg_label = node->data.call.args[argument_index]->data.label.value;
+                if (!scope_lookup(checker->current_scope, arg_label)) {
+                    if (is_struct_name(checker, arg_label)) {
+                        char *msg = NULL;
+                        msg = typechecker_format(checker,
+                            "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
+                            arg_label, arg_label, arg_label);
+                        diagnostic_error_message(checker->diag, "E3100", msg,
+                            NODE_FILE(checker, node->data.call.args[argument_index]),
+                            node->data.call.args[argument_index]->token.line,
+                            node->data.call.args[argument_index]->token.column, 0);
+                        continue;
+                    } else if (is_enum_name(checker, arg_label)) {
+                        char *msg = NULL;
+                        msg = typechecker_format(checker,
+                            "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
+                            arg_label, arg_label);
+                        diagnostic_error_message(checker->diag, "E3100", msg,
+                            NODE_FILE(checker, node->data.call.args[argument_index]),
+                            node->data.call.args[argument_index]->token.line,
+                            node->data.call.args[argument_index]->token.column, 0);
+                        continue;
+                    }
+                }
+            }
+            if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                arg_t->kind != param_t->kind &&
+                !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "argument %d of '%s': expected %s, got %s",
+                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                    node->data.call.args[argument_index]->token.column, 0);
+            }
+            /* Enum-to-enum: kinds both TK_ENUM but different names */
+            if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
+                arg_t->name && param_t->name &&
+                !typechecker_same_enum_type(checker, arg_t->name, param_t->name)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "argument %d of '%s': expected enum '%s', got enum '%s'",
+                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                    node->data.call.args[argument_index]->token.column, 0);
+            }
+            /* Struct-to-struct: kinds both TK_STRUCT but different names */
+            if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
+                arg_t->name && param_t->name &&
+                !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "argument %d of '%s': expected struct '%s', got struct '%s'",
+                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                    node->data.call.args[argument_index]->token.column, 0);
+            }
+            /* Pointer-to-pointer: pointee types differ (e.g., addr(Color) to ^Point) */
+            if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
+                arg_t->name && param_t->name &&
+                !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "argument %d of '%s': expected '%s', got '%s'",
+                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                    node->data.call.args[argument_index]->token.column, 0);
+            }
+            /* Bigint narrowing in call argument: i128 arg to i64 param, etc. */
+            if (arg_t->name && param_t->name) {
+                int ar = int_type_name_rank(arg_t->name);
+                int pr = int_type_name_rank(param_t->name);
+                if (ar >= 5 && pr > 0 && pr < ar) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s': cannot implicitly narrow %s to %s; use %s() to convert explicitly",
+                        argument_index + 1, function_name, arg_t->name, param_t->name, param_t->name);
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+            }
+            /* Array element type mismatch */
+            if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
+                arg_t->element_type && param_t->element_type &&
+                !typechecker_same_array_element(checker, arg_t->element_type, param_t->element_type)) {
+                GrayType *ae = type_from_name(arg_t->element_type);
+                GrayType *pe = type_from_name(param_t->element_type);
+                if (!(ae && pe && is_int_kind(ae->kind) && is_int_kind(pe->kind))) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s': expected '%s', got '%s'",
+                        argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+            }
+            /* Map key/value type mismatch */
+            if (arg_t->kind == TK_MAP && param_t->kind == TK_MAP) {
+                bool key_mismatch = arg_t->key_type && param_t->key_type &&
+                    strcmp(arg_t->key_type, param_t->key_type) != 0;
+                bool val_mismatch = arg_t->value_type && param_t->value_type &&
+                    strcmp(arg_t->value_type, param_t->value_type) != 0;
+                if (key_mismatch || val_mismatch) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "argument %d of '%s': expected '%s', got '%s'",
+                        argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+            }
+            /* E3066: typed-func signatures must match exactly */
+            if (arg_t->kind == TK_FUNCTION && param_t->kind == TK_FUNCTION &&
+                arg_t->name && param_t->name &&
+                strcmp(arg_t->name, param_t->name) != 0) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "argument %d of '%s': expected %s, got %s",
+                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
+                diagnostic_error_message(checker->diag, "E3066", msg,
+                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                    node->data.call.args[argument_index]->token.column, 0);
+            }
+            /* E3027: non-assignable or const passed to mutable (&) param */
+            {
+                AstNode *arg = node->data.call.args[argument_index];
+                for (int field_index = 0; field_index < checker->program->data.program.stmt_count; field_index++) {
+                    AstNode *s = checker->program->data.program.stmts[field_index];
+                    if (s->kind != NODE_FUNC_DECL ||
+                        strcmp(s->data.func_decl.name, function_name) != 0 ||
+                        argument_index >= s->data.func_decl.param_count ||
+                        !s->data.func_decl.params[argument_index].mutable)
+                        continue;
+                    check_mutable_arg(checker, arg,
+                        s->data.func_decl.params[argument_index].name, function_name);
+                    break;
+                }
+            }
+        }
+        if (is_generic_call && generic_return_t) {
+            result = generic_return_t;
+        } else if (sig->return_count > 0) {
+            result = sig->return_types[0];
+        } else {
+            result = &TYPE_VOID;
+        }
+    } else {
+        /* Check if it's a variable holding a function reference */
+        Symbol *fn_sym = scope_lookup(checker->current_scope, function_name);
+        bool is_typed_func = fn_sym && fn_sym->type && fn_sym->type->kind == TK_FUNCTION;
+        bool is_bare_func = fn_sym && fn_sym->type && type_name(fn_sym->type) &&
+                            strcmp(type_name(fn_sym->type), "func") == 0;
+        if (is_typed_func || is_bare_func) {
+            fn_sym->used = true;
+            /* Record the variable's type on the call.function
+             * label node so codegen can pick up the typed-func
+             * signature for cast emission. */
+            if (!checker->suppress_typetable_writes) {
+                typetable_set(checker->type_table, node->data.call.function, fn_sym->type);
+            }
+            result = &TYPE_UNKNOWN; /* callable func ref; return type unknown */
+            /* If we know which static function this var holds,
+             * validate arity + argument types at compile time
+             * and propagate the real return type. */
+            FuncSig *ref_sig = fn_sym->func_ref_name
+                ? find_func(checker, fn_sym->func_ref_name) : NULL;
+            if (ref_sig) {
+                /* : compute min arity by counting
+                 * params without default values. */
+                int min_arity = ref_sig->param_count;
+                if (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL) {
+                    min_arity = 0;
+                    for (int parameter_index = 0; parameter_index < ref_sig->decl->data.func_decl.param_count; parameter_index++) {
+                        if (!ref_sig->decl->data.func_decl.params[parameter_index].default_value)
+                            min_arity++;
+                    }
+                }
+                int ac = node->data.call.arg_count;
+                if (ac < min_arity || ac > ref_sig->param_count) {
+                    char *msg = NULL;
+                    if (min_arity == ref_sig->param_count) {
+                        msg = typechecker_format(checker,
+                            "function '%s' expects %d argument(s), got %d",
+                            func_display_name(ref_sig), ref_sig->param_count, ac);
+                    } else {
+                        msg = typechecker_format(checker,
+                            "function '%s' expects %d to %d argument(s), got %d",
+                            func_display_name(ref_sig), min_arity, ref_sig->param_count, ac);
+                    }
+                    diagnostic_error_message(checker->diag, "E5008", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                } else {
+                    for (int argument_index = 0; argument_index < ref_sig->param_count; argument_index++) {
+                        GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
+                        GrayType *pt = ref_sig->param_types[argument_index];
+                        if (at && pt && at->kind != TK_UNKNOWN &&
+                            pt->kind != TK_UNKNOWN &&
+                            at->kind != pt->kind &&
+                            !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
+                            !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
+                            char *msg = NULL;
+                            msg = typechecker_format(checker,
+                                "argument %d of '%s': expected %s, got %s",
+                                argument_index + 1, func_display_name(ref_sig),
+                                type_display_name(checker, pt), type_display_name(checker, at));
+                            diagnostic_error_message(checker->diag, "E3001", msg,
+                                NODE_FILE(checker, node->data.call.args[argument_index]),
+                                node->data.call.args[argument_index]->token.line,
+                                node->data.call.args[argument_index]->token.column, 0);
+                        }
+                        /* Enum-to-enum: different enum types */
+                        if (at && pt && at->kind == TK_ENUM && pt->kind == TK_ENUM &&
+                            at->name && pt->name &&
+                            strcmp(at->name, pt->name) != 0) {
+                            char *msg = NULL;
+                            msg = typechecker_format(checker,
+                                "argument %d of '%s': expected enum '%s', got enum '%s'",
+                                argument_index + 1, func_display_name(ref_sig), enum_display_name(checker, pt->name), enum_display_name(checker, at->name));
+                            diagnostic_error_message(checker->diag, "E3001", msg,
+                                NODE_FILE(checker, node->data.call.args[argument_index]),
+                                node->data.call.args[argument_index]->token.line,
+                                node->data.call.args[argument_index]->token.column, 0);
+                        }
+                        /* E3027: non-assignable or const passed to mutable (&) param */
+                        {
+                            AstNode *arg = node->data.call.args[argument_index];
+                            const char *ref_name = fn_sym->func_ref_name;
+                            for (int field_index = 0; field_index < checker->program->data.program.stmt_count; field_index++) {
+                                AstNode *s = checker->program->data.program.stmts[field_index];
+                                if (s->kind != NODE_FUNC_DECL ||
+                                    strcmp(s->data.func_decl.name, ref_name) != 0 ||
+                                    argument_index >= s->data.func_decl.param_count ||
+                                    !s->data.func_decl.params[argument_index].mutable)
+                                    continue;
+                                check_mutable_arg(checker, arg,
+                                    s->data.func_decl.params[argument_index].name, func_display_name(ref_sig));
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (ref_sig->return_count > 0)
+                    result = ref_sig->return_types[0];
+                else
+                    result = &TYPE_VOID;
+            } else if (is_typed_func && fn_sym->type->func_sig) {
+                /* No source FuncSig; validate against the typed-
+                 * func signature from the variable's annotated type
+                 * (e.g. callback parameters: do f(g func(int)->int)). */
+                GrayFuncSig *sig = fn_sym->type->func_sig;
+                int ac = node->data.call.arg_count;
+                if (ac != sig->param_count) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "function reference '%s' expects %d argument(s), got %d",
+                        function_name, sig->param_count, ac);
+                    diagnostic_error_message(checker->diag, "E5008", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                } else {
+                    for (int argument_index = 0; argument_index < sig->param_count; argument_index++) {
+                        AstNode *arg = node->data.call.args[argument_index];
+                        GrayType *at = resolve_expression(checker, arg);
+                        GrayType *pt = sig->param_types[argument_index] ? type_from_name(sig->param_types[argument_index]) : NULL;
+                        if (at && pt && at->kind != TK_UNKNOWN && pt->kind != TK_UNKNOWN &&
+                            at->kind != pt->kind &&
+                            !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
+                            !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
+                            char *msg = NULL;
+                            msg = typechecker_format(checker,
+                                "argument %d of '%s': expected %s, got %s",
+                                argument_index + 1, function_name,
+                                type_display_name(checker, pt), type_display_name(checker, at));
+                            diagnostic_error_message(checker->diag, "E3001", msg,
+                                NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
+                        }
+                        /* E3027/E3067: `&` param requires an assignment target */
+                        if (sig->param_mutable[argument_index]) {
+                            bool is_enum_const = (arg->kind == NODE_MEMBER_EXPR &&
+                                                  arg->data.member.object->kind == NODE_LABEL &&
+                                                  is_enum_name(checker, arg->data.member.object->data.label.value));
+                            bool is_assignable = !is_enum_const &&
+                                             (arg->kind == NODE_LABEL ||
+                                              arg->kind == NODE_MEMBER_EXPR ||
+                                              arg->kind == NODE_INDEX_EXPR);
+                            if (is_enum_const) {
+                                char emsg[MSG_BUF_SIZE];
+                                snprintf(emsg, sizeof(emsg),
+                                    "cannot pass enum constant to '&' parameter %d of '%s'; expected a mutable variable",
+                                    argument_index + 1, function_name);
+                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
+                                    NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
+                            } else if (!is_assignable) {
+                                diagnostic_error_code_formatted(checker->diag, "E3067", NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0, argument_index + 1, function_name);
+                            } else if (arg->kind == NODE_LABEL) {
+                                Symbol *as = scope_lookup(checker->current_scope, arg->data.label.value);
+                                if (as && !as->mutable) {
+                                    char emsg[MSG_BUF_SIZE];
+                                    snprintf(emsg, sizeof(emsg),
+                                        "cannot pass constant '%s' to '&' parameter %d of '%s'",
+                                        as->name, argument_index + 1, function_name);
+                                    diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
+                                        NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (sig->return_count > 0 && sig->return_types[0]) {
+                    result = type_from_name(sig->return_types[0]);
+                } else {
+                    result = &TYPE_VOID;
+                }
+            }
+        } else if (fn_sym && fn_sym->type) {
+            /* Variable exists but is not a function */
+            diagnostic_error_code_formatted(checker->diag, "E3015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, function_name, type_display_name(checker, fn_sym->type));
+        } else if (!typechecker_is_builtin(function_name)) {
+            /* Check if it's a function from a 'using' module */
+            bool found_in_using = false;
+            /* Check for math functions whose return type depends on argument */
+            if (!found_in_using && (strcmp(function_name, "abs") == 0 || strcmp(function_name, "neg") == 0 ||
+                strcmp(function_name, "min") == 0 || strcmp(function_name, "max") == 0 ||
+                strcmp(function_name, "clamp") == 0)) {
+                for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
+                    if (!using_module_accessible(checker, using_index)) continue;
+                    const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
+                    if (strcmp(real_mod, "math") == 0) {
+                        found_in_using = true;
+                        if (node->data.call.arg_count > 0) {
+                            GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
+                            result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
+                        } else {
+                            result = &TYPE_INT;
+                        }
+                        break;
+                    }
+                }
+            }
+            /* Random functions whose return type depends on argument */
+            if (!found_in_using && (strcmp(function_name, "choice") == 0 ||
+                strcmp(function_name, "shuffle") == 0 || strcmp(function_name, "sample") == 0)) {
+                for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
+                    if (!using_module_accessible(checker, using_index)) continue;
+                    const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
+                    if (strcmp(real_mod, "random") == 0) {
+                        found_in_using = true;
+                        if (node->data.call.arg_count > 0) {
+                            GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
+                            if (strcmp(function_name, "choice") == 0) {
+                                result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
+                            } else {
+                                result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
+                            }
+                        } else {
+                            result = (strcmp(function_name, "choice") == 0) ? &TYPE_INT : type_array("int");
+                        }
+                        break;
+                    }
+                }
+            }
+            /* Maps functions whose return type depends on map key/value types */
+            if (!found_in_using && (strcmp(function_name, "get_keys") == 0 || strcmp(function_name, "get_values") == 0)) {
+                for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
+                    if (!using_module_accessible(checker, using_index)) continue;
+                    const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
+                    if (strcmp(real_mod, "maps") == 0) {
+                        found_in_using = true;
+                        if (node->data.call.arg_count > 0) {
+                            GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
+                            if (strcmp(function_name, "get_keys") == 0)
+                                result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
+                            else
+                                result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
+                        } else {
+                            result = type_array("string");
+                        }
+                        break;
+                    }
+                }
+            }
+            for (int using_index = 0; using_index < checker->using_module_count && !found_in_using; using_index++) {
+                if (!using_module_accessible(checker, using_index)) continue;
+                const char *umod = checker->using_modules[using_index];
+                /* Resolve alias to actual module name */
+                const char *real_mod = typechecker_resolve_alias(checker, umod);
+                /* 1) Try hardcoded stdlib table */
+                for (int field_index = 0; _using_funcs[field_index].func; field_index++) {
+                    if (strcmp(function_name, _using_funcs[field_index].func) == 0 &&
+                        strcmp(real_mod, _using_funcs[field_index].mod) == 0) {
+                        found_in_using = true;
+                        switch (_using_funcs[field_index].return_kind) {
+                        case TK_STRING: result = &TYPE_STRING; break;
+                        case TK_FLOAT:  result = &TYPE_FLOAT; break;
+                        case TK_BOOL:   result = &TYPE_BOOL; break;
+                        case TK_INT:    result = &TYPE_INT; break;
+                        case TK_VOID:   result = &TYPE_VOID; break;
+                        default:        result = &TYPE_UNKNOWN; break;
+                        }
+                        break;
+                    }
+                }
+                /* 2) Try user-defined module: look up <module>_<func> */
+                if (!found_in_using) {
+                    char prefixed[MSG_BUF_SIZE];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, function_name);
+                    FuncSig *sig = find_func(checker, prefixed);
+                    if (sig) {
+                        if (sig->is_private) {
+                            diagnostic_error_code_formatted(checker->diag, "E4015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, function_name);
+                            found_in_using = true;
+                        } else {
+                            found_in_using = true;
+                            if (sig->return_count > 0) {
+                                result = sig->return_types[0];
+                            } else {
+                                result = &TYPE_VOID;
+                            }
+                            sig->used = true;
+                        }
+                    }
+                }
+                if (found_in_using) {
+                    /* Mark module as used */
+                    for (int mi = 0; mi < checker->import_count; mi++) {
+                        if (strcmp(checker->imported_modules[mi], umod) == 0 ||
+                            strcmp(checker->imported_modules[mi], real_mod) == 0) {
+                            checker->import_used[mi] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (found_in_using) {
+                /* Type already set above */
+            } else {
+                /* Check if it's a variable holding a function reference */
+                Symbol *fn_sym = scope_lookup(checker->current_scope, function_name);
+                if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
+                    fn_sym->used = true;
+                    result = &TYPE_UNKNOWN;
+                    /* Arity/type validation for func refs is done
+                     * at the earlier func-var branch; avoid
+                     * re-emitting the same diagnostic here. */
+                } else {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker, "undefined function '%s'", function_name);
+                    const char *suggestion = suggest_similar_name(checker, function_name);
+                    /* Point at the function name, not the ( */
+                    AstNode *fn_node = node->data.call.function;
+                    int el = fn_node ? fn_node->token.line : node->token.line;
+                    int ec = fn_node ? fn_node->token.column : node->token.column;
+                    if (suggestion) {
+                        char help[MSG_BUF_SIZE];
+                        snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                        diagnostic_error_help(checker->diag, "E4002", msg,
+                            NODE_FILE(checker, node), el, ec, 0, arena_copy_string(checker->arena, help));
+                    } else {
+                        diagnostic_error_message(checker->diag, "E4002", msg,
+                            NODE_FILE(checker, node), el, ec, 0);
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+static GrayType *resolve_call_expr(TypeChecker *checker, AstNode *node) {
+    GrayType *result = &TYPE_UNKNOWN;
+    /* Resolve argument types first. Skip the argument of ref()
+     * when it's a bare function name; the ref() builtin handler
+     * below resolves it specially, and the general resolve_expression
+     * path would fire E3031 on the bare name ( follow-up). */
+    bool is_ref_call = (node->data.call.function &&
+        node->data.call.function->kind == NODE_LABEL &&
+        strcmp(node->data.call.function->data.label.value, "ref") == 0);
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (is_ref_call && node->data.call.args[i]->kind == NODE_LABEL &&
+            find_func(checker, node->data.call.args[i]->data.label.value)) {
+            continue;
+        }
+        /* Skip implicit enum nodes; they need expected_type context
+         * from the function signature, which is resolved later. */
+        if (node->data.call.args[i]->kind == NODE_IMPLICIT_ENUM)
+            continue;
+        resolve_expression(checker, node->data.call.args[i]);
+
+        /* E3040: a multi-return call cannot appear in single-value
+         * argument position. Caller must destructure first. */
+        AstNode *arg = node->data.call.args[i];
+        if (arg->kind == NODE_CALL_EXPR) {
+            AstNode *afn = arg->data.call.function;
+            FuncSig *asig = NULL;
+            const char *aname = NULL;
+            if (afn && afn->kind == NODE_LABEL) {
+                aname = afn->data.label.value;
+                asig = find_func(checker, aname);
+            } else if (afn && afn->kind == NODE_MEMBER_EXPR &&
+                       afn->data.member.object->kind == NODE_LABEL) {
+                const char *mod_raw = afn->data.member.object->data.label.value;
+                const char *mod = typechecker_resolve_alias(checker, mod_raw);
+                aname = afn->data.member.member;
+                char prefixed[MSG_BUF_SIZE];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, aname);
+                asig = find_func(checker, prefixed);
+            }
+            if (asig && asig->return_count > 1) {
+                diagnostic_error_code_formatted(checker->diag, "E3040",
+                    NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0,
+                    aname, asig->return_count, aname);
+            }
+        }
+    }
+
+    /* E3097: addr() of inner-scope variable passed alongside an outer-scope
+     * argument — the classic escape pattern, e.g. arrays.append(outer, addr(x))
+     * where x is loop/if/while-local.  We fire only when another argument in
+     * the same call comes from an outer scope (scope_lookup_local returns null
+     * for it) — that indicates the address is being stored in something that
+     * outlives the inner variable's arena. */
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        AstNode *arg = node->data.call.args[i];
+        if (arg->kind == NODE_CALL_EXPR &&
+            arg->data.call.function &&
+            arg->data.call.function->kind == NODE_LABEL &&
+            strcmp(arg->data.call.function->data.label.value, "addr") == 0 &&
+            arg->data.call.arg_count == 1 &&
+            arg->data.call.args[0]->kind == NODE_LABEL) {
+            const char *addr_var = arg->data.call.args[0]->data.label.value;
+            if (!scope_lookup_local(checker->current_scope, addr_var)) continue;
+            /* Check if any other argument is an outer-scope variable */
+            bool has_outer_arg = false;
+            for (int j = 0; j < node->data.call.arg_count; j++) {
+                if (j == i) continue;
+                AstNode *other = node->data.call.args[j];
+                if (other->kind == NODE_LABEL) {
+                    const char *oname = other->data.label.value;
+                    if (!scope_lookup_local(checker->current_scope, oname) &&
+                        scope_lookup(checker->current_scope, oname)) {
+                        has_outer_arg = true;
+                        break;
+                    }
+                }
+            }
+            if (has_outer_arg) {
+                diagnostic_error_code_formatted(checker->diag, "E3097",
+                    NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0,
+                    addr_var, addr_var);
+            }
+        }
+    }
+
+    /* Resolve function return type */
+    AstNode *fn = node->data.call.function;
+    const char *function_name = NULL;
+
+    /* For non-LABEL/non-MEMBER callees (e.g. arr[i]() on a [func] array)
+     * the specific branches below won't traverse the function expression,
+     * leaving its subtree untyped and breaking codegen paths that rely on
+     * typetable lookups. Resolve it here so those subtrees get populated. */
+    if (fn && fn->kind != NODE_LABEL && fn->kind != NODE_MEMBER_EXPR) {
+        resolve_expression(checker, fn);
+    }
+
+    /* E5030: chained call on a function-call result — e.g. get_fn()(5).
+     * A call result is never directly callable in Grayscale; func references
+     * must be created with ()func_name or ref(func_name) first. */
+    if (fn && fn->kind == NODE_CALL_EXPR) {
+        AstNode *inner_fn = fn->data.call.function;
+        const char *inner_name = NULL;
+        char inner_buf[MSG_BUF_SIZE];
+        if (inner_fn && inner_fn->kind == NODE_LABEL) {
+            inner_name = inner_fn->data.label.value;
+        } else if (inner_fn && inner_fn->kind == NODE_MEMBER_EXPR &&
+                   inner_fn->data.member.object->kind == NODE_LABEL) {
+            snprintf(inner_buf, sizeof(inner_buf), "%s.%s",
+                inner_fn->data.member.object->data.label.value,
+                inner_fn->data.member.member);
+            inner_name = inner_buf;
+        }
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling",
+            inner_name ? inner_name : "function");
+        diagnostic_error_message(checker->diag, "E5030", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        result = &TYPE_UNKNOWN;
+        return result;
+    }
+
+    /* [func] array + constant index + literal-of-func-refs origin:
+     * recover the original referenced function's return type so it
+     * survives the trip through void* storage (). */
+    if (fn && fn->kind == NODE_INDEX_EXPR &&
+        fn->data.index_expr.left->kind == NODE_LABEL &&
+        fn->data.index_expr.index->kind == NODE_INT_VALUE) {
+        const char *arr_name = fn->data.index_expr.left->data.label.value;
+        Symbol *arr_sym = scope_lookup(checker->current_scope, arr_name);
+        int64_t idx_v = fn->data.index_expr.index->data.int_value.value;
+        if (arr_sym && arr_sym->func_array_refs &&
+            idx_v >= 0 && idx_v < arr_sym->func_array_ref_count) {
+            const char *ref_name = arr_sym->func_array_refs[idx_v];
+            if (ref_name) {
+                FuncSig *rsig = find_func(checker, ref_name);
+                if (rsig && rsig->return_count > 0) {
+                    result = rsig->return_types[0];
+                    return result;
+                }
+            }
+        }
+    }
+
+    /* Fallback for [func(...)->T] arrays: parse the return type from
+     * the array's typed element type. Covers dynamically appended
+     * refs where func_array_refs isn't populated (). */
+    if (fn && fn->kind == NODE_INDEX_EXPR &&
+        fn->data.index_expr.left->kind == NODE_LABEL) {
+        const char *arr_name = fn->data.index_expr.left->data.label.value;
+        Symbol *arr_sym = scope_lookup(checker->current_scope, arr_name);
+        if (arr_sym && arr_sym->type && arr_sym->type->kind == TK_ARRAY &&
+            arr_sym->type->element_type &&
+            strncmp(arr_sym->type->element_type, "func(", 5) == 0) {
+            GrayType *elem_t = type_from_name(arr_sym->type->element_type);
+            if (elem_t && elem_t->func_sig &&
+                elem_t->func_sig->return_count > 0 &&
+                elem_t->func_sig->return_types[0]) {
+                result = type_from_name(elem_t->func_sig->return_types[0]);
+                return result;
+            }
+        }
+    }
+
+    /* Tagged enum construction via implicit selector: .Circle(3.14) */
+    if (fn->kind == NODE_IMPLICIT_ENUM) {
+        const char *vname = fn->data.implicit_enum.variant;
+        /* Resolve enum from expected_type */
+        GrayType *et = checker->expected_type;
+        if (et && et->kind == TK_ENUM && et->name) {
+            fn->data.implicit_enum.resolved_enum = et->name;
+            int eidx = -1;
+            for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
+                if (strcmp(checker->enum_names[enum_index], et->name) == 0) { eidx = enum_index; break; }
+            }
+            if (eidx >= 0) {
+                int vidx = -1;
+                for (int variant_index = 0; variant_index < checker->enum_value_counts[eidx]; variant_index++) {
+                    if (strcmp(checker->enum_values[eidx][variant_index], vname) == 0) { vidx = variant_index; break; }
+                }
+                if (vidx < 0) {
+                    diagnostic_error_code_formatted(checker->diag, "E3047", NODE_FILE(checker, node), node->token.line, node->token.column, 0, et->name, vname);
+                } else if (checker->enum_is_tagged[eidx]) {
+                    int expected_pc = checker->enum_payload_counts[eidx][vidx];
+                    int provided_argument_count = node->data.call.arg_count;
+                    if (expected_pc == 0 && provided_argument_count > 0) {
+                        diagnostic_error_code_formatted(checker->diag, "E3114", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx]);
+                    } else if (expected_pc != provided_argument_count) {
+                        diagnostic_error_code_formatted(checker->diag, "E3113", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx], expected_pc, provided_argument_count);
+                    } else {
+                        for (int argument_index = 0; argument_index < provided_argument_count; argument_index++) {
+                            GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+                            GrayType *exp_t = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][argument_index]);
+                            if (arg_t && exp_t &&
+                                arg_t->kind != TK_UNKNOWN && exp_t->kind != TK_UNKNOWN &&
+                                arg_t->kind != exp_t->kind &&
+                                !(is_int_kind(arg_t->kind) && is_int_kind(exp_t->kind))) {
+                                diagnostic_error_code_formatted(checker->diag, "E3001", NODE_FILE(checker, node->data.call.args[argument_index]),
+                                    node->data.call.args[argument_index]->token.line, node->data.call.args[argument_index]->token.column, 0);
+                            }
+                        }
+                    }
+                } else {
+                    diagnostic_error_code_formatted(checker->diag, "E3115", NODE_FILE(checker, node), node->token.line, node->token.column, 0, checker->enum_display_names[eidx], vname);
+                }
+            }
+            result = type_enum(et->name);
+        } else {
+            diagnostic_error_code_formatted(checker->diag, "E3110", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, vname);
+            result = &TYPE_UNKNOWN;
+        }
+        return result;
+    }
+
+    if (fn->kind == NODE_LABEL) {
+        function_name = fn->data.label.value;
+    } else if (fn->kind == NODE_MEMBER_EXPR &&
+               fn->data.member.object->kind == NODE_MEMBER_EXPR &&
+               fn->data.member.object->data.member.object->kind == NODE_LABEL) {
+        /* mod.Struct.func() triple chain: geometry.Vec2.create() */
+        const char *mod_name = fn->data.member.object->data.member.object->data.label.value;
+        const char *struct_name = fn->data.member.object->data.member.member;
+        const char *func_name = fn->data.member.member;
+        /* Mark module as used */
+        for (int mi = 0; mi < checker->import_count; mi++) {
+            if (strcmp(checker->imported_modules[mi], mod_name) == 0) {
+                checker->import_used[mi] = true;
+                break;
+            }
+        }
+        /* Look up mod_Struct_func */
+        char prefixed[MSG_BUF_SIZE];
+        snprintf(prefixed, sizeof(prefixed), "%s_%s_%s", mod_name, struct_name, func_name);
+        FuncSig *sig = find_func(checker, prefixed);
+        if (sig) {
+            sig->used = true;
+            result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+            /* Check argument count */
+            if (node->data.call.arg_count != sig->param_count) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "function '%s.%s.%s' expects %d argument(s), got %d",
+                    mod_name, struct_name, func_name,
+                    sig->param_count, node->data.call.arg_count);
+                diagnostic_error_message(checker->diag, "E5008", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+            /* E3027: mutable param checks for triple-namespaced calls.
+             * Struct functions live inside NODE_STRUCT_DECL, so scan
+             * struct declarations in imported modules. */
+            int check_count = node->data.call.arg_count < sig->param_count
+                ? node->data.call.arg_count : sig->param_count;
+            for (int argument_index = 0; argument_index < check_count; argument_index++) {
+                resolve_expression(checker, node->data.call.args[argument_index]);
+                AstNode *arg = node->data.call.args[argument_index];
+                AstNode *found_declaration = NULL;
+                for (int field_index = 0; field_index < checker->program->data.program.stmt_count && !found_declaration; field_index++) {
+                    AstNode *s = checker->program->data.program.stmts[field_index];
+                    if (s->kind == NODE_STRUCT_DECL &&
+                        strcmp(s->data.struct_decl.name, struct_name) == 0) {
+                        for (int sfi = 0; sfi < s->data.struct_decl.func_count; sfi++) {
+                            AstNode *sf = s->data.struct_decl.funcs[sfi].func_decl;
+                            if (sf && sf->kind == NODE_FUNC_DECL &&
+                                strcmp(sf->data.func_decl.name, func_name) == 0 &&
+                                argument_index < sf->data.func_decl.param_count &&
+                                sf->data.func_decl.params[argument_index].mutable) {
+                                found_declaration = sf;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (found_declaration) {
+                    char fn_display[MSG_BUF_SIZE];
+                    snprintf(fn_display, sizeof(fn_display), "%s.%s.%s", mod_name, struct_name, func_name);
+                    check_mutable_arg(checker, arg,
+                        found_declaration->data.func_decl.params[argument_index].name, fn_display);
+                }
+            }
+        } else {
+            result = &TYPE_VOID;
+        }
+    } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL &&
+               is_enum_name(checker, fn->data.member.object->data.label.value)) {
+        /* Tagged enum construction: Shape.Circle(3.14) */
+        const char *ename = fn->data.member.object->data.label.value;
+        const char *vname = fn->data.member.member;
+        int eidx = -1;
+        for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
+            if (strcmp(checker->enum_names[enum_index], ename) == 0) { eidx = enum_index; break; }
+        }
+        if (eidx >= 0) {
+            /* Find variant index */
+            int vidx = -1;
+            for (int variant_index = 0; variant_index < checker->enum_value_counts[eidx]; variant_index++) {
+                if (strcmp(checker->enum_values[eidx][variant_index], vname) == 0) { vidx = variant_index; break; }
+            }
+            if (vidx < 0) {
+                diagnostic_error_code_formatted(checker->diag, "E3047", NODE_FILE(checker, node), node->token.line, node->token.column, 0, ename, vname);
+                result = &TYPE_UNKNOWN;
+                return result;
+            }
+            if (!checker->enum_is_tagged[eidx]) {
+                /* E3115: plain enum, can't call */
+                const char *dname = checker->enum_display_names[eidx];
+                diagnostic_error_code_formatted(checker->diag, "E3115", NODE_FILE(checker, node), node->token.line, node->token.column, 0, dname, vname);
+                result = type_enum(ename);
+                return result;
+            }
+            int expected_pc = checker->enum_payload_counts[eidx][vidx];
+            int provided_argument_count = node->data.call.arg_count;
+            if (expected_pc == 0 && provided_argument_count > 0) {
+                diagnostic_error_code_formatted(checker->diag, "E3114", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx]);
+            } else if (expected_pc != provided_argument_count) {
+                diagnostic_error_code_formatted(checker->diag, "E3113", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx], expected_pc, provided_argument_count);
+            } else {
+                /* Validate each arg type against payload type */
+                for (int argument_index = 0; argument_index < provided_argument_count; argument_index++) {
+                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+                    GrayType *expected_t = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][argument_index]);
+                    if (arg_t && expected_t &&
+                        arg_t->kind != TK_UNKNOWN && expected_t->kind != TK_UNKNOWN &&
+                        arg_t->kind != expected_t->kind &&
+                        !(is_int_kind(arg_t->kind) && is_int_kind(expected_t->kind))) {
+                        diagnostic_error_code_formatted(checker->diag, "E3001", NODE_FILE(checker, node->data.call.args[argument_index]),
+                            node->data.call.args[argument_index]->token.line, node->data.call.args[argument_index]->token.column, 0);
+                    }
+                }
+            }
+            result = type_enum(ename);
+        } else {
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
+        const char *mod_raw = fn->data.member.object->data.label.value;
+        const char *mod = typechecker_resolve_alias(checker, mod_raw);
+        const char *mfn = fn->data.member.member;
+        /* Check that module is actually imported */
+        bool mod_imported = false;
+        for (int mi = 0; mi < checker->import_count; mi++) {
+            if (strcmp(checker->imported_modules[mi], mod_raw) == 0 ||
+                strcmp(checker->imported_modules[mi], mod) == 0) {
+                checker->import_used[mi] = true;
+                mod_imported = true;
+                break;
+            }
+        }
+        if (!mod_imported && is_stdlib_module_name(mod)) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "module '%s' is not imported; add 'import @%s' at the top of the file",
+                mod, mod);
+            diagnostic_error_message(checker->diag, "E4001", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        /* c.func() without import c"..."; but only if "c" isn't a
+         * local variable. A variable named `c` with a struct type
+         * should fall through to the struct function dispatch, not
+         * be treated as the C interop module (). */
+        if (!mod_imported && strcmp(mod, "c") == 0 &&
+            !scope_lookup(checker->current_scope, "c")) {
+            diagnostic_error_message(checker->diag, "E4001",
+                "C interop requires a C header import; add import c\"header.h\" at the top of the file",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            result = &TYPE_UNKNOWN;
+            return result;
+        }
+        /* C interop: c.func(); skip type checking but reject bigints */
+        if (strcmp(mod, "c") == 0 && mod_imported) {
+            /* Mark all C imports as used */
+            for (int mi = 0; mi < checker->import_count; mi++) {
+                if (strcmp(checker->imported_modules[mi], "c") == 0)
+                    checker->import_used[mi] = true;
+            }
+            /* Validate arguments; reject types that don't translate to C */
+            for (int argument_index = 0; argument_index < node->data.call.arg_count; argument_index++) {
+                GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
+                if (!arg_t || arg_t->kind == TK_UNKNOWN) continue;
+                /* Reject bigint types */
+                if (arg_t->name &&
+                    (strcmp(arg_t->name, "i128") == 0 || strcmp(arg_t->name, "i256") == 0 ||
+                     strcmp(arg_t->name, "u128") == 0 || strcmp(arg_t->name, "u256") == 0)) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "cannot pass %s to a C function; C has no 128/256-bit integer types",
+                        arg_t->name);
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+                /* Reject Grayscale-specific composite types */
+                if (arg_t->kind == TK_ARRAY || arg_t->kind == TK_MAP) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "cannot pass %s to a C function; use individual elements instead",
+                        arg_t->kind == TK_ARRAY ? "an array" : "a map");
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+                /* Reject Grayscale structs (registered in typechecker) */
+                if (arg_t->kind == TK_STRUCT && arg_t->name &&
+                    is_struct_name(checker, arg_t->name)) {
+                    char *msg = NULL;
+                    msg = typechecker_format(checker,
+                        "cannot pass struct '%s' to a C function; pass individual fields instead",
+                        type_display_name(checker, arg_t));
+                    diagnostic_error_message(checker->diag, "E3001", msg,
+                        NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
+                        node->data.call.args[argument_index]->token.column, 0);
+                }
+            }
+            result = &TYPE_UNKNOWN;
+            return result;
+        }
+        /* Skip stdlib dispatch if this module is a user import, not stdlib.
+         * User modules with the same name (e.g., import "./server.gray") must
+         * fall through to the user-module handler below. */
+        if (typechecker_is_stdlib_import(checker, mod_raw)) {
+            result = resolve_stdlib_call(checker, node, mod, mfn);
+        } else if (is_struct_name(checker, mod)) {
+            result = resolve_struct_or_module_call(checker, node, mod, mfn, mod_raw, fn);
+        }
+        return result;
+    }
+
+    /* Member call on expression result: foo().bar() */
+    if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind != NODE_LABEL) {
+        GrayType *obj_t = resolve_expression(checker, fn->data.member.object);
+        if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_POINTER &&
+            obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "type '%s' does not support function calls via dot notation",
+                type_name(obj_t));
+            diagnostic_error_message(checker->diag, "E3013", msg,
+                NODE_FILE(checker, fn), fn->token.line, fn->token.column, 0);
+        } else if (obj_t && (obj_t->kind == TK_STRUCT || obj_t->kind == TK_POINTER)) {
+            /* E3075: chaining struct function calls (calling one struct
+             * function on the result of another) isn't supported.
+             * Assigning the intermediate result to a variable keeps
+             * each call site readable and avoids the AST-rewrite
+             * gymnastics that fluent-interface chaining would require. */
+            diagnostic_error_code_help(checker->diag, "E3075",
+                NODE_FILE(checker, fn), fn->token.line, fn->token.column, 0,
+                "assign the intermediate result to a variable, then call the next struct function on it");
+        }
+        result = &TYPE_UNKNOWN;
+        return result;
+    }
+
+    if (function_name) {
+        result = resolve_builtin_call(checker, node, function_name);
+        if (!result) {
+            result = resolve_direct_call(checker, node, function_name);
+        }
+    }
+    return result;
+}
+
+static GrayType *resolve_infix_expr(TypeChecker *checker, AstNode *node) {
+    GrayType *result = &TYPE_UNKNOWN;
+    TokenType op = node->data.infix.op;
+    GrayType *left = resolve_expression(checker, node->data.infix.left);
+    /* For == and !=, set expected_type so .VARIANT on the RHS
+     * can resolve against the LHS enum type. */
+    GrayType *saved_infix_expected = checker->expected_type;
+    if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
+        left && left->kind == TK_ENUM && left->name)
+        checker->expected_type = left;
+    GrayType *right = resolve_expression(checker, node->data.infix.right);
+    checker->expected_type = saved_infix_expected;
+
+    /* : track whether any op-specific check has rejected the
+     * expression so the final result can be collapsed to TK_UNKNOWN
+     * instead of one operand's type. Otherwise `mut x int = true +
+     * 1` fires E3002 at the '+' and then cascades into E3001 "can't
+     * assign bool to int" at the var_decl, where the bool came from
+     * the left operand rather than a real result type. */
+    bool infix_errored = false;
+
+    /* : void operands never make sense in any binary
+     * operator. Check both sides at the kind level before any
+     * op-specific diagnostic runs, so `1 + nothing()` and
+     * `nothing() == x` report a clean E3038 instead of
+     * cascading through the op-specific type checks or leaking
+     * to clang. */
+    if (left && left->kind == TK_VOID) infix_errored = true;
+    if (right && right->kind == TK_VOID) infix_errored = true;
+    reject_void_in_context(checker, node->data.infix.left, left, "binary operand");
+    reject_void_in_context(checker, node->data.infix.right, right, "binary operand");
+
+    /* String ordering operators not supported; use strings.compare() */
+    if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
+        (op == TOK_LT || op == TOK_GT ||
+         op == TOK_LT_EQ || op == TOK_GT_EQ)) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "cannot use '%s' on strings; use strings.compare() instead", operator_to_string(op));
+        diagnostic_error_message(checker->diag, "E3002", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        result = &TYPE_BOOL;
+        return result;
+    }
+
+    /* E3002: modulo on float */
+    if (op == TOK_PERCENT &&
+        (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
+        diagnostic_error_message(checker->diag, "E3002",
+            "modulo (%) only works on integers, not floats",
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3002: literal divide/modulo by zero (). Catches the
+     * statically-detectable case where the RHS is an integer or
+     * float literal zero (including a prefix -0). Runtime checks
+     * still cover the dynamic case. */
+    if (op == TOK_SLASH || op == TOK_PERCENT) {
+        AstNode *r = node->data.infix.right;
+        bool is_zero = false;
+        int64_t iv;
+        if (try_get_literal_int(r, &iv) && iv == 0) {
+            is_zero = true;
+        } else if (r && r->kind == NODE_FLOAT_VALUE &&
+                   r->data.float_value.value == 0.0) {
+            is_zero = true;
+        } else if (r && r->kind == NODE_PREFIX_EXPR &&
+                   r->data.prefix.op == TOK_MINUS &&
+                   r->data.prefix.right &&
+                   r->data.prefix.right->kind == NODE_FLOAT_VALUE &&
+                   r->data.prefix.right->data.float_value.value == 0.0) {
+            is_zero = true;
+        }
+        if (is_zero) {
+            char *msg;
+            msg = typechecker_format(checker,
+                "%s by zero; dividing by a literal zero is always invalid",
+                op == TOK_PERCENT ? "modulo" : "division");
+            diagnostic_error_message(checker->diag, "E3002", msg,
+                NODE_FILE(checker, r), r->token.line, r->token.column, 0);
+            infix_errored = true;
+        }
+    }
+
+    /* E3002: bool used in arithmetic (e.g., 1 + true) */
+    if ((left->kind == TK_BOOL || right->kind == TK_BOOL) &&
+        (op == TOK_PLUS || op == TOK_MINUS ||
+         op == TOK_ASTERISK || op == TOK_SLASH ||
+         op == TOK_PERCENT) &&
+        left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "invalid operands: cannot use '%s' with %s and %s",
+            operator_to_string(op), type_name(left), type_name(right));
+        diagnostic_error_message(checker->diag, "E3002", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3002: incompatible bigint operands. Bigint arithmetic and comparison
+     * functions (gray_i128_add_checked, gray_i128_eq, etc.) only accept their
+     * own struct type. The only cross-type bigint combinations that codegen
+     * can handle are i256+i128 and u256+u128 (the narrower type is widened).
+     * Everything else — mixed signedness or the wrong direction — leaks a
+     * C type error and must be caught here. */
+    if (!infix_errored &&
+        (op == TOK_PLUS || op == TOK_MINUS ||
+         op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
+         op == TOK_EQ || op == TOK_NOT_EQ ||
+         op == TOK_LT || op == TOK_GT ||
+         op == TOK_LT_EQ || op == TOK_GT_EQ) &&
+        left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
+        left->name && right->name &&
+        is_bigint_type(left->name) && is_bigint_type(right->name) &&
+        strcmp(left->name, right->name) != 0 &&
+        !(strcmp(left->name, "i256") == 0 && strcmp(right->name, "i128") == 0) &&
+        !(strcmp(left->name, "u256") == 0 && strcmp(right->name, "u128") == 0)) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "invalid operands: cannot use '%s' with %s and %s; bigint types must match",
+            operator_to_string(op), type_name(left), type_name(right));
+        diagnostic_error_message(checker->diag, "E3002", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3002 (): nil in any operator other than equality. `nil
+     * == x` and `nil != x` are valid against nullable types (the
+     * existing comparison path already validates that); every
+     * other operator on nil is nonsense. Catches both
+     * `println(nil + 1)` (which leaked straight to clang) and
+     * `mut x int = nil + 1` (which was caught by the downstream
+     * nil-assignment check with a confusing message). */
+    if ((left->kind == TK_NIL || right->kind == TK_NIL) &&
+        op != TOK_EQ && op != TOK_NOT_EQ) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "cannot use nil with operator '%s'; nil is only valid for == / != against nullable types (Error, pointers)",
+            operator_to_string(op));
+        diagnostic_error_message(checker->diag, "E3002", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3092: nil compared to a non-nullable type */
+    if (!infix_errored && (op == TOK_EQ || op == TOK_NOT_EQ)) {
+        GrayType *non_nil = NULL;
+        if (left->kind == TK_NIL && right->kind != TK_UNKNOWN && right->kind != TK_NIL &&
+            right->kind != TK_POINTER && right->kind != TK_ERROR)
+            non_nil = right;
+        else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN && left->kind != TK_NIL &&
+            left->kind != TK_POINTER && left->kind != TK_ERROR)
+            non_nil = left;
+        if (non_nil) {
+            diagnostic_error_code_formatted(checker->diag, "E3092", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                type_display_name(checker, non_nil));
+            infix_errored = true;
+        }
+    }
+
+    /* String + string: reject with helpful message */
+    if ((left->kind == TK_STRING || right->kind == TK_STRING) && op == TOK_PLUS) {
+        diagnostic_error_code_help(checker->diag, "E3048", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+            "use string interpolation \"${a}${b}\" or fmt.format() to combine strings");
+        infix_errored = true;
+    }
+
+    /* Arithmetic on strings (-, *, /, %, etc.) */
+    if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
+        op != TOK_PLUS && op != TOK_EQ && op != TOK_NOT_EQ &&
+        op != TOK_IN && op != TOK_NOT_IN) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "cannot use '%s' on string type", operator_to_string(op));
+        diagnostic_error_message(checker->diag, "E3002", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3093: arithmetic on map, array, or struct */
+    if (!infix_errored &&
+        (op == TOK_PLUS || op == TOK_MINUS ||
+         op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
+        GrayType *bad = NULL;
+        if (left->kind == TK_MAP || left->kind == TK_ARRAY || left->kind == TK_STRUCT)
+            bad = left;
+        else if (right->kind == TK_MAP || right->kind == TK_ARRAY || right->kind == TK_STRUCT)
+            bad = right;
+        if (bad && bad->kind != TK_UNKNOWN) {
+            diagnostic_error_code_formatted(checker->diag, "E3093", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                operator_to_string(op), type_display_name(checker, bad));
+            infix_errored = true;
+        }
+    }
+
+    /* E3078: pointer arithmetic is not supported. The spec disallows
+     * it (no contiguous-buffer guarantee on '^T'), and without this
+     * check 'p + 1' silently emitted C pointer math and produced
+     * garbage. Equality (== / !=) against nil or another pointer is
+     * still allowed. */
+    if ((left->kind == TK_POINTER || right->kind == TK_POINTER) &&
+        (op == TOK_PLUS || op == TOK_MINUS ||
+         op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
+        diagnostic_error_code(checker->diag, "E3078",
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3120: pointer ordering comparisons are not supported. STANDARD.md
+     * §5.2.2 allows only == and != on pointers; <, >, <=, >= silently
+     * fell through to C where cross-allocation ordering is undefined. */
+    if (!infix_errored &&
+        (left->kind == TK_POINTER || right->kind == TK_POINTER) &&
+        (op == TOK_LT || op == TOK_GT ||
+         op == TOK_LT_EQ || op == TOK_GT_EQ)) {
+        diagnostic_error_code(checker->diag, "E3120",
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        infix_errored = true;
+    }
+
+    /* E3032: different enum types in comparison — catches both
+     * direct enum literals (Color.RED == Dir.NORTH) and variables
+     * of different enum types (c == d where c:Color, d:Dir). */
+    if (!infix_errored &&
+        (op == TOK_EQ || op == TOK_NOT_EQ) &&
+        left->kind == TK_ENUM && right->kind == TK_ENUM &&
+        left->name && right->name &&
+        strcmp(left->name, right->name) != 0) {
+        diagnostic_error_code_formatted(checker->diag, "E3032", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+            enum_display_name(checker, left->name), enum_display_name(checker, right->name));
+        infix_errored = true;
+    }
+
+    /* E3124: == / != on tagged enums. Tagged enums are emitted as C
+     * structs (union + tag field) and cannot be compared with ==.
+     * Reject at the Grayscale level before C is ever invoked. */
+    if (!infix_errored &&
+        (op == TOK_EQ || op == TOK_NOT_EQ) &&
+        left->kind == TK_ENUM && right->kind == TK_ENUM &&
+        left->name) {
+        int eidx = -1;
+        for (int enum_index = 0; enum_index < checker->enum_count; enum_index++)
+            if (strcmp(checker->enum_names[enum_index], left->name) == 0) { eidx = enum_index; break; }
+        if (eidx >= 0 && checker->enum_is_tagged[eidx]) {
+            diagnostic_error_code_formatted(checker->diag, "E3124",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                operator_to_string(op), enum_display_name(checker, left->name));
+            infix_errored = true;
+        }
+    }
+
+    /* E3049: arithmetic and ordering on enum values — catch both
+     * direct enum literals (Color.RED + 1) and variables of enum
+     * type (c + 1).  Enums only support == and != comparison.
+     * Exception: ordering comparisons (< > <= >=) are allowed when
+     * one side is an integer variable (user has explicitly unboxed
+     * the enum value into an int for numeric comparison). */
+    if (!infix_errored &&
+        (op == TOK_PLUS || op == TOK_MINUS ||
+         op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
+         op == TOK_LT || op == TOK_GT ||
+         op == TOK_LT_EQ || op == TOK_GT_EQ)) {
+        bool left_is_enum = (left && left->kind == TK_ENUM);
+        bool right_is_enum = (right && right->kind == TK_ENUM);
+        bool is_ordering = (op == TOK_LT || op == TOK_GT ||
+                            op == TOK_LT_EQ || op == TOK_GT_EQ);
+        bool has_int_side = (left && left->kind == TK_INT) ||
+                            (right && right->kind == TK_INT);
+        if ((left_is_enum || right_is_enum) &&
+            !(is_ordering && has_int_side)) {
+            diagnostic_error_code_formatted(checker->diag, "E3049", NODE_FILE(checker, node), node->token.line, node->token.column, 0, operator_to_string(op));
+            infix_errored = true;
+        }
+    }
+
+    /* Enum vs integer comparison: reject with a specific diagnostic. */
+    if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
+        left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+        if (left->kind == TK_ENUM && is_int_kind(right->kind)) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'",
+                type_display_name(checker, left), type_name(right), type_display_name(checker, left));
+            diagnostic_error_message(checker->diag, "E3117", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        if (is_int_kind(left->kind) && right->kind == TK_ENUM) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot compare %s with enum '%s'; use an enum variant like '%s.VARIANT'",
+                type_name(left), type_display_name(checker, right), type_display_name(checker, right));
+            diagnostic_error_message(checker->diag, "E3117", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+    }
+    /* Comparison of incompatible types (e.g., int == string) */
+    if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
+        left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
+        left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
+        !(is_int_kind(left->kind) && is_int_kind(right->kind)) &&
+        !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
+        !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
+        !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
+        !(left->kind == TK_BOOL && is_int_kind(right->kind)) &&
+        !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
+        !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
+        /* String enums can be compared with string literals */
+        !(left->kind == TK_ENUM && right->kind == TK_STRING && typechecker_enum_is_string(checker, left->name)) &&
+        !(left->kind == TK_STRING && right->kind == TK_ENUM && typechecker_enum_is_string(checker, right->name))) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "cannot compare %s with %s", type_name(left), type_name(right));
+        diagnostic_error_message(checker->diag, "E3001", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+    }
+
+    /* Pointer-to-pointer: pointee types differ in == / != comparison */
+    if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
+        left->kind == TK_POINTER && right->kind == TK_POINTER &&
+        left->name && right->name &&
+        strcmp(left->name, right->name) != 0 &&
+        strcmp(left->name, "nil") != 0 && strcmp(right->name, "nil") != 0) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "cannot compare %s with %s", type_name(left), type_name(right));
+        diagnostic_error_message(checker->diag, "E3001", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+    }
+    /* E3074: arrays cannot be compared with == / != directly. The C
+     * backend has no structural-equality operator on aggregate types,
+     * so this used to slip through to clang. Point users at
+     * arrays.is_equal. */
+    if ((op == TOK_EQ || op == TOK_NOT_EQ ||
+         op == TOK_LT || op == TOK_LT_EQ ||
+         op == TOK_GT || op == TOK_GT_EQ) &&
+        left->kind == TK_ARRAY && right->kind == TK_ARRAY) {
+        diagnostic_error_code_help(checker->diag, "E3074",
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+            "use arrays.is_equal(a, b) to compare arrays element-by-element");
+        infix_errored = true;
+    }
+    if ((op == TOK_EQ || op == TOK_NOT_EQ ||
+         op == TOK_LT || op == TOK_LT_EQ ||
+         op == TOK_GT || op == TOK_GT_EQ) &&
+        left->kind == TK_MAP && right->kind == TK_MAP) {
+        diagnostic_error_code_help(checker->diag, "E3076",
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+            "use maps.is_equal(a, b) to compare maps for equality");
+        infix_errored = true;
+    }
+    if ((op == TOK_EQ || op == TOK_NOT_EQ ||
+         op == TOK_LT || op == TOK_LT_EQ ||
+         op == TOK_GT || op == TOK_GT_EQ) &&
+        left->kind == TK_STRUCT && right->kind == TK_STRUCT) {
+        diagnostic_error_code_help(checker->diag, "E3077",
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+            "compare individual fields instead, e.g. a.x == b.x");
+        infix_errored = true;
+    }
+
+    /* E3085: validate type compatibility for in/not_in/!in */
+    if ((op == TOK_IN || op == TOK_NOT_IN) &&
+        !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+        bool mismatch = false;
+        const char *left_tn = type_name(left);
+        const char *right_tn = type_name(right);
+        if (right->kind == TK_ARRAY && right->element_type) {
+            GrayType *elem = type_from_name(right->element_type);
+            if (elem->kind != TK_UNKNOWN && left->kind != elem->kind &&
+                !(is_int_kind(left->kind) && is_int_kind(elem->kind)) &&
+                !(left->name && strcmp(left->name, right->element_type) == 0)) {
+                mismatch = true;
+            }
+        } else if (right->kind == TK_MAP && right->key_type) {
+            GrayType *key = type_from_name(right->key_type);
+            if (key->kind != TK_UNKNOWN && left->kind != key->kind &&
+                !(is_int_kind(left->kind) && is_int_kind(key->kind)) &&
+                !(left->name && strcmp(left->name, right->key_type) == 0)) {
+                mismatch = true;
+            }
+        } else if (right->kind == TK_STRING) {
+            /* char in string and string in string are valid */
+            if (left->kind != TK_CHAR && left->kind != TK_STRING) {
+                mismatch = true;
+            }
+        } else if (right->name && strcmp(right->name, "Range<int>") == 0) {
+            /* range() produces Range<int>; only integer types can be checked */
+            if (!is_int_kind(left->kind)) {
+                mismatch = true;
+            }
+        } else {
+            /* RHS is not a valid target for 'in' */
+            diagnostic_error_code_formatted(checker->diag, "E3095", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                right_tn);
+            infix_errored = true;
+        }
+        if (mismatch) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "'in' operator type mismatch: cannot check if '%s' is in '%s'",
+                left_tn, right_tn);
+            diagnostic_error_message(checker->diag, "E3085", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+    }
+
+    /* E3089: binary bitwise operators require integer operands */
+    if ((op == TOK_BIT_AND || op == TOK_BIT_OR ||
+         op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
+         op == TOK_BIT_SHIFT_RIGHT) &&
+        !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+        bool left_ok  = is_int_kind(left->kind)  || left->kind  == TK_CHAR;
+        bool right_ok = is_int_kind(right->kind) || right->kind == TK_CHAR;
+        if (!left_ok || !right_ok) {
+            diagnostic_error_code_formatted(checker->diag, "E8001",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                operator_to_string(op), type_display_name(checker, left), type_display_name(checker, right));
+            infix_errored = true;
+        } else {
+            result = left;
+        }
+    }
+
+    if (op == TOK_EQ || op == TOK_NOT_EQ ||
+        op == TOK_LT || op == TOK_GT ||
+        op == TOK_LT_EQ || op == TOK_GT_EQ ||
+        op == TOK_AND || op == TOK_OR ||
+        op == TOK_IN || op == TOK_NOT_IN) {
+        result = &TYPE_BOOL;
+    } else if (left->kind == TK_FLOAT || right->kind == TK_FLOAT) {
+        result = &TYPE_FLOAT;
+    } else if (left->kind == TK_STRING && op == TOK_PLUS) {
+        result = &TYPE_STRING;
+    } else {
+        result = left;
+    }
+    /* : if any op-level check rejected the expression, drop
+     * result to TK_UNKNOWN so downstream var_decl / return / etc.
+     * checks that already skip TK_UNKNOWN don't cascade a second
+     * diagnostic off one of the (invalid) operand types. */
+    if (infix_errored) result = &TYPE_UNKNOWN;
+    return result;
+}
+
+static GrayType *resolve_member_expr(TypeChecker *checker, AstNode *node) {
+    GrayType *result = &TYPE_UNKNOWN;
+    /* Resolve object type first (sets type table entry for the object) */
+    AstNode *obj = node->data.member.object;
+    const char *member = node->data.member.member;
+
+    /* Handle mod.Enum.VALUE or mod.Struct.field triple chain */
+    if (obj->kind == NODE_MEMBER_EXPR &&
+        obj->data.member.object->kind == NODE_LABEL) {
+        const char *mod_name = obj->data.member.object->data.label.value;
+        const char *type_name = obj->data.member.member;
+        /* Build prefixed type name: mod_Type */
+        char prefixed_type[MSG_BUF_SIZE];
+        snprintf(prefixed_type, sizeof(prefixed_type), "%s_%s", mod_name, type_name);
+        /* Check if it's a module-qualified enum access */
+        if (is_enum_name(checker, prefixed_type)) {
+            bool is_str_enum = false;
+            for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
+                if (strcmp(checker->enum_names[enum_index], prefixed_type) == 0) {
+                    is_str_enum = checker->enum_is_string[enum_index];
+                    break;
+                }
+            }
+            /* Mark module as used */
+            for (int mi = 0; mi < checker->import_count; mi++) {
+                if (strcmp(checker->imported_modules[mi], mod_name) == 0) {
+                    checker->import_used[mi] = true;
+                    break;
+                }
+            }
+            result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
+            return result;
+        }
+    }
+
+    resolve_expression(checker, obj);
+
+    if (obj->kind == NODE_LABEL) {
+        const char *obj_name = obj->data.label.value;
+
+        /* Mark module as used (for member access like math.PI) */
+        for (int mi = 0; mi < checker->import_count; mi++) {
+            if (strcmp(checker->imported_modules[mi], obj_name) == 0) {
+                checker->import_used[mi] = true;
+                break;
+            }
+        }
+
+        /* Check for module constants */
+        if (strcmp(obj_name, "math") == 0) {
+            result = &TYPE_FLOAT; /* PI, E, TAU, etc. */
+            return result;
+        }
+        if (strcmp(obj_name, "os") == 0) {
+            result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
+            return result;
+        }
+        if (strcmp(obj_name, "io") == 0) {
+            const char *mem = node->data.member.member;
+            if (strcmp(mem, "O_RDONLY") == 0 || strcmp(mem, "O_WRONLY") == 0 ||
+                strcmp(mem, "O_RDWR") == 0) {
+                result = &TYPE_INT;
+                return result;
+            }
+        }
+        if (strcmp(obj_name, "strconv") == 0) {
+            const char *mem = node->data.member.member;
+            if (strcmp(mem, "BASE_2") == 0 || strcmp(mem, "BASE_8") == 0 ||
+                strcmp(mem, "BASE_10") == 0 || strcmp(mem, "BASE_16") == 0 ||
+                strcmp(mem, "BASE_36") == 0) {
+                result = &TYPE_INT;
+                return result;
+            }
+        }
+        if (strcmp(obj_name, "uuid") == 0) {
+            const char *mem = node->data.member.member;
+            if (strcmp(mem, "NIL_UUID") == 0) {
+                result = type_struct("UUID");
+                return result;
+            }
+        }
+
+        /* Check if it's an enum access: Color.RED */
+        if (is_enum_name(checker, obj_name)) {
+            /* Check if this is a string enum and validate member exists */
+            bool is_str_enum = false;
+            bool member_found = false;
+            for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
+                if (strcmp(checker->enum_names[enum_index], obj_name) == 0) {
+                    is_str_enum = checker->enum_is_string[enum_index];
+                    for (int variant_index = 0; variant_index < checker->enum_value_counts[enum_index]; variant_index++) {
+                        if (strcmp(checker->enum_values[enum_index][variant_index], member) == 0) {
+                            member_found = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            if (!member_found) {
+                diagnostic_error_code_formatted(checker->diag, "E3047", NODE_FILE(checker, node), node->token.line, node->token.column, 0, obj_name, member);
+            }
+            result = type_enum(obj_name);
+            return result;
+        }
+
+        /* C interop constant access: c.EOF, c.NULL, etc. */
+        if (strcmp(obj_name, "c") == 0 && typechecker_is_imported_module(checker, "c")) {
+            result = &TYPE_UNKNOWN;
+            return result;
+        }
+
+        /* Check for user-module constant access: mod.CONST */
+        if (typechecker_is_imported_module(checker, obj_name)) {
+            char prefixed[MSG_BUF_SIZE];
+            snprintf(prefixed, sizeof(prefixed), "%s_%s", obj_name, member);
+            Symbol *mod_sym = scope_lookup(checker->current_scope, prefixed);
+            if (mod_sym) {
+                mod_sym->used = true;
+                result = mod_sym->type;
+                /* Mark module as used */
+                for (int mi = 0; mi < checker->import_count; mi++) {
+                    if (strcmp(checker->imported_modules[mi], obj_name) == 0) {
+                        checker->import_used[mi] = true;
+                        break;
+                    }
+                }
+                return result;
+            }
+        }
+
+        /* Otherwise it's a struct field or multi-return access */
+        Symbol *sym = scope_lookup(checker->current_scope, obj_name);
+        /* Multi-return .v0/.v1 access takes priority over struct field
+         * lookup when the symbol has ret_types set. Without this, stdlib
+         * functions returning struct types (Socket, HttpResponse, etc.)
+         * would enter struct_field_type() which fails on .v0/.v1. */
+        if (sym && sym->ret_types && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
+            int idx = member[1] - '0';
+            if (idx < sym->ret_count) {
+                result = sym->ret_types[idx];
+            } else {
+                diagnostic_error_code_formatted(checker->diag, "E3006", NODE_FILE(checker, node), node->token.line, node->token.column, 0, sym->ret_count, idx + 1);
+                result = &TYPE_UNKNOWN;
+            }
+        } else if (sym && sym->type->kind == TK_STRUCT) {
+            result = struct_field_type(checker, sym->type->name, member);
+            /* : func-typed fields resolve as TK_UNKNOWN (name="func")
+             * via type_from_name because "func" maps to TK_UNKNOWN. Don't
+             * emit E3010 "no field" when the field genuinely exists; it's
+             * just a func field. */
+            bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
+                                  strcmp(result->name, "func") == 0);
+            if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
+                diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0, struct_display_name(checker, sym->type->name), member);
+            }
+        } else if (sym && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
+            /* Multi-return .v0/.v1/.v2 access; use stored return types */
+            int idx = member[1] - '0';
+            if (sym->ret_types && idx < sym->ret_count) {
+                result = sym->ret_types[idx];
+            } else if (idx == 0) {
+                result = sym->type;
+            } else if (sym->ret_types && idx >= sym->ret_count) {
+                /* More variables than the function returns */
+                diagnostic_error_code_formatted(checker->diag, "E3006", NODE_FILE(checker, node), node->token.line, node->token.column, 0, sym->ret_count, idx + 1);
+                result = &TYPE_UNKNOWN;
+            } else if (!sym->ret_types && idx > 0) {
+                /* Single-return function used in multi-variable assignment */
+                diagnostic_error_message(checker->diag, "E3006",
+                    "too many variables; the function returns only 1 value",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                result = &TYPE_UNKNOWN;
+            } else {
+                result = type_from_name("Error"); /* fallback for (T, Error) pattern */
+            }
+        } else if (sym && sym->type->kind == TK_POINTER) {
+            /* Pointer auto-deref field access */
+            result = struct_field_type(checker, sym->type->element_type, member);
+            if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0, sym->type->element_type, member);
+            }
+        } else if (sym && sym->type->kind == TK_ERROR) {
+            /* Error type has .message and .code string fields */
+            if (strcmp(member, "message") == 0 || strcmp(member, "code") == 0) {
+                result = &TYPE_STRING;
+            } else {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "Error has no field '%s'; available fields: message, code",
+                    member);
+                diagnostic_error_message(checker->diag, "E3010", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                result = &TYPE_UNKNOWN;
+            }
+        } else if (sym && sym->type->kind != TK_UNKNOWN &&
+                   sym->type->kind != TK_STRUCT && sym->type->kind != TK_ENUM &&
+                   sym->type->kind != TK_POINTER &&
+                   !(member[0] == 'v' && member[1] >= '0' && member[1] <= '9')) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "type '%s' does not support access via dot notation",
+                type_name(sym->type));
+            diagnostic_error_message(checker->diag, "E3013", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        /* Struct-namespaced function or enum access: Type.func() / Type.MEMBER */
+        if (!sym && is_struct_name(checker, obj_name)) {
+            /* Check if member is a field; can't access fields on the type itself */
+            GrayType *ft = struct_field_type(checker, obj_name, member);
+            if (ft && ft->kind != TK_UNKNOWN) {
+                diagnostic_error_code_formatted(checker->diag, "E3044", NODE_FILE(checker, node), node->token.line, node->token.column, 0, member, obj_name);
+            }
+            result = &TYPE_UNKNOWN;
+        }
+    } else if (obj->kind == NODE_MEMBER_EXPR) {
+        /* Check for module-qualified enum: lib.Color.RED */
+        if (obj->data.member.object->kind == NODE_LABEL) {
+            const char *mod = obj->data.member.object->data.label.value;
+            const char *type_n = obj->data.member.member;
+            if (mod[0] >= 'a' && mod[0] <= 'z' &&
+                type_n[0] >= 'A' && type_n[0] <= 'Z') {
+                char prefixed[MSG_BUF_SIZE];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_n);
+                if (is_enum_name(checker, prefixed)) {
+                    result = &TYPE_INT;
+                    /* Mark module as used */
+                    for (int mi = 0; mi < checker->import_count; mi++) {
+                        if (strcmp(checker->imported_modules[mi], mod) == 0) {
+                            checker->import_used[mi] = true;
+                            break;
+                        }
+                    }
+                    return result;
+                }
+            }
+        }
+        /* Nested member access: a.b.c; resolve a.b first, then look up .c */
+        GrayType *obj_t = typetable_get(checker->type_table, obj);
+        if (!obj_t) obj_t = resolve_expression(checker, obj);
+        if (obj_t && obj_t->kind == TK_STRUCT) {
+            result = struct_field_type(checker, obj_t->name, member);
+            bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
+                                  strcmp(result->name, "func") == 0);
+            if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
+                diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                    struct_display_name(checker, obj_t->name), member);
+            }
+        } else if (obj_t && obj_t->kind == TK_POINTER) {
+            /* Auto-deref pointer field: a.next.val where a.next is ^Node */
+            result = struct_field_type(checker, obj_t->element_type, member);
+            if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                    obj_t->element_type, member);
+            }
+        } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "type '%s' does not support access via dot notation",
+                type_name(obj_t));
+            diagnostic_error_message(checker->diag, "E3013", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+    } else {
+        /* Object is an expression (e.g. foo().bar); resolve its type */
+        GrayType *obj_t = resolve_expression(checker, obj);
+        if (obj_t && obj_t->kind == TK_STRUCT) {
+            result = struct_field_type(checker, obj_t->name, member);
+        } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "type '%s' does not support access via dot notation",
+                type_name(obj_t));
+            diagnostic_error_message(checker->diag, "E3013", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+    }
+    return result;
+}
+
+static GrayType *resolve_struct_value(TypeChecker *checker, AstNode *node) {
+    GrayType *result = &TYPE_UNKNOWN;
+    const char *struct_name = node->data.struct_value.name;
+    /* Type parameter: rewrite T → "?" so codegen can substitute */
+    if (checker->type_param_name && strcmp(struct_name, checker->type_param_name) == 0) {
+        node->data.struct_value.name = "?";
+        struct_name = "?";
+    }
+    if (strcmp(struct_name, "?") == 0) {
+        /* During re-check with a binding, validate with concrete struct */
+        if (checker->type_param_binding) {
+            struct_name = checker->type_param_binding;
+        } else {
+            /* Main pass — skip field validation, return unknown */
+            for (int i = 0; i < node->data.struct_value.count; i++)
+                resolve_expression(checker, node->data.struct_value.field_values[i]);
+            result = &TYPE_UNKNOWN;
+            return result;
+        }
+    }
+    typechecker_mark_type_module_used(checker, struct_name);
+    StructInfo *si = find_struct(checker, struct_name);
+    /* E4016: reject undefined/unimported struct types in struct literals */
+    if (!si && !is_struct_name(checker, struct_name)) {
+        char *msg = NULL;
+        msg = typechecker_format(checker,
+            "undefined type '%s'; check the spelling or import the module that defines it",
+            struct_name);
+        diagnostic_error_message(checker->diag, "E4016", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        result = &TYPE_UNKNOWN;
+        return result;
+    }
+    /* E2015: check for duplicate field names in struct literal */
+    for (int i = 0; i < node->data.struct_value.count; i++) {
+        if (!node->data.struct_value.field_names[i]) continue;
+        for (int j = 0; j < i; j++) {
+            if (!node->data.struct_value.field_names[j]) continue;
+            if (strcmp(node->data.struct_value.field_names[j],
+                       node->data.struct_value.field_names[i]) == 0) {
+                diagnostic_error_code_formatted(checker->diag, "E2015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, node->data.struct_value.field_names[i]);
+                break;
+            }
+        }
+    }
+    for (int i = 0; i < node->data.struct_value.count; i++) {
+        /* Look up expected field type for implicit enum resolution */
+        GrayType *field_expected_t = NULL;
+        if (si && node->data.struct_value.field_names[i]) {
+            const char *fname_pre = node->data.struct_value.field_names[i];
+            for (int j = 0; j < si->field_count; j++) {
+                if (strcmp(si->field_names[j], fname_pre) == 0) {
+                    field_expected_t = si->field_types[j];
+                    break;
+                }
+            }
+        }
+        GrayType *saved_sv_expected = checker->expected_type;
+        if (field_expected_t && field_expected_t->kind == TK_ENUM && field_expected_t->name)
+            checker->expected_type = field_expected_t;
+        GrayType *val_t = resolve_expression(checker, node->data.struct_value.field_values[i]);
+        checker->expected_type = saved_sv_expected;
+        /* Validate field exists */
+        if (si && node->data.struct_value.field_names[i]) {
+            const char *fname = node->data.struct_value.field_names[i];
+            bool found = false;
+            GrayType *expected_t = NULL;
+            for (int j = 0; j < si->field_count; j++) {
+                if (strcmp(si->field_names[j], fname) == 0) {
+                    found = true;
+                    expected_t = si->field_types[j];
+                    break;
+                }
+            }
+            if (!found) {
+                diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0, struct_name, fname);
+            } else if (expected_t && val_t->kind != TK_UNKNOWN &&
+                       expected_t->kind != TK_UNKNOWN &&
+                       /* kinds differ, OR both are pointers to different types,
+                        * OR both are structs with different names */
+                       (expected_t->kind != val_t->kind ||
+                        (expected_t->kind == TK_POINTER &&
+                         expected_t->name && val_t->name &&
+                         strcmp(expected_t->name, val_t->name) != 0) ||
+                        (expected_t->kind == TK_STRUCT && val_t->kind == TK_STRUCT &&
+                         expected_t->name && val_t->name &&
+                         strcmp(expected_t->name, val_t->name) != 0)) &&
+                       !(is_int_kind(expected_t->kind) && val_t->kind == TK_ENUM) &&
+                       !(expected_t->kind == TK_ENUM && is_int_kind(val_t->kind)) &&
+                       !(expected_t->kind == TK_STRUCT && is_int_kind(val_t->kind)) &&
+                       !(is_int_kind(expected_t->kind) && val_t->kind == TK_STRUCT) &&
+                       !(expected_t->kind == TK_FLOAT && is_int_kind(val_t->kind)) &&
+                       /* nil is a valid value for pointer and Error fields */
+                       !(val_t->kind == TK_NIL &&
+                         (expected_t->kind == TK_POINTER || expected_t->kind == TK_ERROR))) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "field '%s' of struct '%s': expected %s, got %s",
+                    fname, struct_display_name(checker, struct_name), type_display_name(checker, expected_t), type_display_name(checker, val_t));
+                diagnostic_error_message(checker->diag, "E3001", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+    }
+    /* : for generic structs, infer the wildcard binding from
+     * the field values and record the instantiation on the struct
+     * decl so codegen can emit per-binding typedefs. */
+    AstNode *sdecl = find_struct_in_program(checker->program, struct_name);
+    if (sdecl && sdecl->data.struct_decl.is_generic) {
+        const char *binding = NULL;
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            const char *fname = node->data.struct_value.field_names[i];
+            if (!fname) continue;
+            /* Find the field's declared type in the struct decl */
+            for (int j = 0; j < sdecl->data.struct_decl.field_count; j++) {
+                if (strcmp(sdecl->data.struct_decl.fields[j].name, fname) == 0 &&
+                    sdecl->data.struct_decl.fields[j].type_name &&
+                    strcmp(sdecl->data.struct_decl.fields[j].type_name, "?") == 0) {
+                    GrayType *val_t = typetable_get(checker->type_table,
+                        node->data.struct_value.field_values[i]);
+                    if (!val_t) val_t = resolve_expression(checker, node->data.struct_value.field_values[i]);
+                    if (val_t && val_t->kind != TK_UNKNOWN) {
+                        const char *concrete = type_name(val_t);
+                        if (!binding) {
+                            binding = concrete;
+                        } else if (strcmp(binding, concrete) != 0) {
+                            char *msg = NULL;
+                            msg = typechecker_format(checker,
+                                "wildcard type conflict in struct '%s': '?' was bound to %s, but field '%s' is %s",
+                                struct_name, binding, fname, concrete);
+                            diagnostic_error_message(checker->diag, "E3001", msg,
+                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        if (binding) {
+            node->data.struct_value.wildcard_binding = strdup(binding);
+            /* Record instantiation on the struct decl */
+            bool already = false;
+            for (int ii = 0; ii < sdecl->data.struct_decl.instantiation_count; ii++) {
+                if (strcmp(sdecl->data.struct_decl.instantiations[ii], binding) == 0) {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already) {
+                int n = sdecl->data.struct_decl.instantiation_count;
+                sdecl->data.struct_decl.instantiations = xrealloc(
+                    (void *)sdecl->data.struct_decl.instantiations,
+                    sizeof(const char *) * (size_t)(n + 1));
+                sdecl->data.struct_decl.instantiations[n] = strdup(binding);
+                sdecl->data.struct_decl.instantiation_count = n + 1;
+            }
+            /* Return mangled struct type */
+            char mangled[MSG_BUF_SIZE];
+            size_t pos = snprintf(mangled, sizeof(mangled), "%s__", struct_name);
+            for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
+                mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+            }
+            mangled[pos] = '\0';
+            result = type_struct(strdup(mangled));
+        } else {
+            result = type_struct(struct_name);
+        }
+    } else {
+        result = type_struct(struct_name);
+    }
+    return result;
+}
+
+static GrayType *resolve_func_ref(TypeChecker *checker, AstNode *node) {
+    GrayType *result = &TYPE_UNKNOWN;
+    /* Validate that the referenced function exists.
+     * Builtin and stdlib functions cannot be used as function references. */
+    const char *ref_name = NULL;
+    const char *ref_struct_name = NULL;  /* struct name for privacy check */
+    const char *ref_member_name = NULL;  /* member name for privacy check */
+    if (node->data.func_ref.function->kind == NODE_LABEL) {
+        const char *lname = node->data.func_ref.function->data.label.value;
+        /* Surface 1: ()builtin_name — builtins are not first-class values */
+        if (typechecker_is_builtin(lname)) {
+            char *msg = NULL;
+            msg = typechecker_format(checker,
+                "cannot take a function reference to '%s'; builtin functions are not first-class values", lname);
+            diagnostic_error_message(checker->diag, "E4019", msg,
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        } else {
+            ref_name = lname;
+        }
+    } else if (node->data.func_ref.function->kind == NODE_MEMBER_EXPR) {
+        AstNode *obj = node->data.func_ref.function->data.member.object;
+        const char *member = node->data.func_ref.function->data.member.member;
+        if (obj->kind == NODE_LABEL) {
+            const char *mod_name = typechecker_resolve_alias(checker, obj->data.label.value);
+            /* Surface 2: ()module.func — stdlib module functions are not first-class values */
+            if (is_stdlib_module_name(mod_name)) {
+                char *msg = NULL;
+                msg = typechecker_format(checker,
+                    "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values",
+                    obj->data.label.value, member);
+                diagnostic_error_message(checker->diag, "E4019", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            } else {
+                /* Struct.func → lookup as Struct_func */
+                ref_struct_name = obj->data.label.value;
+                ref_member_name = member;
+                char buffer[MSG_BUF_SIZE];
+                snprintf(buffer, sizeof(buffer), "%s_%s", obj->data.label.value, member);
+                ref_name = arena_copy_string(checker->arena, buffer);
+            }
+        }
+    }
+    FuncSig *ref_sig = ref_name ? find_func(checker, ref_name) : NULL;
+    if (ref_sig) {
+        ref_sig->used = true;
+        /* E4017: private struct function referenced from outside the struct */
+        if (ref_sig->is_private && ref_struct_name &&
+            !(checker->current_struct_name &&
+              strcmp(checker->current_struct_name, ref_struct_name) == 0)) {
+            diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
+                node->token.line, node->token.column, 0,
+                ref_struct_name, ref_member_name);
+        }
+    } else if (ref_name) {
+        /* Surface 3: using module; ()stdlib_func — check if ref_name is in an active using module */
+        bool found_in_using = false;
+        for (int using_index = 0; using_index < checker->using_module_count && !found_in_using; using_index++) {
+            if (!using_module_accessible(checker, using_index)) continue;
+            const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
+            if (is_stdlib_module_name(real_mod)) {
+                for (int field_index = 0; _using_funcs[field_index].func; field_index++) {
+                    if (strcmp(ref_name, _using_funcs[field_index].func) == 0 &&
+                        strcmp(real_mod, _using_funcs[field_index].mod) == 0) {
+                        found_in_using = true;
+                        char *msg = NULL;
+                        msg = typechecker_format(checker,
+                            "cannot take a function reference to '%s'; stdlib functions are not first-class values",
+                            ref_name);
+                        diagnostic_error_message(checker->diag, "E4019", msg,
+                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                        break;
+                    }
+                }
+            }
+        }
+        if (!found_in_using) {
+            char *msg = NULL;
+            msg = typechecker_format(checker, "undefined function '%s' in function reference", ref_name);
+            const char *suggestion = suggest_similar_name(checker, ref_name);
+            if (suggestion) {
+                char help[MSG_BUF_SIZE];
+                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                diagnostic_error_help(checker->diag, "E4002", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_copy_string(checker->arena, help));
+            } else {
+                diagnostic_error_message(checker->diag, "E4002", msg,
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+        }
+    }
+    /* Build a typed-func type from the referenced function's signature.
+     * Canonical encoding: "func(p1,&p2,...)" with no "->R" suffix when
+     * the function returns nothing; "func(...)->R" for a single return;
+     * "func(...)->(R1,R2)" for multi-return. */
+    if (ref_sig) {
+        char buffer[512];
+        size_t buffer_size = sizeof(buffer);
+        int n = snprintf(buffer, buffer_size, "func(");
+        if ((size_t)n >= buffer_size) n = (int)buffer_size - 1;
+        for (int i = 0; i < ref_sig->param_count && (size_t)n < buffer_size - 1; i++) {
+            bool mut_p = (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL &&
+                          i < ref_sig->decl->data.func_decl.param_count &&
+                          ref_sig->decl->data.func_decl.params[i].mutable);
+            const char *ptn = (ref_sig->param_types[i] && ref_sig->param_types[i]->name)
+                ? ref_sig->param_types[i]->name : "int";
+            int w = snprintf(buffer + n, buffer_size - (size_t)n, "%s%s%s",
+                i ? "," : "", mut_p ? "&" : "", ptn);
+            if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
+            else { n = (int)buffer_size - 1; break; }
+        }
+        if ((size_t)n < buffer_size - 1) {
+            int w = snprintf(buffer + n, buffer_size - (size_t)n, ")");
+            if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
+            else n = (int)buffer_size - 1;
+        }
+        if (ref_sig->return_count == 1 && ref_sig->return_types[0] &&
+            ref_sig->return_types[0]->name &&
+            strcmp(ref_sig->return_types[0]->name, "void") != 0 &&
+            (size_t)n < buffer_size - 1) {
+            int w = snprintf(buffer + n, buffer_size - (size_t)n, "->%s",
+                ref_sig->return_types[0]->name);
+            if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
+            else n = (int)buffer_size - 1;
+        } else if (ref_sig->return_count > 1 && (size_t)n < buffer_size - 1) {
+            int w = snprintf(buffer + n, buffer_size - (size_t)n, "->(");
+            if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
+            else n = (int)buffer_size - 1;
+            for (int i = 0; i < ref_sig->return_count && (size_t)n < buffer_size - 1; i++) {
+                const char *rn = (ref_sig->return_types[i] && ref_sig->return_types[i]->name)
+                    ? ref_sig->return_types[i]->name : "int";
+                w = snprintf(buffer + n, buffer_size - (size_t)n, "%s%s",
+                    i ? "," : "", rn);
+                if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
+                else { n = (int)buffer_size - 1; break; }
+            }
+            if ((size_t)n < buffer_size - 1) {
+                w = snprintf(buffer + n, buffer_size - (size_t)n, ")");
+                if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
+                else n = (int)buffer_size - 1;
+            }
+        }
+        char *encoded = strdup(buffer);
+        result = type_from_name(encoded);
+    } else {
+        /* Unknown function: fall back to bare-func type
+         * so downstream "is this callable" checks don't crash. */
+        result = type_from_name("func");
+    }
+    return result;
+}
+
 static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
@@ -2565,450 +6944,9 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
         break;
     }
 
-    case NODE_INFIX_EXPR: {
-        TokenType op = node->data.infix.op;
-        GrayType *left = resolve_expression(checker, node->data.infix.left);
-        /* For == and !=, set expected_type so .VARIANT on the RHS
-         * can resolve against the LHS enum type. */
-        GrayType *saved_infix_expected = checker->expected_type;
-        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
-            left && left->kind == TK_ENUM && left->name)
-            checker->expected_type = left;
-        GrayType *right = resolve_expression(checker, node->data.infix.right);
-        checker->expected_type = saved_infix_expected;
-
-        /* : track whether any op-specific check has rejected the
-         * expression so the final result can be collapsed to TK_UNKNOWN
-         * instead of one operand's type. Otherwise `mut x int = true +
-         * 1` fires E3002 at the '+' and then cascades into E3001 "can't
-         * assign bool to int" at the var_decl, where the bool came from
-         * the left operand rather than a real result type. */
-        bool infix_errored = false;
-
-        /* : void operands never make sense in any binary
-         * operator. Check both sides at the kind level before any
-         * op-specific diagnostic runs, so `1 + nothing()` and
-         * `nothing() == x` report a clean E3038 instead of
-         * cascading through the op-specific type checks or leaking
-         * to clang. */
-        if (left && left->kind == TK_VOID) infix_errored = true;
-        if (right && right->kind == TK_VOID) infix_errored = true;
-        reject_void_in_context(checker, node->data.infix.left, left, "binary operand");
-        reject_void_in_context(checker, node->data.infix.right, right, "binary operand");
-
-        /* String ordering operators not supported; use strings.compare() */
-        if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
-            (op == TOK_LT || op == TOK_GT ||
-             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "cannot use '%s' on strings; use strings.compare() instead", operator_to_string(op));
-            diagnostic_error_message(checker->diag, "E3002", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            result = &TYPE_BOOL;
-            break;
-        }
-
-        /* E3002: modulo on float */
-        if (op == TOK_PERCENT &&
-            (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
-            diagnostic_error_message(checker->diag, "E3002",
-                "modulo (%) only works on integers, not floats",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3002: literal divide/modulo by zero (). Catches the
-         * statically-detectable case where the RHS is an integer or
-         * float literal zero (including a prefix -0). Runtime checks
-         * still cover the dynamic case. */
-        if (op == TOK_SLASH || op == TOK_PERCENT) {
-            AstNode *r = node->data.infix.right;
-            bool is_zero = false;
-            int64_t iv;
-            if (try_get_literal_int(r, &iv) && iv == 0) {
-                is_zero = true;
-            } else if (r && r->kind == NODE_FLOAT_VALUE &&
-                       r->data.float_value.value == 0.0) {
-                is_zero = true;
-            } else if (r && r->kind == NODE_PREFIX_EXPR &&
-                       r->data.prefix.op == TOK_MINUS &&
-                       r->data.prefix.right &&
-                       r->data.prefix.right->kind == NODE_FLOAT_VALUE &&
-                       r->data.prefix.right->data.float_value.value == 0.0) {
-                is_zero = true;
-            }
-            if (is_zero) {
-                char *msg;
-                msg = typechecker_format(checker,
-                    "%s by zero; dividing by a literal zero is always invalid",
-                    op == TOK_PERCENT ? "modulo" : "division");
-                diagnostic_error_message(checker->diag, "E3002", msg,
-                    NODE_FILE(checker, r), r->token.line, r->token.column, 0);
-                infix_errored = true;
-            }
-        }
-
-        /* E3002: bool used in arithmetic (e.g., 1 + true) */
-        if ((left->kind == TK_BOOL || right->kind == TK_BOOL) &&
-            (op == TOK_PLUS || op == TOK_MINUS ||
-             op == TOK_ASTERISK || op == TOK_SLASH ||
-             op == TOK_PERCENT) &&
-            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "invalid operands: cannot use '%s' with %s and %s",
-                operator_to_string(op), type_name(left), type_name(right));
-            diagnostic_error_message(checker->diag, "E3002", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3002: incompatible bigint operands. Bigint arithmetic and comparison
-         * functions (gray_i128_add_checked, gray_i128_eq, etc.) only accept their
-         * own struct type. The only cross-type bigint combinations that codegen
-         * can handle are i256+i128 and u256+u128 (the narrower type is widened).
-         * Everything else — mixed signedness or the wrong direction — leaks a
-         * C type error and must be caught here. */
-        if (!infix_errored &&
-            (op == TOK_PLUS || op == TOK_MINUS ||
-             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
-             op == TOK_EQ || op == TOK_NOT_EQ ||
-             op == TOK_LT || op == TOK_GT ||
-             op == TOK_LT_EQ || op == TOK_GT_EQ) &&
-            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
-            left->name && right->name &&
-            is_bigint_type(left->name) && is_bigint_type(right->name) &&
-            strcmp(left->name, right->name) != 0 &&
-            !(strcmp(left->name, "i256") == 0 && strcmp(right->name, "i128") == 0) &&
-            !(strcmp(left->name, "u256") == 0 && strcmp(right->name, "u128") == 0)) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "invalid operands: cannot use '%s' with %s and %s; bigint types must match",
-                operator_to_string(op), type_name(left), type_name(right));
-            diagnostic_error_message(checker->diag, "E3002", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3002 (): nil in any operator other than equality. `nil
-         * == x` and `nil != x` are valid against nullable types (the
-         * existing comparison path already validates that); every
-         * other operator on nil is nonsense. Catches both
-         * `println(nil + 1)` (which leaked straight to clang) and
-         * `mut x int = nil + 1` (which was caught by the downstream
-         * nil-assignment check with a confusing message). */
-        if ((left->kind == TK_NIL || right->kind == TK_NIL) &&
-            op != TOK_EQ && op != TOK_NOT_EQ) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "cannot use nil with operator '%s'; nil is only valid for == / != against nullable types (Error, pointers)",
-                operator_to_string(op));
-            diagnostic_error_message(checker->diag, "E3002", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3092: nil compared to a non-nullable type */
-        if (!infix_errored && (op == TOK_EQ || op == TOK_NOT_EQ)) {
-            GrayType *non_nil = NULL;
-            if (left->kind == TK_NIL && right->kind != TK_UNKNOWN && right->kind != TK_NIL &&
-                right->kind != TK_POINTER && right->kind != TK_ERROR)
-                non_nil = right;
-            else if (right->kind == TK_NIL && left->kind != TK_UNKNOWN && left->kind != TK_NIL &&
-                left->kind != TK_POINTER && left->kind != TK_ERROR)
-                non_nil = left;
-            if (non_nil) {
-                diagnostic_error_code_formatted(checker->diag, "E3092", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    type_display_name(checker, non_nil));
-                infix_errored = true;
-            }
-        }
-
-        /* String + string: reject with helpful message */
-        if ((left->kind == TK_STRING || right->kind == TK_STRING) && op == TOK_PLUS) {
-            diagnostic_error_code_help(checker->diag, "E3048", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                "use string interpolation \"${a}${b}\" or fmt.format() to combine strings");
-            infix_errored = true;
-        }
-
-        /* Arithmetic on strings (-, *, /, %, etc.) */
-        if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
-            op != TOK_PLUS && op != TOK_EQ && op != TOK_NOT_EQ &&
-            op != TOK_IN && op != TOK_NOT_IN) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "cannot use '%s' on string type", operator_to_string(op));
-            diagnostic_error_message(checker->diag, "E3002", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3093: arithmetic on map, array, or struct */
-        if (!infix_errored &&
-            (op == TOK_PLUS || op == TOK_MINUS ||
-             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
-            GrayType *bad = NULL;
-            if (left->kind == TK_MAP || left->kind == TK_ARRAY || left->kind == TK_STRUCT)
-                bad = left;
-            else if (right->kind == TK_MAP || right->kind == TK_ARRAY || right->kind == TK_STRUCT)
-                bad = right;
-            if (bad && bad->kind != TK_UNKNOWN) {
-                diagnostic_error_code_formatted(checker->diag, "E3093", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    operator_to_string(op), type_display_name(checker, bad));
-                infix_errored = true;
-            }
-        }
-
-        /* E3078: pointer arithmetic is not supported. The spec disallows
-         * it (no contiguous-buffer guarantee on '^T'), and without this
-         * check 'p + 1' silently emitted C pointer math and produced
-         * garbage. Equality (== / !=) against nil or another pointer is
-         * still allowed. */
-        if ((left->kind == TK_POINTER || right->kind == TK_POINTER) &&
-            (op == TOK_PLUS || op == TOK_MINUS ||
-             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT)) {
-            diagnostic_error_code(checker->diag, "E3078",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3120: pointer ordering comparisons are not supported. STANDARD.md
-         * §5.2.2 allows only == and != on pointers; <, >, <=, >= silently
-         * fell through to C where cross-allocation ordering is undefined. */
-        if (!infix_errored &&
-            (left->kind == TK_POINTER || right->kind == TK_POINTER) &&
-            (op == TOK_LT || op == TOK_GT ||
-             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
-            diagnostic_error_code(checker->diag, "E3120",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            infix_errored = true;
-        }
-
-        /* E3032: different enum types in comparison — catches both
-         * direct enum literals (Color.RED == Dir.NORTH) and variables
-         * of different enum types (c == d where c:Color, d:Dir). */
-        if (!infix_errored &&
-            (op == TOK_EQ || op == TOK_NOT_EQ) &&
-            left->kind == TK_ENUM && right->kind == TK_ENUM &&
-            left->name && right->name &&
-            strcmp(left->name, right->name) != 0) {
-            diagnostic_error_code_formatted(checker->diag, "E3032", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                enum_display_name(checker, left->name), enum_display_name(checker, right->name));
-            infix_errored = true;
-        }
-
-        /* E3124: == / != on tagged enums. Tagged enums are emitted as C
-         * structs (union + tag field) and cannot be compared with ==.
-         * Reject at the Grayscale level before C is ever invoked. */
-        if (!infix_errored &&
-            (op == TOK_EQ || op == TOK_NOT_EQ) &&
-            left->kind == TK_ENUM && right->kind == TK_ENUM &&
-            left->name) {
-            int eidx = -1;
-            for (int enum_index = 0; enum_index < checker->enum_count; enum_index++)
-                if (strcmp(checker->enum_names[enum_index], left->name) == 0) { eidx = enum_index; break; }
-            if (eidx >= 0 && checker->enum_is_tagged[eidx]) {
-                diagnostic_error_code_formatted(checker->diag, "E3124",
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    operator_to_string(op), enum_display_name(checker, left->name));
-                infix_errored = true;
-            }
-        }
-
-        /* E3049: arithmetic and ordering on enum values — catch both
-         * direct enum literals (Color.RED + 1) and variables of enum
-         * type (c + 1).  Enums only support == and != comparison.
-         * Exception: ordering comparisons (< > <= >=) are allowed when
-         * one side is an integer variable (user has explicitly unboxed
-         * the enum value into an int for numeric comparison). */
-        if (!infix_errored &&
-            (op == TOK_PLUS || op == TOK_MINUS ||
-             op == TOK_ASTERISK || op == TOK_SLASH || op == TOK_PERCENT ||
-             op == TOK_LT || op == TOK_GT ||
-             op == TOK_LT_EQ || op == TOK_GT_EQ)) {
-            bool left_is_enum = (left && left->kind == TK_ENUM);
-            bool right_is_enum = (right && right->kind == TK_ENUM);
-            bool is_ordering = (op == TOK_LT || op == TOK_GT ||
-                                op == TOK_LT_EQ || op == TOK_GT_EQ);
-            bool has_int_side = (left && left->kind == TK_INT) ||
-                                (right && right->kind == TK_INT);
-            if ((left_is_enum || right_is_enum) &&
-                !(is_ordering && has_int_side)) {
-                diagnostic_error_code_formatted(checker->diag, "E3049", NODE_FILE(checker, node), node->token.line, node->token.column, 0, operator_to_string(op));
-                infix_errored = true;
-            }
-        }
-
-        /* Enum vs integer comparison: reject with a specific diagnostic. */
-        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
-            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
-            if (left->kind == TK_ENUM && is_int_kind(right->kind)) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "cannot compare enum '%s' with %s; use an enum variant like '%s.VARIANT'",
-                    type_display_name(checker, left), type_name(right), type_display_name(checker, left));
-                diagnostic_error_message(checker->diag, "E3117", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-            if (is_int_kind(left->kind) && right->kind == TK_ENUM) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "cannot compare %s with enum '%s'; use an enum variant like '%s.VARIANT'",
-                    type_name(left), type_display_name(checker, right), type_display_name(checker, right));
-                diagnostic_error_message(checker->diag, "E3117", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-        }
-        /* Comparison of incompatible types (e.g., int == string) */
-        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
-            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
-            left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
-            !(is_int_kind(left->kind) && is_int_kind(right->kind)) &&
-            !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
-            !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
-            !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
-            !(left->kind == TK_BOOL && is_int_kind(right->kind)) &&
-            !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
-            !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
-            /* String enums can be compared with string literals */
-            !(left->kind == TK_ENUM && right->kind == TK_STRING && typechecker_enum_is_string(checker, left->name)) &&
-            !(left->kind == TK_STRING && right->kind == TK_ENUM && typechecker_enum_is_string(checker, right->name))) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "cannot compare %s with %s", type_name(left), type_name(right));
-            diagnostic_error_message(checker->diag, "E3001", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-        }
-
-        /* Pointer-to-pointer: pointee types differ in == / != comparison */
-        if ((op == TOK_EQ || op == TOK_NOT_EQ) &&
-            left->kind == TK_POINTER && right->kind == TK_POINTER &&
-            left->name && right->name &&
-            strcmp(left->name, right->name) != 0 &&
-            strcmp(left->name, "nil") != 0 && strcmp(right->name, "nil") != 0) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "cannot compare %s with %s", type_name(left), type_name(right));
-            diagnostic_error_message(checker->diag, "E3001", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-        }
-        /* E3074: arrays cannot be compared with == / != directly. The C
-         * backend has no structural-equality operator on aggregate types,
-         * so this used to slip through to clang. Point users at
-         * arrays.is_equal. */
-        if ((op == TOK_EQ || op == TOK_NOT_EQ ||
-             op == TOK_LT || op == TOK_LT_EQ ||
-             op == TOK_GT || op == TOK_GT_EQ) &&
-            left->kind == TK_ARRAY && right->kind == TK_ARRAY) {
-            diagnostic_error_code_help(checker->diag, "E3074",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                "use arrays.is_equal(a, b) to compare arrays element-by-element");
-            infix_errored = true;
-        }
-        if ((op == TOK_EQ || op == TOK_NOT_EQ ||
-             op == TOK_LT || op == TOK_LT_EQ ||
-             op == TOK_GT || op == TOK_GT_EQ) &&
-            left->kind == TK_MAP && right->kind == TK_MAP) {
-            diagnostic_error_code_help(checker->diag, "E3076",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                "use maps.is_equal(a, b) to compare maps for equality");
-            infix_errored = true;
-        }
-        if ((op == TOK_EQ || op == TOK_NOT_EQ ||
-             op == TOK_LT || op == TOK_LT_EQ ||
-             op == TOK_GT || op == TOK_GT_EQ) &&
-            left->kind == TK_STRUCT && right->kind == TK_STRUCT) {
-            diagnostic_error_code_help(checker->diag, "E3077",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                "compare individual fields instead, e.g. a.x == b.x");
-            infix_errored = true;
-        }
-
-        /* E3085: validate type compatibility for in/not_in/!in */
-        if ((op == TOK_IN || op == TOK_NOT_IN) &&
-            !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
-            bool mismatch = false;
-            const char *left_tn = type_name(left);
-            const char *right_tn = type_name(right);
-            if (right->kind == TK_ARRAY && right->element_type) {
-                GrayType *elem = type_from_name(right->element_type);
-                if (elem->kind != TK_UNKNOWN && left->kind != elem->kind &&
-                    !(is_int_kind(left->kind) && is_int_kind(elem->kind)) &&
-                    !(left->name && strcmp(left->name, right->element_type) == 0)) {
-                    mismatch = true;
-                }
-            } else if (right->kind == TK_MAP && right->key_type) {
-                GrayType *key = type_from_name(right->key_type);
-                if (key->kind != TK_UNKNOWN && left->kind != key->kind &&
-                    !(is_int_kind(left->kind) && is_int_kind(key->kind)) &&
-                    !(left->name && strcmp(left->name, right->key_type) == 0)) {
-                    mismatch = true;
-                }
-            } else if (right->kind == TK_STRING) {
-                /* char in string and string in string are valid */
-                if (left->kind != TK_CHAR && left->kind != TK_STRING) {
-                    mismatch = true;
-                }
-            } else if (right->name && strcmp(right->name, "Range<int>") == 0) {
-                /* range() produces Range<int>; only integer types can be checked */
-                if (!is_int_kind(left->kind)) {
-                    mismatch = true;
-                }
-            } else {
-                /* RHS is not a valid target for 'in' */
-                diagnostic_error_code_formatted(checker->diag, "E3095", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    right_tn);
-                infix_errored = true;
-            }
-            if (mismatch) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "'in' operator type mismatch: cannot check if '%s' is in '%s'",
-                    left_tn, right_tn);
-                diagnostic_error_message(checker->diag, "E3085", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                infix_errored = true;
-            }
-        }
-
-        /* E3089: binary bitwise operators require integer operands */
-        if ((op == TOK_BIT_AND || op == TOK_BIT_OR ||
-             op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
-             op == TOK_BIT_SHIFT_RIGHT) &&
-            !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
-            bool left_ok  = is_int_kind(left->kind)  || left->kind  == TK_CHAR;
-            bool right_ok = is_int_kind(right->kind) || right->kind == TK_CHAR;
-            if (!left_ok || !right_ok) {
-                diagnostic_error_code_formatted(checker->diag, "E8001",
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                    operator_to_string(op), type_display_name(checker, left), type_display_name(checker, right));
-                infix_errored = true;
-            } else {
-                result = left;
-            }
-        }
-
-        if (op == TOK_EQ || op == TOK_NOT_EQ ||
-            op == TOK_LT || op == TOK_GT ||
-            op == TOK_LT_EQ || op == TOK_GT_EQ ||
-            op == TOK_AND || op == TOK_OR ||
-            op == TOK_IN || op == TOK_NOT_IN) {
-            result = &TYPE_BOOL;
-        } else if (left->kind == TK_FLOAT || right->kind == TK_FLOAT) {
-            result = &TYPE_FLOAT;
-        } else if (left->kind == TK_STRING && op == TOK_PLUS) {
-            result = &TYPE_STRING;
-        } else {
-            result = left;
-        }
-        /* : if any op-level check rejected the expression, drop
-         * result to TK_UNKNOWN so downstream var_decl / return / etc.
-         * checks that already skip TK_UNKNOWN don't cascade a second
-         * diagnostic off one of the (invalid) operand types. */
-        if (infix_errored) result = &TYPE_UNKNOWN;
+    case NODE_INFIX_EXPR:
+        result = resolve_infix_expr(checker, node);
         break;
-    }
 
     case NODE_POSTFIX_EXPR: {
         GrayType *left_t = resolve_expression(checker, node->data.postfix.left);
@@ -3049,3587 +6987,13 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
         break;
     }
 
-    case NODE_CALL_EXPR: {
-        /* Resolve argument types first. Skip the argument of ref()
-         * when it's a bare function name; the ref() builtin handler
-         * below resolves it specially, and the general resolve_expression
-         * path would fire E3031 on the bare name ( follow-up). */
-        bool is_ref_call = (node->data.call.function &&
-            node->data.call.function->kind == NODE_LABEL &&
-            strcmp(node->data.call.function->data.label.value, "ref") == 0);
-        for (int i = 0; i < node->data.call.arg_count; i++) {
-            if (is_ref_call && node->data.call.args[i]->kind == NODE_LABEL &&
-                find_func(checker, node->data.call.args[i]->data.label.value)) {
-                continue;
-            }
-            /* Skip implicit enum nodes; they need expected_type context
-             * from the function signature, which is resolved later. */
-            if (node->data.call.args[i]->kind == NODE_IMPLICIT_ENUM)
-                continue;
-            resolve_expression(checker, node->data.call.args[i]);
-
-            /* E3040: a multi-return call cannot appear in single-value
-             * argument position. Caller must destructure first. */
-            AstNode *arg = node->data.call.args[i];
-            if (arg->kind == NODE_CALL_EXPR) {
-                AstNode *afn = arg->data.call.function;
-                FuncSig *asig = NULL;
-                const char *aname = NULL;
-                if (afn && afn->kind == NODE_LABEL) {
-                    aname = afn->data.label.value;
-                    asig = find_func(checker, aname);
-                } else if (afn && afn->kind == NODE_MEMBER_EXPR &&
-                           afn->data.member.object->kind == NODE_LABEL) {
-                    const char *mod_raw = afn->data.member.object->data.label.value;
-                    const char *mod = typechecker_resolve_alias(checker, mod_raw);
-                    aname = afn->data.member.member;
-                    char prefixed[MSG_BUF_SIZE];
-                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, aname);
-                    asig = find_func(checker, prefixed);
-                }
-                if (asig && asig->return_count > 1) {
-                    diagnostic_error_code_formatted(checker->diag, "E3040",
-                        NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0,
-                        aname, asig->return_count, aname);
-                }
-            }
-        }
-
-        /* E3097: addr() of inner-scope variable passed alongside an outer-scope
-         * argument — the classic escape pattern, e.g. arrays.append(outer, addr(x))
-         * where x is loop/if/while-local.  We fire only when another argument in
-         * the same call comes from an outer scope (scope_lookup_local returns null
-         * for it) — that indicates the address is being stored in something that
-         * outlives the inner variable's arena. */
-        for (int i = 0; i < node->data.call.arg_count; i++) {
-            AstNode *arg = node->data.call.args[i];
-            if (arg->kind == NODE_CALL_EXPR &&
-                arg->data.call.function &&
-                arg->data.call.function->kind == NODE_LABEL &&
-                strcmp(arg->data.call.function->data.label.value, "addr") == 0 &&
-                arg->data.call.arg_count == 1 &&
-                arg->data.call.args[0]->kind == NODE_LABEL) {
-                const char *addr_var = arg->data.call.args[0]->data.label.value;
-                if (!scope_lookup_local(checker->current_scope, addr_var)) continue;
-                /* Check if any other argument is an outer-scope variable */
-                bool has_outer_arg = false;
-                for (int j = 0; j < node->data.call.arg_count; j++) {
-                    if (j == i) continue;
-                    AstNode *other = node->data.call.args[j];
-                    if (other->kind == NODE_LABEL) {
-                        const char *oname = other->data.label.value;
-                        if (!scope_lookup_local(checker->current_scope, oname) &&
-                            scope_lookup(checker->current_scope, oname)) {
-                            has_outer_arg = true;
-                            break;
-                        }
-                    }
-                }
-                if (has_outer_arg) {
-                    diagnostic_error_code_formatted(checker->diag, "E3097",
-                        NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0,
-                        addr_var, addr_var);
-                }
-            }
-        }
-
-        /* Resolve function return type */
-        AstNode *fn = node->data.call.function;
-        const char *function_name = NULL;
-
-        /* For non-LABEL/non-MEMBER callees (e.g. arr[i]() on a [func] array)
-         * the specific branches below won't traverse the function expression,
-         * leaving its subtree untyped and breaking codegen paths that rely on
-         * typetable lookups. Resolve it here so those subtrees get populated. */
-        if (fn && fn->kind != NODE_LABEL && fn->kind != NODE_MEMBER_EXPR) {
-            resolve_expression(checker, fn);
-        }
-
-        /* E5030: chained call on a function-call result — e.g. get_fn()(5).
-         * A call result is never directly callable in Grayscale; func references
-         * must be created with ()func_name or ref(func_name) first. */
-        if (fn && fn->kind == NODE_CALL_EXPR) {
-            AstNode *inner_fn = fn->data.call.function;
-            const char *inner_name = NULL;
-            char inner_buf[MSG_BUF_SIZE];
-            if (inner_fn && inner_fn->kind == NODE_LABEL) {
-                inner_name = inner_fn->data.label.value;
-            } else if (inner_fn && inner_fn->kind == NODE_MEMBER_EXPR &&
-                       inner_fn->data.member.object->kind == NODE_LABEL) {
-                snprintf(inner_buf, sizeof(inner_buf), "%s.%s",
-                    inner_fn->data.member.object->data.label.value,
-                    inner_fn->data.member.member);
-                inner_name = inner_buf;
-            }
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "cannot call the return value of '%s' directly; func references must be created with '()func_name' or 'ref(func_name)' before calling",
-                inner_name ? inner_name : "function");
-            diagnostic_error_message(checker->diag, "E5030", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            result = &TYPE_UNKNOWN;
-            break;
-        }
-
-        /* [func] array + constant index + literal-of-func-refs origin:
-         * recover the original referenced function's return type so it
-         * survives the trip through void* storage (). */
-        if (fn && fn->kind == NODE_INDEX_EXPR &&
-            fn->data.index_expr.left->kind == NODE_LABEL &&
-            fn->data.index_expr.index->kind == NODE_INT_VALUE) {
-            const char *arr_name = fn->data.index_expr.left->data.label.value;
-            Symbol *arr_sym = scope_lookup(checker->current_scope, arr_name);
-            int64_t idx_v = fn->data.index_expr.index->data.int_value.value;
-            if (arr_sym && arr_sym->func_array_refs &&
-                idx_v >= 0 && idx_v < arr_sym->func_array_ref_count) {
-                const char *ref_name = arr_sym->func_array_refs[idx_v];
-                if (ref_name) {
-                    FuncSig *rsig = find_func(checker, ref_name);
-                    if (rsig && rsig->return_count > 0) {
-                        result = rsig->return_types[0];
-                        typetable_set(checker->type_table, node, result);
-                        return result;
-                    }
-                }
-            }
-        }
-
-        /* Fallback for [func(...)->T] arrays: parse the return type from
-         * the array's typed element type. Covers dynamically appended
-         * refs where func_array_refs isn't populated (). */
-        if (fn && fn->kind == NODE_INDEX_EXPR &&
-            fn->data.index_expr.left->kind == NODE_LABEL) {
-            const char *arr_name = fn->data.index_expr.left->data.label.value;
-            Symbol *arr_sym = scope_lookup(checker->current_scope, arr_name);
-            if (arr_sym && arr_sym->type && arr_sym->type->kind == TK_ARRAY &&
-                arr_sym->type->element_type &&
-                strncmp(arr_sym->type->element_type, "func(", 5) == 0) {
-                GrayType *elem_t = type_from_name(arr_sym->type->element_type);
-                if (elem_t && elem_t->func_sig &&
-                    elem_t->func_sig->return_count > 0 &&
-                    elem_t->func_sig->return_types[0]) {
-                    result = type_from_name(elem_t->func_sig->return_types[0]);
-                    typetable_set(checker->type_table, node, result);
-                    return result;
-                }
-            }
-        }
-
-        /* Tagged enum construction via implicit selector: .Circle(3.14) */
-        if (fn->kind == NODE_IMPLICIT_ENUM) {
-            const char *vname = fn->data.implicit_enum.variant;
-            /* Resolve enum from expected_type */
-            GrayType *et = checker->expected_type;
-            if (et && et->kind == TK_ENUM && et->name) {
-                fn->data.implicit_enum.resolved_enum = et->name;
-                int eidx = -1;
-                for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
-                    if (strcmp(checker->enum_names[enum_index], et->name) == 0) { eidx = enum_index; break; }
-                }
-                if (eidx >= 0) {
-                    int vidx = -1;
-                    for (int variant_index = 0; variant_index < checker->enum_value_counts[eidx]; variant_index++) {
-                        if (strcmp(checker->enum_values[eidx][variant_index], vname) == 0) { vidx = variant_index; break; }
-                    }
-                    if (vidx < 0) {
-                        diagnostic_error_code_formatted(checker->diag, "E3047", NODE_FILE(checker, node), node->token.line, node->token.column, 0, et->name, vname);
-                    } else if (checker->enum_is_tagged[eidx]) {
-                        int expected_pc = checker->enum_payload_counts[eidx][vidx];
-                        int provided_argument_count = node->data.call.arg_count;
-                        if (expected_pc == 0 && provided_argument_count > 0) {
-                            diagnostic_error_code_formatted(checker->diag, "E3114", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx]);
-                        } else if (expected_pc != provided_argument_count) {
-                            diagnostic_error_code_formatted(checker->diag, "E3113", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx], expected_pc, provided_argument_count);
-                        } else {
-                            for (int argument_index = 0; argument_index < provided_argument_count; argument_index++) {
-                                GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                                GrayType *exp_t = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][argument_index]);
-                                if (arg_t && exp_t &&
-                                    arg_t->kind != TK_UNKNOWN && exp_t->kind != TK_UNKNOWN &&
-                                    arg_t->kind != exp_t->kind &&
-                                    !(is_int_kind(arg_t->kind) && is_int_kind(exp_t->kind))) {
-                                    diagnostic_error_code_formatted(checker->diag, "E3001", NODE_FILE(checker, node->data.call.args[argument_index]),
-                                        node->data.call.args[argument_index]->token.line, node->data.call.args[argument_index]->token.column, 0);
-                                }
-                            }
-                        }
-                    } else {
-                        diagnostic_error_code_formatted(checker->diag, "E3115", NODE_FILE(checker, node), node->token.line, node->token.column, 0, checker->enum_display_names[eidx], vname);
-                    }
-                }
-                result = type_enum(et->name);
-            } else {
-                diagnostic_error_code_formatted(checker->diag, "E3110", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, vname);
-                result = &TYPE_UNKNOWN;
-            }
-            break;
-        }
-
-        if (fn->kind == NODE_LABEL) {
-            function_name = fn->data.label.value;
-        } else if (fn->kind == NODE_MEMBER_EXPR &&
-                   fn->data.member.object->kind == NODE_MEMBER_EXPR &&
-                   fn->data.member.object->data.member.object->kind == NODE_LABEL) {
-            /* mod.Struct.func() triple chain: geometry.Vec2.create() */
-            const char *mod_name = fn->data.member.object->data.member.object->data.label.value;
-            const char *struct_name = fn->data.member.object->data.member.member;
-            const char *func_name = fn->data.member.member;
-            /* Mark module as used */
-            for (int mi = 0; mi < checker->import_count; mi++) {
-                if (strcmp(checker->imported_modules[mi], mod_name) == 0) {
-                    checker->import_used[mi] = true;
-                    break;
-                }
-            }
-            /* Look up mod_Struct_func */
-            char prefixed[MSG_BUF_SIZE];
-            snprintf(prefixed, sizeof(prefixed), "%s_%s_%s", mod_name, struct_name, func_name);
-            FuncSig *sig = find_func(checker, prefixed);
-            if (sig) {
-                sig->used = true;
-                result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
-                /* Check argument count */
-                if (node->data.call.arg_count != sig->param_count) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "function '%s.%s.%s' expects %d argument(s), got %d",
-                        mod_name, struct_name, func_name,
-                        sig->param_count, node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                /* E3027: mutable param checks for triple-namespaced calls.
-                 * Struct functions live inside NODE_STRUCT_DECL, so scan
-                 * struct declarations in imported modules. */
-                int check_count = node->data.call.arg_count < sig->param_count
-                    ? node->data.call.arg_count : sig->param_count;
-                for (int argument_index = 0; argument_index < check_count; argument_index++) {
-                    resolve_expression(checker, node->data.call.args[argument_index]);
-                    AstNode *arg = node->data.call.args[argument_index];
-                    AstNode *found_declaration = NULL;
-                    for (int field_index = 0; field_index < checker->program->data.program.stmt_count && !found_declaration; field_index++) {
-                        AstNode *s = checker->program->data.program.stmts[field_index];
-                        if (s->kind == NODE_STRUCT_DECL &&
-                            strcmp(s->data.struct_decl.name, struct_name) == 0) {
-                            for (int sfi = 0; sfi < s->data.struct_decl.func_count; sfi++) {
-                                AstNode *sf = s->data.struct_decl.funcs[sfi].func_decl;
-                                if (sf && sf->kind == NODE_FUNC_DECL &&
-                                    strcmp(sf->data.func_decl.name, func_name) == 0 &&
-                                    argument_index < sf->data.func_decl.param_count &&
-                                    sf->data.func_decl.params[argument_index].mutable) {
-                                    found_declaration = sf;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (found_declaration) {
-                        char fn_display[MSG_BUF_SIZE];
-                        snprintf(fn_display, sizeof(fn_display), "%s.%s.%s", mod_name, struct_name, func_name);
-                        check_mutable_arg(checker, arg,
-                            found_declaration->data.func_decl.params[argument_index].name, fn_display);
-                    }
-                }
-            } else {
-                result = &TYPE_VOID;
-            }
-        } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL &&
-                   is_enum_name(checker, fn->data.member.object->data.label.value)) {
-            /* Tagged enum construction: Shape.Circle(3.14) */
-            const char *ename = fn->data.member.object->data.label.value;
-            const char *vname = fn->data.member.member;
-            int eidx = -1;
-            for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
-                if (strcmp(checker->enum_names[enum_index], ename) == 0) { eidx = enum_index; break; }
-            }
-            if (eidx >= 0) {
-                /* Find variant index */
-                int vidx = -1;
-                for (int variant_index = 0; variant_index < checker->enum_value_counts[eidx]; variant_index++) {
-                    if (strcmp(checker->enum_values[eidx][variant_index], vname) == 0) { vidx = variant_index; break; }
-                }
-                if (vidx < 0) {
-                    diagnostic_error_code_formatted(checker->diag, "E3047", NODE_FILE(checker, node), node->token.line, node->token.column, 0, ename, vname);
-                    result = &TYPE_UNKNOWN;
-                    break;
-                }
-                if (!checker->enum_is_tagged[eidx]) {
-                    /* E3115: plain enum, can't call */
-                    const char *dname = checker->enum_display_names[eidx];
-                    diagnostic_error_code_formatted(checker->diag, "E3115", NODE_FILE(checker, node), node->token.line, node->token.column, 0, dname, vname);
-                    result = type_enum(ename);
-                    break;
-                }
-                int expected_pc = checker->enum_payload_counts[eidx][vidx];
-                int provided_argument_count = node->data.call.arg_count;
-                if (expected_pc == 0 && provided_argument_count > 0) {
-                    diagnostic_error_code_formatted(checker->diag, "E3114", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx]);
-                } else if (expected_pc != provided_argument_count) {
-                    diagnostic_error_code_formatted(checker->diag, "E3113", NODE_FILE(checker, node), node->token.line, node->token.column, 0, vname, checker->enum_display_names[eidx], expected_pc, provided_argument_count);
-                } else {
-                    /* Validate each arg type against payload type */
-                    for (int argument_index = 0; argument_index < provided_argument_count; argument_index++) {
-                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                        GrayType *expected_t = typechecker_type_from_name(checker, checker->enum_payload_types[eidx][vidx][argument_index]);
-                        if (arg_t && expected_t &&
-                            arg_t->kind != TK_UNKNOWN && expected_t->kind != TK_UNKNOWN &&
-                            arg_t->kind != expected_t->kind &&
-                            !(is_int_kind(arg_t->kind) && is_int_kind(expected_t->kind))) {
-                            diagnostic_error_code_formatted(checker->diag, "E3001", NODE_FILE(checker, node->data.call.args[argument_index]),
-                                node->data.call.args[argument_index]->token.line, node->data.call.args[argument_index]->token.column, 0);
-                        }
-                    }
-                }
-                result = type_enum(ename);
-            } else {
-                result = &TYPE_UNKNOWN;
-            }
-        } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
-            const char *mod_raw = fn->data.member.object->data.label.value;
-            const char *mod = typechecker_resolve_alias(checker, mod_raw);
-            const char *mfn = fn->data.member.member;
-            /* Check that module is actually imported */
-            bool mod_imported = false;
-            for (int mi = 0; mi < checker->import_count; mi++) {
-                if (strcmp(checker->imported_modules[mi], mod_raw) == 0 ||
-                    strcmp(checker->imported_modules[mi], mod) == 0) {
-                    checker->import_used[mi] = true;
-                    mod_imported = true;
-                    break;
-                }
-            }
-            if (!mod_imported && is_stdlib_module_name(mod)) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "module '%s' is not imported; add 'import @%s' at the top of the file",
-                    mod, mod);
-                diagnostic_error_message(checker->diag, "E4001", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-            /* c.func() without import c"..."; but only if "c" isn't a
-             * local variable. A variable named `c` with a struct type
-             * should fall through to the struct function dispatch, not
-             * be treated as the C interop module (). */
-            if (!mod_imported && strcmp(mod, "c") == 0 &&
-                !scope_lookup(checker->current_scope, "c")) {
-                diagnostic_error_message(checker->diag, "E4001",
-                    "C interop requires a C header import; add import c\"header.h\" at the top of the file",
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                result = &TYPE_UNKNOWN;
-                break;
-            }
-            /* C interop: c.func(); skip type checking but reject bigints */
-            if (strcmp(mod, "c") == 0 && mod_imported) {
-                /* Mark all C imports as used */
-                for (int mi = 0; mi < checker->import_count; mi++) {
-                    if (strcmp(checker->imported_modules[mi], "c") == 0)
-                        checker->import_used[mi] = true;
-                }
-                /* Validate arguments; reject types that don't translate to C */
-                for (int argument_index = 0; argument_index < node->data.call.arg_count; argument_index++) {
-                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                    if (!arg_t || arg_t->kind == TK_UNKNOWN) continue;
-                    /* Reject bigint types */
-                    if (arg_t->name &&
-                        (strcmp(arg_t->name, "i128") == 0 || strcmp(arg_t->name, "i256") == 0 ||
-                         strcmp(arg_t->name, "u128") == 0 || strcmp(arg_t->name, "u256") == 0)) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "cannot pass %s to a C function; C has no 128/256-bit integer types",
-                            arg_t->name);
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                            node->data.call.args[argument_index]->token.column, 0);
-                    }
-                    /* Reject Grayscale-specific composite types */
-                    if (arg_t->kind == TK_ARRAY || arg_t->kind == TK_MAP) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "cannot pass %s to a C function; use individual elements instead",
-                            arg_t->kind == TK_ARRAY ? "an array" : "a map");
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                            node->data.call.args[argument_index]->token.column, 0);
-                    }
-                    /* Reject Grayscale structs (registered in typechecker) */
-                    if (arg_t->kind == TK_STRUCT && arg_t->name &&
-                        is_struct_name(checker, arg_t->name)) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "cannot pass struct '%s' to a C function; pass individual fields instead",
-                            type_display_name(checker, arg_t));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                            node->data.call.args[argument_index]->token.column, 0);
-                    }
-                }
-                result = &TYPE_UNKNOWN;
-                break;
-            }
-            /* Skip stdlib dispatch if this module is a user import, not stdlib.
-             * User modules with the same name (e.g., import "./server.gray") must
-             * fall through to the user-module handler below. */
-            if (!typechecker_is_stdlib_import(checker, mod_raw)) {
-                goto user_module_dispatch;
-            }
-            /* E5034: named arguments are not supported for stdlib functions */
-            if (typechecker_has_named_arguments(node)) {
-                char fname[MSG_BUF_SIZE];
-                snprintf(fname, sizeof(fname), "%s.%s", mod, mfn);
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "named arguments are not supported for builtin function '%s'",
-                    fname);
-                diagnostic_error_message(checker->diag, "E5034", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-            /* Validate argument count for stdlib function calls */
-            typechecker_check_stdlib_arg_count(checker, mod, mfn, node);
-            typechecker_check_stdlib_arg_types(checker, mod, mfn, node);
-            typechecker_check_strconv_base(checker, mod, mfn, node);
-            if (strcmp(mod, "mem") == 0) {
-                if (strcmp(mfn, "arena") == 0) {
-                    result = type_struct("Arena"); /* arena pointer; opaque */
-                } else if (strcmp(mfn, "usage") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "init") == 0 && node->data.call.arg_count == 2) {
-                    /* mem.init(arena, Type) returns ^Type */
-                    AstNode *type_arg = node->data.call.args[1];
-                    if (type_arg->kind == NODE_LABEL) {
-                        result = type_pointer(type_arg->data.label.value);
-                    } else {
-                        result = &TYPE_UNKNOWN;
-                    }
-                } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
-                    /* alloc returns the same type as its second argument */
-                    result = resolve_expression(checker, node->data.call.args[1]);
-                } else if (strcmp(mfn, "make") == 0) {
-                    result = &TYPE_UNKNOWN;
-                } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
-                           strcmp(mfn, "destroy") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "maps") == 0) {
-                if (strcmp(mfn, "get_keys") == 0) {
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
-                        result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
-                    } else result = type_array("string");
-                } else if (strcmp(mfn, "get_values") == 0) {
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
-                        result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
-                    } else result = type_array("string");
-                } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
-                           strcmp(mfn, "contains_value") == 0 ||
-                           strcmp(mfn, "is_equal") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "merge") == 0) {
-                    if (node->data.call.arg_count > 0) {
-                        result = resolve_expression(checker, node->data.call.args[0]);
-                    } else result = &TYPE_UNKNOWN;
-                } else if (strcmp(mfn, "get_or_default") == 0) {
-                    if (node->data.call.arg_count >= 3) {
-                        result = resolve_expression(checker, node->data.call.args[2]);
-                    } else result = &TYPE_UNKNOWN;
-                } else if (strcmp(mfn, "remove_key") == 0 || strcmp(mfn, "clear") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-                /* E12001: maps functions require map argument */
-                if (node->data.call.arg_count > 0) {
-                    AstNode *arg0 = node->data.call.args[0];
-                    GrayType *arg0_t = typetable_get(checker->type_table, arg0);
-                    if (arg0_t && arg0_t->kind == TK_ARRAY) {
-                        diagnostic_error_code_formatted(checker->diag, "E12001", NODE_FILE(checker, arg0), arg0->token.line, arg0->token.column, 0, mfn);
-                    }
-                }
-                /* maps.is_equal(a, b): both args must be maps with the same
-                 * key/value types, and key/value types must be primitive or
-                 * string. Composite element types would require recursive
-                 * deep-equality which is out of scope here. */
-                if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
-                    AstNode *a0 = node->data.call.args[0];
-                    AstNode *a1 = node->data.call.args[1];
-                    GrayType *t0 = typetable_get(checker->type_table, a0);
-                    GrayType *t1 = typetable_get(checker->type_table, a1);
-                    if (t0 && t1 && t0->kind == TK_MAP && t1->kind == TK_MAP) {
-                        bool key_match = t0->key_type && t1->key_type &&
-                            strcmp(t0->key_type, t1->key_type) == 0;
-                        bool val_match = t0->value_type && t1->value_type &&
-                            strcmp(t0->value_type, t1->value_type) == 0;
-                        if (!key_match || !val_match) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "type mismatch: cannot compare map[%s:%s] with map[%s:%s]",
-                                t0->key_type ? t0->key_type : "?",
-                                t0->value_type ? t0->value_type : "?",
-                                t1->key_type ? t1->key_type : "?",
-                                t1->value_type ? t1->value_type : "?");
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, a1), a1->token.line, a1->token.column, 0);
-                        }
-                        const char *bad_member = NULL;
-                        if (t0->value_type) {
-                            GrayType *vt = type_from_name(t0->value_type);
-                            if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT)
-                                bad_member = t0->value_type;
-                        }
-                        if (bad_member) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "maps.is_equal does not support maps with %s values; only primitive and string element types are supported",
-                                bad_member);
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0);
-                        }
-                    }
-                }
-                if (strcmp(mfn, "contains_value") == 0 && node->data.call.arg_count >= 1) {
-                    AstNode *a0 = node->data.call.args[0];
-                    GrayType *t0 = typetable_get(checker->type_table, a0);
-                    if (t0 && t0->kind == TK_MAP && t0->value_type) {
-                        GrayType *vt = type_from_name(t0->value_type);
-                        if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT) {
-                            diagnostic_error_code_formatted(checker->diag, "E12007",
-                                NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0,
-                                t0->value_type);
-                        }
-                    }
-                }
-                /* E5007: mutating map functions on const map */
-                if ((strcmp(mfn, "clear") == 0 || strcmp(mfn, "remove_key") == 0) &&
-                    node->data.call.arg_count > 0) {
-                    AstNode *arg0 = node->data.call.args[0];
-                    if (arg0->kind == NODE_LABEL) {
-                        Symbol *sym = scope_lookup(checker->current_scope, arg0->data.label.value);
-                        if (sym && !sym->mutable) {
-                            diagnostic_error_code_formatted(checker->diag, "E5007",
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                                "map", arg0->data.label.value);
-                        }
-                    }
-                }
-            } else if (strcmp(mod, "io") == 0) {
-                /* Fallible I/O: the type checker returns the primary value type.
-                 * The codegen emits _result() versions that return (T, Error) tuples.
-                 * The .v0 access gets __auto_type in C, but the Grayscale type system
-                 * sees it as the value type for interpolation purposes. */
-                if (strcmp(mfn, "read_file") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "write_file") == 0 ||
-                    strcmp(mfn, "delete_file") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "file_exists") == 0 ||
-                           strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
-                           strcmp(mfn, "append_file") == 0 || strcmp(mfn, "rename_file") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "file_size") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "read_bytes") == 0) {
-                    result = type_array("byte");
-                } else if (strcmp(mfn, "read_lines") == 0) {
-                    result = type_array("string");
-                } else if (strcmp(mfn, "list_dir") == 0 || strcmp(mfn, "walk") == 0 ||
-                           strcmp(mfn, "glob") == 0) {
-                    result = type_array("string");
-                } else if (strcmp(mfn, "make_dir") == 0 || strcmp(mfn, "make_dir_all") == 0 ||
-                           strcmp(mfn, "remove_dir") == 0 || strcmp(mfn, "remove_dir_all") == 0 ||
-                           strcmp(mfn, "copy_file") == 0 || strcmp(mfn, "move_file") == 0 ||
-                           strcmp(mfn, "is_absolute") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "path_join") == 0 || strcmp(mfn, "dirname") == 0 ||
-                           strcmp(mfn, "basename") == 0 || strcmp(mfn, "extension") == 0 ||
-                           strcmp(mfn, "normalize") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "strconv") == 0) {
-                if (strcmp(mfn, "to_int") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "to_uint") == 0) {
-                    result = &TYPE_UINT;
-                } else if (strcmp(mfn, "to_float") == 0) {
-                    result = &TYPE_FLOAT;
-                } else if (strcmp(mfn, "to_bool") == 0 ||
-                           strcmp(mfn, "is_numeric") == 0 ||
-                           strcmp(mfn, "is_integer") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "from_int") == 0 ||
-                           strcmp(mfn, "from_uint") == 0 ||
-                           strcmp(mfn, "from_float") == 0 ||
-                           strcmp(mfn, "from_bool") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "strings") == 0) {
-                if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
-                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0 ||
-                    strcmp(mfn, "is_alpha") == 0 || strcmp(mfn, "is_digit") == 0 ||
-                    strcmp(mfn, "is_alnum") == 0 || strcmp(mfn, "is_whitespace") == 0 ||
-                    strcmp(mfn, "is_upper") == 0 || strcmp(mfn, "is_lower") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "char_at") == 0) {
-                    result = &TYPE_CHAR;
-                } else if (strcmp(mfn, "to_chars") == 0) {
-                    result = type_array("char");
-                } else if (strcmp(mfn, "from_chars") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "index_of") == 0 ||
-                           strcmp(mfn, "last_index_of") == 0 ||
-                           strcmp(mfn, "count") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "split") == 0) {
-                    result = type_array("string");
-                } else if (strcmp(mfn, "to_upper") == 0 || strcmp(mfn, "to_lower") == 0 ||
-                           strcmp(mfn, "trim") == 0 || strcmp(mfn, "trim_left") == 0 ||
-                           strcmp(mfn, "trim_right") == 0 ||
-                           strcmp(mfn, "remove_prefix") == 0 || strcmp(mfn, "remove_suffix") == 0 ||
-                           strcmp(mfn, "replace") == 0 ||
-                           strcmp(mfn, "repeat") == 0 || strcmp(mfn, "reverse") == 0 ||
-                           strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-                /* E7004: strings.repeat() second arg must be integer */
-                if (strcmp(mfn, "repeat") == 0 && node->data.call.arg_count >= 2) {
-                    GrayType *count_t = typetable_get(checker->type_table, node->data.call.args[1]);
-                    if (count_t && count_t->kind == TK_FLOAT) {
-                        diagnostic_error_message(checker->diag, "E7004",
-                            "strings.repeat() count must be an integer, not a float",
-                            NODE_FILE(checker, node->data.call.args[1]), node->data.call.args[1]->token.line,
-                            node->data.call.args[1]->token.column, 0);
-                    }
-                }
-                /* E7004: strings.slice() bounds must be integers */
-                if (strcmp(mfn, "slice") == 0 && node->data.call.arg_count >= 3) {
-                    for (int slice_index = 1; slice_index <= 2 && slice_index < node->data.call.arg_count; slice_index++) {
-                        GrayType *bt = typetable_get(checker->type_table, node->data.call.args[slice_index]);
-                        if (bt && bt->kind == TK_FLOAT) {
-                            diagnostic_error_message(checker->diag, "E7004",
-                                "strings.slice() bounds must be integers, not floats",
-                                NODE_FILE(checker, node->data.call.args[slice_index]), node->data.call.args[slice_index]->token.line,
-                                node->data.call.args[slice_index]->token.column, 0);
-                        }
-                    }
-                }
-            } else if (strcmp(mod, "time") == 0) {
-                if (strcmp(mfn, "format") == 0 || strcmp(mfn, "to_iso") == 0 ||
-                    strcmp(mfn, "date") == 0 || strcmp(mfn, "to_clock") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "now") == 0 || strcmp(mfn, "now_ms") == 0 ||
-                           strcmp(mfn, "now_ns") == 0 || strcmp(mfn, "tick") == 0 ||
-                           strcmp(mfn, "elapsed_ms") == 0 || strcmp(mfn, "diff") == 0 ||
-                           strcmp(mfn, "year") == 0 || strcmp(mfn, "month") == 0 ||
-                           strcmp(mfn, "day") == 0 || strcmp(mfn, "hour") == 0 ||
-                           strcmp(mfn, "minute") == 0 || strcmp(mfn, "second") == 0 ||
-                           strcmp(mfn, "weekday") == 0) {
-                    result = &TYPE_INT;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "uuid") == 0) {
-                if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "generate_compact") == 0 ||
-                         strcmp(mfn, "to_string") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "generate") == 0 ||
-                         strcmp(mfn, "generate_hyphenated") == 0 ||
-                         strcmp(mfn, "generate_random") == 0 ||
-                         strcmp(mfn, "generate_time_ordered") == 0 ||
-                         strcmp(mfn, "parse") == 0) {
-                    result = type_struct("UUID");
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "encoding") == 0) {
-                result = &TYPE_STRING;
-            } else if (strcmp(mod, "crypto") == 0) {
-                result = &TYPE_STRING;
-            } else if (strcmp(mod, "bytes") == 0) {
-                if (strcmp(mfn, "from_string") == 0 || strcmp(mfn, "from_hex") == 0 ||
-                    strcmp(mfn, "from_base64") == 0) {
-                    result = type_array("byte");
-                } else if (strcmp(mfn, "to_string") == 0 || strcmp(mfn, "to_hex") == 0 ||
-                           strcmp(mfn, "to_base64") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "binary") == 0) {
-                if (strncmp(mfn, "encode", 6) == 0) result = type_array("byte");
-                else if (strncmp(mfn, "decode_f", 8) == 0) result = &TYPE_FLOAT;
-                else result = &TYPE_INT;
-            } else if (strcmp(mod, "csv") == 0) {
-                if (strcmp(mfn, "parse") == 0 ||
-                    strcmp(mfn, "read_file") == 0) {
-                    result = type_array("[string]"); /* [[string]] */
-                } else if (strcmp(mfn, "headers") == 0) {
-                    result = type_array("string"); /* [string] */
-                } else if (strcmp(mfn, "write_file") == 0) {
-                    result = &TYPE_BOOL;
-                    /* E5026: second arg must be an array, not a string */
-                    if (node->data.call.arg_count >= 2) {
-                        GrayType *arg2_type = resolve_expression(checker, node->data.call.args[1]);
-                        if (arg2_type && arg2_type->kind == TK_STRING) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "csv.%s() expects an array as the second argument, got string",
-                                mfn);
-                            diagnostic_error_message(checker->diag, "E5026", msg,
-                                NODE_FILE(checker, node), node->data.call.args[1]->token.line,
-                                node->data.call.args[1]->token.column, 0);
-                        }
-                    }
-                } else if (strcmp(mfn, "encode") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "json") == 0) {
-                if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
-                else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "parse") == 0) {
-                    /* : json.parse() return type depends on
-                     * assignment context. Start as UNKNOWN; the
-                     * var_decl handler pushes the declared struct
-                     * type onto the call node via 's mechanism. */
-                    result = &TYPE_UNKNOWN;
-                } else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
-                           strcmp(mfn, "pretty_print") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "sqlite") == 0) {
-                if (strcmp(mfn, "open") == 0) result = &TYPE_UNKNOWN; /* opaque handle */
-                else if (strcmp(mfn, "exec") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "query") == 0) result = type_array("map");
-                else if (strcmp(mfn, "close") == 0) result = &TYPE_VOID;
-                else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "random") == 0) {
-                if (strcmp(mfn, "rand_float") == 0) result = &TYPE_FLOAT;
-                else if (strcmp(mfn, "rand_int") == 0) result = &TYPE_INT;
-                else if (strcmp(mfn, "rand_bool") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "rand_byte") == 0) result = &TYPE_BYTE;
-                else if (strcmp(mfn, "rand_char") == 0) result = &TYPE_CHAR;
-                else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
-                    /* Preserve input array's element type */
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
-                        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
-                            result = type_array(arr_t->element_type);
-                        else
-                            result = type_array("int");
-                    } else {
-                        result = type_array("int");
-                    }
-                } else if (strcmp(mfn, "choice") == 0) {
-                    /* Return element type of the array argument */
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
-                        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
-                            result = type_from_name(arr_t->element_type);
-                        else
-                            result = &TYPE_INT;
-                    } else {
-                        result = &TYPE_INT;
-                    }
-                } else if (strcmp(mfn, "seed") == 0) result = &TYPE_VOID;
-                else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "arrays") == 0) {
-                if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0 ||
-                    strcmp(mfn, "is_equal") == 0 ||
-                    strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "get_sum") == 0 ||
-                           strcmp(mfn, "get_min") == 0 || strcmp(mfn, "get_max") == 0 ||
-                           strcmp(mfn, "count") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "reverse") == 0 || strcmp(mfn, "slice") == 0 ||
-                           strcmp(mfn, "concat") == 0 || strcmp(mfn, "deduplicate") == 0 ||
-                           strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0) {
-                    /* Preserve input array element type */
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
-                        result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
-                    } else {
-                        result = type_array("int");
-                    }
-                } else if (strcmp(mfn, "split_every") == 0 || strcmp(mfn, "pair") == 0) {
-                    result = type_array("[int]"); /* nested array */
-                } else if (strcmp(mfn, "flatten") == 0) {
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
-                        if (arr_t && arr_t->element_type) {
-                            /* arr_t is [[T]]; element_type is "[T]". Unwrap one level. */
-                            GrayType *inner = type_from_name(arr_t->element_type);
-                            if (inner && inner->kind == TK_ARRAY && inner->element_type)
-                                result = type_array(inner->element_type);
-                            else
-                                result = type_array(arr_t->element_type);
-                        } else {
-                            result = type_array("int");
-                        }
-                    } else {
-                        result = type_array("int");
-                    }
-                } else if (strcmp(mfn, "get_first") == 0 || strcmp(mfn, "get_last") == 0 ||
-                           strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0 ||
-                           strcmp(mfn, "reduce") == 0) {
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
-                        result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
-                    } else {
-                        result = &TYPE_INT;
-                    }
-                } else if (strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0 ||
-                           strcmp(mfn, "insert_at") == 0 ||
-                           strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
-                           strcmp(mfn, "fill") == 0 ||
-                           strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
-                           strcmp(mfn, "clear") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-                /* E5007: mutating array functions on const array */
-                if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert_at") == 0 ||
-                     strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
-                     strcmp(mfn, "remove_last") == 0 ||
-                     strcmp(mfn, "remove_first") == 0 || strcmp(mfn, "prepend") == 0 ||
-                     strcmp(mfn, "fill") == 0 ||
-                     strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
-                     strcmp(mfn, "clear") == 0) &&
-                    node->data.call.arg_count > 0) {
-                    AstNode *arg0 = node->data.call.args[0];
-                    if (arg0->kind == NODE_LABEL) {
-                        Symbol *sym = scope_lookup(checker->current_scope, arg0->data.label.value);
-                        if (sym && !sym->mutable) {
-                            diagnostic_error_code_formatted(checker->diag, "E5007",
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                                "array", arg0->data.label.value);
-                        }
-                    }
-                }
-                /* E3001: arrays.append/prepend/insert_at element type mismatch */
-                {
-                    AstNode *val_node = NULL;
-                    const char *op_name = NULL;
-                    if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0) &&
-                        node->data.call.arg_count >= 2) {
-                        val_node = node->data.call.args[1];
-                        op_name = mfn;
-                    } else if (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 3) {
-                        val_node = node->data.call.args[2];
-                        op_name = "insert_at";
-                    }
-                    if (val_node && op_name) {
-                        AstNode *arr_arg = node->data.call.args[0];
-                        GrayType *arr_t = typetable_get(checker->type_table, arr_arg);
-                        if (!arr_t) arr_t = resolve_expression(checker, arr_arg);
-                        GrayType *val_t = resolve_expression(checker, val_node);
-                        if (arr_t && arr_t->kind != TK_ARRAY && arr_t->kind != TK_UNKNOWN) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "arrays.%s() expects an array as the first argument, got %s",
-                                op_name, type_name(arr_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, arr_arg), arr_arg->token.line, arr_arg->token.column, 0);
-                        } else if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
-                            val_t && val_t->kind != TK_UNKNOWN) {
-                            GrayType *elem_t = type_from_name(arr_t->element_type);
-                            if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind &&
-                                !(is_int_kind(elem_t->kind) && is_int_kind(val_t->kind))) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "type mismatch in arrays.%s(); cannot add %s to array of %s",
-                                    op_name, type_name(val_t), arr_t->element_type);
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, val_node), val_node->token.line, val_node->token.column, 0);
-                            }
-                        }
-                    }
-                }
-                /* E3001: arrays.remove_at/insert_at index must be int */
-                if ((strcmp(mfn, "remove_at") == 0 && node->data.call.arg_count >= 2) ||
-                    (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 2)) {
-                    AstNode *idx_node = node->data.call.args[1];
-                    GrayType *idx_t = resolve_expression(checker, idx_node);
-                    if (idx_t && idx_t->kind != TK_UNKNOWN && !is_int_kind(idx_t->kind)) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "arrays.%s() expects an int index, got %s",
-                            mfn, type_name(idx_t));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, idx_node), idx_node->token.line, idx_node->token.column, 0);
-                    }
-                }
-                /* E9002: arrays.sum/min/max require numeric array */
-                if ((strcmp(mfn, "sum") == 0 || strcmp(mfn, "min") == 0 ||
-                     strcmp(mfn, "max") == 0) && node->data.call.arg_count > 0) {
-                    AstNode *arg0 = node->data.call.args[0];
-                    GrayType *arr_t = typetable_get(checker->type_table, arg0);
-                    if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
-                        GrayType *elem_t = type_from_name(arr_t->element_type);
-                        if (elem_t->kind == TK_STRING || elem_t->kind == TK_BOOL) {
-                            diagnostic_error_code_formatted(checker->diag, "E9002", NODE_FILE(checker, arg0), arg0->token.line, arg0->token.column, 0, mfn, arr_t->element_type);
-                        }
-                    }
-                }
-                /* E3001: arrays.concat element type mismatch */
-                if (strcmp(mfn, "concat") == 0 && node->data.call.arg_count >= 2) {
-                    AstNode *a0 = node->data.call.args[0];
-                    AstNode *a1 = node->data.call.args[1];
-                    GrayType *t0 = typetable_get(checker->type_table, a0);
-                    GrayType *t1 = typetable_get(checker->type_table, a1);
-                    if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
-                        t0->element_type && t1->element_type &&
-                        strcmp(t0->element_type, t1->element_type) != 0) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "type mismatch: cannot concat array of %s with array of %s",
-                            t0->element_type, t1->element_type);
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, a1), a1->token.line, a1->token.column, 0);
-                    }
-                }
-                if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
-                    AstNode *a0 = node->data.call.args[0];
-                    AstNode *a1 = node->data.call.args[1];
-                    GrayType *t0 = typetable_get(checker->type_table, a0);
-                    GrayType *t1 = typetable_get(checker->type_table, a1);
-                    if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
-                        t0->element_type && t1->element_type &&
-                        strcmp(t0->element_type, t1->element_type) != 0) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "type mismatch: cannot compare array of %s with array of %s",
-                            t0->element_type, t1->element_type);
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, a1), a1->token.line, a1->token.column, 0);
-                    }
-                    /* Composite element types (nested arrays, maps, structs) cannot be
-                     * compared with the primitive memcmp path; reject for now. */
-                    if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
-                        GrayType *et = type_from_name(t0->element_type);
-                        if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "arrays.is_equal does not support arrays of %s; only primitive and string element types are supported",
-                                t0->element_type);
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0);
-                        }
-                    }
-                }
-                if (strcmp(mfn, "contains") == 0 && node->data.call.arg_count >= 1) {
-                    AstNode *a0 = node->data.call.args[0];
-                    GrayType *t0 = typetable_get(checker->type_table, a0);
-                    if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
-                        GrayType *et = type_from_name(t0->element_type);
-                        if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
-                            diagnostic_error_code_formatted(checker->diag, "E9006",
-                                NODE_FILE(checker, a0), a0->token.line, a0->token.column, 0,
-                                t0->element_type);
-                        }
-                    }
-                }
-                /* E9003/E9004: map/filter/reduce callback validation */
-                if ((strcmp(mfn, "map") == 0 || strcmp(mfn, "filter") == 0 ||
-                     strcmp(mfn, "reduce") == 0 ||
-                     strcmp(mfn, "any") == 0 || strcmp(mfn, "all") == 0) && node->data.call.arg_count >= 2) {
-                    /* Determine which arg is the callback */
-                    int cb_idx = (strcmp(mfn, "reduce") == 0) ? 2 : 1;
-                    if (cb_idx < node->data.call.arg_count) {
-                        AstNode *cb_arg = node->data.call.args[cb_idx];
-                        if (cb_arg->kind != NODE_FUNC_REF &&
-                            !(cb_arg->kind == NODE_CALL_EXPR &&
-                              cb_arg->data.call.function->kind == NODE_LABEL &&
-                              strcmp(cb_arg->data.call.function->data.label.value, "ref") == 0)) {
-                            diagnostic_error_code_formatted(checker->diag, "E9003",
-                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                mfn);
-                        } else {
-                            /* Validate callback signature */
-                            const char *ref_name = NULL;
-                            if (cb_arg->kind == NODE_FUNC_REF &&
-                                cb_arg->data.func_ref.function->kind == NODE_LABEL) {
-                                ref_name = cb_arg->data.func_ref.function->data.label.value;
-                            }
-                            if (ref_name) {
-                                FuncSig *cb_fs = find_func(checker, ref_name);
-                                if (cb_fs) {
-                                    if (strcmp(mfn, "map") == 0) {
-                                        if (cb_fs->param_count != 1) {
-                                            char *msg = NULL;
-                                            msg = typechecker_format(checker,
-                                                "map callback must take 1 parameter, got %d",
-                                                cb_fs->param_count);
-                                            diagnostic_error_code_formatted(checker->diag, "E9004",
-                                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, msg);
-                                        } else if (cb_fs->return_count < 1) {
-                                            diagnostic_error_code_formatted(checker->diag, "E9004",
-                                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, "map callback must return a value");
-                                        }
-                                    } else if (strcmp(mfn, "filter") == 0 ||
-                                               strcmp(mfn, "any") == 0 ||
-                                               strcmp(mfn, "all") == 0) {
-                                        if (cb_fs->param_count != 1) {
-                                            char *msg = NULL;
-                                            msg = typechecker_format(checker,
-                                                "%s callback must take 1 parameter, got %d",
-                                                mfn, cb_fs->param_count);
-                                            diagnostic_error_code_formatted(checker->diag, "E9004",
-                                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, msg);
-                                        } else if (cb_fs->return_count < 1 ||
-                                                   cb_fs->return_types[0]->kind != TK_BOOL) {
-                                            char *msg = NULL;
-                                            msg = typechecker_format(checker,
-                                                "%s callback must return bool", mfn);
-                                            diagnostic_error_code_formatted(checker->diag, "E9004",
-                                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, msg);
-                                        }
-                                    } else { /* reduce */
-                                        if (cb_fs->param_count != 2) {
-                                            char *msg = NULL;
-                                            msg = typechecker_format(checker,
-                                                "reduce callback must take 2 parameters, got %d",
-                                                cb_fs->param_count);
-                                            diagnostic_error_code_formatted(checker->diag, "E9004",
-                                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, msg);
-                                        } else if (cb_fs->return_count < 1) {
-                                            diagnostic_error_code_formatted(checker->diag, "E9004",
-                                                NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
-                                                mfn, "reduce callback must return a value");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                /* All arrays.* functions expect an array as the first argument */
-                if (node->data.call.arg_count > 0) {
-                    AstNode *arg0 = node->data.call.args[0];
-                    GrayType *arg0_t = resolve_expression(checker, arg0);
-                    if (arg0_t && arg0_t->kind != TK_ARRAY && arg0_t->kind != TK_UNKNOWN) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "arrays.%s() expects an array as the first argument, got '%s'",
-                            mfn, type_name(arg0_t));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, arg0), arg0->token.line, arg0->token.column, 0);
-                    }
-                }
-            } else if (strcmp(mod, "os") == 0) {
-                if (strcmp(mfn, "args") == 0) {
-                    result = type_array("string");
-                } else if (strcmp(mfn, "get_env") == 0 ||
-                           strcmp(mfn, "current_dir") == 0 || strcmp(mfn, "hostname") == 0 ||
-                           strcmp(mfn, "arch") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "set_env") == 0 || strcmp(mfn, "unset_env") == 0) {
-                    result = &TYPE_VOID;
-                } else if (strcmp(mfn, "exec") == 0) {
-                    result = &TYPE_BOOL;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "math") == 0) {
-                /* Math functions return types */
-                if (strcmp(mfn, "is_prime") == 0 || strcmp(mfn, "is_even") == 0 ||
-                    strcmp(mfn, "is_odd") == 0 ||
-                    strcmp(mfn, "is_nan") == 0 || strcmp(mfn, "is_finite") == 0 ||
-                    strcmp(mfn, "is_infinite") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "abs") == 0 || strcmp(mfn, "neg") == 0 ||
-                           strcmp(mfn, "min") == 0 || strcmp(mfn, "max") == 0 ||
-                           strcmp(mfn, "clamp") == 0) {
-                    /* Return type matches argument type; float in, float out */
-                    if (node->data.call.arg_count > 0) {
-                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
-                        result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
-                    } else {
-                        result = &TYPE_INT;
-                    }
-                } else if (strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
-                           strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "sqrt") == 0 || strcmp(mfn, "pow") == 0 ||
-                           strcmp(mfn, "exp") == 0 || strcmp(mfn, "exp2") == 0 ||
-                           strcmp(mfn, "log") == 0 ||
-                           strcmp(mfn, "log2") == 0 || strcmp(mfn, "log10") == 0 ||
-                           strcmp(mfn, "log_base") == 0 ||
-                           strcmp(mfn, "sin") == 0 || strcmp(mfn, "cos") == 0 ||
-                           strcmp(mfn, "tan") == 0 || strcmp(mfn, "asin") == 0 ||
-                           strcmp(mfn, "acos") == 0 || strcmp(mfn, "atan") == 0 ||
-                           strcmp(mfn, "atan2") == 0 || strcmp(mfn, "sinh") == 0 ||
-                           strcmp(mfn, "cosh") == 0 || strcmp(mfn, "tanh") == 0 ||
-                           strcmp(mfn, "floor") == 0 || strcmp(mfn, "ceil") == 0 ||
-                           strcmp(mfn, "round") == 0 || strcmp(mfn, "trunc") == 0 ||
-                           strcmp(mfn, "cbrt") == 0 || strcmp(mfn, "hypot") == 0 ||
-                           strcmp(mfn, "deg_to_rad") == 0 || strcmp(mfn, "rad_to_deg") == 0 ||
-                           strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0) {
-                    result = &TYPE_FLOAT;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "threads") == 0) {
-                if (strcmp(mfn, "spawn") == 0 || strcmp(mfn, "spawn_arg") == 0) {
-                    /* Validate first arg is a function reference */
-                    if (node->data.call.arg_count >= 1) {
-                        AstNode *arg0 = node->data.call.args[0];
-                        if (arg0->kind != NODE_FUNC_REF &&
-                            !(arg0->kind == NODE_CALL_EXPR &&
-                              arg0->data.call.function->kind == NODE_LABEL &&
-                              strcmp(arg0->data.call.function->data.label.value, "ref") == 0)) {
-                            diagnostic_error_message(checker->diag, "E7006",
-                                "threads.spawn() requires a function reference; use ()func_name or ref(func_name)",
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                        }
-                    }
-                    result = type_struct("Thread"); /* GrayThread; opaque */
-                } else if (strcmp(mfn, "get_id") == 0 ||
-                           strcmp(mfn, "current") == 0 ||
-                           strcmp(mfn, "thread_count") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "is_alive") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "join") == 0 || strcmp(mfn, "detach") == 0 ||
-                           strcmp(mfn, "yield") == 0 ||
-                           strcmp(mfn, "sleep") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "sync") == 0) {
-                if (strcmp(mfn, "mutex") == 0) {
-                    result = type_struct("Mutex"); /* GrayMutex; opaque */
-                } else if (strcmp(mfn, "try_lock") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "lock") == 0 || strcmp(mfn, "unlock") == 0 ||
-                           strcmp(mfn, "destroy") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "atomic") == 0) {
-                if (strcmp(mfn, "load") == 0 || strcmp(mfn, "add") == 0 ||
-                    strcmp(mfn, "sub") == 0 || strcmp(mfn, "exchange") == 0 ||
-                    strcmp(mfn, "and") == 0 || strcmp(mfn, "or") == 0 ||
-                    strcmp(mfn, "xor") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "cas") == 0 || strcmp(mfn, "spin_trylock") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "spinlock") == 0) {
-                    result = type_struct("SpinLock"); /* GraySpinLock; opaque */
-                } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "fence") == 0 ||
-                           strcmp(mfn, "spin_lock") == 0 ||
-                           strcmp(mfn, "spin_unlock") == 0 ||
-                           strcmp(mfn, "spinlock_destroy") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "channels") == 0) {
-                if (strcmp(mfn, "open") == 0) {
-                    result = type_struct("Channel"); /* GrayChannel; opaque */
-                } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "try_receive") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "send") == 0 || strcmp(mfn, "close") == 0) {
-                    result = &TYPE_VOID;
-                } else if (strcmp(mfn, "try_send") == 0) {
-                    result = &TYPE_BOOL;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "server") == 0) {
-                if (strcmp(mfn, "add_router") == 0) {
-                    result = type_struct("Router"); /* GrayRouter; opaque */
-                } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
-                           strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
-                    result = type_struct("HttpResponse"); /* GrayResponse */
-                } else if (strcmp(mfn, "add_route") == 0 || strcmp(mfn, "listen") == 0 ||
-                           strcmp(mfn, "cors") == 0 || strcmp(mfn, "use") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "http") == 0) {
-                /* All http methods return GrayHttpResponse struct
-                 * with .status (int), .body (string), .headers (map) */
-                result = type_struct("HttpResponse"); /* opaque struct; member access via __auto_type */
-            } else if (strcmp(mod, "net") == 0) {
-                if (strcmp(mfn, "listen") == 0) {
-                    result = type_struct("Listener"); /* GraySocket; opaque */
-                } else if (strcmp(mfn, "connect") == 0 || strcmp(mfn, "accept") == 0) {
-                    result = type_struct("Socket"); /* GraySocket; opaque */
-                } else if (strcmp(mfn, "send") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "resolve") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-                /* E5026: functions that take a socket/listener as first arg */
-                if (strcmp(mfn, "send") == 0 || strcmp(mfn, "receive") == 0 ||
-                    strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0 ||
-                    strcmp(mfn, "accept") == 0) {
-                    if (node->data.call.arg_count >= 1) {
-                        GrayType *arg1_type = resolve_expression(checker, node->data.call.args[0]);
-                        if (arg1_type && arg1_type->kind != TK_STRUCT) {
-                            const char *expected = strcmp(mfn, "accept") == 0
-                                ? "Listener" : "Socket";
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "net.%s() expects a %s as the first argument, got %s",
-                                mfn, expected,
-                                arg1_type->name ? arg1_type->name : "non-struct type");
-                            diagnostic_error_message(checker->diag, "E5026", msg,
-                                NODE_FILE(checker, node), node->data.call.args[0]->token.line,
-                                node->data.call.args[0]->token.column, 0);
-                        }
-                    }
-                }
-            } else if (strcmp(mod, "regex") == 0) {
-                if (strcmp(mfn, "is_match") == 0 || strcmp(mfn, "is_valid") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "find") == 0 || strcmp(mfn, "replace") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "find_all") == 0 || strcmp(mfn, "split") == 0) {
-                    result = type_array("string");
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "mem") == 0) {
-                if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
-                    AstNode *type_arg = node->data.call.args[1];
-                    if (type_arg->kind == NODE_LABEL) {
-                        result = type_pointer(type_arg->data.label.value);
-                    } else {
-                        result = &TYPE_UNKNOWN;
-                    }
-                } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
-                    GrayType *val_t = resolve_expression(checker, node->data.call.args[1]);
-                    result = type_pointer(type_name(val_t));
-                } else if (strcmp(mfn, "arena") == 0) {
-                    result = type_struct("Arena");
-                } else if (strcmp(mfn, "usage") == 0) {
-                    result = &TYPE_INT;
-                } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
-                           strcmp(mfn, "destroy") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "sqlite") == 0) {
-                if (strcmp(mfn, "open") == 0) {
-                    result = type_struct("Database");
-                } else if (strcmp(mfn, "exec") == 0) {
-                    result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "query") == 0) {
-                    result = type_array("map");
-                } else if (strcmp(mfn, "close") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(mod, "fmt") == 0) {
-                if (strcmp(mfn, "sprintf") == 0 ||
-                    strcmp(mfn, "sprintfln") == 0 ||
-                    strcmp(mfn, "format") == 0 ||
-                    strcmp(mfn, "pad_left") == 0 ||
-                    strcmp(mfn, "pad_right") == 0 ||
-                    strcmp(mfn, "center") == 0 ||
-                    strcmp(mfn, "int_to_hex") == 0 ||
-                    strcmp(mfn, "int_to_binary") == 0 ||
-                    strcmp(mfn, "int_to_octal") == 0 ||
-                    strcmp(mfn, "float_fixed") == 0 ||
-                    strcmp(mfn, "float_sci") == 0) {
-                    result = &TYPE_STRING;
-                } else if (strcmp(mfn, "printf") == 0 ||
-                           strcmp(mfn, "printfln") == 0 ||
-                           strcmp(mfn, "eprintf") == 0 ||
-                           strcmp(mfn, "eprintfln") == 0) {
-                    result = &TYPE_VOID;
-                } else {
-                    emit_unknown_stdlib_function(checker, mod, mfn, node);
-                    result = &TYPE_UNKNOWN;
-                }
-                /* Validate printf/sprintf/format: literal format string + directive types */
-                {
-                    bool is_fmt_fn = strcmp(mfn, "printf") == 0 ||
-                                     strcmp(mfn, "printfln") == 0 ||
-                                     strcmp(mfn, "eprintf") == 0 ||
-                                     strcmp(mfn, "eprintfln") == 0 ||
-                                     strcmp(mfn, "sprintf") == 0 ||
-                                     strcmp(mfn, "sprintfln") == 0 ||
-                                     strcmp(mfn, "format") == 0;
-                    if (is_fmt_fn && node->data.call.arg_count >= 1) {
-                        AstNode *fmt_arg = node->data.call.args[0];
-                        if (fmt_arg->kind != NODE_STRING_VALUE) {
-                            diagnostic_error_code_formatted(checker->diag, "E3086",
-                                NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                fmt_arg->token.column, 0, mfn);
-                        } else {
-                            /* Walk format string, validate each directive against arg type */
-                            const char *fstr = fmt_arg->data.string_value.value;
-                            const char *p = fstr;
-                            int di = 1;
-                            int num_directives = 0;
-                            while (*p) {
-                                if (*p != '%') { p++; continue; }
-                                p++;
-                                if (!*p) {
-                                    /* Dangling % at end of format string */
-                                    diagnostic_error_code_formatted(checker->diag, "E3106",
-                                        NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                        fmt_arg->token.column, 0, mfn);
-                                    break;
-                                }
-                                if (*p == '%') { p++; continue; }
-                                if (*p == 'n') {
-                                    diagnostic_error_code_formatted(checker->diag, "E3087",
-                                        NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                        fmt_arg->token.column, 0);
-                                    break;
-                                }
-                                /* Skip flags, width, precision, length modifier */
-                                while (*p == '-' || *p == '+' || *p == ' ' || *p == '0' || *p == '#') p++;
-                                while (*p >= '0' && *p <= '9') p++;
-                                if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
-                                if (*p == 'h') { p++; if (*p == 'h') p++; }
-                                else if (*p == 'l') { p++; if (*p == 'l') p++; }
-                                else if (*p == 'L') p++;
-                                char spec = *p ? *p++ : 0;
-                                if (!spec) {
-                                    diagnostic_error_code_formatted(checker->diag, "E3106",
-                                        NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                        fmt_arg->token.column, 0, mfn);
-                                    break;
-                                }
-                                num_directives++;
-                                /* Reject unknown format directives */
-                                bool known = false;
-                                switch (spec) {
-                                case 'd': case 'i': case 'u':
-                                case 'x': case 'X': case 'o':
-                                case 'f': case 'g': case 'e': case 'G': case 'E':
-                                case 's': case 'c': case 'b':
-                                    known = true;
-                                    break;
-                                default:
-                                    known = false;
-                                    break;
-                                }
-                                if (!known) {
-                                    diagnostic_error_code_formatted(checker->diag, "E3105",
-                                        NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                        fmt_arg->token.column, 0, mfn, spec);
-                                    di++;
-                                    continue;
-                                }
-                                if (di >= node->data.call.arg_count) { di++; continue; }
-                                AstNode *darg = node->data.call.args[di];
-                                GrayType *dt = resolve_expression(checker, darg);
-                                di++;
-                                if (!dt) continue;
-                                const char *expected = NULL;
-                                bool ok = false;
-                                switch (spec) {
-                                case 'd': case 'i':
-                                    expected = "int or char";
-                                    ok = dt->kind == TK_INT || dt->kind == TK_CHAR || dt->kind == TK_BYTE;
-                                    break;
-                                case 'u':
-                                    expected = "uint";
-                                    ok = dt->kind == TK_UINT || dt->kind == TK_BYTE;
-                                    break;
-                                case 'x': case 'X': case 'o':
-                                    expected = "int or uint";
-                                    ok = dt->kind == TK_INT || dt->kind == TK_UINT || dt->kind == TK_BYTE;
-                                    break;
-                                case 'f': case 'g': case 'e': case 'G': case 'E':
-                                    expected = "float";
-                                    ok = dt->kind == TK_FLOAT;
-                                    break;
-                                case 's':
-                                    expected = "string";
-                                    ok = dt->kind == TK_STRING;
-                                    break;
-                                case 'c':
-                                    expected = "char";
-                                    ok = dt->kind == TK_CHAR || dt->kind == TK_INT;
-                                    break;
-                                default:
-                                    ok = true;
-                                    break;
-                                }
-                                if (!ok && expected) {
-                                    char spec_str[2] = { spec, '\0' };
-                                    diagnostic_error_code_formatted(checker->diag, "E3088",
-                                        NODE_FILE(checker, darg), darg->token.line,
-                                        darg->token.column, 0,
-                                        mfn, spec_str, expected, di - 1,
-                                        type_name(dt));
-                                }
-                            }
-                            /* Check argument count vs directive count */
-                            int num_args = node->data.call.arg_count - 1;
-                            if (num_args < num_directives) {
-                                diagnostic_error_code_formatted(checker->diag, "E3107",
-                                    NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                    fmt_arg->token.column, 0,
-                                    mfn, num_directives, num_args);
-                            } else if (num_args > num_directives) {
-                                diagnostic_error_code_formatted(checker->diag, "E3108",
-                                    NODE_FILE(checker, fmt_arg), fmt_arg->token.line,
-                                    fmt_arg->token.column, 0,
-                                    mfn, num_directives, num_args);
-                            }
-                        }
-                    }
-                }
-                /* Validate that non-format args are primitive types */
-                for (int argument_index = 1; argument_index < node->data.call.arg_count; argument_index++) {
-                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                    if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
-                                  arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
-                        /* Build a readable type name */
-                        char tn[TYPE_NAME_MAX];
-                        if (arg_t->kind == TK_ARRAY && arg_t->element_type)
-                            snprintf(tn, sizeof(tn), "[%s]", arg_t->element_type);
-                        else if (arg_t->kind == TK_MAP)
-                            snprintf(tn, sizeof(tn), "map[%s:%s]",
-                                arg_t->key_type ? arg_t->key_type : "?",
-                                arg_t->value_type ? arg_t->value_type : "?");
-                        else if (arg_t->kind == TK_POINTER && arg_t->element_type)
-                            snprintf(tn, sizeof(tn), "^%s", arg_t->element_type);
-                        else {
-                            strncpy(tn, type_name(arg_t), sizeof(tn) - 1);
-                            tn[sizeof(tn) - 1] = '\0';
-                        }
-                        diagnostic_error_code_formatted(checker->diag, "E3017", NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                            node->data.call.args[argument_index]->token.column, 0, mfn, tn);
-                    }
-                }
-            } else
-            user_module_dispatch:
-            if (is_struct_name(checker, mod)) {
-                /* Struct-namespaced function call: Type.func(); look up return type */
-                const char *display_mod = struct_display_name(checker, mod);
-                char prefixed[MSG_BUF_SIZE];
-                snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
-                FuncSig *sig = find_func(checker, prefixed);
-                if (sig) {
-                    sig->used = true;
-                    /* Resolve named arguments for struct static calls */
-                    if (sig->decl) {
-                        char display[MSG_BUF_SIZE];
-                        snprintf(display, sizeof(display), "%s.%s", display_mod, mfn);
-                        typechecker_resolve_named_arguments(checker, node, sig->decl, display);
-                    }
-                    /* E4017: private struct function called from outside the struct */
-                    if (sig->is_private &&
-                        !(checker->current_struct_name && strcmp(checker->current_struct_name, mod) == 0)) {
-                        diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
-                            node->token.line, node->token.column, 0, display_mod, mfn);
-                    }
-                    /* Wildcard (generic) struct function: record instantiation
-                     * and substitute the concrete return type. */
-                    if (sig->is_generic && sig->decl &&
-                        sig->decl->kind == NODE_FUNC_DECL) {
-                        char *binding = NULL;
-                        int clamped_argument_count = node->data.call.arg_count < sig->decl->data.func_decl.param_count
-                            ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
-                        for (int argument_index = 0; argument_index < clamped_argument_count && !binding; argument_index++) {
-                            const char *ptn = sig->decl->data.func_decl.params[argument_index].type_name;
-                            GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
-                            if (!type_name_has_wildcard(ptn)) continue;
-                            binding = bind_wildcard(ptn, at);
-                        }
-                        if (binding) {
-                            record_instantiation(sig, binding, node);
-                            if (sig->decl->data.func_decl.return_type_count > 0) {
-                                char *rt = substitute_wildcard(
-                                    sig->decl->data.func_decl.return_types[0], binding);
-                                result = type_from_name(rt);
-                            } else {
-                                result = &TYPE_VOID;
-                            }
-                            free(binding);
-                        } else {
-                            result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
-                        }
-                    } else {
-                        result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
-                    }
-                    /* E5008: check argument count, accounting for default params */
-                    {
-                        int min_params = sig->param_count;
-                        if (sig->decl && sig->decl->kind == NODE_FUNC_DECL) {
-                            min_params = 0;
-                            for (int parameter_index = 0; parameter_index < sig->decl->data.func_decl.param_count; parameter_index++) {
-                                if (!sig->decl->data.func_decl.params[parameter_index].default_value)
-                                    min_params++;
-                            }
-                        }
-                        if (node->data.call.arg_count < min_params ||
-                            node->data.call.arg_count > sig->param_count) {
-                            char *msg = NULL;
-                            if (min_params == sig->param_count) {
-                                msg = typechecker_format(checker,
-                                    "function '%s.%s' expects %d argument(s), got %d",
-                                    display_mod, mfn, sig->param_count, node->data.call.arg_count);
-                            } else {
-                                msg = typechecker_format(checker,
-                                    "function '%s.%s' expects %d-%d argument(s), got %d",
-                                    display_mod, mfn, min_params, sig->param_count, node->data.call.arg_count);
-                            }
-                            diagnostic_error_message(checker->diag, "E5008", msg,
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                        }
-                    }
-                    /* Check argument types */
-                    int check_count = node->data.call.arg_count < sig->param_count
-                        ? node->data.call.arg_count : sig->param_count;
-                    for (int argument_index = 0; argument_index < check_count; argument_index++) {
-                        GrayType *param_t = sig->param_types[argument_index];
-                        /* Set expected_type for implicit enum resolution */
-                        GrayType *saved_expected_m = checker->expected_type;
-                        if (param_t && param_t->kind == TK_ENUM && param_t->name)
-                            checker->expected_type = param_t;
-                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                        checker->expected_type = saved_expected_m;
-                        if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
-                            arg_t->kind != param_t->kind &&
-                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
-                            !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
-                            !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
-                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
-                            !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s.%s': expected %s, got %s",
-                                argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Enum-to-enum: kinds both TK_ENUM but different names */
-                        if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
-                            arg_t->name && param_t->name &&
-                            !typechecker_same_enum_type(checker, arg_t->name, param_t->name)) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
-                                argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Struct-to-struct: kinds both TK_STRUCT but different names */
-                        if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
-                            arg_t->name && param_t->name &&
-                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
-                                argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Pointer-to-pointer: pointee types differ */
-                        if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
-                            arg_t->name && param_t->name &&
-                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s.%s': expected '%s', got '%s'",
-                                argument_index + 1, display_mod, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* E3027: non-assignable or const passed to mutable (&) param.
-                         * Struct functions live inside NODE_STRUCT_DECL, not as
-                         * top-level stmts, so scan struct declarations. */
-                        {
-                            AstNode *arg = node->data.call.args[argument_index];
-                            AstNode *found_declaration = NULL;
-                            for (int field_index = 0; field_index < checker->program->data.program.stmt_count && !found_declaration; field_index++) {
-                                AstNode *s = checker->program->data.program.stmts[field_index];
-                                if (s->kind == NODE_STRUCT_DECL &&
-                                    strcmp(s->data.struct_decl.name, mod) == 0) {
-                                    for (int sfi = 0; sfi < s->data.struct_decl.func_count; sfi++) {
-                                        AstNode *sf = s->data.struct_decl.funcs[sfi].func_decl;
-                                        if (sf && sf->kind == NODE_FUNC_DECL &&
-                                            strcmp(sf->data.func_decl.name, mfn) == 0 &&
-                                            argument_index < sf->data.func_decl.param_count &&
-                                            sf->data.func_decl.params[argument_index].mutable) {
-                                            found_declaration = sf;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            if (found_declaration) {
-                                char fn_display[MSG_BUF_SIZE];
-                                snprintf(fn_display, sizeof(fn_display), "%s.%s", display_mod, mfn);
-                                check_mutable_arg(checker, arg,
-                                    found_declaration->data.func_decl.params[argument_index].name, fn_display);
-                            }
-                        }
-                    }
-                } else {
-                    /* E4018: struct has no function with this name */
-                    diagnostic_error_code_formatted(checker->diag, "E4018", NODE_FILE(checker, node),
-                        node->token.line, node->token.column, 0, display_mod, mfn);
-                    result = &TYPE_VOID;
-                }
-            } else {
-                /* Try user-defined module: look up <module>_<func> in function registry */
-                char prefixed[MSG_BUF_SIZE];
-                snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
-                FuncSig *sig = find_func(checker, prefixed);
-                if (sig && sig->is_private) {
-                    diagnostic_error_code_formatted(checker->diag, "E4015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, mfn);
-                } else if (sig) {
-                    sig->used = true;
-                    /* Resolve named arguments for user-module function calls */
-                    if (sig->decl) {
-                        char display[MSG_BUF_SIZE];
-                        snprintf(display, sizeof(display), "%s.%s", mod, mfn);
-                        typechecker_resolve_named_arguments(checker, node, sig->decl, display);
-                    }
-                    if (sig->return_count > 0) {
-                        result = sig->return_types[0];
-                    } else {
-                        result = &TYPE_VOID;
-                    }
-                } else {
-                    /* Check if 'mod' is a variable with a struct type —
-                     * user wrote instance.func() instead of Type.func(). */
-                    Symbol *sym = scope_lookup(checker->current_scope, mod_raw);
-                    if (sym && sym->type && (sym->type->kind == TK_STRUCT ||
-                        sym->type->kind == TK_POINTER)) {
-                        const char *struct_name = sym->type->kind == TK_POINTER
-                            ? sym->type->element_type : sym->type->name;
-                        const char *display_sname = struct_display_name(checker, struct_name);
-                        /* : check if `mfn` is a data field of type func
-                         * before trying struct-function dispatch. A func-typed
-                         * field should be called as a function pointer, not
-                         * mistaken for a struct function. The bare "func" type
-                         * was deprecated; modern typed function refs are
-                         * encoded as "func(...)->R" with kind TK_FUNCTION. */
-                        GrayType *field_t = struct_field_type(checker, struct_name, mfn);
-                        if (field_t && field_t->kind == TK_FUNCTION) {
-                            /* This is a func-typed data field. Accept the call
-                             *; codegen will emit it as a function-pointer
-                             * call through the field access. Resolve the
-                             * return type from the encoded signature so
-                             * downstream uses get a typed value. */
-                            sym->used = true;
-                            result = (field_t->func_sig &&
-                                      field_t->func_sig->return_count > 0 &&
-                                      field_t->func_sig->return_types &&
-                                      field_t->func_sig->return_types[0])
-                                ? type_from_name(field_t->func_sig->return_types[0])
-                                : &TYPE_UNKNOWN;
-                            break;
-                        }
-                        char sfn[MSG_BUF_SIZE];
-                        snprintf(sfn, sizeof(sfn), "%s_%s", struct_name, mfn);
-                        FuncSig *ssig = find_func(checker, sfn);
-                        /* Auto-dispatch instance.func() → Type.func(instance)
-                         * whenever the struct function takes the struct (or a
-                         * pointer to it) as its first parameter. This covers
-                         * both `do bar(self Foo)` and `do bar(&self Foo)`, and
-                         * lets users call struct functions on instances without
-                         * having to write the type name at every call site.
-                         * Factory-style functions (e.g. `do make(x int) -> Foo`)
-                         * whose first param isn't a Foo continue to require
-                         * explicit `Foo.make(...)` since there's no instance
-                         * to bind. */
-                        bool is_self_func = false;
-                        if (ssig && ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
-                            ssig->decl->data.func_decl.param_count > 0) {
-                            const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
-                            if (p0_tn) {
-                                if (strcmp(p0_tn, struct_name) == 0) {
-                                    is_self_func = true;
-                                } else if (p0_tn[0] == '^' && strcmp(p0_tn + 1, struct_name) == 0) {
-                                    is_self_func = true;
-                                }
-                            }
-                        }
-                        if (is_self_func) {
-                            /* E4017: private struct function via instance dispatch */
-                            if (ssig->is_private &&
-                                !(checker->current_struct_name && strcmp(checker->current_struct_name, struct_name) == 0)) {
-                                diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
-                                    node->token.line, node->token.column, 0, display_sname, mfn);
-                            }
-                            /* Resolve named arguments before AST rewrite.
-                             * User-visible params start at index 1 (after self),
-                             * so build a temporary shifted decl view. Named
-                             * args target param names excluding the self param. */
-                            if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
-                                typechecker_has_named_arguments(node)) {
-                                AstNode *sdecl = ssig->decl;
-                                /* Create a temporary fake decl with params shifted
-                                 * to skip the self parameter (param[0]). */
-                                AstNode tmp_decl = *sdecl;
-                                int orig_pc = sdecl->data.func_decl.param_count;
-                                if (orig_pc > 1) {
-                                    tmp_decl.data.func_decl.params = &sdecl->data.func_decl.params[1];
-                                    tmp_decl.data.func_decl.param_count = orig_pc - 1;
-                                } else {
-                                    tmp_decl.data.func_decl.param_count = 0;
-                                }
-                                char display[MSG_BUF_SIZE];
-                                snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
-                                typechecker_resolve_named_arguments(checker, node, &tmp_decl, display);
-                            }
-                            /* Rewrite the call AST: change the member-expr
-                             * object from the instance label to the type
-                             * name, and prepend the instance as arg[0]. */
-                            fn->data.member.object->data.label.value = strdup(struct_name);
-                            int orig_count = node->data.call.arg_count;
-                            AstNode **new_args = xmalloc(sizeof(AstNode *) * (orig_count + 1));
-                            AstNode *self_arg = xcalloc(1, sizeof(AstNode));
-                            self_arg->kind = NODE_LABEL;
-                            self_arg->token = node->token;
-                            self_arg->data.label.value = strdup(mod_raw);
-                            new_args[0] = self_arg;
-                            for (int argument_index = 0; argument_index < orig_count; argument_index++) {
-                                new_args[argument_index + 1] = node->data.call.args[argument_index];
-                            }
-                            node->data.call.args = new_args;
-                            node->data.call.arg_count = orig_count + 1;
-                            /* Mark the function used and resolve return type */
-                            ssig->used = true;
-                            sym->used = true;
-                            if (ssig->is_generic && ssig->decl &&
-                                ssig->decl->kind == NODE_FUNC_DECL) {
-                                char *binding = NULL;
-                                int clamped_argument_count = node->data.call.arg_count < ssig->decl->data.func_decl.param_count
-                                    ? node->data.call.arg_count : ssig->decl->data.func_decl.param_count;
-                                for (int argument_index = 0; argument_index < clamped_argument_count && !binding; argument_index++) {
-                                    const char *ptn = ssig->decl->data.func_decl.params[argument_index].type_name;
-                                    GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
-                                    if (!type_name_has_wildcard(ptn)) continue;
-                                    binding = bind_wildcard(ptn, at);
-                                }
-                                if (binding) {
-                                    record_instantiation(ssig, binding, node);
-                                    if (ssig->decl->data.func_decl.return_type_count > 0) {
-                                        char *rt = substitute_wildcard(
-                                            ssig->decl->data.func_decl.return_types[0], binding);
-                                        result = type_from_name(rt);
-                                    } else {
-                                        result = &TYPE_VOID;
-                                    }
-                                    free(binding);
-                                } else {
-                                    result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
-                                }
-                            } else {
-                                result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
-                            }
-                            /* E5008: validate argument count (after AST rewrite
-                             * which prepended self as arg[0]). Both arg_count
-                             * and param_count include self, so they compare
-                             * directly. Display counts subtract 1 to hide self. */
-                            {
-                                int min_params = ssig->param_count;
-                                if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
-                                    min_params = 0;
-                                    for (int parameter_index = 0; parameter_index < ssig->decl->data.func_decl.param_count; parameter_index++) {
-                                        if (!ssig->decl->data.func_decl.params[parameter_index].default_value)
-                                            min_params++;
-                                    }
-                                }
-                                if (node->data.call.arg_count < min_params ||
-                                    node->data.call.arg_count > ssig->param_count) {
-                                    int display_got = node->data.call.arg_count - 1;
-                                    int display_max = ssig->param_count - 1;
-                                    int display_min = min_params - 1;
-                                    char emsg[MSG_BUF_SIZE];
-                                    if (display_min == display_max) {
-                                        snprintf(emsg, sizeof(emsg),
-                                            "function '%s.%s' expects %d argument(s), got %d",
-                                            display_sname, mfn, display_max, display_got);
-                                    } else {
-                                        snprintf(emsg, sizeof(emsg),
-                                            "function '%s.%s' expects %d-%d argument(s), got %d",
-                                            display_sname, mfn, display_min, display_max, display_got);
-                                    }
-                                    diagnostic_error_message(checker->diag, "E5008", arena_copy_string(checker->arena, emsg),
-                                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                                }
-                            }
-                            /* Validate argument types (after AST rewrite) */
-                            {
-                                int check_count = node->data.call.arg_count < ssig->param_count
-                                    ? node->data.call.arg_count : ssig->param_count;
-                                for (int argument_index = 0; argument_index < check_count; argument_index++) {
-                                    GrayType *param_t = ssig->param_types[argument_index];
-                                    /* Set expected_type for implicit enum resolution */
-                                    GrayType *saved_expected_s = checker->expected_type;
-                                    if (param_t && param_t->kind == TK_ENUM && param_t->name)
-                                        checker->expected_type = param_t;
-                                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                                    checker->expected_type = saved_expected_s;
-                                    if (arg_t && param_t &&
-                                        arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
-                                        arg_t->kind != param_t->kind &&
-                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
-                                        !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
-                                        !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
-                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
-                                        !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
-                                        char amsg[MSG_BUF_SIZE];
-                                        snprintf(amsg, sizeof(amsg),
-                                            "argument %d of '%s.%s': expected %s, got %s",
-                                            argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, amsg),
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                    }
-                                    /* Struct-to-struct: kinds both TK_STRUCT but different names */
-                                    if (arg_t && param_t &&
-                                        arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
-                                        arg_t->name && param_t->name &&
-                                        !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
-                                        char smsg[MSG_BUF_SIZE];
-                                        snprintf(smsg, sizeof(smsg),
-                                            "argument %d of '%s.%s': expected struct '%s', got struct '%s'",
-                                            argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, smsg),
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                    }
-                                    /* Pointer-to-pointer: pointee types differ */
-                                    if (arg_t && param_t &&
-                                        arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
-                                        arg_t->name && param_t->name &&
-                                        !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
-                                        char pmsg[MSG_BUF_SIZE];
-                                        snprintf(pmsg, sizeof(pmsg),
-                                            "argument %d of '%s.%s': expected '%s', got '%s'",
-                                            argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, pmsg),
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                    }
-                                }
-                            }
-                            /* E3027: non-assignable or const passed to mutable (&) param
-                             * in instance dispatch. After the AST rewrite, arg[0]
-                             * is self; user-visible args start at index 1. */
-                            if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
-                                int parameter_count = ssig->decl->data.func_decl.param_count;
-                                int clamped_argument_count = node->data.call.arg_count < parameter_count ? node->data.call.arg_count : parameter_count;
-                                for (int argument_index = 0; argument_index < clamped_argument_count; argument_index++) {
-                                    if (!ssig->decl->data.func_decl.params[argument_index].mutable)
-                                        continue;
-                                    AstNode *arg = node->data.call.args[argument_index];
-                                    if (argument_index == 0) {
-                                        /* Self arg: synthetic NODE_LABEL with value mod_raw */
-                                        Symbol *self_sym = scope_lookup(checker->current_scope, mod_raw);
-                                        if (self_sym && !self_sym->mutable) {
-                                            char emsg[MSG_BUF_SIZE];
-                                            snprintf(emsg, sizeof(emsg),
-                                                "cannot call '%s.%s' on constant '%s'; function requires a mutable ('&') self parameter",
-                                                display_sname, mfn, self_sym->name);
-                                            diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                NODE_FILE(checker, node), node->token.line,
-                                                node->token.column, 0);
-                                        }
-                                    } else {
-                                        /* User-visible args */
-                                        char fn_display[MSG_BUF_SIZE];
-                                        snprintf(fn_display, sizeof(fn_display), "%s.%s", display_sname, mfn);
-                                        check_mutable_arg(checker, arg,
-                                            ssig->decl->data.func_decl.params[argument_index].name, fn_display);
-                                    }
-                                }
-                            }
-                        } else if (ssig) {
-                            /* Non-self struct function called on an instance.
-                             * Rewrite the AST so the member-expr object uses
-                             * the struct type name instead of the instance
-                             * name.  Do NOT prepend self as arg[0] — the
-                             * function doesn't take a self parameter. This
-                             * makes the call identical to Type.func() by the
-                             * time codegen sees it. */
-                            /* E4017: private struct function via instance dispatch */
-                            if (ssig->is_private &&
-                                !(checker->current_struct_name && strcmp(checker->current_struct_name, struct_name) == 0)) {
-                                diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
-                                    node->token.line, node->token.column, 0, display_sname, mfn);
-                            }
-                            /* Resolve named arguments if present */
-                            if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
-                                typechecker_has_named_arguments(node)) {
-                                char display[MSG_BUF_SIZE];
-                                snprintf(display, sizeof(display), "%s.%s", display_sname, mfn);
-                                typechecker_resolve_named_arguments(checker, node, ssig->decl, display);
-                            }
-                            fn->data.member.object->data.label.value = strdup(struct_name);
-                            ssig->used = true;
-                            sym->used = true;
-                            result = ssig->return_count > 0 ? ssig->return_types[0] : &TYPE_VOID;
-                            /* Validate argument count */
-                            {
-                                int min_params = ssig->param_count;
-                                if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
-                                    min_params = 0;
-                                    for (int parameter_index = 0; parameter_index < ssig->decl->data.func_decl.param_count; parameter_index++) {
-                                        if (!ssig->decl->data.func_decl.params[parameter_index].default_value)
-                                            min_params++;
-                                    }
-                                }
-                                if (node->data.call.arg_count < min_params ||
-                                    node->data.call.arg_count > ssig->param_count) {
-                                    char emsg[MSG_BUF_SIZE];
-                                    if (min_params == ssig->param_count) {
-                                        snprintf(emsg, sizeof(emsg),
-                                            "function '%s.%s' expects %d argument(s), got %d",
-                                            display_sname, mfn, ssig->param_count, node->data.call.arg_count);
-                                    } else {
-                                        snprintf(emsg, sizeof(emsg),
-                                            "function '%s.%s' expects %d-%d argument(s), got %d",
-                                            display_sname, mfn, min_params, ssig->param_count, node->data.call.arg_count);
-                                    }
-                                    diagnostic_error_message(checker->diag, "E5008", arena_copy_string(checker->arena, emsg),
-                                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                                }
-                            }
-                            /* Validate argument types */
-                            {
-                                int check_count = node->data.call.arg_count < ssig->param_count
-                                    ? node->data.call.arg_count : ssig->param_count;
-                                for (int argument_index = 0; argument_index < check_count; argument_index++) {
-                                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                                    GrayType *param_t = ssig->param_types[argument_index];
-                                    if (arg_t && param_t &&
-                                        arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
-                                        arg_t->kind != param_t->kind &&
-                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
-                                        !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
-                                        !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
-                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
-                                        !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
-                                        char amsg[MSG_BUF_SIZE];
-                                        snprintf(amsg, sizeof(amsg),
-                                            "argument %d of '%s.%s': expected %s, got %s",
-                                            argument_index + 1, display_sname, mfn, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                        diagnostic_error_message(checker->diag, "E3001", arena_copy_string(checker->arena, amsg),
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                    }
-                                }
-                            }
-                        } else {
-                            result = &TYPE_VOID;
-                        }
-                    } else {
-                        result = &TYPE_VOID;
-                    }
-                }
-            }
-            break;
-        }
-
-        /* Member call on expression result: foo().bar() */
-        if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind != NODE_LABEL) {
-            GrayType *obj_t = resolve_expression(checker, fn->data.member.object);
-            if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_POINTER &&
-                obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "type '%s' does not support function calls via dot notation",
-                    type_name(obj_t));
-                diagnostic_error_message(checker->diag, "E3013", msg,
-                    NODE_FILE(checker, fn), fn->token.line, fn->token.column, 0);
-            } else if (obj_t && (obj_t->kind == TK_STRUCT || obj_t->kind == TK_POINTER)) {
-                /* E3075: chaining struct function calls (calling one struct
-                 * function on the result of another) isn't supported.
-                 * Assigning the intermediate result to a variable keeps
-                 * each call site readable and avoids the AST-rewrite
-                 * gymnastics that fluent-interface chaining would require. */
-                diagnostic_error_code_help(checker->diag, "E3075",
-                    NODE_FILE(checker, fn), fn->token.line, fn->token.column, 0,
-                    "assign the intermediate result to a variable, then call the next struct function on it");
-            }
-            result = &TYPE_UNKNOWN;
-            break;
-        }
-
-        if (function_name) {
-            if (typechecker_is_builtin(function_name)) {
-                /* E5034: named arguments are not supported for builtins */
-                if (typechecker_has_named_arguments(node)) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "named arguments are not supported for builtin function '%s'",
-                        function_name);
-                    diagnostic_error_message(checker->diag, "E5034", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-            }
-            /* Check built-in functions first */
-            if (strcmp(function_name, "addr") == 0 && node->data.call.arg_count == 1) {
-                AstNode *arg = node->data.call.args[0];
-                /* addr() requires an assignment target. is_assignment_target recurses into
-                 * member/index chains so 'addr(some_call().field)' is
-                 * rejected at typecheck instead of leaking an
-                 * '&(rvalue)' to clang. */
-                if (path_contains_map_index(checker, arg)) {
-                    diagnostic_error_message(checker->diag, "E3013",
-                        "addr() cannot take the address of a map index expression; map values may relocate on rehash",
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                if (!is_assignment_target(arg)) {
-                    diagnostic_error_message(checker->diag, "E3012",
-                        "addr() requires a variable, field, or index expression; cannot take address of a literal or expression",
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                /* E3122: addr() of a const variable would allow mutation
-                 * through the resulting pointer, bypassing immutability. */
-                const char *root = assignment_target_root_name(arg);
-                if (root) {
-                    Symbol *sym = scope_lookup(checker->current_scope, root);
-                    if (sym && !sym->mutable) {
-                        diagnostic_error_code_formatted(checker->diag, "E3122", NODE_FILE(checker, node),
-                            node->token.line, node->token.column, 0, root);
-                    }
-                }
-                GrayType *arg_t = resolve_expression(checker, arg);
-                result = type_pointer(type_name(arg_t));
-            } else if (strcmp(function_name, "ref") == 0 && node->data.call.arg_count == 1) {
-                AstNode *arg = node->data.call.args[0];
-                /* ref(func_name) returns func type; resolve the
-                 * function lookup BEFORE calling resolve_expression on the
-                 * label, otherwise the E3031 "bare function name as
-                 * value" check fires and rejects a legitimate
-                 * use ( follow-up). */
-                if (arg->kind == NODE_LABEL &&
-                    find_func(checker, arg->data.label.value)) {
-                    FuncSig *rfs = find_func(checker, arg->data.label.value);
-                    if (rfs) rfs->used = true;
-                    result = type_from_name("func");
-                } else {
-                    /* Same assignment target requirement as addr(): reject literals,
-                     * call results, arithmetic expressions — anything
-                     * without a stable address. Without this, ref(42) and
-                     * ref(some_call()) leaked '&42' / '&(rvalue)' to clang
-                     * and produced opaque generated-C errors. */
-                    if (path_contains_map_index(checker, arg)) {
-                        diagnostic_error_message(checker->diag, "E3013",
-                            "ref() cannot take a reference to a map index expression; map values may relocate on rehash",
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    if (!is_assignment_target(arg)) {
-                        diagnostic_error_message(checker->diag, "E3012",
-                            "ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression",
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    /* Build a pointer type that preserves the full source type.
-                     * For arrays, type_name returns the element type ("int"),
-                     * so reconstruct the full name ("[int]"). */
-                    GrayType *arg_t = resolve_expression(checker, arg);
-                    const char *pointee_name = type_name(arg_t);
-                    if (arg_t->kind == TK_ARRAY) {
-                        char buffer[MSG_BUF_SIZE];
-                        snprintf(buffer, sizeof(buffer), "[%s]", arg_t->element_type);
-                        pointee_name = strdup(buffer);
-                    } else if (arg_t->kind == TK_MAP) {
-                        pointee_name = strdup(arg_t->name);
-                    }
-                    result = type_pointer(pointee_name);
-                }
-            } else if (strcmp(function_name, "len") == 0) {
-                /* E7015 (): len() only works on string / array / map.
-                 * Codegen blindly emits '.len' on the receiver, which
-                 * works for the runtime's GrayArray / GrayMap / GrayString
-                 * structs but bombs with a raw clang "no member 'len'"
-                 * on anything else; structs, enums, primitives,
-                 * pointers, func refs, errors. Validate the argument
-                 * type here instead of letting it leak. */
-                if (node->data.call.arg_count != 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "len() expects 1 argument, got %d",
-                        node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                } else {
-                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
-                    reject_void_in_context(checker, node->data.call.args[0], at,
-                        "len() argument");
-                    if (at && at->kind != TK_UNKNOWN && at->kind != TK_VOID &&
-                        at->kind != TK_STRING && at->kind != TK_ARRAY &&
-                        at->kind != TK_MAP) {
-                        diagnostic_error_code_formatted(checker->diag, "E7015", NODE_FILE(checker, node->data.call.args[0]), node->data.call.args[0]->token.line,
-                            node->data.call.args[0]->token.column, 0, type_name(at));
-                    }
-                }
-                result = &TYPE_INT;
-            } else if (strcmp(function_name, "type_of") == 0) {
-                /* E5008: type_of() requires exactly 1 argument */
-                if (node->data.call.arg_count != 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "type_of() expects 1 argument, got %d",
-                        node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    result = &TYPE_STRING;
-                    break;
-                }
-                /* E3084: type_of() with a type name instead of a value */
-                if (node->data.call.arg_count > 0) {
-                    AstNode *arg = node->data.call.args[0];
-                    if (arg->kind == NODE_LABEL) {
-                        const char *aname = arg->data.label.value;
-                        Symbol *sym = scope_lookup(checker->current_scope, aname);
-                        if (!sym && (is_struct_name(checker, aname) || is_enum_name(checker, aname))) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "type_of() expects a value, not a type name '%s'; use type_of(instance) instead",
-                                aname);
-                            diagnostic_error_message(checker->diag, "E3084", msg,
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                        }
-                    }
-                }
-                /* E3038: type_of() on void function result */
-                if (node->data.call.arg_count > 0) {
-                    GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
-                    if (arg_t->kind == TK_VOID) {
-                        diagnostic_error_message(checker->diag, "E3038",
-                            "cannot use type_of() on a void function; the function does not return a value",
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                }
-                result = &TYPE_STRING;
-            } else if (strcmp(function_name, "size_of") == 0) {
-                /* Rewrite size_of(T) → size_of(?) when T is a type param */
-                if (node->data.call.arg_count == 1 &&
-                    node->data.call.args[0]->kind == NODE_LABEL &&
-                    checker->type_param_name &&
-                    strcmp(node->data.call.args[0]->data.label.value,
-                           checker->type_param_name) == 0) {
-                    node->data.call.args[0]->data.label.value = "?";
-                }
-                result = &TYPE_INT;
-            } else if (strcmp(function_name, "to_char") == 0) {
-                if (node->data.call.arg_count != 2) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "to_char() expects 2 arguments (string, index), got %d",
-                        node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                } else {
-                    GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
-                    GrayType *arg1 = resolve_expression(checker, node->data.call.args[1]);
-                    if (arg0->kind != TK_STRING) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "to_char() first argument must be a string, got %s",
-                            type_name(arg0));
-                        diagnostic_error_message(checker->diag, "E3043", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    if (arg1->kind != TK_INT && arg1->kind != TK_UINT) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "to_char() second argument must be int or uint, got %s",
-                            type_name(arg1));
-                        diagnostic_error_message(checker->diag, "E3043", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                }
-                result = &TYPE_CHAR;
-            } else if (strcmp(function_name, "char_count") == 0) {
-                if (node->data.call.arg_count != 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "char_count() expects 1 argument (string), got %d",
-                        node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                } else {
-                    GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
-                    if (arg0->kind != TK_STRING) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "char_count() argument must be a string, got %s",
-                            type_name(arg0));
-                        diagnostic_error_message(checker->diag, "E3043", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                }
-                result = &TYPE_INT;
-            } else if (strcmp(function_name, "c_string") == 0) {
-                if (node->data.call.arg_count >= 1) {
-                    GrayType *arg0 = resolve_expression(checker, node->data.call.args[0]);
-                    if (arg0 && arg0->kind != TK_POINTER && arg0->kind != TK_UNKNOWN) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "c_string() requires a raw C pointer; '%s' is not a pointer type. "
-                            "c_string() is only valid with values from C interop (import c\"header.h\")",
-                            type_name(arg0));
-                        diagnostic_error_message(checker->diag, "E3083", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                }
-                result = &TYPE_STRING;
-            } else if (strcmp(function_name, "input") == 0) {
-                result = &TYPE_STRING;
-            } else if (strcmp(function_name, "here") == 0) {
-                if (node->data.call.arg_count != 0) {
-                    diagnostic_error_code(checker->diag, "E5014",
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                result = type_struct("SourceLocation");
-            } else if (strcmp(function_name, "embed") == 0) {
-                if (node->data.call.arg_count != 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "embed() takes exactly 1 argument, got %d",
-                        node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                } else {
-                    AstNode *arg = node->data.call.args[0];
-                    if (arg->kind != NODE_STRING_VALUE) {
-                        diagnostic_error_code(checker->diag, "E5017",
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    } else {
-                        /* Resolve file path relative to source file directory */
-                        const char *embed_path = arg->data.string_value.value;
-                        char resolved[4096];
-                        const char *source_file = NODE_FILE(checker, node);
-                        if (embed_path[0] != '/' && source_file) {
-                            const char *last_slash = strrchr(source_file, '/');
-                            if (last_slash) {
-                                snprintf(resolved, sizeof(resolved), "%.*s%s",
-                                    (int)(last_slash - source_file + 1), source_file, embed_path);
-                            } else {
-                                snprintf(resolved, sizeof(resolved), "%s", embed_path);
-                            }
-                        } else {
-                            snprintf(resolved, sizeof(resolved), "%s", embed_path);
-                        }
-                        /* Reject path traversal outside the source directory */
-                        char real_embed[4096];
-                        char real_src_dir[4096];
-                        if (realpath(resolved, real_embed)) {
-                            bool escaped = true;
-                            if (source_file) {
-                                const char *last_slash2 = strrchr(source_file, '/');
-                                if (last_slash2) {
-                                    char src_dir[4096];
-                                    snprintf(src_dir, sizeof(src_dir), "%.*s",
-                                        (int)(last_slash2 - source_file), source_file);
-                                    if (realpath(src_dir, real_src_dir)) {
-                                        size_t dir_len = strlen(real_src_dir);
-                                        if (strncmp(real_embed, real_src_dir, dir_len) == 0 &&
-                                            (real_embed[dir_len] == '/' || real_embed[dir_len] == '\0')) {
-                                            escaped = false;
-                                        }
-                                    }
-                                } else {
-                                    /* source file has no directory component — cwd is the root */
-                                    if (realpath(".", real_src_dir)) {
-                                        size_t dir_len = strlen(real_src_dir);
-                                        if (strncmp(real_embed, real_src_dir, dir_len) == 0 &&
-                                            (real_embed[dir_len] == '/' || real_embed[dir_len] == '\0')) {
-                                            escaped = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if (escaped) {
-                                diagnostic_error_code(checker->diag, "E5027",
-                                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                                goto embed_done;
-                            }
-                        }
-                        FILE *ef = fopen(resolved, "r");
-                        if (!ef) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "embed() cannot open '%s': file not found or unreadable",
-                                embed_path);
-                            diagnostic_error_message(checker->diag, "E5018", msg,
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                        } else {
-                            fclose(ef);
-                        }
-                        embed_done:;
-                    }
-                }
-                result = &TYPE_STRING;
-            } else if (strcmp(function_name, "error") == 0) {
-                result = type_from_name("Error");
-            } else if (strcmp(function_name, "println") == 0 || strcmp(function_name, "eprintln") == 0) {
-                /* println/eprintln accept 0 or 1 arguments */
-                if (node->data.call.arg_count > 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "%s() expects 0 or 1 argument(s), got %d",
-                        function_name, node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                if (node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
-                    if (at->kind == TK_FUNCTION) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "cannot pass a func reference to %s(); func references are not printable values",
-                            function_name);
-                        diagnostic_error_message(checker->diag, "E5028", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    if (at->kind == TK_ENUM && at->name && typechecker_enum_is_tagged(checker, at->name)) {
-                        diagnostic_error_code_formatted(checker->diag, "E5038",
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                            enum_display_name(checker, at->name), function_name);
-                    }
-                    char context[TYPE_NAME_MAX];
-                    snprintf(context, sizeof(context), "%s() argument", function_name);
-                    reject_void_in_context(checker, node->data.call.args[0], at, context);
-                }
-                result = &TYPE_VOID;
-            } else if (strcmp(function_name, "print") == 0 || strcmp(function_name, "eprint") == 0) {
-                /* print/eprint accept exactly 1 argument */
-                if (node->data.call.arg_count != 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "%s() expects 1 argument, got %d",
-                        function_name, node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                if (node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
-                    if (at->kind == TK_FUNCTION) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "cannot pass a func reference to %s(); func references are not printable values",
-                            function_name);
-                        diagnostic_error_message(checker->diag, "E5028", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    if (at->kind == TK_ENUM && at->name && typechecker_enum_is_tagged(checker, at->name)) {
-                        diagnostic_error_code_formatted(checker->diag, "E5038",
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                            enum_display_name(checker, at->name), function_name);
-                    }
-                    char context[TYPE_NAME_MAX];
-                    snprintf(context, sizeof(context), "%s() argument", function_name);
-                    reject_void_in_context(checker, node->data.call.args[0], at, context);
-                }
-                result = &TYPE_VOID;
-            } else if (strcmp(function_name, "exit") == 0 || strcmp(function_name, "panic") == 0 ||
-                       strcmp(function_name, "assert") == 0 ||
-                       strcmp(function_name, "sleep_s") == 0 ||
-                       strcmp(function_name, "sleep_ms") == 0 ||
-                       strcmp(function_name, "sleep_ns") == 0) {
-                /* Validate argument types for these builtins */
-                if (strcmp(function_name, "exit") == 0 && node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
-                    if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "exit() expects an integer argument, got '%s'", type_name(at));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                } else if (strcmp(function_name, "panic") == 0 && node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
-                    if (at->kind != TK_UNKNOWN && at->kind != TK_STRING) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "panic() expects a string argument, got '%s'", type_name(at));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                } else if (strcmp(function_name, "assert") == 0 && node->data.call.arg_count >= 1) {
-                    GrayType *cond_t = resolve_expression(checker, node->data.call.args[0]);
-                    if (cond_t->kind != TK_UNKNOWN && cond_t->kind != TK_BOOL) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "assert() condition must be a bool, got '%s'", type_name(cond_t));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    if (node->data.call.arg_count >= 2) {
-                        GrayType *msg_t = resolve_expression(checker, node->data.call.args[1]);
-                        if (msg_t->kind != TK_UNKNOWN && msg_t->kind != TK_STRING) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "assert() message must be a string, got '%s'", type_display_name(checker, msg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                        }
-                    }
-                } else if ((strcmp(function_name, "sleep_s") == 0 || strcmp(function_name, "sleep_ms") == 0 ||
-                            strcmp(function_name, "sleep_ns") == 0) && node->data.call.arg_count >= 1) {
-                    GrayType *at = resolve_expression(checker, node->data.call.args[0]);
-                    if (at->kind != TK_UNKNOWN && !is_int_kind(at->kind)) {
-                        char *msg = NULL;
-                        msg = typechecker_format(checker,
-                            "%s() expects an integer argument, got '%s'", function_name, type_name(at));
-                        diagnostic_error_message(checker->diag, "E3001", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                }
-                result = &TYPE_VOID;
-            } else if (strcmp(function_name, "copy") == 0 && node->data.call.arg_count == 1) {
-                result = resolve_expression(checker, node->data.call.args[0]);
-                if (result->kind == TK_FUNCTION) {
-                    diagnostic_error_message(checker->diag, "E5029",
-                        arena_copy_string(checker->arena, "copy() cannot be used on a func reference; func references are compile-time aliases, not copyable values"),
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    result = &TYPE_UNKNOWN;
-                } else if (result->kind == TK_POINTER) {
-                    diagnostic_error_code(checker->diag, "E5037",
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (strcmp(function_name, "char") == 0) {
-                /* E5008: char() requires exactly 1 argument */
-                if (node->data.call.arg_count != 1) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "char() expects 1 argument, got %d",
-                        node->data.call.arg_count);
-                    diagnostic_error_message(checker->diag, "E5008", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    result = &TYPE_CHAR;
-                    break;
-                }
-                /* E7014: char() with negative integer */
-                int64_t lit_val;
-                if (try_get_literal_int(node->data.call.args[0], &lit_val) && lit_val < 0) {
-                    diagnostic_error_code_formatted(checker->diag, "E7014", NODE_FILE(checker, node), node->token.line, node->token.column, 0, (long long)lit_val);
-                }
-                /* E3001: char() with a string literal that is not exactly one character */
-                GrayType *char_arg_t = resolve_expression(checker, node->data.call.args[0]);
-                if (char_arg_t->kind == TK_STRING) {
-                    AstNode *arg = node->data.call.args[0];
-                    if (arg->kind == NODE_STRING_VALUE) {
-                        int slen = (int)strlen(arg->data.string_value.value);
-                        if (slen != 1) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "char() requires a single-character string; got a string of length %d",
-                                slen);
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                        }
-                    }
-                }
-                result = &TYPE_CHAR;
-            } else if ((strcmp(function_name, "int") == 0 ||
-                        strcmp(function_name, "i128") == 0 ||
-                        strcmp(function_name, "i256") == 0 ||
-                        strcmp(function_name, "u128") == 0 ||
-                        strcmp(function_name, "u256") == 0 || strcmp(function_name, "uint") == 0 ||
-                        strcmp(function_name, "byte") == 0) &&
-                       node->data.call.arg_count == 1) {
-                /* E3043: validate source type is convertible to numeric */
-                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
-                if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
-                    src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "cannot convert %s to %s; only numeric types, strings, and bools can be converted",
-                        type_name(src_t), function_name);
-                    diagnostic_error_help(checker->diag, "E3043", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                        "only numeric, enum, and string conversions are supported");
-                }
-                if (strcmp(function_name, "byte") == 0)
-                    result = &TYPE_BYTE;
-                else if (is_unsigned_type(function_name))
-                    result = &TYPE_UINT;
-                else
-                    result = &TYPE_INT;
-            } else if (strcmp(function_name, "string") == 0 && node->data.call.arg_count == 1) {
-                /* E3043: validate source type is convertible to string */
-                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
-                if (src_t->kind == TK_STRING) {
-                    diagnostic_error_message(checker->diag, "E3043",
-                        arena_copy_string(checker->arena, "cannot convert string to string; value is already a string"),
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                } else if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
-                           src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "cannot convert %s to string; use string interpolation or access individual elements",
-                        type_name(src_t));
-                    diagnostic_error_message(checker->diag, "E3043", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                result = &TYPE_STRING;
-            } else if (strcmp(function_name, "float") == 0 && node->data.call.arg_count == 1) {
-                /* E3043: validate source type is convertible to float */
-                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
-                if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
-                    src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
-                    src_t->kind == TK_BOOL) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "cannot convert %s to float; only numeric types and strings can be converted",
-                        type_name(src_t));
-                    diagnostic_error_message(checker->diag, "E3043", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                result = &TYPE_FLOAT;
-            } else if (strcmp(function_name, "bool") == 0 && node->data.call.arg_count == 1) {
-                GrayType *src_t = resolve_expression(checker, node->data.call.args[0]);
-                if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
-                    src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
-                    src_t->kind == TK_STRING) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "cannot convert %s to bool; only numeric types and bools can be converted",
-                        type_name(src_t));
-                    diagnostic_error_message(checker->diag, "E3043", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-                result = &TYPE_BOOL;
-            } else if ((strcmp(function_name, "i8") == 0 || strcmp(function_name, "i16") == 0 ||
-                        strcmp(function_name, "i32") == 0 || strcmp(function_name, "i64") == 0 ||
-                        strcmp(function_name, "u8") == 0 || strcmp(function_name, "u16") == 0 ||
-                        strcmp(function_name, "u32") == 0 || strcmp(function_name, "u64") == 0 ||
-                        strcmp(function_name, "f32") == 0 || strcmp(function_name, "f64") == 0)) {
-                diagnostic_error_code_formatted(checker->diag, "E5036", NODE_FILE(checker, node),
-                    node->token.line, node->token.column, 0, function_name, function_name);
-                result = type_from_name(function_name);
-            } else {
-                FuncSig *sig = find_func(checker, function_name);
-                if (sig) {
-                    sig->used = true;
-                    /* Use the user-facing name in error messages, never
-                     * the module-prefixed internal key. */
-                    function_name = func_display_name(sig);
-                    /* : if this bare name is a using-module alias,
-                     * also mark the prefixed sig + import as used so
-                     * W1002/W1003 don't fire on the source. */
-                    for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
-                        if (!using_module_accessible(checker, using_index)) continue;
-                        const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
-                        char pfx[MSG_BUF_SIZE];
-                        snprintf(pfx, sizeof(pfx), "%s_%s", real_mod, function_name);
-                        FuncSig *psig = find_func(checker, pfx);
-                        if (psig) {
-                            psig->used = true;
-                            for (int mi = 0; mi < checker->import_count; mi++) {
-                                if (strcmp(checker->imported_modules[mi], checker->using_modules[using_index]) == 0 ||
-                                    strcmp(checker->imported_modules[mi], real_mod) == 0) {
-                                    checker->import_used[mi] = true;
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    /* Resolve named arguments before checking counts/types */
-                    if (sig->decl) {
-                        typechecker_resolve_named_arguments(checker, node, sig->decl, function_name);
-                    }
-                    /* Check argument count; account for default parameters */
-                    int min_args = sig->param_count;
-                    if (sig->decl && sig->decl->kind == NODE_FUNC_DECL) {
-                        min_args = 0;
-                        for (int parameter_index = 0; parameter_index < sig->decl->data.func_decl.param_count; parameter_index++) {
-                            if (!sig->decl->data.func_decl.params[parameter_index].default_value)
-                                min_args++;
-                        }
-                    }
-                    if (node->data.call.arg_count < min_args ||
-                        node->data.call.arg_count > sig->param_count) {
-                        char *msg = NULL;
-                        if (min_args == sig->param_count) {
-                            msg = typechecker_format(checker,
-                                "function '%s' expects %d argument(s), got %d",
-                                function_name, sig->param_count, node->data.call.arg_count);
-                        } else {
-                            msg = typechecker_format(checker,
-                                "function '%s' expects %d-%d argument(s), got %d",
-                                function_name, min_args, sig->param_count, node->data.call.arg_count);
-                        }
-                        diagnostic_error_message(checker->diag, "E5008", msg,
-                            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    }
-                    /* Generic (wildcard) dispatch: unify each '?' parameter
-                     * against the corresponding argument to derive a single
-                     * concrete binding T, record the instantiation, and
-                     * substitute T into the return type. Skip the normal
-                     * per-arg check below since '?' would otherwise collapse
-                     * to TK_UNKNOWN and produce no useful errors. */
-                    char *generic_binding = NULL;
-                    GrayType *generic_return_t = NULL;
-                    bool is_generic_call = sig->is_generic && sig->decl &&
-                        sig->decl->kind == NODE_FUNC_DECL;
-                    if (is_generic_call) {
-                        int clamped_argument_count = node->data.call.arg_count < sig->decl->data.func_decl.param_count
-                            ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
-                        for (int argument_index = 0; argument_index < clamped_argument_count; argument_index++) {
-                            const char *ptn = sig->decl->data.func_decl.params[argument_index].type_name;
-                            /* Type parameter (<?>) — binding comes from the label
-                             * (a struct name), not from resolve_expression. */
-                            if (sig->decl->data.func_decl.params[argument_index].is_type_param) {
-                                if (node->data.call.args[argument_index]->kind != NODE_LABEL) {
-                                    diagnostic_error_code(checker->diag, "E3128",
-                                        NODE_FILE(checker, node->data.call.args[argument_index]),
-                                        node->data.call.args[argument_index]->token.line,
-                                        node->data.call.args[argument_index]->token.column, 0);
-                                    continue;
-                                }
-                                const char *arg_label = node->data.call.args[argument_index]->data.label.value;
-                                /* Must not be a variable in scope */
-                                if (scope_lookup(checker->current_scope, arg_label)) {
-                                    diagnostic_error_code(checker->diag, "E3128",
-                                        NODE_FILE(checker, node->data.call.args[argument_index]),
-                                        node->data.call.args[argument_index]->token.line,
-                                        node->data.call.args[argument_index]->token.column, 0);
-                                    continue;
-                                }
-                                /* Must be a struct name */
-                                if (!is_struct_name(checker, arg_label)) {
-                                    diagnostic_error_code_formatted(checker->diag, "E3127",
-                                        NODE_FILE(checker, node->data.call.args[argument_index]),
-                                        node->data.call.args[argument_index]->token.line,
-                                        node->data.call.args[argument_index]->token.column, 0,
-                                        arg_label);
-                                    continue;
-                                }
-                                if (!generic_binding) {
-                                    generic_binding = (char *)arg_label;
-                                }
-                                continue;
-                            }
-                            GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
-                            if (!type_name_has_wildcard(ptn)) continue;
-                            /* E3100: struct/enum type name passed as a value argument */
-                            if (at->kind == TK_UNKNOWN &&
-                                node->data.call.args[argument_index]->kind == NODE_LABEL) {
-                                const char *arg_label = node->data.call.args[argument_index]->data.label.value;
-                                if (!scope_lookup(checker->current_scope, arg_label)) {
-                                    if (is_struct_name(checker, arg_label)) {
-                                        char *msg = NULL;
-                                        msg = typechecker_format(checker,
-                                            "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
-                                            arg_label, arg_label, arg_label);
-                                        diagnostic_error_message(checker->diag, "E3100", msg,
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                        continue;
-                                    } else if (is_enum_name(checker, arg_label)) {
-                                        char *msg = NULL;
-                                        msg = typechecker_format(checker,
-                                            "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
-                                            arg_label, arg_label);
-                                        diagnostic_error_message(checker->diag, "E3100", msg,
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                        continue;
-                                    }
-                                }
-                            }
-                            char *bound = bind_wildcard(ptn, at);
-                            if (!bound) {
-                                /* arg is TK_UNKNOWN: we are inside a generic
-                                 * function body during the main pass and the
-                                 * outer param hasn't been bound yet. The
-                                 * re-check pass will validate with concrete
-                                 * types — skip the false-positive here. */
-                                if (at->kind == TK_UNKNOWN) continue;
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
-                                    ptn, argument_index + 1, function_name, type_name(at));
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                    node->data.call.args[argument_index]->token.column, 0);
-                                continue;
-                            }
-                            if (!generic_binding) {
-                                generic_binding = bound;
-                            } else if (strcmp(generic_binding, bound) != 0) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "wildcard type conflict in '%s': '?' was bound to %s, but argument %d is %s",
-                                    function_name, generic_binding, argument_index + 1, bound);
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                    node->data.call.args[argument_index]->token.column, 0);
-                                free(bound);
-                            } else {
-                                free(bound);
-                            }
-                        }
-                        if (generic_binding) {
-                            record_instantiation(sig, generic_binding, node);
-                            if (sig->decl->data.func_decl.return_type_count > 0) {
-                                char *rt_str = substitute_wildcard(
-                                    sig->decl->data.func_decl.return_types[0],
-                                    generic_binding);
-                                generic_return_t = type_from_name(rt_str);
-                                /* rt_str is owned by type_from_name on the
-                                 * heap path; leak is fine at compile time. */
-                            } else {
-                                generic_return_t = &TYPE_VOID;
-                            }
-                        }
-                    }
-
-                    /* Check argument types */
-                    int check_count = node->data.call.arg_count < sig->param_count
-                        ? node->data.call.arg_count : sig->param_count;
-                    for (int argument_index = 0; argument_index < check_count; argument_index++) {
-                        /* Skip type parameters — no value to type-check */
-                        if (sig->decl && sig->decl->kind == NODE_FUNC_DECL &&
-                            argument_index < sig->decl->data.func_decl.param_count &&
-                            sig->decl->data.func_decl.params[argument_index].is_type_param)
-                            continue;
-                        GrayType *param_t = sig->param_types[argument_index];
-                        /* Set expected_type for implicit enum resolution */
-                        GrayType *saved_expected = checker->expected_type;
-                        if (param_t && param_t->kind == TK_ENUM && param_t->name)
-                            checker->expected_type = param_t;
-                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[argument_index]);
-                        checker->expected_type = saved_expected;
-                        if (is_generic_call) {
-                            /* Generic branch already handled unification;
-                             * suppress the scalar param/arg comparison which
-                             * would compare against TK_UNKNOWN. */
-                            continue;
-                        }
-                        /* E3100: struct/enum type name passed as a value argument */
-                        if (arg_t->kind == TK_UNKNOWN &&
-                            node->data.call.args[argument_index]->kind == NODE_LABEL &&
-                            function_name && strcmp(function_name, "size_of") != 0) {
-                            const char *arg_label = node->data.call.args[argument_index]->data.label.value;
-                            if (!scope_lookup(checker->current_scope, arg_label)) {
-                                if (is_struct_name(checker, arg_label)) {
-                                    char *msg = NULL;
-                                    msg = typechecker_format(checker,
-                                        "type name '%s' cannot be used as a value; to create an instance use 'new(%s)' or '%s{...}'",
-                                        arg_label, arg_label, arg_label);
-                                    diagnostic_error_message(checker->diag, "E3100", msg,
-                                        NODE_FILE(checker, node->data.call.args[argument_index]),
-                                        node->data.call.args[argument_index]->token.line,
-                                        node->data.call.args[argument_index]->token.column, 0);
-                                    continue;
-                                } else if (is_enum_name(checker, arg_label)) {
-                                    char *msg = NULL;
-                                    msg = typechecker_format(checker,
-                                        "type name '%s' cannot be used as a value; use '%s.VARIANT' to access an enum value",
-                                        arg_label, arg_label);
-                                    diagnostic_error_message(checker->diag, "E3100", msg,
-                                        NODE_FILE(checker, node->data.call.args[argument_index]),
-                                        node->data.call.args[argument_index]->token.line,
-                                        node->data.call.args[argument_index]->token.column, 0);
-                                    continue;
-                                }
-                            }
-                        }
-                        if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
-                            arg_t->kind != param_t->kind &&
-                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
-                            !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
-                            !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
-                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
-                            !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s': expected %s, got %s",
-                                argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Enum-to-enum: kinds both TK_ENUM but different names */
-                        if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
-                            arg_t->name && param_t->name &&
-                            !typechecker_same_enum_type(checker, arg_t->name, param_t->name)) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s': expected enum '%s', got enum '%s'",
-                                argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Struct-to-struct: kinds both TK_STRUCT but different names */
-                        if (arg_t->kind == TK_STRUCT && param_t->kind == TK_STRUCT &&
-                            arg_t->name && param_t->name &&
-                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s': expected struct '%s', got struct '%s'",
-                                argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Pointer-to-pointer: pointee types differ (e.g., addr(Color) to ^Point) */
-                        if (arg_t->kind == TK_POINTER && param_t->kind == TK_POINTER &&
-                            arg_t->name && param_t->name &&
-                            !typechecker_same_struct_type(checker, arg_t->name, param_t->name)) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s': expected '%s', got '%s'",
-                                argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3001", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* Bigint narrowing in call argument: i128 arg to i64 param, etc. */
-                        if (arg_t->name && param_t->name) {
-                            int ar = int_type_name_rank(arg_t->name);
-                            int pr = int_type_name_rank(param_t->name);
-                            if (ar >= 5 && pr > 0 && pr < ar) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "argument %d of '%s': cannot implicitly narrow %s to %s; use %s() to convert explicitly",
-                                    argument_index + 1, function_name, arg_t->name, param_t->name, param_t->name);
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                    node->data.call.args[argument_index]->token.column, 0);
-                            }
-                        }
-                        /* Array element type mismatch */
-                        if (arg_t->kind == TK_ARRAY && param_t->kind == TK_ARRAY &&
-                            arg_t->element_type && param_t->element_type &&
-                            !typechecker_same_array_element(checker, arg_t->element_type, param_t->element_type)) {
-                            GrayType *ae = type_from_name(arg_t->element_type);
-                            GrayType *pe = type_from_name(param_t->element_type);
-                            if (!(ae && pe && is_int_kind(ae->kind) && is_int_kind(pe->kind))) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "argument %d of '%s': expected '%s', got '%s'",
-                                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                    node->data.call.args[argument_index]->token.column, 0);
-                            }
-                        }
-                        /* Map key/value type mismatch */
-                        if (arg_t->kind == TK_MAP && param_t->kind == TK_MAP) {
-                            bool key_mismatch = arg_t->key_type && param_t->key_type &&
-                                strcmp(arg_t->key_type, param_t->key_type) != 0;
-                            bool val_mismatch = arg_t->value_type && param_t->value_type &&
-                                strcmp(arg_t->value_type, param_t->value_type) != 0;
-                            if (key_mismatch || val_mismatch) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "argument %d of '%s': expected '%s', got '%s'",
-                                    argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                    node->data.call.args[argument_index]->token.column, 0);
-                            }
-                        }
-                        /* E3066: typed-func signatures must match exactly */
-                        if (arg_t->kind == TK_FUNCTION && param_t->kind == TK_FUNCTION &&
-                            arg_t->name && param_t->name &&
-                            strcmp(arg_t->name, param_t->name) != 0) {
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "argument %d of '%s': expected %s, got %s",
-                                argument_index + 1, function_name, type_display_name(checker, param_t), type_display_name(checker, arg_t));
-                            diagnostic_error_message(checker->diag, "E3066", msg,
-                                NODE_FILE(checker, node->data.call.args[argument_index]), node->data.call.args[argument_index]->token.line,
-                                node->data.call.args[argument_index]->token.column, 0);
-                        }
-                        /* E3027: non-assignable or const passed to mutable (&) param */
-                        {
-                            AstNode *arg = node->data.call.args[argument_index];
-                            for (int field_index = 0; field_index < checker->program->data.program.stmt_count; field_index++) {
-                                AstNode *s = checker->program->data.program.stmts[field_index];
-                                if (s->kind != NODE_FUNC_DECL ||
-                                    strcmp(s->data.func_decl.name, function_name) != 0 ||
-                                    argument_index >= s->data.func_decl.param_count ||
-                                    !s->data.func_decl.params[argument_index].mutable)
-                                    continue;
-                                check_mutable_arg(checker, arg,
-                                    s->data.func_decl.params[argument_index].name, function_name);
-                                break;
-                            }
-                        }
-                    }
-                    if (is_generic_call && generic_return_t) {
-                        result = generic_return_t;
-                    } else if (sig->return_count > 0) {
-                        result = sig->return_types[0];
-                    } else {
-                        result = &TYPE_VOID;
-                    }
-                } else {
-                    /* Check if it's a variable holding a function reference */
-                    Symbol *fn_sym = scope_lookup(checker->current_scope, function_name);
-                    bool is_typed_func = fn_sym && fn_sym->type && fn_sym->type->kind == TK_FUNCTION;
-                    bool is_bare_func = fn_sym && fn_sym->type && type_name(fn_sym->type) &&
-                                        strcmp(type_name(fn_sym->type), "func") == 0;
-                    if (is_typed_func || is_bare_func) {
-                        fn_sym->used = true;
-                        /* Record the variable's type on the call.function
-                         * label node so codegen can pick up the typed-func
-                         * signature for cast emission. */
-                        if (!checker->suppress_typetable_writes) {
-                            typetable_set(checker->type_table, node->data.call.function, fn_sym->type);
-                        }
-                        result = &TYPE_UNKNOWN; /* callable func ref; return type unknown */
-                        /* If we know which static function this var holds,
-                         * validate arity + argument types at compile time
-                         * and propagate the real return type. */
-                        FuncSig *ref_sig = fn_sym->func_ref_name
-                            ? find_func(checker, fn_sym->func_ref_name) : NULL;
-                        if (ref_sig) {
-                            /* : compute min arity by counting
-                             * params without default values. */
-                            int min_arity = ref_sig->param_count;
-                            if (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL) {
-                                min_arity = 0;
-                                for (int parameter_index = 0; parameter_index < ref_sig->decl->data.func_decl.param_count; parameter_index++) {
-                                    if (!ref_sig->decl->data.func_decl.params[parameter_index].default_value)
-                                        min_arity++;
-                                }
-                            }
-                            int ac = node->data.call.arg_count;
-                            if (ac < min_arity || ac > ref_sig->param_count) {
-                                char *msg = NULL;
-                                if (min_arity == ref_sig->param_count) {
-                                    msg = typechecker_format(checker,
-                                        "function '%s' expects %d argument(s), got %d",
-                                        func_display_name(ref_sig), ref_sig->param_count, ac);
-                                } else {
-                                    msg = typechecker_format(checker,
-                                        "function '%s' expects %d to %d argument(s), got %d",
-                                        func_display_name(ref_sig), min_arity, ref_sig->param_count, ac);
-                                }
-                                diagnostic_error_message(checker->diag, "E5008", msg,
-                                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                            } else {
-                                for (int argument_index = 0; argument_index < ref_sig->param_count; argument_index++) {
-                                    GrayType *at = resolve_expression(checker, node->data.call.args[argument_index]);
-                                    GrayType *pt = ref_sig->param_types[argument_index];
-                                    if (at && pt && at->kind != TK_UNKNOWN &&
-                                        pt->kind != TK_UNKNOWN &&
-                                        at->kind != pt->kind &&
-                                        !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
-                                        !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
-                                        char *msg = NULL;
-                                        msg = typechecker_format(checker,
-                                            "argument %d of '%s': expected %s, got %s",
-                                            argument_index + 1, func_display_name(ref_sig),
-                                            type_display_name(checker, pt), type_display_name(checker, at));
-                                        diagnostic_error_message(checker->diag, "E3001", msg,
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                    }
-                                    /* Enum-to-enum: different enum types */
-                                    if (at && pt && at->kind == TK_ENUM && pt->kind == TK_ENUM &&
-                                        at->name && pt->name &&
-                                        strcmp(at->name, pt->name) != 0) {
-                                        char *msg = NULL;
-                                        msg = typechecker_format(checker,
-                                            "argument %d of '%s': expected enum '%s', got enum '%s'",
-                                            argument_index + 1, func_display_name(ref_sig), enum_display_name(checker, pt->name), enum_display_name(checker, at->name));
-                                        diagnostic_error_message(checker->diag, "E3001", msg,
-                                            NODE_FILE(checker, node->data.call.args[argument_index]),
-                                            node->data.call.args[argument_index]->token.line,
-                                            node->data.call.args[argument_index]->token.column, 0);
-                                    }
-                                    /* E3027: non-assignable or const passed to mutable (&) param */
-                                    {
-                                        AstNode *arg = node->data.call.args[argument_index];
-                                        const char *ref_name = fn_sym->func_ref_name;
-                                        for (int field_index = 0; field_index < checker->program->data.program.stmt_count; field_index++) {
-                                            AstNode *s = checker->program->data.program.stmts[field_index];
-                                            if (s->kind != NODE_FUNC_DECL ||
-                                                strcmp(s->data.func_decl.name, ref_name) != 0 ||
-                                                argument_index >= s->data.func_decl.param_count ||
-                                                !s->data.func_decl.params[argument_index].mutable)
-                                                continue;
-                                            check_mutable_arg(checker, arg,
-                                                s->data.func_decl.params[argument_index].name, func_display_name(ref_sig));
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            if (ref_sig->return_count > 0)
-                                result = ref_sig->return_types[0];
-                            else
-                                result = &TYPE_VOID;
-                        } else if (is_typed_func && fn_sym->type->func_sig) {
-                            /* No source FuncSig; validate against the typed-
-                             * func signature from the variable's annotated type
-                             * (e.g. callback parameters: do f(g func(int)->int)). */
-                            GrayFuncSig *sig = fn_sym->type->func_sig;
-                            int ac = node->data.call.arg_count;
-                            if (ac != sig->param_count) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "function reference '%s' expects %d argument(s), got %d",
-                                    function_name, sig->param_count, ac);
-                                diagnostic_error_message(checker->diag, "E5008", msg,
-                                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                            } else {
-                                for (int argument_index = 0; argument_index < sig->param_count; argument_index++) {
-                                    AstNode *arg = node->data.call.args[argument_index];
-                                    GrayType *at = resolve_expression(checker, arg);
-                                    GrayType *pt = sig->param_types[argument_index] ? type_from_name(sig->param_types[argument_index]) : NULL;
-                                    if (at && pt && at->kind != TK_UNKNOWN && pt->kind != TK_UNKNOWN &&
-                                        at->kind != pt->kind &&
-                                        !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
-                                        !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
-                                        char *msg = NULL;
-                                        msg = typechecker_format(checker,
-                                            "argument %d of '%s': expected %s, got %s",
-                                            argument_index + 1, function_name,
-                                            type_display_name(checker, pt), type_display_name(checker, at));
-                                        diagnostic_error_message(checker->diag, "E3001", msg,
-                                            NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
-                                    }
-                                    /* E3027/E3067: `&` param requires an assignment target */
-                                    if (sig->param_mutable[argument_index]) {
-                                        bool is_enum_const = (arg->kind == NODE_MEMBER_EXPR &&
-                                                              arg->data.member.object->kind == NODE_LABEL &&
-                                                              is_enum_name(checker, arg->data.member.object->data.label.value));
-                                        bool is_assignable = !is_enum_const &&
-                                                         (arg->kind == NODE_LABEL ||
-                                                          arg->kind == NODE_MEMBER_EXPR ||
-                                                          arg->kind == NODE_INDEX_EXPR);
-                                        if (is_enum_const) {
-                                            char emsg[MSG_BUF_SIZE];
-                                            snprintf(emsg, sizeof(emsg),
-                                                "cannot pass enum constant to '&' parameter %d of '%s'; expected a mutable variable",
-                                                argument_index + 1, function_name);
-                                            diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
-                                        } else if (!is_assignable) {
-                                            diagnostic_error_code_formatted(checker->diag, "E3067", NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0, argument_index + 1, function_name);
-                                        } else if (arg->kind == NODE_LABEL) {
-                                            Symbol *as = scope_lookup(checker->current_scope, arg->data.label.value);
-                                            if (as && !as->mutable) {
-                                                char emsg[MSG_BUF_SIZE];
-                                                snprintf(emsg, sizeof(emsg),
-                                                    "cannot pass constant '%s' to '&' parameter %d of '%s'",
-                                                    as->name, argument_index + 1, function_name);
-                                                diagnostic_error_message(checker->diag, "E3027", arena_copy_string(checker->arena, emsg),
-                                                    NODE_FILE(checker, arg), arg->token.line, arg->token.column, 0);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (sig->return_count > 0 && sig->return_types[0]) {
-                                result = type_from_name(sig->return_types[0]);
-                            } else {
-                                result = &TYPE_VOID;
-                            }
-                        }
-                    } else if (fn_sym && fn_sym->type) {
-                        /* Variable exists but is not a function */
-                        diagnostic_error_code_formatted(checker->diag, "E3015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, function_name, type_display_name(checker, fn_sym->type));
-                    } else if (!typechecker_is_builtin(function_name)) {
-                        /* Check if it's a function from a 'using' module */
-                        bool found_in_using = false;
-                        /* Check for math functions whose return type depends on argument */
-                        if (!found_in_using && (strcmp(function_name, "abs") == 0 || strcmp(function_name, "neg") == 0 ||
-                            strcmp(function_name, "min") == 0 || strcmp(function_name, "max") == 0 ||
-                            strcmp(function_name, "clamp") == 0)) {
-                            for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
-                                if (!using_module_accessible(checker, using_index)) continue;
-                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
-                                if (strcmp(real_mod, "math") == 0) {
-                                    found_in_using = true;
-                                    if (node->data.call.arg_count > 0) {
-                                        GrayType *arg_t = resolve_expression(checker, node->data.call.args[0]);
-                                        result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
-                                    } else {
-                                        result = &TYPE_INT;
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                        /* Random functions whose return type depends on argument */
-                        if (!found_in_using && (strcmp(function_name, "choice") == 0 ||
-                            strcmp(function_name, "shuffle") == 0 || strcmp(function_name, "sample") == 0)) {
-                            for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
-                                if (!using_module_accessible(checker, using_index)) continue;
-                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
-                                if (strcmp(real_mod, "random") == 0) {
-                                    found_in_using = true;
-                                    if (node->data.call.arg_count > 0) {
-                                        GrayType *arr_t = resolve_expression(checker, node->data.call.args[0]);
-                                        if (strcmp(function_name, "choice") == 0) {
-                                            result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
-                                        } else {
-                                            result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
-                                        }
-                                    } else {
-                                        result = (strcmp(function_name, "choice") == 0) ? &TYPE_INT : type_array("int");
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                        /* Maps functions whose return type depends on map key/value types */
-                        if (!found_in_using && (strcmp(function_name, "get_keys") == 0 || strcmp(function_name, "get_values") == 0)) {
-                            for (int using_index = 0; using_index < checker->using_module_count; using_index++) {
-                                if (!using_module_accessible(checker, using_index)) continue;
-                                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
-                                if (strcmp(real_mod, "maps") == 0) {
-                                    found_in_using = true;
-                                    if (node->data.call.arg_count > 0) {
-                                        GrayType *map_t = resolve_expression(checker, node->data.call.args[0]);
-                                        if (strcmp(function_name, "get_keys") == 0)
-                                            result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
-                                        else
-                                            result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
-                                    } else {
-                                        result = type_array("string");
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                        for (int using_index = 0; using_index < checker->using_module_count && !found_in_using; using_index++) {
-                            if (!using_module_accessible(checker, using_index)) continue;
-                            const char *umod = checker->using_modules[using_index];
-                            /* Resolve alias to actual module name */
-                            const char *real_mod = typechecker_resolve_alias(checker, umod);
-                            /* 1) Try hardcoded stdlib table */
-                            for (int field_index = 0; _using_funcs[field_index].func; field_index++) {
-                                if (strcmp(function_name, _using_funcs[field_index].func) == 0 &&
-                                    strcmp(real_mod, _using_funcs[field_index].mod) == 0) {
-                                    found_in_using = true;
-                                    switch (_using_funcs[field_index].return_kind) {
-                                    case TK_STRING: result = &TYPE_STRING; break;
-                                    case TK_FLOAT:  result = &TYPE_FLOAT; break;
-                                    case TK_BOOL:   result = &TYPE_BOOL; break;
-                                    case TK_INT:    result = &TYPE_INT; break;
-                                    case TK_VOID:   result = &TYPE_VOID; break;
-                                    default:        result = &TYPE_UNKNOWN; break;
-                                    }
-                                    break;
-                                }
-                            }
-                            /* 2) Try user-defined module: look up <module>_<func> */
-                            if (!found_in_using) {
-                                char prefixed[MSG_BUF_SIZE];
-                                snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, function_name);
-                                FuncSig *sig = find_func(checker, prefixed);
-                                if (sig) {
-                                    if (sig->is_private) {
-                                        diagnostic_error_code_formatted(checker->diag, "E4015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, function_name);
-                                        found_in_using = true;
-                                    } else {
-                                        found_in_using = true;
-                                        if (sig->return_count > 0) {
-                                            result = sig->return_types[0];
-                                        } else {
-                                            result = &TYPE_VOID;
-                                        }
-                                        sig->used = true;
-                                    }
-                                }
-                            }
-                            if (found_in_using) {
-                                /* Mark module as used */
-                                for (int mi = 0; mi < checker->import_count; mi++) {
-                                    if (strcmp(checker->imported_modules[mi], umod) == 0 ||
-                                        strcmp(checker->imported_modules[mi], real_mod) == 0) {
-                                        checker->import_used[mi] = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        if (found_in_using) {
-                            /* Type already set above */
-                        } else {
-                            /* Check if it's a variable holding a function reference */
-                            Symbol *fn_sym = scope_lookup(checker->current_scope, function_name);
-                            if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
-                                fn_sym->used = true;
-                                result = &TYPE_UNKNOWN;
-                                /* Arity/type validation for func refs is done
-                                 * at the earlier func-var branch; avoid
-                                 * re-emitting the same diagnostic here. */
-                            } else {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker, "undefined function '%s'", function_name);
-                                const char *suggestion = suggest_similar_name(checker, function_name);
-                                /* Point at the function name, not the ( */
-                                AstNode *fn_node = node->data.call.function;
-                                int el = fn_node ? fn_node->token.line : node->token.line;
-                                int ec = fn_node ? fn_node->token.column : node->token.column;
-                                if (suggestion) {
-                                    char help[MSG_BUF_SIZE];
-                                    snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                                    diagnostic_error_help(checker->diag, "E4002", msg,
-                                        NODE_FILE(checker, node), el, ec, 0, arena_copy_string(checker->arena, help));
-                                } else {
-                                    diagnostic_error_message(checker->diag, "E4002", msg,
-                                        NODE_FILE(checker, node), el, ec, 0);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    case NODE_CALL_EXPR:
+        result = resolve_call_expr(checker, node);
         break;
-    }
 
-    case NODE_MEMBER_EXPR: {
-        /* Resolve object type first (sets type table entry for the object) */
-        AstNode *obj = node->data.member.object;
-        const char *member = node->data.member.member;
-
-        /* Handle mod.Enum.VALUE or mod.Struct.field triple chain */
-        if (obj->kind == NODE_MEMBER_EXPR &&
-            obj->data.member.object->kind == NODE_LABEL) {
-            const char *mod_name = obj->data.member.object->data.label.value;
-            const char *type_name = obj->data.member.member;
-            /* Build prefixed type name: mod_Type */
-            char prefixed_type[MSG_BUF_SIZE];
-            snprintf(prefixed_type, sizeof(prefixed_type), "%s_%s", mod_name, type_name);
-            /* Check if it's a module-qualified enum access */
-            if (is_enum_name(checker, prefixed_type)) {
-                bool is_str_enum = false;
-                for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
-                    if (strcmp(checker->enum_names[enum_index], prefixed_type) == 0) {
-                        is_str_enum = checker->enum_is_string[enum_index];
-                        break;
-                    }
-                }
-                /* Mark module as used */
-                for (int mi = 0; mi < checker->import_count; mi++) {
-                    if (strcmp(checker->imported_modules[mi], mod_name) == 0) {
-                        checker->import_used[mi] = true;
-                        break;
-                    }
-                }
-                result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
-                break;
-            }
-        }
-
-        resolve_expression(checker, obj);
-
-        if (obj->kind == NODE_LABEL) {
-            const char *obj_name = obj->data.label.value;
-
-            /* Mark module as used (for member access like math.PI) */
-            for (int mi = 0; mi < checker->import_count; mi++) {
-                if (strcmp(checker->imported_modules[mi], obj_name) == 0) {
-                    checker->import_used[mi] = true;
-                    break;
-                }
-            }
-
-            /* Check for module constants */
-            if (strcmp(obj_name, "math") == 0) {
-                result = &TYPE_FLOAT; /* PI, E, TAU, etc. */
-                break;
-            }
-            if (strcmp(obj_name, "os") == 0) {
-                result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
-                break;
-            }
-            if (strcmp(obj_name, "io") == 0) {
-                const char *mem = node->data.member.member;
-                if (strcmp(mem, "O_RDONLY") == 0 || strcmp(mem, "O_WRONLY") == 0 ||
-                    strcmp(mem, "O_RDWR") == 0) {
-                    result = &TYPE_INT;
-                    break;
-                }
-            }
-            if (strcmp(obj_name, "strconv") == 0) {
-                const char *mem = node->data.member.member;
-                if (strcmp(mem, "BASE_2") == 0 || strcmp(mem, "BASE_8") == 0 ||
-                    strcmp(mem, "BASE_10") == 0 || strcmp(mem, "BASE_16") == 0 ||
-                    strcmp(mem, "BASE_36") == 0) {
-                    result = &TYPE_INT;
-                    break;
-                }
-            }
-            if (strcmp(obj_name, "uuid") == 0) {
-                const char *mem = node->data.member.member;
-                if (strcmp(mem, "NIL_UUID") == 0) {
-                    result = type_struct("UUID");
-                    break;
-                }
-            }
-
-            /* Check if it's an enum access: Color.RED */
-            if (is_enum_name(checker, obj_name)) {
-                /* Check if this is a string enum and validate member exists */
-                bool is_str_enum = false;
-                bool member_found = false;
-                for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
-                    if (strcmp(checker->enum_names[enum_index], obj_name) == 0) {
-                        is_str_enum = checker->enum_is_string[enum_index];
-                        for (int variant_index = 0; variant_index < checker->enum_value_counts[enum_index]; variant_index++) {
-                            if (strcmp(checker->enum_values[enum_index][variant_index], member) == 0) {
-                                member_found = true;
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-                if (!member_found) {
-                    diagnostic_error_code_formatted(checker->diag, "E3047", NODE_FILE(checker, node), node->token.line, node->token.column, 0, obj_name, member);
-                }
-                result = type_enum(obj_name);
-                break;
-            }
-
-            /* C interop constant access: c.EOF, c.NULL, etc. */
-            if (strcmp(obj_name, "c") == 0 && typechecker_is_imported_module(checker, "c")) {
-                result = &TYPE_UNKNOWN;
-                break;
-            }
-
-            /* Check for user-module constant access: mod.CONST */
-            if (typechecker_is_imported_module(checker, obj_name)) {
-                char prefixed[MSG_BUF_SIZE];
-                snprintf(prefixed, sizeof(prefixed), "%s_%s", obj_name, member);
-                Symbol *mod_sym = scope_lookup(checker->current_scope, prefixed);
-                if (mod_sym) {
-                    mod_sym->used = true;
-                    result = mod_sym->type;
-                    /* Mark module as used */
-                    for (int mi = 0; mi < checker->import_count; mi++) {
-                        if (strcmp(checker->imported_modules[mi], obj_name) == 0) {
-                            checker->import_used[mi] = true;
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
-
-            /* Otherwise it's a struct field or multi-return access */
-            Symbol *sym = scope_lookup(checker->current_scope, obj_name);
-            /* Multi-return .v0/.v1 access takes priority over struct field
-             * lookup when the symbol has ret_types set. Without this, stdlib
-             * functions returning struct types (Socket, HttpResponse, etc.)
-             * would enter struct_field_type() which fails on .v0/.v1. */
-            if (sym && sym->ret_types && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
-                int idx = member[1] - '0';
-                if (idx < sym->ret_count) {
-                    result = sym->ret_types[idx];
-                } else {
-                    diagnostic_error_code_formatted(checker->diag, "E3006", NODE_FILE(checker, node), node->token.line, node->token.column, 0, sym->ret_count, idx + 1);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (sym && sym->type->kind == TK_STRUCT) {
-                result = struct_field_type(checker, sym->type->name, member);
-                /* : func-typed fields resolve as TK_UNKNOWN (name="func")
-                 * via type_from_name because "func" maps to TK_UNKNOWN. Don't
-                 * emit E3010 "no field" when the field genuinely exists; it's
-                 * just a func field. */
-                bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
-                                      strcmp(result->name, "func") == 0);
-                if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
-                    diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0, struct_display_name(checker, sym->type->name), member);
-                }
-            } else if (sym && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
-                /* Multi-return .v0/.v1/.v2 access; use stored return types */
-                int idx = member[1] - '0';
-                if (sym->ret_types && idx < sym->ret_count) {
-                    result = sym->ret_types[idx];
-                } else if (idx == 0) {
-                    result = sym->type;
-                } else if (sym->ret_types && idx >= sym->ret_count) {
-                    /* More variables than the function returns */
-                    diagnostic_error_code_formatted(checker->diag, "E3006", NODE_FILE(checker, node), node->token.line, node->token.column, 0, sym->ret_count, idx + 1);
-                    result = &TYPE_UNKNOWN;
-                } else if (!sym->ret_types && idx > 0) {
-                    /* Single-return function used in multi-variable assignment */
-                    diagnostic_error_message(checker->diag, "E3006",
-                        "too many variables; the function returns only 1 value",
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    result = &TYPE_UNKNOWN;
-                } else {
-                    result = type_from_name("Error"); /* fallback for (T, Error) pattern */
-                }
-            } else if (sym && sym->type->kind == TK_POINTER) {
-                /* Pointer auto-deref field access */
-                result = struct_field_type(checker, sym->type->element_type, member);
-                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
-                    diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0, sym->type->element_type, member);
-                }
-            } else if (sym && sym->type->kind == TK_ERROR) {
-                /* Error type has .message and .code string fields */
-                if (strcmp(member, "message") == 0 || strcmp(member, "code") == 0) {
-                    result = &TYPE_STRING;
-                } else {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "Error has no field '%s'; available fields: message, code",
-                        member);
-                    diagnostic_error_message(checker->diag, "E3010", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                    result = &TYPE_UNKNOWN;
-                }
-            } else if (sym && sym->type->kind != TK_UNKNOWN &&
-                       sym->type->kind != TK_STRUCT && sym->type->kind != TK_ENUM &&
-                       sym->type->kind != TK_POINTER &&
-                       !(member[0] == 'v' && member[1] >= '0' && member[1] <= '9')) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "type '%s' does not support access via dot notation",
-                    type_name(sym->type));
-                diagnostic_error_message(checker->diag, "E3013", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-            /* Struct-namespaced function or enum access: Type.func() / Type.MEMBER */
-            if (!sym && is_struct_name(checker, obj_name)) {
-                /* Check if member is a field; can't access fields on the type itself */
-                GrayType *ft = struct_field_type(checker, obj_name, member);
-                if (ft && ft->kind != TK_UNKNOWN) {
-                    diagnostic_error_code_formatted(checker->diag, "E3044", NODE_FILE(checker, node), node->token.line, node->token.column, 0, member, obj_name);
-                }
-                result = &TYPE_UNKNOWN;
-            }
-        } else if (obj->kind == NODE_MEMBER_EXPR) {
-            /* Check for module-qualified enum: lib.Color.RED */
-            if (obj->data.member.object->kind == NODE_LABEL) {
-                const char *mod = obj->data.member.object->data.label.value;
-                const char *type_n = obj->data.member.member;
-                if (mod[0] >= 'a' && mod[0] <= 'z' &&
-                    type_n[0] >= 'A' && type_n[0] <= 'Z') {
-                    char prefixed[MSG_BUF_SIZE];
-                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_n);
-                    if (is_enum_name(checker, prefixed)) {
-                        result = &TYPE_INT;
-                        /* Mark module as used */
-                        for (int mi = 0; mi < checker->import_count; mi++) {
-                            if (strcmp(checker->imported_modules[mi], mod) == 0) {
-                                checker->import_used[mi] = true;
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-            /* Nested member access: a.b.c; resolve a.b first, then look up .c */
-            GrayType *obj_t = typetable_get(checker->type_table, obj);
-            if (!obj_t) obj_t = resolve_expression(checker, obj);
-            if (obj_t && obj_t->kind == TK_STRUCT) {
-                result = struct_field_type(checker, obj_t->name, member);
-                bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
-                                      strcmp(result->name, "func") == 0);
-                if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
-                    diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                        struct_display_name(checker, obj_t->name), member);
-                }
-            } else if (obj_t && obj_t->kind == TK_POINTER) {
-                /* Auto-deref pointer field: a.next.val where a.next is ^Node */
-                result = struct_field_type(checker, obj_t->element_type, member);
-                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
-                    diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0,
-                        obj_t->element_type, member);
-                }
-            } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "type '%s' does not support access via dot notation",
-                    type_name(obj_t));
-                diagnostic_error_message(checker->diag, "E3013", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-        } else {
-            /* Object is an expression (e.g. foo().bar); resolve its type */
-            GrayType *obj_t = resolve_expression(checker, obj);
-            if (obj_t && obj_t->kind == TK_STRUCT) {
-                result = struct_field_type(checker, obj_t->name, member);
-            } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "type '%s' does not support access via dot notation",
-                    type_name(obj_t));
-                diagnostic_error_message(checker->diag, "E3013", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            }
-        }
+    case NODE_MEMBER_EXPR:
+        result = resolve_member_expr(checker, node);
         break;
-    }
 
     case NODE_INDEX_EXPR: {
         GrayType *left = resolve_expression(checker, node->data.index_expr.left);
@@ -6774,177 +7138,9 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
         break;
     }
 
-    case NODE_STRUCT_VALUE: {
-        const char *struct_name = node->data.struct_value.name;
-        /* Type parameter: rewrite T → "?" so codegen can substitute */
-        if (checker->type_param_name && strcmp(struct_name, checker->type_param_name) == 0) {
-            node->data.struct_value.name = "?";
-            struct_name = "?";
-        }
-        if (strcmp(struct_name, "?") == 0) {
-            /* During re-check with a binding, validate with concrete struct */
-            if (checker->type_param_binding) {
-                struct_name = checker->type_param_binding;
-            } else {
-                /* Main pass — skip field validation, return unknown */
-                for (int i = 0; i < node->data.struct_value.count; i++)
-                    resolve_expression(checker, node->data.struct_value.field_values[i]);
-                result = &TYPE_UNKNOWN;
-                break;
-            }
-        }
-        typechecker_mark_type_module_used(checker, struct_name);
-        StructInfo *si = find_struct(checker, struct_name);
-        /* E4016: reject undefined/unimported struct types in struct literals */
-        if (!si && !is_struct_name(checker, struct_name)) {
-            char *msg = NULL;
-            msg = typechecker_format(checker,
-                "undefined type '%s'; check the spelling or import the module that defines it",
-                struct_name);
-            diagnostic_error_message(checker->diag, "E4016", msg,
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            result = &TYPE_UNKNOWN;
-            break;
-        }
-        /* E2015: check for duplicate field names in struct literal */
-        for (int i = 0; i < node->data.struct_value.count; i++) {
-            if (!node->data.struct_value.field_names[i]) continue;
-            for (int j = 0; j < i; j++) {
-                if (!node->data.struct_value.field_names[j]) continue;
-                if (strcmp(node->data.struct_value.field_names[j],
-                           node->data.struct_value.field_names[i]) == 0) {
-                    diagnostic_error_code_formatted(checker->diag, "E2015", NODE_FILE(checker, node), node->token.line, node->token.column, 0, node->data.struct_value.field_names[i]);
-                    break;
-                }
-            }
-        }
-        for (int i = 0; i < node->data.struct_value.count; i++) {
-            /* Look up expected field type for implicit enum resolution */
-            GrayType *field_expected_t = NULL;
-            if (si && node->data.struct_value.field_names[i]) {
-                const char *fname_pre = node->data.struct_value.field_names[i];
-                for (int j = 0; j < si->field_count; j++) {
-                    if (strcmp(si->field_names[j], fname_pre) == 0) {
-                        field_expected_t = si->field_types[j];
-                        break;
-                    }
-                }
-            }
-            GrayType *saved_sv_expected = checker->expected_type;
-            if (field_expected_t && field_expected_t->kind == TK_ENUM && field_expected_t->name)
-                checker->expected_type = field_expected_t;
-            GrayType *val_t = resolve_expression(checker, node->data.struct_value.field_values[i]);
-            checker->expected_type = saved_sv_expected;
-            /* Validate field exists */
-            if (si && node->data.struct_value.field_names[i]) {
-                const char *fname = node->data.struct_value.field_names[i];
-                bool found = false;
-                GrayType *expected_t = NULL;
-                for (int j = 0; j < si->field_count; j++) {
-                    if (strcmp(si->field_names[j], fname) == 0) {
-                        found = true;
-                        expected_t = si->field_types[j];
-                        break;
-                    }
-                }
-                if (!found) {
-                    diagnostic_error_code_formatted(checker->diag, "E3010", NODE_FILE(checker, node), node->token.line, node->token.column, 0, struct_name, fname);
-                } else if (expected_t && val_t->kind != TK_UNKNOWN &&
-                           expected_t->kind != TK_UNKNOWN &&
-                           /* kinds differ, OR both are pointers to different types,
-                            * OR both are structs with different names */
-                           (expected_t->kind != val_t->kind ||
-                            (expected_t->kind == TK_POINTER &&
-                             expected_t->name && val_t->name &&
-                             strcmp(expected_t->name, val_t->name) != 0) ||
-                            (expected_t->kind == TK_STRUCT && val_t->kind == TK_STRUCT &&
-                             expected_t->name && val_t->name &&
-                             strcmp(expected_t->name, val_t->name) != 0)) &&
-                           !(is_int_kind(expected_t->kind) && val_t->kind == TK_ENUM) &&
-                           !(expected_t->kind == TK_ENUM && is_int_kind(val_t->kind)) &&
-                           !(expected_t->kind == TK_STRUCT && is_int_kind(val_t->kind)) &&
-                           !(is_int_kind(expected_t->kind) && val_t->kind == TK_STRUCT) &&
-                           !(expected_t->kind == TK_FLOAT && is_int_kind(val_t->kind)) &&
-                           /* nil is a valid value for pointer and Error fields */
-                           !(val_t->kind == TK_NIL &&
-                             (expected_t->kind == TK_POINTER || expected_t->kind == TK_ERROR))) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "field '%s' of struct '%s': expected %s, got %s",
-                        fname, struct_display_name(checker, struct_name), type_display_name(checker, expected_t), type_display_name(checker, val_t));
-                    diagnostic_error_message(checker->diag, "E3001", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-            }
-        }
-        /* : for generic structs, infer the wildcard binding from
-         * the field values and record the instantiation on the struct
-         * decl so codegen can emit per-binding typedefs. */
-        AstNode *sdecl = find_struct_in_program(checker->program, struct_name);
-        if (sdecl && sdecl->data.struct_decl.is_generic) {
-            const char *binding = NULL;
-            for (int i = 0; i < node->data.struct_value.count; i++) {
-                const char *fname = node->data.struct_value.field_names[i];
-                if (!fname) continue;
-                /* Find the field's declared type in the struct decl */
-                for (int j = 0; j < sdecl->data.struct_decl.field_count; j++) {
-                    if (strcmp(sdecl->data.struct_decl.fields[j].name, fname) == 0 &&
-                        sdecl->data.struct_decl.fields[j].type_name &&
-                        strcmp(sdecl->data.struct_decl.fields[j].type_name, "?") == 0) {
-                        GrayType *val_t = typetable_get(checker->type_table,
-                            node->data.struct_value.field_values[i]);
-                        if (!val_t) val_t = resolve_expression(checker, node->data.struct_value.field_values[i]);
-                        if (val_t && val_t->kind != TK_UNKNOWN) {
-                            const char *concrete = type_name(val_t);
-                            if (!binding) {
-                                binding = concrete;
-                            } else if (strcmp(binding, concrete) != 0) {
-                                char *msg = NULL;
-                                msg = typechecker_format(checker,
-                                    "wildcard type conflict in struct '%s': '?' was bound to %s, but field '%s' is %s",
-                                    struct_name, binding, fname, concrete);
-                                diagnostic_error_message(checker->diag, "E3001", msg,
-                                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-            if (binding) {
-                node->data.struct_value.wildcard_binding = strdup(binding);
-                /* Record instantiation on the struct decl */
-                bool already = false;
-                for (int ii = 0; ii < sdecl->data.struct_decl.instantiation_count; ii++) {
-                    if (strcmp(sdecl->data.struct_decl.instantiations[ii], binding) == 0) {
-                        already = true;
-                        break;
-                    }
-                }
-                if (!already) {
-                    int n = sdecl->data.struct_decl.instantiation_count;
-                    sdecl->data.struct_decl.instantiations = xrealloc(
-                        (void *)sdecl->data.struct_decl.instantiations,
-                        sizeof(const char *) * (size_t)(n + 1));
-                    sdecl->data.struct_decl.instantiations[n] = strdup(binding);
-                    sdecl->data.struct_decl.instantiation_count = n + 1;
-                }
-                /* Return mangled struct type */
-                char mangled[MSG_BUF_SIZE];
-                size_t pos = snprintf(mangled, sizeof(mangled), "%s__", struct_name);
-                for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
-                    mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
-                }
-                mangled[pos] = '\0';
-                result = type_struct(strdup(mangled));
-            } else {
-                result = type_struct(struct_name);
-            }
-        } else {
-            result = type_struct(struct_name);
-        }
+    case NODE_STRUCT_VALUE:
+        result = resolve_struct_value(checker, node);
         break;
-    }
 
     case NODE_RANGE_EXPR: {
         /* Validate range arguments are integer types */
@@ -7082,155 +7278,9 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
         break;
     }
 
-    case NODE_FUNC_REF: {
-        /* Validate that the referenced function exists.
-         * Builtin and stdlib functions cannot be used as function references. */
-        const char *ref_name = NULL;
-        const char *ref_struct_name = NULL;  /* struct name for privacy check */
-        const char *ref_member_name = NULL;  /* member name for privacy check */
-        if (node->data.func_ref.function->kind == NODE_LABEL) {
-            const char *lname = node->data.func_ref.function->data.label.value;
-            /* Surface 1: ()builtin_name — builtins are not first-class values */
-            if (typechecker_is_builtin(lname)) {
-                char *msg = NULL;
-                msg = typechecker_format(checker,
-                    "cannot take a function reference to '%s'; builtin functions are not first-class values", lname);
-                diagnostic_error_message(checker->diag, "E4019", msg,
-                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-            } else {
-                ref_name = lname;
-            }
-        } else if (node->data.func_ref.function->kind == NODE_MEMBER_EXPR) {
-            AstNode *obj = node->data.func_ref.function->data.member.object;
-            const char *member = node->data.func_ref.function->data.member.member;
-            if (obj->kind == NODE_LABEL) {
-                const char *mod_name = typechecker_resolve_alias(checker, obj->data.label.value);
-                /* Surface 2: ()module.func — stdlib module functions are not first-class values */
-                if (is_stdlib_module_name(mod_name)) {
-                    char *msg = NULL;
-                    msg = typechecker_format(checker,
-                        "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values",
-                        obj->data.label.value, member);
-                    diagnostic_error_message(checker->diag, "E4019", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                } else {
-                    /* Struct.func → lookup as Struct_func */
-                    ref_struct_name = obj->data.label.value;
-                    ref_member_name = member;
-                    char buffer[MSG_BUF_SIZE];
-                    snprintf(buffer, sizeof(buffer), "%s_%s", obj->data.label.value, member);
-                    ref_name = arena_copy_string(checker->arena, buffer);
-                }
-            }
-        }
-        FuncSig *ref_sig = ref_name ? find_func(checker, ref_name) : NULL;
-        if (ref_sig) {
-            ref_sig->used = true;
-            /* E4017: private struct function referenced from outside the struct */
-            if (ref_sig->is_private && ref_struct_name &&
-                !(checker->current_struct_name &&
-                  strcmp(checker->current_struct_name, ref_struct_name) == 0)) {
-                diagnostic_error_code_formatted(checker->diag, "E4017", NODE_FILE(checker, node),
-                    node->token.line, node->token.column, 0,
-                    ref_struct_name, ref_member_name);
-            }
-        } else if (ref_name) {
-            /* Surface 3: using module; ()stdlib_func — check if ref_name is in an active using module */
-            bool found_in_using = false;
-            for (int using_index = 0; using_index < checker->using_module_count && !found_in_using; using_index++) {
-                if (!using_module_accessible(checker, using_index)) continue;
-                const char *real_mod = typechecker_resolve_alias(checker, checker->using_modules[using_index]);
-                if (is_stdlib_module_name(real_mod)) {
-                    for (int field_index = 0; _using_funcs[field_index].func; field_index++) {
-                        if (strcmp(ref_name, _using_funcs[field_index].func) == 0 &&
-                            strcmp(real_mod, _using_funcs[field_index].mod) == 0) {
-                            found_in_using = true;
-                            char *msg = NULL;
-                            msg = typechecker_format(checker,
-                                "cannot take a function reference to '%s'; stdlib functions are not first-class values",
-                                ref_name);
-                            diagnostic_error_message(checker->diag, "E4019", msg,
-                                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                            break;
-                        }
-                    }
-                }
-            }
-            if (!found_in_using) {
-                char *msg = NULL;
-                msg = typechecker_format(checker, "undefined function '%s' in function reference", ref_name);
-                const char *suggestion = suggest_similar_name(checker, ref_name);
-                if (suggestion) {
-                    char help[MSG_BUF_SIZE];
-                    snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                    diagnostic_error_help(checker->diag, "E4002", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0, arena_copy_string(checker->arena, help));
-                } else {
-                    diagnostic_error_message(checker->diag, "E4002", msg,
-                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-                }
-            }
-        }
-        /* Build a typed-func type from the referenced function's signature.
-         * Canonical encoding: "func(p1,&p2,...)" with no "->R" suffix when
-         * the function returns nothing; "func(...)->R" for a single return;
-         * "func(...)->(R1,R2)" for multi-return. */
-        if (ref_sig) {
-            char buffer[512];
-            size_t buffer_size = sizeof(buffer);
-            int n = snprintf(buffer, buffer_size, "func(");
-            if ((size_t)n >= buffer_size) n = (int)buffer_size - 1;
-            for (int i = 0; i < ref_sig->param_count && (size_t)n < buffer_size - 1; i++) {
-                bool mut_p = (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL &&
-                              i < ref_sig->decl->data.func_decl.param_count &&
-                              ref_sig->decl->data.func_decl.params[i].mutable);
-                const char *ptn = (ref_sig->param_types[i] && ref_sig->param_types[i]->name)
-                    ? ref_sig->param_types[i]->name : "int";
-                int w = snprintf(buffer + n, buffer_size - (size_t)n, "%s%s%s",
-                    i ? "," : "", mut_p ? "&" : "", ptn);
-                if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
-                else { n = (int)buffer_size - 1; break; }
-            }
-            if ((size_t)n < buffer_size - 1) {
-                int w = snprintf(buffer + n, buffer_size - (size_t)n, ")");
-                if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
-                else n = (int)buffer_size - 1;
-            }
-            if (ref_sig->return_count == 1 && ref_sig->return_types[0] &&
-                ref_sig->return_types[0]->name &&
-                strcmp(ref_sig->return_types[0]->name, "void") != 0 &&
-                (size_t)n < buffer_size - 1) {
-                int w = snprintf(buffer + n, buffer_size - (size_t)n, "->%s",
-                    ref_sig->return_types[0]->name);
-                if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
-                else n = (int)buffer_size - 1;
-            } else if (ref_sig->return_count > 1 && (size_t)n < buffer_size - 1) {
-                int w = snprintf(buffer + n, buffer_size - (size_t)n, "->(");
-                if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
-                else n = (int)buffer_size - 1;
-                for (int i = 0; i < ref_sig->return_count && (size_t)n < buffer_size - 1; i++) {
-                    const char *rn = (ref_sig->return_types[i] && ref_sig->return_types[i]->name)
-                        ? ref_sig->return_types[i]->name : "int";
-                    w = snprintf(buffer + n, buffer_size - (size_t)n, "%s%s",
-                        i ? "," : "", rn);
-                    if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
-                    else { n = (int)buffer_size - 1; break; }
-                }
-                if ((size_t)n < buffer_size - 1) {
-                    w = snprintf(buffer + n, buffer_size - (size_t)n, ")");
-                    if (w > 0 && (size_t)w < buffer_size - (size_t)n) n += w;
-                    else n = (int)buffer_size - 1;
-                }
-            }
-            char *encoded = strdup(buffer);
-            result = type_from_name(encoded);
-        } else {
-            /* Unknown function: fall back to bare-func type
-             * so downstream "is this callable" checks don't crash. */
-            result = type_from_name("func");
-        }
+    case NODE_FUNC_REF:
+        result = resolve_func_ref(checker, node);
         break;
-    }
 
     default:
         break;
