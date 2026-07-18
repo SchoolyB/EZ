@@ -43,24 +43,19 @@ jobs:
         run: make test-go
 
       - name: Run Grayscale unit tests (lexer + parser + typechecker)
-        continue-on-error: true
         run: make test-unit
 
       - name: Run Grayscale end-to-end tests
-        continue-on-error: true
         run: make test-e2e
 
       - name: Run Grayscale integration tests
-        continue-on-error: true
         run: make test-integration
 
       - name: Run Grayscale UBSan tests
-        continue-on-error: true
         run: make test-ubsan
 
       - name: Run Grayscale ASan tests (Linux only)
         if: runner.os == 'Linux'
-        continue-on-error: true
         env:
           ASAN_OPTIONS: detect_leaks=0
         run: make test-asan
