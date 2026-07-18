@@ -406,16 +406,59 @@ type ParsedChangelog struct {
 	BugFixes []string
 }
 
+// Regexes for cleaning changelog list items (used by cleanChangelogItem).
+var (
+	reClosesRef  = regexp.MustCompile(`, closes \[#\d+\]\([^)]+\)`)
+	reParenIssue = regexp.MustCompile(` \(#\d+\)`)
+	reBareIssue  = regexp.MustCompile(` #\d+`)
+	reCommitLink = regexp.MustCompile(`\s*\(\[([a-f0-9]+)\]\([^)]+\)\)\s*$`)
+	reCommitBare = regexp.MustCompile(`\s*\(([a-f0-9]+)\)\s*$`)
+	reIssueLink  = regexp.MustCompile(`\s*\(\[#\d+\]\([^)]+\)\)`)
+	reMdLink     = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+)
+
+// cleanChangelogItem strips markdown formatting, issue references, and
+// trailing metadata from a changelog list item, keeping only the scope,
+// description, and commit hash.
+func cleanChangelogItem(item string) string {
+	item = strings.ReplaceAll(item, "**", "")
+
+	item = strings.ReplaceAll(item, "&lt;", "<")
+	item = strings.ReplaceAll(item, "&gt;", ">")
+	item = strings.ReplaceAll(item, "&amp;", "&")
+
+	item = reClosesRef.ReplaceAllString(item, "")
+	item = reParenIssue.ReplaceAllString(item, "")
+	item = reBareIssue.ReplaceAllString(item, "")
+
+	// Extract and remove trailing commit hash: ([hash](url)) or (hash)
+	var commitHash string
+	if m := reCommitLink.FindStringSubmatch(item); m != nil {
+		commitHash = m[1]
+		item = item[:reCommitLink.FindStringIndex(item)[0]]
+	} else if m := reCommitBare.FindStringSubmatch(item); m != nil {
+		commitHash = m[1]
+		item = item[:reCommitBare.FindStringIndex(item)[0]]
+	}
+
+	item = reIssueLink.ReplaceAllString(item, "")
+	item = reMdLink.ReplaceAllString(item, "$1")
+
+	if commitHash != "" {
+		item = strings.TrimSpace(item) + " (" + commitHash + ")"
+	}
+
+	return strings.TrimSpace(item)
+}
+
 // parseReleaseBody extracts Features and Bug Fixes sections from a release body
 func parseReleaseBody(body string) ParsedChangelog {
 	result := ParsedChangelog{}
-	lines := strings.Split(body, "\n")
 
 	var currentSection string
-	for _, line := range lines {
+	for _, line := range strings.Split(body, "\n") {
 		trimmed := strings.TrimSpace(line)
 
-		// Check for section headers
 		if strings.HasPrefix(trimmed, "### Features") {
 			currentSection = "features"
 			continue
@@ -424,132 +467,28 @@ func parseReleaseBody(body string) ParsedChangelog {
 			currentSection = "bugfixes"
 			continue
 		}
-		// Any other ### header ends the current section
 		if strings.HasPrefix(trimmed, "###") {
 			currentSection = ""
 			continue
 		}
 
-		// Parse list items
-		if len(trimmed) > 1 && (trimmed[0] == '*' || trimmed[0] == '-') && trimmed[1] == ' ' {
-			item := trimmed[2:]
+		if currentSection == "" {
+			continue
+		}
+		if len(trimmed) < 2 || (trimmed[0] != '*' && trimmed[0] != '-') || trimmed[1] != ' ' {
+			continue
+		}
 
-			// Clean up the item - formats:
-			// **scope:** description ([#issue](url)) ([hash](url))
-			// **scope:** description ([hash](url))
-			// scope: description (hash)
+		item := cleanChangelogItem(trimmed[2:])
+		if item == "" {
+			continue
+		}
 
-			// Remove markdown bold markers: **text:** -> text:
-			item = strings.ReplaceAll(item, "**", "")
-
-			// Decode HTML entities
-			item = strings.ReplaceAll(item, "&lt;", "<")
-			item = strings.ReplaceAll(item, "&gt;", ">")
-			item = strings.ReplaceAll(item, "&amp;", "&")
-
-			// Remove ", closes [#xxx](url)" suffixes
-			if idx := strings.Index(item, ", closes [#"); idx != -1 {
-				item = item[:idx]
-			}
-
-			// Remove issue references like (#123) or #123
-			for {
-				if idx := strings.Index(item, " (#"); idx != -1 {
-					if endIdx := strings.Index(item[idx:], ")"); endIdx != -1 {
-						item = item[:idx] + item[idx+endIdx+1:]
-						continue
-					}
-				}
-				if idx := strings.Index(item, " #"); idx != -1 {
-					// Check if followed by digits
-					endIdx := idx + 2
-					for endIdx < len(item) && item[endIdx] >= '0' && item[endIdx] <= '9' {
-						endIdx++
-					}
-					if endIdx > idx+2 {
-						item = item[:idx] + item[endIdx:]
-						continue
-					}
-				}
-				break
-			}
-
-			// Extract commit hash - it's the last ([hash](url)) or (hash)
-			var commitHash string
-
-			// Try to find markdown link hash: ([hash](url))
-			// Look for pattern starting from end
-			if lastParen := strings.LastIndex(item, ")"); lastParen != -1 {
-				// Find the matching opening
-				depth := 1
-				start := lastParen - 1
-				for start >= 0 && depth > 0 {
-					if item[start] == ')' {
-						depth++
-					} else if item[start] == '(' {
-						depth--
-					}
-					if depth > 0 {
-						start--
-					}
-				}
-				if start >= 0 && depth == 0 {
-					parenContent := item[start+1 : lastParen]
-					// Check if it's a markdown link [hash](url)
-					if strings.HasPrefix(parenContent, "[") && strings.Contains(parenContent, "](") {
-						// Extract just the hash
-						if hashEnd := strings.Index(parenContent, "]"); hashEnd != -1 {
-							commitHash = parenContent[1:hashEnd]
-						}
-						// Remove this from item
-						item = strings.TrimSpace(item[:start])
-					} else if !strings.HasPrefix(parenContent, "#") && !strings.Contains(parenContent, "://") {
-						// It's a simple (hash) without markdown
-						commitHash = parenContent
-						item = strings.TrimSpace(item[:start])
-					}
-				}
-			}
-
-			// Remove issue link: ([#123](url)) if still present
-			if idx := strings.Index(item, " ([#"); idx != -1 {
-				if endIdx := strings.Index(item[idx:], "])"); endIdx != -1 {
-					// Find the actual end including the outer )
-					fullEnd := idx + endIdx + 2
-					if fullEnd < len(item) && item[fullEnd] == ')' {
-						fullEnd++
-					}
-					item = item[:idx] + item[fullEnd:]
-				}
-			}
-
-			// Clean up markdown links in text: [@module](url) -> @module
-			for strings.Contains(item, "](") {
-				start := strings.Index(item, "[")
-				if start == -1 {
-					break
-				}
-				end := strings.Index(item[start:], ")")
-				if end == -1 {
-					break
-				}
-				end += start
-				linkText := item[start+1 : strings.Index(item[start:], "]")+start]
-				item = item[:start] + linkText + item[end+1:]
-			}
-
-			// Add commit hash back if we found one
-			if commitHash != "" {
-				item = strings.TrimSpace(item) + " (" + commitHash + ")"
-			}
-
-			item = strings.TrimSpace(item)
-
-			if currentSection == "features" && item != "" {
-				result.Features = append(result.Features, item)
-			} else if currentSection == "bugfixes" && item != "" {
-				result.BugFixes = append(result.BugFixes, item)
-			}
+		switch currentSection {
+		case "features":
+			result.Features = append(result.Features, item)
+		case "bugfixes":
+			result.BugFixes = append(result.BugFixes, item)
 		}
 	}
 
