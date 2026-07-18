@@ -4,7 +4,7 @@
 
 The Grayscale Programming Language — formerly known as EZ.
 
-Grayscale 0.1.0 is the first release under the new name. The language, compiler,
+Grayscale 0.0.1 is the first release under the new name. The language, compiler,
 and tooling are identical to EZ 3.9.0 with the following changes:
 
 - Language renamed from EZ to Grayscale
