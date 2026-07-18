@@ -136,7 +136,6 @@ static void emit_indent(CodeGen *codegen) {
 
 /* Internal compiler error; emit a clear message instead of segfaulting.
  * Used when a type lookup unexpectedly returns NULL. */
-__attribute__((unused))
 static void codegen_internal_error(const char *context, const char *file, int line) {
     fflush(stdout);
     fprintf(stderr, "internal compiler error: %s (at %s:%d)\n"
@@ -177,6 +176,38 @@ static int int_type_rank(const char *type_name) {
     if (strcmp(type_name, "i128") == 0 || strcmp(type_name, "u128") == 0) return 5;
     if (strcmp(type_name, "i256") == 0 || strcmp(type_name, "u256") == 0) return 6;
     return 0;
+}
+
+/* Look up sized-integer bounds for overflow checking.
+ * Returns true if the type is a sized integer, populating the out params.
+ * For unsigned types, *is_unsigned is set and *min_out is NULL. */
+static bool sized_int_bounds(const char *type_name,
+                             const char **min_out, const char **max_out,
+                             bool *is_unsigned) {
+    *min_out = NULL; *max_out = NULL; *is_unsigned = false;
+    if (!type_name) return false;
+    if (strcmp(type_name, "i8") == 0)  { *min_out = "-128"; *max_out = "127"; return true; }
+    if (strcmp(type_name, "i16") == 0) { *min_out = "-32768"; *max_out = "32767"; return true; }
+    if (strcmp(type_name, "i32") == 0) { *min_out = "-2147483648LL"; *max_out = "2147483647LL"; return true; }
+    if (strcmp(type_name, "u8") == 0 || strcmp(type_name, "byte") == 0)  { *is_unsigned = true; *max_out = "255"; return true; }
+    if (strcmp(type_name, "u16") == 0) { *is_unsigned = true; *max_out = "65535"; return true; }
+    if (strcmp(type_name, "u32") == 0) { *is_unsigned = true; *max_out = "4294967295ULL"; return true; }
+    return false;
+}
+
+/* Return the runtime overflow-check function name for a compound assignment
+ * operator on a sized integer type, or NULL if not applicable. */
+static const char *sized_check_func(TokenType op, bool is_unsigned) {
+    if (is_unsigned) {
+        if (op == TOK_PLUS_ASSIGN)     return "gray_usized_add_check";
+        if (op == TOK_MINUS_ASSIGN)    return "gray_usized_sub_check";
+        if (op == TOK_ASTERISK_ASSIGN) return "gray_usized_mul_check";
+    } else {
+        if (op == TOK_PLUS_ASSIGN)     return "gray_sized_add_check";
+        if (op == TOK_MINUS_ASSIGN)    return "gray_sized_sub_check";
+        if (op == TOK_ASTERISK_ASSIGN) return "gray_sized_mul_check";
+    }
+    return NULL;
 }
 
 static const char *sanitize_name(const char *name) {
@@ -1962,10 +1993,9 @@ static void emit_expression(CodeGen *codegen, AstNode *node) {
                 const char *signed_min = NULL;
                 if (is_signed) {
                     const char *sized_name = (left_type && left_type->name) ? left_type->name : ((right_type && right_type->name) ? right_type->name : NULL);
-                    if (sized_name && strcmp(sized_name, "i8") == 0)       signed_min = "-128";
-                    else if (sized_name && strcmp(sized_name, "i16") == 0) signed_min = "-32768";
-                    else if (sized_name && strcmp(sized_name, "i32") == 0) signed_min = "-2147483648LL";
-                    else                                   signed_min = "(-9223372036854775807LL - 1)";
+                    const char *_unused_max; bool _unused_u;
+                    if (!sized_name || !sized_int_bounds(sized_name, &signed_min, &_unused_max, &_unused_u))
+                        signed_min = "(-9223372036854775807LL - 1)";
                 }
                 emit(codegen, "({ __auto_type _dv = ");
                 emit_expression(codegen, node->data.infix.right);
@@ -7493,23 +7523,9 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
                 const char *sn = left_t->element_type;
                 const char *smin = NULL, *smax = NULL;
                 bool su = false;
-                if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
-                else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
-                else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
-                else if (strcmp(sn, "u8") == 0 || strcmp(sn, "byte") == 0) { su = true; smax = "255"; }
-                else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
-                else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
+                sized_int_bounds(sn, &smin, &smax, &su);
                 if (smax) {
-                    const char *function_name = NULL;
-                    if (su) {
-                        if (aop == TOK_PLUS_ASSIGN) function_name = "gray_usized_add_check";
-                        else if (aop == TOK_MINUS_ASSIGN) function_name = "gray_usized_sub_check";
-                        else if (aop == TOK_ASTERISK_ASSIGN) function_name = "gray_usized_mul_check";
-                    } else {
-                        if (aop == TOK_PLUS_ASSIGN) function_name = "gray_sized_add_check";
-                        else if (aop == TOK_MINUS_ASSIGN) function_name = "gray_sized_sub_check";
-                        else if (aop == TOK_ASTERISK_ASSIGN) function_name = "gray_sized_mul_check";
-                    }
+                    const char *function_name = sized_check_func(aop, su);
                     if (function_name) {
                         /* GRAY_ARRAY_SET/GET use int64_t (internal storage width) */
                         emit_formatted(codegen, "GRAY_ARRAY_SET(");
@@ -7820,26 +7836,10 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             bool tgt_is_int = (tgt_t && (tgt_t->kind == TK_INT || tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE));
             const char *smin = NULL, *smax = NULL;
             bool su = false;
-            if (sn) {
-                if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
-                else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
-                else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
-                else if (strcmp(sn, "u8") == 0 || strcmp(sn, "byte") == 0) { su = true; smax = "255"; }
-                else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
-                else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
-            }
+            if (sn) sized_int_bounds(sn, &smin, &smax, &su);
             /* Sized arith: gray_(u)sized_*_check */
             if (is_arith_compound && smax) {
-                const char *function_name = NULL;
-                if (su) {
-                    if (aop == TOK_PLUS_ASSIGN) function_name = "gray_usized_add_check";
-                    else if (aop == TOK_MINUS_ASSIGN) function_name = "gray_usized_sub_check";
-                    else if (aop == TOK_ASTERISK_ASSIGN) function_name = "gray_usized_mul_check";
-                } else {
-                    if (aop == TOK_PLUS_ASSIGN) function_name = "gray_sized_add_check";
-                    else if (aop == TOK_MINUS_ASSIGN) function_name = "gray_sized_sub_check";
-                    else if (aop == TOK_ASTERISK_ASSIGN) function_name = "gray_sized_mul_check";
-                }
+                const char *function_name = sized_check_func(aop, su);
                 if (function_name) {
                     emit_formatted(codegen, "{ %s *_tgt = &(", gray_type_to_c_codegen(codegen, sn));
                     emit_expression(codegen, node->data.assign.target);
@@ -7882,10 +7882,9 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
                 bool unsigned_op = (tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE);
                 const char *signed_min = NULL;
                 if (!unsigned_op) {
-                    if (sn && strcmp(sn, "i8") == 0)       signed_min = "-128";
-                    else if (sn && strcmp(sn, "i16") == 0) signed_min = "-32768";
-                    else if (sn && strcmp(sn, "i32") == 0) signed_min = "-2147483648LL";
-                    else                                   signed_min = "(-9223372036854775807LL - 1)";
+                    const char *_unused_max; bool _unused_u;
+                    if (!sn || !sized_int_bounds(sn, &signed_min, &_unused_max, &_unused_u))
+                        signed_min = "(-9223372036854775807LL - 1)";
                 }
                 const char *opname = (aop == TOK_SLASH_ASSIGN) ? "division" : "modulo";
                 const char *binop = (aop == TOK_SLASH_ASSIGN) ? "/" : "%";
@@ -8358,6 +8357,36 @@ static void emit_if_statement(CodeGen *codegen, AstNode *node) {
     emit_formatted(codegen, "gray_arena_destroy(_if_arena_%d, __FILE__, __LINE__); free(_if_arena_%d); }\n", isc, isc);
 }
 
+/* Emit per-iteration scratch arena setup, the loop body, and arena teardown.
+ * Caller is responsible for indent++ before and indent--/closing brace after. */
+static void emit_loop_body_with_arena(CodeGen *codegen, AstNode *body) {
+    if (codegen->loop_scope_depth == 0) {
+        emit_indent(codegen);
+        emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
+    }
+    int depth = codegen->loop_scope_depth;
+    emit_indent(codegen);
+    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", depth, LOOP_ARENA_SIZE);
+    emit_indent(codegen);
+    emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", depth);
+    emit_indent(codegen);
+    emit_formatted(codegen, "gray_default_arena = _iter_arena_%d;\n", depth);
+    codegen->loop_scope_depth++;
+    {
+        char av[32], sv[32];
+        snprintf(av, sizeof(av), "_iter_arena_%d", depth);
+        snprintf(sv, sizeof(sv), "_saved_arena_%d", depth);
+        scope_arena_push(codegen, av, sv);
+    }
+    emit_block(codegen, body);
+    codegen->loop_scope_depth--;
+    scope_arena_pop(codegen);
+    emit_indent(codegen);
+    emit_formatted(codegen, "gray_default_arena = _saved_arena_%d;\n", depth);
+    emit_indent(codegen);
+    emit_formatted(codegen, "gray_arena_destroy(_iter_arena_%d, __FILE__, __LINE__); free(_iter_arena_%d);\n", depth, depth);
+}
+
 static void emit_for_statement(CodeGen *codegen, AstNode *node) {
     emit_indent(codegen);
 
@@ -8438,39 +8467,12 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
 
         emit(codegen, ") {\n");
     } else {
-        /* Generic for - fallback */
-        emit_formatted(codegen, "/* grayc: non-range for loop not yet supported */\n");
-        emit_indent(codegen);
-        emit(codegen, "{\n");
+        codegen_internal_error("non-range for loop reached codegen",
+                               codegen->file, node->token.line);
     }
 
     codegen->indent++;
-    /*  phase 2: per-iteration scratch arena */
-    if (codegen->loop_scope_depth == 0) {
-        emit_indent(codegen);
-        emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
-    }
-    int f_depth = codegen->loop_scope_depth;
-    emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", f_depth, LOOP_ARENA_SIZE);
-    emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", f_depth);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_default_arena = _iter_arena_%d;\n", f_depth);
-    codegen->loop_scope_depth++;
-    {
-        char av[32], sv[32];
-        snprintf(av, sizeof(av), "_iter_arena_%d", f_depth);
-        snprintf(sv, sizeof(sv), "_saved_arena_%d", f_depth);
-        scope_arena_push(codegen, av, sv);
-    }
-    emit_block(codegen, node->data.for_stmt.body);
-    codegen->loop_scope_depth--;
-    scope_arena_pop(codegen);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_default_arena = _saved_arena_%d;\n", f_depth);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_arena_destroy(_iter_arena_%d, __FILE__, __LINE__); free(_iter_arena_%d);\n", f_depth, f_depth);
+    emit_loop_body_with_arena(codegen, node->data.for_stmt.body);
     codegen->indent--;
     emit_indent(codegen);
     emit(codegen, "}\n");
@@ -8483,32 +8485,7 @@ static void emit_while_statement(CodeGen *codegen, AstNode *node) {
     emit(codegen, ") {\n");
 
     codegen->indent++;
-    /*  phase 2: per-iteration scratch arena */
-    if (codegen->loop_scope_depth == 0) {
-        emit_indent(codegen);
-        emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
-    }
-    int w_depth = codegen->loop_scope_depth;
-    emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", w_depth, LOOP_ARENA_SIZE);
-    emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", w_depth);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_default_arena = _iter_arena_%d;\n", w_depth);
-    codegen->loop_scope_depth++;
-    {
-        char av[32], sv[32];
-        snprintf(av, sizeof(av), "_iter_arena_%d", w_depth);
-        snprintf(sv, sizeof(sv), "_saved_arena_%d", w_depth);
-        scope_arena_push(codegen, av, sv);
-    }
-    emit_block(codegen, node->data.while_stmt.body);
-    codegen->loop_scope_depth--;
-    scope_arena_pop(codegen);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_default_arena = _saved_arena_%d;\n", w_depth);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_arena_destroy(_iter_arena_%d, __FILE__, __LINE__); free(_iter_arena_%d);\n", w_depth, w_depth);
+    emit_loop_body_with_arena(codegen, node->data.while_stmt.body);
     codegen->indent--;
     emit_indent(codegen);
     emit(codegen, "}\n");
@@ -8519,32 +8496,7 @@ static void emit_loop_statement(CodeGen *codegen, AstNode *node) {
     emit(codegen, "for (;;) {\n");
 
     codegen->indent++;
-    /*  phase 2: per-iteration scratch arena */
-    if (codegen->loop_scope_depth == 0) {
-        emit_indent(codegen);
-        emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
-    }
-    int l_depth = codegen->loop_scope_depth;
-    emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", l_depth, LOOP_ARENA_SIZE);
-    emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", l_depth);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_default_arena = _iter_arena_%d;\n", l_depth);
-    codegen->loop_scope_depth++;
-    {
-        char av[32], sv[32];
-        snprintf(av, sizeof(av), "_iter_arena_%d", l_depth);
-        snprintf(sv, sizeof(sv), "_saved_arena_%d", l_depth);
-        scope_arena_push(codegen, av, sv);
-    }
-    emit_block(codegen, node->data.loop_stmt.body);
-    codegen->loop_scope_depth--;
-    scope_arena_pop(codegen);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_default_arena = _saved_arena_%d;\n", l_depth);
-    emit_indent(codegen);
-    emit_formatted(codegen, "gray_arena_destroy(_iter_arena_%d, __FILE__, __LINE__); free(_iter_arena_%d);\n", l_depth, l_depth);
+    emit_loop_body_with_arena(codegen, node->data.loop_stmt.body);
     codegen->indent--;
     emit_indent(codegen);
     emit(codegen, "}\n");
@@ -8895,32 +8847,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
             else { emit_expression(codegen, coll); emit_formatted(codegen, ", %s, %s);\n", c_elem, idx_name); }
         }
 
-        /*  phase 2: per-iteration scratch arena */
-        if (codegen->loop_scope_depth == 0) {
-            emit_indent(codegen);
-            emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
-        }
-        int fe_depth = codegen->loop_scope_depth;
-        emit_indent(codegen);
-        emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", fe_depth, LOOP_ARENA_SIZE);
-        emit_indent(codegen);
-        emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", fe_depth);
-        emit_indent(codegen);
-        emit_formatted(codegen, "gray_default_arena = _iter_arena_%d;\n", fe_depth);
-        codegen->loop_scope_depth++;
-        {
-            char av[32], sv[32];
-            snprintf(av, sizeof(av), "_iter_arena_%d", fe_depth);
-            snprintf(sv, sizeof(sv), "_saved_arena_%d", fe_depth);
-            scope_arena_push(codegen, av, sv);
-        }
-        emit_block(codegen, node->data.for_each.body);
-        codegen->loop_scope_depth--;
-        scope_arena_pop(codegen);
-        emit_indent(codegen);
-        emit_formatted(codegen, "gray_default_arena = _saved_arena_%d;\n", fe_depth);
-        emit_indent(codegen);
-        emit_formatted(codegen, "gray_arena_destroy(_iter_arena_%d, __FILE__, __LINE__); free(_iter_arena_%d);\n", fe_depth, fe_depth);
+        emit_loop_body_with_arena(codegen, node->data.for_each.body);
         codegen->indent--;
         emit_indent(codegen);
         emit(codegen, "}\n");
@@ -9281,8 +9208,20 @@ CodeGen codegen_create(const char *file) {
     return codegen;
 }
 
+/* Check if a module name is in a set of imported stdlib modules. */
+static bool has_stdlib_module(const char *const *modules, int count, const char *name) {
+    for (int i = 0; i < count; i++)
+        if (strcmp(modules[i], name) == 0) return true;
+    return false;
+}
+
 void codegen_generate(CodeGen *codegen, AstNode *program) {
     if (program->kind != NODE_PROGRAM) return;
+
+    /* Collect imported stdlib module names (used for conditional header inclusion) */
+    #define MAX_STDLIB_IMPORTS 64
+    const char *stdlib_imports[MAX_STDLIB_IMPORTS];
+    int stdlib_import_count = 0;
 
     /* First pass: scan for imports, using declarations, and struct declarations */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
@@ -9293,6 +9232,8 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
                 if (item->is_stdlib && item->module) {
                     if (strcmp(item->module, "mem") == 0) codegen->has_mem = true;
                     if (strcmp(item->module, "fmt") == 0) codegen->has_fmt = true;
+                    if (stdlib_import_count < MAX_STDLIB_IMPORTS)
+                        stdlib_imports[stdlib_import_count++] = item->module;
                 }
                 /* Collect C interop headers */
                 if (item->is_c_import && item->path) {
@@ -9363,44 +9304,50 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
         }
     }
 
-    /* Emit preamble */
+    /* Emit preamble — core headers always included, stdlib headers only when imported */
     emit(codegen, "/* Generated by grayc */\n");
     emit(codegen, "#include \"runtime.h\"\n");
     emit(codegen, "#include \"array.h\"\n");
     emit(codegen, "#include \"map.h\"\n");
     emit(codegen, "#include \"builtins.h\"\n");
-    if (codegen->has_mem) {
-        emit(codegen, "#include \"mem.h\"\n");
-    }
-    if (codegen->has_fmt) {
-        emit(codegen, "#include \"fmt.h\"\n");
-    }
-    emit(codegen, "#include \"math.h\"\n");
-    emit(codegen, "#include \"strings.h\"\n");
-    emit(codegen, "#include \"io.h\"\n");
-    emit(codegen, "#include \"maps.h\"\n");
+    /* These stdlib headers are always needed: os.h for gray_os_init() in main(),
+     * and arrays/maps/strings for the `in` operator on core collection types. */
     emit(codegen, "#include \"os.h\"\n");
     emit(codegen, "#include \"arrays.h\"\n");
-    emit(codegen, "#include \"random.h\"\n");
-    emit(codegen, "#include \"time.h\"\n");
-    emit(codegen, "#include \"uuid.h\"\n");
-    emit(codegen, "#include \"encoding.h\"\n");
-    emit(codegen, "#include \"crypto.h\"\n");
-    emit(codegen, "#include \"bytes.h\"\n");
-    emit(codegen, "#include \"binary.h\"\n");
-    emit(codegen, "#include \"csv.h\"\n");
-    emit(codegen, "#include \"json.h\"\n");
-    emit(codegen, "#include \"strconv.h\"\n");
-    emit(codegen, "#include \"sqlite.h\"\n");
-    emit(codegen, "#include \"threads.h\"\n");
-    emit(codegen, "#include \"sync.h\"\n");
-    emit(codegen, "#include \"atomic_mod.h\"\n");
-    emit(codegen, "#include \"channels.h\"\n");
-    emit(codegen, "#include \"regex.h\"\n");
-    emit(codegen, "#include \"net.h\"\n");
-    emit(codegen, "#include \"http.h\"\n");
-    emit(codegen, "#include \"server.h\"\n");
-    emit(codegen, "#include \"bigint.h\"\n");
+    emit(codegen, "#include \"maps.h\"\n");
+    emit(codegen, "#include \"strings.h\"\n");
+
+    /* Remaining stdlib module headers: included only when imported. */
+    static const struct { const char *module; const char *header; } stdlib_headers[] = {
+        {"mem",      "mem.h"},
+        {"fmt",      "fmt.h"},
+        {"math",     "math.h"},
+        {"io",       "io.h"},
+        {"random",   "random.h"},
+        {"time",     "time.h"},
+        {"uuid",     "uuid.h"},
+        {"encoding", "encoding.h"},
+        {"crypto",   "crypto.h"},
+        {"bytes",    "bytes.h"},
+        {"binary",   "binary.h"},
+        {"csv",      "csv.h"},
+        {"json",     "json.h"},
+        {"strconv",  "strconv.h"},
+        {"sqlite",   "sqlite.h"},
+        {"threads",  "threads.h"},
+        {"sync",     "sync.h"},
+        {"atomic",   "atomic_mod.h"},
+        {"channels", "channels.h"},
+        {"regex",    "regex.h"},
+        {"net",      "net.h"},
+        {"http",     "http.h"},
+        {"server",   "server.h"},
+        {"bigint",   "bigint.h"},
+    };
+    for (int i = 0; i < (int)(sizeof(stdlib_headers) / sizeof(stdlib_headers[0])); i++) {
+        if (has_stdlib_module(stdlib_imports, stdlib_import_count, stdlib_headers[i].module))
+            emit_formatted(codegen, "#include \"%s\"\n", stdlib_headers[i].header);
+    }
 
     /* Emit user C interop headers (after Grayscale internals to prevent collisions) */
     if (codegen->c_header_count > 0) {

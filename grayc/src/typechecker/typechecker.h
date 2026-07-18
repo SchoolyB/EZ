@@ -203,7 +203,6 @@ void typechecker_free(TypeChecker *checker);
 
 /* Query the type table (used by codegen) */
 GrayType *typetable_get(TypeTable *table, AstNode *node);
-void typetable_set(TypeTable *table, AstNode *node, GrayType *type);
 
 /* Get the type table from the checker */
 TypeTable *typechecker_get_table(TypeChecker *checker);

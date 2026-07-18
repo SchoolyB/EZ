@@ -54,13 +54,15 @@ static uint32_t hash_ptr(const void *ptr) {
     return (uint32_t)(hash_value ^ (hash_value >> 16));
 }
 
-TypeTable *typetable_create(void) {
+static TypeTable *typetable_create(void) {
     TypeTable *table = xcalloc(1, sizeof(TypeTable));
     table->cap = TYPETABLE_INIT_CAP;
     table->nodes = xcalloc((size_t)table->cap, sizeof(AstNode *));
     table->types = xcalloc((size_t)table->cap, sizeof(GrayType *));
     return table;
 }
+
+static void typetable_set(TypeTable *table, AstNode *node, GrayType *type);
 
 static void typetable_grow(TypeTable *table) {
     int old_cap = table->cap;
@@ -81,7 +83,7 @@ static void typetable_grow(TypeTable *table) {
     free(old_types);
 }
 
-void typetable_set(TypeTable *table, AstNode *node, GrayType *type) {
+static void typetable_set(TypeTable *table, AstNode *node, GrayType *type) {
     /* Grow at 70% load factor */
     if (table->count * 10 >= table->cap * 7) {
         typetable_grow(table);
@@ -1596,9 +1598,6 @@ static const UsingFunc _using_funcs[] = {
     {"to_chars","strings",TK_ARRAY},{"from_chars","strings",TK_STRING},
     {"index_of","strings",TK_INT},{"last_index_of","strings",TK_INT},{"count","strings",TK_INT},
     {"split","strings",TK_ARRAY},
-    {"is_alpha","strings",TK_BOOL},{"is_digit","strings",TK_BOOL},
-    {"is_alnum","strings",TK_BOOL},{"is_whitespace","strings",TK_BOOL},
-    {"is_upper","strings",TK_BOOL},{"is_lower","strings",TK_BOOL},
     /* math (arg-dependent abs/neg/min/max/clamp handled by special case) */
     {"sign","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
     {"lcm","math",TK_INT},
