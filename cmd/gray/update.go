@@ -731,18 +731,17 @@ func printUpdateStatus(vi VersionInfo, latestStable, latestPre string) {
 	}
 }
 
-func runUpdate(confirm bool, url string, pre bool) {
+func runUpdate(confirm bool, url string, pre bool) error {
 	// Check for --confirm flag (used by sudo re-exec)
 	if confirm {
 		downloadURL := url
 		fmt.Printf("Installing update...\n")
 		if err := downloadAndInstall(downloadURL); err != nil {
-			fmt.Printf("Error during update: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("Error during update: %v", err)
 		}
 		fmt.Println("Successfully updated!")
 		fmt.Println("Restart your terminal or run `gray version` to verify.")
-		return
+		return nil
 	}
 
 	fmt.Println("Checking for updates...")
@@ -753,8 +752,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 
 	allReleases, err := fetchAllReleases(ctx)
 	if err != nil {
-		fmt.Printf("Error fetching release list: %v\n", err)
-		return
+		return fmt.Errorf("Error fetching release list: %v", err)
 	}
 
 	latestStable := pickLatestStable(allReleases)
@@ -788,7 +786,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 		if latestStableTag != "" {
 			fmt.Printf("  • Switch to stable:    gray install %s\n", strings.TrimPrefix(latestStableTag, "v"))
 		}
-		return
+		return nil
 	}
 
 	// Resolve target for the channel being advanced.
@@ -797,13 +795,13 @@ func runUpdate(confirm bool, url string, pre bool) {
 		target = latestPre
 		if target == nil {
 			fmt.Println("\nNo pre-releases are currently published.")
-			return
+			return nil
 		}
 	} else {
 		target = latestStable
 		if target == nil {
 			fmt.Println("\nNo stable releases are currently published.")
-			return
+			return nil
 		}
 	}
 
@@ -814,7 +812,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 		} else {
 			fmt.Println("\nYou're on the latest stable release.")
 		}
-		return
+		return nil
 	}
 	if cmp < 0 {
 		label := "stable"
@@ -822,7 +820,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 			label = "pre-release"
 		}
 		fmt.Printf("\nYour version (%s) is already newer than the latest %s.\n", Version, label)
-		return
+		return nil
 	}
 
 	if pre {
@@ -849,7 +847,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response != "y" && response != "yes" {
 		fmt.Println("Update cancelled.")
-		return
+		return nil
 	}
 
 	assetName := getAssetName()
@@ -861,14 +859,12 @@ func runUpdate(confirm bool, url string, pre bool) {
 		}
 	}
 	if downloadURL == "" {
-		fmt.Printf("error: no binary available for %s/%s\n", runtime.GOOS, runtime.GOARCH)
-		fmt.Println("You may need to build from source: go install github.com/grayscale-lang/grayscale/cmd/gray@latest")
-		return
+		return fmt.Errorf("error: no binary available for %s/%s\nYou may need to build from source: go install github.com/grayscale-lang/grayscale/cmd/gray@latest",
+			runtime.GOOS, runtime.GOARCH)
 	}
 	fmt.Printf("Downloading %s...\n", assetName)
 	if err := downloadAndInstall(downloadURL); err != nil {
-		fmt.Printf("Error during update: %v\n", err)
-		return
+		return fmt.Errorf("Error during update: %v", err)
 	}
 
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
@@ -879,6 +875,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 	}
 	fmt.Println("Restart your terminal or run `gray version` to verify.")
 	promptAndVerify()
+	return nil
 }
 
 // normalizeTag strips a single leading 'v' so user input and GitHub tag
@@ -892,17 +889,12 @@ func normalizeTag(v string) string {
 // suffix; partial forms like "2.5" are rejected with a clean error. If
 // the requested version is older than the currently running binary, a
 // one-line downgrade warning is emitted and installation continues.
-func runInstall(version string) {
+func runInstall(version string) error {
 	if version == "" {
-		fmt.Println("error: missing version argument")
-		fmt.Println("usage: gray install <version>    (e.g. gray install 3.0.0-beta.2)")
-		os.Exit(1)
+		return fmt.Errorf("error: missing version argument\nusage: gray install <version>    (e.g. gray install 3.0.0-beta.2)")
 	}
 	if !exactSemverRE.MatchString(version) {
-		fmt.Printf("error: '%s' is not a fully-qualified semver\n", version)
-		fmt.Println("gray install requires an exact version like '2.5.0' or '3.0.0-beta.2'")
-		fmt.Println("partial versions, ranges, and shorthand are not accepted")
-		os.Exit(1)
+		return fmt.Errorf("error: '%s' is not a fully-qualified semver\ngray install requires an exact version like '2.5.0' or '3.0.0-beta.2'\npartial versions, ranges, and shorthand are not accepted", version)
 	}
 
 	fmt.Printf("Current version: %s\n", Version)
@@ -913,8 +905,7 @@ func runInstall(version string) {
 
 	releases, err := fetchAllReleases(ctx)
 	if err != nil {
-		fmt.Printf("Error fetching release list: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error fetching release list: %v", err)
 	}
 
 	wanted := normalizeTag(version)
@@ -926,7 +917,8 @@ func runInstall(version string) {
 		}
 	}
 	if target == nil {
-		fmt.Printf("\nerror: version '%s' was not found in the release list\n", version)
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "error: version '%s' was not found in the release list", version)
 		// Show up to five nearest versions by semver ordering, centred on
 		// the requested slot. Gives the user something to retry with
 		// without a separate `gray list` command.
@@ -951,16 +943,16 @@ func runInstall(version string) {
 			max = len(all)
 		}
 		if max > 0 {
-			fmt.Println("\nNearby available versions:")
+			sb.WriteString("\n\nNearby available versions:")
 			for i := 0; i < max; i++ {
 				label := ""
 				if all[i].pre {
 					label = " (pre-release)"
 				}
-				fmt.Printf("  %s%s\n", all[i].tag, label)
+				fmt.Fprintf(&sb, "\n  %s%s", all[i].tag, label)
 			}
 		}
-		os.Exit(1)
+		return fmt.Errorf("%s", sb.String())
 	}
 
 	// Downgrade warning — after we've confirmed the target exists.
@@ -969,7 +961,7 @@ func runInstall(version string) {
 			Version, target.TagName)
 	} else if compareSemver(target.TagName, Version) == 0 {
 		fmt.Printf("\nYou're already on %s.\n", target.TagName)
-		return
+		return nil
 	}
 
 	if target.Prerelease {
@@ -987,22 +979,20 @@ func runInstall(version string) {
 		}
 	}
 	if downloadURL == "" {
-		fmt.Printf("error: no binary available for %s/%s at %s\n",
+		return fmt.Errorf("error: no binary available for %s/%s at %s\nYou may need to build from source: go install github.com/grayscale-lang/grayscale/cmd/gray@latest",
 			runtime.GOOS, runtime.GOARCH, target.TagName)
-		fmt.Println("You may need to build from source: go install github.com/grayscale-lang/grayscale/cmd/gray@latest")
-		os.Exit(1)
 	}
 
 	fmt.Printf("Downloading %s...\n", assetName)
 	if err := downloadAndInstall(downloadURL); err != nil {
-		fmt.Printf("Error during install: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error during install: %v", err)
 	}
 
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
 	fmt.Println("\nSuccessfully installed!")
 	fmt.Println("Restart your terminal or run `gray version` to verify.")
 	promptAndVerify()
+	return nil
 }
 
 // promptAndVerify asks the user (only when stdin is a terminal) whether to run
@@ -1022,7 +1012,10 @@ func promptAndVerify() {
 	response, _ := reader.ReadString('\n')
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response == "y" || response == "yes" {
-		os.Exit(runVerify())
+		code := runVerify()
+		if code != 0 {
+			os.Exit(code)
+		}
 	}
 }
 

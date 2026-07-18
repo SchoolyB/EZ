@@ -61,10 +61,10 @@ Templates:
   server - HTTP server (use -s for minimal/normal)
   client - HTTP client (use -s for minimal/normal)`,
 	Args: cobra.MaximumNArgs(1),
-	Run:  runPz,
+	RunE: runPz,
 }
 
-func runPz(cmd *cobra.Command, args []string) {
+func runPz(cmd *cobra.Command, args []string) error {
 	template, _ := cmd.Flags().GetString("template")
 	comments, _ := cmd.Flags().GetBool("comments")
 	force, _ := cmd.Flags().GetBool("force")
@@ -75,8 +75,7 @@ func runPz(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		name = promptForInput("Project name: ", "")
 		if name == "" {
-			fmt.Fprintln(os.Stderr, "error: project name is required")
-			os.Exit(1)
+			return fmt.Errorf("error: project name is required")
 		}
 
 		if !cmd.Flags().Changed("template") {
@@ -102,29 +101,26 @@ func runPz(cmd *cobra.Command, args []string) {
 	}
 
 	if !isValidProjectName(name) {
-		fmt.Fprintln(os.Stderr, "error: project name must be a plain directory name with no path separators, '..' sequences, or absolute paths")
-		os.Exit(1)
+		return fmt.Errorf("error: project name must be a plain directory name with no path separators, '..' sequences, or absolute paths")
 	}
 
 	validTemplates := map[string]bool{"basic": true, "cli": true, "lib": true, "multi": true, "server": true, "client": true}
 	if !validTemplates[template] {
-		fmt.Printf("Invalid template '%s'. Choose from: basic, cli, lib, multi, server, client\n", template)
-		return
+		return fmt.Errorf("Invalid template '%s'. Choose from: basic, cli, lib, multi, server, client", template)
 	}
 
 	if template == "server" || template == "client" {
 		validSubTypes := map[string]bool{"minimal": true, "normal": true}
 		if !validSubTypes[serverType] {
-			fmt.Printf("Invalid type '%s'. Choose from: minimal, normal\n", serverType)
-			return
+			return fmt.Errorf("Invalid type '%s'. Choose from: minimal, normal", serverType)
 		}
 	}
 
 	if err := createProject(name, template, comments, force, serverType); err != nil {
-		if err != errPzCancelled {
-			fmt.Printf("Error: %v\n", err)
+		if err == errPzCancelled {
+			return nil
 		}
-		return
+		return fmt.Errorf("Error: %v", err)
 	}
 
 	switch template {
@@ -139,6 +135,7 @@ func runPz(cmd *cobra.Command, args []string) {
 		fmt.Printf("\nDone! Run your project:\n")
 		fmt.Printf("  cd %s && gray main.gray\n", name)
 	}
+	return nil
 }
 
 // isValidProjectName returns true only when name is a plain single-element

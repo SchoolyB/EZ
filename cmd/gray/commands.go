@@ -19,17 +19,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ExitError carries a process exit code through the error return chain
+// so that main() can forward it to os.Exit without every call site
+// reaching for os.Exit directly.
+type ExitError struct{ Code int }
+
+func (e *ExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code) }
+
 var checkCmd = &cobra.Command{
 	Use:   "check [file.gray | directory]",
 	Short: "Type-check a file or project without compiling",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Allow directories for project-wide check
 		info, statErr := os.Stat(args[0])
 		isDir := statErr == nil && info.IsDir()
 		if !isDir && !strings.HasSuffix(args[0], ".gray") {
-			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid Grayscale source file — expected a .gray file\n", args[0])
-			os.Exit(1)
+			return fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray file", args[0])
 		}
 		var extraArgs []string
 		quiet, _ := cmd.Flags().GetString("quiet")
@@ -40,10 +46,12 @@ var checkCmd = &cobra.Command{
 		}
 		code, err := grayc.Check(args[0], extraArgs)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error: %v", err)
 		}
-		os.Exit(code)
+		if code != 0 {
+			return &ExitError{code}
+		}
+		return nil
 	},
 }
 
@@ -51,10 +59,9 @@ var buildCmd = &cobra.Command{
 	Use:   "build [file.gray]",
 	Short: "Compile a Grayscale source file to a native binary",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if !strings.HasSuffix(args[0], ".gray") {
-			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid Grayscale source file — expected a .gray file\n", args[0])
-			os.Exit(1)
+			return fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray file", args[0])
 		}
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
@@ -77,10 +84,12 @@ var buildCmd = &cobra.Command{
 		}
 		code, err := grayc.Build(args[0], opts)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error: %v", err)
 		}
-		os.Exit(code)
+		if code != 0 {
+			return &ExitError{code}
+		}
+		return nil
 	},
 }
 
@@ -93,8 +102,8 @@ var installCmd = &cobra.Command{
 		"  gray install 2.5.0\n" +
 		"  gray install 3.0.0-beta.2",
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runInstall(args[0])
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runInstall(args[0])
 	},
 }
 
@@ -106,14 +115,14 @@ var updateCmd = &cobra.Command{
 		"if a newer pre-release is available.\n\n" +
 		"With --pre, installs the latest pre-release (alpha, beta, or rc).",
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		confirm, _ := cmd.Flags().GetBool("confirm")
 		pre, _ := cmd.Flags().GetBool("pre")
 		var url string
 		if len(args) > 0 {
 			url = args[0]
 		}
-		runUpdate(confirm, url, pre)
+		return runUpdate(confirm, url, pre)
 	},
 }
 
@@ -166,7 +175,7 @@ By default files are rewritten in place. Use --check for a non-mutating CI gate.
 		check, _ := cmd.Flags().GetBool("check")
 		exit := runFmt(args, check)
 		if exit != 0 {
-			os.Exit(exit)
+			return &ExitError{exit}
 		}
 		return nil
 	},
@@ -406,12 +415,10 @@ func printStdlibEntry(name string, entry StdlibManEntry) {
 	printManEntry(entry.Module, name, entry.Kind, entry.Sig, entry.Fields, entry.Desc, entry.Example)
 }
 
-func printStdlibModuleIndex(module string) {
+func printStdlibModuleIndex(module string) error {
 	groups, ok := stdlibModuleGroups[module]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "gray: no documentation for module '%s'\n", module)
-		fmt.Fprintf(os.Stderr, "    try: gray man\n")
-		os.Exit(1)
+		return fmt.Errorf("gray: no documentation for module '%s'\n    try: gray man", module)
 	}
 	fmt.Printf("module: %s  (gray man <name> for details)\n", module)
 	fmt.Println(strings.Repeat("─", 50))
@@ -429,6 +436,7 @@ func printStdlibModuleIndex(module string) {
 	}
 	fmt.Println()
 	fmt.Println("  Tip: omit the () when looking up functions (e.g. gray man " + module + "." + groups[0].Names[0] + ")")
+	return nil
 }
 
 func printLangIndex() {
@@ -444,12 +452,10 @@ func printLangIndex() {
 	}
 }
 
-func printLangCategoryIndex(category string) {
+func printLangCategoryIndex(category string) error {
 	groups, ok := langCategories[category]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "gray: no language reference category '%s'\n", category)
-		fmt.Fprintf(os.Stderr, "    try: gray man lang\n")
-		os.Exit(1)
+		return fmt.Errorf("gray: no language reference category '%s'\n    try: gray man lang", category)
 	}
 	fmt.Printf("lang: %s  (gray man <name> for details)\n", category)
 	fmt.Println(strings.Repeat("─", 50))
@@ -460,6 +466,7 @@ func printLangCategoryIndex(category string) {
 		fmt.Println()
 		fmt.Println("  Tip: omit the # when looking up attributes (e.g. gray man flags)")
 	}
+	return nil
 }
 
 func printLangEntry(displayName string, entry LangManEntry) {
@@ -480,39 +487,37 @@ var manCmd = &cobra.Command{
 	Use:   "man [name]",
 	Short: "Show documentation for a builtin or stdlib function",
 	Args:  cobra.ArbitraryArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			printManUsage()
-			return
+			return nil
 		}
 
 		name := strings.TrimSuffix(args[0], "()")
 
 		if name == "builtins" || name == "builtin" {
 			printBuiltinsIndex()
-			return
+			return nil
 		}
 
 		// Language reference index and categories
 		if name == "lang" || name == "language" {
 			printLangIndex()
-			return
+			return nil
 		}
 		if name == "keywords" || name == "types" || name == "symbols" || name == "attributes" {
-			printLangCategoryIndex(name)
-			return
+			return printLangCategoryIndex(name)
 		}
 
 		// Module-level index (e.g. gray man math)
 		if _, isMod := stdlibModules[name]; isMod {
-			printStdlibModuleIndex(name)
-			return
+			return printStdlibModuleIndex(name)
 		}
 
 		// Builtin lookup
 		if entry, ok := builtinManDocs[name]; ok {
 			printBuiltinEntry(name, entry)
-			return
+			return nil
 		}
 
 		// Stdlib function/type lookup — supports "module.func" and plain "func"
@@ -522,7 +527,7 @@ var manCmd = &cobra.Command{
 				displayName = name[idx+1:]
 			}
 			printStdlibEntry(displayName, entry)
-			return
+			return nil
 		}
 		// Plain name: scan all module.func keys for a match
 		var matchEntries []StdlibManEntry
@@ -535,38 +540,36 @@ var manCmd = &cobra.Command{
 		}
 		if len(matchEntries) == 1 {
 			printStdlibEntry(name, matchEntries[0])
-			return
+			return nil
 		}
 		if len(matchEntries) > 1 {
-			fmt.Fprintf(os.Stderr, "gray: '%s' exists in multiple modules. Use a qualified name:\n", name)
+			var sb strings.Builder
+			fmt.Fprintf(&sb, "gray: '%s' exists in multiple modules. Use a qualified name:", name)
 			for _, k := range matchKeys {
-				fmt.Fprintf(os.Stderr, "    gray man %s\n", k)
+				fmt.Fprintf(&sb, "\n    gray man %s", k)
 			}
-			os.Exit(1)
-			return
+			return fmt.Errorf("%s", sb.String())
 		}
 
 		// Language reference lookup — direct key
 		if entry, ok := langManDocs[name]; ok {
 			printLangEntry(langDisplayName(name), entry)
-			return
+			return nil
 		}
 		// Language reference lookup — type suffix fallback (e.g. "i8" -> "i8_type")
 		if entry, ok := langManDocs[name+"_type"]; ok {
 			printLangEntry(name, entry)
-			return
+			return nil
 		}
 		// Language reference lookup — symbol alias (e.g. "pointer" -> "^")
 		if target, ok := langSymbolAliases[name]; ok {
 			if entry, ok := langManDocs[target]; ok {
 				printLangEntry(target, entry)
-				return
+				return nil
 			}
 		}
 
-		fmt.Fprintf(os.Stderr, "gray: no documentation for '%s'\n", name)
-		fmt.Fprintf(os.Stderr, "    try: gray man builtins  or  gray man lang\n")
-		os.Exit(1)
+		return fmt.Errorf("gray: no documentation for '%s'\n    try: gray man builtins  or  gray man lang", name)
 	},
 }
 
@@ -581,10 +584,7 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 		if !strings.HasSuffix(args[0], ".gray") {
-			fmt.Fprintf(os.Stderr, "error: unknown command or invalid file '%s' — expected a .gray file\n", args[0])
-			fmt.Fprintf(os.Stderr, "  usage: gray <file.gray>\n")
-			fmt.Fprintf(os.Stderr, "  help:  gray --help\n")
-			os.Exit(1)
+			return fmt.Errorf("error: unknown command or invalid file '%s' — expected a .gray file\n  usage: gray <file.gray>\n  help:  gray --help", args[0])
 		}
 
 		// Pass extra args through to the compiled program
@@ -610,10 +610,11 @@ var rootCmd = &cobra.Command{
 
 		code, err := grayc.Run(args[0], compilerArgs)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error: %v", err)
 		}
-		os.Exit(code)
+		if code != 0 {
+			return &ExitError{code}
+		}
 		return nil
 	},
 }

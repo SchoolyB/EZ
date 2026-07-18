@@ -55,7 +55,11 @@ var verifyCmd = &cobra.Command{
 	Use:   "verify",
 	Short: "Run the built-in language verification test suite",
 	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(runVerify())
+	RunE: func(cmd *cobra.Command, args []string) error {
+		code := runVerify()
+		if code != 0 {
+			return &ExitError{code}
+		}
+		return nil
 	},
 }

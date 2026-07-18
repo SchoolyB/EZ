@@ -27,10 +27,10 @@ var watchCmd = &cobra.Command{
 	Short: "Watch files and re-run on changes",
 	Long:  `Watch a file or directory for changes and automatically re-run.`,
 	Args:  cobra.ExactArgs(1),
-	Run:   runWatch,
+	RunE:  runWatch,
 }
 
-func runWatch(cmd *cobra.Command, args []string) {
+func runWatch(cmd *cobra.Command, args []string) error {
 	target := args[0]
 
 	var compilerArgs []string
@@ -47,26 +47,22 @@ func runWatch(cmd *cobra.Command, args []string) {
 	// Resolve to absolute path
 	absTarget, err := filepath.Abs(target)
 	if err != nil {
-		fmt.Printf("Error resolving path: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error resolving path: %v", err)
 	}
 
 	// Check if target exists
 	info, err := os.Stat(absTarget)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error: %v", err)
 	}
 
 	if info.IsDir() {
-		watchDirectory(absTarget, compilerArgs)
-	} else {
-		if !strings.HasSuffix(absTarget, ".gray") {
-			fmt.Println("Error: file must have .gray extension")
-			os.Exit(1)
-		}
-		watchFile(absTarget, compilerArgs)
+		return watchDirectory(absTarget, compilerArgs)
 	}
+	if !strings.HasSuffix(absTarget, ".gray") {
+		return fmt.Errorf("Error: file must have .gray extension")
+	}
+	return watchFile(absTarget, compilerArgs)
 }
 
 // watchLoop runs the debounced event loop shared by file and directory watch modes.
@@ -111,11 +107,10 @@ func watchLoop(watcher *fsnotify.Watcher, mainFile string, compilerArgs []string
 }
 
 // watchFile watches a single file and its imports for changes
-func watchFile(file string, compilerArgs []string) {
+func watchFile(file string, compilerArgs []string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		fmt.Printf("Error creating watcher: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error creating watcher: %v", err)
 	}
 	defer watcher.Close()
 
@@ -137,20 +132,19 @@ func watchFile(file string, compilerArgs []string) {
 	watchLoop(watcher, file, compilerArgs,
 		func(_ fsnotify.Event) bool { return true },
 		func() []string { return collectFilesToWatch(file) })
+	return nil
 }
 
 // watchDirectory watches all .gray files in a directory
-func watchDirectory(dirPath string, compilerArgs []string) {
+func watchDirectory(dirPath string, compilerArgs []string) error {
 	mainFile, err := findMainFile(dirPath)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		fmt.Printf("Error creating watcher: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error creating watcher: %v", err)
 	}
 	defer watcher.Close()
 
@@ -168,6 +162,7 @@ func watchDirectory(dirPath string, compilerArgs []string) {
 	watchLoop(watcher, mainFile, compilerArgs,
 		func(e fsnotify.Event) bool { return strings.HasSuffix(e.Name, ".gray") },
 		func() []string { return collectGrayFilesInDir(dirPath) })
+	return nil
 }
 
 // collectFilesToWatch returns the main file plus imported file paths via text scan.

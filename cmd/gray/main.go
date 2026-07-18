@@ -10,6 +10,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -33,6 +34,10 @@ const asciiBanner = "" +
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
+		var exitErr *ExitError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.Code)
+		}
 		os.Exit(1)
 	}
 }
