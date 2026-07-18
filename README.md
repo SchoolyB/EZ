@@ -1,13 +1,7 @@
 <p align="center">
-  <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200">
+    <img src="images/Grayscale_spectrum.png" alt="Grayscale Logo" width="450" >
+    <!-- <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200"> -->
 </p>
-
-<h1 align="center">The Grayscale Programming Language</h1>
-
-<p align="center">
-  A compiled language that's actually approachable!
-</p>
-
 <p align="center">
   <a href="STANDARD.md">Learn More About Grayscale</a>
 </p>
@@ -20,82 +14,75 @@
 ---
 
 ```gray
-do main() {
-    println("Hello, World!")
+//Every program needs a main function
+do main() {  
+    println("Hello, Grayscale!") 
 }
 ```
 
 ```gray
-import @json
-
-#json
-const User struct {
-    name string
-    age int
-}
+import @random
 
 do main() {
-    mut u = new(User)^
-    u.name = "Marshall"
-    u.age = 31
+    mut score = random.rand_int(0, 100) //Full type inference
+    mut grade char //Only 'const' declared variables need values at declaration
 
-    println(json.stringify(u))
-}
-// Output: {"name":"Marshall","age":31}
-```
-
-```gray
-import @io
-
-do main() {
-    mut content, err = io.read_file("config.json")
-    if err != nil {
-        eprintln("Failed: ${err}")
-        exit(1)
-    } or len(content) == 0 {
-        println("No content found")
-        exit(1)
-    } otherwise {
-        println("Content found: ${content}")
-    }
-}
-```
-
-```gray
-do main() {
-    mut score int = 82
-    mut grade char
-
-    when score {
-        is range(90, 101) { grade = 'A' }
+    //Pattern matching
+    when score { 
+        is range(90, 100) { grade = 'A' } //No 'break' statements needed
         is range(80, 90)  { grade = 'B' }
         is range(70, 80)  { grade = 'C' }
         is range(60, 70)  { grade = 'D' }
         default           { grade = 'F' }
     }
 
-    println("Your grade is a ${grade}")
+    println("Your grade is a ${grade}") //Simple string interpolation
 }
+```
+
+```gray
+import @json
+
+#json  //Built-in attribute for automatic JSON serialization
+const User struct {
+    name string
+    age int
+}
+
+do make_new_user() -> User {
+    mut u = new(User) //Create a pointer to a 'User' struct
+    u.name = "Marshall"
+    u.age = 31
+
+    return u^ //Return the dereferenced pointer
+}
+
+do main() {
+    mut u = make_new_user() 
+    println("Created user: ${u.name}, age ${u.age}")
+    println(json.stringify(u)). //Output: {"name":"Marshall","age":31}
+}
+
 ```
 
 ---
 
 ## Why Grayscale?
 
-- **Readable syntax** — `for_each`, `as_long_as`, `if`/`or`/`otherwise`, `when`/`is`, `in`/`not_in`, `or_return`, `ensure`, `bit_and`/`bit_or`/`bit_xor`.
-- **Versatility through simplicity** — Scripts, microservices, CLI tools, or a project where you want to learn systems programming fundamentals Grayscale is designed for you!
-- **A compiler that works with the programmer** — Clear error messages, a builtin formatter, live reloading, builtin docs via `gray man`. You should never have to wonder what went wrong or where.
-- **Safe by default** — Automatic Scope-Based Arena Management (ASBAM) for memory, bounds-checked arrays, overflow-checked math, nil protection, no pointer arithmetic. The guardrails are on unless you explicitly take them off with the `@mem` stdlib module
+- **Readable syntax** — `for_each`, `as_long_as`(alias is `while`), `if`/`or`/`otherwise`(alias is `else`), `when`/`is`, `in`/`not_in`(alias is `!in`), `or_return`, `ensure`, `bit_and`/`bit_or`/`bit_xor`, etc.
+- **Versatility through simplicity** — Scripts, microservices, CLI tools, or projects where you want to learn systems programming fundamentals
+- **A compiler that works with the programmer** — Clear error messages, a builtin formatter, live reloading, & builtin language and stdlib docs via `gray man`. The Programmer should never have to question anything and if they do, Grayscale will guide them.
+- **Safe by default** — Automatic Scope-Based Arena Management for memory, bounds-checked arrays, overflow-checked math, nil protection, **NO** pointer arithmetic. The guardrails are on unless you explicitly take them off with the `@mem` stdlib module
 
 ---
 
-## Standard Library
+## The Standard Library
 
 <p align="center">
 
-`arrays` · `strings` · `maps` · `math` · `time` · `random` · `json` · `io` · `os`
-`http` · `server` · `crypto` · `encoding` · `uuid` · `bytes` · `binary` · `sqlite`
-`regex` · `csv` · `net` · `threads` · `sync` · `channels` · `mem` · `atomic` · `fmt` · `strconv`
+`@arrays` · `@strings` · `@maps` · `@math` · `@time` · `@random` · `@json` · `@io` · `@os`
+`@http` · `@server` · `@crypto` · `@encoding` · `@uuid` · `@bytes` · `@binary` · `@sqlite`
+`@regex` · `@csv` · `@net` · `@threads` · `@sync` · `@channels` · `@mem` · `@atomic` · `@fmt` · `@strconv`
 
 </p>
 
@@ -138,7 +125,7 @@ make install
 | `gray report` | Print system info for bug reports | `gray report` |
 | `gray update` | Update to the latest stable version | `gray update` |
 | `gray update --pre` | Update to the latest pre-release (alpha/beta) | `gray update --pre` |
-| `gray install <version>` | Install a specific version by semver | `gray install 2.5.0` |
+| `gray install <version>` | Install a specific version by semver | `gray install x.y.z` |
 | `gray version` | Show version info | `gray version` |
 | `gray man` | Show help for the man command | `gray man` |
 | `gray man <module>` | Show info about a stdlib module | `gray man strings` |
@@ -151,8 +138,8 @@ make install
 
 ```bash
 gray update              # latest stable
-gray update --pre        # latest pre-release
-gray install 2.5.0       # pin to an exact version
+gray update --pre        # latest pre-release Note: The latest pre-release may be very out of date
+gray install x.y.z       # pin to an exact version
 ```
 
 `gray update` checks for new versions, shows the changelog, and upgrades both the `gray` CLI and the compiler. Pass `--pre` to pick up the latest alpha, beta, or rc. Use `gray install <version>` to install an exact version by semver — downgrades and pre-release tags (e.g. `3.0.0-beta.2`) are supported.
