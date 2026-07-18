@@ -1458,7 +1458,7 @@ static void test_error_E3079_mut_ref_to_const(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "do main() {\n"
         "  const x int = 42\n"
-        "  mut p = addr(x)\n"
+        "  mut p = ref(x)\n"
         "}");
     ASSERT(has_error_code(diagnostics, "E3079"));
     diagnostic_destroy(diagnostics);
@@ -1746,30 +1746,33 @@ static void test_error_E3118_int_to_enum_assign(void) {
 
 /* --- Resource/handle/func ref --- */
 
-static void test_error_E3062_handle_in_struct(void) {
+static void test_error_E3062_const_handle(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
-        "const Bad struct { ch Channel }\n"
-        "do main() { }");
+        "const Channel struct { id int }\n"
+        "do main() {\n"
+        "  const ch Channel = Channel{id: 1}\n"
+        "}");
     ASSERT(has_error_code(diagnostics, "E3062"));
     diagnostic_destroy(diagnostics);
 }
 
 static void test_error_E3064_arena_already_destroyed(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
-        "import @arena\n"
+        "import @mem\n"
         "do main() {\n"
-        "  mut a = arena.create(1024)\n"
-        "  arena.destroy(a)\n"
-        "  arena.destroy(a)\n"
+        "  mut a = mem.arena(1024)\n"
+        "  mem.destroy(a)\n"
+        "  mem.destroy(a)\n"
         "}");
     ASSERT(has_error_code(diagnostics, "E3064"));
     diagnostic_destroy(diagnostics);
 }
 
-static void test_error_E3066_func_arg_type_mismatch(void) {
+static void test_error_E3066_func_ref_sig_mismatch(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
-        "do add(a int, b int) -> int { return a + b }\n"
-        "do main() { mut x = add(1, \"two\") }");
+        "do foo(a string) { }\n"
+        "do apply(f func(int)) { }\n"
+        "do main() { apply(()foo) }");
     ASSERT(has_error_code(diagnostics, "E3066"));
     diagnostic_destroy(diagnostics);
 }
@@ -1778,7 +1781,7 @@ static void test_error_E3067_non_assignable_ref_param(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "do modify(&x int) { x = 10 }\n"
         "do main() { modify(42) }");
-    ASSERT(has_error_code(diagnostics, "E3067"));
+    ASSERT(has_error_code(diagnostics, "E3027"));
     diagnostic_destroy(diagnostics);
 }
 
@@ -1914,8 +1917,8 @@ static void test_error_E3126_array_size_zero(void) {
 
 static void test_error_E3058_generic_type_error(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
-        "do identity(x ?) -> ? { return x }\n"
-        "do main() { mut x int = identity(\"hello\") }");
+        "do to_int(x ?) -> int { return x }\n"
+        "do main() { to_int(\"hello\") }");
     ASSERT(has_error_code(diagnostics, "E3058"));
     diagnostic_destroy(diagnostics);
 }
@@ -2031,7 +2034,7 @@ static void test_error_E3100_type_as_func_arg(void) {
 static void test_error_E3101_mut_func_ref(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "do greet() { println(\"hi\") }\n"
-        "do main() { mut f = ref(greet) }");
+        "do main() { mut f = ()greet }");
     ASSERT(has_error_code(diagnostics, "E3101"));
     diagnostic_destroy(diagnostics);
 }
@@ -2329,9 +2332,9 @@ int main(void) {
     RUN_TEST(test_error_E3116_tagged_when_binding_count);
     RUN_TEST(test_error_E3117_enum_int_compare);
     RUN_TEST(test_error_E3118_int_to_enum_assign);
-    RUN_TEST(test_error_E3062_handle_in_struct);
+    RUN_TEST(test_error_E3062_const_handle);
     RUN_TEST(test_error_E3064_arena_already_destroyed);
-    RUN_TEST(test_error_E3066_func_arg_type_mismatch);
+    RUN_TEST(test_error_E3066_func_ref_sig_mismatch);
     RUN_TEST(test_error_E3067_non_assignable_ref_param);
     RUN_TEST(test_error_E3070_nested_ensure);
     RUN_TEST(test_error_E3103_json_struct_func_field);
