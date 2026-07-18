@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2001 - missing closing parenthesis
+ * Expected: error points at current token where ')' should be
+ */
+
+do main() {
+    mut x int = (5 + 3
+    println(x)
+}

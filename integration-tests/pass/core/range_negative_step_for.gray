@@ -1,0 +1,115 @@
+/*
+ * range_negative_step_for.gray - Test for loops with negative step range
+ *
+ * Verifies that range(start, end, negative_step) correctly iterates
+ * in reverse in for loops, with proper codegen and typechecker support.
+ */
+
+import @arrays
+
+do main() {
+    println("=== Range Negative Step For Loop Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: basic countdown with step -1
+    mut result [int] = {}
+    for i in range(5, 0, -1) {
+        arrays.append(result, i)
+    }
+    if len(result) == 5 && result[0] == 5 && result[4] == 1 {
+        println("  [PASS] range(5, 0, -1) counts 5,4,3,2,1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(5, 0, -1) countdown")
+        failed += 1
+    }
+
+    // Test 2: countdown with step -2 (even numbers)
+    mut evens [int] = {}
+    for i in range(10, 0, -2) {
+        arrays.append(evens, i)
+    }
+    if len(evens) == 5 && evens[0] == 10 && evens[1] == 8 && evens[4] == 2 {
+        println("  [PASS] range(10, 0, -2) counts 10,8,6,4,2")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(10, 0, -2) even countdown")
+        failed += 1
+    }
+
+    // Test 3: countdown sum
+    mut sum int = 0
+    for i in range(10, 0, -1) {
+        sum += i
+    }
+    if sum == 55 {
+        println("  [PASS] range(10, 0, -1) sum = 55")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(10, 0, -1) sum: got ${sum}, expected 55")
+        failed += 1
+    }
+
+    // Test 4: countdown with step -3
+    mut threes [int] = {}
+    for i in range(9, 0, -3) {
+        arrays.append(threes, i)
+    }
+    if len(threes) == 3 && threes[0] == 9 && threes[1] == 6 && threes[2] == 3 {
+        println("  [PASS] range(9, 0, -3) counts 9,6,3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(9, 0, -3)")
+        failed += 1
+    }
+
+    // Test 5: negative range bounds with negative step
+    mut neg_result [int] = {}
+    for i in range(0, -5, -1) {
+        arrays.append(neg_result, i)
+    }
+    if len(neg_result) == 5 && neg_result[0] == 0 && neg_result[4] == -4 {
+        println("  [PASS] range(0, -5, -1) counts 0,-1,-2,-3,-4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(0, -5, -1) negative bounds")
+        failed += 1
+    }
+
+    // Test 6: single iteration countdown
+    mut single [int] = {}
+    for i in range(1, 0, -1) {
+        arrays.append(single, i)
+    }
+    if len(single) == 1 && single[0] == 1 {
+        println("  [PASS] range(1, 0, -1) single element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(1, 0, -1) single element")
+        failed += 1
+    }
+
+    // Test 7: reverse iteration building a string
+    mut s string = ""
+    for i in range(3, 0, -1) {
+        s = "${s}${i}"
+    }
+    if s == "321" {
+        println("  [PASS] reverse range string build '321'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reverse range string: got '${s}', expected '321'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

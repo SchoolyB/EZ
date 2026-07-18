@@ -1,0 +1,164 @@
+/*
+ * bigint_cast_narrow.gray - Test cast() from wide integer types to narrow scalar types.
+ *
+ * Covers valid narrowing casts that fit within the target range: i128/u128/i256/u256
+ * to i8, i16, i32, i64, u8, u16, u32, u64.
+ */
+
+do main() {
+    println("=== Wide Integer Narrow cast() Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // i128 → i8 (fits)
+    mut a i128 = i128(100)
+    mut ai8 i8 = cast(a, i8)
+    if ai8 == 100 {
+        println("  [PASS] cast(i128, i8) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, i8): got ${ai8}")
+        failed += 1
+    }
+
+    // i128 → i16 (fits)
+    mut b i128 = i128(-30000)
+    mut bi16 i16 = cast(b, i16)
+    if bi16 == -30000 {
+        println("  [PASS] cast(i128, i16) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, i16): got ${bi16}")
+        failed += 1
+    }
+
+    // i128 → i32 (fits)
+    mut c i128 = i128(2000000000)
+    mut ci32 i32 = cast(c, i32)
+    if ci32 == 2000000000 {
+        println("  [PASS] cast(i128, i32) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, i32): got ${ci32}")
+        failed += 1
+    }
+
+    // i128 → i64/int (fits)
+    mut d i128 = i128(-9000000000)
+    mut di64 int = cast(d, int)
+    if di64 == -9000000000 {
+        println("  [PASS] cast(i128, int) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, int): got ${di64}")
+        failed += 1
+    }
+
+    // i128 → u8 (fits)
+    mut e i128 = i128(200)
+    mut eu8 u8 = cast(e, u8)
+    if eu8 == 200 {
+        println("  [PASS] cast(i128, u8) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, u8): got ${eu8}")
+        failed += 1
+    }
+
+    // i128 → u16 (fits)
+    mut f i128 = i128(60000)
+    mut fu16 u16 = cast(f, u16)
+    if fu16 == 60000 {
+        println("  [PASS] cast(i128, u16) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, u16): got ${fu16}")
+        failed += 1
+    }
+
+    // i128 → u32 (fits)
+    mut g i128 = i128(4000000000)
+    mut gu32 u32 = cast(g, u32)
+    if gu32 == 4000000000 {
+        println("  [PASS] cast(i128, u32) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, u32): got ${gu32}")
+        failed += 1
+    }
+
+    // i128 → uint (fits)
+    mut h i128 = i128(9999999999)
+    mut hu64 uint = cast(h, uint)
+    if hu64 == 9999999999 {
+        println("  [PASS] cast(i128, uint) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i128, uint): got ${hu64}")
+        failed += 1
+    }
+
+    // u128 → i32 (fits)
+    mut i u128 = u128(1000000000)
+    mut ii32 i32 = cast(i, i32)
+    if ii32 == 1000000000 {
+        println("  [PASS] cast(u128, i32) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(u128, i32): got ${ii32}")
+        failed += 1
+    }
+
+    // i256 → i32 (fits)
+    mut j i256 = i256(-1000)
+    mut ji32 i32 = cast(j, i32)
+    if ji32 == -1000 {
+        println("  [PASS] cast(i256, i32) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(i256, i32): got ${ji32}")
+        failed += 1
+    }
+
+    // u256 → u32 (fits)
+    mut k u256 = u256(500000)
+    mut ku32 u32 = cast(k, u32)
+    if ku32 == 500000 {
+        println("  [PASS] cast(u256, u32) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(u256, u32): got ${ku32}")
+        failed += 1
+    }
+
+    // Function-style: uint(i128) positive value
+    mut l i128 = i128(888)
+    mut lu uint = uint(l)
+    if lu == 888 {
+        println("  [PASS] uint(i128) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uint(i128): got ${lu}")
+        failed += 1
+    }
+
+    // Function-style: uint(i256) positive value
+    mut m i256 = i256(777)
+    mut mu uint = uint(m)
+    if mu == 777 {
+        println("  [PASS] uint(i256) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uint(i256): got ${mu}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

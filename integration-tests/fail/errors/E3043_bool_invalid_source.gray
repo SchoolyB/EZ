@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3043 - bool() with invalid source type
+ * Expected: E3043 cannot convert string to bool
+ */
+
+do main() {
+    mut s string = "hello"
+    mut b bool = bool(s)  // Should produce E3043
+    println(b)
+}

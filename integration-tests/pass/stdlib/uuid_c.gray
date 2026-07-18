@@ -1,0 +1,164 @@
+/*
+ * uuid_c.gray - Integration test for uuid module (compiler)
+ */
+
+import @uuid
+
+do main() {
+    println("=== UUID Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // generate returns UUID struct
+    mut id1 UUID = uuid.generate()
+    mut s1 string = uuid.to_string(id1)
+    if len(s1) == 36 {
+        println("  [PASS] generate returns 36-char UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate returns 36-char UUID: expected 36, got ${len(s1)}")
+        failed += 1
+    }
+
+    // generated UUID string is valid
+    if uuid.is_valid(s1) == true {
+        println("  [PASS] generate produces valid UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate produces valid UUID")
+        failed += 1
+    }
+
+    // two UUIDs are different
+    mut id2 UUID = uuid.generate()
+    mut s2 string = uuid.to_string(id2)
+    if s1 != s2 {
+        println("  [PASS] generate unique")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate unique")
+        failed += 1
+    }
+
+    // generate_compact strips hyphens to 32 chars
+    mut compact string = uuid.generate_compact(id1)
+    if len(compact) == 32 {
+        println("  [PASS] generate_compact length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_compact length: expected 32, got ${len(compact)}")
+        failed += 1
+    }
+
+    // invalid string rejected
+    if uuid.is_valid("not-a-uuid") == false {
+        println("  [PASS] is_valid rejects invalid")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid rejects invalid")
+        failed += 1
+    }
+
+    // empty string rejected
+    if uuid.is_valid("") == false {
+        println("  [PASS] is_valid rejects empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid rejects empty")
+        failed += 1
+    }
+
+    // generate_random returns a valid v4 UUID
+    mut v4 UUID = uuid.generate_random()
+    mut v4s string = uuid.to_string(v4)
+    if len(v4s) == 36 && uuid.is_valid(v4s) {
+        println("  [PASS] generate_random returns valid 36-char UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_random returns valid 36-char UUID")
+        failed += 1
+    }
+    // v4 version nibble lives at character index 14
+    if to_char(v4s, 14) == '4' {
+        println("  [PASS] generate_random has version 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_random has version 4: got '${to_char(v4s, 14)}'")
+        failed += 1
+    }
+
+    // generate_time_ordered returns a valid v7 UUID
+    mut v7 UUID = uuid.generate_time_ordered()
+    mut v7s string = uuid.to_string(v7)
+    if len(v7s) == 36 && uuid.is_valid(v7s) {
+        println("  [PASS] generate_time_ordered returns valid 36-char UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_time_ordered returns valid 36-char UUID")
+        failed += 1
+    }
+    if to_char(v7s, 14) == '7' {
+        println("  [PASS] generate_time_ordered has version 7")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_time_ordered has version 7: got '${to_char(v7s, 14)}'")
+        failed += 1
+    }
+
+    // parse normalizes uppercase hex to lowercase
+    mut parsed_upper UUID = uuid.parse("550E8400-E29B-41D4-A716-446655440000")
+    mut parsed_str string = uuid.to_string(parsed_upper)
+    if parsed_str == "550e8400-e29b-41d4-a716-446655440000" {
+        println("  [PASS] parse normalizes uppercase to lowercase")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse normalizes uppercase to lowercase: got '${parsed_str}'")
+        failed += 1
+    }
+
+    // parse preserves already-canonical input
+    mut parsed_lower UUID = uuid.parse("550e8400-e29b-41d4-a716-446655440000")
+    mut parsed_lower_str string = uuid.to_string(parsed_lower)
+    if parsed_lower_str == "550e8400-e29b-41d4-a716-446655440000" {
+        println("  [PASS] parse preserves canonical input")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse preserves canonical input: got '${parsed_lower_str}'")
+        failed += 1
+    }
+
+    // NIL_UUID is the all-zero UUID
+    mut nil_str string = uuid.to_string(uuid.NIL_UUID)
+    if nil_str == "00000000-0000-0000-0000-000000000000" {
+        println("  [PASS] NIL_UUID is all zeros")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NIL_UUID is all zeros: got '${nil_str}'")
+        failed += 1
+    }
+    if uuid.is_valid(nil_str) {
+        println("  [PASS] NIL_UUID is a valid UUID string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NIL_UUID is a valid UUID string")
+        failed += 1
+    }
+
+    // to_string round-trip
+    mut rt UUID = uuid.generate()
+    mut rt_str string = uuid.to_string(rt)
+    if len(rt_str) == 36 {
+        println("  [PASS] to_string returns 36-char string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_string returns 36-char string")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+    println("ALL TESTS PASSED")
+}

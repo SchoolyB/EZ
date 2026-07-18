@@ -1,0 +1,15 @@
+/*
+ * Error Test: E4002 - undefined function on a later line
+ * Expected: error points at the function name, not the parenthesis
+ * caret should be on the function name
+ */
+
+do helper() -> int {
+    return 42
+}
+
+do main() {
+    mut x int = helper()
+    mut y int = does_not_exist()
+    println(x + y)
+}

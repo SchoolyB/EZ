@@ -1,0 +1,50 @@
+/*
+ * main.gray - Test cross-module nested struct initialization
+ *
+ * Bug: When creating a struct from another module that has nested struct fields,
+ * the nested structs were not being initialized (left as NIL), causing
+ * "member access not supported: NIL" errors.
+ */
+
+
+import lib "./types.gray"
+
+
+do main() {
+    println("=== Cross-Module Nested Struct Init Test ===")
+
+    // Test 1: new() with module-qualified type initializes nested struct
+    mut o = new(lib.Outer)
+    o.inner.value = 42
+    o.inner.name = "test"
+    println("  [PASS] new(lib.Outer) - set nested struct fields")
+    println("    inner.value = ${o.inner.value}")
+    println("    inner.name = ${o.inner.name}")
+
+    // Test 2: Deeply nested structs with new()
+    mut d = new(lib.Deep)
+    d.outer.inner.value = 99
+    d.outer.inner.name = "deep"
+    d.outer.count = 10
+    d.label = "test"
+    println("  [PASS] new(lib.Deep) - set deeply nested fields")
+    println("    outer.inner.value = ${d.outer.inner.value}")
+    println("    outer.inner.name = ${d.outer.inner.name}")
+    println("    outer.count = ${d.outer.count}")
+
+    // Test 3: Empty struct literal initializes nested struct
+    mut o2 = lib.Outer{}
+    o2.inner.value = 100
+    println("  [PASS] lib.Outer{} - set nested struct field")
+    println("    inner.value = ${o2.inner.value}")
+
+    // Test 4: Partial struct literal initializes unspecified nested struct
+    mut o3 = lib.Outer{count: 5}
+    o3.inner.value = 200
+    println("  [PASS] lib.Outer{count: 5} - set nested struct field")
+    println("    count = ${o3.count}")
+    println("    inner.value = ${o3.inner.value}")
+
+    println("")
+    println("ALL TESTS PASSED")
+}

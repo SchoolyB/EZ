@@ -1,0 +1,11 @@
+/*
+ * Error Test: E4008 - main declared with a return type + matching return
+ *
+ * used to fire E4008 alongside E3006 ("cannot
+ * return a value from a void function") when the body actually had a
+ * return statement. Both errors are now suppressed after E4008.
+ */
+
+do main() -> int {
+    return 42
+}

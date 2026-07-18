@@ -1,0 +1,15 @@
+/*
+ * Error Test: E4005 - typo'd call on the @strings stdlib module
+ *
+ * used to fall through the strings dispatch's
+ * catchall else and silently invent a string return type, which
+ * cascaded into a misleading E3001 "cannot assign string to int"
+ * at the use site. Now emits E4005 at the offending member access.
+ */
+
+import @strings
+
+do main() {
+    mut x int = strings.totally_fake_function("abc")
+    println(x)
+}

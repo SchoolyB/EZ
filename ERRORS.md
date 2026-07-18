@@ -1,9 +1,9 @@
-# EZ Error Code Reference
+# Grayscale Error Code Reference
 
-> Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
-> Run `./scripts/generate_errors.sh` to regenerate.
+> Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
+> Run `./scripts/generate_errors.gray` to regenerate.
 
-**Total: 364 codes** (246 errors, 17 warnings, 101 panics)
+**Total: 365 codes** (247 errors, 17 warnings, 101 panics)
 
 ---
 
@@ -52,7 +52,7 @@
 | `E2057` | syntax | invalid interpolation syntax; use ${variable} instead of $variable |
 | `E2058` | syntax | cannot declare a struct or enum inside %s '%s'; define it at the file scope |
 | `E2059` | syntax | empty when block; add at least one 'is' branch |
-| `E2060` | syntax | too many return values; a function can return at most 16 values |
+| `E2060` | syntax | too many return values; a function can return at most %d values |
 | `E2061` | syntax | 'module' declarations are not supported; imported files are identified by their file path |
 | `E2062` | syntax | too many variables in multi-variable declaration; maximum is %d |
 | `E2063` | syntax | duplicate or conflicting named return value; each name must be unique and not collide with parameters |
@@ -194,12 +194,13 @@
 | `E3126` | types | array size must be greater than zero; '%s' resolves to %d |
 | `E3127` | types | type parameter expects a struct type name, but '%s' is not a struct; only struct types can be passed as type arguments |
 | `E3128` | types | type parameter expects a struct type name, but got a non-type expression; pass a struct type name like 'MyStruct' |
+| `E3129` | safety | empty loop body; this will loop forever at runtime |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
 | `E4004` | names | function '%s' already declared |
 | `E4005` | names | module '%s' has no function named '%s' |
-| `E4006` | names | name '%s' uses reserved prefix (ez_, _ez_, Ez); these are reserved for the compiler |
+| `E4006` | names | name '%s' uses reserved prefix (gray_, _gray_, Gray); these are reserved for the compiler |
 | `E4007` | names | a type with this name already exists; each struct and enum must have a unique name |
 | `E4008` | names | main() cannot have parameters or a return type; it must be declared as do main() { } |
 | `E4012` | names | variable '%s' shadows a type definition with the same name |
@@ -240,7 +241,7 @@
 | `E5039` | usage | constant expression overflows type '%s' |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
-| `E6003` | imports | directory '%s' contains no .ez files |
+| `E6003` | imports | directory '%s' contains no .gray files |
 | `E6004` | imports | cannot import own module directory |
 | `E6008` | imports | '%s.%s' is a module constant and cannot be assigned to |
 | `E7004` | stdlib | function argument must be an integer, not a float |
@@ -415,4 +416,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-16 08:23:05 UTC*
+*Generated on 2026-07-18 11:03:59 UTC*

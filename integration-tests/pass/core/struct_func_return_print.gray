@@ -1,0 +1,122 @@
+/*
+ * struct_func_return_print.gray - Test println with struct function return values
+ *
+ * Verifies that resolve_print_suffix() correctly determines the return type
+ * of struct functions so println() dispatches to the right print function.
+ * Covers all return type variants (string, float, bool, char, uint, int).
+ */
+
+const Helper struct {
+    tag string
+
+    do greet() -> string {
+        return "Hello"
+    }
+
+    do get_score() -> float {
+        return 99.5
+    }
+
+    do is_active() -> bool {
+        return true
+    }
+
+    do get_initial() -> char {
+        return 'G'
+    }
+
+    do get_count() -> uint {
+        return 42
+    }
+
+    do get_id() -> int {
+        return -7
+    }
+}
+
+do main() {
+    println("=== Struct Function Return Print Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: struct function returning string
+    mut s string = Helper.greet()
+    if s == "Hello" {
+        println("  [PASS] Helper.greet() returns string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Helper.greet() expected 'Hello', got '${s}'")
+        failed += 1
+    }
+
+    // Test 2: struct function returning float
+    mut f float = Helper.get_score()
+    if f > 99.4 && f < 99.6 {
+        println("  [PASS] Helper.get_score() returns float")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Helper.get_score() unexpected value")
+        failed += 1
+    }
+
+    // Test 3: struct function returning bool
+    mut b bool = Helper.is_active()
+    if b == true {
+        println("  [PASS] Helper.is_active() returns bool")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Helper.is_active() expected true")
+        failed += 1
+    }
+
+    // Test 4: struct function returning char
+    mut c char = Helper.get_initial()
+    if c == 'G' {
+        println("  [PASS] Helper.get_initial() returns char")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Helper.get_initial() expected 'G'")
+        failed += 1
+    }
+
+    // Test 5: struct function returning uint
+    mut u uint = Helper.get_count()
+    if u == 42 {
+        println("  [PASS] Helper.get_count() returns uint")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Helper.get_count() expected 42")
+        failed += 1
+    }
+
+    // Test 6: struct function returning int
+    mut i int = Helper.get_id()
+    if i == -7 {
+        println("  [PASS] Helper.get_id() returns int")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Helper.get_id() expected -7")
+        failed += 1
+    }
+
+    // Tests 7-11: println directly with struct function return values
+    // This is the core regression — previously defaulted to _int suffix
+    println(Helper.greet())
+    println(Helper.get_score())
+    println(Helper.is_active())
+    println(Helper.get_count())
+    println(Helper.get_id())
+
+    // If we got here without a crash, the println dispatches all worked
+    println("  [PASS] println(Type.func()) works for all return types")
+    passed += 1
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

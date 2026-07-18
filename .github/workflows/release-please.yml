@@ -1,6 +1,9 @@
 name: Release Please
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -18,24 +21,8 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: release
         with:
-          release-type: go
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
-          # Customize the changelog sections
-          changelog-types: >
-            [
-              {"type": "feat", "section": "Features", "hidden": false},
-              {"type": "fix", "section": "Bug Fixes", "hidden": false},
-              {"type": "perf", "section": "Performance Improvements", "hidden": false},
-              {"type": "revert", "section": "Reverts", "hidden": false},
-              {"type": "docs", "section": "Documentation", "hidden": false},
-              {"type": "chore", "section": "Miscellaneous", "hidden": true},
-              {"type": "style", "section": "Styles", "hidden": true},
-              {"type": "refactor", "section": "Code Refactoring", "hidden": true},
-              {"type": "test", "section": "Tests", "hidden": true},
-              {"type": "build", "section": "Build System", "hidden": true},
-              {"type": "ci", "section": "CI", "hidden": true}
-            ]
 
   # Smart auto-merge: only auto-merge release PRs with user-facing changes
   auto-merge-release:
@@ -104,19 +91,19 @@ jobs:
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
-            ezc_arch: linux-amd64
+            grayc_arch: linux-amd64
           - os: ubuntu-latest
             goos: linux
             goarch: arm64
-            ezc_arch: linux-arm64
+            grayc_arch: linux-arm64
           - os: macos-latest
             goos: darwin
             goarch: arm64
-            ezc_arch: darwin-arm64
+            grayc_arch: darwin-arm64
           - os: macos-latest
             goos: darwin
             goarch: amd64
-            ezc_arch: darwin-amd64
+            grayc_arch: darwin-amd64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -127,12 +114,12 @@ jobs:
         with:
           go-version: '1.23'
 
-      # #1461: single-binary release. Build ezc first, stage into the
+      # #1461: single-binary release. Build grayc first, stage into the
       # embed directory, then `go build` so the Go CLI bakes the compiler
       # and runtime in as assets.
-      - name: Build EZ compiler
+      - name: Build Grayscale compiler
         run: |
-          cd ezc
+          cd grayc
           make clean
           make build
 
@@ -142,29 +129,29 @@ jobs:
       - name: Stage embedded runtime assets
         shell: bash
         run: |
-          cp ezc/ezc internal/ezc/runtime/ezc
-          cp ezc/libezrt.a internal/ezc/runtime/libezrt.a
-          cp ezc/src/runtime/*.h ezc/src/runtime/*.c internal/ezc/runtime/src/runtime/
-          cp ezc/src/stdlib/*.h ezc/src/stdlib/*.c internal/ezc/runtime/src/stdlib/
+          cp grayc/grayc internal/grayc/runtime/grayc
+          cp grayc/libgrayrt.a internal/grayc/runtime/libgrayrt.a
+          cp grayc/src/runtime/*.h grayc/src/runtime/*.c internal/grayc/runtime/src/runtime/
+          cp grayc/src/stdlib/*.h grayc/src/stdlib/*.c internal/grayc/runtime/src/stdlib/
 
-      - name: Build EZ CLI (with embedded runtime)
+      - name: Build Grayscale CLI (with embedded runtime)
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
           BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
-          go build -ldflags "-X main.Version=${TAG} -X main.BuildTime=${BUILD_TIME}" -o ez ./cmd/ez
+          go build -ldflags "-X main.Version=${TAG} -X main.BuildTime=${BUILD_TIME}" -o gray ./cmd/gray
         shell: bash
 
       - name: Package single-binary release
         shell: bash
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
-          ARCH="${{ matrix.ezc_arch }}"
+          ARCH="${{ matrix.grayc_arch }}"
           mkdir -p staging dist
-          cp ez staging/
-          tar czf "dist/ez-${ARCH}.tar.gz" -C staging .
+          cp gray staging/
+          tar czf "dist/gray-${ARCH}.tar.gz" -C staging .
 
       - name: Upload release assets
         env:
@@ -177,5 +164,5 @@ jobs:
           done
 
   # WASM playground update is disabled — the interpreter has been removed.
-  # The playground will be ported to Emscripten (ezc + TCC compiled to WASM)
-  # in a future release. The pre-built ez.wasm from v2.x still works.
+  # The playground will be ported to Emscripten (grayc + TCC compiled to WASM)
+  # in a future release. The pre-built gray.wasm from v2.x still works.

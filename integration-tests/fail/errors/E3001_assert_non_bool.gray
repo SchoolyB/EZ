@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3001 - assert() with non-bool condition
+ * Expected: E3001 "assert() condition must be a bool"
+ */
+
+do main() {
+    assert(42)
+}

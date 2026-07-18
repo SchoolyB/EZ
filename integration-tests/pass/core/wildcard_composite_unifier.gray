@@ -1,0 +1,64 @@
+/*
+ * wildcard_composite_unifier.gray - wildcard '?' unifier recurses into nested
+ * composite types.
+ *
+ * Previously bind_wildcard only stripped a single layer, so [[?]], [map[...]], etc.
+ * all failed with E3001. The fix makes the unifier fully recursive.
+ *
+ * Note: map[string:[?]] (map-of-array) is not tested here because indexing a
+ * map-lookup result as an array requires a temp variable at the C level
+ * (separate codegen limitation).
+ */
+
+/* array-of-array: '?' is two layers deep */
+do a_first(arr [[?]]) -> ? {
+    return arr[0][0]
+}
+
+/* array-of-map: '?' is nested inside the map value slot */
+do b_first(arr [map[string:?]]) -> ? {
+    return arr[0]["x"]
+}
+
+/* triple-nested array */
+do d_first(arr [[[?]]]) -> ? {
+    return arr[0][0][0]
+}
+
+/* array-of-map with wildcard key */
+do e_has(arr [map[?:int]], k ?) -> bool {
+    return k in arr[0]
+}
+
+do main() {
+    mut pass int = 0
+    mut fail int = 0
+
+    /* a_first: [[int]] */
+    mut ai [[int]] = {{1, 2}, {3, 4}}
+    if a_first(ai) == 1 { pass += 1 } otherwise { fail += 1 }
+
+    /* a_first reused with [[string]] */
+    mut as_ [[string]] = {{"hello", "world"}}
+    if a_first(as_) == "hello" { pass += 1 } otherwise { fail += 1 }
+
+    /* b_first: [map[string:int]] */
+    mut bm [map[string:int]] = {{"x": 7, "y": 8}}
+    if b_first(bm) == 7 { pass += 1 } otherwise { fail += 1 }
+
+    /* b_first reused with [map[string:string]] */
+    mut bs [map[string:string]] = {{"x": "hi"}}
+    if b_first(bs) == "hi" { pass += 1 } otherwise { fail += 1 }
+
+    /* d_first: [[[int]]] */
+    mut dm [[[int]]] = {{{42}}}
+    if d_first(dm) == 42 { pass += 1 } otherwise { fail += 1 }
+
+    /* e_has: [map[string:int]] — wildcard key */
+    mut em [map[string:int]] = {{"foo": 1}}
+    if e_has(em, "foo") && !e_has(em, "bar") { pass += 1 } otherwise { fail += 1 }
+
+    println("wildcard_composite_unifier: ${pass} passed, ${fail} failed")
+    if fail > 0 { exit(1) }
+    println("ALL TESTS PASSED")
+}

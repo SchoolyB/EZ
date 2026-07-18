@@ -1,0 +1,9 @@
+// utils.gray - Internal utilities shared across the application.
+
+do format_message(msg string) -> string {
+    return "[INFO] ${msg}"
+}
+
+do format_error(msg string) -> string {
+    return "[ERROR] ${msg}"
+}

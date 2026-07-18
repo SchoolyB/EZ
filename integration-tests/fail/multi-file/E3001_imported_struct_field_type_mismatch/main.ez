@@ -1,6 +1,0 @@
-import "./models.ez"
-
-do main() {
-    mut p = new(models.Person)
-    p.name = 123  // ERROR: cannot assign int to string field
-}

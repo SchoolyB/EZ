@@ -1,0 +1,172 @@
+//
+// generate_errors.gray - Generate ERRORS.md from the centralized error registry
+//
+// Reads error codes from grayc/src/util/error_codes.h and produces
+// ERRORS.md
+//
+// Usage: grayscale scripts/generate_errors.gray
+//
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
+import @io, @strings, @arrays, @time
+
+// find_char finds the first occurrence of ch in s at or after position start.
+// Returns -1 if not found.
+do find_char(s string, ch string, start int) -> int {
+    mut rest string = strings.slice(s, start, len(s))
+    mut idx int = strings.index_of(rest, ch)
+    if idx == -1 {
+        return -1
+    }
+    return start + idx
+}
+
+// extract_fields parses a GRAY_ERROR/GRAY_WARNING/GRAY_PANIC macro line
+// and returns the three quoted fields: (code, category, description).
+do extract_fields(line string) -> (string, string, string) {
+    // Replace escaped quotes so they don't interfere with field delimiter detection
+    mut safe string = strings.replace(line, "\\\"", "DQUOTE")
+
+    // Locate the six quote characters that delimit the three fields
+    mut q1 int = find_char(safe, "\"", 0)
+    mut q2 int = find_char(safe, "\"", q1 + 1)
+    mut q3 int = find_char(safe, "\"", q2 + 1)
+    mut q4 int = find_char(safe, "\"", q3 + 1)
+    mut q5 int = find_char(safe, "\"", q4 + 1)
+    mut q6 int = find_char(safe, "\"", q5 + 1)
+
+    mut code string = strings.slice(safe, q1 + 1, q2)
+    mut category string = strings.slice(safe, q3 + 1, q4)
+    mut desc_raw string = strings.slice(safe, q5 + 1, q6)
+
+    // Restore escaped quotes in the description
+    mut desc string = strings.replace(desc_raw, "DQUOTE", "\\\"")
+
+    return code, category, desc
+}
+
+do main() {
+    mut lines, err = io.read_lines("grayc/src/util/error_codes.h")
+    if err != nil {
+        println("Error: grayc/src/util/error_codes.h not found")
+    } otherwise {
+        mut error_count int = 0
+        mut warning_count int = 0
+        mut panic_count int = 0
+        mut error_rows [string] = {}
+        mut warning_rows [string] = {}
+        mut panic_rows [string] = {}
+
+        for_each line in lines {
+            mut trimmed string = strings.trim_left(line)
+
+            if strings.starts_with(trimmed, "GRAY_ERROR(\"") {
+                mut code, category, desc = extract_fields(trimmed)
+                arrays.append(error_rows, "| `${code}` | ${category} | ${desc} |")
+                error_count++
+            } or strings.starts_with(trimmed, "GRAY_WARNING(\"") {
+                mut code, category, desc = extract_fields(trimmed)
+                arrays.append(warning_rows, "| `${code}` | ${category} | ${desc} |")
+                warning_count++
+            } or strings.starts_with(trimmed, "GRAY_PANIC(\"") {
+                mut code, category, desc = extract_fields(trimmed)
+                arrays.append(panic_rows, "| `${code}` | ${category} | ${desc} |")
+                panic_count++
+            }
+        }
+
+        mut total int = error_count + warning_count + panic_count
+
+        // Build output lines
+        mut out [string] = {}
+
+        // Header
+        arrays.append(out, "# Grayscale Error Code Reference")
+        arrays.append(out, "")
+        arrays.append(out, "> Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.")
+        arrays.append(out, "> Run `./scripts/generate_errors.gray` to regenerate.")
+        arrays.append(out, "")
+        arrays.append(out, "**Total: ${total} codes** (${error_count} errors, ${warning_count} warnings, ${panic_count} panics)")
+        arrays.append(out, "")
+        arrays.append(out, "---")
+        arrays.append(out, "")
+
+        // Errors section
+        arrays.append(out, "## Errors")
+        arrays.append(out, "")
+        arrays.append(out, "| Code | Category | Description |")
+        arrays.append(out, "|------|----------|-------------|")
+        for_each row in error_rows {
+            arrays.append(out, row)
+        }
+
+        // Warnings section
+        arrays.append(out, "")
+        arrays.append(out, "---")
+        arrays.append(out, "")
+        arrays.append(out, "## Warnings")
+        arrays.append(out, "")
+        arrays.append(out, "| Code | Category | Description |")
+        arrays.append(out, "|------|----------|-------------|")
+        for_each row in warning_rows {
+            arrays.append(out, row)
+        }
+
+        // Panics section
+        arrays.append(out, "")
+        arrays.append(out, "---")
+        arrays.append(out, "")
+        arrays.append(out, "## Panics")
+        arrays.append(out, "")
+        arrays.append(out, "Runtime panics are fatal errors that terminate the program immediately. They are not compiler errors — they happen at runtime when the program encounters an unrecoverable condition.")
+        arrays.append(out, "")
+        arrays.append(out, "| Code | Category | Description |")
+        arrays.append(out, "|------|----------|-------------|")
+        for_each row in panic_rows {
+            arrays.append(out, row)
+        }
+
+        // Code Ranges section
+        arrays.append(out, "")
+        arrays.append(out, "---")
+        arrays.append(out, "")
+        arrays.append(out, "## Code Ranges")
+        arrays.append(out, "")
+        arrays.append(out, "| Range | What It Means |")
+        arrays.append(out, "|-------|---------------|")
+        arrays.append(out, "| E1xxx | Problems reading your code (invalid characters, malformed literals) |")
+        arrays.append(out, "| E2xxx | Problems understanding your code (missing brackets, unexpected symbols) |")
+        arrays.append(out, "| E3xxx | Type problems (wrong types, invalid operations) |")
+        arrays.append(out, "| E4xxx | Name problems (undefined variables, duplicate names) |")
+        arrays.append(out, "| E5xxx | Usage problems (wrong number of arguments, invalid assignment targets) |")
+        arrays.append(out, "| E6xxx | Import problems (unknown modules, missing files) |")
+        arrays.append(out, "| E7xxx | Standard library problems (wrong usage of built-in functions) |")
+        arrays.append(out, "| E8xxx | Bitwise operator errors (non-integer operands) |")
+        arrays.append(out, "| E9xxx | Array errors (empty array ops, invalid ranges) |")
+        arrays.append(out, "| E12xxx | Map errors (unhashable keys, duplicate keys) |")
+        arrays.append(out, "| W1xxx | Cleanup suggestions (unused variables, functions) |")
+        arrays.append(out, "| W2xxx | Safety warnings (shadowing, unused imports) |")
+        arrays.append(out, "| W3xxx | Quality warnings (uninitialized elements, pointer lifetime) |")
+        arrays.append(out, "| P0xxx | Runtime panics (overflow, out-of-bounds, nil dereference) |")
+
+        // Footer with timestamp
+        mut now int = time.now()
+        mut timestamp string = time.format("%Y-%m-%d %H:%M:%S", now)
+        arrays.append(out, "")
+        arrays.append(out, "---")
+        arrays.append(out, "")
+        arrays.append(out, "*Generated on ${timestamp} UTC*")
+
+        // Join and write
+        mut content string = strings.join(out, "\n")
+        content = "${content}\n"
+
+        mut _, werr = io.write_file("ERRORS.md", content)
+        if werr != nil {
+            println("Error writing ERRORS.md")
+        } otherwise {
+            println("Generated ERRORS.md (${total} codes: ${error_count} errors, ${warning_count} warnings, ${panic_count} panics)")
+        }
+    }
+}

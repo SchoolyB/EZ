@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in the EZ compiler, runtime, stdlib, or tooling
+description: Report a bug in the Grayscale compiler, runtime, stdlib, or tooling
 title: "bug: "
 labels: ["bug", "needs-triage"]
 body:
@@ -26,12 +26,12 @@ body:
   - type: textarea
     id: system-info
     attributes:
-      label: System info — paste the full output of `ez report`
+      label: System info — paste the full output of `gray report`
       description: |
-        Run `ez report` and paste the complete output. Version, commit, install
+        Run `gray report` and paste the complete output. Version, commit, install
         path, OS, CPU, RAM, and C compiler info are all load-bearing for triage.
       placeholder: |
-        $ ez report
+        $ gray report
         ...
       render: shell
     validations:
@@ -49,7 +49,7 @@ body:
     id: reproduction
     attributes:
       label: Reproduction
-      description: Minimal `.ez` program that triggers the bug. Inline the code below.
+      description: Minimal `.gray` program that triggers the bug. Inline the code below.
       render: text
     validations:
       required: true

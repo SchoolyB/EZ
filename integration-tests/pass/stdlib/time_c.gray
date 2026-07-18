@@ -1,0 +1,138 @@
+/*
+ * time_c.gray - Integration test for @time (compiler)
+ */
+
+import @time
+
+do main() {
+    println("=== Time Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // time.now() returns reasonable timestamp (after Jan 1 2024)
+    mut now int = time.now()
+    if now > 1704067200 {
+        println("  [PASS] now")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] now: got ${now}")
+        failed += 1
+    }
+
+    // time.now_ms() returns a larger value than now
+    mut now_ms int = time.now_ms()
+    if now_ms > now {
+        println("  [PASS] now_ms")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] now_ms: got ${now_ms}")
+        failed += 1
+    }
+
+    // time.year(ts) is reasonable
+    mut year int = time.year(now)
+    if year >= 2024 {
+        println("  [PASS] year (${year})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] year: got ${year}")
+        failed += 1
+    }
+
+    // time.month(ts) is 1-12
+    mut month int = time.month(now)
+    if month >= 1 && month <= 12 {
+        println("  [PASS] month (${month})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] month: got ${month}")
+        failed += 1
+    }
+
+    // time.day(ts) is 1-31
+    mut day int = time.day(now)
+    if day >= 1 && day <= 31 {
+        println("  [PASS] day (${day})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] day: got ${day}")
+        failed += 1
+    }
+
+    // time.format(fmt, ts) takes TWO args
+    mut formatted string = time.format("YYYY-MM-DD", now)
+    if len(formatted) == 10 {
+        println("  [PASS] format (${formatted})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] format: got ${formatted}")
+        failed += 1
+    }
+
+    // time.to_iso(ts)
+    mut iso string = time.to_iso(now)
+    if len(iso) >= 19 {
+        println("  [PASS] iso")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] iso: got ${iso}")
+        failed += 1
+    }
+
+    // time.date(ts)
+    mut date string = time.date(now)
+    if len(date) > 0 {
+        println("  [PASS] date (${date})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] date")
+        failed += 1
+    }
+
+    // time.to_clock(ts)
+    mut clock string = time.to_clock(now)
+    if len(clock) > 0 {
+        println("  [PASS] clock (${clock})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] clock")
+        failed += 1
+    }
+
+    // time.diff(t1, t2) returns t2 - t1
+    mut diff1 int = time.diff(100, 200)
+    if diff1 == 100 {
+        println("  [PASS] diff positive")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] diff positive: got ${diff1}")
+        failed += 1
+    }
+
+    // time.diff returns negative when t1 > t2
+    mut diff2 int = time.diff(200, 100)
+    if diff2 == -100 {
+        println("  [PASS] diff negative")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] diff negative: got ${diff2}")
+        failed += 1
+    }
+
+    // time.diff with equal timestamps
+    mut diff3 int = time.diff(now, now)
+    if diff3 == 0 {
+        println("  [PASS] diff zero")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] diff zero: got ${diff3}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+    println("ALL TESTS PASSED")
+}

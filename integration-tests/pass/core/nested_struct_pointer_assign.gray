@@ -1,0 +1,56 @@
+/*
+ * Test: nested struct member assignment through pointer
+ * Verifies that assignment to nested struct fields through a pointer works.
+ */
+
+const Inner struct {
+    val int
+}
+
+const Outer struct {
+    inner Inner
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: assign to nested struct field through pointer
+    mut o Outer = Outer{inner: Inner{val: 0}}
+    mut p ^Outer = addr(o)
+    p.inner.val = 42
+    if o.inner.val == 42 {
+        println("  [PASS] nested struct pointer assign sets value to 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested struct pointer assign: expected 42, got ${o.inner.val}")
+        failed += 1
+    }
+
+    // Test 2: overwrite nested struct field through pointer
+    p.inner.val = 99
+    if o.inner.val == 99 {
+        println("  [PASS] nested struct pointer overwrite sets value to 99")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested struct pointer overwrite: expected 99, got ${o.inner.val}")
+        failed += 1
+    }
+
+    // Test 3: compound assign on nested struct field through pointer
+    p.inner.val += 1
+    if o.inner.val == 100 {
+        println("  [PASS] nested struct pointer compound assign produces 100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested struct pointer compound assign: expected 100, got ${o.inner.val}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

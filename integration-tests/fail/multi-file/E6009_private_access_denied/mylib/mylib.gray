@@ -1,0 +1,8 @@
+/*
+ * mylib.gray - Library with private variable
+ */
+
+private mut private_var int = 42
+
+mut public_var int = 100
+

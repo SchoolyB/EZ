@@ -1,9 +1,0 @@
-/*
- * Error Test: E2057 - invalid-interpolation-syntax
- * Expected: "invalid interpolation syntax" or "$identifier"
- */
-
-do main() {
-    mut file string = "test.ez"
-    mut s string = "$File: something"
-}

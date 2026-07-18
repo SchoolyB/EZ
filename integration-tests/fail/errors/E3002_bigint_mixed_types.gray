@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3002 - mixed-signedness bigint arithmetic leaks C errors
+ *
+ * Mixing bigint types with different signedness (i128 + u128) or the wrong
+ * width direction (i128 + i256) must be caught by the typechecker before
+ * codegen runs. The bigint arithmetic functions (gray_i128_add_checked, etc.)
+ * only accept their own struct type.
+ */
+
+do main() {
+    mut a i128 = i128(1)
+    mut b u128 = u128(2)
+    mut c = a + b
+    println(c)
+}

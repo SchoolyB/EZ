@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2071 - whitespace-only string interpolation ${ }
+ *
+ * whitespace-only interpolation is treated
+ * the same as empty and rejected with E2071.
+ */
+
+do main() {
+    mut s string = "value: ${ }"
+}

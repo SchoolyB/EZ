@@ -1,0 +1,78 @@
+/*
+ * multi_return_complex_types.gray - Complex type annotations in multi-return destructuring
+ *
+ * Verifies that positions 2+ in multi-variable destructuring accept the
+ * same complex types that position 1 does: arrays, pointers, and maps.
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do get_arr() -> (int, [int]) {
+    return 1, {10, 20, 30}
+}
+
+do get_ptr() -> (int, ^Point) {
+    mut p = new(Point)
+    p^.x = 9
+    return 5, p
+}
+
+do get_map() -> (int, map[string:int]) {
+    mut m map[string:int] = {"a": 1}
+    return 7, m
+}
+
+do get_three() -> (int, [int], ^Point) {
+    mut p = new(Point)
+    p^.x = 3
+    return 1, {10, 20}, p
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Array type in position 2
+    mut a int, b [int] = get_arr()
+    if a == 1 && b[0] == 10 {
+        passed++
+    } otherwise {
+        println("FAIL: array type in position 2")
+        failed++
+    }
+
+    // Pointer type in position 2
+    mut c int, d ^Point = get_ptr()
+    if c == 5 && d^.x == 9 {
+        passed++
+    } otherwise {
+        println("FAIL: pointer type in position 2")
+        failed++
+    }
+
+    // Map type in position 2
+    mut e int, f map[string:int] = get_map()
+    if e == 7 && f["a"] == 1 {
+        passed++
+    } otherwise {
+        println("FAIL: map type in position 2")
+        failed++
+    }
+
+    // Complex types in positions 2 and 3
+    mut g int, h [int], i ^Point = get_three()
+    if g == 1 && h[0] == 10 && i^.x == 3 {
+        passed++
+    } otherwise {
+        println("FAIL: complex types in positions 2 and 3")
+        failed++
+    }
+
+    println("multi_return_complex_types: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    }
+}

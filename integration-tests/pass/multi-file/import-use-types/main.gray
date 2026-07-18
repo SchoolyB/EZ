@@ -1,0 +1,17 @@
+/*
+ * import-use-types - Unqualified type access via import and use
+ *
+ * struct types from imported modules weren't
+ * brought into scope by import and use. Fixed in b9c9752.
+ */
+
+import and use "./shapes.gray"
+
+do main() {
+    mut p Point = make_point(3, 4)
+    if p.x == 3 && p.y == 4 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

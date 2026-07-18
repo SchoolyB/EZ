@@ -1,0 +1,242 @@
+/*
+ * bigint.gray - Test i128, u128, i256, u256 wide integer types
+ */
+
+
+do main() {
+    println("=== Big Integer Types Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // --- i128 Tests ---
+
+    // Test 1: i128 declaration and zero init
+    mut a i128 = 0
+    mut b i128 = i128(42)
+    a = i128(1)
+    if b == i128(42) {
+        println("  [PASS] i128 construction and equality")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 construction and equality")
+        failed += 1
+    }
+
+    // Test 2: i128 addition
+    mut c i128 = i128(100) + i128(200)
+    if c == i128(300) {
+        println("  [PASS] i128 addition")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 addition")
+        failed += 1
+    }
+
+    // Test 3: i128 subtraction
+    mut d i128 = i128(500) - i128(200)
+    if d == i128(300) {
+        println("  [PASS] i128 subtraction")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 subtraction")
+        failed += 1
+    }
+
+    // Test 4: i128 multiplication
+    mut e i128 = i128(15) * i128(20)
+    if e == i128(300) {
+        println("  [PASS] i128 multiplication")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 multiplication")
+        failed += 1
+    }
+
+    // Test 5: i128 division
+    mut f i128 = i128(300) / i128(15)
+    if f == i128(20) {
+        println("  [PASS] i128 division")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 division")
+        failed += 1
+    }
+
+    // Test 6: i128 modulo
+    mut g i128 = i128(305) % i128(100)
+    if g == i128(5) {
+        println("  [PASS] i128 modulo")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 modulo")
+        failed += 1
+    }
+
+    // Test 7: i128 comparisons
+    if i128(10) < i128(20) {
+        println("  [PASS] i128 less-than")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 less-than")
+        failed += 1
+    }
+
+    if i128(20) > i128(10) {
+        println("  [PASS] i128 greater-than")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 greater-than")
+        failed += 1
+    }
+
+    // Test 8: i128 println
+    println(i128(12345))
+
+    // Test 9: i128 to int cast
+    mut h int = int(i128(99))
+    if h == 99 {
+        println("  [PASS] i128 to int cast")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 to int cast")
+        failed += 1
+    }
+
+    // Test 10: i128 type_of
+    mut x128 i128 = i128(1)
+    if type_of(x128) == "i128" {
+        println("  [PASS] type_of(i128) returns \"i128\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(i128) returned: ${type_of(x128)}")
+        failed += 1
+    }
+
+    // Test 11: i128 size_of
+    if size_of(i128) == 16 {
+        println("  [PASS] size_of(i128) == 16")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] size_of(i128) != 16")
+        failed += 1
+    }
+
+    // --- u128 Tests ---
+
+    // Test 12: u128 construction and arithmetic
+    mut ua u128 = u128(100)
+    mut ub u128 = u128(200)
+    mut uc u128 = ua + ub
+    if uc == u128(300) {
+        println("  [PASS] u128 addition")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 addition")
+        failed += 1
+    }
+
+    // Test 13: u128 multiplication
+    mut ud u128 = u128(25) * u128(4)
+    if ud == u128(100) {
+        println("  [PASS] u128 multiplication")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 multiplication")
+        failed += 1
+    }
+
+    // Test 14: u128 type_of
+    mut xu128 u128 = u128(1)
+    if type_of(xu128) == "u128" {
+        println("  [PASS] type_of(u128) returns \"u128\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(u128) returned: ${type_of(xu128)}")
+        failed += 1
+    }
+
+    // --- i256 Tests ---
+
+    // Test 15: i256 construction and arithmetic
+    mut sa i256 = i256(1000)
+    mut sb i256 = i256(2000)
+    mut sc i256 = sa + sb
+    if sc == i256(3000) {
+        println("  [PASS] i256 addition")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 addition")
+        failed += 1
+    }
+
+    // Test 16: i256 subtraction
+    mut sd i256 = i256(5000) - i256(3000)
+    if sd == i256(2000) {
+        println("  [PASS] i256 subtraction")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 subtraction")
+        failed += 1
+    }
+
+    // Test 17: i256 type_of
+    mut xi256 i256 = i256(1)
+    if type_of(xi256) == "i256" {
+        println("  [PASS] type_of(i256) returns \"i256\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(i256) returned: ${type_of(xi256)}")
+        failed += 1
+    }
+
+    // Test 18: i256 size_of
+    if size_of(i256) == 32 {
+        println("  [PASS] size_of(i256) == 32")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] size_of(i256) != 32")
+        failed += 1
+    }
+
+    // --- u256 Tests ---
+
+    // Test 19: u256 construction and arithmetic
+    mut wa u256 = u256(500)
+    mut wb u256 = u256(500)
+    if wa + wb == u256(1000) {
+        println("  [PASS] u256 addition")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 addition")
+        failed += 1
+    }
+
+    // Test 20: u256 type_of
+    mut xu256 u256 = u256(1)
+    if type_of(xu256) == "u256" {
+        println("  [PASS] type_of(u256) returns \"u256\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(u256) returned: ${type_of(xu256)}")
+        failed += 1
+    }
+
+    // Test 21: string conversion
+    mut s128 string = string(i128(42))
+    if s128 == "42" {
+        println("  [PASS] string(i128(42)) == \"42\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string(i128(42)) returned: ${s128}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

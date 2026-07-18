@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5008 - len() called with no arguments
+ *
+ * arity check now fires when len() is called
+ * with 0 arguments.
+ */
+
+do main() {
+    println(len())
+}

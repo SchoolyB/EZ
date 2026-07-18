@@ -1,0 +1,44 @@
+/*
+ * Test: mixed import styles in one statement
+ * Combines explicit .gray, extensionless, and directory imports
+ */
+import "./constants.gray", "./helpers", "./services"
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: explicit .gray import
+    if constants.MAX == 999 {
+        println("  [PASS] explicit .gray import")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] explicit .gray import")
+        failed += 1
+    }
+
+    // Test 2: extensionless file import
+    if helpers.double_it(21) == 42 {
+        println("  [PASS] extensionless file import")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] extensionless file import")
+        failed += 1
+    }
+
+    // Test 3: directory import
+    if services.get_prefix() == "[LOG]" {
+        println("  [PASS] directory import")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] directory import")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

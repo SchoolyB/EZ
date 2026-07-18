@@ -1,0 +1,37 @@
+// Test: wide integer types (i128, u128, i256, u256) as fixed-size array sizes
+
+const S_I128 i128 = 3
+const S_U128 u128 = 3
+const S_I256 i256 = 3
+const S_U256 u256 = 3
+
+const a1 [string, S_I128] = {"a", "b", "c"}
+const a2 [string, S_U128] = {"a", "b", "c"}
+const a3 [string, S_I256] = {"a", "b", "c"}
+const a4 [string, S_U256] = {"a", "b", "c"}
+
+do main() {
+    if a1[0] == "a" && a1[2] == "c" {
+        println("  [PASS] const i128 array size")
+    } otherwise {
+        println("  [FAIL] const i128 array size")
+    }
+
+    if a2[0] == "a" && a2[2] == "c" {
+        println("  [PASS] const u128 array size")
+    } otherwise {
+        println("  [FAIL] const u128 array size")
+    }
+
+    if a3[0] == "a" && a3[2] == "c" {
+        println("  [PASS] const i256 array size")
+    } otherwise {
+        println("  [FAIL] const i256 array size")
+    }
+
+    if a4[0] == "a" && a4[2] == "c" {
+        println("  [PASS] const u256 array size")
+    } otherwise {
+        println("  [FAIL] const u256 array size")
+    }
+}

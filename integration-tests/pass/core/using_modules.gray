@@ -1,0 +1,69 @@
+/*
+ * using_modules.gray - Test 'using' keyword with non-std modules
+ */
+
+import @strings, @math
+using strings
+using math
+
+do main() {
+    println("=== Using Modules Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: strings.to_upper via using
+    mut upper string = to_upper("hello")
+    if upper == "HELLO" {
+        println("  [PASS] to_upper(\"hello\") == \"HELLO\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_upper expected \"HELLO\", got ${upper}")
+        failed += 1
+    }
+
+    // Test 2: strings.to_lower via using
+    mut lower string = to_lower("WORLD")
+    if lower == "world" {
+        println("  [PASS] to_lower(\"WORLD\") == \"world\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_lower expected \"world\", got ${lower}")
+        failed += 1
+    }
+
+    // Test 3: math.abs via using
+    mut a int = abs(-42)
+    if a == 42 {
+        println("  [PASS] abs(-42) == 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] abs(-42) expected 42, got ${a}")
+        failed += 1
+    }
+
+    // Test 4: math.max via using
+    mut m int = max(10, 20)
+    if m == 20 {
+        println("  [PASS] max(10, 20) == 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] max(10, 20) expected 20, got ${m}")
+        failed += 1
+    }
+
+    // Test 5: dot notation still works alongside using
+    mut trimmed string = strings.trim("  hi  ")
+    if trimmed == "hi" {
+        println("  [PASS] strings.trim(\"  hi  \") == \"hi\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.trim expected \"hi\", got ${trimmed}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("SOME TESTS FAILED")
+    }
+}

@@ -1,0 +1,17 @@
+/*
+ * Error Test: E7015 - len() on a struct value
+ *
+ * len(p) where p is a struct used to pass the typechecker and
+ * leak to clang as "no member named 'len' in struct". Typechecker
+ * now rejects any non-string / non-array / non-map receiver.
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut p Point = Point{x: 5, y: 10}
+    println(len(p))
+}

@@ -1,0 +1,53 @@
+/*
+ * Test: csv module _result variants for error handling
+ * Verifies multi-var destructuring works for csv.read_file and csv.write_file.
+ */
+
+import @csv
+import @io
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: csv.read_file error on nonexistent file
+    mut data, err = csv.read_file("/tmp/gray_nonexistent_csv_1547.csv")
+    if err != nil {
+        println("  [PASS] csv.read_file error caught on nonexistent file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.read_file no error, len=${len(data)}")
+        failed += 1
+    }
+
+    // Test 2: csv.read_file success
+    mut _, _ = io.write_file("/tmp/gray_csv_test_1547.csv", "name,age\nAlice,30\nBob,25")
+    mut data2, err2 = csv.read_file("/tmp/gray_csv_test_1547.csv")
+    if err2 == nil {
+        println("  [PASS] csv.read_file success on valid CSV")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.read_file error on valid CSV")
+        failed += 1
+    }
+
+    // Test 3: csv.write_file error on invalid path
+    mut wok, werr = csv.write_file("/nonexistent_dir/out.csv", data2)
+    if werr != nil {
+        println("  [PASS] csv.write_file error caught on invalid path")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.write_file no error, ok=${wok}")
+        failed += 1
+    }
+
+    // Cleanup
+    mut _, _ = io.delete_file("/tmp/gray_csv_test_1547.csv")
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

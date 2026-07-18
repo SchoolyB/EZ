@@ -1,9 +1,0 @@
-/*
- * Error Test: E3001 - exit() with non-integer argument
- * Expected: E3001 "exit() expects an integer argument"
- * Covers: #1591
- */
-
-do main() {
-    exit("oops")
-}

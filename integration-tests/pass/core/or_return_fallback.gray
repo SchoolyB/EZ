@@ -1,0 +1,131 @@
+/*
+ * or_return_fallback.gray - Test or_return with custom fallback values
+ *
+ * Covers: or_return with explicit fallback returning all N return values,
+ * bare or_return error propagation, and successful path unaffected.
+ */
+
+do risky(fail bool) -> (int, Error) {
+    if fail { return 0, error("oops") }
+    return 42, nil
+}
+
+do risky_str(fail bool) -> (string, Error) {
+    if fail { return "", error("str fail") }
+    return "hello", nil
+}
+
+do caller_bare(fail bool) -> (int, Error) {
+    mut val int = risky(fail) or_return
+    return val, nil
+}
+
+do caller_fallback(fail bool) -> (int, Error) {
+    mut val int = risky(fail) or_return -99
+    return val, nil
+}
+
+do caller_fallback_zero(fail bool) -> (int, Error) {
+    mut val int = risky(fail) or_return 0
+    return val, nil
+}
+
+do caller_str_fallback(fail bool) -> (string, Error) {
+    mut s string = risky_str(fail) or_return "default"
+    return s, nil
+}
+
+do main() {
+    println("=== or_return Fallback Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: bare or_return propagates error
+    mut r1 int, e1 Error = caller_bare(true)
+    if e1 != nil {
+        println("  [PASS] bare or_return propagates error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bare or_return did not propagate error")
+        failed += 1
+    }
+
+    // Test 2: bare or_return success path unaffected
+    mut r2 int, e2 Error = caller_bare(false)
+    if e2 == nil && r2 == 42 {
+        println("  [PASS] bare or_return success path")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bare or_return success path: r=${r2}")
+        failed += 1
+    }
+
+    // Test 3: or_return -99 returns fallback value on error
+    mut r3 int, e3 Error = caller_fallback(true)
+    if r3 == -99 {
+        println("  [PASS] or_return fallback value -99 used")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] or_return fallback: expected -99, got ${r3}")
+        failed += 1
+    }
+
+    // Test 4: or_return fallback propagates error alongside fallback value
+    mut r4 int, e4 Error = caller_fallback(true)
+    if r4 == -99 && e4 != nil {
+        println("  [PASS] fallback returns value AND propagates error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] fallback: r=${r4}, e=nil?")
+        failed += 1
+    }
+
+    // Test 5: or_return fallback success path still returns real value
+    mut r5 int, e5 Error = caller_fallback(false)
+    if r5 == 42 && e5 == nil {
+        println("  [PASS] fallback success path returns 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] fallback success path: got ${r5}")
+        failed += 1
+    }
+
+    // Test 6: or_return 0 as explicit fallback propagates error
+    mut r6 int, e6 Error = caller_fallback_zero(true)
+    if r6 == 0 && e6 != nil {
+        println("  [PASS] or_return 0 fallback propagates error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] or_return 0 fallback: r=${r6}")
+        failed += 1
+    }
+
+    // Test 7: or_return with string fallback
+    mut s7 string, e7 Error = caller_str_fallback(true)
+    if s7 == "default" {
+        println("  [PASS] or_return string fallback value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] or_return string fallback: got ${s7}")
+        failed += 1
+    }
+
+    // Test 8: or_return string success path
+    mut s8 string, e8 Error = caller_str_fallback(false)
+    if s8 == "hello" && e8 == nil {
+        println("  [PASS] or_return string success path")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] or_return string success path: got ${s8}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,55 @@
+/*
+ * bigint_arrays.gray - Test arrays of wide integer types
+ *
+ * Covers: i128, u128, i256, u256 as array element types
+ */
+
+do main() {
+    println("=== Bigint Arrays Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    mut a [i128] = {i128(10), i128(20), i128(30)}
+    if a[1] == i128(20) {
+        println("  [PASS] [i128] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [i128]")
+        failed += 1
+    }
+
+    mut b [u128] = {u128(100), u128(200)}
+    if b[0] == u128(100) {
+        println("  [PASS] [u128] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [u128]")
+        failed += 1
+    }
+
+    mut c [i256] = {i256(5), i256(10)}
+    if c[1] == i256(10) {
+        println("  [PASS] [i256] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [i256]")
+        failed += 1
+    }
+
+    mut d [u256] = {u256(42), u256(84)}
+    if d[0] == u256(42) {
+        println("  [PASS] [u256] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [u256]")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

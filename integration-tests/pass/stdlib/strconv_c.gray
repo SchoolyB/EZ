@@ -1,0 +1,204 @@
+/*
+ * Test: strconv module - string/type conversions
+ * Verifies all 10 strconv functions work correctly.
+ */
+
+import @strconv
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: to_int (single-var, panicking)
+    mut n, _ = strconv.to_int("42")
+    if n == 42 {
+        println("  [PASS] to_int(\"42\") = 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_int(\"42\") = ${n}")
+        failed += 1
+    }
+
+    // Test 2: to_int negative
+    mut neg, _ = strconv.to_int("-100")
+    if neg == -100 {
+        println("  [PASS] to_int(\"-100\") = -100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_int(\"-100\") = ${neg}")
+        failed += 1
+    }
+
+    // Test 3: to_uint
+    mut u, _ = strconv.to_uint("999")
+    if u == 999 {
+        println("  [PASS] to_uint(\"999\") = 999")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_uint(\"999\") unexpected value")
+        failed += 1
+    }
+
+    // Test 4: to_float
+    mut f, _ = strconv.to_float("3.14")
+    if f > 3.13 {
+        if f < 3.15 {
+            println("  [PASS] to_float(\"3.14\") ~ 3.14")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] to_float(\"3.14\") too large")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] to_float(\"3.14\") too small")
+        failed += 1
+    }
+
+    // Test 5: to_bool true
+    mut b, _ = strconv.to_bool("true")
+    if b == true {
+        println("  [PASS] to_bool(\"true\") = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_bool(\"true\") = false")
+        failed += 1
+    }
+
+    // Test 6: to_bool false
+    mut b2, _ = strconv.to_bool("false")
+    if b2 == false {
+        println("  [PASS] to_bool(\"false\") = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_bool(\"false\") = true")
+        failed += 1
+    }
+
+    // Test 7: to_bool case-insensitive
+    mut b3, _ = strconv.to_bool("TRUE")
+    if b3 == true {
+        println("  [PASS] to_bool(\"TRUE\") = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_bool(\"TRUE\") = false")
+        failed += 1
+    }
+
+    // Test 8: from_int
+    mut s1 string = strconv.from_int(42)
+    if s1 == "42" {
+        println("  [PASS] from_int(42) = \"42\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_int(42) = \"${s1}\"")
+        failed += 1
+    }
+
+    // Test 9: from_uint
+    mut s2 string = strconv.from_uint(123)
+    if s2 == "123" {
+        println("  [PASS] from_uint(123) = \"123\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_uint(123) = \"${s2}\"")
+        failed += 1
+    }
+
+    // Test 10: from_float
+    mut s3 string = strconv.from_float(2.5)
+    if s3 == "2.5" {
+        println("  [PASS] from_float(2.5) = \"2.5\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_float(2.5) = \"${s3}\"")
+        failed += 1
+    }
+
+    // Test 11: from_bool true
+    mut s4 string = strconv.from_bool(true)
+    if s4 == "true" {
+        println("  [PASS] from_bool(true) = \"true\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_bool(true) = \"${s4}\"")
+        failed += 1
+    }
+
+    // Test 12: from_bool false
+    mut s5 string = strconv.from_bool(false)
+    if s5 == "false" {
+        println("  [PASS] from_bool(false) = \"false\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_bool(false) = \"${s5}\"")
+        failed += 1
+    }
+
+    // Test 13: is_numeric positive cases
+    mut num1 bool = strconv.is_numeric("123")
+    mut num2 bool = strconv.is_numeric("3.14")
+    mut num3 bool = strconv.is_numeric("-42")
+    if num1 == true {
+        if num2 == true {
+            if num3 == true {
+                println("  [PASS] is_numeric positive cases")
+                passed += 1
+            } otherwise {
+                println("  [FAIL] is_numeric(\"-42\") = false")
+                failed += 1
+            }
+        } otherwise {
+            println("  [FAIL] is_numeric(\"3.14\") = false")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] is_numeric(\"123\") = false")
+        failed += 1
+    }
+
+    // Test 14: is_numeric negative cases
+    mut num4 bool = strconv.is_numeric("abc")
+    mut num5 bool = strconv.is_numeric("")
+    if num4 == false {
+        if num5 == false {
+            println("  [PASS] is_numeric negative cases")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] is_numeric(\"\") = true")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] is_numeric(\"abc\") = true")
+        failed += 1
+    }
+
+    // Test 15: is_integer
+    mut int1 bool = strconv.is_integer("42")
+    mut int2 bool = strconv.is_integer("3.14")
+    mut int3 bool = strconv.is_integer("-10")
+    if int1 == true {
+        if int2 == false {
+            if int3 == true {
+                println("  [PASS] is_integer cases")
+                passed += 1
+            } otherwise {
+                println("  [FAIL] is_integer(\"-10\") = false")
+                failed += 1
+            }
+        } otherwise {
+            println("  [FAIL] is_integer(\"3.14\") = true")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] is_integer(\"42\") = false")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

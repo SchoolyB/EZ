@@ -1,0 +1,12 @@
+// main.gray - Application entry point.
+// Multi-file layout:
+//   main.gray    entry point
+//   app.gray     core application logic
+//   config.gray  configuration
+//   utils.gray   shared helpers
+
+import "./app.gray"
+
+do main() {
+    app.run()
+}

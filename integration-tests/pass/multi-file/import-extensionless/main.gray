@@ -1,0 +1,46 @@
+/*
+ * Test: extensionless file import
+ * import "./helpers" resolves to helpers.gray
+ */
+import "./helpers"
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: function call
+    mut msg string = helpers.greet("World")
+    if msg == "Hello, World!" {
+        println("  [PASS] extensionless import function call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] extensionless import function call")
+        failed += 1
+    }
+
+    // Test 2: constant access
+    if helpers.MAX_SIZE == 100 {
+        println("  [PASS] extensionless import constant")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] extensionless import constant")
+        failed += 1
+    }
+
+    // Test 3: enum access
+    mut c int = helpers.Color.GREEN
+    if c == 1 {
+        println("  [PASS] extensionless import enum")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] extensionless import enum")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

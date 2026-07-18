@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3001 - returning ^^^int from a -> ^int function
+ *
+ * same check at deeper nesting.
+ */
+
+do bad() -> ^int {
+    mut x int = 42
+    mut p ^int = addr(x)
+    mut pp ^^int = addr(p)
+    mut ppp ^^^int = addr(pp)
+    return ppp
+}
+
+do main() {
+    mut r ^int = bad()
+    println(r^)
+}

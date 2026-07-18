@@ -1,0 +1,90 @@
+/*
+ * c-keyword-mangling.gray - Test that Grayscale variables and struct fields named
+ * after C keywords compile and work correctly.
+ */
+
+
+const Register struct {
+    auto int
+    long int
+}
+
+do main() {
+    println("=== C Keyword Name Mangling ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: Variable named 'static'
+    mut static int = 42
+    if static == 42 {
+        println("  [PASS] variable named 'static'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] variable named 'static'")
+        failed += 1
+    }
+
+    // Test 2: Variables named 'signed' and 'unsigned'
+    mut signed int = 100
+    mut unsigned int = 200
+    if signed + unsigned == 300 {
+        println("  [PASS] variables named 'signed' and 'unsigned'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] variables named 'signed' and 'unsigned'")
+        failed += 1
+    }
+
+    // Test 3: Struct fields named 'auto' and 'long'
+    mut reg Register = Register { auto: 10, long: 20 }
+    if reg.auto == 10 && reg.long == 20 {
+        println("  [PASS] struct fields named 'auto' and 'long'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct fields named 'auto' and 'long'")
+        failed += 1
+    }
+
+    // Test 4: Reassign struct field named 'auto'
+    reg.auto = 99
+    if reg.auto == 99 {
+        println("  [PASS] reassign struct field named 'auto'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reassign struct field named 'auto'")
+        failed += 1
+    }
+
+    // Test 5: For loop variable named 'extern'
+    mut sum int = 0
+    for extern in range(1, 4) {
+        sum += extern
+    }
+    if sum == 6 {
+        println("  [PASS] for loop variable named 'extern'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for loop variable named 'extern'")
+        failed += 1
+    }
+
+    // Test 6: Variable named 'register'
+    mut register int = 77
+    if register == 77 {
+        println("  [PASS] variable named 'register'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] variable named 'register'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

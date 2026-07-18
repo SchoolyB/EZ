@@ -1,0 +1,38 @@
+// main.gray - HTTP server with multiple routes and response types.
+//
+// Run:   gray main.gray
+// Test:
+//   curl http://localhost:8080/
+//   curl http://localhost:8080/health
+//   curl http://localhost:8080/api/status
+
+import @server
+import @json
+
+do home(req HttpRequest) -> HttpResponse {
+    return server.html(200, "<h1>Welcome to Grayscale!</h1>")
+}
+
+do health(req HttpRequest) -> HttpResponse {
+    mut data map[string:string] = {"status": "ok"}
+    return server.json(200, json.encode(data))
+}
+
+do api_status(req HttpRequest) -> HttpResponse {
+    mut data map[string:string] = {
+        "version": "1.0.0",
+        "status": "running"
+    }
+    return server.json(200, json.encode(data))
+}
+
+do main() {
+    mut router = server.add_router()
+
+    server.add_route(router, "GET", "/", ()home)
+    server.add_route(router, "GET", "/health", ()health)
+    server.add_route(router, "GET", "/api/status", ()api_status)
+
+    println("Server running on http://localhost:8080")
+    server.listen(router, 8080)
+}

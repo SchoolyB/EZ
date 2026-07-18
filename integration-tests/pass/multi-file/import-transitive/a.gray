@@ -1,0 +1,3 @@
+import "./b.gray"
+
+do from_a() -> string { return b.from_b() }

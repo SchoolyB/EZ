@@ -1,0 +1,71 @@
+/*
+ * server_http_types.gray - Test HttpRequest/HttpResponse type registration
+ * Covers: HttpRequest struct registered, codegen C type mapping,
+ *         types scoped to server/http imports
+ * NOTE: Does not call server.listen() since that blocks.
+ */
+
+import @server
+
+do handler(req HttpRequest) -> HttpResponse {
+    return server.text(200, "ok")
+}
+
+do echo_method(req HttpRequest) -> HttpResponse {
+    return server.text(200, req.method)
+}
+
+do main() {
+    println("=== Server HTTP Types Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: HttpRequest usable as handler param type
+    mut r = server.add_router()
+    server.add_route(r, "GET", "/", ()handler)
+    println("  [PASS] HttpRequest as handler param type")
+    passed += 1
+
+    // Test 2: handler with HttpRequest field access compiles
+    server.add_route(r, "GET", "/echo", ()echo_method)
+    println("  [PASS] HttpRequest field access in handler")
+    passed += 1
+
+    // Test 3: HttpResponse from server.text()
+    mut resp HttpResponse = server.text(200, "hello")
+    println("  [PASS] HttpResponse as explicit variable type")
+    passed += 1
+
+    // Test 4: HttpResponse from server.json()
+    mut resp2 HttpResponse = server.json(200, "{}")
+    println("  [PASS] HttpResponse from server.json()")
+    passed += 1
+
+    // Test 5: server.redirect() produces HttpResponse with status
+    mut redir HttpResponse = server.redirect(302, "http://example.com/new")
+    if redir.status == 302 {
+        println("  [PASS] server.redirect() produces HttpResponse with correct status")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] server.redirect() status wrong")
+        failed += 1
+    }
+
+    // Test 6: non-200 status codes are accepted
+    mut not_found HttpResponse = server.text(404, "not found")
+    if not_found.status == 404 {
+        println("  [PASS] server.text(404, ...) produces correct status")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] server.text(404, ...) status wrong")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

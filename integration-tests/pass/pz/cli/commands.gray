@@ -1,0 +1,13 @@
+// commands.gray - Command implementations
+//
+// args[0] = binary name, args[1] = command, args[2+] = command arguments.
+
+do handle_greet(args [string]) {
+    if len(args) < 3 {
+        println("Usage: greet <name>")
+        return
+    }
+
+    mut name = args[2]
+    println("Hello, ${name}!")
+}

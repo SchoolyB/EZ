@@ -1,0 +1,17 @@
+/*
+ * helpers.gray - Helper functions with module-prefixed return types
+ */
+
+do make_hero() -> testmod.Hero {
+    mut h = new(Hero)
+    h.name = "Test Hero"
+    h.lvl = 1
+    return h^
+}
+
+do make_hero_direct() -> Hero {
+    mut h = new(Hero)
+    h.name = "Direct Hero"
+    h.lvl = 2
+    return h^
+}

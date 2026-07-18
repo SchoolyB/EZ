@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3057 - struct type cannot be used as a map key
+ * Expected: clean rejection at var_decl time (not a misleading cascade)
+ *
+ * struct keys previously tripped downstream errors
+ * like "struct 'Point' has no field 'y'". Now rejected up-front.
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut m map[Point:string] = {:}
+}

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - non-empty array literal assigned to a map variable
+ *
+ * the non-empty case produces both the generic
+ * type-mismatch diagnostic and a targeted "map literals use '{key: value, ...}'"
+ * hint.
+ */
+
+do main() {
+    mut m map[string:int] = {1, 2, 3}
+}

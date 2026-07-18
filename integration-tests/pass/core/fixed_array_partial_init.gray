@@ -1,0 +1,52 @@
+/*
+ * fixed_array_partial_init.gray - Fixed-size arrays with fewer than N elements
+ *
+ * A [T, N] array initialized with fewer than N elements must have length N.
+ * Slots beyond the initialized range must be zero-valued and accessible.
+ */
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Partial init: 3 of 5 elements; slots 3 and 4 must be 0
+    const a [int, 5] = {10, 20, 30}
+    if a[0] == 10 && a[1] == 20 && a[2] == 30 && a[3] == 0 && a[4] == 0 {
+        passed++
+    } otherwise {
+        println("FAIL: partial int init values wrong")
+        failed++
+    }
+
+    // Empty init: all N slots must be zero
+    const b [int, 4] = {}
+    if b[0] == 0 && b[3] == 0 {
+        passed++
+    } otherwise {
+        println("FAIL: empty int init not zero")
+        failed++
+    }
+
+    // Full init: N of N elements; still works correctly
+    const c [int, 3] = {7, 8, 9}
+    if c[0] == 7 && c[1] == 8 && c[2] == 9 {
+        passed++
+    } otherwise {
+        println("FAIL: full int init wrong")
+        failed++
+    }
+
+    // Float partial init
+    const d [float, 3] = {1.5}
+    if d[0] == 1.5 && d[1] == 0.0 && d[2] == 0.0 {
+        passed++
+    } otherwise {
+        println("FAIL: partial float init wrong")
+        failed++
+    }
+
+    println("fixed_array_partial_init: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    }
+}

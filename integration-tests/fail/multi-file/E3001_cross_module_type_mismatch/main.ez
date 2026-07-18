@@ -1,6 +1,0 @@
-import "./utils.ez"
-
-do main() {
-    // Bug test: passing strings to function expecting ints
-    mut result = utils.addNumbers("hello", "world")
-}

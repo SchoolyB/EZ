@@ -1,0 +1,61 @@
+/*
+ * sqlite_c.gray - Integration test for @sqlite (compiler)
+ */
+
+import @sqlite
+
+do main() {
+    println("=== SQLite Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // open in-memory database
+    mut db, _ = sqlite.open(":memory:")
+    println("  [PASS] open :memory:")
+    passed += 1
+
+    // exec create table
+    mut ok, _ = sqlite.exec(db, "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+    if ok {
+        println("  [PASS] exec CREATE TABLE")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] exec CREATE TABLE")
+        failed += 1
+    }
+
+    // exec insert
+    mut ok2, _ = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (1, 'Alice')")
+    if ok2 {
+        println("  [PASS] exec INSERT")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] exec INSERT")
+        failed += 1
+    }
+
+    // exec insert another
+    mut _, _ = sqlite.exec(db, "INSERT INTO test (id, name) VALUES (2, 'Bob')")
+
+    // query
+    mut rows, _ = sqlite.query(db, "SELECT * FROM test")
+    if len(rows) == 2 {
+        println("  [PASS] query returns 2 rows")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] query: expected 2 rows, got ${len(rows)}")
+        failed += 1
+    }
+
+    // close
+    sqlite.close(db)
+    println("  [PASS] close")
+    passed += 1
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+    println("ALL TESTS PASSED")
+}

@@ -1,0 +1,65 @@
+/*
+ * pointer_collections.gray - Test arrays and maps with pointer types
+ *
+ * Covers: [^Struct], map[string:^Struct]
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    println("=== Pointer Collections Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // array of pointers
+    mut a = new(Point)
+    mut b = new(Point)
+    a^.x = 10
+    a^.y = 20
+    b^.x = 30
+    b^.y = 40
+
+    mut ptrs [^Point] = {a, b}
+    if ptrs[0]^.x == 10 && ptrs[1]^.x == 30 {
+        println("  [PASS] array of pointers")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array of pointers")
+        failed += 1
+    }
+
+    // modify through pointer in array
+    ptrs[0]^.x = 99
+    if a^.x == 99 {
+        println("  [PASS] modify through pointer in array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] modify through pointer: got ${a^.x}")
+        failed += 1
+    }
+
+    // map with pointer values
+    mut p = new(Point)
+    p^.x = 42
+    p^.y = 84
+    mut m map[string:^Point] = {"origin": p}
+    if m["origin"]^.x == 42 && m["origin"]^.y == 84 {
+        println("  [PASS] map with pointer values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map pointer values")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

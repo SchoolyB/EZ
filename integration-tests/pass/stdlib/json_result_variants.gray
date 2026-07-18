@@ -1,0 +1,48 @@
+/*
+ * Test: json module _result variant for error handling
+ * Verifies multi-var destructuring works for json.decode.
+ */
+
+import @json
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: json.decode error on invalid JSON
+    mut val, err = json.decode("{ invalid }")
+    if err != nil {
+        println("  [PASS] json.decode error caught on invalid JSON")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] json.decode no error on invalid JSON")
+        failed += 1
+    }
+
+    // Test 2: json.decode success on valid JSON
+    mut val2, err2 = json.decode("{\"key\": \"value\"}")
+    if err2 == nil {
+        println("  [PASS] json.decode success on valid JSON")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] json.decode error on valid JSON")
+        failed += 1
+    }
+
+    // Test 3: json.decode error on empty string
+    mut val3, err3 = json.decode("")
+    if err3 != nil {
+        println("  [PASS] json.decode error caught on empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] json.decode no error on empty string")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

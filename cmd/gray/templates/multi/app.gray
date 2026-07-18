@@ -1,0 +1,12 @@
+// app.gray - Core application logic.
+
+import "./config.gray"
+import "./utils.gray"
+
+do run() {
+    mut cfg = config.get_config()
+    println("Starting ${cfg.name}...")
+
+    mut message = utils.format_message("Application initialized")
+    println(message)
+}

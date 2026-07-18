@@ -1,0 +1,80 @@
+/*
+ * random_choice.gray - Test random.choice() with concrete types
+ *
+ * Verifies that random.choice() compiles and runs correctly for
+ * int, string, and float arrays now that __auto_type is replaced
+ * with the concrete element type.
+ */
+
+import @random
+
+do main() {
+    println("=== random.choice() Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: random.choice on int array
+    mut nums [int] = {10, 20, 30, 40, 50}
+    mut pick int = random.choice(nums)
+    if pick == 10 || pick == 20 || pick == 30 || pick == 40 || pick == 50 {
+        println("  [PASS] random.choice([int]) returns valid element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.choice([int]) returned ${pick}")
+        failed += 1
+    }
+
+    // Test 2: random.choice on string array
+    mut names [string] = {"Alice", "Bob", "Charlie"}
+    mut name string = random.choice(names)
+    if name == "Alice" || name == "Bob" || name == "Charlie" {
+        println("  [PASS] random.choice([string]) returns valid element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.choice([string]) returned '${name}'")
+        failed += 1
+    }
+
+    // Test 3: random.choice on float array
+    mut vals [float] = {1.1, 2.2, 3.3}
+    mut val float = random.choice(vals)
+    if val > 1.0 && val < 3.4 {
+        println("  [PASS] random.choice([float]) returns valid element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.choice([float]) returned ${val}")
+        failed += 1
+    }
+
+    // Test 4: random.choice on single-element array
+    mut solo [int] = {42}
+    mut only int = random.choice(solo)
+    if only == 42 {
+        println("  [PASS] random.choice single-element array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] single-element choice returned ${only}")
+        failed += 1
+    }
+
+    // Test 5: random.choice used in expression
+    mut arr [int] = {1, 2, 3}
+    mut doubled int = random.choice(arr) * 2
+    if doubled == 2 || doubled == 4 || doubled == 6 {
+        println("  [PASS] random.choice in expression")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] choice * 2 returned ${doubled}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

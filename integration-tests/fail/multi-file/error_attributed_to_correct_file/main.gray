@@ -1,0 +1,10 @@
+/*
+ * Error Test: - errors in imported modules attributed to correct file
+ * Expected: error points at lib.gray, NOT main.gray
+ */
+
+import "./lib.gray"
+
+do main() {
+    println("${lib.add(1, 2)}")
+}

@@ -1,0 +1,11 @@
+// main.gray - Demo entry point that exercises the library.
+//
+// This is a throwaway driver so `gray main.gray` runs something you can
+// see. A real consumer would import ./lib.gray from their own project.
+
+import "./lib.gray"
+
+do main() {
+    println(lib.greet("World"))
+    println("2 + 3 = ${lib.add(2, 3)}")
+}

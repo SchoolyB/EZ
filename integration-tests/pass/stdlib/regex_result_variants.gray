@@ -1,0 +1,88 @@
+/*
+ * Test: regex module _result variants for error handling
+ * Verifies multi-var destructuring works for regex.find, find_all, replace, split.
+ */
+
+import @regex
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: regex.find error on invalid pattern
+    mut result, err = regex.find("[invalid", "test string")
+    if err != nil {
+        println("  [PASS] regex.find error caught on invalid pattern")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find no error, result='${result}'")
+        failed += 1
+    }
+
+    // Test 2: regex.find success
+    mut result2, err2 = regex.find("t[a-z]+", "test string")
+    if err2 == nil {
+        if result2 == "test" {
+            println("  [PASS] regex.find success, result='${result2}'")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] regex.find wrong result: '${result2}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] regex.find error on valid pattern")
+        failed += 1
+    }
+
+    // Test 3: regex.find_all error on invalid pattern
+    mut results, err3 = regex.find_all("[invalid", "test string")
+    if err3 != nil {
+        println("  [PASS] regex.find_all error caught on invalid pattern")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find_all no error, len=${len(results)}")
+        failed += 1
+    }
+
+    // Test 4: regex.replace error on invalid pattern
+    mut replaced, err4 = regex.replace("[invalid", "test", "new")
+    if err4 != nil {
+        println("  [PASS] regex.replace error caught on invalid pattern")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.replace no error, result='${replaced}'")
+        failed += 1
+    }
+
+    // Test 5: regex.replace success
+    mut replaced2, err5 = regex.replace("[0-9]+", "abc123def456", "NUM")
+    if err5 == nil {
+        if replaced2 == "abcNUMdefNUM" {
+            println("  [PASS] regex.replace success, result='${replaced2}'")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] regex.replace wrong result: '${replaced2}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] regex.replace error on valid pattern")
+        failed += 1
+    }
+
+    // Test 6: regex.split error on invalid pattern
+    mut parts, err6 = regex.split("[invalid", "test string")
+    if err6 != nil {
+        println("  [PASS] regex.split error caught on invalid pattern")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.split no error, len=${len(parts)}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

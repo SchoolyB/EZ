@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3001 - struct function arg mismatch with using
+ * Expected: error message shows "Foo" not "utils_Foo"
+ */
+
+import "./utils.gray"
+using utils
+
+do main() {
+    mut f = new(Foo)
+    f.take_foo(42)
+}

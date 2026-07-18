@@ -1,0 +1,10 @@
+import "./lib.gray"
+
+do main() {
+    mut result string = lib.greet("World")
+    if result == "Hello, World" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

@@ -1,0 +1,137 @@
+/*
+ * private_keyword.gray - Test private keyword functionality
+ *
+ * Verifies private functions and constants work within the same file,
+ * including struct-level private functions called by public ones.
+ */
+
+
+// Private top-level function
+private do secret_value() -> int {
+    return 42
+}
+
+// Private top-level constant
+private const INTERNAL_KEY string = "abc123"
+
+// Public function calls private function
+do get_secret() -> int {
+    return secret_value()
+}
+
+// Struct with private and public functions
+const Calculator struct {
+    base int
+
+    private do internal_add(a int, b int) -> int {
+        return a + b
+    }
+
+    private do internal_mul(a int, b int) -> int {
+        return a * b
+    }
+
+    do add(a int, b int) -> int {
+        return Calculator.internal_add(a, b)
+    }
+
+    do mul(a int, b int) -> int {
+        return Calculator.internal_mul(a, b)
+    }
+
+    // Public calls chained private functions
+    do compute(a int, b int, c int) -> int {
+        mut sum int = Calculator.internal_add(a, b)
+        return Calculator.internal_mul(sum, c)
+    }
+}
+
+do main() {
+    println("=== Private Keyword Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: private function callable from same file
+    if secret_value() == 42 {
+        println("  [PASS] private function callable from same file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] private function")
+        failed += 1
+    }
+
+    // Test 2: private constant accessible from same file
+    if INTERNAL_KEY == "abc123" {
+        println("  [PASS] private constant accessible from same file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] private constant")
+        failed += 1
+    }
+
+    // Test 3: public function wrapping private function
+    if get_secret() == 42 {
+        println("  [PASS] public function calls private function")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] public wrapping private")
+        failed += 1
+    }
+
+    // Test 4: public struct function calls private struct function
+    if Calculator.add(10, 20) == 30 {
+        println("  [PASS] public struct func calls private struct func")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct public->private")
+        failed += 1
+    }
+
+    // Test 5: another private struct function
+    if Calculator.mul(5, 6) == 30 {
+        println("  [PASS] second private struct func works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] second private struct func")
+        failed += 1
+    }
+
+    // Test 6: chained private calls from public
+    if Calculator.compute(2, 3, 4) == 20 {
+        println("  [PASS] chained private->private->public (2+3)*4=20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] chained private calls")
+        failed += 1
+    }
+
+    // Test 7: private function used in expression
+    mut doubled int = secret_value() * 2
+    if doubled == 84 {
+        println("  [PASS] private function in expression")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] private in expression")
+        failed += 1
+    }
+
+    // Test 8: private constant used in expression
+    mut key_len int = len(INTERNAL_KEY)
+    if key_len == 6 {
+        println("  [PASS] private constant in expression")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] private constant in expression")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

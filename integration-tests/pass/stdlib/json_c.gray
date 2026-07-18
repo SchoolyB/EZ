@@ -1,0 +1,148 @@
+/*
+ * json_c.gray - Comprehensive integration test for @json (compiler)
+ * Tests: encode, is_valid, pretty_print
+ * Note: decode returns dynamic type — limited testing available
+ */
+
+import @json
+import @strings
+
+do main() {
+    println("=== JSON Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // is_valid - valid object
+    if json.is_valid("{\"key\": \"value\"}") == true {
+        println("  [PASS] is_valid (object)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (object)")
+        failed += 1
+    }
+
+    // is_valid - valid array
+    if json.is_valid("[1, 2, 3]") == true {
+        println("  [PASS] is_valid (array)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (array)")
+        failed += 1
+    }
+
+    // is_valid - valid string
+    if json.is_valid("\"hello\"") == true {
+        println("  [PASS] is_valid (string)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (string)")
+        failed += 1
+    }
+
+    // is_valid - valid number
+    if json.is_valid("42") == true {
+        println("  [PASS] is_valid (number)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (number)")
+        failed += 1
+    }
+
+    // is_valid - valid bool
+    if json.is_valid("true") == true {
+        println("  [PASS] is_valid (bool)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (bool)")
+        failed += 1
+    }
+
+    // is_valid - invalid
+    if json.is_valid("") == false {
+        println("  [PASS] is_valid (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (empty)")
+        failed += 1
+    }
+
+    // is_valid - invalid syntax
+    if json.is_valid("{bad json}") == false {
+        println("  [PASS] is_valid (invalid)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid (invalid)")
+        failed += 1
+    }
+
+    // encode int
+    mut enc_int string = json.encode(42)
+    if enc_int == "42" {
+        println("  [PASS] encode(int)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode(int): got '${enc_int}'")
+        failed += 1
+    }
+
+    // encode bool
+    mut enc_bool string = json.encode(true)
+    if enc_bool == "true" {
+        println("  [PASS] encode(bool)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode(bool): got '${enc_bool}'")
+        failed += 1
+    }
+
+    // encode string
+    mut enc_str string = json.encode("hello")
+    if enc_str == "\"hello\"" {
+        println("  [PASS] encode(string)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode(string): got '${enc_str}'")
+        failed += 1
+    }
+
+    // encode float
+    mut enc_float string = json.encode(3.14)
+    if strings.contains(enc_float, "3.14") {
+        println("  [PASS] encode(float)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode(float): got '${enc_float}'")
+        failed += 1
+    }
+
+    // encode array
+    mut arr [int] = {1, 2, 3}
+    mut enc_arr string = json.encode(arr)
+    if enc_arr == "[1,2,3]" || enc_arr == "[1, 2, 3]" {
+        println("  [PASS] encode(array)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode(array): got '${enc_arr}'")
+        failed += 1
+    }
+
+    // encode map
+    mut m map[string:int] = {"a": 1, "b": 2}
+    mut enc_map string = json.encode(m)
+    if strings.contains(enc_map, "\"a\"") && strings.contains(enc_map, "1") {
+        println("  [PASS] encode(map)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode(map): got '${enc_map}'")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

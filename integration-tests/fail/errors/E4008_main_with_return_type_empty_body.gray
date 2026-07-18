@@ -1,0 +1,11 @@
+/*
+ * Error Test: E4008 - main declared with a return type (empty body)
+ *
+ * used to fire both E4008 ("main cannot have a
+ * return type") and a contradictory cascade E3024 ("main must return
+ * a value"). Typechecker now rewrites main's effective return type to
+ * void after E4008 so all downstream return checks see it that way.
+ */
+
+do main() -> string {
+}

@@ -1,0 +1,28 @@
+/*
+ * Error Test: E3001 - struct type mismatch in struct field assignment
+ * assigning a wrong struct type to a struct field
+ * via dot-access was silently accepted by the typechecker.
+ * Expected: E3001
+ */
+
+const Vec2 struct {
+    x float
+    y float
+}
+
+const Vec3 struct {
+    x float
+    y float
+    z float
+}
+
+const Player struct {
+    pos Vec2
+}
+
+do main() {
+    mut p = new(Player)
+    mut v = Vec3{x: 1.0, y: 2.0, z: 3.0}
+    p.pos = v  // Should produce E3001 — Vec3 != Vec2
+    println(p.pos.x)
+}

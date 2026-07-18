@@ -1,0 +1,58 @@
+/*
+ * Test: map for_each iteration with mutation guard
+ * Verifies that normal map for_each iteration works correctly.
+ */
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
+
+    // Test 1: for_each iterates all keys
+    mut key_count int = 0
+    for_each k in m {
+        key_count += 1
+    }
+    if key_count == 3 {
+        println("  [PASS] for_each iterates all 3 keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each key count: expected 3, got ${key_count}")
+        failed += 1
+    }
+
+    // Test 2: for_each with key and value
+    mut total int = 0
+    for_each k, v in m {
+        total += v
+    }
+    if total == 6 {
+        println("  [PASS] for_each k,v sums values to 6")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each sum: expected 6, got ${total}")
+        failed += 1
+    }
+
+    // Test 3: separate map for_each
+    mut m2 map[string:int] = {"x": 10, "y": 20}
+    mut sum2 int = 0
+    for_each k, v in m2 {
+        sum2 += v
+    }
+    if sum2 == 30 {
+        println("  [PASS] second map for_each sums to 30")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] second map sum: expected 30, got ${sum2}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

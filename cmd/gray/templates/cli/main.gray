@@ -1,0 +1,38 @@
+// main.gray - CLI application entry point
+//
+// os.args() in a compiled binary returns [binary_name, user_args...].
+// args[0] is the binary, args[1] is the first user-supplied argument.
+
+import @os
+import "./commands.gray"
+
+do main() {
+    mut args = os.args()
+
+    if len(args) < 2 {
+        show_usage()
+        exit(0)
+    }
+
+    mut command = args[1]
+
+    if command == "greet" {
+        commands.handle_greet(args)
+    } or command == "help" {
+        show_usage()
+    } otherwise {
+        println("Unknown command: ${command}")
+        show_usage()
+    }
+}
+
+do show_usage() {
+    println("A CLI application")
+    println("")
+    println("Usage:")
+    println("  <binary> <command> [args...]")
+    println("")
+    println("Commands:")
+    println("  greet <name>  Greet someone")
+    println("  help          Show this help")
+}

@@ -1,0 +1,8 @@
+/*
+ * types.gray - Defines TestStruct type
+ */
+
+const TestStruct struct {
+    Value u8
+    Name string
+}

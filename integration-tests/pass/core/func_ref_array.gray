@@ -1,0 +1,94 @@
+/*
+ * func_ref_array.gray - Arrays of function references [func]
+ *
+ * Three landed fixes combined:
+ *   - 9fee3f9: emit void* for [func] array element storage
+ *   - 7be1a1a: function-pointer cast on index-call and element assign
+ *   - 1a3e7c6: typechecker resolves non-label/member call targets so the
+ *              NODE_INDEX_EXPR subtree is typed and codegen routes through
+ *              the array element helpers instead of raw C subscript
+ *
+ * Covers every path the combined fix must support: literal + index-call,
+ * empty literal + append + call, for_each, element assignment, and
+ * index-read into a local.
+ */
+
+import @arrays
+
+do add(a int, b int) -> int { return a + b }
+do sub(a int, b int) -> int { return a - b }
+do mul(a int, b int) -> int { return a * b }
+
+do is_pos(n int) -> bool { return n > 0 }
+do is_neg(n int) -> bool { return n < 0 }
+
+do main() {
+    println("=== [func] Array Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- literal with inferred func element type, index + call --
+    mut ops [func] = {()add, ()sub, ()mul}
+    if ops[0](10, 3) == 13 && ops[1](10, 3) == 7 && ops[2](10, 3) == 30 {
+        println("  [PASS] literal [func] index + call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] literal [func] index + call")
+        failed += 1
+    }
+
+    // -- empty literal, declared [func], append + index + call --
+    mut preds [func] = {}
+    arrays.append(preds, ()is_pos)
+    arrays.append(preds, ()is_neg)
+    if len(preds) == 2 && preds[0](5) && preds[1](-5) && !preds[0](-5) && !preds[1](5) {
+        println("  [PASS] empty [func] literal + append + call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty [func] literal + append + call")
+        failed += 1
+    }
+
+    // -- for_each over [func] --
+    mut total int = 0
+    for_each op in ops {
+        total += op(2, 3)
+    }
+    // add(2,3)=5, sub(2,3)=-1, mul(2,3)=6 → 10
+    if total == 10 {
+        println("  [PASS] for_each over [func]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over [func]: got ${total}")
+        failed += 1
+    }
+
+    // -- element assignment --
+    ops[0] = ()mul
+    if ops[0](4, 5) == 20 {
+        println("  [PASS] [func] element reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [func] element reassignment")
+        failed += 1
+    }
+
+    // -- index-read into a local variable, then call --
+    mut fn_local = ops[1]
+    if fn_local(10, 3) == 7 {
+        println("  [PASS] [func] index-read into local + call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [func] index-read into local + call")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

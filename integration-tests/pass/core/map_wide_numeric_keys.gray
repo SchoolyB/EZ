@@ -1,0 +1,180 @@
+/*
+ * map_wide_numeric_keys.gray - 'in', has_key, remove_key for f32/f64 and
+ * bigint (i128/u128/i256/u256) map keys.
+ *
+ *   - 'in'/'!in' used gray_type_to_c_cg → emitted 'float _ik' (4-byte) against
+ *     a double-sized (8-byte) storage slot for f32, and 'gray_i128 _ik = 1'
+ *     (C compile error) for bigint keys.
+ *   - has_key / remove_key used __auto_type, which picks the C type of the
+ *     argument expression rather than the map's declared key storage width.
+ *
+ * These are the three sites the follow-up routed through gray_map_elem_c_type.
+ * This test exercises each site for every wide numeric key type.
+ */
+
+import @maps
+
+do main() {
+    println("=== Wide Numeric Map Keys Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- f32: in / has_key / remove_key --
+    mut f32m map[f32:string] = {1.5: "a", 2.5: "b", 3.5: "c"}
+    if 1.5 in f32m && 9.9 !in f32m {
+        println("  [PASS] f32 key in/!in")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32 key in/!in")
+        failed += 1
+    }
+    if maps.has_key(f32m, 2.5) && !maps.has_key(f32m, 9.9) {
+        println("  [PASS] f32 key has_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32 key has_key")
+        failed += 1
+    }
+    maps.remove_key(f32m, 2.5)
+    if 2.5 !in f32m && len(f32m) == 2 {
+        println("  [PASS] f32 key remove_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32 key remove_key: len=${len(f32m)}")
+        failed += 1
+    }
+
+    // -- f64: in / has_key / remove_key --
+    mut f64m map[f64:string] = {1.5: "a", 2.5: "b", 3.5: "c"}
+    if 2.5 in f64m && 9.9 !in f64m {
+        println("  [PASS] f64 key in/!in")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64 key in/!in")
+        failed += 1
+    }
+    if maps.has_key(f64m, 1.5) && !maps.has_key(f64m, 9.9) {
+        println("  [PASS] f64 key has_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64 key has_key")
+        failed += 1
+    }
+    maps.remove_key(f64m, 1.5)
+    if 1.5 !in f64m && len(f64m) == 2 {
+        println("  [PASS] f64 key remove_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64 key remove_key")
+        failed += 1
+    }
+
+    // -- i128: in / has_key / remove_key --
+    mut i128m map[i128:string] = {1: "a", 2: "b", 3: "c"}
+    if 2 in i128m && 99 !in i128m {
+        println("  [PASS] i128 key in/!in")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 key in/!in")
+        failed += 1
+    }
+    if maps.has_key(i128m, 1) && !maps.has_key(i128m, 99) {
+        println("  [PASS] i128 key has_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 key has_key")
+        failed += 1
+    }
+    maps.remove_key(i128m, 2)
+    if 2 !in i128m && len(i128m) == 2 {
+        println("  [PASS] i128 key remove_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 key remove_key")
+        failed += 1
+    }
+
+    // -- u128: in / has_key / remove_key --
+    mut u128m map[u128:string] = {10: "a", 20: "b", 30: "c"}
+    if 20 in u128m && 999 !in u128m {
+        println("  [PASS] u128 key in/!in")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 key in/!in")
+        failed += 1
+    }
+    if maps.has_key(u128m, 10) && !maps.has_key(u128m, 999) {
+        println("  [PASS] u128 key has_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 key has_key")
+        failed += 1
+    }
+    maps.remove_key(u128m, 20)
+    if 20 !in u128m && len(u128m) == 2 {
+        println("  [PASS] u128 key remove_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 key remove_key")
+        failed += 1
+    }
+
+    // -- i256: in / has_key / remove_key --
+    mut i256m map[i256:string] = {1: "a", 2: "b", 3: "c"}
+    if 1 in i256m && 99 !in i256m {
+        println("  [PASS] i256 key in/!in")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 key in/!in")
+        failed += 1
+    }
+    if maps.has_key(i256m, 3) && !maps.has_key(i256m, 99) {
+        println("  [PASS] i256 key has_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 key has_key")
+        failed += 1
+    }
+    maps.remove_key(i256m, 3)
+    if 3 !in i256m && len(i256m) == 2 {
+        println("  [PASS] i256 key remove_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 key remove_key")
+        failed += 1
+    }
+
+    // -- u256: in / has_key / remove_key --
+    mut u256m map[u256:string] = {100: "a", 200: "b", 300: "c"}
+    if 100 in u256m && 999 !in u256m {
+        println("  [PASS] u256 key in/!in")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 key in/!in")
+        failed += 1
+    }
+    if maps.has_key(u256m, 200) && !maps.has_key(u256m, 999) {
+        println("  [PASS] u256 key has_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 key has_key")
+        failed += 1
+    }
+    maps.remove_key(u256m, 200)
+    if 200 !in u256m && len(u256m) == 2 {
+        println("  [PASS] u256 key remove_key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 key remove_key")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

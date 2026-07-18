@@ -1,0 +1,82 @@
+/*
+ * nested_map_types.gray - Nested map types in collection annotations
+ *
+ * parser + codegen support for map[...] nested
+ * inside collection type annotations: arrays of maps, maps of maps,
+ * and element access on nested container types.
+ */
+
+do main() {
+    println("=== Nested Map Types Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: array of maps declaration and length
+    mut arr [map[string:int]] = {
+        {"a": 1, "b": 2},
+        {"c": 3}
+    }
+    if len(arr) == 2 {
+        println("  [PASS] array of maps length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array of maps length")
+        failed += 1
+    }
+
+    // Test 2: extract map from array and access value
+    mut first map[string:int] = arr[0]
+    if first["a"] == 1 {
+        println("  [PASS] array of maps element access")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array of maps element access")
+        failed += 1
+    }
+
+    // Test 3: second map in array
+    mut second map[string:int] = arr[1]
+    if second["c"] == 3 {
+        println("  [PASS] array of maps second element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array of maps second element")
+        failed += 1
+    }
+
+    // Test 4: map of maps declaration and access
+    mut nested map[string:map[string:int]] = {
+        "outer": {"inner": 42}
+    }
+    mut inner map[string:int] = nested["outer"]
+    if inner["inner"] == 42 {
+        println("  [PASS] map of maps access")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map of maps access")
+        failed += 1
+    }
+
+    // Test 5: map of maps with multiple outer keys
+    mut multi map[string:map[string:int]] = {
+        "x": {"val": 10},
+        "y": {"val": 20}
+    }
+    mut mx map[string:int] = multi["x"]
+    mut my map[string:int] = multi["y"]
+    if mx["val"] == 10 && my["val"] == 20 {
+        println("  [PASS] map of maps multiple keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map of maps multiple keys")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

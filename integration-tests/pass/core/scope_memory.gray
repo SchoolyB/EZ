@@ -1,0 +1,82 @@
+/*
+ * scope_memory.gray - Scope-based memory management basics
+ *
+ * phase 1: void functions save/restore the arena
+ * watermark so temporaries are freed on exit. Non-void functions
+ * use per-function arenas with return-value escape so temporaries
+ * are freed but the return value survives.
+ */
+
+import @strings
+
+do process(name string) {
+    mut upper string = strings.to_upper(name)
+    println(upper)
+}
+
+do get_upper(name string) -> string {
+    return strings.to_upper(name)
+}
+
+const Node struct {
+    val int
+}
+
+do main() {
+    println("=== Scope Memory Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- void function temporaries freed, program still works --
+    process("hello")
+    println("  [PASS] void function with temporaries")
+    passed += 1
+
+    // -- non-void function return survives --
+    mut result string = get_upper("world")
+    if result == "WORLD" {
+        println("  [PASS] non-void return survives scope")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-void return")
+        failed += 1
+    }
+
+    // -- ^T works with new() --
+    mut p ^Node = new(Node)
+    p^.val = 42
+    if p^.val == 42 {
+        println("  [PASS] ^T with new()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^T with new()")
+        failed += 1
+    }
+
+    // -- ^T with nil --
+    mut q ^Node = nil
+    if q == nil {
+        println("  [PASS] ^T accepts nil")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ^T nil")
+        failed += 1
+    }
+
+    // -- multiple void function calls don't leak --
+    mut i int = 0
+    as_long_as i < 100 {
+        process("iteration")
+        i += 1
+    }
+    println("  [PASS] 100 void calls without leak")
+    passed += 1
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

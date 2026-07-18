@@ -1,0 +1,11 @@
+
+// Test: Invalid struct field access with imported type
+// Expected: E4003 - struct has no field 'valu'
+
+import lib"./lib.gray"
+
+do main() {
+    mut item = lib.Item{ name: "Test", value: 100 }
+    // ERROR: 'valu' is not a field of Item (typo)
+    println(item.valu)
+}

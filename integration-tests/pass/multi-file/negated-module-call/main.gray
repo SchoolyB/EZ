@@ -1,0 +1,88 @@
+/*
+ * main.gray - Test negated user module-qualified calls
+ *
+ * Verifies that !userModule.func() generates valid C for
+ * user-defined modules, not just stdlib modules.
+ */
+
+import "./checks.gray"
+
+do main() {
+    println("=== Negated User Module Calls ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: !checks.is_positive() with negative number
+    if !checks.is_positive(-5) {
+        println("  [PASS] !checks.is_positive(-5) is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !checks.is_positive(-5) should be true")
+        failed += 1
+    }
+
+    // Test 2: checks.is_positive() without negation
+    if checks.is_positive(10) {
+        println("  [PASS] checks.is_positive(10) is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] checks.is_positive(10) should be true")
+        failed += 1
+    }
+
+    // Test 3: !checks.is_empty() with non-empty string
+    if !checks.is_empty("hello") {
+        println("  [PASS] !checks.is_empty('hello') is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !checks.is_empty('hello') should be true")
+        failed += 1
+    }
+
+    // Test 4: checks.is_empty() with empty string
+    if checks.is_empty("") {
+        println("  [PASS] checks.is_empty('') is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] checks.is_empty('') should be true")
+        failed += 1
+    }
+
+    // Test 5: !checks.is_in_range() out of range
+    if !checks.is_in_range(100, 0, 50) {
+        println("  [PASS] !checks.is_in_range(100, 0, 50) is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !checks.is_in_range(100, 0, 50) should be true")
+        failed += 1
+    }
+
+    // Test 6: store user module call then negate
+    mut pos bool = checks.is_positive(-3)
+    if !pos {
+        println("  [PASS] stored !checks.is_positive(-3) matches")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stored negation should match direct")
+        failed += 1
+    }
+
+    // Test 7: negated user module call in compound condition
+    if !checks.is_empty("test") && checks.is_positive(1) {
+        println("  [PASS] !usermod.func() in compound && condition")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] compound condition with negated user module call")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

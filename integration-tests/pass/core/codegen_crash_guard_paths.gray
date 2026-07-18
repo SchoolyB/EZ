@@ -1,0 +1,98 @@
+/*
+ * Test: codegen paths protected by crash guards
+ * Exercises the code paths where NULL guards were added:
+ * return statements, struct func pointer calls, and func ref lookups.
+ */
+
+const Widget struct {
+    name string
+    handler func(string) -> string
+
+    do create(name string) -> Widget {
+        return Widget{name: name}
+    }
+}
+
+do greet(name string) -> string {
+    return "hello ${name}"
+}
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+do multi_return() -> (int, string) {
+    return 42, "answer"
+}
+
+do void_return() {
+    return
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: single return value
+    mut r1 string = greet("world")
+    if r1 == "hello world" {
+        println("  [PASS] single return value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] single return: expected hello world, got ${r1}")
+        failed += 1
+    }
+
+    // Test 2: multi-return
+    mut val, label = multi_return()
+    if val == 42 && label == "answer" {
+        println("  [PASS] multi-return values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] multi-return: expected 42/answer, got ${val}/${label}")
+        failed += 1
+    }
+
+    // Test 3: void return
+    void_return()
+    println("  [PASS] void return completed")
+    passed += 1
+
+    // Test 4: struct function call
+    mut w Widget = Widget.create("button")
+    if w.name == "button" {
+        println("  [PASS] struct function call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct function: expected button, got ${w.name}")
+        failed += 1
+    }
+
+    // Test 5: func ref on struct field
+    mut w2 Widget = Widget{name: "test", handler: ()greet}
+    if w2.name == "test" {
+        println("  [PASS] struct with func field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct with func field: expected test")
+        failed += 1
+    }
+
+    // Test 6: function reference lookup via member
+    const ref_fn = ()add
+    mut r6 int = ref_fn(10, 20)
+    if r6 == 30 {
+        println("  [PASS] func ref call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] func ref call: expected 30, got ${r6}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

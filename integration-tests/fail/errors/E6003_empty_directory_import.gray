@@ -1,0 +1,12 @@
+/*
+ * Error Test: E6003 - directory import with no .gray files
+ * Expected: "directory contains no .gray files" error
+ *
+ * Uses the empty_dir/ directory which has no .gray files
+ */
+
+import "./empty_dir"
+
+do main() {
+    println("should not compile")
+}

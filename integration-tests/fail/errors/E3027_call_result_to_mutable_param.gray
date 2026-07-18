@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3027 - function call result passed to mutable (&) parameter
+ * Expected: "cannot pass a literal or expression to mutable parameter" error
+ */
+
+do get_val() -> int {
+    return 5
+}
+
+do modify(&x int) {
+    x = 99
+}
+
+do main() {
+    modify(get_val())
+}

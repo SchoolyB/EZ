@@ -1,0 +1,108 @@
+/*
+ * random_big_struct_shuffle.gray - shuffle/sample on >64-byte elements.
+ *
+ * gray_random_shuffle used to use a fixed char tmp[64] as the swap
+ * scratch slot. Any element type larger than 64 bytes (12+ ints, big
+ * structs) made memcpy(tmp, data + i*es, es) read past the stack
+ * buffer. The fix sizes scratch by result.elem_size on the arena.
+ *
+ * Big is intentionally 96 bytes (12 int64 fields) so it exceeds the
+ * old 64-byte cap. random.sample also goes through gray_random_shuffle,
+ * so a sample call exercises the same path.
+ */
+
+import @random
+
+const Big struct {
+    a int
+    b int
+    c int
+    d int
+    e int
+    f int
+    g int
+    h int
+    i int
+    j int
+    k int
+    l int
+}
+
+do sum(b Big) -> int {
+    return b.a + b.b + b.c + b.d + b.e + b.f + b.g + b.h + b.i + b.j + b.k + b.l
+}
+
+do main() {
+    println("=== Big-Struct Shuffle Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    mut arr [Big] = {
+        Big{a: 1,  b: 2,  c: 3,  d: 4,  e: 5,  f: 6,  g: 7,  h: 8,  i: 9,  j: 10, k: 11, l: 12},
+        Big{a: 13, b: 14, c: 15, d: 16, e: 17, f: 18, g: 19, h: 20, i: 21, j: 22, k: 23, l: 24},
+        Big{a: 25, b: 26, c: 27, d: 28, e: 29, f: 30, g: 31, h: 32, i: 33, j: 34, k: 35, l: 36},
+        Big{a: 37, b: 38, c: 39, d: 40, e: 41, f: 42, g: 43, h: 44, i: 45, j: 46, k: 47, l: 48},
+        Big{a: 49, b: 50, c: 51, d: 52, e: 53, f: 54, g: 55, h: 56, i: 57, j: 58, k: 59, l: 60}
+    }
+
+    // shuffle preserves length and the element-set is intact.
+    mut shuffled [Big] = random.shuffle(arr)
+    if len(shuffled) == 5 {
+        println("  [PASS] random.shuffle preserves length on >64-byte elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] shuffle length: got ${len(shuffled)}, expected 5")
+        failed += 1
+    }
+
+    mut original_total int = 0
+    mut shuffled_total int = 0
+    for i in range(5) {
+        original_total += sum(arr[i])
+        shuffled_total += sum(shuffled[i])
+    }
+    if original_total == shuffled_total {
+        println("  [PASS] random.shuffle preserves struct contents")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sums differ: ${original_total} vs ${shuffled_total}")
+        failed += 1
+    }
+
+    // sample also routes through the same scratch buffer.
+    mut sampled [Big] = random.sample(arr, 3)
+    if len(sampled) == 3 {
+        println("  [PASS] random.sample returns 3 big-struct elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sample length: got ${len(sampled)}, expected 3")
+        failed += 1
+    }
+
+    // every sampled struct must equal one of the originals.
+    mut intact int = 0
+    for i in range(3) {
+        mut s int = sum(sampled[i])
+        for j in range(5) {
+            if s == sum(arr[j]) {
+                intact += 1
+                break
+            }
+        }
+    }
+    if intact == 3 {
+        println("  [PASS] all sampled structs match originals (no corruption)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] only ${intact}/3 sampled structs matched")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

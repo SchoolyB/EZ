@@ -1,0 +1,55 @@
+/*
+ * Test: directory import
+ * import "./models" scans models/ for .gray files and merges them
+ */
+import "./models"
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: struct + function from user.gray
+    mut u = models.create_user("Alice", 30)
+    if u.name == "Alice" && u.age == 30 {
+        println("  [PASS] directory import struct + function (user.gray)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] directory import struct + function (user.gray)")
+        failed += 1
+    }
+
+    // Test 2: constant from user.gray
+    if models.DEFAULT_AGE == 25 {
+        println("  [PASS] directory import constant (user.gray)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] directory import constant (user.gray)")
+        failed += 1
+    }
+
+    // Test 3: struct + function from task.gray
+    mut t = models.create_task("Write tests")
+    if t.title == "Write tests" && t.done == false {
+        println("  [PASS] directory import struct + function (task.gray)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] directory import struct + function (task.gray)")
+        failed += 1
+    }
+
+    // Test 4: constant from task.gray
+    if models.MAX_TASKS == 50 {
+        println("  [PASS] directory import constant (task.gray)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] directory import constant (task.gray)")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

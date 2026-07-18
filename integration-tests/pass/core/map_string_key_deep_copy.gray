@@ -1,0 +1,81 @@
+/*
+ * map_string_key_deep_copy.gray - string keys in returned maps are deep-copied
+ *
+ * Regression for the bug where gray_map_copy shallow-copied GrayString key
+ * structs without duplicating the underlying character data.  When a
+ * map[string:K] was returned from a function its _func_arena was freed,
+ * leaving the key data pointers dangling.
+ *
+ * Fix: gray_map_copy now calls gray_string_new for every occupied slot when
+ * key_kind == GRAY_MAP_KEY_STRING; emit_map_deep_copy does the same in the
+ * full iteration path.
+ */
+
+/* Function-return escape path for map[string:int] (shallow copy path) */
+do make_int_map() -> map[string:int] {
+    mut m map[string:int] = {":": 0}
+    mut prefix string = "ke"
+    mut k1 string = "${prefix}y_one"
+    mut k2 string = "${prefix}y_two"
+    mut k3 string = "${prefix}y_three"
+    m[k1] = 1
+    m[k2] = 2
+    m[k3] = 3
+    return m
+}
+
+/* Function-return escape path for map[string:string] (full deep-copy path) */
+do make_str_map() -> map[string:string] {
+    mut m map[string:string] = {":": ":"}
+    mut prefix string = "hel"
+    mut k string = "${prefix}lo"
+    mut prefix2 string = "wor"
+    mut v string = "${prefix2}ld"
+    m[k] = v
+    return m
+}
+
+do main() {
+    println("=== Map String Key Deep Copy Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    /* Force arena reuse after function returns to expose dangling-pointer bugs */
+    mut m1 map[string:int] = make_int_map()
+    mut junk int = 0
+    mut idx int = 0
+    loop {
+        if idx >= 500 { break }
+        junk += idx
+        idx += 1
+    }
+
+    mut v1 int = m1["key_one"]
+    mut v2 int = m1["key_two"]
+    mut v3 int = m1["key_three"]
+    if v1 == 1 && v2 == 2 && v3 == 3 {
+        println("  [PASS] map[string:int] returned keys intact")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map[string:int] keys corrupted after return")
+        failed += 1
+    }
+
+    mut m2 map[string:string] = make_str_map()
+    mut sv string = m2["hello"]
+    if sv == "world" {
+        println("  [PASS] map[string:string] returned keys intact")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map[string:string] keys corrupted after return")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

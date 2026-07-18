@@ -1,0 +1,112 @@
+/*
+ * function_references.gray - Test first-class function references with () prefix
+ */
+
+import @arrays
+
+do is_positive(n int) -> bool {
+    return n > 0
+}
+
+do is_even(n int) -> bool {
+    return n % 2 == 0
+}
+
+do double(n int) -> int {
+    return n * 2
+}
+
+do add_one(n int) -> int {
+    return n + 1
+}
+
+const NumUtils struct {
+    _pad int
+    do negate(n int) -> int {
+        return n * -1
+    }
+}
+
+do filter(arr [int], test func(int) -> bool) -> [int] {
+    mut result [int] = {}
+    for_each item in arr {
+        if test(item) {
+            arrays.append(result, item)
+        }
+    }
+    return result
+}
+
+do apply(arr [int], fn func(int) -> int) -> [int] {
+    mut result [int] = {}
+    for_each item in arr {
+        arrays.append(result, fn(item))
+    }
+    return result
+}
+
+do main() {
+    println("=== Function References Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: Store and call
+    const check = ()is_positive
+    if check(5) && !check(-3) {
+        println("  [PASS] store and call ()is_positive")
+        passed++
+    } otherwise {
+        println("  [FAIL] store and call ()is_positive")
+        failed++
+    }
+
+    // Test 2: Pass as argument (filter)
+    mut nums [int] = {-3, -1, 0, 1, 2, 5}
+    mut positives = filter(nums, ()is_positive)
+    if len(positives) == 3 {
+        println("  [PASS] filter with ()is_positive")
+        passed++
+    } otherwise {
+        println("  [FAIL] filter with ()is_positive: ${positives}")
+        failed++
+    }
+
+    // Test 3: Different filter function
+    mut evens = filter(nums, ()is_even)
+    if len(evens) == 2 {
+        println("  [PASS] filter with ()is_even")
+        passed++
+    } otherwise {
+        println("  [FAIL] filter with ()is_even: ${evens}")
+        failed++
+    }
+
+    // Test 4: Apply (map-like)
+    mut doubled = apply({1, 2, 3}, ()double)
+    if doubled[0] == 2 && doubled[1] == 4 && doubled[2] == 6 {
+        println("  [PASS] apply with ()double")
+        passed++
+    } otherwise {
+        println("  [FAIL] apply with ()double: ${doubled}")
+        failed++
+    }
+
+    // Test 5: Struct-namespaced function reference
+    mut negated = apply({1, 2, 3}, ()NumUtils.negate)
+    if negated[0] == -1 && negated[1] == -2 && negated[2] == -3 {
+        println("  [PASS] apply with ()NumUtils.negate")
+        passed++
+    } otherwise {
+        println("  [FAIL] apply with ()NumUtils.negate: ${negated}")
+        failed++
+    }
+
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed == 0 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

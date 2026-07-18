@@ -1,0 +1,83 @@
+/*
+ * container_compound_assign.gray - Arrays/maps with compound assignment
+ *
+ * compiler segfaulted when a function contained
+ * both an array or map declaration and a compound assignment operator
+ * (+=, -=, etc.) in the same scope.
+ */
+
+do main() {
+    println("=== Container + Compound Assignment Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: mut array with += in same function
+    mut arr [int] = {1, 2, 3}
+    if arr[0] == 1 {
+        println("  [PASS] mut array + compound assign coexist")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mut array + compound assign coexist")
+        failed += 1
+    }
+
+    // Test 2: array element mutation alongside +=
+    arr[0] = 99
+    if arr[0] == 99 {
+        println("  [PASS] array element mutation with compound assign")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array element mutation with compound assign")
+        failed += 1
+    }
+
+    // Test 3: mut map with += in same function
+    mut m map[string:int] = {"a": 1, "b": 2}
+    if m["a"] == 1 {
+        println("  [PASS] mut map + compound assign coexist")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mut map + compound assign coexist")
+        failed += 1
+    }
+
+    // Test 4: map mutation alongside +=
+    m["a"] = 42
+    if m["a"] == 42 {
+        println("  [PASS] map value mutation with compound assign")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map value mutation with compound assign")
+        failed += 1
+    }
+
+    // Test 5: map add new key alongside +=
+    m["c"] = 3
+    if m["c"] == 3 {
+        println("  [PASS] map new key with compound assign")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map new key with compound assign")
+        failed += 1
+    }
+
+    // Test 6: -= compound assign with array
+    mut counter int = 10
+    mut nums [int] = {5, 10, 15}
+    counter -= nums[0]
+    if counter == 5 {
+        println("  [PASS] -= compound assign with array access")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] -= compound assign with array access")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

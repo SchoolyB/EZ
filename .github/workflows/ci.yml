@@ -26,6 +26,15 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Cache C build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            grayc/src/**/*.o
+            grayc/src/**/*.d
+          key: c-objects-${{ runner.os }}-${{ hashFiles('grayc/src/**/*.c', 'grayc/src/**/*.h') }}
 
       - name: Build
         run: make build
@@ -33,25 +42,20 @@ jobs:
       - name: Run Go unit tests
         run: make test-go
 
-      - name: Run EZ unit tests (lexer + parser + typechecker)
-        continue-on-error: true
+      - name: Run Grayscale unit tests (lexer + parser + typechecker)
         run: make test-unit
 
-      - name: Run EZ end-to-end tests
-        continue-on-error: true
+      - name: Run Grayscale end-to-end tests
         run: make test-e2e
 
-      - name: Run EZ integration tests
-        continue-on-error: true
+      - name: Run Grayscale integration tests
         run: make test-integration
 
-      - name: Run EZ UBSan tests
-        continue-on-error: true
+      - name: Run Grayscale UBSan tests
         run: make test-ubsan
 
-      - name: Run EZ ASan tests (Linux only)
+      - name: Run Grayscale ASan tests (Linux only)
         if: runner.os == 'Linux'
-        continue-on-error: true
         env:
           ASAN_OPTIONS: detect_leaks=0
         run: make test-asan

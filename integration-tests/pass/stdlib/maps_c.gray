@@ -1,0 +1,171 @@
+/*
+ * maps_c.gray - Integration test for @maps (compiler)
+ */
+
+import @maps
+
+do main() {
+    println("=== Maps Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
+
+    // keys
+    mut k [string] = maps.get_keys(m)
+    if len(k) == 3 {
+        println("  [PASS] keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] keys: expected 3, got ${len(k)}")
+        failed += 1
+    }
+
+    // values
+    mut v [int] = maps.get_values(m)
+    if len(v) == 3 {
+        println("  [PASS] values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] values: expected 3, got ${len(v)}")
+        failed += 1
+    }
+
+    // has_key (exists)
+    if maps.has_key(m, "a") == true {
+        println("  [PASS] has_key (exists)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] has_key (exists)")
+        failed += 1
+    }
+
+    // has_key (missing)
+    if maps.has_key(m, "z") == false {
+        println("  [PASS] has_key (missing)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] has_key (missing)")
+        failed += 1
+    }
+
+    // remove (void) — verify side effect
+    mut rm_map map[string:int] = {"x": 10, "y": 20, "z": 30}
+    maps.remove_key(rm_map, "y")
+    if len(rm_map) == 2 {
+        println("  [PASS] remove")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove: expected len 2, got ${len(rm_map)}")
+        failed += 1
+    }
+
+    // clear (void)
+    mut cl_map map[string:int] = {"a": 1, "b": 2}
+    maps.clear(cl_map)
+    if len(cl_map) == 0 {
+        println("  [PASS] clear")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] clear: expected len 0, got ${len(cl_map)}")
+        failed += 1
+    }
+
+    // is_empty (false)
+    if maps.is_empty(m) == false {
+        println("  [PASS] is_empty (non-empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty (non-empty)")
+        failed += 1
+    }
+
+    // is_empty (true)
+    mut empty_map map[string:int] = {:}
+    if maps.is_empty(empty_map) == true {
+        println("  [PASS] is_empty (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty (empty)")
+        failed += 1
+    }
+
+    // keys returns array
+    mut iter_map map[string:int] = {"a": 1, "b": 2, "c": 3}
+    mut ks [string] = maps.get_keys(iter_map)
+    if len(ks) == 3 {
+        println("  [PASS] keys length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] keys length: ${len(ks)}")
+        failed += 1
+    }
+
+    // merge
+    mut m1 map[string:int] = {"a": 1, "b": 2}
+    mut m2 map[string:int] = {"c": 3, "d": 4}
+    mut merged map[string:int] = maps.merge(m1, m2)
+    if len(merged) == 4 && merged["a"] == 1 && merged["d"] == 4 {
+        println("  [PASS] merge")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] merge: expected 4 entries, got ${len(merged)}")
+        failed += 1
+    }
+
+    // merge with overlap (second overwrites)
+    mut m3 map[string:int] = {"a": 99}
+    mut merged2 map[string:int] = maps.merge(m1, m3)
+    if merged2["a"] == 99 {
+        println("  [PASS] merge overwrites")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] merge overwrite: got ${merged2["a"]}")
+        failed += 1
+    }
+
+    // contains_value
+    mut cv_map map[string:int] = {"x": 10, "y": 20}
+    if maps.contains_value(cv_map, 10) == true {
+        println("  [PASS] contains_value (found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains_value found")
+        failed += 1
+    }
+
+    if maps.contains_value(cv_map, 99) == false {
+        println("  [PASS] contains_value (not found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains_value not found")
+        failed += 1
+    }
+
+    // get_or_default
+    mut gd_map map[string:int] = {"a": 42}
+    mut val1 int = maps.get_or_default(gd_map, "a", 0)
+    if val1 == 42 {
+        println("  [PASS] get_or_default (key exists)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or_default exists: got ${val1}")
+        failed += 1
+    }
+
+    mut val2 int = maps.get_or_default(gd_map, "z", -1)
+    if val2 == -1 {
+        println("  [PASS] get_or_default (key missing)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or_default missing: got ${val2}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+    println("ALL TESTS PASSED")
+}

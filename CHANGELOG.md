@@ -1,5 +1,28 @@
 # Changelog
 
+## Grayscale 0.1.0
+
+The Grayscale Programming Language — formerly known as EZ.
+
+Grayscale 0.0.1 is the first release under the new name. The language, compiler,
+and tooling are identical to EZ 3.9.0 with the following changes:
+
+- Language renamed from EZ to Grayscale
+- CLI binary renamed from `ez` to `gray`
+- Compiler binary renamed from `ezc` to `grayc`
+- File extension changed from `.ez` to `.gray`
+- Runtime library renamed from `libezrt.a` to `libgrayrt.a`
+- All `ez_` / `EZ_` prefixes renamed to `gray_` / `GRAY_`
+- Repository moved to `grayscale-lang/grayscale`
+
+See tag `ez-3.9.0-final` for the last EZ release.
+
+---
+
+## Prehistory (as EZ)
+
+The following changelog entries are from the project's prior life as EZ.
+
 ## [3.8.6](https://github.com/SchoolyB/EZ/compare/v3.8.5...v3.8.6) (2026-07-10)
 
 

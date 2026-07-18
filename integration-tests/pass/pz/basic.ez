@@ -1,5 +1,0 @@
-// main.ez - Entry point
-
-do main() {
-    println("Hello, World!")
-}

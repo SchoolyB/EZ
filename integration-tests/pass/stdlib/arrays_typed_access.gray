@@ -1,0 +1,335 @@
+/*
+ * arrays_typed_access.gray - Integration test for arrays.get_first / get_last /
+ * remove_first / remove_last across all element types.
+ *
+ * Covers: int, uint, float, bool, byte, char, string,
+ *         nested arrays, structs, and pointers.
+ *
+ * Expected: all assertions pass, "all pass" printed at the end.
+ */
+
+import @arrays
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // --- int ---
+    mut ai [int] = {10, 20, 30}
+    if arrays.get_first(ai) == 10 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first int")
+        failed += 1
+    }
+    if arrays.get_last(ai) == 30 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last int")
+        failed += 1
+    }
+    mut rf_int int = arrays.remove_first(ai)
+    if rf_int == 10 && len(ai) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first int")
+        failed += 1
+    }
+    mut rl_int int = arrays.remove_last(ai)
+    if rl_int == 30 && len(ai) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last int")
+        failed += 1
+    }
+
+    // --- uint ---
+    mut au [uint] = {18446744073709551615, 1, 2}
+    if arrays.get_first(au) == 18446744073709551615 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first uint")
+        failed += 1
+    }
+    if arrays.get_last(au) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last uint")
+        failed += 1
+    }
+    mut rf_uint uint = arrays.remove_first(au)
+    if rf_uint == 18446744073709551615 && len(au) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first uint")
+        failed += 1
+    }
+    mut rl_uint uint = arrays.remove_last(au)
+    if rl_uint == 2 && len(au) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last uint")
+        failed += 1
+    }
+
+    // --- float ---
+    mut af [float] = {1.5, 2.5, 3.5}
+    if arrays.get_first(af) == 1.5 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first float")
+        failed += 1
+    }
+    if arrays.get_last(af) == 3.5 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last float")
+        failed += 1
+    }
+    mut rf_float float = arrays.remove_first(af)
+    if rf_float == 1.5 && len(af) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first float")
+        failed += 1
+    }
+    mut rl_float float = arrays.remove_last(af)
+    if rl_float == 3.5 && len(af) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last float")
+        failed += 1
+    }
+
+    // --- bool ---
+    mut ab [bool] = {true, false, true}
+    if arrays.get_first(ab) == true {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first bool")
+        failed += 1
+    }
+    if arrays.get_last(ab) == true {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last bool")
+        failed += 1
+    }
+    mut rf_bool bool = arrays.remove_first(ab)
+    if rf_bool == true && len(ab) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first bool")
+        failed += 1
+    }
+    mut rl_bool bool = arrays.remove_last(ab)
+    if rl_bool == true && len(ab) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last bool")
+        failed += 1
+    }
+
+    // --- byte ---
+    mut aby [byte] = {255, 128, 1}
+    if arrays.get_first(aby) == 255 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first byte")
+        failed += 1
+    }
+    if arrays.get_last(aby) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last byte")
+        failed += 1
+    }
+    mut rf_byte byte = arrays.remove_first(aby)
+    if rf_byte == 255 && len(aby) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first byte")
+        failed += 1
+    }
+    mut rl_byte byte = arrays.remove_last(aby)
+    if rl_byte == 1 && len(aby) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last byte")
+        failed += 1
+    }
+
+    // --- char ---
+    mut ac [char] = {'A', 'B', 'Z'}
+    if arrays.get_first(ac) == 'A' {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first char")
+        failed += 1
+    }
+    if arrays.get_last(ac) == 'Z' {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last char")
+        failed += 1
+    }
+    mut rf_char char = arrays.remove_first(ac)
+    if rf_char == 'A' && len(ac) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first char")
+        failed += 1
+    }
+    mut rl_char char = arrays.remove_last(ac)
+    if rl_char == 'Z' && len(ac) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last char")
+        failed += 1
+    }
+
+    // --- string ---
+    mut as [string] = {"hello", "world", "gray"}
+    if arrays.get_first(as) == "hello" {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first string")
+        failed += 1
+    }
+    if arrays.get_last(as) == "gray" {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last string")
+        failed += 1
+    }
+    mut rf_str string = arrays.remove_first(as)
+    if rf_str == "hello" && len(as) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first string")
+        failed += 1
+    }
+    mut rl_str string = arrays.remove_last(as)
+    if rl_str == "gray" && len(as) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last string")
+        failed += 1
+    }
+
+    // --- nested array ---
+    mut inner1 [int] = {1, 2}
+    mut inner2 [int] = {3, 4}
+    mut inner3 [int] = {5, 6}
+    mut ana [[int]] = {inner1, inner2, inner3}
+    mut gf_arr [int] = arrays.get_first(ana)
+    mut gl_arr [int] = arrays.get_last(ana)
+    if gf_arr[0] == 1 && gf_arr[1] == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first nested array")
+        failed += 1
+    }
+    if gl_arr[0] == 5 && gl_arr[1] == 6 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last nested array")
+        failed += 1
+    }
+    mut rf_arr [int] = arrays.remove_first(ana)
+    if rf_arr[0] == 1 && len(ana) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first nested array")
+        failed += 1
+    }
+    mut rl_arr [int] = arrays.remove_last(ana)
+    if rl_arr[0] == 5 && len(ana) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last nested array")
+        failed += 1
+    }
+
+    // --- struct ---
+    mut p1 = Point{x: 10, y: 20}
+    mut p2 = Point{x: 30, y: 40}
+    mut p3 = Point{x: 50, y: 60}
+    mut apts [Point] = {p1, p2, p3}
+    mut gf_pt Point = arrays.get_first(apts)
+    mut gl_pt Point = arrays.get_last(apts)
+    if gf_pt.x == 10 && gf_pt.y == 20 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first struct")
+        failed += 1
+    }
+    if gl_pt.x == 50 && gl_pt.y == 60 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last struct")
+        failed += 1
+    }
+    mut rf_pt Point = arrays.remove_first(apts)
+    if rf_pt.x == 10 && len(apts) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first struct")
+        failed += 1
+    }
+    mut rl_pt Point = arrays.remove_last(apts)
+    if rl_pt.x == 50 && len(apts) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last struct")
+        failed += 1
+    }
+
+    // --- pointer ---
+    mut v1 int = 100
+    mut v2 int = 200
+    mut v3 int = 300
+    mut p1ptr ^int = addr(v1)
+    mut p2ptr ^int = addr(v2)
+    mut p3ptr ^int = addr(v3)
+    mut aptr [^int] = {p1ptr, p2ptr, p3ptr}
+    mut gf_ptr ^int = arrays.get_first(aptr)
+    mut gl_ptr ^int = arrays.get_last(aptr)
+    if gf_ptr^ == 100 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_first pointer")
+        failed += 1
+    }
+    if gl_ptr^ == 300 {
+        passed += 1
+    } otherwise {
+        println("FAIL: get_last pointer")
+        failed += 1
+    }
+    mut rf_ptr ^int = arrays.remove_first(aptr)
+    if rf_ptr^ == 100 && len(aptr) == 2 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_first pointer")
+        failed += 1
+    }
+    mut rl_ptr ^int = arrays.remove_last(aptr)
+    if rl_ptr^ == 300 && len(aptr) == 1 {
+        passed += 1
+    } otherwise {
+        println("FAIL: remove_last pointer")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("arrays_typed_access: ${failed} test(s) failed")
+    }
+    println("ALL TESTS PASSED")
+}

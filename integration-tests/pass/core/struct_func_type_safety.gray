@@ -1,0 +1,69 @@
+/*
+ * struct_func_type_safety.gray - Correct struct types pass validation.
+ *
+ * struct-to-struct mismatch was not caught.
+ * This verifies that correct struct types continue to work.
+ */
+
+const Point struct {
+    x int
+    y int
+
+    do add(a Point, b Point) -> Point {
+        return Point{x: a.x + b.x, y: a.y + b.y}
+    }
+
+    do sum_x(a Point, b Point) -> int {
+        return a.x + b.x
+    }
+}
+
+do move_point(p Point, dx int, dy int) -> Point {
+    return Point{x: p.x + dx, y: p.y + dy}
+}
+
+do main() {
+    println("=== Struct Function Type Safety Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: correct struct types in struct function
+    mut a = Point{x: 1, y: 2}
+    mut b = Point{x: 3, y: 4}
+    mut c = Point.add(a, b)
+    if c.x == 4 && c.y == 6 {
+        println("  [PASS] Point.add(a, b) = {4, 6}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Point.add: expected {4, 6}, got {${c.x}, ${c.y}}")
+        failed += 1
+    }
+
+    // Test 2: correct struct types in regular function
+    mut moved = move_point(a, 10, 20)
+    if moved.x == 11 && moved.y == 22 {
+        println("  [PASS] move_point(a, 10, 20) = {11, 22}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] move_point: expected {11, 22}, got {${moved.x}, ${moved.y}}")
+        failed += 1
+    }
+
+    // Test 3: struct function via instance dispatch with correct types
+    mut r int = a.sum_x(b)
+    if r == 4 {
+        println("  [PASS] a.sum_x(b) = 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] a.sum_x(b): expected 4, got ${r}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,30 @@
+/*
+ * function_scoped_using.gray - using statement inside function bodies
+ *
+ * function-scoped `using`
+ * was silently ignored. Now NODE_USING_STMT is handled in both
+ * check_statement and emit_statement, adding the module to the
+ * using_modules list when encountered mid-body.
+ */
+
+import @math
+import @strings
+
+do math_stuff() {
+    using math
+    println(PI)
+    println(sqrt(16.0))
+}
+
+do string_stuff() {
+    using strings
+    println(to_upper("world"))
+    println(reverse("abc"))
+}
+
+do main() {
+    println("=== Function-Scoped Using Test ===")
+    math_stuff()
+    string_stuff()
+    println("ALL TESTS PASSED")
+}

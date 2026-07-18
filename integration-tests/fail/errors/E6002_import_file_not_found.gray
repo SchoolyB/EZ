@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6002 - imported file does not exist
+ * Expected: "cannot find file or directory" error
+ */
+
+import "./does_not_exist.gray"
+
+do main() {
+    println("should not compile")
+}

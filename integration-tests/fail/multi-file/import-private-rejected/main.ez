@@ -1,5 +1,0 @@
-import "./secret.ez"
-
-do main() {
-    println(secret.hidden())
-}

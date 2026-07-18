@@ -1,0 +1,57 @@
+/*
+ * Test: nil-guarded pointer field read access
+ * Verifies that reading fields from a valid pointer works correctly
+ * after the nil-guard codegen change.
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do make_point(x int, y int) -> ^Point {
+    mut p = new(Point)
+    p^ = Point{x: x, y: y}
+    return p
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: read pointer field x
+    mut p = make_point(10, 20)
+    if p.x == 10 {
+        println("  [PASS] pointer field read p.x == 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field read p.x: expected 10")
+        failed += 1
+    }
+
+    // Test 2: read pointer field y
+    if p.y == 20 {
+        println("  [PASS] pointer field read p.y == 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field read p.y: expected 20")
+        failed += 1
+    }
+
+    // Test 3: use pointer field in expression
+    mut sum int = p.x + p.y
+    if sum == 30 {
+        println("  [PASS] pointer field expression p.x + p.y == 30")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field expression: expected 30, got ${sum}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

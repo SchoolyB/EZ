@@ -1,0 +1,90 @@
+/*
+ * cast_keyword.gray - Test the cast() keyword for type conversions
+ */
+
+
+do main() {
+    println("=== Cast Keyword Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: int to float
+    mut f float = cast(42, float)
+    if f == 42.0 {
+        println("  [PASS] cast(42, float) = 42.0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(42, float): expected 42.0, got ${f}")
+        failed += 1
+    }
+
+    // Test 2: float to int (truncation)
+    mut i int = cast(3.7, int)
+    if i == 3 {
+        println("  [PASS] cast(3.7, int) = 3 (truncated)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(3.7, int): expected 3, got ${i}")
+        failed += 1
+    }
+
+    // Test 3: int to string
+    mut s string = cast(123, string)
+    if s == "123" {
+        println("  [PASS] cast(123, string) = \"123\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(123, string): expected \"123\", got ${s}")
+        failed += 1
+    }
+
+    // Test 4: int to u8 (sized type)
+    mut small u8 = cast(255, u8)
+    if small == 255 {
+        println("  [PASS] cast(255, u8) = 255")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(255, u8): expected 255, got ${small}")
+        failed += 1
+    }
+
+    // Test 5: int to i16 (signed sized)
+    mut med i16 = cast(-100, i16)
+    if med == -100 {
+        println("  [PASS] cast(-100, i16) = -100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(-100, i16): expected -100, got ${med}")
+        failed += 1
+    }
+
+    // Test 6: Array cast - [int] to [u8]
+    mut ints [int] = {1, 2, 3}
+    mut byte_arr [u8] = cast(ints, [u8])
+    if len(byte_arr) == 3 {
+        println("  [PASS] cast([int] to [u8]) preserves length 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast([int] to [u8]): expected length 3, got ${len(byte_arr)}")
+        failed += 1
+    }
+
+    // Test 7: bool to string
+    mut bstr string = cast(true, string)
+    if bstr == "true" {
+        println("  [PASS] cast(true, string) = \"true\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(true, string): expected \"true\", got ${bstr}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

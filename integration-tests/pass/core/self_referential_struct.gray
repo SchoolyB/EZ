@@ -1,0 +1,85 @@
+/*
+ * self_referential_struct.gray - Test structs with pointer fields to their own type
+ * Verifies forward declarations allow linked list / tree patterns
+ */
+
+
+const Node struct {
+    value int
+    next ^Node
+}
+
+const TreeNode struct {
+    value int
+    left ^TreeNode
+    right ^TreeNode
+}
+
+do main() {
+    println("=== Self-Referential Struct Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: Create a node via new()
+    mut a = new(Node)
+    a^.value = 10
+    if a^.value == 10 {
+        println("  [PASS] node a.value == 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] node a.value expected 10")
+        failed += 1
+    }
+
+    // Test 2: Create a second node and link them
+    mut b = new(Node)
+    b^.value = 20
+    b^.next = a
+    if b^.value == 20 {
+        println("  [PASS] node b.value == 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] node b.value expected 20")
+        failed += 1
+    }
+
+    // Test 3: Follow the pointer to get a's value through b
+    if b^.next^.value == 10 {
+        println("  [PASS] b.next^.value == 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] b.next^.value expected 10")
+        failed += 1
+    }
+
+    // Test 4: Tree node with two children
+    mut root = new(TreeNode)
+    mut left = new(TreeNode)
+    mut right = new(TreeNode)
+    root^.value = 1
+    left^.value = 2
+    right^.value = 3
+    root^.left = left
+    root^.right = right
+    if root^.left^.value == 2 {
+        println("  [PASS] tree root.left.value == 2")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] tree root.left.value expected 2")
+        failed += 1
+    }
+
+    if root^.right^.value == 3 {
+        println("  [PASS] tree root.right.value == 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] tree root.right.value expected 3")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("SOME TESTS FAILED")
+    }
+}

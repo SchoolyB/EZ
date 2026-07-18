@@ -1,0 +1,5 @@
+import "../shared.gray"
+
+do get_token() -> string {
+    return shared.SHARED_TOKEN
+}

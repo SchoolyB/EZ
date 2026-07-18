@@ -1,0 +1,42 @@
+/* Stress test: @os — system info functions
+ * Expected: all tests pass
+ * Note: os.get_env() multi-return and os.current_dir() have codegen
+ *       tuple destructuring issues — tested via existing os.gray instead.
+ */
+
+import @os
+
+do main() {
+    println("=== Stress: @os ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // pid
+    mut p = os.pid()
+    if p > 0 {
+        println("  [PASS] pid() positive")
+        passed += 1
+    } otherwise { println("  [FAIL] pid()") failed += 1 }
+
+    // current_os
+    mut cur_os = os.current_os()
+    println("  [PASS] current_os() callable")
+    passed += 1
+
+    // set_env (void)
+    os.set_env("GRAY_STRESS_VAR", "hello_gray")
+    println("  [PASS] set_env — no crash")
+    passed += 1
+
+    // args()
+    mut a = os.args()
+    if len(a) >= 0 {
+        println("  [PASS] args() returns array")
+        passed += 1
+    } otherwise { println("  [FAIL] args()") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

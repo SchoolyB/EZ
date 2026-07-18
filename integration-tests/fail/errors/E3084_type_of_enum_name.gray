@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3084 - type_of() with an enum name instead of a value
+ * Expected: E3084 "type_of() expects a value, not a type name"
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    println(type_of(Color))
+}

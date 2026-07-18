@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature or enhancement for EZ
+description: Suggest a new feature or enhancement for Grayscale
 title: "feat: "
 labels: ["enhancement", "needs-triage"]
 body:
@@ -43,5 +43,5 @@ body:
     attributes:
       label: Examples (optional)
       description: |
-        Sketch how the feature would look in EZ source. Pseudo-syntax is fine.
+        Sketch how the feature would look in Grayscale source. Pseudo-syntax is fine.
       render: text

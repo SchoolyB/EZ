@@ -1,0 +1,85 @@
+/*
+ * Test: cross-module enum values in when/is branches
+ * Verifies that imported enum member access (defs.Color.RED) works
+ * correctly in when/is patterns after label rewriting.
+ */
+
+import "./defs.gray"
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: when with imported enum - match RED
+    mut c int = defs.Color.RED
+    mut name string = ""
+    when c {
+        is defs.Color.RED { name = "red" }
+        is defs.Color.GREEN { name = "green" }
+        is defs.Color.BLUE { name = "blue" }
+        default { name = "unknown" }
+    }
+    if name == "red" {
+        println("  [PASS] when is defs.Color.RED")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected red, got ${name}")
+        failed += 1
+    }
+
+    // Test 2: match GREEN
+    c = defs.Color.GREEN
+    when c {
+        is defs.Color.RED { name = "red" }
+        is defs.Color.GREEN { name = "green" }
+        is defs.Color.BLUE { name = "blue" }
+        default { name = "unknown" }
+    }
+    if name == "green" {
+        println("  [PASS] when is defs.Color.GREEN")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected green, got ${name}")
+        failed += 1
+    }
+
+    // Test 3: match BLUE
+    c = defs.Color.BLUE
+    when c {
+        is defs.Color.RED { name = "red" }
+        is defs.Color.GREEN { name = "green" }
+        is defs.Color.BLUE { name = "blue" }
+        default { name = "unknown" }
+    }
+    if name == "blue" {
+        println("  [PASS] when is defs.Color.BLUE")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected blue, got ${name}")
+        failed += 1
+    }
+
+    // Test 4: second imported enum in when
+    mut p int = defs.Priority.HIGH
+    mut level string = ""
+    when p {
+        is defs.Priority.LOW { level = "low" }
+        is defs.Priority.MEDIUM { level = "medium" }
+        is defs.Priority.HIGH { level = "high" }
+        default { level = "unknown" }
+    }
+    if level == "high" {
+        println("  [PASS] when is defs.Priority.HIGH")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected high, got ${level}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

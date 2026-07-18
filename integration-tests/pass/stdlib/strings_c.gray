@@ -1,0 +1,300 @@
+/*
+ * strings_c.gray - Integration test for @strings (compiler)
+ */
+
+import @strings
+
+do main() {
+    println("=== Strings Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // upper
+    if strings.to_upper("hello") == "HELLO" {
+        println("  [PASS] upper")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] upper")
+        failed += 1
+    }
+
+    // lower
+    if strings.to_lower("HELLO") == "hello" {
+        println("  [PASS] lower")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lower")
+        failed += 1
+    }
+
+    // trim
+    if strings.trim("  hello  ") == "hello" {
+        println("  [PASS] trim")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] trim")
+        failed += 1
+    }
+
+    // trim_left
+    if strings.trim_left("  hello  ") == "hello  " {
+        println("  [PASS] trim_left")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] trim_left")
+        failed += 1
+    }
+
+    // trim_right
+    if strings.trim_right("  hello  ") == "  hello" {
+        println("  [PASS] trim_right")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] trim_right")
+        failed += 1
+    }
+
+    // is_empty
+    if strings.is_empty("") == true && strings.is_empty("hi") == false {
+        println("  [PASS] is_empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty")
+        failed += 1
+    }
+
+    // contains
+    if strings.contains("hello world", "world") == true {
+        println("  [PASS] contains")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains")
+        failed += 1
+    }
+
+    // contains - negative
+    if strings.contains("hello world", "xyz") == false {
+        println("  [PASS] contains (negative)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains (negative)")
+        failed += 1
+    }
+
+    // starts_with
+    if strings.starts_with("hello world", "hello") == true {
+        println("  [PASS] starts_with")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] starts_with")
+        failed += 1
+    }
+
+    // ends_with
+    if strings.ends_with("hello world", "world") == true {
+        println("  [PASS] ends_with")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ends_with")
+        failed += 1
+    }
+
+    // index
+    mut idx int = strings.index_of("hello", "l")
+    if idx == 2 {
+        println("  [PASS] index")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] index: expected 2, got ${idx}")
+        failed += 1
+    }
+
+    // count
+    mut cnt int = strings.count("banana", "a")
+    if cnt == 3 {
+        println("  [PASS] count")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] count: expected 3, got ${cnt}")
+        failed += 1
+    }
+
+    // replace
+    mut replaced string = strings.replace("hello", "l", "r")
+    if replaced == "herro" {
+        println("  [PASS] replace")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] replace: expected 'herro', got '${replaced}'")
+        failed += 1
+    }
+
+    // repeat
+    mut repeated string = strings.repeat("ab", 3)
+    if repeated == "ababab" {
+        println("  [PASS] repeat")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] repeat: expected 'ababab', got '${repeated}'")
+        failed += 1
+    }
+
+    // reverse
+    mut reversed string = strings.reverse("hello")
+    if reversed == "olleh" {
+        println("  [PASS] reverse")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reverse: expected 'olleh', got '${reversed}'")
+        failed += 1
+    }
+
+    // slice
+    mut sliced string = strings.slice("hello world", 0, 5)
+    if sliced == "hello" {
+        println("  [PASS] slice")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] slice: expected 'hello', got '${sliced}'")
+        failed += 1
+    }
+
+    // split
+    mut parts [string] = strings.split("a,b,c", ",")
+    if len(parts) == 3 && parts[0] == "a" && parts[1] == "b" && parts[2] == "c" {
+        println("  [PASS] split")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] split")
+        failed += 1
+    }
+
+    // join
+    mut joined string = strings.join(parts, "-")
+    if joined == "a-b-c" {
+        println("  [PASS] join")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] join: expected 'a-b-c', got '${joined}'")
+        failed += 1
+    }
+
+    // char_at
+    mut ch char = strings.char_at("hello", 1)
+    if ch == 'e' {
+        println("  [PASS] char_at")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char_at: expected 'e', got '${ch}'")
+        failed += 1
+    }
+
+    // char_at last character
+    mut ch2 char = strings.char_at("hello", 4)
+    if ch2 == 'o' {
+        println("  [PASS] char_at last")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char_at last: expected 'o', got '${ch2}'")
+        failed += 1
+    }
+
+    // last_index_of
+    mut lidx int = strings.last_index_of("hello world hello", "hello")
+    if lidx == 12 {
+        println("  [PASS] last_index_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] last_index_of: expected 12, got ${lidx}")
+        failed += 1
+    }
+
+    // last_index_of not found
+    mut lidx2 int = strings.last_index_of("hello", "xyz")
+    if lidx2 == -1 {
+        println("  [PASS] last_index_of (not found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] last_index_of (not found): expected -1, got ${lidx2}")
+        failed += 1
+    }
+
+    // remove_prefix
+    mut rp string = strings.remove_prefix("hello world", "hello ")
+    if rp == "world" {
+        println("  [PASS] remove_prefix")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_prefix: expected 'world', got '${rp}'")
+        failed += 1
+    }
+
+    // remove_prefix no match
+    mut rp2 string = strings.remove_prefix("hello world", "xyz")
+    if rp2 == "hello world" {
+        println("  [PASS] remove_prefix (no match)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_prefix (no match): expected 'hello world', got '${rp2}'")
+        failed += 1
+    }
+
+    // remove_suffix
+    mut rs string = strings.remove_suffix("hello world", " world")
+    if rs == "hello" {
+        println("  [PASS] remove_suffix")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_suffix: expected 'hello', got '${rs}'")
+        failed += 1
+    }
+
+    // remove_suffix no match
+    mut rs2 string = strings.remove_suffix("hello world", "xyz")
+    if rs2 == "hello world" {
+        println("  [PASS] remove_suffix (no match)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_suffix (no match): expected 'hello world', got '${rs2}'")
+        failed += 1
+    }
+
+    // to_chars
+    mut chars2 [char] = strings.to_chars("abc")
+    if len(chars2) == 3 && chars2[0] == 'a' && chars2[1] == 'b' && chars2[2] == 'c' {
+        println("  [PASS] to_chars")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_chars")
+        failed += 1
+    }
+
+    // from_chars
+    mut back string = strings.from_chars(chars2)
+    if back == "abc" {
+        println("  [PASS] from_chars")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_chars: expected 'abc', got '${back}'")
+        failed += 1
+    }
+
+    // to_chars empty string
+    mut empty_chars [char] = strings.to_chars("")
+    if len(empty_chars) == 0 {
+        println("  [PASS] to_chars (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_chars (empty)")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

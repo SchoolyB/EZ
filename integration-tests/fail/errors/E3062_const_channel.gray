@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3062 - const on a channel handle
+ *
+ * channels are inherently stateful (send/receive
+ * mutate internal state), so const is a semantic lie. Rejected at
+ * var_decl time.
+ */
+
+import @channels
+
+do main() {
+    const ch = channels.open(1)
+}

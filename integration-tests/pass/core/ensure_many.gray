@@ -1,0 +1,82 @@
+/*
+ * ensure_many.gray - functions that register more than 32 ensures.
+ *
+ * collect_ensures used to write into a fixed 32-entry stack array and
+ * silently drop everything past the cap. The fix replaced the buffer
+ * with a dynamically-grown slice. This test registers 40 ensures in a
+ * single function and verifies all 40 fire.
+ */
+
+mut counter int = 0
+
+do bump() {
+    counter += 1
+}
+
+do many_ensures() {
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+    ensure bump()
+}
+
+do main() {
+    println("=== Many Ensure Statements Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    counter = 0
+    many_ensures()
+
+    if counter == 40 {
+        println("  [PASS] all 40 ensures fired")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 40 ensures, got ${counter}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

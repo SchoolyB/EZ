@@ -1,0 +1,70 @@
+/*
+ * bytes_c.gray - Integration test for @bytes (compiler)
+ */
+
+import @bytes
+
+do main() {
+    println("=== Bytes Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // from_string / to_string round-trip
+    mut data [byte] = bytes.from_string("hello")
+    mut back string = bytes.to_string(data)
+    if back == "hello" {
+        println("  [PASS] from_string/to_string round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_string/to_string: got ${back}")
+        failed += 1
+    }
+
+    // length check
+    if len(data) == 5 {
+        println("  [PASS] from_string length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_string length: expected 5, got ${len(data)}")
+        failed += 1
+    }
+
+    // to_hex
+    mut hex_data [byte] = bytes.from_string("AB")
+    mut hex_str string = bytes.to_hex(hex_data)
+    if hex_str == "4142" {
+        println("  [PASS] to_hex")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] to_hex: expected 4142, got ${hex_str}")
+        failed += 1
+    }
+
+    // from_hex / to_hex round-trip
+    mut from_hex [byte] = bytes.from_hex("4142")
+    mut from_hex_str string = bytes.to_string(from_hex)
+    if from_hex_str == "AB" {
+        println("  [PASS] from_hex round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_hex round-trip: got ${from_hex_str}")
+        failed += 1
+    }
+
+    // from_string with empty string
+    mut empty [byte] = bytes.from_string("")
+    if len(empty) == 0 {
+        println("  [PASS] from_string empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] from_string empty: expected len 0, got ${len(empty)}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+    println("ALL TESTS PASSED")
+}

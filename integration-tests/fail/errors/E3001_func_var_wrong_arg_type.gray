@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3001 - wrong argument type when calling a func-typed variable
+ * Expected: parameter-type mismatch error
+ *
+ * calls through a func variable previously skipped
+ * parameter-type checks.
+ */
+
+do greet(name string) -> string {
+    return name
+}
+
+do main() {
+    mut f func(string) -> string = ()greet
+    mut x string = f(42)  // int passed where string expected
+}

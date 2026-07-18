@@ -1,0 +1,18 @@
+// main.gray - Minimal HTTP server.
+//
+// Run:   gray main.gray
+// Test:  curl http://localhost:8080
+
+import @server
+
+do home(req HttpRequest) -> HttpResponse {
+    return server.text(200, "Hello, World!")
+}
+
+do main() {
+    mut router = server.add_router()
+    server.add_route(router, "GET", "/", ()home)
+
+    println("Server running on http://localhost:8080")
+    server.listen(router, 8080)
+}

@@ -1,4 +1,0 @@
-import "./ping.ez"
-
-do do_pong() -> string { return "pong" }
-do pong_ping() -> string { return "${do_pong()}-${ping.do_ping()}" }

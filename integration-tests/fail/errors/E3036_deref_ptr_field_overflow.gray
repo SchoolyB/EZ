@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3036 - integer range overflow on dereferenced pointer field
+ *
+ * `p^.age = 1000` where age is u8 wasn't
+ * checked. The fix walks through the postfix deref to the underlying
+ * struct's field type.
+ */
+
+const Person struct {
+    name string
+    age u8
+}
+
+do main() {
+    mut p = new(Person)
+    p^.name = "Bob"
+    p^.age = 1000
+}

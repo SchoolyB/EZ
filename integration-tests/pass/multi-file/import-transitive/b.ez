@@ -1,3 +1,0 @@
-import "./deepmod.ez"
-
-do from_b() -> string { return deepmod.from_c() }

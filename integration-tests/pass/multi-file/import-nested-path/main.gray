@@ -1,0 +1,10 @@
+import "./deep/nested/util.gray"
+
+do main() {
+    mut result string = util.deep_func()
+    if result == "deep" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

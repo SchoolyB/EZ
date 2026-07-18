@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: EZ Language Specification
-    url: https://github.com/SchoolyB/EZ/blob/main/STANDARD.md
+  - name: Grayscale Language Specification
+    url: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md
     about: Before filing a syntax / semantics issue, skim STANDARD.md — the canonical reference.
   - name: Contributing Guide
-    url: https://github.com/SchoolyB/EZ/blob/main/CONTRIBUTING.md
+    url: https://github.com/grayscale-lang/grayscale/blob/main/CONTRIBUTING.md
     about: Building from source, running tests, code style, and how to submit a PR.

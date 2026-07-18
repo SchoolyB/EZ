@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'ezc/src/util/error_codes.h'
+      - 'grayc/src/util/error_codes.h'
   push:
     branches:
       - main
@@ -28,8 +28,13 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build grayc
+        run: make build
+
       - name: Generate ERRORS.md from error_codes.h
-        run: bash scripts/generate_errors.sh
+        run: |
+          ./grayc/grayc scripts/generate_errors.gray
+          ./generate_errors
 
       - name: Check for changes
         id: check
@@ -60,5 +65,5 @@ jobs:
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.DOCS_REPO_TOKEN }}" \
-            https://api.github.com/repos/SchoolyB/language.ez/dispatches \
+            https://api.github.com/repos/grayscale-lang/grayscale-lang.github.io/dispatches \
             -d '{"event_type":"sync-errors"}'

@@ -1,0 +1,5 @@
+// main.gray - Entry point
+
+do main() {
+    println("Hello, World!")
+}

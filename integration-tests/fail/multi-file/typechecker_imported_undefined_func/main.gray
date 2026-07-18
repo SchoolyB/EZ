@@ -1,0 +1,11 @@
+
+// Test: Undefined function in imported module
+// Expected: E4002 - undefined function 'lib.ad'
+
+import lib"./lib.gray"
+
+do main() {
+    // ERROR: 'ad' is not defined in lib (should be 'add')
+    mut sum = lib.ad(10, 20)
+    println(sum)
+}

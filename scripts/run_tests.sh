@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# EZ Integration Test Runner
+# Grayscale Integration Test Runner
 #
 # Copyright (c) 2025-Present Marshall A Burns
 # Licensed under the MIT License. See LICENSE for details.
@@ -15,18 +15,18 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_DIR="$PROJECT_ROOT/integration-tests"
-EZ_BIN="$PROJECT_ROOT/ez"
-EZC_BIN="$PROJECT_ROOT/ezc/ezc"
+GRAY_BIN="$PROJECT_ROOT/gray"
+GRAYC_BIN="$PROJECT_ROOT/grayc/grayc"
 
 # Always rebuild to ensure we test current code
-echo "Building ezc..."
-(cd "$PROJECT_ROOT/ezc" && make build) || { echo "ezc build failed"; exit 1; }
+echo "Building grayc..."
+(cd "$PROJECT_ROOT/grayc" && make build) || { echo "grayc build failed"; exit 1; }
 
-echo "Building ez CLI..."
-(cd "$PROJECT_ROOT" && go build -o ez ./cmd/ez) || { echo "ez build failed"; exit 1; }
+echo "Building gray CLI..."
+(cd "$PROJECT_ROOT" && go build -o gray ./cmd/gray) || { echo "gray build failed"; exit 1; }
 
-# Point ez at the local ezc binary
-export EZ_COMPILER_PATH="$PROJECT_ROOT/ezc/ezc"
+# Point gray at the local grayc binary
+export GRAY_COMPILER_PATH="$PROJECT_ROOT/grayc/grayc"
 
 echo ""
 
@@ -40,12 +40,25 @@ NC='\033[0m'
 PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
+TIMEOUT=30  # seconds per test — prevents infinite loops from hanging CI
+
+# Portable timeout: prefer GNU timeout, fall back to perl one-liner
+if command -v timeout >/dev/null 2>&1; then
+    run_timeout() { timeout "$@"; }
+elif command -v gtimeout >/dev/null 2>&1; then
+    run_timeout() { gtimeout "$@"; }
+else
+    run_timeout() {
+        local secs=$1; shift
+        perl -e 'alarm shift; exec @ARGV' "$secs" "$@"
+    }
+fi
 
 pass() { printf "  ${GREEN}PASS${NC}  %s\n" "$1"; ((++PASS_COUNT)); }
 fail() { printf "  ${RED}FAIL${NC}  %s %s\n" "$1" "$2"; ((++FAIL_COUNT)); }
 
 echo "========================================"
-echo "  EZ Integration Test Suite"
+echo "  Grayscale Integration Test Suite"
 echo "========================================"
 echo ""
 
@@ -53,10 +66,10 @@ echo ""
 printf "${BOLD}PASS tests:${NC}\n"
 
 # Core tests
-for test_file in "$TEST_DIR"/pass/core/*.ez; do
+for test_file in "$TEST_DIR"/pass/core/*.gray; do
     if [ -f "$test_file" ]; then
-        test_name=$(basename "$test_file" .ez)
-        if output=$("$EZ_BIN" "$test_file" 2>&1); then
+        test_name=$(basename "$test_file" .gray)
+        if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 fail "core/$test_name" "(assertions failed)"
             else
@@ -69,10 +82,10 @@ for test_file in "$TEST_DIR"/pass/core/*.ez; do
 done
 
 # Stdlib tests
-for test_file in "$TEST_DIR"/pass/stdlib/*.ez; do
+for test_file in "$TEST_DIR"/pass/stdlib/*.gray; do
     if [ -f "$test_file" ]; then
-        test_name=$(basename "$test_file" .ez)
-        if output=$("$EZ_BIN" "$test_file" 2>&1); then
+        test_name=$(basename "$test_file" .gray)
+        if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 fail "stdlib/$test_name" "(assertions failed)"
             else
@@ -88,9 +101,9 @@ done
 for dir in "$TEST_DIR"/pass/multi-file/*/; do
     if [ -d "$dir" ]; then
         dir_name=$(basename "$dir")
-        main_file=$(find "$dir" -name "main.ez" | head -1)
+        main_file=$(find "$dir" -name "main.gray" | head -1)
         if [ -n "$main_file" ]; then
-            if output=$("$EZ_BIN" "$main_file" 2>&1); then
+            if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$main_file" 2>&1); then
                 pass "multi-file/$dir_name"
             else
                 fail "multi-file/$dir_name" "(execution error)"
@@ -103,10 +116,10 @@ done
 if [ -d "$TEST_DIR/pass/pz" ]; then
     echo ""
     printf "${BOLD}PZ template tests:${NC}\n"
-    for test_file in "$TEST_DIR"/pass/pz/*.ez; do
+    for test_file in "$TEST_DIR"/pass/pz/*.gray; do
         if [ -f "$test_file" ]; then
-            test_name=$(basename "$test_file" .ez)
-            if output=$("$EZ_BIN" "$test_file" 2>&1); then
+            test_name=$(basename "$test_file" .gray)
+            if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
                 if echo "$output" | grep -q "SOME TESTS FAILED"; then
                     fail "pz/$test_name" "(assertions failed)"
                 else
@@ -122,9 +135,9 @@ if [ -d "$TEST_DIR/pass/pz" ]; then
     for dir in "$TEST_DIR"/pass/pz/*/; do
         if [ -d "$dir" ]; then
             dir_name=$(basename "$dir")
-            main_file=$(find "$dir" -name "main.ez" | head -1)
+            main_file=$(find "$dir" -name "main.gray" | head -1)
             if [ -n "$main_file" ]; then
-                if output=$("$EZ_BIN" "$main_file" 2>&1); then
+                if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$main_file" 2>&1); then
                     if echo "$output" | grep -q "SOME TESTS FAILED"; then
                         fail "pz/$dir_name" "(assertions failed)"
                     else
@@ -142,10 +155,10 @@ fi
 if [ -d "$TEST_DIR/pass/stress/core" ]; then
     echo ""
     printf "${BOLD}STRESS tests:${NC}\n"
-    for test_file in "$TEST_DIR"/pass/stress/core/*.ez; do
+    for test_file in "$TEST_DIR"/pass/stress/core/*.gray; do
         if [ -f "$test_file" ]; then
-            test_name=$(basename "$test_file" .ez)
-            if output=$("$EZ_BIN" "$test_file" 2>&1); then
+            test_name=$(basename "$test_file" .gray)
+            if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
                 if echo "$output" | grep -q "SOME TESTS FAILED"; then
                     fail "stress/core/$test_name" "(assertions failed)"
                 else
@@ -160,10 +173,10 @@ fi
 
 # Stress tests — stdlib
 if [ -d "$TEST_DIR/pass/stress/stdlib" ]; then
-    for test_file in "$TEST_DIR"/pass/stress/stdlib/*.ez; do
+    for test_file in "$TEST_DIR"/pass/stress/stdlib/*.gray; do
         if [ -f "$test_file" ]; then
-            test_name=$(basename "$test_file" .ez)
-            if output=$("$EZ_BIN" "$test_file" 2>&1); then
+            test_name=$(basename "$test_file" .gray)
+            if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
                 if echo "$output" | grep -q "SOME TESTS FAILED"; then
                     fail "stress/stdlib/$test_name" "(assertions failed)"
                 else
@@ -180,11 +193,11 @@ fi
 if [ -d "$TEST_DIR/pass/warnings" ]; then
     echo ""
     printf "${BOLD}WARNING tests:${NC}\n"
-    for test_file in "$TEST_DIR"/pass/warnings/*.ez; do
+    for test_file in "$TEST_DIR"/pass/warnings/*.gray; do
         if [ -f "$test_file" ]; then
-            test_name=$(basename "$test_file" .ez)
+            test_name=$(basename "$test_file" .gray)
             expected_warning=$(echo "$test_name" | grep -oE '^W[0-9]+')
-            output=$("$EZ_BIN" check "$test_file" 2>&1) || true
+            output=$(run_timeout $TIMEOUT "$GRAY_BIN" check "$test_file" 2>&1) || true
             if echo "$output" | grep -q "warning\[$expected_warning\]"; then
                 pass "warnings/$test_name"
             else
@@ -198,10 +211,10 @@ echo ""
 printf "${BOLD}FAIL tests (expecting errors):${NC}\n"
 
 # Error tests (should fail)
-for test_file in "$TEST_DIR"/fail/errors/*.ez; do
+for test_file in "$TEST_DIR"/fail/errors/*.gray; do
     if [ -f "$test_file" ]; then
-        test_name=$(basename "$test_file" .ez)
-        if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
+        test_name=$(basename "$test_file" .gray)
+        if run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" >/dev/null 2>&1; then
             fail "errors/$test_name" "(expected error, got success)"
         else
             pass "errors/$test_name"
@@ -209,14 +222,14 @@ for test_file in "$TEST_DIR"/fail/errors/*.ez; do
     fi
 done
 
-# Cleanup any .ezdb files
-rm -f ./*.ezdb
+# Cleanup any .graydb files
+rm -f ./*.graydb
 
 # Multi-file error tests (single files)
-for test_file in "$TEST_DIR"/fail/multi-file/*.ez; do
+for test_file in "$TEST_DIR"/fail/multi-file/*.gray; do
     if [ -f "$test_file" ]; then
-        test_name=$(basename "$test_file" .ez)
-        if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
+        test_name=$(basename "$test_file" .gray)
+        if run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" >/dev/null 2>&1; then
             fail "multi-file/$test_name" "(expected error, got success)"
         else
             pass "multi-file/$test_name"
@@ -224,13 +237,13 @@ for test_file in "$TEST_DIR"/fail/multi-file/*.ez; do
     fi
 done
 
-# Multi-file error tests (directories with main.ez)
+# Multi-file error tests (directories with main.gray)
 for dir in "$TEST_DIR"/fail/multi-file/*/; do
     if [ -d "$dir" ]; then
         dir_name=$(basename "$dir")
-        main_file=$(find "$dir" -name "main.ez" | head -1)
+        main_file=$(find "$dir" -name "main.gray" | head -1)
         if [ -n "$main_file" ]; then
-            if "$EZ_BIN" "$main_file" >/dev/null 2>&1; then
+            if run_timeout $TIMEOUT "$GRAY_BIN" "$main_file" >/dev/null 2>&1; then
                 fail "multi-file/$dir_name" "(expected error, got success)"
             else
                 pass "multi-file/$dir_name"

@@ -1,0 +1,10 @@
+import "./secret.gray"
+
+do main() {
+    mut result int = secret.visible()
+    if result == 42 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

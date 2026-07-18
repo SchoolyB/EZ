@@ -1,3 +1,0 @@
-import "./b.ez"
-
-do from_a() -> string { return b.from_b() }

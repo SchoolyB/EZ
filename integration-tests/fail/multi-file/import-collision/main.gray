@@ -1,0 +1,6 @@
+import "./lib/server.gray"
+import "./utils/server.gray"
+
+do main() {
+    server.start()
+}

@@ -1,0 +1,66 @@
+/*
+ * default_param_refs_earlier.gray - Default values that reference an earlier
+ * parameter must compile cleanly.
+ *
+ * Before the fix, the default expression was inline-pasted into the
+ * caller's scope, so `f(10)` emitted `gray_fn_f(10, a + 1)` and clang
+ * errored on `a`. The call now wraps in a statement expression that
+ * binds earlier args to named locals.
+ */
+
+do f(a int, b int = a + 1) -> int { return a + b }
+do g(a int, b int, c int = a * b) -> int { return c }
+do h(a int = 10, b int = 20) -> int { return a + b }
+
+do main() {
+    println("=== default-param refs earlier ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // b defaults from a
+    mut r1 int = f(10)
+    if r1 == 21 {
+        println("  [PASS] default refs earlier param")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] default refs earlier param: got ${r1}")
+        failed += 1
+    }
+
+    // explicit override still wins
+    mut r2 int = f(10, 99)
+    if r2 == 109 {
+        println("  [PASS] explicit arg overrides default")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] explicit override: got ${r2}")
+        failed += 1
+    }
+
+    // default uses multiple earlier params
+    mut r3 int = g(3, 4)
+    if r3 == 12 {
+        println("  [PASS] default uses two earlier params")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] two earlier params: got ${r3}")
+        failed += 1
+    }
+
+    // literal defaults still work when nothing references earlier params
+    mut r4 int = h()
+    mut r5 int = h(1)
+    mut r6 int = h(1, 2)
+    if r4 == 30 && r5 == 21 && r6 == 3 {
+        println("  [PASS] literal defaults unaffected")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] literal defaults: ${r4}/${r5}/${r6}")
+        failed += 1
+    }
+
+    println("=== ${passed} passed, ${failed} failed ===")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    }
+}

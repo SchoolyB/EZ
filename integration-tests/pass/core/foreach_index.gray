@@ -1,0 +1,99 @@
+/*
+ * foreach_index.gray - Test for_each with index variable
+ *
+ * Covers: index + value, discard index with _, discard value with _,
+ * index on string iteration, nested for_each with index.
+ */
+
+do main() {
+    println("=== for_each Index Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: index + value on int array
+    mut arr [int] = {10, 20, 30}
+    mut idx_sum int = 0
+    mut val_sum int = 0
+    for_each i, val in arr {
+        idx_sum += i
+        val_sum += val
+    }
+    if idx_sum == 3 && val_sum == 60 {
+        println("  [PASS] for_each i, val in [int]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] idx_sum=${idx_sum}, val_sum=${val_sum}")
+        failed += 1
+    }
+
+    // Test 2: discard index with _
+    mut total int = 0
+    for_each _, val in arr {
+        total += val
+    }
+    if total == 60 {
+        println("  [PASS] for_each _, val (discard index)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] discard index: total=${total}")
+        failed += 1
+    }
+
+    // Test 3: index on string array
+    mut names [string] = {"alice", "bob", "charlie"}
+    mut last_idx int = 0
+    mut last_name string = ""
+    for_each i, name in names {
+        last_idx = i
+        last_name = name
+    }
+    if last_idx == 2 && last_name == "charlie" {
+        println("  [PASS] for_each index on string array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string array: idx=${last_idx}, name='${last_name}'")
+        failed += 1
+    }
+
+    // Test 4: index starts at 0
+    mut first_idx int = -1
+    for_each i, val in arr {
+        if first_idx == -1 {
+            first_idx = i
+        }
+    }
+    if first_idx == 0 {
+        println("  [PASS] index starts at 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] first index: ${first_idx}")
+        failed += 1
+    }
+
+    // Test 5: nested for_each with index
+    mut matrix [[int]] = {{1, 2}, {3, 4}}
+    mut outer_count int = 0
+    mut inner_total int = 0
+    for_each i, row in matrix {
+        outer_count += 1
+        for_each j, val in row {
+            inner_total += val
+        }
+    }
+    if outer_count == 2 && inner_total == 10 {
+        println("  [PASS] nested for_each with index")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested: outer=${outer_count}, total=${inner_total}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

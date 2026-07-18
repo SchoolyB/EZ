@@ -1,8 +1,0 @@
-/*
- * types.ez - Type definitions for module prefix test
- */
-
-const Hero struct {
-    name string
-    lvl u8
-}

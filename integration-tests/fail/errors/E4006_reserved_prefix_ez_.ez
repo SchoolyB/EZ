@@ -1,9 +1,0 @@
-/*
- * Error Test: E4006 - reserved-prefix
- * Expected: "name '...' uses reserved prefix (ez_, _ez_, Ez)"
- */
-
-do main() {
-    mut ez_value int = 42
-    println("${ez_value}")
-}

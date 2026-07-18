@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3061 - struct cycle A -> B -> A by value
+ *
+ * transitive by-value cycles used to leak
+ * to clang the same way direct self-reference did. DFS-based
+ * detector now catches cycles of arbitrary depth and names the
+ * intermediate field type in the diagnostic.
+ */
+
+const A struct {
+    b B
+}
+
+const B struct {
+    a A
+}
+
+do main() {}
