@@ -52,7 +52,7 @@
 | `E2057` | syntax | invalid interpolation syntax; use ${variable} instead of $variable |
 | `E2058` | syntax | cannot declare a struct or enum inside %s '%s'; define it at the file scope |
 | `E2059` | syntax | empty when block; add at least one 'is' branch |
-| `E2060` | syntax | too many return values; a function can return at most 16 values |
+| `E2060` | syntax | too many return values; a function can return at most %d values |
 | `E2061` | syntax | 'module' declarations are not supported; imported files are identified by their file path |
 | `E2062` | syntax | too many variables in multi-variable declaration; maximum is %d |
 | `E2063` | syntax | duplicate or conflicting named return value; each name must be unique and not collide with parameters |
@@ -194,6 +194,7 @@
 | `E3126` | types | array size must be greater than zero; '%s' resolves to %d |
 | `E3127` | types | type parameter expects a struct type name, but '%s' is not a struct; only struct types can be passed as type arguments |
 | `E3128` | types | type parameter expects a struct type name, but got a non-type expression; pass a struct type name like 'MyStruct' |
+| `E3129` | safety | empty loop body; this will loop forever at runtime |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -415,4 +416,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-16 08:23:05 UTC*
+*Generated on 2026-07-18 10:08:48 UTC*
