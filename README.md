@@ -1,9 +1,9 @@
 <p align="center">
     <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200">
 </p>
-<p align="center">
-  <a href="STANDARD.md">Learn More About Grayscale</a>
+    <h2 align="center">The Grayscale Programming Language</h2>
 </p>
+
 
 <p align="center">
   <a href="https://github.com/grayscale-lang/grayscale/actions/workflows/ci.yml"><img src="https://github.com/grayscale-lang/grayscale/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
