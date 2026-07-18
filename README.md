@@ -1,6 +1,5 @@
 <p align="center">
-    <img src="images/Grayscale_spectrum.png" alt="Grayscale Logo" width="450" >
-    <!-- <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200"> -->
+    <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200">
 </p>
 <p align="center">
   <a href="STANDARD.md">Learn More About Grayscale</a>
@@ -12,58 +11,16 @@
 </p>
 
 ---
+<p align="center">
+    <img src="images/Example1.png" alt="Grayscale Logo" width="400" >
+</p>
+<p align="center">
+    <img src="images/Example2.png" alt="Grayscale Logo" width="600" >
+</p>
+<p align="center">
+    <img src="images/Example3.png" alt="Grayscale Logo" width="600" >
+</p>
 
-```gray
-//Every program needs a main function
-do main() {  
-    println("Hello, Grayscale!") 
-}
-```
-
-```gray
-import @random
-
-do main() {
-    mut score = random.rand_int(0, 100) //Full type inference
-    mut grade char //Only 'const' declared variables need values at declaration
-
-    //Pattern matching
-    when score { 
-        is range(90, 100) { grade = 'A' } //No 'break' statements needed
-        is range(80, 90)  { grade = 'B' }
-        is range(70, 80)  { grade = 'C' }
-        is range(60, 70)  { grade = 'D' }
-        default           { grade = 'F' }
-    }
-
-    println("Your grade is a ${grade}") //Simple string interpolation
-}
-```
-
-```gray
-import @json
-
-#json  //Built-in attribute for automatic JSON serialization
-const User struct {
-    name string
-    age int
-}
-
-do make_new_user() -> User {
-    mut u = new(User) //Create a pointer to a 'User' struct
-    u.name = "Marshall"
-    u.age = 31
-
-    return u^ //Return the dereferenced pointer
-}
-
-do main() {
-    mut u = make_new_user() 
-    println("Created user: ${u.name}, age ${u.age}")
-    println(json.stringify(u)). //Output: {"name":"Marshall","age":31}
-}
-
-```
 
 ---
 
