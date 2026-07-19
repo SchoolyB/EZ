@@ -9316,6 +9316,7 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     emit(codegen, "#include \"arrays.h\"\n");
     emit(codegen, "#include \"maps.h\"\n");
     emit(codegen, "#include \"strings.h\"\n");
+    emit(codegen, "#include \"bigint.h\"\n");
 
     /* Remaining stdlib module headers: included only when imported. */
     static const struct { const char *module; const char *header; } stdlib_headers[] = {
@@ -9342,7 +9343,6 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
         {"net",      "net.h"},
         {"http",     "http.h"},
         {"server",   "server.h"},
-        {"bigint",   "bigint.h"},
     };
     for (int i = 0; i < (int)(sizeof(stdlib_headers) / sizeof(stdlib_headers[0])); i++) {
         if (has_stdlib_module(stdlib_imports, stdlib_import_count, stdlib_headers[i].module))
