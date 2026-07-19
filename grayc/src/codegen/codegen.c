@@ -6546,7 +6546,7 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
             }
             size_t rfn_len = strlen(resolved_fn_name);
             size_t bind_len = binding ? strlen(binding) : 0;
-            size_t mn_need = 6 + rfn_len + 2 + bind_len + 1; /* 6 = strlen("gray_fn_") */
+            size_t mn_need = 8 + rfn_len + 2 + bind_len + 1; /* 8 = strlen("gray_fn_") */
             char *mangled = malloc(mn_need);
             if (!mangled) return;
             size_t pos = (size_t)snprintf(mangled, mn_need, "gray_fn_%s__",
