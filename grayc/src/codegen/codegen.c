@@ -1911,6 +1911,10 @@ static void emit_expression(CodeGen *codegen, AstNode *node) {
                 if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
                     if (strcmp(arr_t->element_type, "string") == 0)
                         contains_fn = "gray_arrays_contains_str";
+                    else if (strcmp(arr_t->element_type, "char") == 0)
+                        contains_fn = "gray_arrays_contains_char";
+                    else if (strcmp(arr_t->element_type, "byte") == 0)
+                        contains_fn = "gray_arrays_contains_byte";
                     else if (strcmp(arr_t->element_type, "float") == 0 ||
                              strcmp(arr_t->element_type, "f32") == 0 ||
                              strcmp(arr_t->element_type, "f64") == 0)
