@@ -496,7 +496,7 @@ static inline bool gray_math_is_nan(double n) { return isnan(n); }
  *   println(math.is_finite(3.14))
  *@end
  */
-static inline bool gray_math_is_finite(double n) { return isfinite(n); }
+static inline bool gray_math_is_finite(double n) { return !isinf(n) && !isnan(n); }
 
 /*@man factorial
  *@module math
