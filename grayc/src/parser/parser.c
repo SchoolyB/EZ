@@ -2058,11 +2058,11 @@ static AstNode *parse_import_statement(Parser *parser) {
                 const char *slash = strrchr(item->path, '/');
                 const char *base = slash ? slash + 1 : item->path;
                 size_t blen = strlen(base);
-                if (blen > 3 && strcmp(base + blen - 3, ".gray") == 0) {
+                if (blen > 5 && strcmp(base + blen - 5, ".gray") == 0) {
                     /* Strip .gray extension: "helpers.gray" → "helpers" */
-                    char *mod = arena_alloc(parser->arena, blen - 2);
-                    memcpy(mod, base, blen - 3);
-                    mod[blen - 3] = '\0';
+                    char *mod = arena_alloc(parser->arena, blen - 4);
+                    memcpy(mod, base, blen - 5);
+                    mod[blen - 5] = '\0';
                     item->alias = mod;
                     item->module = mod;
                 } else if (blen > 0) {
