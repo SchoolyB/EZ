@@ -6306,6 +6306,8 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
             char ns_name[IDENT_BUF];
             snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_function(codegen, ns_name);
+            bool instance_dispatch = false;
+            bool obj_is_ptr = false;
             if (!ns_func) {
                 /* : check if `member` is a func-typed data field
                  * on the struct. If so, emit as a function-pointer call
@@ -6314,7 +6316,7 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                  * bare <member> is a registered function. */
                 GrayType *inst_t = codegen->type_table ? typetable_get(codegen->type_table, obj) : NULL;
                 /* Save pointer flag before fallback may overwrite inst_t with TK_STRUCT */
-                bool obj_is_ptr = inst_t && inst_t->kind == TK_POINTER;
+                obj_is_ptr = inst_t && inst_t->kind == TK_POINTER;
                 /* If type table missed, scan var decls for a new() initializer */
                 if (!obj_is_ptr && obj->kind == NODE_LABEL) {
                     const char *vname = obj->data.label.value;
@@ -6328,6 +6330,36 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                                 st->data.var_decl.value &&
                                 st->data.var_decl.value->kind == NODE_NEW_EXPR) {
                                 obj_is_ptr = true;
+                                if ((!inst_t || inst_t->kind == TK_UNKNOWN) &&
+                                    st->data.var_decl.value->data.new_expr.type_name) {
+                                    inst_t = type_struct(st->data.var_decl.value->data.new_expr.type_name);
+                                }
+                            }
+                        }
+                    }
+                }
+                /* Fall back to scanning var decls for struct type */
+                if ((!inst_t || inst_t->kind == TK_UNKNOWN) && obj->kind == NODE_LABEL) {
+                    const char *vname = obj->data.label.value;
+                    for (int si = 0; si < codegen->func_count && (!inst_t || inst_t->kind == TK_UNKNOWN); si++) {
+                        AstNode *fd = codegen->all_funcs[si];
+                        if (!fd->data.func_decl.body) continue;
+                        for (int bi = 0; bi < fd->data.func_decl.body->data.block.count; bi++) {
+                            AstNode *st = fd->data.func_decl.body->data.block.stmts[bi];
+                            if (st->kind != NODE_VAR_DECL ||
+                                strcmp(st->data.var_decl.name, vname) != 0) continue;
+                            const char *tn = st->data.var_decl.type_name;
+                            if (tn && find_struct_declaration(codegen, tn)) {
+                                inst_t = type_struct(tn);
+                                break;
+                            }
+                            if (st->data.var_decl.value &&
+                                st->data.var_decl.value->kind == NODE_STRUCT_VALUE) {
+                                const char *sn = st->data.var_decl.value->data.struct_value.name;
+                                if (sn && find_struct_declaration(codegen, sn)) {
+                                    inst_t = type_struct(sn);
+                                    break;
+                                }
                             }
                         }
                     }
@@ -6377,9 +6409,25 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                         }
                     }
                 }
+                /* Instance dispatch: var.func() -> StructType_func(&var)
+                 * Look up the variable's struct type and try StructName_member. */
+                if (inst_t && (inst_t->kind == TK_STRUCT || inst_t->kind == TK_POINTER)) {
+                    const char *sn = (inst_t->kind == TK_POINTER && inst_t->element_type)
+                        ? inst_t->element_type : inst_t->name;
+                    if (sn) {
+                        snprintf(ns_name, sizeof(ns_name), "%s_%s", sn, member);
+                        ns_func = find_function(codegen, ns_name);
+                        if (ns_func) {
+                            resolved_name = sn;
+                            instance_dispatch = true;
+                        }
+                    }
+                }
                 /* Try bare function name (for main-file functions in circular imports) */
-                ns_func = find_function(codegen, member);
-                if (ns_func) {
+                if (!ns_func) ns_func = find_function(codegen, member);
+                if (ns_func && strcmp(ns_name, member) != 0) {
+                    /* Already handled by struct dispatch below */
+                } else if (ns_func) {
                     emit_formatted(codegen, "gray_fn_%s(", member);
                     for (int i = 0; i < node->data.call.arg_count; i++) {
                         if (i > 0) emit(codegen, ", ");
@@ -6445,10 +6493,24 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                 } else {
                     emit_formatted(codegen, "gray_fn_%s_%s(", resolved_name, member);
                 }
+                /* For instance dispatch, inject the instance as &self if the
+                 * first parameter is mutable (the &self convention). */
+                bool self_injected = false;
+                if (instance_dispatch && ns_func->data.func_decl.param_count > 0 &&
+                    ns_func->data.func_decl.params[0].mutable) {
+                    if (obj_is_ptr) {
+                        emit_expression(codegen, obj);
+                    } else {
+                        emit(codegen, "&");
+                        emit_expression(codegen, obj);
+                    }
+                    self_injected = true;
+                }
                 for (int i = 0; i < node->data.call.arg_count; i++) {
-                    if (i > 0) emit(codegen, ", ");
-                    bool mut_param = i < ns_func->data.func_decl.param_count &&
-                        ns_func->data.func_decl.params[i].mutable;
+                    if (i > 0 || self_injected) emit(codegen, ", ");
+                    int pi = self_injected ? i + 1 : i;
+                    bool mut_param = pi < ns_func->data.func_decl.param_count &&
+                        ns_func->data.func_decl.params[pi].mutable;
                     if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
                         const char *vn = node->data.call.args[i]->data.label.value;
                         if (is_mutable_parameter(codegen, vn)) emit(codegen, vn);
