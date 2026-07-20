@@ -6493,15 +6493,16 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                 } else {
                     emit_formatted(codegen, "gray_fn_%s_%s(", resolved_name, member);
                 }
-                /* For instance dispatch, inject the instance as &self if the
-                 * first parameter is mutable (the &self convention). */
+                /* For instance dispatch, inject the instance as the self
+                 * parameter when the struct function's first param is self. */
                 bool self_injected = false;
                 if (instance_dispatch && ns_func->data.func_decl.param_count > 0 &&
-                    ns_func->data.func_decl.params[0].mutable) {
-                    if (obj_is_ptr) {
-                        emit_expression(codegen, obj);
+                    ns_func->data.func_decl.params[0].name &&
+                    strcmp(ns_func->data.func_decl.params[0].name, "self") == 0) {
+                    if (ns_func->data.func_decl.params[0].mutable) {
+                        if (obj_is_ptr) emit_expression(codegen, obj);
+                        else { emit(codegen, "&"); emit_expression(codegen, obj); }
                     } else {
-                        emit(codegen, "&");
                         emit_expression(codegen, obj);
                     }
                     self_injected = true;
