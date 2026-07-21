@@ -2,7 +2,7 @@
 
 > **Notice**
 >
-> This specification is a living document and subject to change as the language evolves. For tutorials and usage guidance, see the official Grayscale documentation at [https://schoolyb.github.io/EZ-Language-Webapp/docs](https://schoolyb.github.io/EZ-Language-Webapp/docs)
+> This specification is a living document and subject to change as the language evolves.
 
 ---
 
@@ -4022,7 +4022,7 @@ gray man i8
 gray man flags
 ```
 
-> 💡 **Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `ez` sees them. Use the name alone: `gray man println`, not `gray man println()`.
+> 💡 **Tip:** Do not include `()` in the name — the shell interprets bare parentheses as a function definition before `gray` sees them. Use the name alone: `gray man println`, not `gray man println()`.
 
 > 💡 **Tip:** For attributes, omit the `#` prefix — the shell treats `#` as a comment. Use `gray man flags`, not `gray man #flags`.
 
