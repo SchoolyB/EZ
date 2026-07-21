@@ -72,6 +72,7 @@ static bool codegen_enum_is_tagged(CodeGen *codegen, const char *name);
 static int codegen_enum_index(CodeGen *codegen, const char *name);
 static void emit_to_string(CodeGen *codegen, AstNode *arg);
 static bool emit_narrowing_cast(CodeGen *codegen, const char *target, AstNode *val, int line);
+static AstNode *find_struct_declaration(CodeGen *codegen, const char *name);
 
 /* Resolve an unprefixed type name (e.g. "Point") to its module-prefixed
  * form (e.g. "lib_Point") by searching struct declarations and enum names.
@@ -403,16 +404,23 @@ static const char *gray_type_to_c_codegen(CodeGen *codegen, const char *type_nam
         }
         /* Module-qualified opaque types: mod_Type -> strip prefix and
          * re-resolve so opaque mappings (Channel->GrayChannel etc.) apply.
-         * Skip when base equals the original type_name to prevent infinite
-         * recursion: unprefixed "Point" resolves to "shapes_Point", which
-         * strips back to "Point", creating a cycle for user-defined types
-         * that have no opaque mapping. */
+         * Skip for known user-defined struct/enum declarations: stripping
+         * the module prefix would lose the correct qualification and could
+         * resolve to the wrong type when multiple modules define types
+         * with the same base name (e.g. geo_Point vs color_Point).
+         * Also guard against infinite recursion when the stripped base
+         * equals the original type_name. */
         const char *mod_us = strchr(resolved, '_');
         if (mod_us && mod_us[1] >= 'A' && mod_us[1] <= 'Z') {
-            const char *base = mod_us + 1;
-            if (strcmp(base, type_name) != 0) {
-                const char *mapped = gray_type_to_c_codegen(codegen, base);
-                if (mapped != base) return mapped;
+            bool is_known_decl = codegen &&
+                (find_struct_declaration(codegen, resolved) != NULL ||
+                 codegen_is_enum(codegen, resolved));
+            if (!is_known_decl) {
+                const char *base = mod_us + 1;
+                if (strcmp(base, type_name) != 0) {
+                    const char *mapped = gray_type_to_c_codegen(codegen, base);
+                    if (mapped != base) return mapped;
+                }
             }
         }
         if (codegen && codegen_is_enum(codegen, resolved)) {
