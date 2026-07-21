@@ -40,7 +40,7 @@ help:
 test: build
 	@echo ""
 	@echo "=== Go Unit Tests ==="
-	$(GO) test -v -count=1 ./cmd/gray/... ./internal/grayc/...
+	$(GO) test -v -count=1 ./cli/... ./internal/grayc/...
 	@echo ""
 	@$(MAKE) -C grayc test-unit
 	@$(MAKE) -C grayc test-e2e
@@ -60,7 +60,7 @@ test-integration: build
 test-go: stubs
 	@echo ""
 	@echo "=== Go Unit Tests ==="
-	$(GO) test -v -count=1 ./cmd/gray/... ./internal/grayc/...
+	$(GO) test -v -count=1 ./cli/... ./internal/grayc/...
 
 test-ubsan:
 	@$(MAKE) -C grayc test-ubsan
@@ -97,7 +97,7 @@ build: stubs
 	@cp grayc/src/runtime/*.h grayc/src/runtime/*.c $(EMBED_DIR)/src/runtime/
 	@cp grayc/src/stdlib/*.h grayc/src/stdlib/*.c $(EMBED_DIR)/src/stdlib/
 	@echo "Building gray CLI (with embedded runtime)..."
-	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gray
+	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cli
 	@echo ""
 	@echo "Build complete: ./$(BINARY_NAME)"
 	@echo "Run with: ./$(BINARY_NAME) <file.gray>"

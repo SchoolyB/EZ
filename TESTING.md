@@ -84,7 +84,7 @@ make test-asan
 
 The Go CLI (`gray`) has unit tests for the packages it uses:
 
-- `cmd/gray` — updater semver parsing/comparison and exact-version install validation.
+- `cli` — updater semver parsing/comparison and exact-version install validation.
 - `internal/grayc` — compiler binary lookup and `GRAY_COMPILER_PATH` override behavior.
 
 ```bash

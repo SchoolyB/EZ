@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # generate_builtins_man.sh — extract @man blocks from builtins.h
-# and generate cmd/gray/builtins_man_data.go
+# and generate cli/builtins_man_data.go
 #
 # Run from repo root or any subdirectory.
 # Parallel to generate_errors.sh → error_codes.h → ERRORS.md pattern.
@@ -11,7 +11,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
 HEADER="$ROOT/grayc/src/stdlib/builtins.h"
-OUT="$ROOT/cmd/gray/builtins_man_data.go"
+OUT="$ROOT/cli/builtins_man_data.go"
 
 if [ ! -f "$HEADER" ]; then
     echo "generate_builtins_man.sh: error: $HEADER not found" >&2

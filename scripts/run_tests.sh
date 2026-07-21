@@ -23,7 +23,7 @@ echo "Building grayc..."
 (cd "$PROJECT_ROOT/grayc" && make build) || { echo "grayc build failed"; exit 1; }
 
 echo "Building gray CLI..."
-(cd "$PROJECT_ROOT" && go build -o gray ./cmd/gray) || { echo "gray build failed"; exit 1; }
+(cd "$PROJECT_ROOT" && go build -o gray ./cli) || { echo "gray build failed"; exit 1; }
 
 # Point gray at the local grayc binary
 export GRAY_COMPILER_PATH="$PROJECT_ROOT/grayc/grayc"

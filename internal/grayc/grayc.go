@@ -23,7 +23,7 @@ import (
 // 5. Known install locations
 //
 // Release builds should always hit path 2; the fallback search paths are
-// retained so a dev `go build ./cmd/gray` without running `make build`
+// retained so a dev `go build ./cli` without running `make build`
 // first (which leaves the embedded assets as empty stubs) still works.
 func Find() (string, error) {
 	// 1. Explicit override

@@ -11,7 +11,7 @@
  *
  * Run with:
  *   gray verify
- *   ./grayc/grayc cmd/gray/tests.gray -o /tmp/out && /tmp/out
+ *   ./grayc/grayc cli/tests.gray -o /tmp/out && /tmp/out
  */
 
 import @math, @strings, @arrays, @maps, @json, @time, @random, @encoding, @fmt, @strconv, @crypto, @regex, @binary, @bytes, @uuid, @mem

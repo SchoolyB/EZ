@@ -257,7 +257,7 @@ ifeq ($(UNAME_S),Darwin)
 	@cp ./grayc /tmp/grayc_leak_check
 	@codesign -s - --entitlements ../scripts/leak-check.entitlements \
 	    /tmp/grayc_leak_check 2>/dev/null
-	@leaks --atExit -- /tmp/grayc_leak_check ../cmd/gray/tests.gray \
+	@leaks --atExit -- /tmp/grayc_leak_check ../cli/tests.gray \
 	    -o /tmp/gray_leak_out 2>&1; LEAK_EXIT=$$?; \
 	    rm -f /tmp/grayc_leak_check /tmp/gray_leak_out; \
 	    echo ""; \
@@ -276,7 +276,7 @@ else
 	@command -v valgrind >/dev/null 2>&1 || \
 	    { echo "valgrind not found; install with: apt install valgrind"; exit 1; }
 	@valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
-	    ./grayc ../cmd/gray/tests.gray -o /tmp/gray_leak_out 2>&1; LEAK_EXIT=$$?; \
+	    ./grayc ../cli/tests.gray -o /tmp/gray_leak_out 2>&1; LEAK_EXIT=$$?; \
 	    rm -f /tmp/gray_leak_out; \
 	    echo ""; \
 	    if [ $$LEAK_EXIT -ne 0 ]; then \

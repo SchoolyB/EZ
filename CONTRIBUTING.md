@@ -150,9 +150,9 @@ All compiler stages live in `grayc/src/`:
 5. **Runtime** (`grayc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
 6. **Stdlib** (`grayc/src/stdlib/`) — Standard library modules compiled into `libgrayrt.a`.
 
-The `gray` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler. It provides watch mode, doc generation, and self-update.
+The `gray` CLI (`cli/`) is a Go tooling wrapper that invokes the compiler. It provides watch mode, doc generation, and self-update.
 
-**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (watch, etc.), you work in the Go code under `cmd/gray/`.
+**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (watch, etc.), you work in the Go code under `cli/`.
 
 ---
 
@@ -196,7 +196,7 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 #### Docs
 
 - [ ] `STANDARD.md` — add the function to the module's table in the language spec
-- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cmd/gray/stdlib_man_data.go`
+- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cli/stdlib_man_data.go`
 
 #### Build
 
@@ -228,7 +228,7 @@ All compiler diagnostics are defined in a single file: `grayc/src/util/error_cod
 
 ```
 grayscale/
-├── cmd/gray/              # Go CLI tooling wrapper
+├── cli/                   # Go CLI tooling wrapper
 │   ├── main.go            # Entry point, version
 │   ├── commands.go        # Subcommand definitions
 │   ├── watch.go           # File watcher
@@ -264,7 +264,7 @@ grayscale/
 | Add/modify error codes | `grayc/src/util/error_codes.h` + run `scripts/generate_errors.sh` |
 | Add/modify stdlib docs | `@man` block in header + run `scripts/generate_stdlib_man.sh` |
 | Add/modify builtin docs | `@man` block in header + run `scripts/generate_builtins_man.sh` |
-| Improve CLI tooling | `cmd/gray/*.go` |
+| Improve CLI tooling | `cli/*.go` |
 | Add a new language feature | Parser → Typechecker → Codegen (all in `grayc/src/`) |
 
 ---
@@ -363,7 +363,7 @@ For more details, see `TESTING.md`.
 
 ## Code Style
 
-### Go code (`cmd/gray/`, `pkg/`, `internal/`)
+### Go code (`cli/`, `pkg/`, `internal/`)
 
 - Run `gofmt` before committing
 - Follow standard Go conventions
@@ -411,7 +411,7 @@ type(scope): short description
 | `codegen` | C code generation (`grayc/src/codegen/`) |
 | `runtime` | Runtime library (`grayc/src/runtime/`) |
 | `stdlib` | Standard library (`grayc/src/stdlib/`) — optionally nested, e.g. `stdlib/strings` |
-| `cli` | Go CLI wrapper (`cmd/gray/`) |
+| `cli` | Go CLI wrapper (`cli/`) |
 | `tests` | Test additions or test infrastructure |
 | `docs` | Documentation only |
 | `ci` | GitHub Actions, release workflows |
