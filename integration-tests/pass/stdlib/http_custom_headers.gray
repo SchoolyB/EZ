@@ -31,7 +31,7 @@ do main() {
 
     // Empty headers still works
     mut empty map[string:string] = {:}
-    mut head_resp, head_err = http.head("http://httpbun.com/get", empty)
+    mut head_resp, head_err = http.head("http://httpbun.com/status/200", empty)
     if head_err != nil {
         println("FAIL: unexpected error: ${head_err}")
         fail += 1
