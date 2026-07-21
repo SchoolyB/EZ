@@ -887,12 +887,12 @@ int main(int argc, char **argv) {
             }
         }
 
+        const char *seen_modules[MAX_IMPORTS];
+        const char *seen_paths[MAX_IMPORTS];
+        int seen_count = 0;
+
         while (iq_head < iq_tail) {
             AstNode *stmt = import_queue[iq_head++];
-
-            const char *seen_modules[MAX_IMPORTS];
-            const char *seen_paths[MAX_IMPORTS];
-            int seen_count = 0;
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
