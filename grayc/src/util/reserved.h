@@ -141,6 +141,7 @@ static inline bool is_stdlib_module_name(const char *name) {
 /* --- Reserved stdlib struct names (map to internal C types) --- */
 
 static const char *const gray_reserved_stdlib_struct_names[] = {
+    "Arena",
     "Channel",
     "Database",
     "HttpRequest",
@@ -149,6 +150,7 @@ static const char *const gray_reserved_stdlib_struct_names[] = {
     "Mutex",
     "Router",
     "Socket",
+    "SourceLocation",
     "SpinLock",
     "Thread",
     "UUID",
