@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.0.3](https://github.com/grayscale-lang/grayscale/compare/v0.0.2...v0.0.3) (2026-07-21)
+
+
+### Bug Fixes
+
+* **cli:** suppress usage text on runtime panic exit ([bc0322b](https://github.com/grayscale-lang/grayscale/commit/bc0322b0ea8fee4f5e6f655aafac5eac6ad602c8))
+* **codegen:** add instance dispatch for struct functions ([134ff8a](https://github.com/grayscale-lang/grayscale/commit/134ff8af291ea02895a6c1b04c87107908bc3f4c))
+* **codegen:** add source location to runtime panics ([#2113](https://github.com/grayscale-lang/grayscale/issues/2113)) ([f1e1790](https://github.com/grayscale-lang/grayscale/commit/f1e17906c147c1140d5bd69e186a5931bcf550af))
+* **codegen:** correct buffer size for wildcard function name mangling ([649c958](https://github.com/grayscale-lang/grayscale/commit/649c9588ff48de629a6dadb4ad9a01754cedf783))
+* **codegen:** include bigint.h unconditionally as a core header ([2c87be0](https://github.com/grayscale-lang/grayscale/commit/2c87be0832c4d4fd2464d02f7b4018f6de07b4e2))
+* **codegen:** inject instance for all struct function dispatch patterns ([42bc3ee](https://github.com/grayscale-lang/grayscale/commit/42bc3eec97e79c3d3c9c06e9c2f257b42ab3949c))
+* **codegen:** inject self param for both mutable and immutable struct functions ([5f528e3](https://github.com/grayscale-lang/grayscale/commit/5f528e3b02036aa5e2de9e0a49d56226dc465f1f))
+* **codegen:** preserve module prefix for user-defined types in type resolution ([f19c004](https://github.com/grayscale-lang/grayscale/commit/f19c004312d51660580f78f1ede4d4b1c079cd27))
+* **codegen:** prevent infinite recursion in cross-module struct type resolution ([2d333cd](https://github.com/grayscale-lang/grayscale/commit/2d333cdd36c9bb26e2a6351439420de960424901))
+* **imports:** detect module name collisions across import statements ([8e1cca4](https://github.com/grayscale-lang/grayscale/commit/8e1cca47b0c44b0c6b82a408a7d50b70c51aea09))
+* **parser:** reject wildcard ? in struct field types ([#2079](https://github.com/grayscale-lang/grayscale/issues/2079)) ([f0e55f4](https://github.com/grayscale-lang/grayscale/commit/f0e55f48ecc0840dcfb9cb9e15f08349f35de82f))
+* **parser:** use correct length when stripping .gray extension from imports ([b2297f0](https://github.com/grayscale-lang/grayscale/commit/b2297f0d0a66cbfba7552c303c0f42bd07cd8ed6))
+* **runtime:** add char and byte variants for array contains operator ([d220201](https://github.com/grayscale-lang/grayscale/commit/d22020171492b556bbef0e6ae44c7b4a23827db3))
+* **runtime:** add memory barrier to ARM64 CAS failure paths ([#2069](https://github.com/grayscale-lang/grayscale/issues/2069)) ([0fd1da3](https://github.com/grayscale-lang/grayscale/commit/0fd1da39a0f3a66548ec167981d87232ae2e8fa3))
+* **runtime:** make spinlock_destroy idempotent to prevent double-free crash ([#2068](https://github.com/grayscale-lang/grayscale/issues/2068)) ([79687e7](https://github.com/grayscale-lang/grayscale/commit/79687e71f2e68c19b8cc29763ba99c9ab45eb7c7))
+* **stdlib:** resolve isfinite linker failure on macOS arm64 ([700fa79](https://github.com/grayscale-lang/grayscale/commit/700fa79b34f913166e4524acb5755379c918e867))
+* **stdlib:** use overflow-checked subtraction in time.diff ([#2067](https://github.com/grayscale-lang/grayscale/issues/2067)) ([328f2be](https://github.com/grayscale-lang/grayscale/commit/328f2be6b809e558f3ebbe4ed80a74903ee9d1de))
+* **tests:** resolve 6 failing integration tests ([5f20f14](https://github.com/grayscale-lang/grayscale/commit/5f20f14a35f201e08ad25fed270761b976d2c4c1))
+* **test:** use correct endpoint for HEAD request in http_custom_headers ([7e9e89c](https://github.com/grayscale-lang/grayscale/commit/7e9e89c5b15f0f8f9d3920caf952a562e9382508))
+* **typechecker:** add arg type validation for stdlib functions missing coverage ([d3a4114](https://github.com/grayscale-lang/grayscale/commit/d3a41149527235299af8f41a61bd244dc55d513d))
+* **typechecker:** emit E3027 for non-self instance dispatch with & params ([#2116](https://github.com/grayscale-lang/grayscale/issues/2116)) ([3df4549](https://github.com/grayscale-lang/grayscale/commit/3df4549148a66645a46aafad4e9bf4e8b65d1410))
+* **typechecker:** register inferred-type vars from wildcard expressions ([#2080](https://github.com/grayscale-lang/grayscale/issues/2080)) ([19b05ee](https://github.com/grayscale-lang/grayscale/commit/19b05ee5de1e62ce506e4f048380fe8a4adb84f3))
+* **typechecker:** reject runtime function calls in const initializers ([#2104](https://github.com/grayscale-lang/grayscale/issues/2104)) ([00aa411](https://github.com/grayscale-lang/grayscale/commit/00aa411da4effdddd34141f2b4fc08750f807172))
+* **typechecker:** route instance dispatch through semantic analysis ([10c48b3](https://github.com/grayscale-lang/grayscale/commit/10c48b357ef7c64cd5919ceaf3cc911252fec817))
+* **typechecker:** validate arg types for time.diff, os.set_env, os.unset_env ([#2064](https://github.com/grayscale-lang/grayscale/issues/2064)) ([ef12499](https://github.com/grayscale-lang/grayscale/commit/ef12499c9c2c534696cfabca80c383c0a6e99c80))
+* **typechecker:** validate callback param types for arrays.any/all/filter/map/reduce ([#2063](https://github.com/grayscale-lang/grayscale/issues/2063)) ([ba32c3e](https://github.com/grayscale-lang/grayscale/commit/ba32c3ee9c71eef0a83cf9fd00a6239c32007bf8))
+
+
+### Performance Improvements
+
+* **typechecker:** free owned ret_types arrays in scope_destroy ([#2071](https://github.com/grayscale-lang/grayscale/issues/2071)) ([663dba1](https://github.com/grayscale-lang/grayscale/commit/663dba162c8e96e1cfbf4fd50a6f92c21208949f))
+
+
+### Documentation
+
+* regenerate ERRORS.md from error_codes.h ([0138049](https://github.com/grayscale-lang/grayscale/commit/013804933c2420d4e7ac6d1ac1c01b604431b120))
+
 ## [0.0.2](https://github.com/grayscale-lang/grayscale/compare/v0.0.1...v0.0.2) (2026-07-18)
 
 
