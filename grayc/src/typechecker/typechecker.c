@@ -2927,6 +2927,12 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                     if (ref_name) {
                         FuncSig *cb_fs = find_func(checker, ref_name);
                         if (cb_fs) {
+                            /* Resolve array element type for param type checking */
+                            AstNode *arr_arg = node->data.call.args[0];
+                            GrayType *arr_t = typetable_get(checker->type_table, arr_arg);
+                            if (!arr_t) arr_t = resolve_expression(checker, arr_arg);
+                            const char *elem_tn = (arr_t && arr_t->element_type) ? arr_t->element_type : NULL;
+
                             if (strcmp(mfn, "map") == 0) {
                                 if (cb_fs->param_count != 1) {
                                     char *msg = NULL;
@@ -2940,6 +2946,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                                     diagnostic_error_code_formatted(checker->diag, "E9004",
                                         NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                         mfn, "map callback must return a value");
+                                } else if (elem_tn && cb_fs->param_types[0] &&
+                                           strcmp(type_name(cb_fs->param_types[0]), elem_tn) != 0) {
+                                    char *msg = typechecker_format(checker,
+                                        "map callback takes '%s' but array element type is '%s'",
+                                        type_name(cb_fs->param_types[0]), elem_tn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
                                 }
                             } else if (strcmp(mfn, "filter") == 0 ||
                                        strcmp(mfn, "any") == 0 ||
@@ -2960,6 +2974,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                                     diagnostic_error_code_formatted(checker->diag, "E9004",
                                         NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                         mfn, msg);
+                                } else if (elem_tn && cb_fs->param_types[0] &&
+                                           strcmp(type_name(cb_fs->param_types[0]), elem_tn) != 0) {
+                                    char *msg = typechecker_format(checker,
+                                        "%s callback takes '%s' but array element type is '%s'",
+                                        mfn, type_name(cb_fs->param_types[0]), elem_tn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
                                 }
                             } else { /* reduce */
                                 if (cb_fs->param_count != 2) {
@@ -2974,6 +2996,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                                     diagnostic_error_code_formatted(checker->diag, "E9004",
                                         NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                         mfn, "reduce callback must return a value");
+                                } else if (elem_tn && cb_fs->param_types[1] &&
+                                           strcmp(type_name(cb_fs->param_types[1]), elem_tn) != 0) {
+                                    char *msg = typechecker_format(checker,
+                                        "reduce callback's element parameter takes '%s' but array element type is '%s'",
+                                        type_name(cb_fs->param_types[1]), elem_tn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
                                 }
                             }
                         }
