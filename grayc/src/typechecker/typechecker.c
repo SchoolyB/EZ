@@ -5589,7 +5589,7 @@ static GrayType *resolve_call_expr(TypeChecker *checker, AstNode *node) {
          * fall through to the user-module handler below. */
         if (typechecker_is_stdlib_import(checker, mod_raw)) {
             result = resolve_stdlib_call(checker, node, mod, mfn);
-        } else if (is_struct_name(checker, mod)) {
+        } else {
             result = resolve_struct_or_module_call(checker, node, mod, mfn, mod_raw, fn);
         }
         return result;
