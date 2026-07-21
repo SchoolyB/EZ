@@ -27,15 +27,15 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] while basic — got ${count}") failed += 1 }
 
-    // as_long_as (alias)
+    // while (second usage)
     mut count2 int = 0
-    as_long_as count2 < 3 {
+    while count2 < 3 {
         count2 += 1
     }
     if count2 == 3 {
-        println("  [PASS] as_long_as alias")
+        println("  [PASS] while second usage")
         passed += 1
-    } otherwise { println("  [FAIL] as_long_as") failed += 1 }
+    } otherwise { println("  [FAIL] while second usage") failed += 1 }
 
     // while runs 0 times
     mut zero_runs int = 0

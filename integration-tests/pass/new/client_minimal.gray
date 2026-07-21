@@ -1,10 +1,11 @@
-// pz template: client (minimal)
+// new template: client (minimal)
 // Requires network access to httpbun.com.
 
 import @http
 
 do main() {
-    mut resp, err = http.get("http://httpbun.com/get")
+    mut headers map[string:string] = {:}
+    mut resp, err = http.get("http://httpbun.com/get", headers)
     if err != nil {
         println("Request failed.")
         exit(1)

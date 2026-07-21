@@ -7534,13 +7534,26 @@ static bool expression_contains_call(AstNode *node) {
     if (!node) return false;
     switch (node->kind) {
     case NODE_CALL_EXPR:
-        /* embed() and here() are compile-time builtins and are allowed in
-         * constant initializers and at file scope. */
+        /* Compile-time builtins and intrinsic operations are allowed in
+         * constant initializers and at file scope.  Memory builtins (new,
+         * ref, copy, addr) and introspection builtins (len, type_of,
+         * size_of, make_size) produce runtime values but are not user-
+         * defined function calls — they map directly to C constructs. */
         if (node->data.call.function &&
-            node->data.call.function->kind == NODE_LABEL &&
-            (strcmp(node->data.call.function->data.label.value, "embed") == 0 ||
-             strcmp(node->data.call.function->data.label.value, "here") == 0)) {
-            return false;
+            node->data.call.function->kind == NODE_LABEL) {
+            const char *name = node->data.call.function->data.label.value;
+            if (strcmp(name, "embed") == 0 ||
+                strcmp(name, "here") == 0 ||
+                strcmp(name, "new") == 0 ||
+                strcmp(name, "ref") == 0 ||
+                strcmp(name, "copy") == 0 ||
+                strcmp(name, "addr") == 0 ||
+                strcmp(name, "make_size") == 0 ||
+                strcmp(name, "len") == 0 ||
+                strcmp(name, "type_of") == 0 ||
+                strcmp(name, "size_of") == 0) {
+                return false;
+            }
         }
         return true;
     case NODE_PREFIX_EXPR:

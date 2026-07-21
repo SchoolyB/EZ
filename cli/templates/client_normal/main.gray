@@ -9,7 +9,8 @@ import @http
 import @json
 
 do main() {
-    mut resp, err = http.get("http://httpbin.org/get")
+    mut headers map[string:string] = {:}
+    mut resp, err = http.get("http://httpbin.org/get", headers)
     if err != nil {
         println("GET failed.")
         exit(1)
@@ -18,7 +19,7 @@ do main() {
     println("GET Body: ${resp.body}")
 
     mut payload map[string:string] = {"title": "Hello from Grayscale!", "body": "This is a test post."}
-    mut post_resp, post_err = http.post("http://httpbin.org/post", json.encode(payload))
+    mut post_resp, post_err = http.post("http://httpbin.org/post", json.encode(payload), headers)
     if post_err != nil {
         println("POST failed.")
         exit(1)
