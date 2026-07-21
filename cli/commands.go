@@ -336,6 +336,8 @@ func printManUsage() {
 	fmt.Println()
 	fmt.Println("  Note: for attributes, omit the # prefix (e.g. gray man flags, not gray man #flags)")
 	fmt.Println("  Note: for functions, omit the () suffix (e.g. gray man math.sqrt, not gray man math.sqrt())")
+	fmt.Println()
+	fmt.Println("See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md")
 }
 
 func printBuiltinsIndex() {
@@ -418,7 +420,7 @@ func printStdlibEntry(name string, entry StdlibManEntry) {
 func printStdlibModuleIndex(module string) error {
 	groups, ok := stdlibModuleGroups[module]
 	if !ok {
-		return fmt.Errorf("gray: no documentation for module '%s'\n    try: gray man", module)
+		return fmt.Errorf("gray: no documentation for module '%s'\n    try: gray man\n    See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md", module)
 	}
 	fmt.Printf("module: %s  (gray man <name> for details)\n", module)
 	fmt.Println(strings.Repeat("─", 50))
@@ -455,7 +457,7 @@ func printLangIndex() {
 func printLangCategoryIndex(category string) error {
 	groups, ok := langCategories[category]
 	if !ok {
-		return fmt.Errorf("gray: no language reference category '%s'\n    try: gray man lang", category)
+		return fmt.Errorf("gray: no language reference category '%s'\n    try: gray man lang\n    See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md", category)
 	}
 	fmt.Printf("lang: %s  (gray man <name> for details)\n", category)
 	fmt.Println(strings.Repeat("─", 50))
@@ -569,7 +571,7 @@ var manCmd = &cobra.Command{
 			}
 		}
 
-		return fmt.Errorf("gray: no documentation for '%s'\n    try: gray man builtins  or  gray man lang", name)
+		return fmt.Errorf("gray: no documentation for '%s'\n    try: gray man builtins  or  gray man lang\n    See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md", name)
 	},
 }
 
@@ -653,6 +655,7 @@ Flags:
       --no-color       Disable colored output
 
 Use "gray [command] --help" for more information about a command.
+See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md
 `)
 	})
 	updateCmd.Flags().Bool("confirm", false, "")
