@@ -7289,6 +7289,143 @@ static void check_reserved_name(TypeChecker *checker, const char *name, const ch
     }
 }
 
+/* --- Keyword alias consistency (E2088) --- */
+
+typedef struct {
+    const char *form;   /* first keyword form seen (e.g. "while" or "as_long_as") */
+    int line;
+    int column;
+} AliasFirst;
+
+static void check_alias_walk(TypeChecker *checker, AstNode *node,
+                             AliasFirst *while_first, AliasFirst *else_first,
+                             const char *file);
+
+static void check_alias_block(TypeChecker *checker, AstNode *block,
+                              AliasFirst *while_first, AliasFirst *else_first,
+                              const char *file) {
+    if (!block || block->kind != NODE_BLOCK_STMT) return;
+    for (int i = 0; i < block->data.block.count; i++) {
+        check_alias_walk(checker, block->data.block.stmts[i],
+                         while_first, else_first, file);
+    }
+}
+
+static void check_alias_walk(TypeChecker *checker, AstNode *node,
+                             AliasFirst *while_first, AliasFirst *else_first,
+                             const char *file) {
+    if (!node) return;
+
+    switch (node->kind) {
+    case NODE_WHILE_STMT: {
+        const char *form = node->token.literal;
+        if (form && (strcmp(form, "while") == 0 || strcmp(form, "as_long_as") == 0)) {
+            if (!while_first->form) {
+                while_first->form = form;
+                while_first->line = node->token.line;
+                while_first->column = node->token.column;
+            } else if (strcmp(while_first->form, form) != 0) {
+                char *msg = typechecker_format(checker,
+                    "mixed keyword aliases in the same file; '%s' used here, but '%s' was used on line %d",
+                    form, while_first->form, while_first->line);
+                diagnostic_error_message(checker->diag, "E2088", msg,
+                    file, node->token.line, node->token.column, 0);
+            }
+        }
+        check_alias_block(checker, node->data.while_stmt.body,
+                          while_first, else_first, file);
+        break;
+    }
+    case NODE_IF_STMT: {
+        /* Check else/otherwise alias if this node has an alternative with a stored else_token */
+        if (node->data.if_stmt.alternative && node->data.if_stmt.else_token.line > 0) {
+            const char *form = node->data.if_stmt.else_token.literal;
+            if (form && (strcmp(form, "else") == 0 || strcmp(form, "otherwise") == 0)) {
+                if (!else_first->form) {
+                    else_first->form = form;
+                    else_first->line = node->data.if_stmt.else_token.line;
+                    else_first->column = node->data.if_stmt.else_token.column;
+                } else if (strcmp(else_first->form, form) != 0) {
+                    char *msg = typechecker_format(checker,
+                        "mixed keyword aliases in the same file; '%s' used here, but '%s' was used on line %d",
+                        form, else_first->form, else_first->line);
+                    diagnostic_error_message(checker->diag, "E2088", msg,
+                        file, node->data.if_stmt.else_token.line,
+                        node->data.if_stmt.else_token.column, 0);
+                }
+            }
+        }
+        check_alias_block(checker, node->data.if_stmt.consequence,
+                          while_first, else_first, file);
+        if (node->data.if_stmt.alternative) {
+            check_alias_walk(checker, node->data.if_stmt.alternative,
+                             while_first, else_first, file);
+        }
+        break;
+    }
+    case NODE_BLOCK_STMT:
+        check_alias_block(checker, node, while_first, else_first, file);
+        break;
+    case NODE_FOR_STMT:
+        check_alias_block(checker, node->data.for_stmt.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_FOR_EACH_STMT:
+        check_alias_block(checker, node->data.for_each.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_LOOP_STMT:
+        check_alias_block(checker, node->data.loop_stmt.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_FUNC_DECL:
+        check_alias_block(checker, node->data.func_decl.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_WHEN_STMT:
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            check_alias_block(checker, node->data.when_stmt.cases[i].body,
+                              while_first, else_first, file);
+        }
+        if (node->data.when_stmt.default_body) {
+            check_alias_block(checker, node->data.when_stmt.default_body,
+                              while_first, else_first, file);
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static void check_keyword_alias_consistency(TypeChecker *checker, AstNode *program) {
+    if (!program || program->kind != NODE_PROGRAM) return;
+
+    /* Track per-file state: group statements by source file */
+    const char *current_file = NULL;
+    AliasFirst while_first = {0};
+    AliasFirst else_first = {0};
+
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (!stmt) continue;
+
+        /* Determine which file this statement belongs to */
+        const char *stmt_file = stmt->token.file ? stmt->token.file : checker->file;
+
+        /* When the file changes, reset the alias trackers */
+        bool same_file = (current_file == stmt_file) ||
+            (current_file && stmt_file && strcmp(current_file, stmt_file) == 0);
+        if (!same_file) {
+            current_file = stmt_file;
+            while_first = (AliasFirst){0};
+            else_first = (AliasFirst){0};
+        }
+
+        check_alias_walk(checker, stmt, &while_first, &else_first,
+                         stmt_file ? stmt_file : checker->file);
+    }
+}
+
 /* --- Statement checking --- */
 
 static void check_statement(TypeChecker *checker, AstNode *node);
@@ -11423,6 +11560,9 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
         /* Leave def_line = 0: sentinel that lets the E4003 duplicate check
          * in check_statement distinguish pre-registration from real duplicates. */
     }
+
+    /* E2088: keyword alias consistency (while vs as_long_as, else vs otherwise) */
+    check_keyword_alias_consistency(checker, program);
 
     /* Pass 2: check all statements */
     for (int i = 0; i < program->data.program.stmt_count; i++) {

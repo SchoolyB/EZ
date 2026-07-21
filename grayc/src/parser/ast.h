@@ -255,6 +255,7 @@ struct AstNode {
             AstNode *condition;
             AstNode *consequence;
             AstNode *alternative; /* can be another if_stmt or block */
+            Token else_token;     /* preserves else/otherwise keyword */
         } if_stmt;
 
         /* NODE_WHEN_STMT */

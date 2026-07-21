@@ -2136,7 +2136,8 @@ static AstNode *parse_if_statement(Parser *parser) {
         /* 'or' acts like 'else if' */
         node->data.if_stmt.alternative = parse_if_statement(parser);
     } else if (peek_token_is(parser, TOK_OTHERWISE)) {
-        next_token(parser); /* skip 'otherwise' */
+        next_token(parser); /* skip 'otherwise'/'else' */
+        node->data.if_stmt.else_token = parser->cur_token;
         if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
         node->data.if_stmt.alternative = parse_block_statement(parser);
     }

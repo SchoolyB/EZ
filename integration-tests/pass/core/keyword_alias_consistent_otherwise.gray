@@ -1,0 +1,17 @@
+/* Pass Test: consistent use of 'otherwise' keyword alias */
+do main() {
+    mut x int = 10
+    if x > 5 {
+        println("big")
+    } otherwise {
+        println("small")
+    }
+
+    if x == 10 {
+        println("ten")
+    } otherwise {
+        println("not ten")
+    }
+
+    println("PASS")
+}

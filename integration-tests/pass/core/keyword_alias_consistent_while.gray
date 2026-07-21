@@ -1,0 +1,14 @@
+/* Pass Test: consistent use of 'while' keyword alias */
+do main() {
+    mut i int = 0
+    while i < 3 {
+        i++
+    }
+
+    mut j int = 0
+    while j < 2 {
+        j++
+    }
+
+    println("PASS")
+}
