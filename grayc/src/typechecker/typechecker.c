@@ -3863,6 +3863,25 @@ static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *no
                             }
                         }
                     }
+                    /* E3027: non-assignable or const passed to mutable (&) param
+                     * in non-self instance dispatch. Args and params are 1:1
+                     * (no self prepended). */
+                    if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                        int parameter_count = ssig->decl->data.func_decl.param_count;
+                        int clamped = node->data.call.arg_count < parameter_count
+                            ? node->data.call.arg_count : parameter_count;
+                        for (int argument_index = 0; argument_index < clamped; argument_index++) {
+                            if (!ssig->decl->data.func_decl.params[argument_index].mutable)
+                                continue;
+                            char fn_display[MSG_BUF_SIZE];
+                            snprintf(fn_display, sizeof(fn_display), "%s.%s", display_sname, mfn);
+                            char param_desc[MSG_BUF_SIZE];
+                            snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                                ssig->decl->data.func_decl.params[argument_index].name);
+                            check_mutable_arg(checker, node->data.call.args[argument_index],
+                                param_desc, fn_display);
+                        }
+                    }
                 } else {
                     result = &TYPE_VOID;
                 }
