@@ -401,13 +401,19 @@ static const char *gray_type_to_c_codegen(CodeGen *codegen, const char *type_nam
         if (codegen && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
             resolved = resolve_unprefixed_name(codegen, type_name);
         }
-        /* Module-qualified opaque types: mod_Type → strip prefix and
-         * re-resolve so opaque mappings (Channel→GrayChannel etc.) apply. */
+        /* Module-qualified opaque types: mod_Type -> strip prefix and
+         * re-resolve so opaque mappings (Channel->GrayChannel etc.) apply.
+         * Skip when base equals the original type_name to prevent infinite
+         * recursion: unprefixed "Point" resolves to "shapes_Point", which
+         * strips back to "Point", creating a cycle for user-defined types
+         * that have no opaque mapping. */
         const char *mod_us = strchr(resolved, '_');
         if (mod_us && mod_us[1] >= 'A' && mod_us[1] <= 'Z') {
             const char *base = mod_us + 1;
-            const char *mapped = gray_type_to_c_codegen(codegen, base);
-            if (mapped != base) return mapped;
+            if (strcmp(base, type_name) != 0) {
+                const char *mapped = gray_type_to_c_codegen(codegen, base);
+                if (mapped != base) return mapped;
+            }
         }
         if (codegen && codegen_is_enum(codegen, resolved)) {
             snprintf(buffer, sizeof(buffer), "GrayEnum_%s", resolved);
