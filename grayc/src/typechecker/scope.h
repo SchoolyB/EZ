@@ -23,6 +23,7 @@ typedef struct {
     int def_column;      /* column where variable was defined */
     GrayType **ret_types;  /* for multi-return temps: all return types */
     int ret_count;       /* number of return types */
+    bool ret_types_owned;  /* true if ret_types was xmalloc'd by the typechecker */
     const char *func_ref_name; /* for func-typed vars: name of the referenced
                                   function, used for call-site arity/type
                                   validation (NULL if not assigned from a

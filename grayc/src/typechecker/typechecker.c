@@ -8887,6 +8887,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             }
                             sym->ret_types = slots;
                             sym->ret_count = slot_count;
+                            sym->ret_types_owned = (slots != sig->return_types);
                         }
                     }
                 }
@@ -8906,6 +8907,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                            sym->ret_types_owned = true;
                         }
                     }
                     /* os.exec returns (int, string, string, bool) — synthesize 4-type slots */
@@ -8920,6 +8922,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             rt[3] = &TYPE_BOOL;
                             sym->ret_types = rt;
                             sym->ret_count = 4;
+                            sym->ret_types_owned = true;
                         }
                     }
                     /* channels.try_receive returns (int, bool) */
@@ -8932,6 +8935,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             rt[1] = &TYPE_BOOL;
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                            sym->ret_types_owned = true;
                         }
                     }
                 }
