@@ -1277,6 +1277,66 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"math", "lerp", 0, ARG_NUMBER}, {"math", "lerp", 1, ARG_NUMBER}, {"math", "lerp", 2, ARG_NUMBER},
     {"math", "distance", 0, ARG_NUMBER}, {"math", "distance", 1, ARG_NUMBER},
     {"math", "distance", 2, ARG_NUMBER}, {"math", "distance", 3, ARG_NUMBER},
+    /* io: second arg for two-path operations */
+    {"io", "rename_file", 1, ARG_STRING}, {"io", "copy_file", 1, ARG_STRING},
+    {"io", "move_file", 1, ARG_STRING},
+    /* maps: second arg for map-to-map operations */
+    {"maps", "merge", 1, ARG_MAP}, {"maps", "is_equal", 1, ARG_MAP},
+    /* regex: input string arg */
+    {"regex", "is_match", 1, ARG_STRING}, {"regex", "find", 1, ARG_STRING},
+    {"regex", "find_all", 1, ARG_STRING}, {"regex", "replace", 1, ARG_STRING},
+    {"regex", "replace", 2, ARG_STRING}, {"regex", "split", 1, ARG_STRING},
+    /* json: pretty_print(map, indent) */
+    {"json", "pretty_print", 0, ARG_MAP}, {"json", "pretty_print", 1, ARG_INT},
+    /* csv: encode takes array, write_file second arg is array */
+    {"csv", "encode", 0, ARG_ARRAY}, {"csv", "write_file", 1, ARG_ARRAY},
+    /* uuid: string args */
+    {"uuid", "is_valid", 0, ARG_STRING}, {"uuid", "parse", 0, ARG_STRING},
+    /* net: host/port/data validation */
+    {"net", "connect", 0, ARG_STRING}, {"net", "connect", 1, ARG_INT},
+    {"net", "send", 1, ARG_STRING}, {"net", "receive", 1, ARG_INT},
+    {"net", "set_timeout", 1, ARG_INT}, {"net", "resolve", 0, ARG_STRING},
+    /* time: timestamp extraction functions require int */
+    {"time", "year", 0, ARG_INT}, {"time", "month", 0, ARG_INT},
+    {"time", "day", 0, ARG_INT}, {"time", "hour", 0, ARG_INT},
+    {"time", "minute", 0, ARG_INT}, {"time", "second", 0, ARG_INT},
+    {"time", "weekday", 0, ARG_INT}, {"time", "to_iso", 0, ARG_INT},
+    {"time", "date", 0, ARG_INT}, {"time", "to_clock", 0, ARG_INT},
+    {"time", "elapsed_ms", 0, ARG_INT},
+    {"time", "format", 0, ARG_STRING}, {"time", "format", 1, ARG_INT},
+    /* os: get_env/exec argument types */
+    {"os", "get_env", 0, ARG_STRING},
+    {"os", "exec", 0, ARG_STRING}, {"os", "exec", 1, ARG_ARRAY},
+    /* strconv: conversion functions */
+    {"strconv", "to_int", 0, ARG_STRING}, {"strconv", "to_uint", 0, ARG_STRING},
+    {"strconv", "to_float", 0, ARG_STRING}, {"strconv", "to_bool", 0, ARG_STRING},
+    {"strconv", "to_int", 1, ARG_INT}, {"strconv", "to_uint", 1, ARG_INT},
+    {"strconv", "from_int", 0, ARG_INT}, {"strconv", "from_uint", 0, ARG_INT},
+    {"strconv", "from_float", 0, ARG_FLOAT}, {"strconv", "from_bool", 0, ARG_BOOL},
+    {"strconv", "is_numeric", 0, ARG_STRING}, {"strconv", "is_integer", 0, ARG_STRING},
+    /* random: numeric/array argument types */
+    {"random", "rand_float", 0, ARG_NUMBER}, {"random", "rand_float", 1, ARG_NUMBER},
+    {"random", "rand_int", 0, ARG_INT}, {"random", "rand_int", 1, ARG_INT},
+    {"random", "rand_char", 0, ARG_CHAR}, {"random", "rand_char", 1, ARG_CHAR},
+    {"random", "choice", 0, ARG_ARRAY}, {"random", "shuffle", 0, ARG_ARRAY},
+    {"random", "sample", 0, ARG_ARRAY}, {"random", "sample", 1, ARG_INT},
+    {"random", "seed", 0, ARG_INT},
+    /* fmt: format string and typed formatting functions */
+    {"fmt", "printf", 0, ARG_STRING}, {"fmt", "printfln", 0, ARG_STRING},
+    {"fmt", "sprintf", 0, ARG_STRING}, {"fmt", "sprintfln", 0, ARG_STRING},
+    {"fmt", "format", 0, ARG_STRING},
+    {"fmt", "eprintf", 0, ARG_STRING}, {"fmt", "eprintfln", 0, ARG_STRING},
+    {"fmt", "pad_left", 0, ARG_STRING}, {"fmt", "pad_left", 1, ARG_INT}, {"fmt", "pad_left", 2, ARG_CHAR},
+    {"fmt", "pad_right", 0, ARG_STRING}, {"fmt", "pad_right", 1, ARG_INT}, {"fmt", "pad_right", 2, ARG_CHAR},
+    {"fmt", "center", 0, ARG_STRING}, {"fmt", "center", 1, ARG_INT}, {"fmt", "center", 2, ARG_CHAR},
+    {"fmt", "int_to_hex", 0, ARG_INT}, {"fmt", "int_to_binary", 0, ARG_INT},
+    {"fmt", "int_to_octal", 0, ARG_INT},
+    {"fmt", "float_fixed", 0, ARG_NUMBER}, {"fmt", "float_fixed", 1, ARG_INT},
+    {"fmt", "float_sci", 0, ARG_NUMBER},
+    /* arrays: first arg is always an array */
+    {"arrays", "remove", 0, ARG_ARRAY}, {"arrays", "map", 0, ARG_ARRAY},
+    {"arrays", "filter", 0, ARG_ARRAY}, {"arrays", "reduce", 0, ARG_ARRAY},
+    {"arrays", "any", 0, ARG_ARRAY}, {"arrays", "all", 0, ARG_ARRAY},
 };
 
 static bool arg_kind_matches(ExpectedArgKind expected, GrayType *actual) {
