@@ -5844,11 +5844,17 @@ static bool emit_atomic_call(CodeGen *codegen, AstNode *node, const char *func) 
         emit(codegen, "gray_atomic_mod_fence()");
         return true;
     }
+    /* spinlock_destroy takes a pointer so the caller's _internal can be nulled */
+    if (node->data.call.arg_count == 1 && strcmp(func, "spinlock_destroy") == 0) {
+        emit(codegen, "gray_atomic_mod_spinlock_destroy(&");
+        emit_expression(codegen, node->data.call.args[0]);
+        emit(codegen, ")");
+        return true;
+    }
     /* Single-argument functions: load, spin_lock, spin_unlock, spin_trylock */
     if (node->data.call.arg_count == 1) {
         if (strcmp(func, "load") == 0 || strcmp(func, "spin_lock") == 0 ||
-            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0 ||
-            strcmp(func, "spinlock_destroy") == 0) {
+            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0) {
             emit_formatted(codegen, "gray_atomic_mod_%s(", func);
             emit_expression(codegen, node->data.call.args[0]);
             emit(codegen, ")");

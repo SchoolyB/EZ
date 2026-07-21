@@ -34,9 +34,10 @@ GraySpinLock gray_atomic_mod_spinlock(void) {
     return result;
 }
 
-void gray_atomic_mod_spinlock_destroy(GraySpinLock lk) {
-    if (lk._internal) {
-        free(lk._internal);
+void gray_atomic_mod_spinlock_destroy(GraySpinLock *lk) {
+    if (lk->_internal) {
+        free(lk->_internal);
+        lk->_internal = NULL;
     }
 }
 

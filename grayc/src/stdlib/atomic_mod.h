@@ -32,7 +32,7 @@ int64_t gray_atomic_mod_xor(int64_t *ptr, int64_t val);
 
 /* Spinlock */
 GraySpinLock gray_atomic_mod_spinlock(void);
-void       gray_atomic_mod_spinlock_destroy(GraySpinLock lk);
+void       gray_atomic_mod_spinlock_destroy(GraySpinLock *lk);
 void       gray_atomic_mod_spin_lock(GraySpinLock lk);
 bool       gray_atomic_mod_spin_trylock(GraySpinLock lk);
 void       gray_atomic_mod_spin_unlock(GraySpinLock lk);
