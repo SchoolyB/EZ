@@ -1,6 +1,13 @@
 # Changelog
 
-## Grayscale 0.1.0
+## [0.0.2](https://github.com/grayscale-lang/grayscale/compare/v0.0.1...v0.0.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* **compiler:** suppress -Winfinite-recursion warning from leaking to user output ([#2102](https://github.com/grayscale-lang/grayscale/issues/2102)) ([69729f5](https://github.com/grayscale-lang/grayscale/commit/69729f54a029b0dabeb413386b3a9ff891bd8924))
+
+## Grayscale 0.0.1
 
 The Grayscale Programming Language — formerly known as EZ.
 
@@ -22,13 +29,6 @@ See tag `ez-3.9.0-final` for the last EZ release.
 ## Prehistory (as EZ)
 
 The following changelog entries are from the project's prior life as EZ.
-
-## [0.0.2](https://github.com/grayscale-lang/grayscale/compare/v0.0.1...v0.0.2) (2026-07-18)
-
-
-### Bug Fixes
-
-* **compiler:** suppress -Winfinite-recursion warning from leaking to user output ([#2102](https://github.com/grayscale-lang/grayscale/issues/2102)) ([69729f5](https://github.com/grayscale-lang/grayscale/commit/69729f54a029b0dabeb413386b3a9ff891bd8924))
 
 ## [3.8.6](https://github.com/SchoolyB/EZ/compare/v3.8.5...v3.8.6) (2026-07-10)
 
