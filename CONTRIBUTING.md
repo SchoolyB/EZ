@@ -182,11 +182,10 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 - [ ] `grayc/src/stdlib/<module>.h` — declare the C function and add a `@man` block following the existing format
 - [ ] `grayc/src/stdlib/<module>.c` — implement it
 
-#### Typechecker (`grayc/src/typechecker/typechecker.c`) — 4 locations
+#### Typechecker (`grayc/src/typechecker/typechecker.c`) — 3 locations
 
 - [ ] **Return type block** — find the `strcmp(mod, "<module>")` section and register what the function returns
-- [ ] **`stdlib_arg_table[]`** — add `{"module", "fn", min_args, max_args}` for arg count validation
-- [ ] **`stdlib_arg_type_table[]`** — add `{"module", "fn", arg_index, ARG_TYPE}` entries for arg type validation
+- [ ] **`stdlib_func_meta[]`** — add a `StdlibFuncMeta` entry with arg count range, fallibility, and per-argument type checks
 - [ ] **`_using_funcs[]`** — add `{"fn", "module", TK_RETURNTYPE}` so the `using` keyword resolves this function
 
 #### Codegen (`grayc/src/codegen/codegen.c`)
