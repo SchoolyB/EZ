@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 366 codes** (248 errors, 17 warnings, 101 panics)
+**Total: 367 codes** (249 errors, 17 warnings, 101 panics)
 
 ---
 
@@ -240,6 +240,7 @@
 | `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
 | `E5038` | usage | tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first |
 | `E5039` | usage | constant expression overflows type '%s' |
+| `E5040` | usage | constant requires a compile-time value; function calls are evaluated at runtime |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .gray files |
@@ -417,4 +418,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-21 04:36:39 UTC*
+*Generated on 2026-07-21 06:14:14 UTC*

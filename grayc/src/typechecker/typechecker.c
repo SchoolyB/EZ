@@ -7534,10 +7534,12 @@ static bool expression_contains_call(AstNode *node) {
     if (!node) return false;
     switch (node->kind) {
     case NODE_CALL_EXPR:
-        /* embed() is a compile-time builtin and is allowed at file scope */
+        /* embed() and here() are compile-time builtins and are allowed in
+         * constant initializers and at file scope. */
         if (node->data.call.function &&
             node->data.call.function->kind == NODE_LABEL &&
-            strcmp(node->data.call.function->data.label.value, "embed") == 0) {
+            (strcmp(node->data.call.function->data.label.value, "embed") == 0 ||
+             strcmp(node->data.call.function->data.label.value, "here") == 0)) {
             return false;
         }
         return true;
@@ -7785,6 +7787,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (checker->func_depth == 0 && node->data.var_decl.value &&
             expression_contains_call(node->data.var_decl.value)) {
             diagnostic_error_code(checker->diag, "E5013",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        /* E5040: function-scope const initializers cannot contain runtime
+         * function calls.  Constants must be compile-time-known. */
+        if (checker->func_depth > 0 && !node->data.var_decl.mutable &&
+            node->data.var_decl.value &&
+            expression_contains_call(node->data.var_decl.value)) {
+            diagnostic_error_code(checker->diag, "E5040",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
         /* Track const integer values for constant folding in later
