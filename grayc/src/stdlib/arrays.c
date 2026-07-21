@@ -182,6 +182,20 @@ bool gray_arrays_contains_int(GrayArray *arr, int64_t value) {
     return false;
 }
 
+bool gray_arrays_contains_char(GrayArray *arr, int32_t value) {
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (*(int32_t *)((char *)arr->data + i * arr->elem_size) == value) return true;
+    }
+    return false;
+}
+
+bool gray_arrays_contains_byte(GrayArray *arr, uint8_t value) {
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (*(uint8_t *)((char *)arr->data + i * arr->elem_size) == value) return true;
+    }
+    return false;
+}
+
 bool gray_arrays_contains_float(GrayArray *arr, double value) {
     for (int32_t i = 0; i < arr->len; i++) {
         if (*(double *)((char *)arr->data + i * arr->elem_size) == value) return true;

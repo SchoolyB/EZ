@@ -50,11 +50,11 @@ Integration tests compile and run `.gray` programs end-to-end through the full c
 
 - `integration-tests/pass/core/` — 252 core language feature tests covering arrays, control flow, structs, enums, maps, pointers, named returns, type inference, builtins, C interop, bigint types, wildcards, and more.
 - `integration-tests/pass/stdlib/` — 68 stdlib module tests covering all 28 stdlib modules.
-- `integration-tests/pass/pz/` — 8 pz project template tests (basic, cli, lib, multi, server_minimal, server_normal, client_minimal, client_normal).
+- `integration-tests/pass/new/` — 8 project template tests (basic, cli, lib, multi, server_minimal, server_normal, client_minimal, client_normal).
 - `integration-tests/pass/warnings/` — 24 warning detection tests covering all W-code warnings.
 - `integration-tests/pass/multi-file/` — 118 multi-file import tests covering imports, aliases, structs, enums, private visibility, transitive imports, directory imports, and more.
 - `integration-tests/pass/stress/` — 43 stress tests (30 core, 13 stdlib).
-- `integration-tests/fail/errors/` — 760 error detection tests covering all compiler error codes (E1xxx–E9xxx) and runtime panics.
+- `integration-tests/fail/errors/` — 761 error detection tests covering all compiler error codes (E1xxx–E9xxx) and runtime panics.
 - `integration-tests/fail/multi-file/` — 40 multi-file error detection tests covering cross-module type errors, private access violations, and circular imports.
 
 **Running:**
@@ -84,7 +84,7 @@ make test-asan
 
 The Go CLI (`gray`) has unit tests for the packages it uses:
 
-- `cmd/gray` — updater semver parsing/comparison and exact-version install validation.
+- `cli` — updater semver parsing/comparison and exact-version install validation.
 - `internal/grayc` — compiler binary lookup and `GRAY_COMPILER_PATH` override behavior.
 
 ```bash

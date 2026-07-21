@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5026 - os.set_env requires string arguments
+ * Expected: E5026
+ */
+
+import @os
+
+do main() {
+    os.set_env(42, 99)
+}

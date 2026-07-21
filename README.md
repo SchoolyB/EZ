@@ -81,7 +81,7 @@ make install
 | `gray fmt <path>` | Format `.gray` source files in place | `gray fmt .` or `gray fmt ./...` |
 | `gray fmt --check <path>` | Check formatting without modifying files (CI gate) | `gray fmt --check ./...` |
 | `gray doc <file>` | Generate docs from `#doc` attributes | `gray doc main.gray` |
-| `gray pz <name>` | Scaffold a new project | `gray pz myproject` |
+| `gray new <name>` | Scaffold a new project | `gray new myproject` |
 | `gray report` | Print system info for bug reports | `gray report` |
 | `gray update` | Update to the latest stable version | `gray update` |
 | `gray update --pre` | Update to the latest pre-release (alpha/beta) | `gray update --pre` |

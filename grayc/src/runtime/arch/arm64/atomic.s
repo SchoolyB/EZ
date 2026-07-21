@@ -91,6 +91,7 @@ gray_atomic_cas:
     ret
 2:
     clrex                       // clear exclusive monitor
+    dmb     ish                 // enforce seq_cst on failure
     mov     x0, #0              // failure
     ret
 
@@ -253,6 +254,7 @@ gray_atomic_cas32:
     ret
 2:
     clrex
+    dmb     ish                 // enforce seq_cst on failure
     mov     w0, #0
     ret
 
@@ -319,6 +321,7 @@ gray_atomic_cas8:
     ret
 2:
     clrex
+    dmb     ish                 // enforce seq_cst on failure
     mov     w0, #0
     ret
 

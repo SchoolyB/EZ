@@ -798,7 +798,7 @@ func runUpdate(confirm bool, url string, pre bool) error {
 		}
 	}
 	if downloadURL == "" {
-		return fmt.Errorf("error: no binary available for %s/%s\nYou may need to build from source: go install github.com/grayscale-lang/grayscale/cmd/gray@latest",
+		return fmt.Errorf("error: no binary available for %s/%s\nYou may need to build from source: go install github.com/grayscale-lang/grayscale/cli@latest",
 			runtime.GOOS, runtime.GOARCH)
 	}
 	fmt.Printf("Downloading %s...\n", assetName)
@@ -918,7 +918,7 @@ func runInstall(version string) error {
 		}
 	}
 	if downloadURL == "" {
-		return fmt.Errorf("error: no binary available for %s/%s at %s\nYou may need to build from source: go install github.com/grayscale-lang/grayscale/cmd/gray@latest",
+		return fmt.Errorf("error: no binary available for %s/%s at %s\nYou may need to build from source: go install github.com/grayscale-lang/grayscale/cli@latest",
 			runtime.GOOS, runtime.GOARCH, target.TagName)
 	}
 

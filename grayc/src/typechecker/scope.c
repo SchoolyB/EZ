@@ -90,6 +90,10 @@ Symbol *scope_lookup(Scope *scope, const char *name) {
 
 void scope_destroy(Scope *scope) {
     if (!scope) return;
+    for (int i = 0; i < scope->count; i++) {
+        if (scope->symbols[i].ret_types_owned)
+            free(scope->symbols[i].ret_types);
+    }
     free(scope->symbols);
     free(scope->hash);
     free(scope);

@@ -141,7 +141,7 @@ jobs:
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
           BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
-          go build -ldflags "-X main.Version=${TAG} -X main.BuildTime=${BUILD_TIME}" -o gray ./cmd/gray
+          go build -ldflags "-X main.Version=${TAG} -X main.BuildTime=${BUILD_TIME}" -o gray ./cli
         shell: bash
 
       - name: Package single-binary release

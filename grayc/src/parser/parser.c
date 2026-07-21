@@ -2058,11 +2058,11 @@ static AstNode *parse_import_statement(Parser *parser) {
                 const char *slash = strrchr(item->path, '/');
                 const char *base = slash ? slash + 1 : item->path;
                 size_t blen = strlen(base);
-                if (blen > 3 && strcmp(base + blen - 3, ".gray") == 0) {
+                if (blen > 5 && strcmp(base + blen - 5, ".gray") == 0) {
                     /* Strip .gray extension: "helpers.gray" → "helpers" */
-                    char *mod = arena_alloc(parser->arena, blen - 2);
-                    memcpy(mod, base, blen - 3);
-                    mod[blen - 3] = '\0';
+                    char *mod = arena_alloc(parser->arena, blen - 4);
+                    memcpy(mod, base, blen - 5);
+                    mod[blen - 5] = '\0';
                     item->alias = mod;
                     item->module = mod;
                 } else if (blen > 0) {
@@ -2136,7 +2136,8 @@ static AstNode *parse_if_statement(Parser *parser) {
         /* 'or' acts like 'else if' */
         node->data.if_stmt.alternative = parse_if_statement(parser);
     } else if (peek_token_is(parser, TOK_OTHERWISE)) {
-        next_token(parser); /* skip 'otherwise' */
+        next_token(parser); /* skip 'otherwise'/'else' */
+        node->data.if_stmt.else_token = parser->cur_token;
         if (!expect_peek_token(parser, TOK_LBRACE)) return NULL;
         node->data.if_stmt.alternative = parse_block_statement(parser);
     }
@@ -2338,9 +2339,14 @@ static AstNode *parse_struct_declaration(Parser *parser) {
         /* Current token is now the type; parse it and backfill all names in this group */
         const char *type_name = parse_complex_type(parser);
         if (!type_name) return NULL;
-        /* : `?` is now allowed in struct fields for generic structs.
-         * The E2070 rejection was removed; the typechecker validates
-         * binding consistency at each struct literal usage site. */
+        /* E2070: wildcard `?` is not allowed as a struct field type */
+        if (type_string_has_wildcard(type_name)) {
+            diagnostic_error_message(parser->diag, "E2070",
+                arena_copy_string(parser->arena,
+                    "wildcard type '?' cannot be used as a struct field type"),
+                parser->file, parser->cur_token.line, parser->cur_token.column, 0);
+            return NULL;
+        }
         for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
             node->data.struct_decl.fields[i].type_name = type_name;
             node->data.struct_decl.fields[i].default_value = NULL;

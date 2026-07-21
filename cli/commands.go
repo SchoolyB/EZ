@@ -1,5 +1,5 @@
 // commands.go — Defines all Cobra subcommands (build, check, update, doc,
-// fmt, pz, watch, man, report, verify, version) and the root command wiring.
+// fmt, new, watch, man, report, verify, version) and the root command wiring.
 //
 // Author:  Marshall A Burns (@SchoolyB)
 // Copyright (c) 2025-Present Marshall A Burns
@@ -336,6 +336,8 @@ func printManUsage() {
 	fmt.Println()
 	fmt.Println("  Note: for attributes, omit the # prefix (e.g. gray man flags, not gray man #flags)")
 	fmt.Println("  Note: for functions, omit the () suffix (e.g. gray man math.sqrt, not gray man math.sqrt())")
+	fmt.Println()
+	fmt.Println("See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md")
 }
 
 func printBuiltinsIndex() {
@@ -418,7 +420,7 @@ func printStdlibEntry(name string, entry StdlibManEntry) {
 func printStdlibModuleIndex(module string) error {
 	groups, ok := stdlibModuleGroups[module]
 	if !ok {
-		return fmt.Errorf("gray: no documentation for module '%s'\n    try: gray man", module)
+		return fmt.Errorf("gray: no documentation for module '%s'\n    try: gray man\n    See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md", module)
 	}
 	fmt.Printf("module: %s  (gray man <name> for details)\n", module)
 	fmt.Println(strings.Repeat("─", 50))
@@ -455,7 +457,7 @@ func printLangIndex() {
 func printLangCategoryIndex(category string) error {
 	groups, ok := langCategories[category]
 	if !ok {
-		return fmt.Errorf("gray: no language reference category '%s'\n    try: gray man lang", category)
+		return fmt.Errorf("gray: no language reference category '%s'\n    try: gray man lang\n    See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md", category)
 	}
 	fmt.Printf("lang: %s  (gray man <name> for details)\n", category)
 	fmt.Println(strings.Repeat("─", 50))
@@ -569,7 +571,7 @@ var manCmd = &cobra.Command{
 			}
 		}
 
-		return fmt.Errorf("gray: no documentation for '%s'\n    try: gray man builtins  or  gray man lang", name)
+		return fmt.Errorf("gray: no documentation for '%s'\n    try: gray man builtins  or  gray man lang\n    See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md", name)
 	},
 }
 
@@ -621,7 +623,9 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, pzCmd, watchCmd, manCmd, verifyCmd)
+	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = true
+	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, newCmd, watchCmd, manCmd, verifyCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
@@ -651,6 +655,7 @@ Flags:
       --no-color       Disable colored output
 
 Use "gray [command] --help" for more information about a command.
+See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md
 `)
 	})
 	updateCmd.Flags().Bool("confirm", false, "")
@@ -673,8 +678,8 @@ Use "gray [command] --help" for more information about a command.
 
 	fmtCmd.Flags().Bool("check", false, "Exit non-zero if any file would change; don't modify files")
 
-	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
-	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
-	pzCmd.Flags().BoolP("force", "f", false, "Overwrite existing directory")
-	pzCmd.Flags().StringP("server-type", "s", "normal", "Server template type: minimal, normal")
+	newCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
+	newCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
+	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing directory")
+	newCmd.Flags().StringP("server-type", "s", "normal", "Server template type: minimal, normal")
 }

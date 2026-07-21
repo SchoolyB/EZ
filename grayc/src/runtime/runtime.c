@@ -10,6 +10,18 @@
 
 #include "runtime.h"
 #include <stdarg.h>
+#include <unistd.h>
+
+/* --- ANSI color codes for panic output --- */
+
+#define P_RESET   "\033[0m"
+#define P_BOLD    "\033[1m"
+#define P_RED     "\033[31m"
+#define P_BLUE    "\033[34m"
+
+static inline int panic_use_color(void) {
+    return isatty(STDERR_FILENO) && !getenv("NO_COLOR");
+}
 
 /* --- Per-thread default arena --- */
 
@@ -219,33 +231,44 @@ void gray_runtime_shutdown(void) {
 
 void gray_panic(const char *file, int line, const char *fmt, ...) {
     fflush(stdout);
-    fprintf(stderr, "panic at %s:%d: ", file, line);
+    int c = panic_use_color();
+    fprintf(stderr, "%s%spanic%s at %s:%d: %s",
+        c ? P_BOLD : "", c ? P_RED : "", c ? P_RESET : "",
+        file, line,
+        c ? P_BOLD : "");
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
-    fprintf(stderr, "\n");
+    fprintf(stderr, "%s\n", c ? P_RESET : "");
     exit(1);
 }
 
 void gray_panic_code(const char *code, const char *fmt, ...) {
     fflush(stdout);
-    fprintf(stderr, "panic[%s]: ", code);
+    int c = panic_use_color();
+    fprintf(stderr, "%s%spanic[%s]:%s %s",
+        c ? P_BOLD : "", c ? P_RED : "", code, c ? P_RESET : "",
+        c ? P_BOLD : "");
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
-    fprintf(stderr, "\n");
+    fprintf(stderr, "%s\n", c ? P_RESET : "");
     exit(1);
 }
 
 void gray_panic_code_at(const char *file, int line, const char *code, const char *fmt, ...) {
     fflush(stdout);
-    fprintf(stderr, "panic[%s] at %s:%d: ", code, file, line);
+    int c = panic_use_color();
+    fprintf(stderr, "%s%spanic[%s]%s at %s:%d: %s",
+        c ? P_BOLD : "", c ? P_RED : "", code, c ? P_RESET : "",
+        file, line,
+        c ? P_BOLD : "");
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
-    fprintf(stderr, "\n");
+    fprintf(stderr, "%s\n", c ? P_RESET : "");
     exit(1);
 }

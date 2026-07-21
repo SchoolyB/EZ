@@ -1,12 +1,13 @@
 // main.gray - Minimal HTTP client.
 //
-// http.get(url) returns (HttpResponse, Error).
+// http.get(url, headers) returns (HttpResponse, Error).
 // Check err against nil; on success, read .status / .body / .headers.
 
 import @http
 
 do main() {
-    mut resp, err = http.get("https://httpbin.org/get")
+    mut headers map[string:string] = {:}
+    mut resp, err = http.get("http://httpbin.org/get", headers)
     if err != nil {
         println("Request failed.")
         exit(1)

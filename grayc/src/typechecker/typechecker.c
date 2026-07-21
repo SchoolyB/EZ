@@ -745,534 +745,11 @@ static const char *func_display_name(const FuncSig *fs) {
     return fs ? fs->name : "";
 }
 
-/* Fallible stdlib function lookup table.
- * Each entry maps a (module, function) pair to a flag indicating it supports
- * multi-var (value, Error) destructuring via a _result variant. */
-typedef struct {
-    const char *mod;
-    const char *fn;
-} FallibleEntry;
+/* --- Stdlib argument kind validation --- */
 
-static const FallibleEntry fallible_stdlib[] = {
-    /* io */
-    {"io", "read_file"}, {"io", "read_bytes"}, {"io", "read_lines"},
-    {"io", "file_size"}, {"io", "write_file"}, {"io", "delete_file"},
-    {"io", "copy_file"}, {"io", "move_file"}, {"io", "list_dir"},
-    {"io", "make_dir"}, {"io", "make_dir_all"}, {"io", "remove_dir"},
-    {"io", "remove_dir_all"}, {"io", "walk"}, {"io", "append_file"},
-    {"io", "rename_file"}, {"io", "glob"},
-    /* sqlite */
-    {"sqlite", "open"}, {"sqlite", "exec"}, {"sqlite", "query"},
-    /* net */
-    {"net", "connect"}, {"net", "listen"}, {"net", "accept"},
-    {"net", "send"}, {"net", "receive"}, {"net", "resolve"},
-    /* http */
-    {"http", "get"}, {"http", "post"}, {"http", "put"},
-    {"http", "delete"}, {"http", "head"}, {"http", "patch"},
-    /* csv */
-    {"csv", "read_file"}, {"csv", "write_file"},
-    /* json */
-    {"json", "decode"},
-    /* regex */
-    {"regex", "find"}, {"regex", "find_all"},
-    {"regex", "replace"}, {"regex", "split"},
-    /* strconv */
-    {"strconv", "to_int"}, {"strconv", "to_uint"},
-    {"strconv", "to_float"}, {"strconv", "to_bool"},
-};
-
-static int fallible_entry_compare(const void *a, const void *b) {
-    const FallibleEntry *entry_a =*(const FallibleEntry *const *)a;
-    const FallibleEntry *entry_b =*(const FallibleEntry *const *)b;
-    int r = strcmp(entry_a->mod, entry_b->mod);
-    return r != 0 ? r : strcmp(entry_a->fn, entry_b->fn);
-}
-
-#define FALLIBLE_STDLIB_N (int)(sizeof(fallible_stdlib) / sizeof(fallible_stdlib[0]))
-static const FallibleEntry *fallible_stdlib_sorted[FALLIBLE_STDLIB_N];
-
-/* Returns true if (mod, fn) is a fallible stdlib function.
- * Pass mod=NULL to check by fn name alone (any module). */
-static bool typechecker_is_fallible_stdlib(const char *mod, const char *fn) {
-    if (!mod) {
-        for (int i = 0; i < FALLIBLE_STDLIB_N; i++) {
-            if (strcmp(fn, fallible_stdlib[i].fn) == 0) return true;
-        }
-        return false;
-    }
-    FallibleEntry key = { .mod = mod, .fn = fn };
-    const FallibleEntry *key_ptr = &key;
-    return bsearch(&key_ptr, fallible_stdlib_sorted, FALLIBLE_STDLIB_N,
-                   sizeof(const FallibleEntry *), fallible_entry_compare) != NULL;
-}
-
-/* Return the primary (non-error) type for a fallible stdlib function.
- * This mirrors the type registration blocks so that multi-var synthesis
- * doesn't depend on sym->type being resolved first. */
-typedef enum {
-    FT_BOOL, FT_INT, FT_UINT, FT_FLOAT, FT_STRING,
-    FT_ARRAY_STRING, FT_NESTED_ARRAY_STRING, FT_ARRAY_BYTE, FT_ARRAY_MAP,
-    FT_STRUCT_DATABASE, FT_STRUCT_SOCKET, FT_STRUCT_LISTENER,
-    FT_STRUCT_HTTP_RESPONSE, FT_STRUCT_MAP,
-} FallibleType;
-
-typedef struct {
-    const char *mod;
-    const char *fn;
-    FallibleType type;
-} FallibleTypeEntry;
-
-static const FallibleTypeEntry fallible_type_table[] = {
-    /* io */
-    {"io", "read_file", FT_STRING},
-    {"io", "read_bytes", FT_ARRAY_BYTE}, {"io", "read_lines", FT_ARRAY_STRING},
-    {"io", "file_size", FT_INT}, {"io", "glob", FT_ARRAY_STRING},
-    {"io", "list_dir", FT_ARRAY_STRING}, {"io", "walk", FT_ARRAY_STRING},
-    {"io", "write_file", FT_BOOL}, {"io", "delete_file", FT_BOOL},
-    {"io", "copy_file", FT_BOOL}, {"io", "move_file", FT_BOOL},
-    {"io", "make_dir", FT_BOOL}, {"io", "make_dir_all", FT_BOOL},
-    {"io", "remove_dir", FT_BOOL}, {"io", "remove_dir_all", FT_BOOL},
-    {"io", "append_file", FT_BOOL}, {"io", "rename_file", FT_BOOL},
-    /* sqlite */
-    {"sqlite", "open", FT_STRUCT_DATABASE},
-    {"sqlite", "query", FT_ARRAY_MAP},
-    {"sqlite", "exec", FT_BOOL},
-    /* net */
-    {"net", "connect", FT_STRUCT_SOCKET}, {"net", "accept", FT_STRUCT_SOCKET},
-    {"net", "listen", FT_STRUCT_LISTENER},
-    {"net", "send", FT_INT},
-    {"net", "receive", FT_STRING}, {"net", "resolve", FT_STRING},
-    /* http */
-    {"http", "get", FT_STRUCT_HTTP_RESPONSE}, {"http", "post", FT_STRUCT_HTTP_RESPONSE},
-    {"http", "put", FT_STRUCT_HTTP_RESPONSE}, {"http", "delete", FT_STRUCT_HTTP_RESPONSE},
-    {"http", "head", FT_STRUCT_HTTP_RESPONSE}, {"http", "patch", FT_STRUCT_HTTP_RESPONSE},
-    /* csv */
-    {"csv", "read_file", FT_NESTED_ARRAY_STRING}, {"csv", "write_file", FT_BOOL},
-    /* json */
-    {"json", "decode", FT_STRUCT_MAP},
-    /* regex */
-    {"regex", "find", FT_STRING}, {"regex", "replace", FT_STRING},
-    {"regex", "find_all", FT_ARRAY_STRING}, {"regex", "split", FT_ARRAY_STRING},
-    /* strconv */
-    {"strconv", "to_int", FT_INT}, {"strconv", "to_uint", FT_UINT},
-    {"strconv", "to_float", FT_FLOAT}, {"strconv", "to_bool", FT_BOOL},
-};
-
-static int fallible_type_entry_compare(const void *a, const void *b) {
-    const FallibleTypeEntry *entry_a =*(const FallibleTypeEntry *const *)a;
-    const FallibleTypeEntry *entry_b =*(const FallibleTypeEntry *const *)b;
-    int r = strcmp(entry_a->mod, entry_b->mod);
-    return r != 0 ? r : strcmp(entry_a->fn, entry_b->fn);
-}
-
-#define FALLIBLE_TYPE_TABLE_N (int)(sizeof(fallible_type_table) / sizeof(fallible_type_table[0]))
-static const FallibleTypeEntry *fallible_type_sorted[FALLIBLE_TYPE_TABLE_N];
-
-static GrayType *typechecker_get_fallible_stdlib_type(const char *mod, const char *fn) {
-    FallibleTypeEntry key = { .mod = mod, .fn = fn };
-    const FallibleTypeEntry *key_ptr = &key;
-    const FallibleTypeEntry **hit = bsearch(&key_ptr, fallible_type_sorted, FALLIBLE_TYPE_TABLE_N,
-        sizeof(const FallibleTypeEntry *), fallible_type_entry_compare);
-    if (!hit) return NULL;
-    switch ((*hit)->type) {
-    case FT_BOOL:                return &TYPE_BOOL;
-    case FT_INT:                 return &TYPE_INT;
-    case FT_UINT:                return &TYPE_UINT;
-    case FT_FLOAT:               return &TYPE_FLOAT;
-    case FT_STRING:              return &TYPE_STRING;
-    case FT_ARRAY_STRING:        return type_array("string");
-    case FT_NESTED_ARRAY_STRING: return type_array("[string]");
-    case FT_ARRAY_BYTE:          return type_array("byte");
-    case FT_ARRAY_MAP:           return type_array("map");
-    case FT_STRUCT_DATABASE:     return type_struct("Database");
-    case FT_STRUCT_SOCKET:       return type_struct("Socket");
-    case FT_STRUCT_LISTENER:     return type_struct("Listener");
-    case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
-    case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
-    }
-    return NULL;
-}
-
-/* Stdlib argument count validation table.
- * Each entry maps a (module, function) pair to the expected min/max arg count.
- * Functions with variable args use different min/max values. */
-typedef struct {
-    const char *mod;
-    const char *fn;
-    int min_args;
-    int max_args;
-} StdlibArgEntry;
-
-static const StdlibArgEntry stdlib_arg_table[] = {
-    /* io */
-    {"io", "read_file", 1, 1}, {"io", "read_bytes", 1, 1}, {"io", "read_lines", 1, 1},
-    {"io", "write_file", 2, 2}, {"io", "append_file", 2, 2},
-    {"io", "file_exists", 1, 1}, {"io", "is_file", 1, 1},
-    {"io", "is_directory", 1, 1}, {"io", "file_size", 1, 1},
-    {"io", "delete_file", 1, 1},
-    {"io", "rename_file", 2, 2}, {"io", "copy_file", 2, 2}, {"io", "move_file", 2, 2},
-    {"io", "list_dir", 1, 1}, {"io", "walk", 1, 1}, {"io", "glob", 1, 1},
-    {"io", "make_dir", 1, 1}, {"io", "make_dir_all", 1, 1},
-    {"io", "remove_dir", 1, 1}, {"io", "remove_dir_all", 1, 1},
-    {"io", "path_join", 1, 1}, {"io", "dirname", 1, 1},
-    {"io", "basename", 1, 1}, {"io", "extension", 1, 1},
-    {"io", "is_absolute", 1, 1}, {"io", "normalize", 1, 1},
-    /* strings */
-    {"strings", "to_upper", 1, 1}, {"strings", "to_lower", 1, 1},
-    {"strings", "is_empty", 1, 1}, {"strings", "contains", 2, 2},
-    {"strings", "starts_with", 2, 2}, {"strings", "ends_with", 2, 2},
-    {"strings", "index_of", 2, 2}, {"strings", "last_index_of", 2, 2}, {"strings", "count", 2, 2},
-    {"strings", "trim", 1, 1}, {"strings", "trim_left", 1, 1},
-    {"strings", "trim_right", 1, 1},
-    {"strings", "remove_prefix", 2, 2}, {"strings", "remove_suffix", 2, 2},
-    {"strings", "replace", 3, 3},
-    {"strings", "repeat", 2, 2}, {"strings", "reverse", 1, 1},
-    {"strings", "split", 2, 2}, {"strings", "join", 2, 2},
-    {"strings", "slice", 3, 3},
-    {"strings", "char_at", 2, 2},
-    {"strings", "to_chars", 1, 1}, {"strings", "from_chars", 1, 1},
-    {"strings", "is_alpha", 1, 1}, {"strings", "is_digit", 1, 1},
-    {"strings", "is_alnum", 1, 1}, {"strings", "is_whitespace", 1, 1},
-    {"strings", "is_upper", 1, 1}, {"strings", "is_lower", 1, 1},
-    /* json */
-    {"json", "decode", 1, 1}, {"json", "encode", 1, 1},
-    {"json", "stringify", 1, 1},
-    {"json", "is_valid", 1, 1}, {"json", "pretty_print", 2, 2},
-    {"json", "parse", 1, 1},
-    /* crypto */
-    {"crypto", "sha256", 1, 1}, {"crypto", "md5", 1, 1},
-    {"crypto", "random_hex", 1, 1},
-    /* encoding */
-    {"encoding", "base64_encode", 1, 1}, {"encoding", "base64_decode", 1, 1},
-    {"encoding", "hex_encode", 1, 1}, {"encoding", "hex_decode", 1, 1},
-    {"encoding", "url_encode", 1, 1}, {"encoding", "url_decode", 1, 1},
-    /* uuid */
-    {"uuid", "generate", 0, 0}, {"uuid", "generate_hyphenated", 0, 0},
-    {"uuid", "generate_compact", 1, 1},
-    {"uuid", "is_valid", 1, 1}, {"uuid", "to_string", 1, 1},
-    {"uuid", "generate_random", 0, 0}, {"uuid", "generate_time_ordered", 0, 0},
-    {"uuid", "parse", 1, 1},
-    /* regex */
-    {"regex", "is_valid", 1, 1}, {"regex", "is_match", 2, 2},
-    {"regex", "find", 2, 2}, {"regex", "find_all", 2, 2},
-    {"regex", "replace", 3, 3}, {"regex", "split", 2, 2},
-    /* csv */
-    {"csv", "parse", 1, 1},
-    {"csv", "encode", 1, 1},
-    {"csv", "read_file", 1, 1}, {"csv", "write_file", 2, 2},
-    {"csv", "headers", 1, 1},
-    /* http */
-    {"http", "get", 2, 2}, {"http", "delete", 2, 2}, {"http", "head", 2, 2},
-    {"http", "post", 3, 3}, {"http", "put", 3, 3}, {"http", "patch", 3, 3},
-    /* net */
-    {"net", "connect", 2, 2}, {"net", "listen", 1, 2},
-    {"net", "accept", 1, 1}, {"net", "send", 2, 2},
-    {"net", "receive", 2, 2}, {"net", "close", 1, 1},
-    {"net", "set_timeout", 2, 2}, {"net", "resolve", 1, 1},
-    /* time */
-    {"time", "now", 0, 0}, {"time", "now_ms", 0, 0}, {"time", "now_ns", 0, 0},
-    {"time", "year", 1, 1}, {"time", "month", 1, 1}, {"time", "day", 1, 1},
-    {"time", "hour", 1, 1}, {"time", "minute", 1, 1}, {"time", "second", 1, 1},
-    {"time", "weekday", 1, 1}, {"time", "format", 2, 2},
-    {"time", "to_iso", 1, 1}, {"time", "date", 1, 1}, {"time", "to_clock", 1, 1},
-    {"time", "tick", 0, 0}, {"time", "elapsed_ms", 1, 1}, {"time", "diff", 2, 2},
-    /* os */
-    {"os", "get_env", 1, 1}, {"os", "set_env", 2, 2}, {"os", "unset_env", 1, 1},
-    {"os", "args", 0, 0}, {"os", "current_dir", 0, 0},
-    {"os", "hostname", 0, 0}, {"os", "pid", 0, 0},
-    {"os", "current_os", 0, 0}, {"os", "arch", 0, 0},
-    {"os", "exec", 2, 2},
-    /* random (variable args) */
-    {"random", "rand_float", 0, 2}, {"random", "rand_int", 1, 2},
-    {"random", "rand_bool", 0, 0}, {"random", "rand_byte", 0, 0},
-    {"random", "rand_char", 0, 2},
-    {"random", "choice", 1, 1}, {"random", "shuffle", 1, 1},
-    {"random", "sample", 2, 2}, {"random", "seed", 1, 1},
-    /* sqlite */
-    {"sqlite", "open", 1, 1}, {"sqlite", "close", 1, 1},
-    {"sqlite", "exec", 2, 99}, {"sqlite", "query", 2, 99},
-    /* arrays */
-    {"arrays", "remove", 2, 2},
-    {"arrays", "map", 2, 2}, {"arrays", "filter", 2, 2},
-    {"arrays", "reduce", 3, 3},
-    {"arrays", "any", 2, 2}, {"arrays", "all", 2, 2},
-    /* bytes */
-    {"bytes", "from_string", 1, 1}, {"bytes", "from_hex", 1, 1},
-    {"bytes", "from_base64", 1, 1}, {"bytes", "to_string", 1, 1},
-    {"bytes", "to_hex", 1, 1}, {"bytes", "to_base64", 1, 1},
-    /* strconv */
-    {"strconv", "to_int", 1, 2}, {"strconv", "to_uint", 1, 2},
-    {"strconv", "to_float", 1, 1}, {"strconv", "to_bool", 1, 1},
-    {"strconv", "from_int", 1, 1}, {"strconv", "from_uint", 1, 1},
-    {"strconv", "from_float", 1, 1}, {"strconv", "from_bool", 1, 1},
-    {"strconv", "is_numeric", 1, 1}, {"strconv", "is_integer", 1, 1},
-    /* math */
-    {"math", "abs", 1, 1}, {"math", "neg", 1, 1}, {"math", "sign", 1, 1},
-    {"math", "min", 2, 2}, {"math", "max", 2, 2}, {"math", "clamp", 3, 3},
-    {"math", "floor", 1, 1}, {"math", "ceil", 1, 1},
-    {"math", "round", 1, 1}, {"math", "trunc", 1, 1},
-    {"math", "pow", 2, 2}, {"math", "sqrt", 1, 1}, {"math", "cbrt", 1, 1},
-    {"math", "hypot", 2, 2}, {"math", "exp", 1, 1}, {"math", "exp2", 1, 1},
-    {"math", "log", 1, 1}, {"math", "log2", 1, 1},
-    {"math", "log10", 1, 1}, {"math", "log_base", 2, 2},
-    {"math", "sin", 1, 1}, {"math", "cos", 1, 1}, {"math", "tan", 1, 1},
-    {"math", "asin", 1, 1}, {"math", "acos", 1, 1},
-    {"math", "atan", 1, 1}, {"math", "atan2", 2, 2},
-    {"math", "sinh", 1, 1}, {"math", "cosh", 1, 1}, {"math", "tanh", 1, 1},
-    {"math", "deg_to_rad", 1, 1}, {"math", "rad_to_deg", 1, 1},
-    {"math", "factorial", 1, 1}, {"math", "gcd", 2, 2}, {"math", "lcm", 2, 2},
-    {"math", "is_prime", 1, 1}, {"math", "is_even", 1, 1}, {"math", "is_odd", 1, 1},
-    {"math", "is_infinite", 1, 1}, {"math", "is_nan", 1, 1}, {"math", "is_finite", 1, 1},
-    {"math", "lerp", 3, 3}, {"math", "distance", 4, 4},
-    /* maps */
-    {"maps", "get_keys", 1, 1}, {"maps", "get_values", 1, 1},
-    {"maps", "has_key", 2, 2}, {"maps", "is_empty", 1, 1},
-    {"maps", "contains_value", 2, 2}, {"maps", "is_equal", 2, 2},
-    {"maps", "merge", 2, 2}, {"maps", "remove_key", 2, 2},
-    {"maps", "clear", 1, 1}, {"maps", "get_or_default", 3, 3},
-    /* mem */
-    {"mem", "arena", 1, 1}, {"mem", "destroy", 1, 1},
-    {"mem", "reset", 1, 1}, {"mem", "usage", 1, 1},
-    {"mem", "raw_copy", 3, 3}, {"mem", "zero", 2, 2}, {"mem", "fill", 3, 3},
-    {"mem", "init", 2, 2}, {"mem", "alloc", 2, 2},
-    /* threads */
-    {"threads", "spawn", 1, 2}, {"threads", "join", 1, 1},
-    {"threads", "detach", 1, 1}, {"threads", "is_alive", 1, 1},
-    {"threads", "get_id", 0, 0}, {"threads", "current", 0, 0},
-    {"threads", "yield", 0, 0}, {"threads", "sleep", 1, 1},
-    {"threads", "thread_count", 0, 0},
-    /* sync */
-    {"sync", "mutex", 0, 0}, {"sync", "lock", 1, 1},
-    {"sync", "unlock", 1, 1}, {"sync", "try_lock", 1, 1},
-    {"sync", "destroy", 1, 1},
-    /* channels */
-    {"channels", "open", 1, 1}, {"channels", "send", 2, 2},
-    {"channels", "receive", 1, 1}, {"channels", "close", 1, 1},
-    {"channels", "try_send", 2, 2}, {"channels", "try_receive", 1, 1},
-    /* atomic */
-    {"atomic", "load", 1, 1}, {"atomic", "store", 2, 2},
-    {"atomic", "add", 2, 2}, {"atomic", "sub", 2, 2},
-    {"atomic", "exchange", 2, 2}, {"atomic", "cas", 3, 3},
-    {"atomic", "and", 2, 2}, {"atomic", "or", 2, 2}, {"atomic", "xor", 2, 2},
-    {"atomic", "spinlock", 0, 0}, {"atomic", "spinlock_destroy", 1, 1},
-    {"atomic", "spin_lock", 1, 1},
-    {"atomic", "spin_trylock", 1, 1}, {"atomic", "spin_unlock", 1, 1},
-    {"atomic", "fence", 0, 0},
-    /* fmt */
-    {"fmt", "sprintf", 1, 99}, {"fmt", "format", 1, 99},
-    {"fmt", "printf", 1, 99}, {"fmt", "printfln", 1, 99},
-    {"fmt", "eprintf", 1, 99}, {"fmt", "eprintfln", 1, 99},
-    {"fmt", "sprintfln", 1, 99},
-    {"fmt", "pad_left", 3, 3}, {"fmt", "pad_right", 3, 3}, {"fmt", "center", 3, 3},
-    {"fmt", "int_to_hex", 1, 1}, {"fmt", "int_to_binary", 1, 1},
-    {"fmt", "int_to_octal", 1, 1}, {"fmt", "float_fixed", 2, 2},
-    {"fmt", "float_sci", 1, 1},
-    /* server */
-    {"server", "add_router", 0, 0}, {"server", "add_route", 4, 4},
-    {"server", "listen", 2, 3}, {"server", "cors", 2, 2},
-    {"server", "use", 2, 2}, {"server", "text", 2, 2},
-    {"server", "json", 2, 2}, {"server", "html", 2, 2},
-    {"server", "redirect", 2, 2},
-};
-
-static int stdlib_arg_entry_compare(const void *a, const void *b) {
-    const StdlibArgEntry *entry_a =*(const StdlibArgEntry *const *)a;
-    const StdlibArgEntry *entry_b =*(const StdlibArgEntry *const *)b;
-    int r = strcmp(entry_a->mod, entry_b->mod);
-    return r != 0 ? r : strcmp(entry_a->fn, entry_b->fn);
-}
-
-#define STDLIB_ARG_TABLE_N (int)(sizeof(stdlib_arg_table) / sizeof(stdlib_arg_table[0]))
-static const StdlibArgEntry *stdlib_arg_sorted[STDLIB_ARG_TABLE_N];
-
-static void typechecker_check_stdlib_arg_count(TypeChecker *checker, const char *mod,
-    const char *fn, AstNode *node)
-{
-    StdlibArgEntry key = { .mod = mod, .fn = fn };
-    const StdlibArgEntry *key_ptr = &key;
-    const StdlibArgEntry **hit = bsearch(&key_ptr, stdlib_arg_sorted, STDLIB_ARG_TABLE_N,
-        sizeof(const StdlibArgEntry *), stdlib_arg_entry_compare);
-    if (!hit) return;
-
-    const StdlibArgEntry *e = *hit;
-    int nargs = node->data.call.arg_count;
-    if (nargs < e->min_args || nargs > e->max_args) {
-        char *msg = NULL;
-        if (e->min_args == e->max_args) {
-            msg = typechecker_format(checker,
-                "function '%s.%s' expects %d argument(s), got %d",
-                mod, fn, e->min_args, nargs);
-        } else {
-            msg = typechecker_format(checker,
-                "function '%s.%s' expects %d to %d argument(s), got %d",
-                mod, fn, e->min_args, e->max_args, nargs);
-        }
-        diagnostic_error_message(checker->diag, "E5008", msg,
-            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-    }
-}
-
-/* Compile-time validation for strconv base parameter.
- * When the second arg to to_int/to_uint is a literal integer, verify it's
- * in the valid range [2, 36]. */
-static void typechecker_check_strconv_base(TypeChecker *checker, const char *mod,
-    const char *fn, AstNode *node)
-{
-    if (strcmp(mod, "strconv") != 0) return;
-    if (strcmp(fn, "to_int") != 0 && strcmp(fn, "to_uint") != 0) return;
-    if (node->data.call.arg_count < 2) return;
-    AstNode *base_arg = node->data.call.args[1];
-    if (base_arg->kind != NODE_INT_VALUE) return;
-    int64_t base = base_arg->data.int_value.value;
-    if (base < 2 || base > 36) {
-        char *msg;
-        msg = typechecker_format(checker,
-            "invalid base %lld for strconv.%s; base must be between 2 and 36",
-            (long long)base, fn);
-        diagnostic_error_message(checker->diag, "E5009", msg,
-            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
-    }
-}
-
-/* Stdlib first-argument type validation.
- * Most stdlib modules have a dominant first-arg type (e.g. strings.* expects
- * a string, arrays.* expects an array). This table defines per-function
- * expected types so we can catch type mismatches before they leak to C.
- * ARG_ANY means no validation (the function accepts mixed types). */
 typedef enum {
     ARG_STRING, ARG_INT, ARG_FLOAT, ARG_BOOL, ARG_ARRAY, ARG_MAP, ARG_ANY, ARG_NUMBER, ARG_CHAR, ARG_CHANNEL
 } ExpectedArgKind;
-
-typedef struct {
-    const char *mod;
-    const char *fn;
-    int arg_index;        /* which argument to check (0-based) */
-    ExpectedArgKind kind; /* expected type kind */
-} StdlibArgTypeEntry;
-
-static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
-    /* strings: first arg is always a string */
-    {"strings", "to_upper", 0, ARG_STRING}, {"strings", "to_lower", 0, ARG_STRING},
-    {"strings", "is_empty", 0, ARG_STRING}, {"strings", "contains", 0, ARG_STRING},
-    {"strings", "starts_with", 0, ARG_STRING}, {"strings", "ends_with", 0, ARG_STRING},
-    {"strings", "index_of", 0, ARG_STRING}, {"strings", "last_index_of", 0, ARG_STRING},
-    {"strings", "count", 0, ARG_STRING},
-    {"strings", "trim", 0, ARG_STRING}, {"strings", "trim_left", 0, ARG_STRING},
-    {"strings", "trim_right", 0, ARG_STRING},
-    {"strings", "remove_prefix", 0, ARG_STRING}, {"strings", "remove_prefix", 1, ARG_STRING},
-    {"strings", "remove_suffix", 0, ARG_STRING}, {"strings", "remove_suffix", 1, ARG_STRING},
-    {"strings", "replace", 0, ARG_STRING},
-    {"strings", "repeat", 0, ARG_STRING}, {"strings", "reverse", 0, ARG_STRING},
-    {"strings", "split", 0, ARG_STRING}, {"strings", "slice", 0, ARG_STRING},
-    {"strings", "contains", 1, ARG_STRING}, {"strings", "starts_with", 1, ARG_STRING},
-    {"strings", "ends_with", 1, ARG_STRING}, {"strings", "index_of", 1, ARG_STRING},
-    {"strings", "last_index_of", 1, ARG_STRING},
-    {"strings", "count", 1, ARG_STRING}, {"strings", "replace", 1, ARG_STRING},
-    {"strings", "replace", 2, ARG_STRING}, {"strings", "split", 1, ARG_STRING},
-    {"strings", "repeat", 1, ARG_INT},
-    {"strings", "slice", 1, ARG_INT}, {"strings", "slice", 2, ARG_INT},
-    {"strings", "join", 0, ARG_ARRAY}, {"strings", "join", 1, ARG_STRING},
-    {"strings", "char_at", 0, ARG_STRING}, {"strings", "char_at", 1, ARG_INT},
-    {"strings", "to_chars", 0, ARG_STRING}, {"strings", "from_chars", 0, ARG_ARRAY},
-    {"strings", "is_alpha", 0, ARG_CHAR}, {"strings", "is_digit", 0, ARG_CHAR},
-    {"strings", "is_alnum", 0, ARG_CHAR}, {"strings", "is_whitespace", 0, ARG_CHAR},
-    {"strings", "is_upper", 0, ARG_CHAR}, {"strings", "is_lower", 0, ARG_CHAR},
-    /* io: path args are strings */
-    {"io", "read_file", 0, ARG_STRING}, {"io", "read_bytes", 0, ARG_STRING},
-    {"io", "read_lines", 0, ARG_STRING}, {"io", "write_file", 0, ARG_STRING},
-    {"io", "write_file", 1, ARG_STRING},
-    {"io", "append_file", 0, ARG_STRING}, {"io", "append_file", 1, ARG_STRING},
-    {"io", "file_exists", 0, ARG_STRING},
-    {"io", "is_file", 0, ARG_STRING}, {"io", "is_directory", 0, ARG_STRING},
-    {"io", "file_size", 0, ARG_STRING}, {"io", "delete_file", 0, ARG_STRING},
-    {"io", "rename_file", 0, ARG_STRING}, {"io", "copy_file", 0, ARG_STRING},
-    {"io", "move_file", 0, ARG_STRING}, {"io", "list_dir", 0, ARG_STRING},
-    {"io", "walk", 0, ARG_STRING}, {"io", "glob", 0, ARG_STRING},
-    {"io", "make_dir", 0, ARG_STRING}, {"io", "make_dir_all", 0, ARG_STRING},
-    {"io", "remove_dir", 0, ARG_STRING}, {"io", "remove_dir_all", 0, ARG_STRING},
-    {"io", "path_join", 0, ARG_ARRAY}, {"io", "dirname", 0, ARG_STRING},
-    {"io", "basename", 0, ARG_STRING}, {"io", "extension", 0, ARG_STRING},
-    {"io", "is_absolute", 0, ARG_STRING}, {"io", "normalize", 0, ARG_STRING},
-    /* maps: first arg is a map */
-    {"maps", "is_empty", 0, ARG_MAP}, {"maps", "has_key", 0, ARG_MAP},
-    {"maps", "contains_value", 0, ARG_MAP}, {"maps", "get_keys", 0, ARG_MAP},
-    {"maps", "get_values", 0, ARG_MAP}, {"maps", "get_or_default", 0, ARG_MAP},
-    {"maps", "remove_key", 0, ARG_MAP}, {"maps", "clear", 0, ARG_MAP},
-    {"maps", "merge", 0, ARG_MAP}, {"maps", "is_equal", 0, ARG_MAP},
-    /* crypto: string data */
-    {"crypto", "sha256", 0, ARG_STRING}, {"crypto", "md5", 0, ARG_STRING},
-    {"crypto", "random_hex", 0, ARG_INT},
-    /* encoding: string data */
-    {"encoding", "base64_encode", 0, ARG_STRING}, {"encoding", "base64_decode", 0, ARG_STRING},
-    {"encoding", "hex_encode", 0, ARG_STRING}, {"encoding", "hex_decode", 0, ARG_STRING},
-    {"encoding", "url_encode", 0, ARG_STRING}, {"encoding", "url_decode", 0, ARG_STRING},
-    /* regex: first arg (pattern) is string */
-    {"regex", "is_valid", 0, ARG_STRING}, {"regex", "is_match", 0, ARG_STRING},
-    {"regex", "find", 0, ARG_STRING}, {"regex", "find_all", 0, ARG_STRING},
-    {"regex", "replace", 0, ARG_STRING}, {"regex", "split", 0, ARG_STRING},
-    /* json */
-    {"json", "decode", 0, ARG_STRING}, {"json", "is_valid", 0, ARG_STRING},
-    {"json", "parse", 0, ARG_STRING},
-    /* csv */
-    {"csv", "parse", 0, ARG_STRING},
-    {"csv", "read_file", 0, ARG_STRING}, {"csv", "write_file", 0, ARG_STRING},
-    {"csv", "headers", 0, ARG_ARRAY},
-    /* http: url is string, body is string, headers is map */
-    {"http", "get", 0, ARG_STRING}, {"http", "get", 1, ARG_MAP},
-    {"http", "delete", 0, ARG_STRING}, {"http", "delete", 1, ARG_MAP},
-    {"http", "head", 0, ARG_STRING}, {"http", "head", 1, ARG_MAP},
-    {"http", "post", 0, ARG_STRING}, {"http", "post", 1, ARG_STRING}, {"http", "post", 2, ARG_MAP},
-    {"http", "put", 0, ARG_STRING}, {"http", "put", 1, ARG_STRING}, {"http", "put", 2, ARG_MAP},
-    {"http", "patch", 0, ARG_STRING}, {"http", "patch", 1, ARG_STRING}, {"http", "patch", 2, ARG_MAP},
-    /* bytes */
-    {"bytes", "from_string", 0, ARG_STRING}, {"bytes", "from_hex", 0, ARG_STRING},
-    {"bytes", "from_base64", 0, ARG_STRING}, {"bytes", "to_string", 0, ARG_ARRAY},
-    {"bytes", "to_hex", 0, ARG_ARRAY}, {"bytes", "to_base64", 0, ARG_ARRAY},
-    /* sqlite */
-    {"sqlite", "open", 0, ARG_STRING},
-    /* server: listen(router, port int) — catch non-int port before it reaches C */
-    {"server", "listen", 1, ARG_INT},
-    {"server", "listen", 2, ARG_STRING},
-    {"net", "listen", 1, ARG_INT},
-    {"server", "text", 1, ARG_STRING},
-    {"server", "json", 1, ARG_STRING},
-    {"server", "html", 1, ARG_STRING},
-    {"server", "redirect", 1, ARG_STRING},
-    /* channels: value arg must be int */
-    {"channels", "send", 0, ARG_CHANNEL}, {"channels", "send", 1, ARG_INT},
-    {"channels", "receive", 0, ARG_CHANNEL}, {"channels", "close", 0, ARG_CHANNEL},
-    {"channels", "try_send", 0, ARG_CHANNEL}, {"channels", "try_send", 1, ARG_INT},
-    {"channels", "try_receive", 0, ARG_CHANNEL},
-    /* math: numeric argument required for all single-arg functions */
-    {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
-    {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
-    {"math", "log10", 0, ARG_NUMBER}, {"math", "exp", 0, ARG_NUMBER},
-    {"math", "exp2", 0, ARG_NUMBER}, {"math", "floor", 0, ARG_NUMBER},
-    {"math", "ceil", 0, ARG_NUMBER}, {"math", "round", 0, ARG_NUMBER},
-    {"math", "trunc", 0, ARG_NUMBER}, {"math", "asin", 0, ARG_NUMBER},
-    {"math", "acos", 0, ARG_NUMBER}, {"math", "atan", 0, ARG_NUMBER},
-    {"math", "sin", 0, ARG_NUMBER}, {"math", "cos", 0, ARG_NUMBER},
-    {"math", "tan", 0, ARG_NUMBER}, {"math", "abs", 0, ARG_NUMBER},
-    {"math", "sign", 0, ARG_NUMBER}, {"math", "factorial", 0, ARG_INT},
-    {"math", "is_prime", 0, ARG_INT}, {"math", "is_even", 0, ARG_INT},
-    {"math", "is_odd", 0, ARG_INT}, {"math", "is_infinite", 0, ARG_NUMBER},
-    {"math", "is_nan", 0, ARG_NUMBER}, {"math", "is_finite", 0, ARG_NUMBER},
-    {"math", "deg_to_rad", 0, ARG_NUMBER}, {"math", "rad_to_deg", 0, ARG_NUMBER},
-    {"math", "neg", 0, ARG_NUMBER},
-    {"math", "min", 0, ARG_NUMBER}, {"math", "min", 1, ARG_NUMBER},
-    {"math", "max", 0, ARG_NUMBER}, {"math", "max", 1, ARG_NUMBER},
-    {"math", "clamp", 0, ARG_NUMBER}, {"math", "clamp", 1, ARG_NUMBER}, {"math", "clamp", 2, ARG_NUMBER},
-    {"math", "pow", 0, ARG_NUMBER}, {"math", "pow", 1, ARG_NUMBER},
-    {"math", "hypot", 0, ARG_NUMBER}, {"math", "hypot", 1, ARG_NUMBER},
-    {"math", "log_base", 0, ARG_NUMBER}, {"math", "log_base", 1, ARG_NUMBER},
-    {"math", "atan2", 0, ARG_NUMBER}, {"math", "atan2", 1, ARG_NUMBER},
-    {"math", "sinh", 0, ARG_NUMBER}, {"math", "cosh", 0, ARG_NUMBER}, {"math", "tanh", 0, ARG_NUMBER},
-    {"math", "gcd", 0, ARG_INT}, {"math", "gcd", 1, ARG_INT},
-    {"math", "lcm", 0, ARG_INT}, {"math", "lcm", 1, ARG_INT},
-    {"math", "lerp", 0, ARG_NUMBER}, {"math", "lerp", 1, ARG_NUMBER}, {"math", "lerp", 2, ARG_NUMBER},
-    {"math", "distance", 0, ARG_NUMBER}, {"math", "distance", 1, ARG_NUMBER},
-    {"math", "distance", 2, ARG_NUMBER}, {"math", "distance", 3, ARG_NUMBER},
-};
 
 static bool arg_kind_matches(ExpectedArgKind expected, GrayType *actual) {
     if (!actual || actual->kind == TK_UNKNOWN) return true; /* can't validate */
@@ -1310,39 +787,461 @@ static const char *expected_kind_name(ExpectedArgKind kind) {
     return "unknown";
 }
 
-static int stdlib_arg_type_entry_compare(const void *a, const void *b) {
-    const StdlibArgTypeEntry *entry_a =*(const StdlibArgTypeEntry *const *)a;
-    const StdlibArgTypeEntry *entry_b =*(const StdlibArgTypeEntry *const *)b;
+/* --- Unified stdlib function metadata registry ---
+ * Single table that consolidates fallibility, arg count range, and
+ * per-argument type expectations for every stdlib function. */
+
+typedef enum {
+    FT_NONE = -1,
+    FT_BOOL, FT_INT, FT_UINT, FT_FLOAT, FT_STRING,
+    FT_ARRAY_STRING, FT_NESTED_ARRAY_STRING, FT_ARRAY_BYTE, FT_ARRAY_MAP,
+    FT_STRUCT_DATABASE, FT_STRUCT_SOCKET, FT_STRUCT_LISTENER,
+    FT_STRUCT_HTTP_RESPONSE, FT_STRUCT_MAP,
+} FallibleType;
+
+#define STDLIB_MAX_ARG_CHECKS 4
+
+typedef struct {
+    const char *mod;
+    const char *fn;
+    int min_args;
+    int max_args;
+    bool fallible;
+    FallibleType success_type;
+    int arg_type_count;
+    struct { int index; ExpectedArgKind kind; } arg_types[STDLIB_MAX_ARG_CHECKS];
+} StdlibFuncMeta;
+
+static const StdlibFuncMeta stdlib_func_meta[] = {
+    /* arrays */
+    {"arrays", "all",    2, 2, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"arrays", "any",    2, 2, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"arrays", "filter", 2, 2, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"arrays", "map",    2, 2, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"arrays", "reduce", 3, 3, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"arrays", "remove", 2, 2, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    /* atomic */
+    {"atomic", "add",              2, 2, false, FT_NONE, 0, {}},
+    {"atomic", "and",              2, 2, false, FT_NONE, 0, {}},
+    {"atomic", "cas",              3, 3, false, FT_NONE, 0, {}},
+    {"atomic", "exchange",         2, 2, false, FT_NONE, 0, {}},
+    {"atomic", "fence",            0, 0, false, FT_NONE, 0, {}},
+    {"atomic", "load",             1, 1, false, FT_NONE, 0, {}},
+    {"atomic", "or",               2, 2, false, FT_NONE, 0, {}},
+    {"atomic", "spin_lock",        1, 1, false, FT_NONE, 0, {}},
+    {"atomic", "spin_trylock",     1, 1, false, FT_NONE, 0, {}},
+    {"atomic", "spin_unlock",      1, 1, false, FT_NONE, 0, {}},
+    {"atomic", "spinlock",         0, 0, false, FT_NONE, 0, {}},
+    {"atomic", "spinlock_destroy", 1, 1, false, FT_NONE, 0, {}},
+    {"atomic", "store",            2, 2, false, FT_NONE, 0, {}},
+    {"atomic", "sub",              2, 2, false, FT_NONE, 0, {}},
+    {"atomic", "xor",              2, 2, false, FT_NONE, 0, {}},
+    /* bytes */
+    {"bytes", "from_base64", 1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"bytes", "from_hex",    1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"bytes", "from_string", 1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"bytes", "to_base64",   1, 1, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"bytes", "to_hex",      1, 1, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"bytes", "to_string",   1, 1, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    /* channels */
+    {"channels", "close",       1, 1, false, FT_NONE, 1, {{0, ARG_CHANNEL}}},
+    {"channels", "open",        1, 1, false, FT_NONE, 0, {}},
+    {"channels", "receive",     1, 1, false, FT_NONE, 1, {{0, ARG_CHANNEL}}},
+    {"channels", "send",        2, 2, false, FT_NONE, 2, {{0, ARG_CHANNEL}, {1, ARG_INT}}},
+    {"channels", "try_receive", 1, 1, false, FT_NONE, 1, {{0, ARG_CHANNEL}}},
+    {"channels", "try_send",    2, 2, false, FT_NONE, 2, {{0, ARG_CHANNEL}, {1, ARG_INT}}},
+    /* crypto */
+    {"crypto", "md5",        1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"crypto", "random_hex", 1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"crypto", "sha256",     1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    /* csv */
+    {"csv", "encode",     1, 1, false, FT_NONE,                1, {{0, ARG_ARRAY}}},
+    {"csv", "headers",    1, 1, false, FT_NONE,                1, {{0, ARG_ARRAY}}},
+    {"csv", "parse",      1, 1, false, FT_NONE,                1, {{0, ARG_STRING}}},
+    {"csv", "read_file",  1, 1, true,  FT_NESTED_ARRAY_STRING, 1, {{0, ARG_STRING}}},
+    {"csv", "write_file", 2, 2, true,  FT_BOOL,                2, {{0, ARG_STRING}, {1, ARG_ARRAY}}},
+    /* encoding */
+    {"encoding", "base64_decode", 1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"encoding", "base64_encode", 1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"encoding", "hex_decode",    1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"encoding", "hex_encode",    1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"encoding", "url_decode",    1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"encoding", "url_encode",    1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    /* fmt */
+    {"fmt", "center",        3, 3,  false, FT_NONE, 3, {{0, ARG_STRING}, {1, ARG_INT}, {2, ARG_CHAR}}},
+    {"fmt", "eprintf",       1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"fmt", "eprintfln",     1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"fmt", "float_fixed",   2, 2,  false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_INT}}},
+    {"fmt", "float_sci",     1, 1,  false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"fmt", "format",        1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"fmt", "int_to_binary", 1, 1,  false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"fmt", "int_to_hex",    1, 1,  false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"fmt", "int_to_octal",  1, 1,  false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"fmt", "pad_left",      3, 3,  false, FT_NONE, 3, {{0, ARG_STRING}, {1, ARG_INT}, {2, ARG_CHAR}}},
+    {"fmt", "pad_right",     3, 3,  false, FT_NONE, 3, {{0, ARG_STRING}, {1, ARG_INT}, {2, ARG_CHAR}}},
+    {"fmt", "printf",        1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"fmt", "printfln",      1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"fmt", "sprintf",       1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"fmt", "sprintfln",     1, 99, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    /* http */
+    {"http", "delete", 2, 2, true, FT_STRUCT_HTTP_RESPONSE, 2, {{0, ARG_STRING}, {1, ARG_MAP}}},
+    {"http", "get",    2, 2, true, FT_STRUCT_HTTP_RESPONSE, 2, {{0, ARG_STRING}, {1, ARG_MAP}}},
+    {"http", "head",   2, 2, true, FT_STRUCT_HTTP_RESPONSE, 2, {{0, ARG_STRING}, {1, ARG_MAP}}},
+    {"http", "patch",  3, 3, true, FT_STRUCT_HTTP_RESPONSE, 3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_MAP}}},
+    {"http", "post",   3, 3, true, FT_STRUCT_HTTP_RESPONSE, 3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_MAP}}},
+    {"http", "put",    3, 3, true, FT_STRUCT_HTTP_RESPONSE, 3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_MAP}}},
+    /* io */
+    {"io", "append_file",    2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"io", "basename",       1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "copy_file",      2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"io", "delete_file",    1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
+    {"io", "dirname",        1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "extension",      1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "file_exists",    1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "file_size",      1, 1, true,  FT_INT,          1, {{0, ARG_STRING}}},
+    {"io", "glob",           1, 1, true,  FT_ARRAY_STRING, 1, {{0, ARG_STRING}}},
+    {"io", "is_absolute",    1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "is_directory",   1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "is_file",        1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "list_dir",       1, 1, true,  FT_ARRAY_STRING, 1, {{0, ARG_STRING}}},
+    {"io", "make_dir",       1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
+    {"io", "make_dir_all",   1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
+    {"io", "move_file",      2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"io", "normalize",      1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"io", "path_join",      1, 1, false, FT_NONE,         1, {{0, ARG_ARRAY}}},
+    {"io", "read_bytes",     1, 1, true,  FT_ARRAY_BYTE,   1, {{0, ARG_STRING}}},
+    {"io", "read_file",      1, 1, true,  FT_STRING,       1, {{0, ARG_STRING}}},
+    {"io", "read_lines",     1, 1, true,  FT_ARRAY_STRING, 1, {{0, ARG_STRING}}},
+    {"io", "remove_dir",     1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
+    {"io", "remove_dir_all", 1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
+    {"io", "rename_file",    2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"io", "walk",           1, 1, true,  FT_ARRAY_STRING, 1, {{0, ARG_STRING}}},
+    {"io", "write_file",     2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    /* json */
+    {"json", "decode",       1, 1, true,  FT_STRUCT_MAP, 1, {{0, ARG_STRING}}},
+    {"json", "encode",       1, 1, false, FT_NONE,       0, {}},
+    {"json", "is_valid",     1, 1, false, FT_NONE,       1, {{0, ARG_STRING}}},
+    {"json", "parse",        1, 1, false, FT_NONE,       1, {{0, ARG_STRING}}},
+    {"json", "pretty_print", 2, 2, false, FT_NONE,       2, {{0, ARG_MAP}, {1, ARG_INT}}},
+    {"json", "stringify",    1, 1, false, FT_NONE,       0, {}},
+    /* maps */
+    {"maps", "clear",          1, 1, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "contains_value", 2, 2, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "get_keys",       1, 1, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "get_or_default", 3, 3, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "get_values",     1, 1, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "has_key",        2, 2, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "is_empty",       1, 1, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    {"maps", "is_equal",       2, 2, false, FT_NONE, 2, {{0, ARG_MAP}, {1, ARG_MAP}}},
+    {"maps", "merge",          2, 2, false, FT_NONE, 2, {{0, ARG_MAP}, {1, ARG_MAP}}},
+    {"maps", "remove_key",     2, 2, false, FT_NONE, 1, {{0, ARG_MAP}}},
+    /* math */
+    {"math", "abs",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "acos",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "asin",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "atan",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "atan2",       2, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"math", "cbrt",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "ceil",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "clamp",       3, 3, false, FT_NONE, 3, {{0, ARG_NUMBER}, {1, ARG_NUMBER}, {2, ARG_NUMBER}}},
+    {"math", "cos",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "cosh",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "deg_to_rad",  1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "distance",    4, 4, false, FT_NONE, 4, {{0, ARG_NUMBER}, {1, ARG_NUMBER}, {2, ARG_NUMBER}, {3, ARG_NUMBER}}},
+    {"math", "exp",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "exp2",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "factorial",   1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"math", "floor",       1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "gcd",         2, 2, false, FT_NONE, 2, {{0, ARG_INT}, {1, ARG_INT}}},
+    {"math", "hypot",       2, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"math", "is_even",     1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"math", "is_finite",   1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "is_infinite", 1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "is_nan",      1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "is_odd",      1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"math", "is_prime",    1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"math", "lcm",         2, 2, false, FT_NONE, 2, {{0, ARG_INT}, {1, ARG_INT}}},
+    {"math", "lerp",        3, 3, false, FT_NONE, 3, {{0, ARG_NUMBER}, {1, ARG_NUMBER}, {2, ARG_NUMBER}}},
+    {"math", "log",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "log10",       1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "log2",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "log_base",    2, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"math", "max",         2, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"math", "min",         2, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"math", "neg",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "pow",         2, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"math", "rad_to_deg",  1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "round",       1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "sign",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "sin",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "sinh",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "sqrt",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "tan",         1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "tanh",        1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    {"math", "trunc",       1, 1, false, FT_NONE, 1, {{0, ARG_NUMBER}}},
+    /* mem */
+    {"mem", "alloc",    2, 2, false, FT_NONE, 0, {}},
+    {"mem", "arena",    1, 1, false, FT_NONE, 0, {}},
+    {"mem", "destroy",  1, 1, false, FT_NONE, 0, {}},
+    {"mem", "fill",     3, 3, false, FT_NONE, 0, {}},
+    {"mem", "init",     2, 2, false, FT_NONE, 0, {}},
+    {"mem", "raw_copy", 3, 3, false, FT_NONE, 0, {}},
+    {"mem", "reset",    1, 1, false, FT_NONE, 0, {}},
+    {"mem", "usage",    1, 1, false, FT_NONE, 0, {}},
+    {"mem", "zero",     2, 2, false, FT_NONE, 0, {}},
+    /* net */
+    {"net", "accept",      1, 1, true,  FT_STRUCT_SOCKET,   0, {}},
+    {"net", "close",       1, 1, false, FT_NONE,            0, {}},
+    {"net", "connect",     2, 2, true,  FT_STRUCT_SOCKET,   2, {{0, ARG_STRING}, {1, ARG_INT}}},
+    {"net", "listen",      1, 2, true,  FT_STRUCT_LISTENER, 1, {{1, ARG_INT}}},
+    {"net", "receive",     2, 2, true,  FT_STRING,          1, {{1, ARG_INT}}},
+    {"net", "resolve",     1, 1, true,  FT_STRING,          1, {{0, ARG_STRING}}},
+    {"net", "send",        2, 2, true,  FT_INT,             1, {{1, ARG_STRING}}},
+    {"net", "set_timeout", 2, 2, false, FT_NONE,            1, {{1, ARG_INT}}},
+    /* os */
+    {"os", "arch",        0, 0, false, FT_NONE, 0, {}},
+    {"os", "args",        0, 0, false, FT_NONE, 0, {}},
+    {"os", "current_dir", 0, 0, false, FT_NONE, 0, {}},
+    {"os", "current_os",  0, 0, false, FT_NONE, 0, {}},
+    {"os", "exec",        2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_ARRAY}}},
+    {"os", "get_env",     1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"os", "hostname",    0, 0, false, FT_NONE, 0, {}},
+    {"os", "pid",         0, 0, false, FT_NONE, 0, {}},
+    {"os", "set_env",     2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"os", "unset_env",   1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    /* random */
+    {"random", "choice",     1, 1, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"random", "rand_bool",  0, 0, false, FT_NONE, 0, {}},
+    {"random", "rand_byte",  0, 0, false, FT_NONE, 0, {}},
+    {"random", "rand_char",  0, 2, false, FT_NONE, 2, {{0, ARG_CHAR}, {1, ARG_CHAR}}},
+    {"random", "rand_float", 0, 2, false, FT_NONE, 2, {{0, ARG_NUMBER}, {1, ARG_NUMBER}}},
+    {"random", "rand_int",   1, 2, false, FT_NONE, 2, {{0, ARG_INT}, {1, ARG_INT}}},
+    {"random", "sample",     2, 2, false, FT_NONE, 2, {{0, ARG_ARRAY}, {1, ARG_INT}}},
+    {"random", "seed",       1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"random", "shuffle",    1, 1, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    /* regex */
+    {"regex", "find",     2, 2, true,  FT_STRING,       2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"regex", "find_all", 2, 2, true,  FT_ARRAY_STRING, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"regex", "is_match", 2, 2, false, FT_NONE,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"regex", "is_valid", 1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
+    {"regex", "replace",  3, 3, true,  FT_STRING,       3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_STRING}}},
+    {"regex", "split",    2, 2, true,  FT_ARRAY_STRING, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    /* server */
+    {"server", "add_route",  4, 4, false, FT_NONE, 0, {}},
+    {"server", "add_router", 0, 0, false, FT_NONE, 0, {}},
+    {"server", "cors",       2, 2, false, FT_NONE, 0, {}},
+    {"server", "html",       2, 2, false, FT_NONE, 1, {{1, ARG_STRING}}},
+    {"server", "json",       2, 2, false, FT_NONE, 1, {{1, ARG_STRING}}},
+    {"server", "listen",     2, 3, false, FT_NONE, 2, {{1, ARG_INT}, {2, ARG_STRING}}},
+    {"server", "redirect",   2, 2, false, FT_NONE, 1, {{1, ARG_STRING}}},
+    {"server", "text",       2, 2, false, FT_NONE, 1, {{1, ARG_STRING}}},
+    {"server", "use",        2, 2, false, FT_NONE, 0, {}},
+    /* sqlite */
+    {"sqlite", "close", 1, 1,  false, FT_NONE,           0, {}},
+    {"sqlite", "exec",  2, 99, true,  FT_BOOL,           0, {}},
+    {"sqlite", "open",  1, 1,  true,  FT_STRUCT_DATABASE, 1, {{0, ARG_STRING}}},
+    {"sqlite", "query", 2, 99, true,  FT_ARRAY_MAP,      0, {}},
+    /* strconv */
+    {"strconv", "from_bool",  1, 1, false, FT_NONE,  1, {{0, ARG_BOOL}}},
+    {"strconv", "from_float", 1, 1, false, FT_NONE,  1, {{0, ARG_FLOAT}}},
+    {"strconv", "from_int",   1, 1, false, FT_NONE,  1, {{0, ARG_INT}}},
+    {"strconv", "from_uint",  1, 1, false, FT_NONE,  1, {{0, ARG_INT}}},
+    {"strconv", "is_integer", 1, 1, false, FT_NONE,  1, {{0, ARG_STRING}}},
+    {"strconv", "is_numeric", 1, 1, false, FT_NONE,  1, {{0, ARG_STRING}}},
+    {"strconv", "to_bool",    1, 1, true,  FT_BOOL,  1, {{0, ARG_STRING}}},
+    {"strconv", "to_float",   1, 1, true,  FT_FLOAT, 1, {{0, ARG_STRING}}},
+    {"strconv", "to_int",     1, 2, true,  FT_INT,   2, {{0, ARG_STRING}, {1, ARG_INT}}},
+    {"strconv", "to_uint",    1, 2, true,  FT_UINT,  2, {{0, ARG_STRING}, {1, ARG_INT}}},
+    /* strings */
+    {"strings", "char_at",       2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_INT}}},
+    {"strings", "contains",      2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "count",         2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "ends_with",     2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "from_chars",    1, 1, false, FT_NONE, 1, {{0, ARG_ARRAY}}},
+    {"strings", "index_of",      2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "is_alnum",      1, 1, false, FT_NONE, 1, {{0, ARG_CHAR}}},
+    {"strings", "is_alpha",      1, 1, false, FT_NONE, 1, {{0, ARG_CHAR}}},
+    {"strings", "is_digit",      1, 1, false, FT_NONE, 1, {{0, ARG_CHAR}}},
+    {"strings", "is_empty",      1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "is_lower",      1, 1, false, FT_NONE, 1, {{0, ARG_CHAR}}},
+    {"strings", "is_upper",      1, 1, false, FT_NONE, 1, {{0, ARG_CHAR}}},
+    {"strings", "is_whitespace", 1, 1, false, FT_NONE, 1, {{0, ARG_CHAR}}},
+    {"strings", "join",          2, 2, false, FT_NONE, 2, {{0, ARG_ARRAY}, {1, ARG_STRING}}},
+    {"strings", "last_index_of", 2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "remove_prefix", 2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "remove_suffix", 2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "repeat",        2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_INT}}},
+    {"strings", "replace",       3, 3, false, FT_NONE, 3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_STRING}}},
+    {"strings", "reverse",       1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "slice",         3, 3, false, FT_NONE, 3, {{0, ARG_STRING}, {1, ARG_INT}, {2, ARG_INT}}},
+    {"strings", "split",         2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "starts_with",   2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"strings", "to_chars",      1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "to_lower",      1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "to_upper",      1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "trim",          1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "trim_left",     1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"strings", "trim_right",    1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    /* sync */
+    {"sync", "destroy",  1, 1, false, FT_NONE, 0, {}},
+    {"sync", "lock",     1, 1, false, FT_NONE, 0, {}},
+    {"sync", "mutex",    0, 0, false, FT_NONE, 0, {}},
+    {"sync", "try_lock", 1, 1, false, FT_NONE, 0, {}},
+    {"sync", "unlock",   1, 1, false, FT_NONE, 0, {}},
+    /* threads */
+    {"threads", "current",      0, 0, false, FT_NONE, 0, {}},
+    {"threads", "detach",       1, 1, false, FT_NONE, 0, {}},
+    {"threads", "get_id",       0, 0, false, FT_NONE, 0, {}},
+    {"threads", "is_alive",     1, 1, false, FT_NONE, 0, {}},
+    {"threads", "join",         1, 1, false, FT_NONE, 0, {}},
+    {"threads", "sleep",        1, 1, false, FT_NONE, 0, {}},
+    {"threads", "spawn",        1, 2, false, FT_NONE, 0, {}},
+    {"threads", "thread_count", 0, 0, false, FT_NONE, 0, {}},
+    {"threads", "yield",        0, 0, false, FT_NONE, 0, {}},
+    /* time */
+    {"time", "date",       1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "day",        1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "diff",       2, 2, false, FT_NONE, 2, {{0, ARG_INT}, {1, ARG_INT}}},
+    {"time", "elapsed_ms", 1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "format",     2, 2, false, FT_NONE, 2, {{0, ARG_STRING}, {1, ARG_INT}}},
+    {"time", "hour",       1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "minute",     1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "month",      1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "now",        0, 0, false, FT_NONE, 0, {}},
+    {"time", "now_ms",     0, 0, false, FT_NONE, 0, {}},
+    {"time", "now_ns",     0, 0, false, FT_NONE, 0, {}},
+    {"time", "second",     1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "tick",       0, 0, false, FT_NONE, 0, {}},
+    {"time", "to_clock",   1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "to_iso",     1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "weekday",    1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    {"time", "year",       1, 1, false, FT_NONE, 1, {{0, ARG_INT}}},
+    /* uuid */
+    {"uuid", "generate",             0, 0, false, FT_NONE, 0, {}},
+    {"uuid", "generate_compact",     1, 1, false, FT_NONE, 0, {}},
+    {"uuid", "generate_hyphenated",  0, 0, false, FT_NONE, 0, {}},
+    {"uuid", "generate_random",      0, 0, false, FT_NONE, 0, {}},
+    {"uuid", "generate_time_ordered", 0, 0, false, FT_NONE, 0, {}},
+    {"uuid", "is_valid",             1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"uuid", "parse",                1, 1, false, FT_NONE, 1, {{0, ARG_STRING}}},
+    {"uuid", "to_string",            1, 1, false, FT_NONE, 0, {}},
+};
+
+static int stdlib_meta_compare(const void *a, const void *b) {
+    const StdlibFuncMeta *entry_a = *(const StdlibFuncMeta *const *)a;
+    const StdlibFuncMeta *entry_b = *(const StdlibFuncMeta *const *)b;
     int r = strcmp(entry_a->mod, entry_b->mod);
     return r != 0 ? r : strcmp(entry_a->fn, entry_b->fn);
 }
 
-#define STDLIB_ARG_TYPE_TABLE_N (int)(sizeof(stdlib_arg_type_table) / sizeof(stdlib_arg_type_table[0]))
-static const StdlibArgTypeEntry *stdlib_argtype_sorted[STDLIB_ARG_TYPE_TABLE_N];
+#define STDLIB_META_N (int)(sizeof(stdlib_func_meta) / sizeof(stdlib_func_meta[0]))
+static const StdlibFuncMeta *stdlib_meta_sorted[STDLIB_META_N];
+
+static const StdlibFuncMeta *find_stdlib_meta(const char *mod, const char *fn) {
+    StdlibFuncMeta key = { .mod = mod, .fn = fn };
+    const StdlibFuncMeta *key_ptr = &key;
+    const StdlibFuncMeta **hit = bsearch(&key_ptr, stdlib_meta_sorted, STDLIB_META_N,
+        sizeof(const StdlibFuncMeta *), stdlib_meta_compare);
+    return hit ? *hit : NULL;
+}
+
+/* Returns true if (mod, fn) is a fallible stdlib function.
+ * Pass mod=NULL to check by fn name alone (any module). */
+static bool typechecker_is_fallible_stdlib(const char *mod, const char *fn) {
+    if (!mod) {
+        for (int i = 0; i < STDLIB_META_N; i++) {
+            if (stdlib_func_meta[i].fallible && strcmp(fn, stdlib_func_meta[i].fn) == 0)
+                return true;
+        }
+        return false;
+    }
+    const StdlibFuncMeta *m = find_stdlib_meta(mod, fn);
+    return m && m->fallible;
+}
+
+static GrayType *typechecker_get_fallible_stdlib_type(const char *mod, const char *fn) {
+    const StdlibFuncMeta *m = find_stdlib_meta(mod, fn);
+    if (!m || !m->fallible) return NULL;
+    switch (m->success_type) {
+    case FT_NONE:                return NULL;
+    case FT_BOOL:                return &TYPE_BOOL;
+    case FT_INT:                 return &TYPE_INT;
+    case FT_UINT:                return &TYPE_UINT;
+    case FT_FLOAT:               return &TYPE_FLOAT;
+    case FT_STRING:              return &TYPE_STRING;
+    case FT_ARRAY_STRING:        return type_array("string");
+    case FT_NESTED_ARRAY_STRING: return type_array("[string]");
+    case FT_ARRAY_BYTE:          return type_array("byte");
+    case FT_ARRAY_MAP:           return type_array("map");
+    case FT_STRUCT_DATABASE:     return type_struct("Database");
+    case FT_STRUCT_SOCKET:       return type_struct("Socket");
+    case FT_STRUCT_LISTENER:     return type_struct("Listener");
+    case FT_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
+    case FT_STRUCT_MAP:          return type_from_name("map[string:string]");
+    }
+    return NULL;
+}
+
+static void typechecker_check_stdlib_arg_count(TypeChecker *checker, const char *mod,
+    const char *fn, AstNode *node)
+{
+    const StdlibFuncMeta *m = find_stdlib_meta(mod, fn);
+    if (!m) return;
+
+    int nargs = node->data.call.arg_count;
+    if (nargs < m->min_args || nargs > m->max_args) {
+        char *msg = NULL;
+        if (m->min_args == m->max_args) {
+            msg = typechecker_format(checker,
+                "function '%s.%s' expects %d argument(s), got %d",
+                mod, fn, m->min_args, nargs);
+        } else {
+            msg = typechecker_format(checker,
+                "function '%s.%s' expects %d to %d argument(s), got %d",
+                mod, fn, m->min_args, m->max_args, nargs);
+        }
+        diagnostic_error_message(checker->diag, "E5008", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+    }
+}
+
+/* Compile-time validation for strconv base parameter.
+ * When the second arg to to_int/to_uint is a literal integer, verify it's
+ * in the valid range [2, 36]. */
+static void typechecker_check_strconv_base(TypeChecker *checker, const char *mod,
+    const char *fn, AstNode *node)
+{
+    if (strcmp(mod, "strconv") != 0) return;
+    if (strcmp(fn, "to_int") != 0 && strcmp(fn, "to_uint") != 0) return;
+    if (node->data.call.arg_count < 2) return;
+    AstNode *base_arg = node->data.call.args[1];
+    if (base_arg->kind != NODE_INT_VALUE) return;
+    int64_t base = base_arg->data.int_value.value;
+    if (base < 2 || base > 36) {
+        char *msg;
+        msg = typechecker_format(checker,
+            "invalid base %lld for strconv.%s; base must be between 2 and 36",
+            (long long)base, fn);
+        diagnostic_error_message(checker->diag, "E5009", msg,
+            NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+    }
+}
 
 static void typechecker_check_stdlib_arg_types(TypeChecker *checker, const char *mod,
     const char *fn, AstNode *node)
 {
-    StdlibArgTypeEntry key = { .mod = mod, .fn = fn };
-    const StdlibArgTypeEntry *key_ptr = &key;
-    const StdlibArgTypeEntry **hit = bsearch(&key_ptr, stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N,
-        sizeof(const StdlibArgTypeEntry *), stdlib_arg_type_entry_compare);
-    if (!hit) return;
+    const StdlibFuncMeta *m = find_stdlib_meta(mod, fn);
+    if (!m || m->arg_type_count == 0) return;
 
-    /* bsearch may land on any entry in the (mod, fn) group; walk back to first. */
-    while (hit > stdlib_argtype_sorted && stdlib_arg_type_entry_compare(hit - 1, hit) == 0) hit--;
-
-    /* Iterate the contiguous group of entries for this (mod, fn). */
-    for (; hit < stdlib_argtype_sorted + STDLIB_ARG_TYPE_TABLE_N && stdlib_arg_type_entry_compare(hit, &key_ptr) == 0; hit++) {
-        const StdlibArgTypeEntry *e = *hit;
-        int idx = e->arg_index;
+    for (int i = 0; i < m->arg_type_count; i++) {
+        int idx = m->arg_types[i].index;
         if (idx < node->data.call.arg_count) {
             GrayType *arg_t = resolve_expression(checker, node->data.call.args[idx]);
-            if (!arg_kind_matches(e->kind, arg_t)) {
+            if (!arg_kind_matches(m->arg_types[i].kind, arg_t)) {
                 char *msg = NULL;
                 msg = typechecker_format(checker,
                     "%s.%s() expects %s as argument %d, got '%s'",
-                    mod, fn, expected_kind_name(e->kind), idx + 1, type_name(arg_t));
+                    mod, fn, expected_kind_name(m->arg_types[i].kind), idx + 1, type_name(arg_t));
                 diagnostic_error_message(checker->diag, "E5026", msg,
                     NODE_FILE(checker, node->data.call.args[idx]),
                     node->data.call.args[idx]->token.line,
@@ -2927,6 +2826,12 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                     if (ref_name) {
                         FuncSig *cb_fs = find_func(checker, ref_name);
                         if (cb_fs) {
+                            /* Resolve array element type for param type checking */
+                            AstNode *arr_arg = node->data.call.args[0];
+                            GrayType *arr_t = typetable_get(checker->type_table, arr_arg);
+                            if (!arr_t) arr_t = resolve_expression(checker, arr_arg);
+                            const char *elem_tn = (arr_t && arr_t->element_type) ? arr_t->element_type : NULL;
+
                             if (strcmp(mfn, "map") == 0) {
                                 if (cb_fs->param_count != 1) {
                                     char *msg = NULL;
@@ -2940,6 +2845,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                                     diagnostic_error_code_formatted(checker->diag, "E9004",
                                         NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                         mfn, "map callback must return a value");
+                                } else if (elem_tn && cb_fs->param_types[0] &&
+                                           strcmp(type_name(cb_fs->param_types[0]), elem_tn) != 0) {
+                                    char *msg = typechecker_format(checker,
+                                        "map callback takes '%s' but array element type is '%s'",
+                                        type_name(cb_fs->param_types[0]), elem_tn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
                                 }
                             } else if (strcmp(mfn, "filter") == 0 ||
                                        strcmp(mfn, "any") == 0 ||
@@ -2960,6 +2873,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                                     diagnostic_error_code_formatted(checker->diag, "E9004",
                                         NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                         mfn, msg);
+                                } else if (elem_tn && cb_fs->param_types[0] &&
+                                           strcmp(type_name(cb_fs->param_types[0]), elem_tn) != 0) {
+                                    char *msg = typechecker_format(checker,
+                                        "%s callback takes '%s' but array element type is '%s'",
+                                        mfn, type_name(cb_fs->param_types[0]), elem_tn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
                                 }
                             } else { /* reduce */
                                 if (cb_fs->param_count != 2) {
@@ -2974,6 +2895,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
                                     diagnostic_error_code_formatted(checker->diag, "E9004",
                                         NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
                                         mfn, "reduce callback must return a value");
+                                } else if (elem_tn && cb_fs->param_types[1] &&
+                                           strcmp(type_name(cb_fs->param_types[1]), elem_tn) != 0) {
+                                    char *msg = typechecker_format(checker,
+                                        "reduce callback's element parameter takes '%s' but array element type is '%s'",
+                                        type_name(cb_fs->param_types[1]), elem_tn);
+                                    diagnostic_error_code_formatted(checker->diag, "E9004",
+                                        NODE_FILE(checker, cb_arg), cb_arg->token.line, cb_arg->token.column, 0,
+                                        mfn, msg);
                                 }
                             }
                         }
@@ -3932,6 +3861,25 @@ static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *no
                                     node->data.call.args[argument_index]->token.line,
                                     node->data.call.args[argument_index]->token.column, 0);
                             }
+                        }
+                    }
+                    /* E3027: non-assignable or const passed to mutable (&) param
+                     * in non-self instance dispatch. Args and params are 1:1
+                     * (no self prepended). */
+                    if (ssig->decl && ssig->decl->kind == NODE_FUNC_DECL) {
+                        int parameter_count = ssig->decl->data.func_decl.param_count;
+                        int clamped = node->data.call.arg_count < parameter_count
+                            ? node->data.call.arg_count : parameter_count;
+                        for (int argument_index = 0; argument_index < clamped; argument_index++) {
+                            if (!ssig->decl->data.func_decl.params[argument_index].mutable)
+                                continue;
+                            char fn_display[MSG_BUF_SIZE];
+                            snprintf(fn_display, sizeof(fn_display), "%s.%s", display_sname, mfn);
+                            char param_desc[MSG_BUF_SIZE];
+                            snprintf(param_desc, sizeof(param_desc), "mutable parameter '%s'",
+                                ssig->decl->data.func_decl.params[argument_index].name);
+                            check_mutable_arg(checker, node->data.call.args[argument_index],
+                                param_desc, fn_display);
                         }
                     }
                 } else {
@@ -5589,7 +5537,7 @@ static GrayType *resolve_call_expr(TypeChecker *checker, AstNode *node) {
          * fall through to the user-module handler below. */
         if (typechecker_is_stdlib_import(checker, mod_raw)) {
             result = resolve_stdlib_call(checker, node, mod, mfn);
-        } else if (is_struct_name(checker, mod)) {
+        } else {
             result = resolve_struct_or_module_call(checker, node, mod, mfn, mod_raw, fn);
         }
         return result;
@@ -7289,6 +7237,143 @@ static void check_reserved_name(TypeChecker *checker, const char *name, const ch
     }
 }
 
+/* --- Keyword alias consistency (E2088) --- */
+
+typedef struct {
+    const char *form;   /* first keyword form seen (e.g. "while" or "as_long_as") */
+    int line;
+    int column;
+} AliasFirst;
+
+static void check_alias_walk(TypeChecker *checker, AstNode *node,
+                             AliasFirst *while_first, AliasFirst *else_first,
+                             const char *file);
+
+static void check_alias_block(TypeChecker *checker, AstNode *block,
+                              AliasFirst *while_first, AliasFirst *else_first,
+                              const char *file) {
+    if (!block || block->kind != NODE_BLOCK_STMT) return;
+    for (int i = 0; i < block->data.block.count; i++) {
+        check_alias_walk(checker, block->data.block.stmts[i],
+                         while_first, else_first, file);
+    }
+}
+
+static void check_alias_walk(TypeChecker *checker, AstNode *node,
+                             AliasFirst *while_first, AliasFirst *else_first,
+                             const char *file) {
+    if (!node) return;
+
+    switch (node->kind) {
+    case NODE_WHILE_STMT: {
+        const char *form = node->token.literal;
+        if (form && (strcmp(form, "while") == 0 || strcmp(form, "as_long_as") == 0)) {
+            if (!while_first->form) {
+                while_first->form = form;
+                while_first->line = node->token.line;
+                while_first->column = node->token.column;
+            } else if (strcmp(while_first->form, form) != 0) {
+                char *msg = typechecker_format(checker,
+                    "mixed keyword aliases in the same file; '%s' used here, but '%s' was used on line %d",
+                    form, while_first->form, while_first->line);
+                diagnostic_error_message(checker->diag, "E2088", msg,
+                    file, node->token.line, node->token.column, 0);
+            }
+        }
+        check_alias_block(checker, node->data.while_stmt.body,
+                          while_first, else_first, file);
+        break;
+    }
+    case NODE_IF_STMT: {
+        /* Check else/otherwise alias if this node has an alternative with a stored else_token */
+        if (node->data.if_stmt.alternative && node->data.if_stmt.else_token.line > 0) {
+            const char *form = node->data.if_stmt.else_token.literal;
+            if (form && (strcmp(form, "else") == 0 || strcmp(form, "otherwise") == 0)) {
+                if (!else_first->form) {
+                    else_first->form = form;
+                    else_first->line = node->data.if_stmt.else_token.line;
+                    else_first->column = node->data.if_stmt.else_token.column;
+                } else if (strcmp(else_first->form, form) != 0) {
+                    char *msg = typechecker_format(checker,
+                        "mixed keyword aliases in the same file; '%s' used here, but '%s' was used on line %d",
+                        form, else_first->form, else_first->line);
+                    diagnostic_error_message(checker->diag, "E2088", msg,
+                        file, node->data.if_stmt.else_token.line,
+                        node->data.if_stmt.else_token.column, 0);
+                }
+            }
+        }
+        check_alias_block(checker, node->data.if_stmt.consequence,
+                          while_first, else_first, file);
+        if (node->data.if_stmt.alternative) {
+            check_alias_walk(checker, node->data.if_stmt.alternative,
+                             while_first, else_first, file);
+        }
+        break;
+    }
+    case NODE_BLOCK_STMT:
+        check_alias_block(checker, node, while_first, else_first, file);
+        break;
+    case NODE_FOR_STMT:
+        check_alias_block(checker, node->data.for_stmt.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_FOR_EACH_STMT:
+        check_alias_block(checker, node->data.for_each.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_LOOP_STMT:
+        check_alias_block(checker, node->data.loop_stmt.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_FUNC_DECL:
+        check_alias_block(checker, node->data.func_decl.body,
+                          while_first, else_first, file);
+        break;
+    case NODE_WHEN_STMT:
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            check_alias_block(checker, node->data.when_stmt.cases[i].body,
+                              while_first, else_first, file);
+        }
+        if (node->data.when_stmt.default_body) {
+            check_alias_block(checker, node->data.when_stmt.default_body,
+                              while_first, else_first, file);
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static void check_keyword_alias_consistency(TypeChecker *checker, AstNode *program) {
+    if (!program || program->kind != NODE_PROGRAM) return;
+
+    /* Track per-file state: group statements by source file */
+    const char *current_file = NULL;
+    AliasFirst while_first = {0};
+    AliasFirst else_first = {0};
+
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (!stmt) continue;
+
+        /* Determine which file this statement belongs to */
+        const char *stmt_file = stmt->token.file ? stmt->token.file : checker->file;
+
+        /* When the file changes, reset the alias trackers */
+        bool same_file = (current_file == stmt_file) ||
+            (current_file && stmt_file && strcmp(current_file, stmt_file) == 0);
+        if (!same_file) {
+            current_file = stmt_file;
+            while_first = (AliasFirst){0};
+            else_first = (AliasFirst){0};
+        }
+
+        check_alias_walk(checker, stmt, &while_first, &else_first,
+                         stmt_file ? stmt_file : checker->file);
+    }
+}
+
 /* --- Statement checking --- */
 
 static void check_statement(TypeChecker *checker, AstNode *node);
@@ -7302,11 +7387,26 @@ static bool expression_contains_call(AstNode *node) {
     if (!node) return false;
     switch (node->kind) {
     case NODE_CALL_EXPR:
-        /* embed() is a compile-time builtin and is allowed at file scope */
+        /* Compile-time builtins and intrinsic operations are allowed in
+         * constant initializers and at file scope.  Memory builtins (new,
+         * ref, copy, addr) and introspection builtins (len, type_of,
+         * size_of, make_size) produce runtime values but are not user-
+         * defined function calls — they map directly to C constructs. */
         if (node->data.call.function &&
-            node->data.call.function->kind == NODE_LABEL &&
-            strcmp(node->data.call.function->data.label.value, "embed") == 0) {
-            return false;
+            node->data.call.function->kind == NODE_LABEL) {
+            const char *name = node->data.call.function->data.label.value;
+            if (strcmp(name, "embed") == 0 ||
+                strcmp(name, "here") == 0 ||
+                strcmp(name, "new") == 0 ||
+                strcmp(name, "ref") == 0 ||
+                strcmp(name, "copy") == 0 ||
+                strcmp(name, "addr") == 0 ||
+                strcmp(name, "make_size") == 0 ||
+                strcmp(name, "len") == 0 ||
+                strcmp(name, "type_of") == 0 ||
+                strcmp(name, "size_of") == 0) {
+                return false;
+            }
         }
         return true;
     case NODE_PREFIX_EXPR:
@@ -7553,6 +7653,14 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         if (checker->func_depth == 0 && node->data.var_decl.value &&
             expression_contains_call(node->data.var_decl.value)) {
             diagnostic_error_code(checker->diag, "E5013",
+                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        }
+        /* E5040: function-scope const initializers cannot contain runtime
+         * function calls.  Constants must be compile-time-known. */
+        if (checker->func_depth > 0 && !node->data.var_decl.mutable &&
+            node->data.var_decl.value &&
+            expression_contains_call(node->data.var_decl.value)) {
+            diagnostic_error_code(checker->diag, "E5040",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
         /* Track const integer values for constant folding in later
@@ -8534,8 +8642,29 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 /* Don't register variables with unresolved types; an error
                    (E3050, E3051, etc.) has already been emitted upstream.
                    Skipping scope_define prevents confusing cascading errors.
-                   Exceptions: func refs and func ref calls (return type unknown). */
-                break;
+                   Exceptions: func refs, func ref calls (return type unknown),
+                   and wildcard propagation (value derived from a ?-typed var). */
+                bool wildcard_propagation = false;
+                if (node->data.var_decl.value) {
+                    AstNode *val = node->data.var_decl.value;
+                    /* Direct variable reference: mut tmp = val */
+                    if (val->kind == NODE_LABEL) {
+                        Symbol *src = scope_lookup(checker->current_scope, val->data.label.value);
+                        if (src && src->type->kind == TK_UNKNOWN)
+                            wildcard_propagation = true;
+                    }
+                    /* Array index: mut x = arr[0] where arr is [?] */
+                    if (val->kind == NODE_INDEX_EXPR && val->data.index_expr.left &&
+                        val->data.index_expr.left->kind == NODE_LABEL) {
+                        Symbol *src = scope_lookup(checker->current_scope,
+                            val->data.index_expr.left->data.label.value);
+                        if (src && src->type->kind == TK_ARRAY &&
+                            src->type->element_type &&
+                            strcmp(src->type->element_type, "?") == 0)
+                            wildcard_propagation = true;
+                    }
+                }
+                if (!wildcard_propagation) break;
             }
             scope_define(checker->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
@@ -8632,6 +8761,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             }
                             sym->ret_types = slots;
                             sym->ret_count = slot_count;
+                            sym->ret_types_owned = (slots != sig->return_types);
                         }
                     }
                 }
@@ -8651,6 +8781,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                            sym->ret_types_owned = true;
                         }
                     }
                     /* os.exec returns (int, string, string, bool) — synthesize 4-type slots */
@@ -8665,6 +8796,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             rt[3] = &TYPE_BOOL;
                             sym->ret_types = rt;
                             sym->ret_count = 4;
+                            sym->ret_types_owned = true;
                         }
                     }
                     /* channels.try_receive returns (int, bool) */
@@ -8677,6 +8809,7 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                             rt[1] = &TYPE_BOOL;
                             sym->ret_types = rt;
                             sym->ret_count = 2;
+                            sym->ret_types_owned = true;
                         }
                     }
                 }
@@ -10669,14 +10802,7 @@ static void validate_field_type_recursive(TypeChecker *checker, AstNode *program
 
     /* Stdlib opaque struct types are registered after user structs; accept
      * them here so struct fields can reference them without false E4016. */
-    static const char *stdlib_struct_types[] = {
-        "Thread", "Mutex", "SpinLock", "Channel", "Socket", "Listener",
-        "Database", "Router", "HttpRequest", "HttpResponse", "UUID",
-        "Arena", "SourceLocation", NULL
-    };
-    for (int struct_index = 0; stdlib_struct_types[struct_index]; struct_index++) {
-        if (strcmp(type_name, stdlib_struct_types[struct_index]) == 0) return;
-    }
+    if (is_reserved_stdlib_struct_name(type_name)) return;
 
     char *msg = NULL;
     msg = typechecker_format(checker,
@@ -11204,14 +11330,8 @@ TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
     /* Build sorted stdlib lookup tables once before any type-check begins. */
     static bool tables_built = false;
     if (!tables_built) {
-        for (int i = 0; i < STDLIB_ARG_TABLE_N; i++) stdlib_arg_sorted[i] = &stdlib_arg_table[i];
-        qsort(stdlib_arg_sorted, STDLIB_ARG_TABLE_N, sizeof(const StdlibArgEntry *), stdlib_arg_entry_compare);
-        for (int i = 0; i < STDLIB_ARG_TYPE_TABLE_N; i++) stdlib_argtype_sorted[i] = &stdlib_arg_type_table[i];
-        qsort(stdlib_argtype_sorted, STDLIB_ARG_TYPE_TABLE_N, sizeof(const StdlibArgTypeEntry *), stdlib_arg_type_entry_compare);
-        for (int i = 0; i < FALLIBLE_STDLIB_N; i++) fallible_stdlib_sorted[i] = &fallible_stdlib[i];
-        qsort(fallible_stdlib_sorted, FALLIBLE_STDLIB_N, sizeof(const FallibleEntry *), fallible_entry_compare);
-        for (int i = 0; i < FALLIBLE_TYPE_TABLE_N; i++) fallible_type_sorted[i] = &fallible_type_table[i];
-        qsort(fallible_type_sorted, FALLIBLE_TYPE_TABLE_N, sizeof(const FallibleTypeEntry *), fallible_type_entry_compare);
+        for (int i = 0; i < STDLIB_META_N; i++) stdlib_meta_sorted[i] = &stdlib_func_meta[i];
+        qsort(stdlib_meta_sorted, STDLIB_META_N, sizeof(const StdlibFuncMeta *), stdlib_meta_compare);
         tables_built = true;
     }
 
@@ -11423,6 +11543,9 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
         /* Leave def_line = 0: sentinel that lets the E4003 duplicate check
          * in check_statement distinguish pre-registration from real duplicates. */
     }
+
+    /* E2088: keyword alias consistency (while vs as_long_as, else vs otherwise) */
+    check_keyword_alias_consistency(checker, program);
 
     /* Pass 2: check all statements */
     for (int i = 0; i < program->data.program.stmt_count; i++) {

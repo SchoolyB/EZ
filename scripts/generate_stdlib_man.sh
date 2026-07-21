@@ -2,13 +2,13 @@
 # generate_stdlib_man.sh — extract @man blocks from stdlib headers
 # Usage: ./scripts/generate_stdlib_man.sh
 # Reads all *.h files under grayc/src/stdlib/ that contain @module tags.
-# Generates cmd/gray/stdlib_man_data.go (committed, do not edit by hand).
+# Generates cli/stdlib_man_data.go (committed, do not edit by hand).
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
 STDLIB_DIR="$ROOT/grayc/src/stdlib"
-OUT="$ROOT/cmd/gray/stdlib_man_data.go"
+OUT="$ROOT/cli/stdlib_man_data.go"
 
 # Collect all @man blocks from all stdlib headers into a TSV:
 #   name <TAB> module <TAB> group <TAB> sig <TAB> desc <TAB> example

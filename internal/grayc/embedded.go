@@ -30,7 +30,7 @@ var embeddedLibgrayrt []byte
 var embeddedSrc embed.FS
 
 // ErrNoEmbed indicates the embedded runtime assets are empty stubs (a
-// `go build ./cmd/gray` without a prior `make build` stage), so callers
+// `go build ./cli` without a prior `make build` stage), so callers
 // should fall back to a path search.
 var ErrNoEmbed = errors.New("embedded grayc runtime is empty (dev build)")
 

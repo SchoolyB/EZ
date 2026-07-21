@@ -205,6 +205,8 @@ bool gray_arrays_is_empty(GrayArray *arr);
  *@end
  */
 bool gray_arrays_contains_int(GrayArray *arr, int64_t value);
+bool gray_arrays_contains_char(GrayArray *arr, int32_t value);
+bool gray_arrays_contains_byte(GrayArray *arr, uint8_t value);
 bool gray_arrays_contains_float(GrayArray *arr, double value);
 bool gray_arrays_contains_str(GrayArray *arr, GrayString value);
 

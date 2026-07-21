@@ -1,0 +1,15 @@
+import @atomic
+
+do main() {
+    mut passed = 0
+    mut failed = 0
+
+    mut lk = atomic.spinlock()
+    atomic.spinlock_destroy(lk)
+    atomic.spinlock_destroy(lk)
+    passed = passed + 1
+    println("  [PASS] double spinlock_destroy is idempotent")
+
+    println("")
+    println("passed: ${passed}, failed: ${failed}")
+}

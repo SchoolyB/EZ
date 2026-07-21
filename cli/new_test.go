@@ -1,4 +1,4 @@
-// pz_test.go — Tests for the project scaffolding command, including
+// new_test.go — Tests for the project scaffolding command, including
 // template resolution, project creation, comment injection, and
 // force-overwrite behavior across all supported templates.
 //

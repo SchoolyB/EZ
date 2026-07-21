@@ -1,11 +1,16 @@
-// pz template: client (normal)
-// Requires network access to httpbun.com.
+// main.gray - HTTP client with GET and POST examples.
+//
+// Demonstrates a simple GET request and a POST with a JSON body.
+// Errors surface as a non-nil Error; check against nil before use.
+//
+// Note: the http module does not support TLS. Use http:// URLs only.
 
 import @http
 import @json
 
 do main() {
-    mut resp, err = http.get("http://httpbun.com/get")
+    mut headers map[string:string] = {:}
+    mut resp, err = http.get("http://httpbin.org/get", headers)
     if err != nil {
         println("GET failed.")
         exit(1)
@@ -14,7 +19,7 @@ do main() {
     println("GET Body: ${resp.body}")
 
     mut payload map[string:string] = {"title": "Hello from Grayscale!", "body": "This is a test post."}
-    mut post_resp, post_err = http.post("http://httpbun.com/post", json.encode(payload))
+    mut post_resp, post_err = http.post("http://httpbin.org/post", json.encode(payload), headers)
     if post_err != nil {
         println("POST failed.")
         exit(1)

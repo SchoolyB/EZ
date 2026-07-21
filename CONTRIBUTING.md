@@ -150,9 +150,9 @@ All compiler stages live in `grayc/src/`:
 5. **Runtime** (`grayc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
 6. **Stdlib** (`grayc/src/stdlib/`) — Standard library modules compiled into `libgrayrt.a`.
 
-The `gray` CLI (`cmd/gray/`) is a Go tooling wrapper that invokes the compiler. It provides watch mode, doc generation, and self-update.
+The `gray` CLI (`cli/`) is a Go tooling wrapper that invokes the compiler. It provides watch mode, doc generation, and self-update.
 
-**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (watch, etc.), you work in the Go code under `cmd/gray/`.
+**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `grayc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (watch, etc.), you work in the Go code under `cli/`.
 
 ---
 
@@ -182,11 +182,10 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 - [ ] `grayc/src/stdlib/<module>.h` — declare the C function and add a `@man` block following the existing format
 - [ ] `grayc/src/stdlib/<module>.c` — implement it
 
-#### Typechecker (`grayc/src/typechecker/typechecker.c`) — 4 locations
+#### Typechecker (`grayc/src/typechecker/typechecker.c`) — 3 locations
 
 - [ ] **Return type block** — find the `strcmp(mod, "<module>")` section and register what the function returns
-- [ ] **`stdlib_arg_table[]`** — add `{"module", "fn", min_args, max_args}` for arg count validation
-- [ ] **`stdlib_arg_type_table[]`** — add `{"module", "fn", arg_index, ARG_TYPE}` entries for arg type validation
+- [ ] **`stdlib_func_meta[]`** — add a `StdlibFuncMeta` entry with arg count range, fallibility, and per-argument type checks
 - [ ] **`_using_funcs[]`** — add `{"fn", "module", TK_RETURNTYPE}` so the `using` keyword resolves this function
 
 #### Codegen (`grayc/src/codegen/codegen.c`)
@@ -196,7 +195,7 @@ Any time you add or modify a user-facing stdlib function, builtin, constant, or 
 #### Docs
 
 - [ ] `STANDARD.md` — add the function to the module's table in the language spec
-- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cmd/gray/stdlib_man_data.go`
+- [ ] Run `./scripts/generate_stdlib_man.sh` and commit the regenerated `cli/stdlib_man_data.go`
 
 #### Build
 
@@ -228,7 +227,7 @@ All compiler diagnostics are defined in a single file: `grayc/src/util/error_cod
 
 ```
 grayscale/
-├── cmd/gray/              # Go CLI tooling wrapper
+├── cli/                   # Go CLI tooling wrapper
 │   ├── main.go            # Entry point, version
 │   ├── commands.go        # Subcommand definitions
 │   ├── watch.go           # File watcher
@@ -264,7 +263,7 @@ grayscale/
 | Add/modify error codes | `grayc/src/util/error_codes.h` + run `scripts/generate_errors.sh` |
 | Add/modify stdlib docs | `@man` block in header + run `scripts/generate_stdlib_man.sh` |
 | Add/modify builtin docs | `@man` block in header + run `scripts/generate_builtins_man.sh` |
-| Improve CLI tooling | `cmd/gray/*.go` |
+| Improve CLI tooling | `cli/*.go` |
 | Add a new language feature | Parser → Typechecker → Codegen (all in `grayc/src/`) |
 
 ---
@@ -363,7 +362,7 @@ For more details, see `TESTING.md`.
 
 ## Code Style
 
-### Go code (`cmd/gray/`, `pkg/`, `internal/`)
+### Go code (`cli/`, `pkg/`, `internal/`)
 
 - Run `gofmt` before committing
 - Follow standard Go conventions
@@ -411,7 +410,7 @@ type(scope): short description
 | `codegen` | C code generation (`grayc/src/codegen/`) |
 | `runtime` | Runtime library (`grayc/src/runtime/`) |
 | `stdlib` | Standard library (`grayc/src/stdlib/`) — optionally nested, e.g. `stdlib/strings` |
-| `cli` | Go CLI wrapper (`cmd/gray/`) |
+| `cli` | Go CLI wrapper (`cli/`) |
 | `tests` | Test additions or test infrastructure |
 | `docs` | Documentation only |
 | `ci` | GitHub Actions, release workflows |

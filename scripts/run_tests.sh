@@ -23,7 +23,7 @@ echo "Building grayc..."
 (cd "$PROJECT_ROOT/grayc" && make build) || { echo "grayc build failed"; exit 1; }
 
 echo "Building gray CLI..."
-(cd "$PROJECT_ROOT" && go build -o gray ./cmd/gray) || { echo "gray build failed"; exit 1; }
+(cd "$PROJECT_ROOT" && go build -o gray ./cli) || { echo "gray build failed"; exit 1; }
 
 # Point gray at the local grayc binary
 export GRAY_COMPILER_PATH="$PROJECT_ROOT/grayc/grayc"
@@ -112,39 +112,39 @@ for dir in "$TEST_DIR"/pass/multi-file/*/; do
     fi
 done
 
-# pz template tests — single files
-if [ -d "$TEST_DIR/pass/pz" ]; then
+# new template tests — single files
+if [ -d "$TEST_DIR/pass/new" ]; then
     echo ""
-    printf "${BOLD}PZ template tests:${NC}\n"
-    for test_file in "$TEST_DIR"/pass/pz/*.gray; do
+    printf "${BOLD}NEW template tests:${NC}\n"
+    for test_file in "$TEST_DIR"/pass/new/*.gray; do
         if [ -f "$test_file" ]; then
             test_name=$(basename "$test_file" .gray)
             if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
                 if echo "$output" | grep -q "SOME TESTS FAILED"; then
-                    fail "pz/$test_name" "(assertions failed)"
+                    fail "new/$test_name" "(assertions failed)"
                 else
-                    pass "pz/$test_name"
+                    pass "new/$test_name"
                 fi
             else
-                fail "pz/$test_name" "(execution error)"
+                fail "new/$test_name" "(execution error)"
             fi
         fi
     done
 
-    # pz template tests — multi-file
-    for dir in "$TEST_DIR"/pass/pz/*/; do
+    # new template tests — multi-file
+    for dir in "$TEST_DIR"/pass/new/*/; do
         if [ -d "$dir" ]; then
             dir_name=$(basename "$dir")
             main_file=$(find "$dir" -name "main.gray" | head -1)
             if [ -n "$main_file" ]; then
                 if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$main_file" 2>&1); then
                     if echo "$output" | grep -q "SOME TESTS FAILED"; then
-                        fail "pz/$dir_name" "(assertions failed)"
+                        fail "new/$dir_name" "(assertions failed)"
                     else
-                        pass "pz/$dir_name"
+                        pass "new/$dir_name"
                     fi
                 else
-                    fail "pz/$dir_name" "(execution error)"
+                    fail "new/$dir_name" "(execution error)"
                 fi
             fi
         fi

@@ -51,6 +51,9 @@ jobs:
       - name: Run Grayscale integration tests
         run: make test-integration
 
+      - name: Check for stray binaries
+        run: ./scripts/check_stray_binaries.sh
+
       - name: Run Grayscale UBSan tests
         run: make test-ubsan
 

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5026 - time.diff requires int arguments
+ * Expected: E5026
+ */
+
+import @time
+
+do main() {
+    mut d int = time.diff("hello", "world")
+}

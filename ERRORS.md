@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.gray` to regenerate.
 
-**Total: 365 codes** (247 errors, 17 warnings, 101 panics)
+**Total: 367 codes** (249 errors, 17 warnings, 101 panics)
 
 ---
 
@@ -79,6 +79,7 @@
 | `E2085` | syntax | when statement already has a default branch; only one default is allowed |
 | `E2086` | syntax | '%s' requires a value on the left side; '%s' checks whether a value belongs to a collection or range |
 | `E2087` | syntax | type parameters (<?>) cannot be mixed with value parameters in the same function |
+| `E2088` | syntax | mixed keyword aliases in the same file; '%s' used here, but '%s' was used on line %d |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -239,6 +240,7 @@
 | `E5037` | usage | copy() cannot be applied to a pointer; dereference first with copy(p^) |
 | `E5038` | usage | tagged enum '%s' cannot be passed to %s(); use when/is to destructure the payload first |
 | `E5039` | usage | constant expression overflows type '%s' |
+| `E5040` | usage | constant requires a compile-time value; function calls are evaluated at runtime |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no .gray files |
@@ -416,4 +418,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-18 11:03:59 UTC*
+*Generated on 2026-07-21 08:12:40 UTC*

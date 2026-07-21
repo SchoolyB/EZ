@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5026 - os.unset_env requires string argument
+ * Expected: E5026
+ */
+
+import @os
+
+do main() {
+    os.unset_env(42)
+}
