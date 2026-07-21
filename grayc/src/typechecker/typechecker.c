@@ -1243,6 +1243,11 @@ static const StdlibArgTypeEntry stdlib_arg_type_table[] = {
     {"channels", "receive", 0, ARG_CHANNEL}, {"channels", "close", 0, ARG_CHANNEL},
     {"channels", "try_send", 0, ARG_CHANNEL}, {"channels", "try_send", 1, ARG_INT},
     {"channels", "try_receive", 0, ARG_CHANNEL},
+    /* time: diff requires two int timestamps */
+    {"time", "diff", 0, ARG_INT}, {"time", "diff", 1, ARG_INT},
+    /* os: set_env/unset_env require string arguments */
+    {"os", "set_env", 0, ARG_STRING}, {"os", "set_env", 1, ARG_STRING},
+    {"os", "unset_env", 0, ARG_STRING},
     /* math: numeric argument required for all single-arg functions */
     {"math", "sqrt", 0, ARG_NUMBER}, {"math", "cbrt", 0, ARG_NUMBER},
     {"math", "log", 0, ARG_NUMBER}, {"math", "log2", 0, ARG_NUMBER},
