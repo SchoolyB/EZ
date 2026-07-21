@@ -80,7 +80,7 @@ context/
 # Ignore all .gray files by default (for local scratch/testing)
 *.gray
 
-# Keep integration tests and pz scaffolder templates tracked
+# Keep integration tests and project scaffolder templates tracked
 !integration-tests/
 !integration-tests/**
 !integration-tests/**/*.gray

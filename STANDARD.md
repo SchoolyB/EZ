@@ -3824,7 +3824,7 @@ The `gray` command-line tool provides the following commands:
 | `gray watch <file.gray>` | Watch for changes and re-run on save |
 | `gray fmt <path>` | Format source files |
 | `gray doc <path>` | Generate documentation from `#doc` attributes |
-| `gray pz <name>` | Scaffold a new project |
+| `gray new <name>` | Scaffold a new project |
 | `gray man <name>` | Show documentation for builtins, stdlib, and language reference |
 | `gray report` | Print system info for bug reports |
 | `gray update` | Check for updates and upgrade |
@@ -3963,12 +3963,12 @@ gray doc ./...
 gray doc src/ -o API.md
 ```
 
-### 13.7 `gray pz`
+### 13.7 `gray new`
 
 Scaffold a new Grayscale project.
 
 ```
-gray pz [project-name] [flags]
+gray new [project-name] [flags]
 ```
 
 | Flag | Description |
@@ -3978,14 +3978,14 @@ gray pz [project-name] [flags]
 | `-c, --comments` | Include a quick-reference comment block in the entry file. |
 | `-f, --force` | Overwrite an existing directory. |
 
-Running `gray pz` with no arguments enters interactive mode, which prompts for the project name, template, and options.
+Running `gray new` with no arguments enters interactive mode, which prompts for the project name, template, and options.
 
 ```bash
-gray pz myapp
-gray pz myapp -t cli
-gray pz myapi -t server -s minimal
-gray pz myapp -t basic -c
-gray pz                          # interactive mode
+gray new myapp
+gray new myapp -t cli
+gray new myapi -t server -s minimal
+gray new myapp -t basic -c
+gray new                          # interactive mode
 ```
 
 ### 13.8 `gray man`

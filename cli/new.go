@@ -1,4 +1,4 @@
-// pz.go — Project scaffolding command ("gray pz"). Creates new Grayscale
+// new.go — Project scaffolding command ("gray new"). Creates new Grayscale
 // projects from embedded templates with optional quick-reference comments.
 //
 // Author:  Marshall A Burns (@SchoolyB)
@@ -22,10 +22,10 @@ import (
 //go:embed templates
 var templatesFS embed.FS
 
-var errPzCancelled = fmt.Errorf("pz cancelled")
+var errNewCancelled = fmt.Errorf("new cancelled")
 
 // quickRefBlock is prepended to the entry file of a scaffolded project
-// when `gray pz -c` is used. Keep it short — a dense Grayscale cheat sheet,
+// when `gray new -c` is used. Keep it short — a dense Grayscale cheat sheet,
 // not a tutorial.
 const quickRefBlock = `// Grayscale Quick Reference
 // ---------------------
@@ -42,16 +42,16 @@ const quickRefBlock = `// Grayscale Quick Reference
 //
 `
 
-var pzCmd = &cobra.Command{
-	Use:   "pz [project-name]",
+var newCmd = &cobra.Command{
+	Use:   "new [project-name]",
 	Short: "Scaffold a new Grayscale project",
 	Long: `Scaffold a new Grayscale project with templates.
 
 Examples:
-  gray pz                      Interactive mode
-  gray pz myproject            Create with basic template
-  gray pz myproject -t cli     Create with cli template
-  gray pz myproject -t lib -c  Create library with comments
+  gray new                      Interactive mode
+  gray new myproject            Create with basic template
+  gray new myproject -t cli     Create with cli template
+  gray new myproject -t lib -c  Create library with comments
 
 Templates:
   basic  - Single file hello world (default)
@@ -61,10 +61,10 @@ Templates:
   server - HTTP server (use -s for minimal/normal)
   client - HTTP client (use -s for minimal/normal)`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runPz,
+	RunE: runNew,
 }
 
-func runPz(cmd *cobra.Command, args []string) error {
+func runNew(cmd *cobra.Command, args []string) error {
 	template, _ := cmd.Flags().GetString("template")
 	comments, _ := cmd.Flags().GetBool("comments")
 	force, _ := cmd.Flags().GetBool("force")
@@ -117,7 +117,7 @@ func runPz(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := createProject(name, template, comments, force, serverType); err != nil {
-		if err == errPzCancelled {
+		if err == errNewCancelled {
 			return nil
 		}
 		return fmt.Errorf("Error: %v", err)
@@ -179,7 +179,7 @@ func createProject(name, template string, comments, force bool, serverType strin
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
 			fmt.Println("Cancelled.")
-			return errPzCancelled
+			return errNewCancelled
 		}
 		os.RemoveAll(name)
 	}
