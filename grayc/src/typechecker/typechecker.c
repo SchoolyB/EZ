@@ -8789,8 +8789,29 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
                 /* Don't register variables with unresolved types; an error
                    (E3050, E3051, etc.) has already been emitted upstream.
                    Skipping scope_define prevents confusing cascading errors.
-                   Exceptions: func refs and func ref calls (return type unknown). */
-                break;
+                   Exceptions: func refs, func ref calls (return type unknown),
+                   and wildcard propagation (value derived from a ?-typed var). */
+                bool wildcard_propagation = false;
+                if (node->data.var_decl.value) {
+                    AstNode *val = node->data.var_decl.value;
+                    /* Direct variable reference: mut tmp = val */
+                    if (val->kind == NODE_LABEL) {
+                        Symbol *src = scope_lookup(checker->current_scope, val->data.label.value);
+                        if (src && src->type->kind == TK_UNKNOWN)
+                            wildcard_propagation = true;
+                    }
+                    /* Array index: mut x = arr[0] where arr is [?] */
+                    if (val->kind == NODE_INDEX_EXPR && val->data.index_expr.left &&
+                        val->data.index_expr.left->kind == NODE_LABEL) {
+                        Symbol *src = scope_lookup(checker->current_scope,
+                            val->data.index_expr.left->data.label.value);
+                        if (src && src->type->kind == TK_ARRAY &&
+                            src->type->element_type &&
+                            strcmp(src->type->element_type, "?") == 0)
+                            wildcard_propagation = true;
+                    }
+                }
+                if (!wildcard_propagation) break;
             }
             scope_define(checker->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
