@@ -61,7 +61,7 @@ GrayString gray_time_to_clock(GrayArena *arena, int64_t ts) {
     return gray_time_format(arena, gray_string_lit("%H:%M:%S"), ts);
 }
 
-int64_t gray_time_diff(int64_t t1, int64_t t2) { return t2 - t1; }
+int64_t gray_time_diff(int64_t t1, int64_t t2) { return gray_sub_check(t2, t1, __FILE__, __LINE__); }
 
 int64_t gray_time_tick(void) {
     struct timespec ts;
