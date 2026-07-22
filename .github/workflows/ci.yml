@@ -29,7 +29,7 @@ jobs:
           cache: true
 
       - name: Cache C build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             grayc/src/**/*.o
