@@ -891,6 +891,7 @@ static const StdlibFuncMeta stdlib_func_meta[] = {
     {"http", "post",   3, 3, true, FT_STRUCT_HTTP_RESPONSE, 3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_MAP}}},
     {"http", "put",    3, 3, true, FT_STRUCT_HTTP_RESPONSE, 3, {{0, ARG_STRING}, {1, ARG_STRING}, {2, ARG_MAP}}},
     /* io */
+    {"io", "append_bytes",   2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_ARRAY}}},
     {"io", "append_file",    2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
     {"io", "basename",       1, 1, false, FT_NONE,         1, {{0, ARG_STRING}}},
     {"io", "copy_file",      2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
@@ -915,7 +916,10 @@ static const StdlibFuncMeta stdlib_func_meta[] = {
     {"io", "remove_dir",     1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
     {"io", "remove_dir_all", 1, 1, true,  FT_BOOL,         1, {{0, ARG_STRING}}},
     {"io", "rename_file",    2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
+    {"io", "temp_dir",       0, 0, true,  FT_STRING,       0, {}},
+    {"io", "temp_file",      0, 0, true,  FT_STRING,       0, {}},
     {"io", "walk",           1, 1, true,  FT_ARRAY_STRING, 1, {{0, ARG_STRING}}},
+    {"io", "write_bytes",    2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_ARRAY}}},
     {"io", "write_file",     2, 2, true,  FT_BOOL,         2, {{0, ARG_STRING}, {1, ARG_STRING}}},
     /* json */
     {"json", "decode",       1, 1, true,  FT_STRUCT_MAP, 1, {{0, ARG_STRING}}},
@@ -1571,6 +1575,8 @@ static const UsingFunc _using_funcs[] = {
     {"remove_dir","io",TK_BOOL},{"remove_dir_all","io",TK_BOOL},
     {"copy_file","io",TK_BOOL},{"move_file","io",TK_BOOL},
     {"is_absolute","io",TK_BOOL},
+    {"write_bytes","io",TK_BOOL},{"append_bytes","io",TK_BOOL},
+    {"temp_file","io",TK_STRING},{"temp_dir","io",TK_STRING},
     {"path_join","io",TK_STRING},{"dirname","io",TK_STRING},
     {"basename","io",TK_STRING},{"extension","io",TK_STRING},
     {"normalize","io",TK_STRING},
@@ -2393,7 +2399,9 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
         if (strcmp(mfn, "read_file") == 0) {
             result = &TYPE_STRING;
         } else if (strcmp(mfn, "write_file") == 0 ||
-            strcmp(mfn, "delete_file") == 0) {
+            strcmp(mfn, "delete_file") == 0 ||
+            strcmp(mfn, "write_bytes") == 0 ||
+            strcmp(mfn, "append_bytes") == 0) {
             result = &TYPE_BOOL;
         } else if (strcmp(mfn, "file_exists") == 0 ||
                    strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
@@ -2415,7 +2423,8 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
             result = &TYPE_BOOL;
         } else if (strcmp(mfn, "path_join") == 0 || strcmp(mfn, "dirname") == 0 ||
                    strcmp(mfn, "basename") == 0 || strcmp(mfn, "extension") == 0 ||
-                   strcmp(mfn, "normalize") == 0) {
+                   strcmp(mfn, "normalize") == 0 ||
+                   strcmp(mfn, "temp_file") == 0 || strcmp(mfn, "temp_dir") == 0) {
             result = &TYPE_STRING;
         } else {
             emit_unknown_stdlib_function(checker, mod, mfn, node);

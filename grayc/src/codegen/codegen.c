@@ -5460,13 +5460,19 @@ static bool emit_io_call(CodeGen *codegen, AstNode *node, const char *func) {
         strcmp(func, "remove_dir") == 0 ||
         strcmp(func, "remove_dir_all") == 0 ||
         strcmp(func, "walk") == 0 ||
-        strcmp(func, "glob") == 0);
+        strcmp(func, "glob") == 0 ||
+        strcmp(func, "write_bytes") == 0 ||
+        strcmp(func, "append_bytes") == 0 ||
+        strcmp(func, "temp_file") == 0 ||
+        strcmp(func, "temp_dir") == 0);
     bool needs_arena = (strcmp(func, "read_file") == 0 ||
         strcmp(func, "read_bytes") == 0 ||
         strcmp(func, "read_lines") == 0 ||
         strcmp(func, "list_dir") == 0 ||
         strcmp(func, "walk") == 0 ||
         strcmp(func, "glob") == 0 ||
+        strcmp(func, "temp_file") == 0 ||
+        strcmp(func, "temp_dir") == 0 ||
         strcmp(func, "path_join") == 0 ||
         strcmp(func, "dirname") == 0 ||
         strcmp(func, "basename") == 0 ||
@@ -5480,7 +5486,8 @@ static bool emit_io_call(CodeGen *codegen, AstNode *node, const char *func) {
         bool use_non_result = !is_multi_var;
         if (use_non_result) {
             if (needs_arena) {
-                emit_formatted(codegen, "gray_io_%s(gray_default_arena, ", func);
+                emit_formatted(codegen, "gray_io_%s(gray_default_arena", func);
+                if (node->data.call.arg_count > 0) emit(codegen, ", ");
             } else {
                 emit_formatted(codegen, "gray_io_%s(", func);
             }
@@ -5490,7 +5497,8 @@ static bool emit_io_call(CodeGen *codegen, AstNode *node, const char *func) {
             }
             emit(codegen, ")");
         } else {
-            emit_formatted(codegen, "gray_io_%s_result(gray_default_arena, ", func);
+            emit_formatted(codegen, "gray_io_%s_result(gray_default_arena", func);
+            if (node->data.call.arg_count > 0) emit(codegen, ", ");
             for (int i = 0; i < node->data.call.arg_count; i++) {
                 if (i > 0) emit(codegen, ", ");
                 emit_expression(codegen, node->data.call.args[i]);
@@ -5501,7 +5509,8 @@ static bool emit_io_call(CodeGen *codegen, AstNode *node, const char *func) {
     }
     /* Non-fallible functions */
     if (needs_arena) {
-        emit_formatted(codegen, "gray_io_%s(gray_default_arena, ", func);
+        emit_formatted(codegen, "gray_io_%s(gray_default_arena", func);
+        if (node->data.call.arg_count > 0) emit(codegen, ", ");
     } else {
         emit_formatted(codegen, "gray_io_%s(", func);
     }

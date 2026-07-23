@@ -133,6 +133,30 @@ bool gray_io_write_file(GrayString path, GrayString content);
  */
 bool gray_io_append_file(GrayString path, GrayString content);
 
+/*@man write_bytes
+ *@module io
+ *@group File Writing
+ *@sig write_bytes(path string, data [byte]) -> (bool, Error)
+ *@desc Writes a byte array to the file at path, creating it if it does not exist or overwriting it if it does. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
+ *@example
+ *   import @io
+ *   io.write_bytes("out.bin", data)
+ *@end
+ */
+bool gray_io_write_bytes(GrayString path, GrayArray data);
+
+/*@man append_bytes
+ *@module io
+ *@group File Writing
+ *@sig append_bytes(path string, data [byte]) -> (bool, Error)
+ *@desc Appends a byte array to the end of the file at path. Creates the file if it does not exist. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
+ *@example
+ *   import @io
+ *   io.append_bytes("log.bin", data)
+ *@end
+ */
+bool gray_io_append_bytes(GrayString path, GrayArray data);
+
 /* File operations */
 
 /*@man delete_file
@@ -275,6 +299,34 @@ GrayArray gray_io_walk(GrayArena *arena, GrayString path);
  */
 GrayArray gray_io_glob(GrayArena *arena, GrayString pattern);
 
+/* Temporary files */
+
+/*@man temp_file
+ *@module io
+ *@group Temporary Files
+ *@sig temp_file() -> (string, Error)
+ *@desc Creates a temporary file and returns its path. The file is automatically deleted when the program exits. Always use destructuring — single-variable assignment is a compile error.
+ *@example
+ *   import @io
+ *   mut path string = io.temp_file()
+ *   io.write_file(path, "scratch data")
+ *@end
+ */
+GrayString gray_io_temp_file(GrayArena *arena);
+
+/*@man temp_dir
+ *@module io
+ *@group Temporary Files
+ *@sig temp_dir() -> (string, Error)
+ *@desc Creates a temporary directory and returns its path. The directory and all its contents are automatically deleted when the program exits. Always use destructuring — single-variable assignment is a compile error.
+ *@example
+ *   import @io
+ *   mut path string = io.temp_dir()
+ *   io.write_file(io.path_join([path, "data.txt"]), "hello")
+ *@end
+ */
+GrayString gray_io_temp_dir(GrayArena *arena);
+
 /* Path manipulation */
 
 /*@man path_join
@@ -375,6 +427,10 @@ GrayResult_bool gray_io_make_dir_all_result(GrayArena *arena, GrayString path);
 GrayResult_bool gray_io_remove_dir_result(GrayArena *arena, GrayString path);
 GrayResult_bool gray_io_remove_dir_all_result(GrayArena *arena, GrayString path);
 GrayResult_array gray_io_walk_result(GrayArena *arena, GrayString path);
+GrayResult_bool gray_io_write_bytes_result(GrayArena *arena, GrayString path, GrayArray data);
+GrayResult_bool gray_io_append_bytes_result(GrayArena *arena, GrayString path, GrayArray data);
+GrayResult_string gray_io_temp_file_result(GrayArena *arena);
+GrayResult_string gray_io_temp_dir_result(GrayArena *arena);
 
 /*@man O_RDONLY
  *@module io

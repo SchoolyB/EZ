@@ -2888,6 +2888,8 @@ Error-returning variant: `decode`
 |----------|-----------|-------------|
 | `write_file` | `(path string, content string) -> bool` | Write file |
 | `append_file` | `(path string, content string) -> bool` | Append to file |
+| `write_bytes` | `(path string, data [byte]) -> bool` | Write byte array to file |
+| `append_bytes` | `(path string, data [byte]) -> bool` | Append byte array to file |
 
 #### File Operations
 
@@ -2913,6 +2915,13 @@ Error-returning variant: `decode`
 | `remove_dir_all` | `(path string) -> bool` | Remove directory and all contents |
 | `walk` | `(path string) -> [string]` | Recursively list all files |
 | `glob` | `(pattern string) -> [string]` | Match files by glob pattern; returns empty array on no match |
+
+#### Temporary Files
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `temp_file` | `() -> string` | Create a temporary file; returns its path. Automatically deleted on exit |
+| `temp_dir` | `() -> string` | Create a temporary directory; returns its path. Automatically deleted on exit |
 
 #### Path Manipulation
 
@@ -2953,6 +2962,10 @@ Most functions that can fail have an error-returning variant usable via multi-va
 | `remove_dir_all` | `(bool, Error)` |
 | `walk` | `([string], Error)` |
 | `glob` | `([string], Error)` |
+| `write_bytes` | `(bool, Error)` |
+| `append_bytes` | `(bool, Error)` |
+| `temp_file` | `(string, Error)` |
+| `temp_dir` | `(string, Error)` |
 
 ```gray
 // Always use destructuring; single-variable assignment is a compile error

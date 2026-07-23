@@ -9,6 +9,12 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE  /* mkdtemp */
+#else
+#define _DEFAULT_SOURCE   /* mkdtemp */
+#endif
+
 #include "io.h"
 #include <fcntl.h>
 #include <stdio.h>
@@ -18,6 +24,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <glob.h>
+#include <stdlib.h>
 
 #define GRAY_IO_PATH_BUF          4096
 #define GRAY_IO_COPY_BUF          8192
@@ -25,6 +32,39 @@
 #define GRAY_IO_DIR_MODE          0755
 #define GRAY_IO_FILE_MODE         0644
 #define GRAY_IO_WALK_INITIAL_CAP  32
+#define GRAY_IO_MAX_TEMP_PATHS    256
+
+/* ---- Temp cleanup registry ---- */
+
+static char *temp_paths[GRAY_IO_MAX_TEMP_PATHS];
+static int temp_path_count = 0;
+static bool temp_cleanup_registered = false;
+
+static bool remove_dir_recursive(const char *path); /* forward decl */
+
+static void gray_io_temp_cleanup(void) {
+    for (int i = 0; i < temp_path_count; i++) {
+        struct stat st;
+        if (stat(temp_paths[i], &st) == 0) {
+            if (S_ISDIR(st.st_mode))
+                remove_dir_recursive(temp_paths[i]);
+            else
+                unlink(temp_paths[i]);
+        }
+        free(temp_paths[i]);
+    }
+    temp_path_count = 0;
+}
+
+static void temp_registry_add(const char *path) {
+    if (!temp_cleanup_registered) {
+        atexit(gray_io_temp_cleanup);
+        temp_cleanup_registered = true;
+    }
+    if (temp_path_count < GRAY_IO_MAX_TEMP_PATHS) {
+        temp_paths[temp_path_count++] = strdup(path);
+    }
+}
 
 /* ---- Path manipulation (pure, no I/O) ---- */
 
@@ -311,6 +351,44 @@ bool gray_io_append_file(GrayString path, GrayString content) {
     size_t written = fwrite(content.data, 1, (size_t)content.len, f);
     fclose(f);
     return written == (size_t)content.len;
+}
+
+bool gray_io_write_bytes(GrayString path, GrayArray data) {
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        gray_panic_code("P0087", "io.write_bytes() cannot write to a directory");
+    FILE *f = fopen(path.data, "wb");
+    if (!f) return false;
+    size_t written = fwrite(data.data, 1, (size_t)data.len, f);
+    fclose(f);
+    return written == (size_t)data.len;
+}
+
+bool gray_io_append_bytes(GrayString path, GrayArray data) {
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode))
+        gray_panic_code("P0088", "io.append_bytes() cannot append to a directory");
+    FILE *f = fopen(path.data, "ab");
+    if (!f) return false;
+    size_t written = fwrite(data.data, 1, (size_t)data.len, f);
+    fclose(f);
+    return written == (size_t)data.len;
+}
+
+GrayString gray_io_temp_file(GrayArena *arena) {
+    char tmpl[] = "/tmp/gray_XXXXXX";
+    int fd = mkstemp(tmpl);
+    if (fd < 0) return gray_string_lit("");
+    close(fd);
+    temp_registry_add(tmpl);
+    return gray_string_new(arena, tmpl, (int32_t)strlen(tmpl));
+}
+
+GrayString gray_io_temp_dir(GrayArena *arena) {
+    char tmpl[] = "/tmp/gray_XXXXXX";
+    if (!mkdtemp(tmpl)) return gray_string_lit("");
+    temp_registry_add(tmpl);
+    return gray_string_new(arena, tmpl, (int32_t)strlen(tmpl));
 }
 
 bool gray_io_delete_file(GrayString path) {
@@ -795,6 +873,77 @@ GrayResult_array gray_io_glob_result(GrayArena *arena, GrayString pattern) {
         gray_array_push(arena, &r.v0, &s);
     }
     globfree(&gl);
+    r.v1 = NULL;
+    return r;
+}
+
+GrayResult_bool gray_io_write_bytes_result(GrayArena *arena, GrayString path, GrayArray data) {
+    GrayResult_bool r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = false;
+        r.v1 = gray_error_new(arena, gray_string_format(arena,
+            "cannot write '%s': is a directory", path.data));
+        return r;
+    }
+    FILE *f = fopen(path.data, "wb");
+    if (!f) {
+        r.v0 = false;
+        r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot write '%s'", path.data));
+        return r;
+    }
+    fwrite(data.data, 1, (size_t)data.len, f);
+    fclose(f);
+    r.v0 = true;
+    r.v1 = NULL;
+    return r;
+}
+
+GrayResult_bool gray_io_append_bytes_result(GrayArena *arena, GrayString path, GrayArray data) {
+    GrayResult_bool r;
+    struct stat _st;
+    if (stat(path.data, &_st) == 0 && S_ISDIR(_st.st_mode)) {
+        r.v0 = false;
+        r.v1 = gray_error_new(arena, gray_string_format(arena,
+            "cannot append to '%s': is a directory", path.data));
+        return r;
+    }
+    if (gray_io_append_bytes(path, data)) {
+        r.v0 = true;
+        r.v1 = NULL;
+    } else {
+        r.v0 = false;
+        r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot append to '%s'", path.data));
+    }
+    return r;
+}
+
+GrayResult_string gray_io_temp_file_result(GrayArena *arena) {
+    GrayResult_string r;
+    char tmpl[] = "/tmp/gray_XXXXXX";
+    int fd = mkstemp(tmpl);
+    if (fd < 0) {
+        r.v0 = gray_string_lit("");
+        r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot create temporary file"));
+        return r;
+    }
+    close(fd);
+    temp_registry_add(tmpl);
+    r.v0 = gray_string_new(arena, tmpl, (int32_t)strlen(tmpl));
+    r.v1 = NULL;
+    return r;
+}
+
+GrayResult_string gray_io_temp_dir_result(GrayArena *arena) {
+    GrayResult_string r;
+    char tmpl[] = "/tmp/gray_XXXXXX";
+    if (!mkdtemp(tmpl)) {
+        r.v0 = gray_string_lit("");
+        r.v1 = gray_error_new(arena, gray_string_format(arena, "cannot create temporary directory"));
+        return r;
+    }
+    temp_registry_add(tmpl);
+    r.v0 = gray_string_new(arena, tmpl, (int32_t)strlen(tmpl));
     r.v1 = NULL;
     return r;
 }
