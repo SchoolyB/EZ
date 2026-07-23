@@ -9922,23 +9922,34 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             diagnostic_error_code(checker->diag, "E3129",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
+        Scope *wh_outer = checker->current_scope;
+        Scope *wh_scope = scope_create(wh_outer);
+        checker->current_scope = wh_scope;
         checker->loop_depth++;
         check_block(checker, node->data.while_stmt.body);
         checker->loop_depth--;
+        checker->current_scope = wh_outer;
+        scope_destroy(wh_scope);
         break;
     }
 
-    case NODE_LOOP_STMT:
+    case NODE_LOOP_STMT: {
         /* E3129: empty loop body hangs forever at runtime */
         if (node->data.loop_stmt.body &&
             node->data.loop_stmt.body->data.block.count == 0) {
             diagnostic_error_code(checker->diag, "E3129",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
+        Scope *lp_outer = checker->current_scope;
+        Scope *lp_scope = scope_create(lp_outer);
+        checker->current_scope = lp_scope;
         checker->loop_depth++;
         check_block(checker, node->data.loop_stmt.body);
         checker->loop_depth--;
+        checker->current_scope = lp_outer;
+        scope_destroy(lp_scope);
         break;
+    }
 
     case NODE_BREAK_STMT:
     case NODE_CONTINUE_STMT:

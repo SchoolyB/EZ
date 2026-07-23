@@ -1,0 +1,16 @@
+/*
+ * Error Test: E4001 - loop-scope-leak
+ * Expected: "undefined variable 'inner'"
+ */
+
+do main() {
+    mut count int = 0
+    loop {
+        mut inner int = 99
+        count++
+        if count >= 1 {
+            break
+        }
+    }
+    println("${inner}")
+}
