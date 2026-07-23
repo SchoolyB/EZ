@@ -8906,17 +8906,69 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         GrayType *value_t = resolve_expression(checker, node->data.assign.value);
         checker->expected_type = saved_expected;
 
-        /* E3078: compound arithmetic assigns on pointer variables
-         * (p += 1, p -= 2, etc.) are pointer arithmetic and not
-         * supported. Plain `=` (and the existing `p = nil` /
-         * `p = addr(...)` paths) stay valid. */
+        /* Compound assignment type validation: x op= y must be valid
+         * when x op y would be valid. Mirrors the checks in
+         * resolve_infix_expr() for the corresponding binary operator. */
         TokenType aop = node->data.assign.op;
-        if ((aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN ||
-             aop == TOK_ASTERISK_ASSIGN || aop == TOK_SLASH_ASSIGN ||
-             aop == TOK_PERCENT_ASSIGN) &&
-            target_t && target_t->kind == TK_POINTER) {
-            diagnostic_error_code(checker->diag, "E3078",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        if (aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN ||
+            aop == TOK_ASTERISK_ASSIGN || aop == TOK_SLASH_ASSIGN ||
+            aop == TOK_PERCENT_ASSIGN) {
+
+            /* E3078: pointer arithmetic */
+            if (target_t && target_t->kind == TK_POINTER) {
+                diagnostic_error_code(checker->diag, "E3078",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+
+            if (target_t && value_t &&
+                target_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN) {
+
+                /* E3002: bool in arithmetic */
+                if (target_t->kind == TK_BOOL || value_t->kind == TK_BOOL) {
+                    char *msg = typechecker_format(checker,
+                        "invalid operands: cannot use '%s' with %s and %s",
+                        operator_to_string(aop), type_name(target_t), type_name(value_t));
+                    diagnostic_error_message(checker->diag, "E3002", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+
+                /* E3048: string += (concatenation) */
+                if ((target_t->kind == TK_STRING || value_t->kind == TK_STRING) &&
+                    aop == TOK_PLUS_ASSIGN) {
+                    diagnostic_error_code_help(checker->diag, "E3048",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                        "use string interpolation \"${a}${b}\" or fmt.format() to combine strings");
+                }
+
+                /* E3002: string in non-plus arithmetic */
+                if ((target_t->kind == TK_STRING || value_t->kind == TK_STRING) &&
+                    aop != TOK_PLUS_ASSIGN) {
+                    char *msg = typechecker_format(checker,
+                        "cannot use '%s' on string type", operator_to_string(aop));
+                    diagnostic_error_message(checker->diag, "E3002", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+
+                /* E3002: modulo on float */
+                if (aop == TOK_PERCENT_ASSIGN &&
+                    (target_t->kind == TK_FLOAT || value_t->kind == TK_FLOAT)) {
+                    diagnostic_error_message(checker->diag, "E3002",
+                        "modulo (%) only works on integers, not floats",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+
+                /* E3093: arithmetic on map, array, or struct */
+                if (target_t->kind == TK_MAP || target_t->kind == TK_ARRAY ||
+                    target_t->kind == TK_STRUCT ||
+                    value_t->kind == TK_MAP || value_t->kind == TK_ARRAY ||
+                    value_t->kind == TK_STRUCT) {
+                    GrayType *bad = (target_t->kind == TK_MAP || target_t->kind == TK_ARRAY ||
+                                     target_t->kind == TK_STRUCT) ? target_t : value_t;
+                    diagnostic_error_code_formatted(checker->diag, "E3093",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                        operator_to_string(aop), type_display_name(checker, bad));
+                }
+            }
         }
 
         /* E6008: reject assignment to stdlib module constants (math.PI = x, etc.) */

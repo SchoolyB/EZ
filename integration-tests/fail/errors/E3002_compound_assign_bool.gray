@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3002 - compound-assign-bool
+ * Expected: "invalid operands: cannot use '+=' with bool and bool"
+ */
+
+do main() {
+    mut b bool = true
+    b += true
+}
