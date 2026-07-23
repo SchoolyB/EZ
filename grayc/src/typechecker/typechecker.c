@@ -11630,25 +11630,6 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
         }
     }
 
-    /* Pass 1.5: Pre-register all global constants and variables that have an
-     * explicit type annotation. This allows global initializers to reference
-     * any other global constant regardless of declaration order within the
-     * same file or across imported files. The def_line is intentionally left
-     * as 0 to mark these as pre-registered (not real duplicates); Pass 2
-     * overwrites each entry with the fully resolved type and real def_line. */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind != NODE_VAR_DECL) continue;
-        if (!stmt->data.var_decl.type_name) continue; /* inferred type — skip */
-        if (scope_lookup_local(checker->current_scope, stmt->data.var_decl.name)) continue;
-        GrayType *pre_t = type_from_name(stmt->data.var_decl.type_name);
-        if (!pre_t) continue;
-        scope_define(checker->current_scope, stmt->data.var_decl.name,
-            pre_t, stmt->data.var_decl.mutable);
-        /* Leave def_line = 0: sentinel that lets the E4003 duplicate check
-         * in check_statement distinguish pre-registration from real duplicates. */
-    }
-
     /* E2088: keyword alias consistency (while vs as_long_as, else vs otherwise) */
     check_keyword_alias_consistency(checker, program);
 
