@@ -718,7 +718,7 @@ The number of bindings in a pattern must match the variant's payload count. `#st
 
 ### 3.3 Type Inference
 
-Grayscale is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.
+Grayscale is a statically-typed language with type inference. The type of every variable is known at compile time, and explicit type annotations are optional in most contexts when the compiler can determine the type from the initializer.
 
 Type inference works with:
 
@@ -729,6 +729,8 @@ Type inference works with:
 5. **Multiple return values** - Each variable's type is inferred from the corresponding return type
 
 > 💡 **Tip:** Array and map literals do **not** support type inference. You must always provide an explicit type annotation (e.g., `mut arr [int] = {1, 2, 3}`, `mut m map[string:int] = {"a": 1}`).
+
+> ⚠️ **File-scope `const` declarations** of primitive types and arrays require explicit type annotations. Type inference for `const` is only supported inside function bodies. For example, `const MAX_SIZE int = 100` is required at file scope, while `const x = 42` is valid inside a function.
 
 ```gray
 // Inferred from literals
@@ -764,9 +766,9 @@ do divide(a, b int) -> (int, int) {
 mut quotient, remainder = divide(10, 3)  // Both inferred: int
 ```
 
-Explicit type annotations are never required but can be used for clarity or documentation.
+Explicit type annotations are generally optional but can be used for clarity or documentation. The exceptions are file-scope `const` declarations of primitive types and arrays, which always require explicit type annotations.
 
-> 💡 **Tip:** You don't need to write the type if the compiler can figure it out, but adding it never hurts for readability.
+> 💡 **Tip:** You don't need to write the type if the compiler can figure it out, but adding it never hurts for readability. At file scope, `const` declarations of primitives and arrays always need the type.
 
 ### 3.4 Type Conversions
 
@@ -830,6 +832,8 @@ const PI float = 3.14159
 const MAX_SIZE int = 100
 const origin = Point{x: 0, y: 0}
 ```
+
+> ⚠️ At file scope, `const` declarations of primitive types (`int`, `float`, `string`, `bool`, `char`, `byte`) and arrays require explicit type annotations. Struct literals and enum values can still be inferred. Inside function bodies, type inference works for all `const` declarations.
 
 ### 4.3 Mutability
 
