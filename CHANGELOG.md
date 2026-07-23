@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.0.4](https://github.com/grayscale-lang/grayscale/compare/v0.0.3...v0.0.4) (2026-07-23)
+
+
+### Bug Fixes
+
+* **codegen:** evaluate when match expression once into a temporary ([#2126](https://github.com/grayscale-lang/grayscale/issues/2126)) ([50ea594](https://github.com/grayscale-lang/grayscale/commit/50ea594bf5357b7f49b2de934ba84c716fee6905))
+* **codegen:** hoist map collection into temporary for for_each iteration ([#2128](https://github.com/grayscale-lang/grayscale/issues/2128)) ([358ff60](https://github.com/grayscale-lang/grayscale/commit/358ff608c9e60c6b08924f13e54da768b926b487))
+* **codegen:** inject default params for struct function calls ([#2130](https://github.com/grayscale-lang/grayscale/issues/2130)) ([187e5bc](https://github.com/grayscale-lang/grayscale/commit/187e5bc9adf150b2320c5026df4906ca02a88b21))
+* **parser:** emit E2002 for type keywords as enum binding names ([#2129](https://github.com/grayscale-lang/grayscale/issues/2129)) ([9bfe428](https://github.com/grayscale-lang/grayscale/commit/9bfe428853fc6934c73780bd03f4b6b6c75053a2))
+* **typechecker:** add child scopes for while and loop bodies ([#2127](https://github.com/grayscale-lang/grayscale/issues/2127)) ([aa7e86e](https://github.com/grayscale-lang/grayscale/commit/aa7e86e1a23e2559c08271e2bc7600d34514d991))
+* **typechecker:** emit E3040 for multi-return calls in aggregate contexts ([#2114](https://github.com/grayscale-lang/grayscale/issues/2114)) ([013566b](https://github.com/grayscale-lang/grayscale/commit/013566b05edbaed10ff5af6aca4a55a086c65b7d))
+* **typechecker:** emit E3130 for bare func as struct field type ([#2121](https://github.com/grayscale-lang/grayscale/issues/2121)) ([ec7232c](https://github.com/grayscale-lang/grayscale/commit/ec7232c3df53423d55f10def71aa4d8b7282e098))
+* **typechecker:** reject global constant forward references ([#2132](https://github.com/grayscale-lang/grayscale/issues/2132)) ([05865bc](https://github.com/grayscale-lang/grayscale/commit/05865bc378e2af9a243b024fad2a3e37e6785ddb))
+* **typechecker:** validate types for compound assignment operators ([#2125](https://github.com/grayscale-lang/grayscale/issues/2125)) ([307ce27](https://github.com/grayscale-lang/grayscale/commit/307ce27ff66157d151d55b5cb14aab06ea66f531))
+
+
+### Documentation
+
+* regenerate ERRORS.md from error_codes.h ([c09d816](https://github.com/grayscale-lang/grayscale/commit/c09d816fce751b23ee701ae693af446b1699326e))
+* Updated STANDARD.md ([456fef5](https://github.com/grayscale-lang/grayscale/commit/456fef5adc28be7785f4af4396e76f582fed2674))
+
 ## [0.0.3](https://github.com/grayscale-lang/grayscale/compare/v0.0.2...v0.0.3) (2026-07-21)
 
 
