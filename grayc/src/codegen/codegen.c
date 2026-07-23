@@ -9003,6 +9003,16 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         /* Detect wide integer type for the when value */
         const char *when_bigint = (when_val_t && when_val_t->name && is_bigint_type(when_val_t->name))
             ? when_val_t->name : resolve_bigint_type(codegen, val);
+        /* Evaluate the match expression once into a temporary so that
+         * side-effecting expressions (function calls, increments, etc.)
+         * are not re-executed for each is-arm. */
+        static int when_tmp_ctr = 0;
+        char when_tmp[64];
+        snprintf(when_tmp, sizeof(when_tmp), "_gray_when%d", when_tmp_ctr++);
+        emit_indent(codegen);
+        emit_formatted(codegen, "__auto_type %s = ", when_tmp);
+        emit_expression(codegen, val);
+        emit(codegen, ";\n");
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             WhenCase *wc = &node->data.when_stmt.cases[i];
             emit_indent(codegen);
@@ -9018,7 +9028,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                     const char *vname = wc->values[j]->data.when_pattern.variant;
                     const char *ename = wc->values[j]->data.when_pattern.enum_name;
                     if (!ename) ename = when_tagged_ename;
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit_formatted(codegen, ".tag == GrayEnum_%s_TAG_%s", ename, vname);
                 } else if (when_is_tagged) {
                     /* Tagged enum, plain variant: compare .tag */
@@ -9030,10 +9040,10 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                         vname = cv->data.implicit_enum.variant;
                     }
                     if (vname) {
-                        emit_expression(codegen, val);
+                        emit(codegen, when_tmp);
                         emit_formatted(codegen, ".tag == GrayEnum_%s_TAG_%s", when_tagged_ename, vname);
                     } else {
-                        emit_expression(codegen, val);
+                        emit(codegen, when_tmp);
                         emit(codegen, ".tag == ");
                         emit_expression(codegen, cv);
                     }
@@ -9044,16 +9054,16 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                         range->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
                         range->data.range_expr.step->data.prefix.op == TOK_MINUS);
                     emit(codegen, "(");
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, neg_step ? " <= " : " >= ");
                     emit_expression(codegen, range->data.range_expr.start);
                     emit(codegen, " && ");
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, neg_step ? " > " : " < ");
                     emit_expression(codegen, range->data.range_expr.end);
                     if (range->data.range_expr.step) {
                         emit(codegen, " && (");
-                        emit_expression(codegen, val);
+                        emit(codegen, when_tmp);
                         emit(codegen, " - ");
                         emit_expression(codegen, range->data.range_expr.start);
                         emit(codegen, ") % ");
@@ -9063,18 +9073,18 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                     emit(codegen, ")");
                 } else if (when_is_string) {
                     emit(codegen, "gray_string_eq(");
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, ", ");
                     emit_expression(codegen, wc->values[j]);
                     emit(codegen, ")");
                 } else if (when_bigint) {
                     emit_formatted(codegen, "%s_eq(", bigint_prefix(when_bigint));
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, ", ");
                     emit_expression(codegen, wc->values[j]);
                     emit(codegen, ")");
                 } else {
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, " == ");
                     emit_expression(codegen, wc->values[j]);
                 }
@@ -9104,7 +9114,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                                 emit_formatted(codegen, "%s %s = ",
                                     gray_type_to_c_codegen(codegen, ev->payload_types[bi]),
                                     pat->data.when_pattern.bindings[bi]);
-                                emit_expression(codegen, val);
+                                emit(codegen, when_tmp);
                                 emit_formatted(codegen, ".data.%s._%d;\n", vname, bi);
                             }
                         }
