@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3130 - bare-func-struct-field
+ * Expected: "bare 'func' is not allowed as a struct field type"
+ */
+
+const Foobar struct {
+    name string
+    callback func
+}
+
+do main() {
+    println("unreachable")
+}

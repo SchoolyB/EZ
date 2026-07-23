@@ -10794,6 +10794,15 @@ static void validate_field_type_recursive(TypeChecker *checker, AstNode *program
 
     /* Leaf: must be a known primitive, enum, struct, or wildcard '?' */
     if (type_name_has_wildcard(type_name)) return;
+
+    /* Bare func: reject with guidance toward typed signature */
+    if (strcmp(type_name, "func") == 0) {
+        diagnostic_error_code_help(checker->diag, "E3130",
+            NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0,
+            "use a typed signature: func(params) -> return_type");
+        return;
+    }
+
     GrayType *t = typechecker_type_from_name(checker, type_name);
     if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
     if (is_enum_name(checker, type_name)) return;

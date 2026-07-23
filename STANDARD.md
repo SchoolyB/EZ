@@ -1834,7 +1834,7 @@ Inside the function body, call through the parameter the same way: `f(x)`.
 
 #### 7.6.3 Func References in Composite Types
 
-Bare `func` is a valid type in arrays, maps, and struct fields. Elements are untyped function pointers; the cast is reconstructed from context at each call site:
+Bare `func` is a valid type in arrays and maps. Elements are untyped function pointers; the cast is reconstructed from context at each call site:
 
 ```gray
 import @arrays
@@ -1864,7 +1864,7 @@ Typed func signatures as an array element type (e.g. `[func(int)->int]`) are not
 
 #### 7.6.4 Func Fields in Structs
 
-Struct fields can hold func references. Use a typed `func` signature for the field type to get compile-time argument checking:
+Struct fields can hold func references. A typed `func` signature is required for struct field types — bare `func` is not allowed. This ensures compile-time argument checking:
 
 ```gray
 const Wrapper struct {
