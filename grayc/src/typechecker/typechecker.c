@@ -2126,6 +2126,33 @@ static void reject_void_in_context(TypeChecker *checker, AstNode *expr,
         NODE_FILE(checker, expr), expr->token.line, expr->token.column, 0);
 }
 
+/* E3040: reject multi-return calls in single-value positions (array
+ * elements, map values, return expressions, etc.). Shared helper to
+ * avoid duplicating the lookup logic at each call site. */
+static void reject_multi_return_in_single_position(TypeChecker *checker, AstNode *expr) {
+    if (!expr || expr->kind != NODE_CALL_EXPR) return;
+    AstNode *fn = expr->data.call.function;
+    FuncSig *sig = NULL;
+    const char *name = NULL;
+    if (fn && fn->kind == NODE_LABEL) {
+        name = fn->data.label.value;
+        sig = find_func(checker, name);
+    } else if (fn && fn->kind == NODE_MEMBER_EXPR &&
+               fn->data.member.object->kind == NODE_LABEL) {
+        const char *mod_raw = fn->data.member.object->data.label.value;
+        const char *mod = typechecker_resolve_alias(checker, mod_raw);
+        name = fn->data.member.member;
+        char prefixed[MSG_BUF_SIZE];
+        snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, name);
+        sig = find_func(checker, prefixed);
+    }
+    if (sig && sig->return_count > 1) {
+        diagnostic_error_code_formatted(checker->diag, "E3040",
+            NODE_FILE(checker, expr), expr->token.line, expr->token.column, 0,
+            name, sig->return_count, name);
+    }
+}
+
 /* : emit E4005 at a stdlib call site where the function name
  * isn't recognized. Shared between every module dispatch branch that
  * has a fallthrough "unknown function" else. Without this, typing
@@ -7006,10 +7033,12 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
         }
         if (node->data.array_value.count > 0) {
             GrayType *first = resolve_expression(checker, node->data.array_value.elements[0]);
+            reject_multi_return_in_single_position(checker, node->data.array_value.elements[0]);
             result = type_array(type_name(first));
             /* Validate all elements have the same type */
             for (int i = 1; i < node->data.array_value.count; i++) {
                 GrayType *element_resolved = resolve_expression(checker, node->data.array_value.elements[i]);
+                reject_multi_return_in_single_position(checker, node->data.array_value.elements[i]);
                 if (!element_resolved || element_resolved->kind == TK_UNKNOWN || !first || first->kind == TK_UNKNOWN)
                     continue;
                 bool compatible = (element_resolved->kind == first->kind) ||
@@ -7040,6 +7069,8 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
             /* : void can't be a map key or value. */
             reject_void_in_context(checker, node->data.map_value.keys[i], kt, "map key");
             reject_void_in_context(checker, node->data.map_value.values[i], vt, "map value");
+            /* E3040: multi-return call in single-value map position */
+            reject_multi_return_in_single_position(checker, node->data.map_value.values[i]);
         }
         /* E12006: Check for duplicate keys in map literal */
         for (int i = 0; i < node->data.map_value.count; i++) {
@@ -9268,6 +9299,8 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
 
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {
+            /* E3040: multi-return call in single-value return position */
+            reject_multi_return_in_single_position(checker, node->data.return_stmt.values[i]);
             /* Set expected_type for implicit enum resolution in return values */
             GrayType *saved_ret_expected = checker->expected_type;
             if (i < checker->current_return_count &&

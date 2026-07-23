@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3040 - multi-return-in-map
+ * Expected: "'get_val' returns 2 values"
+ */
+
+do get_val() -> (int, Error) {
+    return 42, nil
+}
+
+do main() {
+    mut m map[string:int] = {"a": get_val()}
+}

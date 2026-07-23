@@ -54,7 +54,7 @@ Integration tests compile and run `.gray` programs end-to-end through the full c
 - `integration-tests/pass/warnings/` — 24 warning detection tests covering all W-code warnings.
 - `integration-tests/pass/multi-file/` — 118 multi-file import tests covering imports, aliases, structs, enums, private visibility, transitive imports, directory imports, and more.
 - `integration-tests/pass/stress/` — 43 stress tests (30 core, 13 stdlib).
-- `integration-tests/fail/errors/` — 774 error detection tests covering all compiler error codes (E1xxx–E9xxx) and runtime panics.
+- `integration-tests/fail/errors/` — 777 error detection tests covering all compiler error codes (E1xxx–E9xxx) and runtime panics.
 - `integration-tests/fail/multi-file/` — 40 multi-file error detection tests covering cross-module type errors, private access violations, and circular imports.
 
 **Running:**

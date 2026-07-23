@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3040 - multi-return-in-array
+ * Expected: "'get_pair' returns 2 values"
+ */
+
+do get_pair() -> (int, int) {
+    return 10, 20
+}
+
+do main() {
+    mut arr [int] = {get_pair()}
+}
