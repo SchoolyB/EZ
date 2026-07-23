@@ -2777,6 +2777,7 @@ static AstNode *parse_when_statement(Parser *parser) {
             {
                 bool try_pattern = false;
                 bool is_implicit_pat = false;
+                bool is_explicit_enum = false;
                 Token pat_tok = parser->cur_token;
 
                 if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_LPAREN)) {
@@ -2803,6 +2804,42 @@ static AstNode *parse_when_statement(Parser *parser) {
                     if (all_idents && bind_count > 0 && current_token_is(parser, TOK_RPAREN)) {
                         try_pattern = true;
                         (void)vname;
+                    }
+                    /* Restore lexer state */
+                    parser->lexer->position = sv_pos;
+                    parser->lexer->read_position = sv_rpos;
+                    parser->lexer->ch = sv_ch;
+                    parser->lexer->line = sv_line;
+                    parser->lexer->column = sv_col;
+                    parser->cur_token  = sv_cur;
+                    parser->peek_token = sv_peek;
+                } else if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_DOT)) {
+                    /* IDENT.IDENT(IDENT,...) explicit enum pattern form */
+                    int sv_pos  = parser->lexer->position;
+                    int sv_rpos = parser->lexer->read_position;
+                    char sv_ch  = parser->lexer->ch;
+                    int sv_line = parser->lexer->line;
+                    int sv_col  = parser->lexer->column;
+                    Token sv_cur  = parser->cur_token;
+                    Token sv_peek = parser->peek_token;
+
+                    next_token(parser); /* skip first IDENT (enum name) */
+                    next_token(parser); /* skip DOT */
+                    if (current_token_is(parser, TOK_IDENT) && peek_token_is(parser, TOK_LPAREN)) {
+                        next_token(parser); /* skip second IDENT (variant) */
+                        next_token(parser); /* skip ( */
+                        bool all_idents = true;
+                        int bind_count = 0;
+                        while (!current_token_is(parser, TOK_RPAREN) && !current_token_is(parser, TOK_EOF)) {
+                            if (!current_token_is(parser, TOK_IDENT)) { all_idents = false; break; }
+                            bind_count++;
+                            next_token(parser);
+                            if (current_token_is(parser, TOK_COMMA)) next_token(parser);
+                        }
+                        if (all_idents && bind_count > 0 && current_token_is(parser, TOK_RPAREN)) {
+                            try_pattern = true;
+                            is_explicit_enum = true;
+                        }
                     }
                     /* Restore lexer state */
                     parser->lexer->position = sv_pos;
@@ -2854,11 +2891,17 @@ static AstNode *parse_when_statement(Parser *parser) {
                 if (try_pattern) {
                     /* Actually consume and build NODE_WHEN_PATTERN */
                     AstNode *pat = ast_alloc(parser->arena, NODE_WHEN_PATTERN, pat_tok);
-                    pat->data.when_pattern.enum_name = NULL;
                     pat->data.when_pattern.is_implicit = is_implicit_pat;
 
-                    if (is_implicit_pat) {
+                    if (is_explicit_enum) {
+                        pat->data.when_pattern.enum_name = arena_copy_string(parser->arena, parser->cur_token.literal);
+                        next_token(parser); /* skip enum name */
                         next_token(parser); /* skip dot */
+                    } else {
+                        pat->data.when_pattern.enum_name = NULL;
+                        if (is_implicit_pat) {
+                            next_token(parser); /* skip dot */
+                        }
                     }
                     pat->data.when_pattern.variant = arena_copy_string(parser->arena, parser->cur_token.literal);
                     next_token(parser); /* skip IDENT (variant) */
@@ -2872,6 +2915,15 @@ static AstNode *parse_when_statement(Parser *parser) {
                             const char **nb = arena_alloc(parser->arena, sizeof(const char *) * bc_cap);
                             memcpy(nb, pat->data.when_pattern.bindings, sizeof(const char *) * bc);
                             pat->data.when_pattern.bindings = nb;
+                        }
+                        /* Reject type keywords as binding names */
+                        if (is_reserved_type_name(parser->cur_token.literal)) {
+                            char msg[MSG_BUF_SIZE];
+                            snprintf(msg, sizeof(msg),
+                                "'%s' is a reserved type name and cannot be used as a binding name",
+                                parser->cur_token.literal);
+                            diagnostic_error_message(parser->diag, "E2002", arena_copy_string(parser->arena, msg),
+                                parser->file, parser->cur_token.line, parser->cur_token.column, 0);
                         }
                         pat->data.when_pattern.bindings[bc++] = arena_copy_string(parser->arena, parser->cur_token.literal);
                         next_token(parser);

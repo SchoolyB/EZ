@@ -6542,6 +6542,22 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                         emit_expression(codegen, node->data.call.args[i]);
                     }
                 }
+                /* Inject default values for omitted trailing parameters */
+                {
+                    int self_offset = self_injected ? 1 : 0;
+                    int first_default = node->data.call.arg_count + self_offset;
+                    bool any_emitted = self_injected || node->data.call.arg_count > 0;
+                    for (int i = first_default; i < ns_func->data.func_decl.param_count; i++) {
+                        if (ns_func->data.func_decl.params[i].is_type_param) continue;
+                        if (any_emitted) emit(codegen, ", ");
+                        any_emitted = true;
+                        if (ns_func->data.func_decl.params[i].default_value) {
+                            emit_expression(codegen, ns_func->data.func_decl.params[i].default_value);
+                        } else {
+                            emit(codegen, "0");
+                        }
+                    }
+                }
                 emit(codegen, ")");
                 return;
             }
@@ -8804,13 +8820,16 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         const char *idx_name = node->data.for_each.index_name;
         if (!idx_name) idx_name = "_gray_idx";
         bool is_map_iter = (coll_t && coll_t->kind == TK_MAP);
-        /* Used by the array branch: when the collection is a non-assignable
-         * expression (e.g. an inline literal), we materialize it into a
-         * named C temporary so that .iterating++ and GRAY_ARRAY_GET can
-         * operate on an addressable target. */
+        /* When the collection is a non-assignable expression (function
+         * call, literal, etc.) it is an rvalue in C and cannot be
+         * mutated (.iterating++) or addressed (&coll). Both the array
+         * and map branches materialize a named C temporary. */
         bool coll_needs_tmp = false;
         char arr_tmp_name[SHORT_VAR_BUF];
         arr_tmp_name[0] = '\0';
+        bool map_needs_tmp = false;
+        char map_tmp_name[SHORT_VAR_BUF];
+        map_tmp_name[0] = '\0';
 
         if (is_map_iter) {
             /* for_each on map; iterate occupied slots with internal counter */
@@ -8826,20 +8845,32 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
             }
             if (coll_t->value_type) c_val = gray_map_element_c_type(codegen, coll_t->value_type);
 
+            map_needs_tmp = (coll->kind != NODE_LABEL);
+            if (map_needs_tmp) {
+                snprintf(map_tmp_name, sizeof(map_tmp_name), "_gray_map%d", map_iter_counter - 1);
+                emit_formatted(codegen, "{ GrayMap %s = ", map_tmp_name);
+                emit_expression(codegen, coll);
+                emit(codegen, ";\n");
+                emit_indent(codegen);
+            }
+
             /* Iterate in insertion order using the order array */
             char slot_name[SHORT_VAR_BUF];
             snprintf(slot_name, sizeof(slot_name), "_gray_sl%d", map_iter_counter - 1);
             /* Guard against mutation during iteration */
-            emit_expression(codegen, coll);
+            if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+            else emit_expression(codegen, coll);
             emit(codegen, ".iterating++;\n");
             emit_indent(codegen);
             emit_formatted(codegen, "for (int32_t %s = 0; %s < ", mi_name, mi_name);
-            emit_expression(codegen, coll);
+            if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+            else emit_expression(codegen, coll);
             emit_formatted(codegen, ".order_len; %s++) {\n", mi_name);
             codegen->indent++;
             emit_indent(codegen);
             emit_formatted(codegen, "int32_t %s = ", slot_name);
-            emit_expression(codegen, coll);
+            if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+            else emit_expression(codegen, coll);
             emit_formatted(codegen, ".order[%s];\n", mi_name);
 
             if (node->data.for_each.index_name) {
@@ -8848,14 +8879,16 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                     emit_indent(codegen);
                     emit_formatted(codegen, "%s %s = *(%s *)gray_map_key_at(&",
                         c_key, sanitize_name(node->data.for_each.index_name), c_key);
-                    emit_expression(codegen, coll);
+                    if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+                    else emit_expression(codegen, coll);
                     emit_formatted(codegen, ", %s);\n", slot_name);
                 }
                 if (strcmp(node->data.for_each.var_name, "_") != 0) {
                     emit_indent(codegen);
                     emit_formatted(codegen, "%s %s = *(%s *)gray_map_value_at(&",
                         c_val, sanitize_name(node->data.for_each.var_name), c_val);
-                    emit_expression(codegen, coll);
+                    if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+                    else emit_expression(codegen, coll);
                     emit_formatted(codegen, ", %s);\n", slot_name);
                 }
             } else {
@@ -8863,7 +8896,8 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                 emit_indent(codegen);
                 emit_formatted(codegen, "%s %s = *(%s *)gray_map_key_at(&",
                     c_key, sanitize_name(node->data.for_each.var_name), c_key);
-                emit_expression(codegen, coll);
+                if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+                else emit_expression(codegen, coll);
                 emit_formatted(codegen, ", %s);\n", slot_name);
             }
         } else if (coll_t && coll_t->kind == TK_STRING) {
@@ -8942,8 +8976,13 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         /* Decrement map iteration guard */
         if (is_map_iter) {
             emit_indent(codegen);
-            emit_expression(codegen, coll);
+            if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
+            else emit_expression(codegen, coll);
             emit(codegen, ".iterating--;\n");
+            if (map_needs_tmp) {
+                emit_indent(codegen);
+                emit(codegen, "}\n");
+            }
         }
         /* Close extra scope for string iteration */
         if (coll_t && coll_t->kind == TK_STRING) {
@@ -9003,6 +9042,16 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         /* Detect wide integer type for the when value */
         const char *when_bigint = (when_val_t && when_val_t->name && is_bigint_type(when_val_t->name))
             ? when_val_t->name : resolve_bigint_type(codegen, val);
+        /* Evaluate the match expression once into a temporary so that
+         * side-effecting expressions (function calls, increments, etc.)
+         * are not re-executed for each is-arm. */
+        static int when_tmp_ctr = 0;
+        char when_tmp[64];
+        snprintf(when_tmp, sizeof(when_tmp), "_gray_when%d", when_tmp_ctr++);
+        emit_indent(codegen);
+        emit_formatted(codegen, "__auto_type %s = ", when_tmp);
+        emit_expression(codegen, val);
+        emit(codegen, ";\n");
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             WhenCase *wc = &node->data.when_stmt.cases[i];
             emit_indent(codegen);
@@ -9018,7 +9067,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                     const char *vname = wc->values[j]->data.when_pattern.variant;
                     const char *ename = wc->values[j]->data.when_pattern.enum_name;
                     if (!ename) ename = when_tagged_ename;
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit_formatted(codegen, ".tag == GrayEnum_%s_TAG_%s", ename, vname);
                 } else if (when_is_tagged) {
                     /* Tagged enum, plain variant: compare .tag */
@@ -9030,10 +9079,10 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                         vname = cv->data.implicit_enum.variant;
                     }
                     if (vname) {
-                        emit_expression(codegen, val);
+                        emit(codegen, when_tmp);
                         emit_formatted(codegen, ".tag == GrayEnum_%s_TAG_%s", when_tagged_ename, vname);
                     } else {
-                        emit_expression(codegen, val);
+                        emit(codegen, when_tmp);
                         emit(codegen, ".tag == ");
                         emit_expression(codegen, cv);
                     }
@@ -9044,16 +9093,16 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                         range->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
                         range->data.range_expr.step->data.prefix.op == TOK_MINUS);
                     emit(codegen, "(");
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, neg_step ? " <= " : " >= ");
                     emit_expression(codegen, range->data.range_expr.start);
                     emit(codegen, " && ");
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, neg_step ? " > " : " < ");
                     emit_expression(codegen, range->data.range_expr.end);
                     if (range->data.range_expr.step) {
                         emit(codegen, " && (");
-                        emit_expression(codegen, val);
+                        emit(codegen, when_tmp);
                         emit(codegen, " - ");
                         emit_expression(codegen, range->data.range_expr.start);
                         emit(codegen, ") % ");
@@ -9063,18 +9112,18 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                     emit(codegen, ")");
                 } else if (when_is_string) {
                     emit(codegen, "gray_string_eq(");
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, ", ");
                     emit_expression(codegen, wc->values[j]);
                     emit(codegen, ")");
                 } else if (when_bigint) {
                     emit_formatted(codegen, "%s_eq(", bigint_prefix(when_bigint));
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, ", ");
                     emit_expression(codegen, wc->values[j]);
                     emit(codegen, ")");
                 } else {
-                    emit_expression(codegen, val);
+                    emit(codegen, when_tmp);
                     emit(codegen, " == ");
                     emit_expression(codegen, wc->values[j]);
                 }
@@ -9104,7 +9153,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                                 emit_formatted(codegen, "%s %s = ",
                                     gray_type_to_c_codegen(codegen, ev->payload_types[bi]),
                                     pat->data.when_pattern.bindings[bi]);
-                                emit_expression(codegen, val);
+                                emit(codegen, when_tmp);
                                 emit_formatted(codegen, ".data.%s._%d;\n", vname, bi);
                             }
                         }

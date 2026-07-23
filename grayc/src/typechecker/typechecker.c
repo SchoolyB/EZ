@@ -2126,6 +2126,33 @@ static void reject_void_in_context(TypeChecker *checker, AstNode *expr,
         NODE_FILE(checker, expr), expr->token.line, expr->token.column, 0);
 }
 
+/* E3040: reject multi-return calls in single-value positions (array
+ * elements, map values, return expressions, etc.). Shared helper to
+ * avoid duplicating the lookup logic at each call site. */
+static void reject_multi_return_in_single_position(TypeChecker *checker, AstNode *expr) {
+    if (!expr || expr->kind != NODE_CALL_EXPR) return;
+    AstNode *fn = expr->data.call.function;
+    FuncSig *sig = NULL;
+    const char *name = NULL;
+    if (fn && fn->kind == NODE_LABEL) {
+        name = fn->data.label.value;
+        sig = find_func(checker, name);
+    } else if (fn && fn->kind == NODE_MEMBER_EXPR &&
+               fn->data.member.object->kind == NODE_LABEL) {
+        const char *mod_raw = fn->data.member.object->data.label.value;
+        const char *mod = typechecker_resolve_alias(checker, mod_raw);
+        name = fn->data.member.member;
+        char prefixed[MSG_BUF_SIZE];
+        snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, name);
+        sig = find_func(checker, prefixed);
+    }
+    if (sig && sig->return_count > 1) {
+        diagnostic_error_code_formatted(checker->diag, "E3040",
+            NODE_FILE(checker, expr), expr->token.line, expr->token.column, 0,
+            name, sig->return_count, name);
+    }
+}
+
 /* : emit E4005 at a stdlib call site where the function name
  * isn't recognized. Shared between every module dispatch branch that
  * has a fallthrough "unknown function" else. Without this, typing
@@ -7006,10 +7033,12 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
         }
         if (node->data.array_value.count > 0) {
             GrayType *first = resolve_expression(checker, node->data.array_value.elements[0]);
+            reject_multi_return_in_single_position(checker, node->data.array_value.elements[0]);
             result = type_array(type_name(first));
             /* Validate all elements have the same type */
             for (int i = 1; i < node->data.array_value.count; i++) {
                 GrayType *element_resolved = resolve_expression(checker, node->data.array_value.elements[i]);
+                reject_multi_return_in_single_position(checker, node->data.array_value.elements[i]);
                 if (!element_resolved || element_resolved->kind == TK_UNKNOWN || !first || first->kind == TK_UNKNOWN)
                     continue;
                 bool compatible = (element_resolved->kind == first->kind) ||
@@ -7040,6 +7069,8 @@ static GrayType *resolve_expression(TypeChecker *checker, AstNode *node) {
             /* : void can't be a map key or value. */
             reject_void_in_context(checker, node->data.map_value.keys[i], kt, "map key");
             reject_void_in_context(checker, node->data.map_value.values[i], vt, "map value");
+            /* E3040: multi-return call in single-value map position */
+            reject_multi_return_in_single_position(checker, node->data.map_value.values[i]);
         }
         /* E12006: Check for duplicate keys in map literal */
         for (int i = 0; i < node->data.map_value.count; i++) {
@@ -8906,17 +8937,69 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
         GrayType *value_t = resolve_expression(checker, node->data.assign.value);
         checker->expected_type = saved_expected;
 
-        /* E3078: compound arithmetic assigns on pointer variables
-         * (p += 1, p -= 2, etc.) are pointer arithmetic and not
-         * supported. Plain `=` (and the existing `p = nil` /
-         * `p = addr(...)` paths) stay valid. */
+        /* Compound assignment type validation: x op= y must be valid
+         * when x op y would be valid. Mirrors the checks in
+         * resolve_infix_expr() for the corresponding binary operator. */
         TokenType aop = node->data.assign.op;
-        if ((aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN ||
-             aop == TOK_ASTERISK_ASSIGN || aop == TOK_SLASH_ASSIGN ||
-             aop == TOK_PERCENT_ASSIGN) &&
-            target_t && target_t->kind == TK_POINTER) {
-            diagnostic_error_code(checker->diag, "E3078",
-                NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+        if (aop == TOK_PLUS_ASSIGN || aop == TOK_MINUS_ASSIGN ||
+            aop == TOK_ASTERISK_ASSIGN || aop == TOK_SLASH_ASSIGN ||
+            aop == TOK_PERCENT_ASSIGN) {
+
+            /* E3078: pointer arithmetic */
+            if (target_t && target_t->kind == TK_POINTER) {
+                diagnostic_error_code(checker->diag, "E3078",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+            }
+
+            if (target_t && value_t &&
+                target_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN) {
+
+                /* E3002: bool in arithmetic */
+                if (target_t->kind == TK_BOOL || value_t->kind == TK_BOOL) {
+                    char *msg = typechecker_format(checker,
+                        "invalid operands: cannot use '%s' with %s and %s",
+                        operator_to_string(aop), type_name(target_t), type_name(value_t));
+                    diagnostic_error_message(checker->diag, "E3002", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+
+                /* E3048: string += (concatenation) */
+                if ((target_t->kind == TK_STRING || value_t->kind == TK_STRING) &&
+                    aop == TOK_PLUS_ASSIGN) {
+                    diagnostic_error_code_help(checker->diag, "E3048",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                        "use string interpolation \"${a}${b}\" or fmt.format() to combine strings");
+                }
+
+                /* E3002: string in non-plus arithmetic */
+                if ((target_t->kind == TK_STRING || value_t->kind == TK_STRING) &&
+                    aop != TOK_PLUS_ASSIGN) {
+                    char *msg = typechecker_format(checker,
+                        "cannot use '%s' on string type", operator_to_string(aop));
+                    diagnostic_error_message(checker->diag, "E3002", msg,
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+
+                /* E3002: modulo on float */
+                if (aop == TOK_PERCENT_ASSIGN &&
+                    (target_t->kind == TK_FLOAT || value_t->kind == TK_FLOAT)) {
+                    diagnostic_error_message(checker->diag, "E3002",
+                        "modulo (%) only works on integers, not floats",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0);
+                }
+
+                /* E3093: arithmetic on map, array, or struct */
+                if (target_t->kind == TK_MAP || target_t->kind == TK_ARRAY ||
+                    target_t->kind == TK_STRUCT ||
+                    value_t->kind == TK_MAP || value_t->kind == TK_ARRAY ||
+                    value_t->kind == TK_STRUCT) {
+                    GrayType *bad = (target_t->kind == TK_MAP || target_t->kind == TK_ARRAY ||
+                                     target_t->kind == TK_STRUCT) ? target_t : value_t;
+                    diagnostic_error_code_formatted(checker->diag, "E3093",
+                        NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                        operator_to_string(aop), type_display_name(checker, bad));
+                }
+            }
         }
 
         /* E6008: reject assignment to stdlib module constants (math.PI = x, etc.) */
@@ -9216,6 +9299,8 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
 
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {
+            /* E3040: multi-return call in single-value return position */
+            reject_multi_return_in_single_position(checker, node->data.return_stmt.values[i]);
             /* Set expected_type for implicit enum resolution in return values */
             GrayType *saved_ret_expected = checker->expected_type;
             if (i < checker->current_return_count &&
@@ -9837,23 +9922,34 @@ static void check_statement(TypeChecker *checker, AstNode *node) {
             diagnostic_error_code(checker->diag, "E3129",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
+        Scope *wh_outer = checker->current_scope;
+        Scope *wh_scope = scope_create(wh_outer);
+        checker->current_scope = wh_scope;
         checker->loop_depth++;
         check_block(checker, node->data.while_stmt.body);
         checker->loop_depth--;
+        checker->current_scope = wh_outer;
+        scope_destroy(wh_scope);
         break;
     }
 
-    case NODE_LOOP_STMT:
+    case NODE_LOOP_STMT: {
         /* E3129: empty loop body hangs forever at runtime */
         if (node->data.loop_stmt.body &&
             node->data.loop_stmt.body->data.block.count == 0) {
             diagnostic_error_code(checker->diag, "E3129",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0);
         }
+        Scope *lp_outer = checker->current_scope;
+        Scope *lp_scope = scope_create(lp_outer);
+        checker->current_scope = lp_scope;
         checker->loop_depth++;
         check_block(checker, node->data.loop_stmt.body);
         checker->loop_depth--;
+        checker->current_scope = lp_outer;
+        scope_destroy(lp_scope);
         break;
+    }
 
     case NODE_BREAK_STMT:
     case NODE_CONTINUE_STMT:
@@ -10794,6 +10890,15 @@ static void validate_field_type_recursive(TypeChecker *checker, AstNode *program
 
     /* Leaf: must be a known primitive, enum, struct, or wildcard '?' */
     if (type_name_has_wildcard(type_name)) return;
+
+    /* Bare func: reject with guidance toward typed signature */
+    if (strcmp(type_name, "func") == 0) {
+        diagnostic_error_code_help(checker->diag, "E3130",
+            NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0,
+            "use a typed signature: func(params) -> return_type");
+        return;
+    }
+
     GrayType *t = typechecker_type_from_name(checker, type_name);
     if (t && t->kind != TK_STRUCT && t->kind != TK_UNKNOWN) return;
     if (is_enum_name(checker, type_name)) return;
@@ -11523,25 +11628,6 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
                 }
             }
         }
-    }
-
-    /* Pass 1.5: Pre-register all global constants and variables that have an
-     * explicit type annotation. This allows global initializers to reference
-     * any other global constant regardless of declaration order within the
-     * same file or across imported files. The def_line is intentionally left
-     * as 0 to mark these as pre-registered (not real duplicates); Pass 2
-     * overwrites each entry with the fully resolved type and real def_line. */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind != NODE_VAR_DECL) continue;
-        if (!stmt->data.var_decl.type_name) continue; /* inferred type — skip */
-        if (scope_lookup_local(checker->current_scope, stmt->data.var_decl.name)) continue;
-        GrayType *pre_t = type_from_name(stmt->data.var_decl.type_name);
-        if (!pre_t) continue;
-        scope_define(checker->current_scope, stmt->data.var_decl.name,
-            pre_t, stmt->data.var_decl.mutable);
-        /* Leave def_line = 0: sentinel that lets the E4003 duplicate check
-         * in check_statement distinguish pre-registration from real duplicates. */
     }
 
     /* E2088: keyword alias consistency (while vs as_long_as, else vs otherwise) */

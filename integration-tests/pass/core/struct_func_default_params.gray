@@ -1,0 +1,54 @@
+/*
+ * Test: struct function default parameters are injected in codegen
+ * Covers instance dispatch, static dispatch, and partial defaults
+ */
+
+mut passed int = 0
+mut failed int = 0
+
+const Vec struct {
+    x int
+    y int
+
+    do scale(self Vec, factor int = 2) -> Vec {
+        return Vec{x: self.x * factor, y: self.y * factor}
+    }
+}
+
+const Foo struct {
+    val int
+
+    do compute(self Foo, a int, b int = 10) -> int {
+        return self.val + a + b
+    }
+}
+
+do main() {
+    mut v = Vec{x: 3, y: 4}
+
+    // Instance dispatch, default omitted
+    mut a = v.scale()
+    if a.x == 6 { passed++ } otherwise { failed++ }
+    if a.y == 8 { passed++ } otherwise { failed++ }
+
+    // Instance dispatch, explicit value
+    mut b = v.scale(3)
+    if b.x == 9 { passed++ } otherwise { failed++ }
+    if b.y == 12 { passed++ } otherwise { failed++ }
+
+    // Static dispatch, default omitted
+    mut c = Vec.scale(v)
+    if c.x == 6 { passed++ } otherwise { failed++ }
+    if c.y == 8 { passed++ } otherwise { failed++ }
+
+    // Partial defaults - trailing default omitted
+    mut f = Foo{val: 100}
+    mut r1 = f.compute(5)
+    if r1 == 115 { passed++ } otherwise { failed++ }
+
+    // Partial defaults - all provided
+    mut r2 = f.compute(5, 20)
+    if r2 == 125 { passed++ } otherwise { failed++ }
+
+    println("passed: ${passed}, failed: ${failed}")
+}

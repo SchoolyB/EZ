@@ -1,0 +1,29 @@
+/*
+ * Test: when statement evaluates the match expression exactly once
+ * Verifies that side-effecting expressions are not re-evaluated per arm
+ */
+
+mut counter int = 0
+mut passed int = 0
+mut failed int = 0
+
+do next_val() -> int {
+    counter++
+    return counter
+}
+
+do main() {
+    when next_val() {
+        is 10 { println("got 10") }
+        is 20 { println("got 20") }
+        is 30 { println("got 30") }
+        default { println("no match") }
+    }
+    if counter == 1 {
+        passed++
+    } otherwise {
+        failed++
+    }
+
+    println("passed: ${passed}, failed: ${failed}")
+}

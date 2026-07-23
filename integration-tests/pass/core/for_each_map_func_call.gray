@@ -1,0 +1,27 @@
+/*
+ * Test: for_each over map from function call evaluates collection once
+ * Verifies that the map expression is hoisted into a temporary
+ */
+
+mut call_count int = 0
+mut passed int = 0
+mut failed int = 0
+
+do get_map() -> map[string:int] {
+    call_count++
+    mut m map[string:int] = {"a": 1, "b": 2}
+    return m
+}
+
+do main() {
+    for_each k, v in get_map() {
+        println("${k}=${v}")
+    }
+    if call_count == 1 {
+        passed++
+    } otherwise {
+        failed++
+    }
+
+    println("passed: ${passed}, failed: ${failed}")
+}
