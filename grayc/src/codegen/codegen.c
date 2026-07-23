@@ -6542,6 +6542,22 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                         emit_expression(codegen, node->data.call.args[i]);
                     }
                 }
+                /* Inject default values for omitted trailing parameters */
+                {
+                    int self_offset = self_injected ? 1 : 0;
+                    int first_default = node->data.call.arg_count + self_offset;
+                    bool any_emitted = self_injected || node->data.call.arg_count > 0;
+                    for (int i = first_default; i < ns_func->data.func_decl.param_count; i++) {
+                        if (ns_func->data.func_decl.params[i].is_type_param) continue;
+                        if (any_emitted) emit(codegen, ", ");
+                        any_emitted = true;
+                        if (ns_func->data.func_decl.params[i].default_value) {
+                            emit_expression(codegen, ns_func->data.func_decl.params[i].default_value);
+                        } else {
+                            emit(codegen, "0");
+                        }
+                    }
+                }
                 emit(codegen, ")");
                 return;
             }
