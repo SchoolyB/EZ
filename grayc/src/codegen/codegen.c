@@ -8174,10 +8174,50 @@ static void scope_arena_pop(CodeGen *codegen) {
     if (codegen->scope_arena_count > 0) codegen->scope_arena_count--;
 }
 
+/* Track active for_each iteration guards so early-return paths can
+ * decrement .iterating for every live for_each loop. */
+static void iter_guard_push(CodeGen *codegen, const char *expr) {
+    if (codegen->iter_guard_count >= codegen->iter_guard_cap) {
+        codegen->iter_guard_cap = codegen->iter_guard_cap ? codegen->iter_guard_cap * 2 : 4;
+        codegen->iter_guards = xrealloc(codegen->iter_guards,
+            sizeof(char *) * (size_t)codegen->iter_guard_cap);
+    }
+    codegen->iter_guards[codegen->iter_guard_count++] = strdup(expr);
+}
+
+static void iter_guard_pop(CodeGen *codegen) {
+    if (codegen->iter_guard_count > 0) {
+        free(codegen->iter_guards[--codegen->iter_guard_count]);
+    }
+}
+
+static void emit_iter_guard_unwind(CodeGen *codegen) {
+    for (int i = codegen->iter_guard_count - 1; i >= 0; i--) {
+        emit_formatted(codegen, "%s.iterating--; ", codegen->iter_guards[i]);
+    }
+}
+
+/* Build the C expression string for a for_each collection. For tmp
+ * variables, returns the tmp name. For labels, returns the sanitized
+ * name (with deref wrapper for mutable params / ref vars). */
+static char *iter_guard_expr(CodeGen *codegen, bool needs_tmp,
+                             const char *tmp_name, AstNode *coll) {
+    if (needs_tmp) return strdup(tmp_name);
+    const char *raw = coll->data.label.value;
+    const char *san = sanitize_name(raw);
+    char buf[128];
+    if (is_mutable_parameter(codegen, raw) || is_reference_variable(codegen, raw))
+        snprintf(buf, sizeof(buf), "(*%s)", san);
+    else
+        snprintf(buf, sizeof(buf), "%s", san);
+    return strdup(buf);
+}
+
 /* Emit the cleanup sequence for every live nested scratch arena,
  * innermost-first. Used in every early-exit return path before the
  * function-arena (or scope_restore) unwind. */
 static void emit_scratch_arena_unwind(CodeGen *codegen) {
+    emit_iter_guard_unwind(codegen);
     for (int i = codegen->scope_arena_count - 1; i >= 0; i--) {
         ScopeArena *entry = &codegen->scope_arenas[i];
         emit_formatted(codegen, "gray_default_arena = %s; ", entry->saved_var);
@@ -8755,6 +8795,7 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
     int prev_using_count = codegen->using_module_count;
     int prev_ref_var_count = codegen->ref_var_count;
     int prev_bigint_var_count = codegen->bigint_var_count;
+    int prev_iter_guard_count = codegen->iter_guard_count;
     codegen->current_func = node;
 
     /* Register bigint parameters for type tracking */
@@ -8797,6 +8838,7 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
     codegen->using_module_count = prev_using_count;
     codegen->ref_var_count = prev_ref_var_count;
     codegen->bigint_var_count = prev_bigint_var_count;
+    codegen->iter_guard_count = prev_iter_guard_count;
     codegen->indent--;
     emit(codegen, "}\n\n");
 }
@@ -8875,6 +8917,11 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
             char slot_name[SHORT_VAR_BUF];
             snprintf(slot_name, sizeof(slot_name), "_gray_sl%d", map_iter_counter - 1);
             /* Guard against mutation during iteration */
+            {
+                char *ge = iter_guard_expr(codegen, map_needs_tmp, map_tmp_name, coll);
+                iter_guard_push(codegen, ge);
+                free(ge);
+            }
             if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
             else emit_expression(codegen, coll);
             emit(codegen, ".iterating++;\n");
@@ -8974,6 +9021,11 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
             if (coll_needs_tmp) emit_formatted(codegen, "%s.len;\n", arr_tmp_name);
             else { emit_expression(codegen, coll); emit(codegen, ".len;\n"); }
             /* Guard against mutation during iteration */
+            {
+                char *ge = iter_guard_expr(codegen, coll_needs_tmp, arr_tmp_name, coll);
+                iter_guard_push(codegen, ge);
+                free(ge);
+            }
             emit_indent(codegen);
             if (coll_needs_tmp) emit_formatted(codegen, "%s.iterating++;\n", arr_tmp_name);
             else { emit_expression(codegen, coll); emit(codegen, ".iterating++;\n"); }
@@ -8992,6 +9044,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         emit(codegen, "}\n");
         /* Decrement map iteration guard */
         if (is_map_iter) {
+            iter_guard_pop(codegen);
             emit_indent(codegen);
             if (map_needs_tmp) emit_formatted(codegen, "%s", map_tmp_name);
             else emit_expression(codegen, coll);
@@ -9008,6 +9061,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         }
         /* Decrement array iteration guard, then close the snapshot block */
         if (coll_t && coll_t->kind != TK_MAP && coll_t->kind != TK_STRING) {
+            iter_guard_pop(codegen);
             emit_indent(codegen);
             if (coll_needs_tmp) emit_formatted(codegen, "%s.iterating--;\n", arr_tmp_name);
             else { emit_expression(codegen, coll); emit(codegen, ".iterating--;\n"); }
@@ -9356,6 +9410,9 @@ CodeGen codegen_create(const char *file) {
     codegen.scope_arenas = NULL;
     codegen.scope_arena_count = 0;
     codegen.scope_arena_cap = 0;
+    codegen.iter_guards = NULL;
+    codegen.iter_guard_count = 0;
+    codegen.iter_guard_cap = 0;
     codegen.ns_func_names = NULL;
     codegen.ns_func_name_count = 0;
     codegen.ns_func_name_cap = 0;
@@ -10065,6 +10122,9 @@ void codegen_destroy(CodeGen *codegen) {
     free(codegen->imported_modules);
     free(codegen->c_headers);
     free(codegen->scope_arenas);
+    for (int i = 0; i < codegen->iter_guard_count; i++)
+        free(codegen->iter_guards[i]);
+    free(codegen->iter_guards);
     for (int i = 0; i < codegen->ns_func_name_count; i++)
         free(codegen->ns_func_names[i]);
     free(codegen->ns_func_names);
