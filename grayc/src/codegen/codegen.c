@@ -3416,6 +3416,36 @@ static bool emit_composite_print(CodeGen *codegen, AstNode *node,
     return true;
 }
 
+/* Shared emitter for print/println/eprint/eprintln argument formatting.
+ * `variant` is the C builtin name fragment (e.g. "println", "eprint"). */
+static void emit_print_variant(CodeGen *codegen, AstNode *node, const char *variant) {
+    AstNode *arg = unwrap_reference_argument(node->data.call.args[0]);
+    GrayType *arg_t = codegen->type_table ? typetable_get(codegen->type_table, arg) : NULL;
+    if (arg_t && arg_t->kind == TK_ERROR) {
+        emit_formatted(codegen, "gray_builtin_%s_str(", variant);
+        emit_expression(codegen, arg);
+        emit(codegen, " ? ");
+        emit_expression(codegen, arg);
+        emit(codegen, "->message : gray_string_lit(\"nil\"))");
+    } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
+               strcmp(arg_t->name, "UUID") == 0) {
+        emit_formatted(codegen, "gray_builtin_%s_str(", variant);
+        emit_expression(codegen, arg);
+        emit(codegen, ".value)");
+    } else {
+        const char *bi_type = resolve_bigint_type(codegen, arg);
+        if (bi_type) {
+            emit_formatted(codegen, "gray_builtin_%s_str(%s_to_string(gray_default_arena, ", variant, bigint_prefix(bi_type));
+            emit_expression(codegen, arg);
+            emit(codegen, "))");
+        } else {
+            emit_formatted(codegen, "gray_builtin_%s%s(", variant, resolve_print_suffix(codegen, arg));
+            emit_expression(codegen, arg);
+            emit(codegen, ")");
+        }
+    }
+}
+
 /* --- Builtin call handler (no-module functions) --- */
 
 static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *func) {
@@ -3424,32 +3454,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *func)
             emit(codegen, "putchar('\\n')");
         } else {
             if (emit_composite_print(codegen, node, "stdout", true)) return true;
-            AstNode *arg = unwrap_reference_argument(node->data.call.args[0]);
-            /* Error type: print message or "nil" */
-            GrayType *arg_t = codegen->type_table ? typetable_get(codegen->type_table, arg) : NULL;
-            if (arg_t && arg_t->kind == TK_ERROR) {
-                emit(codegen, "gray_builtin_println_str(");
-                emit_expression(codegen, arg);
-                emit(codegen, " ? ");
-                emit_expression(codegen, arg);
-                emit(codegen, "->message : gray_string_lit(\"nil\"))");
-            } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
-                       strcmp(arg_t->name, "UUID") == 0) {
-                emit(codegen, "gray_builtin_println_str(");
-                emit_expression(codegen, arg);
-                emit(codegen, ".value)");
-            } else {
-                const char *bi_type = resolve_bigint_type(codegen, arg);
-                if (bi_type) {
-                    emit_formatted(codegen, "gray_builtin_println_str(%s_to_string(gray_default_arena, ", bigint_prefix(bi_type));
-                    emit_expression(codegen, arg);
-                    emit(codegen, "))");
-                } else {
-                    emit_formatted(codegen, "gray_builtin_println%s(", resolve_print_suffix(codegen, arg));
-                    emit_expression(codegen, arg);
-                    emit(codegen, ")");
-                }
-            }
+            emit_print_variant(codegen, node, "println");
         }
         return true;
     }
@@ -3713,62 +3718,14 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *func)
             emit(codegen, "fputc('\\n', stderr)");
         } else {
             if (emit_composite_print(codegen, node, "stderr", true)) return true;
-            AstNode *arg = unwrap_reference_argument(node->data.call.args[0]);
-            GrayType *arg_t = codegen->type_table ? typetable_get(codegen->type_table, arg) : NULL;
-            if (arg_t && arg_t->kind == TK_ERROR) {
-                emit(codegen, "gray_builtin_eprintln_str(");
-                emit_expression(codegen, arg);
-                emit(codegen, " ? ");
-                emit_expression(codegen, arg);
-                emit(codegen, "->message : gray_string_lit(\"nil\"))");
-            } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
-                       strcmp(arg_t->name, "UUID") == 0) {
-                emit(codegen, "gray_builtin_eprintln_str(");
-                emit_expression(codegen, arg);
-                emit(codegen, ".value)");
-            } else {
-                const char *bi_type = resolve_bigint_type(codegen, arg);
-                if (bi_type) {
-                    emit_formatted(codegen, "gray_builtin_eprintln_str(%s_to_string(gray_default_arena, ", bigint_prefix(bi_type));
-                    emit_expression(codegen, arg);
-                    emit(codegen, "))");
-                } else {
-                    emit_formatted(codegen, "gray_builtin_eprintln%s(", resolve_print_suffix(codegen, arg));
-                    emit_expression(codegen, arg);
-                    emit(codegen, ")");
-                }
-            }
+            emit_print_variant(codegen, node, "eprintln");
         }
         return true;
     }
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(codegen, node, "stderr", false)) return true;
-        AstNode *arg = unwrap_reference_argument(node->data.call.args[0]);
-        GrayType *arg_t = codegen->type_table ? typetable_get(codegen->type_table, arg) : NULL;
-        if (arg_t && arg_t->kind == TK_ERROR) {
-            emit(codegen, "gray_builtin_eprint_str(");
-            emit_expression(codegen, arg);
-            emit(codegen, " ? ");
-            emit_expression(codegen, arg);
-            emit(codegen, "->message : gray_string_lit(\"nil\"))");
-        } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
-                   strcmp(arg_t->name, "UUID") == 0) {
-            emit(codegen, "gray_builtin_eprint_str(");
-            emit_expression(codegen, arg);
-            emit(codegen, ".value)");
-        } else {
-            const char *bi_type = resolve_bigint_type(codegen, arg);
-            if (bi_type) {
-                emit_formatted(codegen, "gray_builtin_eprint_str(%s_to_string(gray_default_arena, ", bigint_prefix(bi_type));
-                emit_expression(codegen, arg);
-                emit(codegen, "))");
-            } else {
-                emit_formatted(codegen, "gray_builtin_eprint%s(", resolve_print_suffix(codegen, arg));
-                emit_expression(codegen, arg);
-                emit(codegen, ")");
-            }
-        }
+        emit_print_variant(codegen, node, "eprint");
         return true;
     }
 
@@ -3909,31 +3866,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *func)
 
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(codegen, node, "stdout", false)) return true;
-        AstNode *arg = unwrap_reference_argument(node->data.call.args[0]);
-        GrayType *arg_t = codegen->type_table ? typetable_get(codegen->type_table, arg) : NULL;
-        if (arg_t && arg_t->kind == TK_ERROR) {
-            emit(codegen, "gray_builtin_print_str(");
-            emit_expression(codegen, arg);
-            emit(codegen, " ? ");
-            emit_expression(codegen, arg);
-            emit(codegen, "->message : gray_string_lit(\"nil\"))");
-        } else if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name &&
-                   strcmp(arg_t->name, "UUID") == 0) {
-            emit(codegen, "gray_builtin_print_str(");
-            emit_expression(codegen, arg);
-            emit(codegen, ".value)");
-        } else {
-            const char *bi_type = resolve_bigint_type(codegen, arg);
-            if (bi_type) {
-                emit_formatted(codegen, "gray_builtin_print_str(%s_to_string(gray_default_arena, ", bigint_prefix(bi_type));
-                emit_expression(codegen, arg);
-                emit(codegen, "))");
-            } else {
-                emit_formatted(codegen, "gray_builtin_print%s(", resolve_print_suffix(codegen, arg));
-                emit_expression(codegen, arg);
-                emit(codegen, ")");
-            }
-        }
+        emit_print_variant(codegen, node, "print");
         return true;
     }
 
