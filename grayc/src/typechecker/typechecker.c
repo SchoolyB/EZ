@@ -368,6 +368,11 @@ static bool typechecker_enum_is_tagged(TypeChecker *checker, const char *name) {
     return i >= 0 && checker->enum_is_tagged[i];
 }
 
+static bool typechecker_enum_is_flags(TypeChecker *checker, const char *name) {
+    int i = find_enum_index(checker, name);
+    return i >= 0 && checker->enum_is_flags[i];
+}
+
 /* A type name fit to print in a diagnostic — for struct/enum types this
  * is the user-facing name, never the module-prefixed lookup key. Composite
  * types (pointers, arrays, maps) recurse into their inner types so that
@@ -1758,7 +1763,8 @@ static GrayType *typechecker_lookup_using_constant(TypeChecker *checker, const c
 static void register_enum(TypeChecker *checker, const char *name,
     const char *display_name, bool is_string,
     const char **values, int value_count,
-    const char ***payload_types, int *payload_counts, bool is_tagged) {
+    const char ***payload_types, int *payload_counts, bool is_tagged,
+    bool is_flags) {
     if (checker->enum_count >= checker->enum_cap) {
         checker->enum_cap = checker->enum_cap ? checker->enum_cap * 2 : 8;
         checker->enum_names = xrealloc(checker->enum_names, sizeof(const char *) * checker->enum_cap);
@@ -1769,6 +1775,7 @@ static void register_enum(TypeChecker *checker, const char *name,
         checker->enum_payload_types = xrealloc(checker->enum_payload_types, sizeof(const char ***) * checker->enum_cap);
         checker->enum_payload_counts = xrealloc(checker->enum_payload_counts, sizeof(int *) * checker->enum_cap);
         checker->enum_is_tagged = xrealloc(checker->enum_is_tagged, sizeof(bool) * checker->enum_cap);
+        checker->enum_is_flags = xrealloc(checker->enum_is_flags, sizeof(bool) * checker->enum_cap);
     }
     checker->enum_names_sorted_built = false;
     checker->enum_names[checker->enum_count] = name;
@@ -1779,6 +1786,7 @@ static void register_enum(TypeChecker *checker, const char *name,
     checker->enum_payload_types[checker->enum_count] = payload_types;
     checker->enum_payload_counts[checker->enum_count] = payload_counts;
     checker->enum_is_tagged[checker->enum_count] = is_tagged;
+    checker->enum_is_flags[checker->enum_count] = is_flags;
     checker->enum_count++;
 }
 
@@ -6041,8 +6049,10 @@ static GrayType *resolve_infix_expr(TypeChecker *checker, AstNode *node) {
          op == TOK_BIT_XOR || op == TOK_BIT_SHIFT_LEFT ||
          op == TOK_BIT_SHIFT_RIGHT) &&
         !infix_errored && left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
-        bool left_ok  = is_int_kind(left->kind)  || left->kind  == TK_CHAR;
-        bool right_ok = is_int_kind(right->kind) || right->kind == TK_CHAR;
+        bool left_ok  = is_int_kind(left->kind)  || left->kind  == TK_CHAR
+            || (left->kind == TK_ENUM && left->name && typechecker_enum_is_flags(checker, left->name));
+        bool right_ok = is_int_kind(right->kind) || right->kind == TK_CHAR
+            || (right->kind == TK_ENUM && right->name && typechecker_enum_is_flags(checker, right->name));
         if (!left_ok || !right_ok) {
             diagnostic_error_code_formatted(checker->diag, "E8001",
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0,
@@ -6063,6 +6073,10 @@ static GrayType *resolve_infix_expr(TypeChecker *checker, AstNode *node) {
         result = &TYPE_FLOAT;
     } else if (left->kind == TK_STRING && op == TOK_PLUS) {
         result = &TYPE_STRING;
+    } else if (left->kind == TK_ENUM || right->kind == TK_ENUM) {
+        /* #flags enum bitwise ops produce int (combined values
+         * don't correspond to a single variant). */
+        result = &TYPE_INT;
     } else {
         result = left;
     }
@@ -11128,7 +11142,7 @@ static void register_declarations(TypeChecker *checker, AstNode *program) {
         if (stmt->data.enum_decl.is_flags && has_tagged) {
             diagnostic_error_code(checker->diag, "E3112", NODE_FILE(checker, stmt), stmt->token.line, stmt->token.column, 0);
         }
-        register_enum(checker, stmt->data.enum_decl.name, ENUM_DISPLAY_NAME(stmt), is_str, vnames, variant_count, pt, payload_counts, has_tagged);
+        register_enum(checker, stmt->data.enum_decl.name, ENUM_DISPLAY_NAME(stmt), is_str, vnames, variant_count, pt, payload_counts, has_tagged, stmt->data.enum_decl.is_flags);
     }
 
     /* Pass 2b: Register structs and functions (enums already registered above) */
@@ -11428,6 +11442,7 @@ void typechecker_free(TypeChecker *checker) {
     free(checker->enum_payload_types);
     free(checker->enum_payload_counts);
     free(checker->enum_is_tagged);
+    free(checker->enum_is_flags);
     free(checker->enum_names_sorted);
     free(checker->enum_names_sorted_indices);
 
@@ -11627,7 +11642,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
                     register_enum(checker, unprefixed, unprefixed, checker->enum_is_string[enum_index],
                         checker->enum_values[enum_index], checker->enum_value_counts[enum_index],
                         checker->enum_payload_types[enum_index], checker->enum_payload_counts[enum_index],
-                        checker->enum_is_tagged[enum_index]);
+                        checker->enum_is_tagged[enum_index], checker->enum_is_flags[enum_index]);
                 }
             }
         }

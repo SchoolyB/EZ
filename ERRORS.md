@@ -1,7 +1,7 @@
 # Grayscale Error Code Reference
 
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
-> Run `./scripts/generate_errors.gray` to regenerate.
+> Run `./scripts/generate_errors.sh` to regenerate.
 
 **Total: 368 codes** (250 errors, 17 warnings, 101 panics)
 
@@ -259,7 +259,7 @@
 | `E12001` | stdlib | maps.%s() requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
 | `E12007` | stdlib | maps.contains_value() does not support maps with %s values; only primitive and string value types are supported |
-| `E8001` | bitwise | '%s' can only be used with integers; got '%s' and '%s' |
+| `E8001` | bitwise | '%s' can only be used with integers or #flags enums; got '%s' and '%s' |
 | `E8002` | bitwise | 'bit_not' can only be used with integers; got '%s' |
 
 ---
@@ -419,4 +419,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-07-23 08:18:17 UTC*
+*Generated on 2026-07-24 06:36:32 UTC*

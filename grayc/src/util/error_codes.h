@@ -290,7 +290,7 @@
 
 /* --- E8xxx: Bitwise Operators --- */
 #define GRAY_BITWISE_ERRORS \
-    GRAY_ERROR("E8001", "bitwise", "'%s' can only be used with integers; got '%s' and '%s'") \
+    GRAY_ERROR("E8001", "bitwise", "'%s' can only be used with integers or #flags enums; got '%s' and '%s'") \
     GRAY_ERROR("E8002", "bitwise", "'bit_not' can only be used with integers; got '%s'")
 
 /* --- P0xxx: Runtime Panics --- */
