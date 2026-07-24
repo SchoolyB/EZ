@@ -121,7 +121,7 @@ install: build
 	@echo '| |_| | | | (_| | |_| \__ \ (_| (_| | |  __/'
 	@echo ' \____|_|  \__,_|\__, |___/\___\__,_|_|\___|'
 	@echo '                 |___/'
-	@echo 'The Grayscale Programming Language'
+	@echo 'Programming On Your Terms'
 	@echo ""
 	@echo "Grayscale installed successfully!"
 

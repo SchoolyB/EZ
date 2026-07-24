@@ -1,7 +1,8 @@
 <p align="center">
     <img src="images/Grayscale_logo.png" alt="Grayscale Logo" width="200">
 </p>
-    <h2 align="center">The Grayscale Programming Language</h2>
+    <h2 align="center">Programming On Your Terms</h2>
+    <p align="center"><em>A compiled language where simplicity meets flexibility.</em></p>
 </p>
 
 

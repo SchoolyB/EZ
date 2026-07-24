@@ -577,8 +577,8 @@ var manCmd = &cobra.Command{
 
 var rootCmd = &cobra.Command{
 	Use:   "gray [file.gray]",
-	Short: "Grayscale Programming Language",
-	Long:  "A statically-typed programming language that compiles to native binaries.",
+	Short: "Programming On Your Terms",
+	Long:  "Grayscale — A compiled language where simplicity meets flexibility.",
 	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
