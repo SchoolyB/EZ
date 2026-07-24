@@ -9434,8 +9434,26 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     const char *stdlib_imports[MAX_STDLIB_IMPORTS];
     int stdlib_import_count = 0;
 
-    /* First pass: scan for imports, using declarations, and struct declarations */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
+    /* Statement buckets — single categorization pass to avoid repeated full scans. */
+    int total = program->data.program.stmt_count;
+    int enum_bucket_count = 0, enum_bucket_cap = 16;
+    AstNode **enum_bucket = xmalloc(sizeof(AstNode *) * (size_t)enum_bucket_cap);
+    int func_bucket_count = 0, func_bucket_cap = 16;
+    AstNode **func_bucket = xmalloc(sizeof(AstNode *) * (size_t)func_bucket_cap);
+    int var_bucket_count = 0, var_bucket_cap = 16;
+    AstNode **var_bucket = xmalloc(sizeof(AstNode *) * (size_t)var_bucket_cap);
+    int other_bucket_count = 0, other_bucket_cap = 16;
+    AstNode **other_bucket = xmalloc(sizeof(AstNode *) * (size_t)other_bucket_cap);
+
+    #define BUCKET_PUSH(arr, cnt, cap, val) do { \
+        if ((cnt) >= (cap)) { \
+            (cap) = (cap) * 2; \
+            (arr) = xrealloc((arr), sizeof(AstNode *) * (size_t)(cap)); \
+        } \
+        (arr)[(cnt)++] = (val); \
+    } while (0)
+
+    for (int i = 0; i < total; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_IMPORT_STMT) {
             for (int j = 0; j < stmt->data.import_stmt.count; j++) {
@@ -9512,6 +9530,14 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
                     sizeof(AstNode *) * (size_t)codegen->struct_decl_cap);
             }
             codegen->struct_decls[codegen->struct_decl_count++] = stmt;
+        } else if (stmt->kind == NODE_ENUM_DECL) {
+            BUCKET_PUSH(enum_bucket, enum_bucket_count, enum_bucket_cap, stmt);
+        } else if (stmt->kind == NODE_FUNC_DECL) {
+            BUCKET_PUSH(func_bucket, func_bucket_count, func_bucket_cap, stmt);
+        } else if (stmt->kind == NODE_VAR_DECL) {
+            BUCKET_PUSH(var_bucket, var_bucket_count, var_bucket_cap, stmt);
+        } else if (stmt->kind != NODE_USING_STMT) {
+            BUCKET_PUSH(other_bucket, other_bucket_count, other_bucket_cap, stmt);
         }
     }
 
@@ -9585,10 +9611,9 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     emit(codegen, "\n");
 
     /* Emit enum type definitions FIRST (before structs, since structs may reference enums) */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind == NODE_ENUM_DECL) {
-            /* Check if this is a string enum (auto-detect from values) */
+    for (int i = 0; i < enum_bucket_count; i++) {
+        AstNode *stmt = enum_bucket[i];
+        /* Check if this is a string enum (auto-detect from values) */
             bool is_string_enum = false;
             for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
                 if (stmt->data.enum_decl.values[j].value &&
@@ -9688,20 +9713,14 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
                 }
                 emit_formatted(codegen, "} GrayEnum_%s;\n\n", stmt->data.enum_decl.name);
             }
-        }
     }
 
-    /* Collect struct declarations and emit in dependency order (topological sort).
+    /* Emit struct declarations in dependency order (topological sort).
      * Structs that reference other structs as value fields must come after them. */
     {
-        int struct_count = 0;
-        AstNode *structs[MAX_STRUCT_DECLS];
-        for (int i = 0; i < program->data.program.stmt_count; i++) {
-            if (program->data.program.stmts[i]->kind == NODE_STRUCT_DECL &&
-                struct_count < MAX_STRUCT_DECLS) {
-                structs[struct_count++] = program->data.program.stmts[i];
-            }
-        }
+        int struct_count = codegen->struct_decl_count < MAX_STRUCT_DECLS
+                         ? codegen->struct_decl_count : MAX_STRUCT_DECLS;
+        AstNode **structs = codegen->struct_decls;
 
         /* Emit forward declarations so pointer fields can reference any struct.
          * Skip generic structs; their forward decls are per-instantiation. */
@@ -9766,9 +9785,9 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     /* : emit per-instantiation typedefs for generic (wildcard) structs.
      * For each recorded binding, substitute ? → concrete in field types
      * and emit under a mangled name (e.g. GrayStruct_Pair__int). */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_generic) continue;
+    for (int i = 0; i < codegen->struct_decl_count; i++) {
+        AstNode *stmt = codegen->struct_decls[i];
+        if (!stmt->data.struct_decl.is_generic) continue;
         for (int inst_index = 0; inst_index < stmt->data.struct_decl.instantiation_count; inst_index++) {
             const char *concrete = stmt->data.struct_decl.instantiations[inst_index];
             char mangled[MSG_BUF_SIZE];
@@ -9797,9 +9816,9 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
      *   - gray_json_stringify_<Name>(arena, struct_value) → GrayString
      * These are called by json.parse() / json.stringify() which the
      * typechecker dispatches based on the target/argument struct type. */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_json) continue;
+    for (int i = 0; i < codegen->struct_decl_count; i++) {
+        AstNode *stmt = codegen->struct_decls[i];
+        if (!stmt->data.struct_decl.is_json) continue;
         const char *struct_name = stmt->data.struct_decl.name;
         int field_count = stmt->data.struct_decl.field_count;
 
@@ -9908,40 +9927,39 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     /* (Enum typedefs already emitted above, before struct definitions) */
 
     /* Collect all function declarations (including struct-namespaced) */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind == NODE_FUNC_DECL) {
-            if (codegen->func_count >= codegen->func_cap) {
-                codegen->func_cap = codegen->func_cap ? codegen->func_cap * 2 : 16;
-                codegen->all_funcs = xrealloc(codegen->all_funcs, sizeof(AstNode *) * codegen->func_cap);
-            }
-            codegen->all_funcs[codegen->func_count++] = stmt;
+    for (int i = 0; i < func_bucket_count; i++) {
+        AstNode *stmt = func_bucket[i];
+        if (codegen->func_count >= codegen->func_cap) {
+            codegen->func_cap = codegen->func_cap ? codegen->func_cap * 2 : 16;
+            codegen->all_funcs = xrealloc(codegen->all_funcs, sizeof(AstNode *) * codegen->func_cap);
         }
-        /* Collect struct-namespaced functions with prefixed names */
-        if (stmt->kind == NODE_STRUCT_DECL) {
-            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
-                AstNode *function_node = stmt->data.struct_decl.funcs[j].func_decl;
-                if (function_node && function_node->kind == NODE_FUNC_DECL) {
-                    const char *struct_name = stmt->data.struct_decl.name;
-                    const char *fn_name = function_node->data.func_decl.name;
-                    size_t struct_name_len = strlen(struct_name);
-                    size_t fn_len = strlen(fn_name);
-                    size_t ns_len = struct_name_len + 1 + fn_len + 1;
-                    char *ns_name = malloc(ns_len);
-                    snprintf(ns_name, ns_len, "%s_%s", struct_name, fn_name);
-                    function_node->data.func_decl.name = ns_name;
-                    if (codegen->ns_func_name_count >= codegen->ns_func_name_cap) {
-                        codegen->ns_func_name_cap = codegen->ns_func_name_cap ? codegen->ns_func_name_cap * 2 : 8;
-                        codegen->ns_func_names = xrealloc(codegen->ns_func_names, sizeof(char *) * codegen->ns_func_name_cap);
-                    }
-                    codegen->ns_func_names[codegen->ns_func_name_count++] = ns_name;
-
-                    if (codegen->func_count >= codegen->func_cap) {
-                        codegen->func_cap = codegen->func_cap ? codegen->func_cap * 2 : 16;
-                        codegen->all_funcs = xrealloc(codegen->all_funcs, sizeof(AstNode *) * codegen->func_cap);
-                    }
-                    codegen->all_funcs[codegen->func_count++] = function_node;
+        codegen->all_funcs[codegen->func_count++] = stmt;
+    }
+    /* Collect struct-namespaced functions with prefixed names */
+    for (int i = 0; i < codegen->struct_decl_count; i++) {
+        AstNode *stmt = codegen->struct_decls[i];
+        for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+            AstNode *function_node = stmt->data.struct_decl.funcs[j].func_decl;
+            if (function_node && function_node->kind == NODE_FUNC_DECL) {
+                const char *struct_name = stmt->data.struct_decl.name;
+                const char *fn_name = function_node->data.func_decl.name;
+                size_t struct_name_len = strlen(struct_name);
+                size_t fn_len = strlen(fn_name);
+                size_t ns_len = struct_name_len + 1 + fn_len + 1;
+                char *ns_name = malloc(ns_len);
+                snprintf(ns_name, ns_len, "%s_%s", struct_name, fn_name);
+                function_node->data.func_decl.name = ns_name;
+                if (codegen->ns_func_name_count >= codegen->ns_func_name_cap) {
+                    codegen->ns_func_name_cap = codegen->ns_func_name_cap ? codegen->ns_func_name_cap * 2 : 8;
+                    codegen->ns_func_names = xrealloc(codegen->ns_func_names, sizeof(char *) * codegen->ns_func_name_cap);
                 }
+                codegen->ns_func_names[codegen->ns_func_name_count++] = ns_name;
+
+                if (codegen->func_count >= codegen->func_cap) {
+                    codegen->func_cap = codegen->func_cap ? codegen->func_cap * 2 : 16;
+                    codegen->all_funcs = xrealloc(codegen->all_funcs, sizeof(AstNode *) * codegen->func_cap);
+                }
+                codegen->all_funcs[codegen->func_count++] = function_node;
             }
         }
     }
@@ -10054,31 +10072,26 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
 
     /* Emit global constants/variables first so they're visible to all functions
      * (e.g. when used as default parameter values at a call site). */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind == NODE_VAR_DECL) {
-            emit_statement(codegen, stmt);
-        }
+    for (int i = 0; i < var_bucket_count; i++) {
+        emit_statement(codegen, var_bucket[i]);
     }
 
-    /* Emit remaining top-level statements (functions, etc.) */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind != NODE_IMPORT_STMT && stmt->kind != NODE_USING_STMT &&
-            stmt->kind != NODE_VAR_DECL) {
-            emit_statement(codegen, stmt);
-        }
+    /* Emit remaining top-level statements (functions, enums, structs, etc.).
+     * enum/struct/import/using/module are no-ops in emit_statement. */
+    for (int i = 0; i < func_bucket_count; i++) {
+        emit_statement(codegen, func_bucket[i]);
+    }
+    for (int i = 0; i < other_bucket_count; i++) {
+        emit_statement(codegen, other_bucket[i]);
     }
 
     /* Emit struct-namespaced function definitions */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind == NODE_STRUCT_DECL) {
-            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
-                AstNode *function_node = stmt->data.struct_decl.funcs[j].func_decl;
-                if (function_node && function_node->kind == NODE_FUNC_DECL) {
-                    emit_statement(codegen, function_node);
-                }
+    for (int i = 0; i < codegen->struct_decl_count; i++) {
+        AstNode *stmt = codegen->struct_decls[i];
+        for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+            AstNode *function_node = stmt->data.struct_decl.funcs[j].func_decl;
+            if (function_node && function_node->kind == NODE_FUNC_DECL) {
+                emit_statement(codegen, function_node);
             }
         }
     }
@@ -10096,6 +10109,12 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     emit(codegen, "    gray_runtime_shutdown();\n");
     emit(codegen, "    return 0;\n");
     emit(codegen, "}\n");
+
+    free(enum_bucket);
+    free(func_bucket);
+    free(var_bucket);
+    free(other_bucket);
+    #undef BUCKET_PUSH
 }
 
 const char *codegen_result(CodeGen *codegen) {
