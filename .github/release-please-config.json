@@ -17,7 +17,7 @@
     ".": {
       "release-type": "go",
       "package-name": "grayscale",
-      "include-component-in-tag": false,
+      "include-component-in-tag": true,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "changelog-path": "CHANGELOG.md",
