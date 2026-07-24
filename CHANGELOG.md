@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0](https://github.com/grayscale-lang/grayscale/compare/v0.0.4...v0.1.0) (2026-07-23)
+
+
+### Features
+
+* **stdlib:** add `write_bytes()`, `append_bytes()`, `temp_file()`, `temp_dir()` to `io` module ([6e761f5](https://github.com/grayscale-lang/grayscale/commit/6e761f59a39e0062b1ec72d0dbd79d85ef5c68f8))
+* **stdlib:** add write_bytes, append_bytes, temp_file, temp_dir to io module ([#1868](https://github.com/grayscale-lang/grayscale/issues/1868)) ([5875f3e](https://github.com/grayscale-lang/grayscale/commit/5875f3e8775ddfefe73d7ec7ce176d0f06e35157))
+
 ## [0.0.4](https://github.com/grayscale-lang/grayscale/compare/v0.0.3...v0.0.4) (2026-07-23)
 
 
