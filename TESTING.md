@@ -48,7 +48,7 @@ Integration tests compile and run `.gray` programs end-to-end through the full c
 
 **Structure:**
 
-- `integration-tests/pass/core/` — 258 core language feature tests covering arrays, control flow, structs, enums, maps, pointers, named returns, type inference, builtins, C interop, bigint types, wildcards, and more.
+- `integration-tests/pass/core/` — 259 core language feature tests covering arrays, control flow, structs, enums, maps, pointers, named returns, type inference, builtins, C interop, bigint types, wildcards, and more.
 - `integration-tests/pass/stdlib/` — 68 stdlib module tests covering all 28 stdlib modules.
 - `integration-tests/pass/new/` — 8 project template tests (basic, cli, lib, multi, server_minimal, server_normal, client_minimal, client_normal).
 - `integration-tests/pass/warnings/` — 24 warning detection tests covering all W-code warnings.

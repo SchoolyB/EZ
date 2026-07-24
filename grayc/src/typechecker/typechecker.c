@@ -3662,7 +3662,22 @@ static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *no
                     self_arg->kind = NODE_LABEL;
                     self_arg->token = node->token;
                     self_arg->data.label.value = strdup(mod_raw);
-                    new_args[0] = self_arg;
+                    /* Auto-deref: receiver is a pointer but param expects
+                     * the struct value — wrap self in a deref (p^).
+                     * For &self (mutable), codegen cancels the deref
+                     * with the address-of, emitting just the pointer. */
+                    const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
+                    if (sym->type->kind == TK_POINTER && p0_tn &&
+                        strcmp(p0_tn, struct_name) == 0) {
+                        AstNode *deref = xcalloc(1, sizeof(AstNode));
+                        deref->kind = NODE_POSTFIX_EXPR;
+                        deref->token = node->token;
+                        deref->data.postfix.left = self_arg;
+                        deref->data.postfix.op = TOK_CARET;
+                        new_args[0] = deref;
+                    } else {
+                        new_args[0] = self_arg;
+                    }
                     for (int argument_index = 0; argument_index < orig_count; argument_index++) {
                         new_args[argument_index + 1] = node->data.call.args[argument_index];
                     }

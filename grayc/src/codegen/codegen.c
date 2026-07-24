@@ -6541,7 +6541,11 @@ static void emit_call_expression(CodeGen *codegen, AstNode *node) {
                     int pi = self_injected ? i + 1 : i;
                     bool mut_param = pi < ns_func->data.func_decl.param_count &&
                         ns_func->data.func_decl.params[pi].mutable;
-                    if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
+                    if (mut_param && node->data.call.args[i]->kind == NODE_POSTFIX_EXPR &&
+                        node->data.call.args[i]->data.postfix.op == TOK_CARET) {
+                        /* &(p^) cancels out — emit the inner pointer directly */
+                        emit_expression(codegen, node->data.call.args[i]->data.postfix.left);
+                    } else if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
                         const char *vn = node->data.call.args[i]->data.label.value;
                         if (is_mutable_parameter(codegen, vn)) emit(codegen, vn);
                         else emit_formatted(codegen, "&%s", vn);
