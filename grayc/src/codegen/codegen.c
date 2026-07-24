@@ -8749,6 +8749,8 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
 
     AstNode *prev_func = codegen->current_func;
     int prev_using_count = codegen->using_module_count;
+    int prev_ref_var_count = codegen->ref_var_count;
+    int prev_bigint_var_count = codegen->bigint_var_count;
     codegen->current_func = node;
 
     /* Register bigint parameters for type tracking */
@@ -8789,6 +8791,8 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
     }
     codegen->current_func = prev_func;
     codegen->using_module_count = prev_using_count;
+    codegen->ref_var_count = prev_ref_var_count;
+    codegen->bigint_var_count = prev_bigint_var_count;
     codegen->indent--;
     emit(codegen, "}\n\n");
 }
