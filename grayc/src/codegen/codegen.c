@@ -5554,82 +5554,37 @@ static bool emit_strings_call(CodeGen *codegen, AstNode *node, const char *func)
 
 /* --- @fmt module --- */
 
+static void emit_format_body(CodeGen *codegen, AstNode *node, const char *prefix, bool newline) {
+    emit(codegen, prefix);
+    AstNode *fmt_arg = node->data.call.args[0];
+    if (fmt_arg->kind == NODE_STRING_VALUE) {
+        if (newline)
+            emit_format_string_normalized_extended(codegen, fmt_arg->data.string_value.value, node, true);
+        else
+            emit_format_string_normalized(codegen, fmt_arg->data.string_value.value, node);
+    } else {
+        emit_expression(codegen, fmt_arg);
+        emit(codegen, ".data");
+    }
+    emit_format_arguments(codegen, node, 1);
+    emit(codegen, ")");
+}
+
 static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *func) {
-    if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "printf(");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized(codegen, fmt_arg->data.string_value.value, node);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(func, "printfln") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "printf(");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized_extended(codegen, fmt_arg->data.string_value.value, node, true);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(func, "eprintf") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "fprintf(stderr, ");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized(codegen, fmt_arg->data.string_value.value, node);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(func, "eprintfln") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "fprintf(stderr, ");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized_extended(codegen, fmt_arg->data.string_value.value, node, true);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "gray_string_format(gray_default_arena, ");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized(codegen, fmt_arg->data.string_value.value, node);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(func, "format") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "gray_string_format(gray_default_arena, ");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized(codegen, fmt_arg->data.string_value.value, node);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(func, "sprintfln") == 0 && node->data.call.arg_count >= 1) {
-        emit(codegen, "gray_string_format(gray_default_arena, ");
-        AstNode *fmt_arg = node->data.call.args[0];
-        if (fmt_arg->kind == NODE_STRING_VALUE)
-            emit_format_string_normalized_extended(codegen, fmt_arg->data.string_value.value, node, true);
-        else { emit_expression(codegen, fmt_arg); emit(codegen, ".data"); }
-        emit_format_arguments(codegen, node, 1);
-        emit(codegen, ")");
-        return true;
+    static const struct { const char *name; const char *prefix; bool newline; } fmt_variants[] = {
+        {"printf",     "printf(",                                false},
+        {"printfln",   "printf(",                                true},
+        {"eprintf",    "fprintf(stderr, ",                       false},
+        {"eprintfln",  "fprintf(stderr, ",                       true},
+        {"sprintf",    "gray_string_format(gray_default_arena, ", false},
+        {"format",     "gray_string_format(gray_default_arena, ", false},
+        {"sprintfln",  "gray_string_format(gray_default_arena, ", true},
+    };
+    for (int i = 0; i < (int)(sizeof(fmt_variants) / sizeof(fmt_variants[0])); i++) {
+        if (strcmp(func, fmt_variants[i].name) == 0 && node->data.call.arg_count >= 1) {
+            emit_format_body(codegen, node, fmt_variants[i].prefix, fmt_variants[i].newline);
+            return true;
+        }
     }
 
     if (strcmp(func, "pad_left") == 0 && node->data.call.arg_count == 3) {
