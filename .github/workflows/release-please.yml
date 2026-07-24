@@ -129,10 +129,10 @@ jobs:
       - name: Stage embedded runtime assets
         shell: bash
         run: |
-          cp grayc/grayc internal/grayc/runtime/grayc
-          cp grayc/libgrayrt.a internal/grayc/runtime/libgrayrt.a
-          cp grayc/src/runtime/*.h grayc/src/runtime/*.c internal/grayc/runtime/src/runtime/
-          cp grayc/src/stdlib/*.h grayc/src/stdlib/*.c internal/grayc/runtime/src/stdlib/
+          cp grayc/grayc internal/driver/runtime/grayc
+          cp grayc/libgrayrt.a internal/driver/runtime/libgrayrt.a
+          cp grayc/src/runtime/*.h grayc/src/runtime/*.c internal/driver/runtime/src/runtime/
+          cp grayc/src/stdlib/*.h grayc/src/stdlib/*.c internal/driver/runtime/src/stdlib/
 
       - name: Build Grayscale CLI (with embedded runtime)
         env:
