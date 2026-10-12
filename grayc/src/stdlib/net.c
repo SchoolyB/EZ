@@ -86,18 +86,32 @@ int64_t gray_net_send(GraySocket sock, GrayString data) {
     return net_send_all(sock, data, &written) ? written : -1;
 }
 
-GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
+/* Reads up to maximum_bytes. An empty result sets *error_number to the
+ * system error that ended the read, or 0 when the peer closed cleanly. */
+static GrayString net_recv_bytes(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number) {
+    *error_number = 0;
     if (sock.file_descriptor < 0 || maximum_bytes <= 0) return (GrayString){"", 0};
 
     size_t buffer_size = (size_t)maximum_bytes;
     if (buffer_size > GRAY_NET_MAX_RECEIVE_BUFFER_SIZE) buffer_size = GRAY_NET_MAX_RECEIVE_BUFFER_SIZE; /* cap at 1MB */
     char *buffer = gray_arena_alloc_uninitialized(arena, buffer_size + 1);
 
-    int64_t bytes_received = (int64_t)recv(sock.file_descriptor, buffer, (int)buffer_size, 0);
-    if (bytes_received <= 0) return (GrayString){"", 0};
+    int64_t bytes_received;
+    do {
+        bytes_received = (int64_t)recv(sock.file_descriptor, buffer, (int)buffer_size, 0);
+    } while (bytes_received < 0 && errno == EINTR);
+    if (bytes_received <= 0) {
+        if (bytes_received < 0) *error_number = errno;
+        return (GrayString){"", 0};
+    }
 
     buffer[bytes_received] = '\0';
     return (GrayString){buffer, (int32_t)bytes_received};
+}
+
+GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
+    int error_number;
+    return net_recv_bytes(arena, sock, maximum_bytes, &error_number);
 }
 
 GraySocket gray_net_accept(GrayArena *arena, GraySocket listener) {
@@ -231,11 +245,17 @@ GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayStrin
 
 GrayResult_string gray_net_recv_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
     GrayResult_string result;
-    result.v0 = gray_net_recv(arena, sock, maximum_bytes);
-    if (result.v0.len == 0 && sock.file_descriptor >= 0) {
-        result.v1 = gray_error_new(arena, GRAY_ERR_Closed, gray_string_format(arena, "recv returned no data on fd %d", sock.file_descriptor));
+    int error_number;
+    result.v0 = net_recv_bytes(arena, sock, maximum_bytes, &error_number);
+    result.v1 = NULL;
+    if (result.v0.len > 0 || sock.file_descriptor < 0) return result;
+    if (error_number == 0) {
+        result.v1 = gray_error_new(arena, GRAY_ERR_Closed, gray_string_format(arena, "connection closed by peer"));
+    } else if (error_number == EAGAIN || error_number == EWOULDBLOCK || error_number == ETIMEDOUT) {
+        /* The socket is blocking, so this is the set_timeout period elapsing. */
+        result.v1 = gray_error_new(arena, GRAY_ERR_Timeout, gray_string_format(arena, "receive timed out"));
     } else {
-        result.v1 = NULL;
+        result.v1 = gray_error_new(arena, gray_errno_code(error_number), gray_string_format(arena, "receive failed"));
     }
     return result;
 }

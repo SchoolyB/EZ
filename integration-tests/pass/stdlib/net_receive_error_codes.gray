@@ -1,0 +1,63 @@
+/*
+ * Test: net.receive tells a closed peer, an elapsed timeout and a reset apart
+ */
+
+import @net
+import @threads
+
+const TEST_PORT i64 = 47214
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut listener, _ = net.listen(TEST_PORT, "127.0.0.1")
+
+    // Silent peer with a short timeout: Timeout
+    mut silent, _ = net.connect("127.0.0.1", TEST_PORT)
+    mut silent_peer, _ = net.accept(listener)
+    net.set_timeout(silent, 200)
+    mut _, timeout_err = net.receive(silent, 16)
+    if timeout_err != nil && timeout_err.code == .Timeout {
+        println("  [PASS] elapsed set_timeout returns Timeout")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] elapsed set_timeout did not return Timeout")
+        failed += 1
+    }
+
+    // Peer closes cleanly: Closed
+    net.close(silent_peer)
+    mut _, closed_err = net.receive(silent, 16)
+    if closed_err != nil && closed_err.code == .Closed {
+        println("  [PASS] closed peer returns Closed")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] closed peer did not return Closed")
+        failed += 1
+    }
+
+    // Peer closes with unread data: ConnectionReset
+    mut resetting, _ = net.connect("127.0.0.1", TEST_PORT)
+    mut resetting_peer, _ = net.accept(listener)
+    mut _, _ = net.send(resetting, "unread")
+    threads.sleep(100)
+    net.close(resetting_peer)
+    threads.sleep(100)
+    mut _, reset_err = net.receive(resetting, 16)
+    if reset_err != nil && reset_err.code == .ConnectionReset {
+        println("  [PASS] reset connection returns ConnectionReset")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reset connection did not return ConnectionReset")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
