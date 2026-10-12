@@ -115,8 +115,8 @@ The following words are reserved and may not be used as identifiers:
 as_long_as   break       case        continue    default
 defer        elif        else        ensure      for
 for_each     if          is          loop        or
-or_panic     or_return   otherwise   return      switch
-when         while
+or_default   or_panic    or_return   otherwise   return
+switch       when        while
 ```
 
 **Declarations:**
@@ -1859,6 +1859,15 @@ mut n = strconv.to_i64(text) or_panic "config must hold a port number"
 ```
 
 When the call returns a non-nil error, the program panics with the error's message, or with the string written after `or_panic`. Otherwise the value is bound. Unlike `or_return`, it is legal in `main()` and in functions that return no `Error`. Both `mut` and `const` declarations are accepted.
+
+The `or_default` keyword substitutes fallback values when the call fails:
+
+```gray
+mut port = strconv.to_i64(text) or_default 8080
+mut low, high = bounds(text) or_default 0, 100
+```
+
+On success the call's values are used and the fallbacks are not evaluated. On failure the error is discarded and the fallbacks are used, one per non-error value the call returns, in return order and each of that slot's type. It is legal in `main()` and in functions that return no `Error`, needs a binding (a bare `call() or_default x` is an error), and is rejected on a call that is not fallible. To inspect the error, destructure it instead (`mut x, err = f()`).
 
 ---
 

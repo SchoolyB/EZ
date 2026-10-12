@@ -975,6 +975,22 @@ static void test_e2e_or_return(void) {
     ASSERT_STR_EQ(output, "success");
 }
 
+static void test_e2e_or_default(void) {
+    char *output = compile_and_run(
+        ""
+        "do fallible(ok bool) -> (i64, Error) {\n"
+        "  if ok { return 5, nil }\n"
+        "  return 0, error(.Unknown, \"failed\")\n"
+        "}\n"
+        "do main() {\n"
+        "  mut good = fallible(true) or_default 1\n"
+        "  mut bad = fallible(false) or_default 9\n"
+        "  println(good + bad)\n"
+        "}");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "14");
+}
+
 /* ===== Enum Attributes ===== */
 
 static void test_e2e_flags_enum(void) {
@@ -3095,6 +3111,7 @@ int main(void) {
 
     /* or_return */
     RUN_TEST(test_e2e_or_return);
+    RUN_TEST(test_e2e_or_default);
 
     /* Enum attributes */
     RUN_TEST(test_e2e_flags_enum);

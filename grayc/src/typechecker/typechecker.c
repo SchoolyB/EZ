@@ -13313,6 +13313,44 @@ static void mark_elided_array_copies(TypeChecker *checker, AstNode *block) {
     }
 }
 
+/* or_default desugars to `_tmp = call(); if _tmp.verr != nil { _tmp.v0 = f0; ... }; x = _tmp.v0`.
+ * Once the temporary is declared, check the fallbacks against the call's
+ * non-error values: one per value (E3207), each of the slot's type (E3208).
+ * A bad guard is emptied so the assignments do not report a second time. */
+static void check_or_default_fallbacks(TypeChecker *checker, AstNode *block) {
+    if (block->data.block.count < 2) return;
+    AstNode *temporary = block->data.block.statements[0];
+    AstNode *guard = block->data.block.statements[1];
+    if (!temporary || temporary->kind != NODE_VARIABLE_DECLARATION ||
+        strncmp(temporary->data.variable_declaration.name, GRAY_SYNTHETIC_OR_DEFAULT, sizeof(GRAY_SYNTHETIC_OR_DEFAULT) - 1) != 0 ||
+        !guard || guard->kind != NODE_IF_STATEMENT) return;
+
+    Symbol *symbol = scope_lookup_local(checker->current_scope, temporary->data.variable_declaration.name);
+    /* A call that is not fallible is reported as E3045 by the declaration. */
+    if (!symbol || !symbol->return_types || symbol->return_count < 2 ||
+        symbol->return_types[symbol->return_count - 1]->kind != TYPE_KIND_ERROR) return;
+
+    AstNode *assignments = guard->data.if_statement.consequence;
+    int value_count = symbol->return_count - 1;
+    int fallback_count = assignments->data.block.count;
+    if (fallback_count != value_count) {
+        NODE_ERROR_FORMATTED(checker, fallback_count > 0 ? assignments->data.block.statements[0] : temporary,
+            "E3207", fallback_count, value_count);
+        assignments->data.block.count = 0;
+        return;
+    }
+    for (int i = 0; i < fallback_count; i++) {
+        AstNode *fallback = assignments->data.block.statements[i]->data.assign.value;
+        GrayType *fallback_type = resolve_expression(checker, fallback);
+        GrayType *slot_type = symbol->return_types[i];
+        if (fallback_type && fallback_type->kind != TYPE_KIND_UNKNOWN && !types_assignable(checker, slot_type, fallback_type)) {
+            NODE_ERROR_FORMATTED(checker, fallback, "E3208", type_name(fallback_type), type_name(slot_type));
+            assignments->data.block.count = 0;
+            return;
+        }
+    }
+}
+
 static void check_block(TypeChecker *checker, AstNode *node) {
     if (!node || node->kind != NODE_BLOCK_STATEMENT) return;
     bool seen_return = false;
@@ -13322,6 +13360,7 @@ static void check_block(TypeChecker *checker, AstNode *node) {
             diagnostic_warning_code(checker->diagnostics, "W2003", NODE_FILE(checker, statement), statement->token.line, statement->token.column, 0);
             break; /* only warn once per block */
         }
+        if (i == 1) check_or_default_fallbacks(checker, node);
         check_statement(checker, statement);
         if (statement && statement->kind == NODE_RETURN_STATEMENT) {
             seen_return = true;
@@ -13549,7 +13588,7 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
     /* E4026: 'main' is reserved for the entry-point function */
     check_reserved_main(checker, node->data.variable_declaration.name,
         NODE_FILE(checker, node), node->token.line, node->token.column);
-    /* E3045: or_return / or_panic on non-error-returning function */
+    /* E3045: or_return / or_panic / or_default on non-error-returning function */
     if (strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR, sizeof(GRAY_SYNTHETIC_OR) - 1) == 0 &&
         node->data.variable_declaration.value && node->data.variable_declaration.value->kind == NODE_CALL_EXPRESSION) {
         AstNode *call_function = node->data.variable_declaration.value->data.call.function;
@@ -13575,8 +13614,10 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
                     strncpy(display, call_name, sizeof(display) - 1);
                     display[sizeof(display) - 1] = '\0';
                 }
-                const char *keyword = strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR_PANIC,
-                    sizeof(GRAY_SYNTHETIC_OR_PANIC) - 1) == 0 ? "or_panic" : "or_return";
+                const char *temporary_name = node->data.variable_declaration.name;
+                const char *keyword = strncmp(temporary_name, GRAY_SYNTHETIC_OR_PANIC, sizeof(GRAY_SYNTHETIC_OR_PANIC) - 1) == 0 ? "or_panic"
+                    : strncmp(temporary_name, GRAY_SYNTHETIC_OR_DEFAULT, sizeof(GRAY_SYNTHETIC_OR_DEFAULT) - 1) == 0 ? "or_default"
+                    : "or_return";
                 NODE_ERROR_FORMATTED(checker, node->data.variable_declaration.value, "E3045", keyword, display);
             }
         }

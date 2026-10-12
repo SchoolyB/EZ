@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2102 - or_default with no binding
+ */
+// expect-error: E2102
+
+do lookup() -> (i64, Error) {
+    return 1, nil
+}
+
+do main() {
+    lookup() or_default 1
+}

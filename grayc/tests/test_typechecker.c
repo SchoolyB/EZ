@@ -902,6 +902,30 @@ static void test_error_E3045_or_return_no_error(void) {
     diagnostic_destroy(diagnostics);
 }
 
+static void test_error_E3045_or_default_no_error(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "do get() -> i64 { return 42 }\n"
+        "do main() { mut x = get() or_default 1 }");
+    ASSERT(has_error_code(diagnostics, "E3045"));
+    diagnostic_destroy(diagnostics);
+}
+
+static void test_error_E3207_or_default_count(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "do get() -> (i64, Error) { return 1, nil }\n"
+        "do main() { mut x = get() or_default 1, 2 }");
+    ASSERT(has_error_code(diagnostics, "E3207"));
+    diagnostic_destroy(diagnostics);
+}
+
+static void test_error_E3208_or_default_type(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "do get() -> (i64, Error) { return 1, nil }\n"
+        "do main() { mut x = get() or_default \"text\" }");
+    ASSERT(has_error_code(diagnostics, "E3208"));
+    diagnostic_destroy(diagnostics);
+}
+
 /* --- E4xxx: Additional name errors --- */
 
 static void test_error_E4014_shadow_module(void) {
@@ -2923,6 +2947,9 @@ int main(void) {
     RUN_TEST(test_error_E3043_invalid_cast);
     RUN_TEST(test_error_E3167_cast_pointer_reinterpret);
     RUN_TEST(test_error_E3045_or_return_no_error);
+    RUN_TEST(test_error_E3045_or_default_no_error);
+    RUN_TEST(test_error_E3207_or_default_count);
+    RUN_TEST(test_error_E3208_or_default_type);
 
     /* E4xxx: Additional name errors */
     RUN_TEST(test_error_E4014_shadow_module);

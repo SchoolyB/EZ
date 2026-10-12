@@ -319,6 +319,16 @@ static void test_or_return_keyword(void) {
     ASSERT_EQ(next_token(lexer).type, TOKEN_OR_RETURN);
 }
 
+static void test_or_panic_keyword(void) {
+    Lexer *lexer = create_test_lexer("or_panic");
+    ASSERT_EQ(next_token(lexer).type, TOKEN_OR_PANIC);
+}
+
+static void test_or_default_keyword(void) {
+    Lexer *lexer = create_test_lexer("or_default");
+    ASSERT_EQ(next_token(lexer).type, TOKEN_OR_DEFAULT);
+}
+
 static void test_caret_token(void) {
     Lexer *lexer = create_test_lexer("^i64");
     ASSERT_EQ(next_token(lexer).type, TOKEN_CARET);
@@ -716,6 +726,8 @@ int main(void) {
     RUN_TEST(test_octal_literal);
     RUN_TEST(test_binary_literal);
     RUN_TEST(test_or_return_keyword);
+    RUN_TEST(test_or_panic_keyword);
+    RUN_TEST(test_or_default_keyword);
     RUN_TEST(test_error_E1025_question_mark);
     RUN_TEST(test_caret_token);
     RUN_TEST(test_float_with_underscores);

@@ -1567,9 +1567,8 @@ static AstNode *build_or_return_guard(Parser *parser, const char *temporary_name
  *
  * The message is the one the user wrote after `or_panic`, else the error's
  * own. `verr` is rewritten by the typechecker exactly as for or_return. */
-static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name, AstNode *message) {
+static AstNode *make_error_check_if(Parser *parser, const char *temporary_name) {
     Token token = parser->current_token;
-
     AstNode *if_statement = ast_allocate(parser->arena, NODE_IF_STATEMENT, token);
     AstNode *error_access = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
     AstNode *temporary_label = ast_allocate(parser->arena, NODE_LABEL, token);
@@ -1582,6 +1581,13 @@ static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name,
     condition->data.infix.operator = TOKEN_NOT_EQUAL;
     condition->data.infix.right = nil_value;
     if_statement->data.if_statement.condition = condition;
+    if_statement->data.if_statement.alternative = NULL;
+    return if_statement;
+}
+
+static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name, AstNode *message) {
+    Token token = parser->current_token;
+    AstNode *if_statement = make_error_check_if(parser, temporary_name);
 
     if (!message) {
         AstNode *message_access = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
@@ -1612,8 +1618,47 @@ static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name,
     panic_block->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *));
     panic_block->data.block.statements[panic_block->data.block.count++] = panic_statement;
     if_statement->data.if_statement.consequence = panic_block;
-    if_statement->data.if_statement.alternative = NULL;
     return if_statement;
+}
+
+/* Build the substitution guard for or_default:
+ *
+ *     if (_tmp.verr != nil) { _tmp.v0 = <fallback0>; _tmp.v1 = <fallback1> ... }
+ *
+ * The bindings that follow read `_tmp.vN`, so on failure they see the
+ * fallbacks and on success the call's values; the fallbacks are only
+ * evaluated on the failure path. */
+static AstNode *build_or_default_guard(Parser *parser, const char *temporary_name,
+                                       AstNode **fallbacks, int fallback_count) {
+    Token token = parser->current_token;
+    AstNode *if_statement = make_error_check_if(parser, temporary_name);
+
+    AstNode *assignments = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, token);
+    assignments->data.block.capacity = fallback_count > 0 ? fallback_count : 1;
+    assignments->data.block.count = 0;
+    assignments->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * assignments->data.block.capacity);
+    for (int i = 0; i < fallback_count; i++) {
+        AstNode *target = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+        AstNode *label = ast_allocate(parser->arena, NODE_LABEL, token);
+        label->data.label.value = temporary_name;
+        target->data.member.object = label;
+        char *field = arena_allocate(parser->arena, FIELD_NAME_BUFFER_SIZE);
+        snprintf(field, FIELD_NAME_BUFFER_SIZE, "v%d", i);
+        target->data.member.member = field;
+        AstNode *assignment = ast_allocate(parser->arena, NODE_ASSIGN_STATEMENT, fallbacks[i]->token);
+        assignment->data.assign.target = target;
+        assignment->data.assign.operator = TOKEN_ASSIGN;
+        assignment->data.assign.value = fallbacks[i];
+        assignments->data.block.statements[assignments->data.block.count++] = assignment;
+    }
+    if_statement->data.if_statement.consequence = assignments;
+    return if_statement;
+}
+
+static char *make_or_default_temporary_name(Arena *arena) {
+    char *name = arena_allocate(arena, TEMPORARY_NAME_BUFFER_SIZE);
+    snprintf(name, TEMPORARY_NAME_BUFFER_SIZE, GRAY_SYNTHETIC_OR_DEFAULT "%d", gray_or_return_temporary_id++);
+    return name;
 }
 
 /* If peek is or_return, consume it and desugar
@@ -1630,8 +1675,9 @@ static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name,
  * (caller keeps the original declaration untouched). */
 static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declaration) {
     bool is_panic = peek_token_is(parser, TOKEN_OR_PANIC);
-    if (!is_panic && !peek_token_is(parser, TOKEN_OR_RETURN)) return NULL;
-    next_token(parser); /* consume or_return / or_panic */
+    bool is_default = peek_token_is(parser, TOKEN_OR_DEFAULT);
+    if (!is_panic && !is_default && !peek_token_is(parser, TOKEN_OR_RETURN)) return NULL;
+    next_token(parser); /* consume or_return / or_panic / or_default */
 
     AstNode *fallback_values[MAX_MULTI_VARIABLES];
     int fallback_count = 0;
@@ -1651,7 +1697,8 @@ static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declarat
     }
 
     char *temporary_name = is_panic ? make_or_panic_temporary_name(parser->arena)
-                                    : make_or_return_temporary_name(parser->arena);
+                         : is_default ? make_or_default_temporary_name(parser->arena)
+                                      : make_or_return_temporary_name(parser->arena);
 
     AstNode *block = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
     block->data.block.capacity = 3;
@@ -1664,7 +1711,8 @@ static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declarat
 
     block->data.block.statements[block->data.block.count++] = is_panic
         ? build_or_panic_guard(parser, temporary_name, panic_message)
-        : build_or_return_guard(parser, temporary_name, fallback_values, fallback_count);
+        : is_default ? build_or_default_guard(parser, temporary_name, fallback_values, fallback_count)
+                     : build_or_return_guard(parser, temporary_name, fallback_values, fallback_count);
 
     /* x = _tmp.v0 */
     AstNode *unwrapped_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
@@ -1962,9 +2010,10 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
              * binds v0..v{N-1} as normal. */
             AstNode *or_return_fallback_values[MAX_MULTI_VARIABLES];
             int or_return_fallback_count = 0;
-            bool has_or_return = peek_token_is(parser, TOKEN_OR_RETURN);
+            bool has_or_default = peek_token_is(parser, TOKEN_OR_DEFAULT);
+            bool has_or_return = has_or_default || peek_token_is(parser, TOKEN_OR_RETURN);
             if (has_or_return) {
-                next_token(parser); /* consume or_return */
+                next_token(parser); /* consume or_return / or_default */
                 or_return_fallback_count = parse_or_return_fallbacks(parser, or_return_fallback_values);
             }
 
@@ -1974,7 +2023,9 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
              * check — the trailing Error slot is consumed by the guard. */
             static int multi_variable_counter = 0;
             char *temporary_name;
-            if (has_or_return) {
+            if (has_or_default) {
+                temporary_name = make_or_default_temporary_name(parser->arena);
+            } else if (has_or_return) {
                 temporary_name = make_or_return_temporary_name(parser->arena);
             } else {
                 temporary_name = arena_allocate(parser->arena, TEMPORARY_NAME_BUFFER_SIZE);
@@ -1993,9 +2044,11 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
             block->data.block.statements[block->data.block.count++] = temporary_declaration;
 
             if (has_or_return) {
-                block->data.block.statements[block->data.block.count++] =
-                    build_or_return_guard(parser, temporary_name,
-                                          or_return_fallback_values, or_return_fallback_count);
+                block->data.block.statements[block->data.block.count++] = has_or_default
+                    ? build_or_default_guard(parser, temporary_name,
+                                             or_return_fallback_values, or_return_fallback_count)
+                    : build_or_return_guard(parser, temporary_name,
+                                            or_return_fallback_values, or_return_fallback_count);
             }
 
             /* Individual declarations: type x = _tmp.v0 */
@@ -3941,6 +3994,15 @@ static AstNode *parse_statement(Parser *parser) {
             next_token(parser);
             node->data.assign.value = parse_expression(parser, PRECEDENCE_LOWEST);
             return node;
+        }
+
+        /* A bare `call() or_default x` has no binding to substitute into. */
+        if (peek_token_is(parser, TOKEN_OR_DEFAULT)) {
+            next_token(parser);
+            diagnostic_error_code(parser->diagnostics, "E2102", parser->file,
+                parser->current_token.line, parser->current_token.column, 0);
+            synchronize_parser(parser);
+            return NULL;
         }
 
         /* Bare `call() or_return`: no bindings, just propagate the trailing

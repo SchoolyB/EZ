@@ -135,6 +135,12 @@ var langManDocs = map[string]LangManEntry{
 		Desc:    "Alias for 'ensure'. Registers a function to be called when the enclosing function exits, whether via normal return or early return.",
 		Example: "do process() {\n    defer cleanup()\n    // ... do work ...\n}",
 	},
+	"or_default": {
+		Kind:    "keyword",
+		Syntax:  "<expr> or_default <fallback>[, <fallback>...]",
+		Desc:    "Fallback shorthand: if the expression returns a non-nil Error, discards it and uses the fallback values instead, one per non-error value. The fallbacks are evaluated only on failure. Needs a binding.",
+		Example: "do main() {\n    mut port = strconv.to_i64(text) or_default 8080\n    mut low, high = bounds(text) or_default 0, 100\n}",
+	},
 	"or_panic": {
 		Kind:    "keyword",
 		Syntax:  "<expr> or_panic [\"message\"]",

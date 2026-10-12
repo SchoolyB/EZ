@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3207 - two fallbacks for a call returning one value
+ */
+// expect-error: E3207
+
+do one() -> (i64, Error) {
+    return 1, nil
+}
+
+do main() {
+    mut a = one() or_default 1, 2
+    println(a)
+}

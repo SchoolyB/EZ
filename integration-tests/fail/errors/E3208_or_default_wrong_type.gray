@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3208 - fallback of the wrong type
+ */
+// expect-error: E3208
+
+do one() -> (i64, Error) {
+    return 1, nil
+}
+
+do main() {
+    mut a = one() or_default "text"
+    println(a)
+}

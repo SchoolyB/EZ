@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 533 codes** (382 errors, 17 warnings, 134 panics)
+**Total: 536 codes** (385 errors, 17 warnings, 134 panics)
 
 ---
 
@@ -92,6 +92,7 @@
 | `E2099` | syntax | a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify |
 | `E2100` | syntax | %d names but %d values in declaration; give one value per name, or a single value for all of them |
 | `E2101` | syntax | a declaration with a list of values takes one shared type after the last name; per-name types are not supported |
+| `E2102` | syntax | 'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback' |
 | `E3001` | types | type mismatch: cannot assign %s to %s |
 | `E3002` | types | invalid operands: cannot use '%s' with %s and %s |
 | `E3003` | types | %s index must be an integer, got %s |
@@ -278,6 +279,8 @@
 | `E3204` | types | 'for %s in ...' only supports a range; use 'for_each %s in ...' to iterate over a collection |
 | `E3205` | types | a range can only be iterated with 'for', checked with 'in' or 'not_in', matched with 'is', or stored in a variable |
 | `E3206` | types | range step cannot be zero |
+| `E3207` | types | 'or_default' has %d fallback value(s) but the call returns %d value(s) besides the Error; give one fallback per value |
+| `E3208` | types | 'or_default' fallback of type '%s' does not match the call's '%s' value |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -584,4 +587,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 23:41:59 UTC*
+*Generated on 2026-10-12 23:51:18 UTC*

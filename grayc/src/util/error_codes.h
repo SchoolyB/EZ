@@ -104,7 +104,8 @@
     GRAY_ERROR("E2098", "syntax", "imports must come before all other declarations in the file") \
     GRAY_ERROR("E2099", "syntax", "a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify") \
     GRAY_ERROR("E2100", "syntax", "%d names but %d values in declaration; give one value per name, or a single value for all of them") \
-    GRAY_ERROR("E2101", "syntax", "a declaration with a list of values takes one shared type after the last name; per-name types are not supported")
+    GRAY_ERROR("E2101", "syntax", "a declaration with a list of values takes one shared type after the last name; per-name types are not supported") \
+    GRAY_ERROR("E2102", "syntax", "'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback'")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define GRAY_TYPE_ERRORS \
@@ -293,7 +294,9 @@
     GRAY_ERROR("E3203", "types", "%s index cannot be negative") \
     GRAY_ERROR("E3204", "types", "'for %s in ...' only supports a range; use 'for_each %s in ...' to iterate over a collection") \
     GRAY_ERROR("E3205", "types", "a range can only be iterated with 'for', checked with 'in' or 'not_in', matched with 'is', or stored in a variable") \
-    GRAY_ERROR("E3206", "types", "range step cannot be zero")
+    GRAY_ERROR("E3206", "types", "range step cannot be zero") \
+    GRAY_ERROR("E3207", "types", "'or_default' has %d fallback value(s) but the call returns %d value(s) besides the Error; give one fallback per value") \
+    GRAY_ERROR("E3208", "types", "'or_default' fallback of type '%s' does not match the call's '%s' value")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define GRAY_REFERENCE_ERRORS \
