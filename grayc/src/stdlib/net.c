@@ -13,12 +13,60 @@
 #include <stdio.h>
 #include "../runtime/net_rt.h"
 #include <errno.h>
+#include <pthread.h>
+#include <stdlib.h>
 
 #define GRAY_NET_HOST_BUFFER_SIZE         256
 #define GRAY_NET_PORT_BUFFER_SIZE         16
 #define GRAY_NET_MAX_RECEIVE_BUFFER_SIZE     1048576
 #define GRAY_NET_LISTEN_BACKLOG   128
+#define GRAY_NET_LINE_READ_SIZE   4096
 
+
+/* Bytes read past a line end by receive_line, kept per socket until the next
+ * receive or receive_line takes them. An entry exists only while it holds
+ * bytes, so a socket that never leaves any costs nothing. */
+typedef struct {
+    int file_descriptor;
+    char *data;
+    int32_t length;
+} NetPending;
+
+static pthread_mutex_t net_pending_lock = PTHREAD_MUTEX_INITIALIZER;
+static NetPending *net_pending_entries = NULL;
+static int32_t net_pending_count = 0;
+static int32_t net_pending_capacity = 0;
+
+/* Removes and returns the bytes held for file_descriptor (NULL when none). */
+static char *net_pending_take(int file_descriptor, int32_t *length) {
+    char *data = NULL;
+    *length = 0;
+    pthread_mutex_lock(&net_pending_lock);
+    for (int32_t i = 0; i < net_pending_count; i++) {
+        if (net_pending_entries[i].file_descriptor != file_descriptor) continue;
+        data = net_pending_entries[i].data;
+        *length = net_pending_entries[i].length;
+        net_pending_entries[i] = net_pending_entries[--net_pending_count];
+        break;
+    }
+    pthread_mutex_unlock(&net_pending_lock);
+    return data;
+}
+
+/* Hands data (malloc'd, length bytes) to file_descriptor; an empty buffer is freed. */
+static void net_pending_store(int file_descriptor, char *data, int32_t length) {
+    if (length == 0) {
+        free(data);
+        return;
+    }
+    pthread_mutex_lock(&net_pending_lock);
+    if (net_pending_count == net_pending_capacity) {
+        net_pending_capacity = net_pending_capacity ? net_pending_capacity * 2 : 8;
+        net_pending_entries = realloc(net_pending_entries, sizeof(NetPending) * (size_t)net_pending_capacity);
+    }
+    net_pending_entries[net_pending_count++] = (NetPending){file_descriptor, data, length};
+    pthread_mutex_unlock(&net_pending_lock);
+}
 
 GraySocket gray_net_dial(GrayArena *arena, GrayString host, int64_t port) {
     (void)arena;
@@ -65,6 +113,8 @@ GraySocket gray_net_dial(GrayArena *arena, GrayString host, int64_t port) {
 
 void gray_net_close(GraySocket sock) {
     if (sock.file_descriptor >= 0) {
+        int32_t discarded_length;
+        free(net_pending_take(sock.file_descriptor, &discarded_length));
         gray_sock_close(sock.file_descriptor);
     }
 }
@@ -96,6 +146,16 @@ int64_t gray_net_send(GraySocket sock, GrayString data) {
 GrayString gray_net_recv_status(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number) {
     *error_number = 0;
     if (sock.file_descriptor < 0 || maximum_bytes <= 0) return (GrayString){"", 0};
+
+    int32_t pending_length;
+    char *pending = net_pending_take(sock.file_descriptor, &pending_length);
+    if (pending) {
+        int32_t taken = pending_length < maximum_bytes ? pending_length : (int32_t)maximum_bytes;
+        GrayString result = gray_string_new(arena, pending, taken);
+        memmove(pending, pending + taken, (size_t)(pending_length - taken));
+        net_pending_store(sock.file_descriptor, pending, pending_length - taken);
+        return result;
+    }
 
     size_t buffer_size = (size_t)maximum_bytes;
     if (buffer_size > GRAY_NET_MAX_RECEIVE_BUFFER_SIZE) buffer_size = GRAY_NET_MAX_RECEIVE_BUFFER_SIZE; /* cap at 1MB */
@@ -248,20 +308,77 @@ GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayStrin
     return result;
 }
 
+/* The Error for a read that ended with error_number: 0 is a clean peer close. */
+static GrayError *net_receive_error(GrayArena *arena, int error_number) {
+    if (error_number == 0)
+        return gray_error_new(arena, GRAY_ERR_Closed, gray_string_format(arena, "connection closed by peer"));
+    if (error_number == EAGAIN || error_number == EWOULDBLOCK || error_number == ETIMEDOUT) {
+        /* The socket is blocking, so this is the set_timeout period elapsing. */
+        return gray_error_new(arena, GRAY_ERR_Timeout, gray_string_format(arena, "receive timed out"));
+    }
+    return gray_error_new(arena, gray_errno_code(error_number), gray_string_format(arena, "receive failed"));
+}
+
 GrayResult_string gray_net_recv_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
     GrayResult_string result;
     int error_number;
     result.v0 = gray_net_recv_status(arena, sock, maximum_bytes, &error_number);
     result.v1 = NULL;
     if (result.v0.len > 0 || sock.file_descriptor < 0) return result;
-    if (error_number == 0) {
-        result.v1 = gray_error_new(arena, GRAY_ERR_Closed, gray_string_format(arena, "connection closed by peer"));
-    } else if (error_number == EAGAIN || error_number == EWOULDBLOCK || error_number == ETIMEDOUT) {
-        /* The socket is blocking, so this is the set_timeout period elapsing. */
-        result.v1 = gray_error_new(arena, GRAY_ERR_Timeout, gray_string_format(arena, "receive timed out"));
-    } else {
-        result.v1 = gray_error_new(arena, gray_errno_code(error_number), gray_string_format(arena, "receive failed"));
+    result.v1 = net_receive_error(arena, error_number);
+    return result;
+}
+
+GrayResult_string gray_net_receive_line_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
+    GrayResult_string result = {{"", 0}, NULL};
+    if (sock.file_descriptor < 0) return result;
+    if (maximum_bytes < 0) maximum_bytes = 0;
+    if (maximum_bytes > GRAY_NET_MAX_RECEIVE_BUFFER_SIZE) maximum_bytes = GRAY_NET_MAX_RECEIVE_BUFFER_SIZE;
+
+    int32_t length;
+    char *buffer = net_pending_take(sock.file_descriptor, &length);
+    for (;;) {
+        char *newline = length > 0 ? memchr(buffer, '\n', (size_t)length) : NULL;
+        if (newline) {
+            int32_t line_length = (int32_t)(newline - buffer);
+            int32_t content_length = line_length > 0 && buffer[line_length - 1] == '\r' ? line_length - 1 : line_length;
+            if (content_length > maximum_bytes) break;
+            result.v0 = gray_string_new(arena, buffer, content_length);
+            memmove(buffer, buffer + line_length + 1, (size_t)(length - line_length - 1));
+            net_pending_store(sock.file_descriptor, buffer, length - line_length - 1);
+            return result;
+        }
+        /* No terminator yet: the content plus a possible '\r' already exceeds the limit. */
+        if (length > maximum_bytes + 1) break;
+
+        buffer = realloc(buffer, (size_t)length + GRAY_NET_LINE_READ_SIZE);
+        int64_t received;
+        do {
+            received = (int64_t)recv(sock.file_descriptor, buffer + length, GRAY_NET_LINE_READ_SIZE, 0);
+        } while (received < 0 && errno == EINTR);
+        if (received > 0) {
+            length += (int32_t)received;
+            continue;
+        }
+        if (received < 0) {
+            result.v1 = net_receive_error(arena, errno);
+        } else if (length > 0 && length <= maximum_bytes) {
+            /* The peer closed after a partial line: that is the line. */
+            result.v0 = gray_string_new(arena, buffer, length);
+            free(buffer);
+            return result;
+        } else if (length == 0) {
+            result.v1 = net_receive_error(arena, 0);
+        } else {
+            break;
+        }
+        net_pending_store(sock.file_descriptor, buffer, length);
+        return result;
     }
+
+    /* The line is longer than max_bytes; its bytes stay buffered. */
+    result.v1 = gray_error_new(arena, GRAY_ERR_OutOfRange, gray_string_format(arena, "line is longer than max_bytes"));
+    net_pending_store(sock.file_descriptor, buffer, length);
     return result;
 }
 

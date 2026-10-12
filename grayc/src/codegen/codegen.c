@@ -7359,6 +7359,14 @@ static bool emit_net_call(CodeGen *codegen, AstNode *node, const char *function_
         emit(codegen, ")");
         return true;
     }
+    if (strcmp(function_name, "receive_line") == 0 && node->data.call.argument_count == 2) {
+        emit(codegen, "gray_net_receive_line_result(gray_default_arena, ");
+        emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ", ");
+        emit_expression(codegen, node->data.call.arguments[1]);
+        emit(codegen, ")");
+        return true;
+    }
     if (strcmp(function_name, "listen") == 0) {
         emit_formatted(codegen, "gray_net_listen%s(gray_default_arena, ", is_multi_variable ? "_result" : "");
         emit_expression(codegen, node->data.call.arguments[0]);

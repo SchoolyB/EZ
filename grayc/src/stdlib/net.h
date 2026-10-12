@@ -84,6 +84,19 @@ typedef struct {
  *@end
  */
 
+/*@man receive_line
+ *@module net
+ *@group Data
+ *@sig receive_line(sock Socket, max_bytes i64) -> (string, Error)
+ *@desc Reads up to and including the next newline from sock and returns the line without its trailing `\n` or `\r\n`. Bytes read past the newline stay on the socket and are returned first by the next receive or receive_line. A line longer than max_bytes returns an OutOfRange Error; a connection that closes before any byte arrives returns a Closed Error, while one that closes after a partial line returns that partial line. Always use destructuring (`mut v, err = ...` or `mut v, _ = ...`) — single-variable assignment is a compile error.
+ *@example
+ *   import @net
+ *   mut sock, _ = net.connect("example.com", 25)
+ *   mut line, err = net.receive_line(sock, 4096)
+ *   if err != nil { println("read failed") }
+ *@end
+ */
+
 /*@man close
  *@module net
  *@group Lifecycle
@@ -150,6 +163,7 @@ GrayResult_socket gray_net_listen_result(GrayArena *arena, int64_t port, GrayStr
 GrayResult_socket gray_net_accept_result(GrayArena *arena, GraySocket listener);
 GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayString data);
 GrayResult_string gray_net_recv_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes);
+GrayResult_string gray_net_receive_line_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes);
 GrayResult_string gray_net_resolve_result(GrayArena *arena, GrayString hostname);
 
 #endif

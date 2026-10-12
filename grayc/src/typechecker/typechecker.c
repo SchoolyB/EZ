@@ -3344,6 +3344,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"net", "connect",     2, 2, true,  FALLIBLE_TYPE_STRUCT_SOCKET,   2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}}, "Socket"},
     {"net", "listen",      1, 2, true,  FALLIBLE_TYPE_STRUCT_LISTENER, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_STRING}}, "Listener"},
     {"net", "receive",     2, 2, true,  FALLIBLE_TYPE_STRING,          1, {{1, EXPECTED_ARGUMENT_I64}}, "string"},
+    {"net", "receive_line", 2, 2, true,  FALLIBLE_TYPE_STRING,         1, {{1, EXPECTED_ARGUMENT_I64}}, "string"},
     {"net", "resolve",     1, 1, true,  FALLIBLE_TYPE_STRING,          1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"net", "send",        2, 2, true,  FALLIBLE_TYPE_I64,             1, {{1, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"net", "set_timeout", 2, 2, false, FALLIBLE_TYPE_NONE,            1, {{1, EXPECTED_ARGUMENT_I64}}, "void"},
@@ -7383,6 +7384,7 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
     } else if (strcmp(module_name, "net") == 0) {
         /* E5026: functions that take a socket/listener as first arg */
         if (strcmp(member_function_name, "send") == 0 || strcmp(member_function_name, "receive") == 0 ||
+            strcmp(member_function_name, "receive_line") == 0 ||
             strcmp(member_function_name, "close") == 0 || strcmp(member_function_name, "set_timeout") == 0 ||
             strcmp(member_function_name, "accept") == 0) {
             if (node->data.call.argument_count >= 1) {

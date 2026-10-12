@@ -1,0 +1,108 @@
+/*
+ * Test: net.receive_line returns one line per call, keeps bytes read past the
+ * newline for the next read, and reports an over-long line and a closed
+ * connection
+ */
+
+import @net
+import @threads
+
+const TEST_PORT i64 = 47219
+
+mut chunks [string] = {}
+mut listener Listener
+mut server_thread Thread
+
+do serve() {
+    mut conn, _ = net.accept(listener)
+    for_each chunk in chunks {
+        mut _, _ = net.send(conn, chunk)
+        sleep_ms(60)
+    }
+    net.close(conn)
+}
+
+do connect_to_script(script [string]) -> Socket {
+    chunks = script
+    server_thread = threads.spawn(()serve)
+    mut sock, _ = net.connect("127.0.0.1", TEST_PORT)
+    net.set_timeout(sock, 2000)
+    return sock
+}
+
+do finish(sock Socket) {
+    threads.join(server_thread)
+    net.close(sock)
+}
+
+do check(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    mut single = connect_to_script({"hello\n"})
+    mut line, err = net.receive_line(single, 100)
+    check("single line", err == nil && line == "hello", passed, failed)
+    mut _, closed_err = net.receive_line(single, 100)
+    check("closed before any byte is Closed", closed_err != nil && closed_err.code == .Closed, passed, failed)
+    finish(single)
+
+    mut two = connect_to_script({"one\ntwo\n"})
+    mut first, _ = net.receive_line(two, 100)
+    mut second, _ = net.receive_line(two, 100)
+    check("two lines in one packet", first == "one" && second == "two", passed, failed)
+    finish(two)
+
+    mut split = connect_to_script({"hel", "lo wor", "ld\n"})
+    mut joined, _ = net.receive_line(split, 100)
+    check("line split across packets", joined == "hello world", passed, failed)
+    finish(split)
+
+    mut crlf = connect_to_script({"ping\r\npong\r\n"})
+    mut ping, _ = net.receive_line(crlf, 100)
+    mut pong, _ = net.receive_line(crlf, 100)
+    check("crlf terminator removed", ping == "ping" && pong == "pong", passed, failed)
+    finish(crlf)
+
+    mut partial = connect_to_script({"done\ntail"})
+    mut done, _ = net.receive_line(partial, 100)
+    mut tail, tail_err = net.receive_line(partial, 100)
+    check("partial final line at close", done == "done" && tail == "tail" && tail_err == nil, passed, failed)
+    finish(partial)
+
+    mut mixed = connect_to_script({"head\nrest of the data"})
+    mut head, _ = net.receive_line(mixed, 100)
+    mut rest, _ = net.receive(mixed, 100)
+    check("receive returns the bytes left after a line", head == "head" && rest == "rest of the data", passed, failed)
+    finish(mixed)
+
+    mut long_line = connect_to_script({"this line is far too long\n"})
+    mut _, long_err = net.receive_line(long_line, 5)
+    check("line over max_bytes is OutOfRange", long_err != nil && long_err.code == .OutOfRange, passed, failed)
+    finish(long_line)
+
+    mut exact = connect_to_script({"12345\n"})
+    mut exact_line, exact_err = net.receive_line(exact, 5)
+    check("line of exactly max_bytes is accepted", exact_err == nil && exact_line == "12345", passed, failed)
+    finish(exact)
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -4300,11 +4300,12 @@ TCP sockets and DNS resolution.
 | `accept` | `(listener Listener) -> (Socket, Error)` | Accept an incoming connection — always use destructuring |
 | `send` | `(sock Socket, data string) -> (i64, Error)` | Send all of `data` over a socket, looping over short writes; returns `len(data)` on success, or the bytes written so far with an Error — always use destructuring |
 | `receive` | `(sock Socket, max_bytes i64) -> (string, Error)` | Receive up to `max_bytes` bytes from a socket — always use destructuring |
+| `receive_line` | `(sock Socket, max_bytes i64) -> (string, Error)` | Receive one line, without its trailing `\n` or `\r\n`; bytes read past the newline stay on the socket for the next receive. A line over `max_bytes` is `OutOfRange`; a close before any byte is `Closed`, a close after a partial line returns that partial line — always use destructuring |
 | `close` | `(sock Socket)` | Close a socket or listener |
 | `set_timeout` | `(sock Socket, ms i64)` | Set read/write timeout in milliseconds |
 | `resolve` | `(hostname string) -> (string, Error)` | Resolve a hostname to an IP address — always use destructuring |
 
-`connect`, `listen`, `accept`, `send`, `receive`, and `resolve` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
+`connect`, `listen`, `accept`, `send`, `receive`, `receive_line`, and `resolve` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
 
 ### 9.21 Threads Module (`@threads`)
 
