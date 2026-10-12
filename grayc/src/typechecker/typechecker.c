@@ -3006,7 +3006,7 @@ typedef enum {
     FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, FALLIBLE_TYPE_STRUCT_MAP,
 } FallibleType;
 
-#define STDLIB_MAX_ARGUMENT_CHECKS 5
+#define STDLIB_MAX_ARGUMENT_CHECKS 6
 
 typedef struct {
     const char *module_name;
@@ -3509,6 +3509,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"time", "end_of_day", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "format",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
     {"time", "format_duration", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
+    {"time", "from_parts", 6, 6, true,  FALLIBLE_TYPE_I64,  6, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_I64}, {3, EXPECTED_ARGUMENT_I64}, {4, EXPECTED_ARGUMENT_I64}, {5, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "hour",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "humanize",   1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"time", "is_leap_year", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "bool"},

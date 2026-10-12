@@ -1,0 +1,83 @@
+/*
+ * time_from_parts.gray - Integration test for time.from_parts
+ */
+
+import @time
+
+do check_rejected(label string, year i64, month i64, day i64, hour i64, minute i64, second i64, &passed i64, &failed i64) {
+    mut ts, err = time.from_parts(year, month, day, hour, minute, second)
+    if err != nil && ts == 0 {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}: accepted, got ${ts}")
+        failed += 1
+    }
+}
+
+do check_equal(label string, actual i64, expected i64, &passed i64, &failed i64) {
+    if actual == expected {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}: got ${actual}, expected ${expected}")
+        failed += 1
+    }
+}
+
+do check_true(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    println("=== time.from_parts Test ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut epoch, epoch_err = time.from_parts(1970, 1, 1, 0, 0, 0)
+    check_equal("unix epoch", epoch, 0, passed, failed)
+    check_true("unix epoch has no error", epoch_err == nil, passed, failed)
+
+    mut ordinary, _ = time.from_parts(2026, 10, 12, 9, 30, 0)
+    check_equal("ordinary date", ordinary, 1791797400, passed, failed)
+    check_true("ordinary date iso", time.to_iso(ordinary) == "2026-10-12T09:30:00Z", passed, failed)
+
+    mut leap, leap_err = time.from_parts(2024, 2, 29, 23, 59, 59)
+    check_equal("leap day", time.day(leap), 29, passed, failed)
+    check_true("leap day has no error", leap_err == nil, passed, failed)
+
+    mut before_epoch, _ = time.from_parts(1969, 12, 31, 23, 59, 59)
+    check_equal("one second before the epoch", before_epoch, -1, passed, failed)
+
+    // round trip through the component functions
+    mut original, _ = time.parse("2031-07-04 18:45:12", "%Y-%m-%d %H:%M:%S")
+    mut rebuilt, _ = time.from_parts(time.year(original), time.month(original), time.day(original),
+        time.hour(original), time.minute(original), time.second(original))
+    check_equal("round trip", rebuilt, original, passed, failed)
+
+    check_rejected("month 13", 2026, 13, 1, 0, 0, 0, passed, failed)
+    check_rejected("month 0", 2026, 0, 1, 0, 0, 0, passed, failed)
+    check_rejected("february 30", 2026, 2, 30, 0, 0, 0, passed, failed)
+    check_rejected("february 29 in a non-leap year", 2023, 2, 29, 0, 0, 0, passed, failed)
+    check_rejected("day 0", 2026, 1, 0, 0, 0, 0, passed, failed)
+    check_rejected("april 31", 2026, 4, 31, 0, 0, 0, passed, failed)
+    check_rejected("hour 24", 2026, 1, 1, 24, 0, 0, passed, failed)
+    check_rejected("hour -1", 2026, 1, 1, -1, 0, 0, passed, failed)
+    check_rejected("minute 60", 2026, 1, 1, 0, 60, 0, passed, failed)
+    check_rejected("second 60", 2026, 1, 1, 0, 0, 60, passed, failed)
+    check_rejected("year beyond the representable range", 9000000000, 1, 1, 0, 0, 0, passed, failed)
+
+    println("")
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("FAILED")
+    } otherwise {
+        println("ALL PASSED")
+    }
+}

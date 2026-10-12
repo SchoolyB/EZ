@@ -232,6 +232,20 @@ GrayString gray_time_to_clock(GrayArena *arena, int64_t timestamp);
  */
 GrayResult_i64 gray_time_parse_result(GrayString text, GrayString layout);
 
+/*@man from_parts
+ *@module time
+ *@group Parsing
+ *@sig from_parts(year i64, month i64, day i64, hour i64, minute i64, second i64) -> (i64, Error)
+ *@desc Builds a Unix timestamp (seconds, UTC) from calendar parts, the inverse of year, month, day, hour, minute and second. Always use destructuring (`mut ts, err = ...` or `mut ts, _ = ...`) — single-variable assignment is a compile error. An impossible date or time (month outside 1-12, a day the month does not have, hour outside 0-23, minute or second outside 0-59) makes err non-nil and, with `_`, ts is 0.
+ *@example
+ *   import @time
+ *   mut ts, _ = time.from_parts(2026, 10, 12, 9, 30, 0)
+ *   mut bad, err = time.from_parts(2026, 2, 30, 0, 0, 0)
+ *@end
+ */
+GrayResult_i64 gray_time_from_parts_result(int64_t year, int64_t month, int64_t day,
+                                           int64_t hour, int64_t minute, int64_t second);
+
 /* Arithmetic */
 
 /*@man diff

@@ -7049,7 +7049,8 @@ static bool emit_time_call(CodeGen *codegen, AstNode *node, const char *function
         strcmp(function_name, "date") == 0 || strcmp(function_name, "to_clock") == 0 ||
         strcmp(function_name, "humanize") == 0 || strcmp(function_name, "format_duration") == 0 ||
         strcmp(function_name, "weekday_name") == 0 || strcmp(function_name, "month_name") == 0);
-    bool is_fallible = (strcmp(function_name, "parse") == 0 || strcmp(function_name, "parse_duration") == 0);
+    bool is_fallible = (strcmp(function_name, "parse") == 0 || strcmp(function_name, "parse_duration") == 0 ||
+        strcmp(function_name, "from_parts") == 0);
 
     if (is_fallible) {
         emit_formatted(codegen, "gray_time_%s_result(", function_name);

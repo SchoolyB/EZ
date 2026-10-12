@@ -17,6 +17,7 @@
 #include "../util/constants.h"
 #include <time.h>
 #include <string.h>
+#include <limits.h>
 
 #define SECONDS_PER_DAY 86400
 #define SECONDS_PER_HOUR 3600
@@ -145,6 +146,32 @@ GrayResult_i64 gray_time_parse_result(GrayString text, GrayString layout) {
         return (GrayResult_i64){0, error};
     }
     return (GrayResult_i64){timestamp, NULL};
+}
+
+static GrayResult_i64 time_from_parts_failure(const char *message) {
+    GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_OutOfRange, gray_string_lit(message));
+    return (GrayResult_i64){0, error};
+}
+
+GrayResult_i64 gray_time_from_parts_result(int64_t year, int64_t month, int64_t day,
+                                           int64_t hour, int64_t minute, int64_t second) {
+    /* struct tm holds the year as an int offset from 1900, so that is the range
+     * year() can read back. */
+    if (year < (int64_t)INT_MIN + 1900 || year > (int64_t)INT_MAX + 1900)
+        return time_from_parts_failure("time.from_parts: year is out of range");
+    if (month < 1 || month > 12)
+        return time_from_parts_failure("time.from_parts: month must be 1-12");
+    if (day < 1 || day > gray_time_days_in_month(year, month))
+        return time_from_parts_failure("time.from_parts: day does not exist in that month");
+    if (hour < 0 || hour > 23)
+        return time_from_parts_failure("time.from_parts: hour must be 0-23");
+    if (minute < 0 || minute > 59)
+        return time_from_parts_failure("time.from_parts: minute must be 0-59");
+    if (second < 0 || second > 59)
+        return time_from_parts_failure("time.from_parts: second must be 0-59");
+
+    return (GrayResult_i64){gray_days_from_civil(year, (int)month, (int)day) * SECONDS_PER_DAY +
+                            hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second, NULL};
 }
 
 int64_t gray_time_diff(int64_t start, int64_t end_index) { return gray_sub_check(end_index, start, __FILE__, __LINE__); }

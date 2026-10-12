@@ -3726,10 +3726,11 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `parse` | `(s string, layout string) -> (i64, Error)` | Parse a time string into a Unix timestamp using strftime-style layout directives |
+| `from_parts` | `(year i64, month i64, day i64, hour i64, minute i64, second i64) -> (i64, Error)` | Build a UTC Unix timestamp from calendar parts, the inverse of `year`..`second`; an impossible date or time yields a non-nil error and `0` |
 | `parse_duration` | `(s string) -> (i64, Error)` | Parse `"1h30m"`, `"90s"`, `"2d"`, `"1h30m15s"` (units `s m h d`) into total seconds; bad input yields a non-nil error and `0` |
 
 **Behavior:**
-- `parse` and `parse_duration` are fallible functions. Destructure the result (`mut ts, err = time.parse(...)`).
+- `parse`, `parse_duration` and `from_parts` are fallible functions. Destructure the result (`mut ts, err = time.parse(...)`).
 - `mut ts, err = time.parse(...)` — inspect `err` (non-nil on invalid input).
 - `mut ts, _ = time.parse(...)` — discard the error; on invalid input `ts` is `0`.
 
