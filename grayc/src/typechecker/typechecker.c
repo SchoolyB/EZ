@@ -7609,6 +7609,11 @@ static GrayType *resolve_generic_call(TypeChecker *checker, AstNode *node,
                     function_name, "a typed value", "a C interop value");
                 continue;
             }
+            if (function_types_mismatch(checker, argument_type, expected_type)) {
+                NODE_ERROR_FORMATTED(checker, argument, "E3066",
+                    type_display_name(checker, expected_type), type_display_name(checker, argument_type));
+                continue;
+            }
             if (!generic_argument_conflicts(checker, expected_type, argument_type)) continue;
             int generic_index = generic_bindings_find(call_bindings, parameter->type_name);
             if (generic_index >= 0) {
