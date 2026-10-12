@@ -1,0 +1,7 @@
+// expect-contains: .gray:
+/* Panic Test: P0148 - csv.parse with a quote inside an unquoted field */
+import @csv
+
+do main() {
+    println(csv.parse("a, \"b,c\""))
+}

@@ -18,8 +18,12 @@
 #include <errno.h>
 
 /* RFC 4180 parser with a caller-chosen field delimiter. gray_csv_parse and
- * gray_csv_parse_delimited are thin wrappers over this. */
-static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, char delim) {
+ * gray_csv_parse_delimited are thin wrappers over this. On malformed quoting
+ * (an unterminated quote, text after a closing quote, or a quote inside an
+ * unquoted field) it stores the 1-based row in *bad_row and returns the rows
+ * parsed so far; otherwise *bad_row is 0. */
+static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, char delim, int32_t *bad_row) {
+    *bad_row = 0;
     GrayArray rows = gray_array_new(arena, sizeof(GrayArray), 8, GRAY_ELEM_ARRAY);
     const char *cursor = csv_string.data;
     const char *end_cursor = cursor + csv_string.len;
@@ -41,7 +45,12 @@ static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, ch
                     else cursor++;
                 }
                 field_length = (int32_t)(cursor - field_start);
-                if (cursor < end_cursor) cursor++; /* skip closing quote */
+                if (cursor >= end_cursor) { *bad_row = rows.len + 1; return rows; }
+                cursor++; /* skip closing quote */
+                if (cursor < end_cursor && *cursor != delim && *cursor != '\n' && *cursor != '\r') {
+                    *bad_row = rows.len + 1;
+                    return rows;
+                }
 
                 /* RFC 4180 §2.7: unescape doubled quotes ("") to single (") */
                 if (memchr(field_start, '"', (size_t)field_length)) {
@@ -60,6 +69,7 @@ static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, ch
                 field_start = cursor;
                 while (cursor < end_cursor && *cursor != delim && *cursor != '\n' && *cursor != '\r') cursor++;
                 field_length = (int32_t)(cursor - field_start);
+                if (memchr(field_start, '"', (size_t)field_length)) { *bad_row = rows.len + 1; return rows; }
             }
 
             GrayString field = gray_string_new(arena, field_start, field_length);
@@ -82,12 +92,22 @@ static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, ch
     return rows;
 }
 
+static _Noreturn void csv_malformed_quoting(int32_t row) {
+    gray_panic_code("P0148", "csv: malformed quoting in row %d", row);
+}
+
 GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string) {
-    return csv_parse_delimited(arena, csv_string, ',');
+    int32_t bad_row;
+    GrayArray rows = csv_parse_delimited(arena, csv_string, ',', &bad_row);
+    if (bad_row) csv_malformed_quoting(bad_row);
+    return rows;
 }
 
 GrayArray gray_csv_parse_delimited(GrayArena *arena, GrayString csv_string, int32_t delimiter) {
-    return csv_parse_delimited(arena, csv_string, (char)delimiter);
+    int32_t bad_row;
+    GrayArray rows = csv_parse_delimited(arena, csv_string, (char)delimiter, &bad_row);
+    if (bad_row) csv_malformed_quoting(bad_row);
+    return rows;
 }
 
 /* --- Helpers shared by the [[string]] / [map[string:string]] views --- */
@@ -449,8 +469,14 @@ GrayResult_array gray_csv_read_result(GrayArena *arena, GrayString path) {
             "cannot read '%s': file exceeds maximum string length", path.data));
         return result;
     }
-    result.v0 = gray_csv_parse(arena, content);
+    int32_t bad_row;
+    result.v0 = csv_parse_delimited(arena, content, ',', &bad_row);
     result.v1 = NULL;
+    if (bad_row) {
+        result.v0 = gray_array_new(arena, sizeof(GrayArray), 0, GRAY_ELEM_ARRAY);
+        result.v1 = gray_error_new(arena, GRAY_ERR_ParseFailure, gray_string_format(arena,
+            "malformed quoting in row %d of '%s'", (int)bad_row, path.data));
+    }
     return result;
 }
 

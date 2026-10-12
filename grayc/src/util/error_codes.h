@@ -556,7 +556,8 @@
     GRAY_PANIC("P0144", "sqlite",     "sqlite: a database path or SQL statement contains an embedded null byte") \
     GRAY_PANIC("P0145", "time",       "time: a format, layout or text contains an embedded null byte") \
     GRAY_PANIC("P0146", "regex",      "regex: a pattern or text contains an embedded null byte") \
-    GRAY_PANIC("P0147", "arithmetic", "cast to %s failed; value '%.*s' does not match any variant of %s")
+    GRAY_PANIC("P0147", "arithmetic", "cast to %s failed; value '%.*s' does not match any variant of %s") \
+    GRAY_PANIC("P0148", "csv",        "csv: malformed quoting in row %d")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \
