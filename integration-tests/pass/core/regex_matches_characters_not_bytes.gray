@@ -28,7 +28,8 @@ do main() {
         println("FAIL: replace substitutes once per character")
     }
 
-    if regex.count(".", "日本語") == 3 {
+    mut dot_count, _ = regex.count(".", "日本語")
+    if dot_count == 3 {
         passed = passed + 1
     } otherwise {
         failed = failed + 1

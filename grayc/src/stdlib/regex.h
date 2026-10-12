@@ -141,14 +141,14 @@ GrayArray gray_regex_find_all_groups(GrayArena *arena, GrayString pattern, GrayS
  *@module regex
  *@group Search
  *@sig count(pattern string, text string) -> i64
- *@desc Return the number of non-overlapping matches of pattern in text. An invalid pattern returns 0.
+ *@desc Return the number of non-overlapping matches of pattern in text. Returns (i64, Error); an invalid pattern returns 0 and a non-nil Error.
  *@example
  *   import @regex
- *   println(regex.count("[0-9]+", "a1b22c333"))   // 3
+ *   mut n, _ = regex.count("[0-9]+", "a1b22c333")   // 3
  *@end
  */
-/* regex.count(pattern, text) -> i64 */
-int64_t gray_regex_count(GrayString pattern, GrayString text);
+/* regex.count(pattern, text) -> (i64, Error) */
+GrayResult_i64 gray_regex_count_result(GrayArena *arena, GrayString pattern, GrayString text);
 
 /*@man escape
  *@module regex

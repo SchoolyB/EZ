@@ -4277,10 +4277,10 @@ Regular expression operations using POSIX extended regex syntax.
 | `find_all_groups` | `(pattern string, text string) -> ([[string]], Error)` | Capture groups for every match — always use destructuring |
 | `replace` | `(pattern string, text string, replacement string) -> (string, Error)` | Replace matches — always use destructuring |
 | `split` | `(pattern string, text string) -> ([string], Error)` | Split by pattern — always use destructuring |
-| `count` | `(pattern string, text string) -> i64` | Number of non-overlapping matches; 0 for an invalid pattern |
+| `count` | `(pattern string, text string) -> (i64, Error)` | Number of non-overlapping matches — always use destructuring |
 | `escape` | `(s string) -> string` | Backslash-escape regex metacharacters so `s` matches literally |
 
-`find`, `find_all`, `find_groups`, `find_all_groups`, `replace`, and `split` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
+`find`, `find_all`, `find_groups`, `find_all_groups`, `replace`, `split`, and `count` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
 
 POSIX ERE has no Perl-style shorthand classes. `\d`, `\w`, `\s`, `\b` (and `\D`, `\W`, `\S`, `\B`) are rejected as invalid patterns — use the POSIX bracket classes instead: `[[:digit:]]`, `[[:alnum:]_]`, `[[:space:]]`.
 

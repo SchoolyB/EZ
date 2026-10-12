@@ -7144,7 +7144,6 @@ static bool emit_uuid_call(CodeGen *codegen, AstNode *node, const char *function
 static const PassthroughCall regex_passthrough[] = {
     {"is_valid", 1, "gray_regex_is_valid"},
     {"is_match", 2, "gray_regex_match"},
-    {"count", 2, "gray_regex_count"},
     {NULL, 0, NULL},
 };
 
@@ -7153,6 +7152,14 @@ static bool emit_regex_call(CodeGen *codegen, AstNode *node, const char *functio
     if (strcmp(function_name, "escape") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_regex_escape(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ")");
+        return true;
+    }
+    if (strcmp(function_name, "count") == 0 && node->data.call.argument_count == 2) {
+        emit(codegen, "gray_regex_count_result(gray_default_arena, ");
+        emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ", ");
+        emit_expression(codegen, node->data.call.arguments[1]);
         emit(codegen, ")");
         return true;
     }

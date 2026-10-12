@@ -3378,7 +3378,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"random", "seed",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "void"},
     {"random", "shuffle",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "$0"},
     /* regex */
-    {"regex", "count",    2, 2, false, FALLIBLE_TYPE_NONE,         2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "i64"},
+    {"regex", "count",    2, 2, true,  FALLIBLE_TYPE_I64,          2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"regex", "escape",   1, 1, false, FALLIBLE_TYPE_NONE,         1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"regex", "find",     2, 2, true,  FALLIBLE_TYPE_STRING,       2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"regex", "find_all", 2, 2, true,  FALLIBLE_TYPE_ARRAY_STRING, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "[string]"},

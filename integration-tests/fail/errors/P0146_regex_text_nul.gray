@@ -4,5 +4,6 @@ import @regex
 
 do main() {
     mut nul string = "\x00"
-    println(regex.count("b", "a" + nul + "b"))
+    mut n, _ = regex.count("b", "a" + nul + "b")
+    println(n)
 }

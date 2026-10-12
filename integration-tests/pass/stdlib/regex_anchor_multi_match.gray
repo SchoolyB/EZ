@@ -27,12 +27,17 @@ do main() {
     mut passed i64 = 0
 
     // count: ^ / $ match once, not per position
-    passed += check_int("count ^a", regex.count("^a", "aaa"), 1)
-    passed += check_int("count ^", regex.count("^", "a\nb"), 1)
-    passed += check_int("count a$", regex.count("a$", "banana"), 1)
-    passed += check_int("count $", regex.count("$", "ab"), 1)
+    mut caret_a_count, _ = regex.count("^a", "aaa")
+    passed += check_int("count ^a", caret_a_count, 1)
+    mut caret_count, _ = regex.count("^", "a\nb")
+    passed += check_int("count ^", caret_count, 1)
+    mut a_dollar_count, _ = regex.count("a$", "banana")
+    passed += check_int("count a$", a_dollar_count, 1)
+    mut dollar_count, _ = regex.count("$", "ab")
+    passed += check_int("count $", dollar_count, 1)
     // non-anchored still scans every match
-    passed += check_int("count a", regex.count("a", "banana"), 3)
+    mut a_count, _ = regex.count("a", "banana")
+    passed += check_int("count a", a_count, 3)
 
     // find_all
     mut fa1, _ = regex.find_all("^a", "aaa")
