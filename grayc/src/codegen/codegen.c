@@ -12765,6 +12765,13 @@ static void emit_foreach_map(CodeGen *codegen, AstNode *node, AstNode *coll,
     const char *c_value_type = "int64_t";
     if (collection_type->key_type) c_key_type = gray_map_element_c_type(codegen, collection_type->key_type);
     if (collection_type->value_type) c_value_type = gray_map_element_c_type(codegen, collection_type->value_type);
+    /* Ring-buffer results; the collection expression emitted below can wrap
+     * the buffer, so keep copies. */
+    char c_key_type_copy[MESSAGE_BUFFER_SIZE], c_value_type_copy[MESSAGE_BUFFER_SIZE];
+    snprintf(c_key_type_copy, sizeof(c_key_type_copy), "%s", c_key_type);
+    snprintf(c_value_type_copy, sizeof(c_value_type_copy), "%s", c_value_type);
+    c_key_type = c_key_type_copy;
+    c_value_type = c_value_type_copy;
 
     *out_map_needs_temporary = (coll->kind != NODE_LABEL);
     if (*out_map_needs_temporary) {
@@ -12885,6 +12892,13 @@ static void emit_foreach_array(CodeGen *codegen, AstNode *node, AstNode *coll,
                 ? "GrayString" : gray_type_to_c_codegen(codegen, element_type_name);
         }
     }
+
+    /* gray_type_to_c_codegen returns a slot of a small ring buffer, and the
+     * collection expression emitted below makes enough calls of its own to
+     * wrap it. Keep a copy that outlives them. */
+    char c_element_type_copy[MESSAGE_BUFFER_SIZE];
+    snprintf(c_element_type_copy, sizeof(c_element_type_copy), "%s", c_element_type);
+    c_element_type = c_element_type_copy;
 
     int array_length_id = codegen_next_id(codegen);
     char length_name[SHORT_VARIABLE_BUFFER_SIZE];
