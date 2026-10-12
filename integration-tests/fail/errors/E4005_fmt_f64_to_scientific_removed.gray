@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - fmt.f64_to_scientific was removed
+ * Expected: fmt no longer recognises f64_to_scientific
+ */
+
+// expect-error: E4005
+
+import @fmt
+
+do main() {
+    mut result string = fmt.f64_to_scientific(1.5)
+}

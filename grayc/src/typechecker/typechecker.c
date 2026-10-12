@@ -3214,18 +3214,14 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"fmt", "eprintf",       2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "eprintfln",     2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "f64_to_fixed",  2, 2,  false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_NUMBER}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"fmt", "f64_to_scientific", 1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_NUMBER}}, "string"},
     {"fmt", "format_bytes",  1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"fmt", "format_number", 1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"fmt", "i64_to_binary", 1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"fmt", "i64_to_hex",    1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"fmt", "i64_to_octal",  1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"fmt", "pad_left",      3, 3,  false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_CHAR}}, "string"},
     {"fmt", "pad_right",     3, 3,  false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_CHAR}}, "string"},
     {"fmt", "printf",        2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "printfln",      2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "sprintf",       2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
-    {"fmt", "sprintfln",     2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     /* http */
     {"http", "delete", 2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
     {"http", "get",    2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
@@ -7010,7 +7006,7 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
 static bool is_printf_function_name(const char *name) {
     return strcmp(name, "printf") == 0 || strcmp(name, "printfln") == 0 ||
            strcmp(name, "eprintf") == 0 || strcmp(name, "eprintfln") == 0 ||
-           strcmp(name, "sprintf") == 0 || strcmp(name, "sprintfln") == 0;
+           strcmp(name, "sprintf") == 0;
 }
 
 /* Returns what a printf directive expects when `value_type` does not satisfy

@@ -83,19 +83,6 @@
  */
 /* fmt.eprintfln — handled directly by codegen */
 
-/*@man sprintfln
- *@module fmt
- *@group Output
- *@sig sprintfln(format string, args [T]) -> string
- *@desc Returns a formatted string with a trailing newline. Uses the same format directives as sprintf. Pass one array element per format directive, of a type that directive accepts. Composite types are rejected.
- *@example
- *   import @fmt
- *   mut s string = fmt.sprintfln("x = %d", {42})
- *   println(s)
- *@end
- */
-/* fmt.sprintfln — handled directly by codegen */
-
 /*@man pad_left
  *@module fmt
  *@group Padding
@@ -142,18 +129,6 @@ GrayString gray_fmt_pad_right(GrayArena *arena, GrayString string, int64_t width
  */
 GrayString gray_fmt_center(GrayArena *arena, GrayString string, int64_t width, int32_t fill_character);
 
-/*@man i64_to_hex
- *@module fmt
- *@group Number Formatting
- *@sig i64_to_hex(n i64) -> string
- *@desc Returns the integer n formatted as a lowercase hexadecimal string with no "0x" prefix. A negative n is formatted as its 64-bit two's-complement bits.
- *@example
- *   import @fmt
- *   println(fmt.i64_to_hex(255))
- *@end
- */
-GrayString gray_fmt_i64_to_hex(GrayArena *arena, int64_t value);
-
 /*@man i64_to_binary
  *@module fmt
  *@group Number Formatting
@@ -166,18 +141,6 @@ GrayString gray_fmt_i64_to_hex(GrayArena *arena, int64_t value);
  */
 GrayString gray_fmt_i64_to_binary(GrayArena *arena, int64_t value);
 
-/*@man i64_to_octal
- *@module fmt
- *@group Number Formatting
- *@sig i64_to_octal(n i64) -> string
- *@desc Returns the integer n formatted as an octal string with no "0o" prefix. A negative n is formatted as its 64-bit two's-complement bits.
- *@example
- *   import @fmt
- *   println(fmt.i64_to_octal(8))
- *@end
- */
-GrayString gray_fmt_i64_to_octal(GrayArena *arena, int64_t value);
-
 /*@man f64_to_fixed
  *@module fmt
  *@group Number Formatting
@@ -189,18 +152,6 @@ GrayString gray_fmt_i64_to_octal(GrayArena *arena, int64_t value);
  *@end
  */
 GrayString gray_fmt_f64_to_fixed(GrayArena *arena, double value, int64_t decimals);
-
-/*@man f64_to_scientific
- *@module fmt
- *@group Number Formatting
- *@sig f64_to_scientific(f f64) -> string
- *@desc Returns f formatted in scientific notation (e.g. "3.140000e+00").
- *@example
- *   import @fmt
- *   println(fmt.f64_to_scientific(0.000123))
- *@end
- */
-GrayString gray_fmt_f64_to_scientific(GrayArena *arena, double value);
 
 /*@man format_number
  *@module fmt

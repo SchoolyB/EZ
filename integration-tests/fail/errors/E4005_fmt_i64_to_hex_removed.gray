@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - fmt.i64_to_hex was removed
+ * Expected: fmt no longer recognises i64_to_hex
+ */
+
+// expect-error: E4005
+
+import @fmt
+
+do main() {
+    mut result string = fmt.i64_to_hex(255)
+}

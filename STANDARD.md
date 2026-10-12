@@ -4420,7 +4420,6 @@ Formatted output and string formatting functions.
 | `eprintf` | `(format string, args [T])` | Print formatted string to stderr |
 | `eprintfln` | `(format string, args [T])` | Print formatted string to stderr with trailing newline |
 | `sprintf` | `(format string, args [T]) -> string` | Return formatted string |
-| `sprintfln` | `(format string, args [T]) -> string` | Return formatted string with trailing newline |
 
 One array element per format directive; each is independently `i64`, `u64`, `f64`, `string`, `bool`, `char`, or a bigint (`i128`/`u128`/`i256`/`u256`, integer directives only). Composite types are rejected.
 
@@ -4483,11 +4482,8 @@ fmt.printfln("%d-%02d-%02d", parts)           // "2026-09-28"
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `i64_to_hex` | `(n i64) -> string` | Format integer as lowercase hexadecimal (no `0x` prefix); a negative `n` is formatted as its 64-bit two's-complement bits |
 | `i64_to_binary` | `(n i64) -> string` | Format integer as binary; a negative `n` is formatted as its 64-bit two's-complement bits |
-| `i64_to_octal` | `(n i64) -> string` | Format integer as octal; a negative `n` is formatted as its 64-bit two's-complement bits |
 | `f64_to_fixed` | `(f f64, decimals i64) -> string` | Format f64 with fixed decimal places |
-| `f64_to_scientific` | `(f f64) -> string` | Format f64 in scientific notation |
 | `format_number` | `(n i64) -> string` | Decimal string with ASCII comma thousands separators (`1234567` → `"1,234,567"`, `-1000` → `"-1,000"`) |
 | `format_bytes` | `(n i64) -> string` | Human-readable byte count in binary units B/KiB/MiB/GiB/TiB/PiB; whole bytes below 1024 (`"1023 B"`), one decimal above (`"1.5 KiB"`) |
 
@@ -4545,8 +4541,7 @@ outside 2–36 (a compile-time error when the base is a literal).
 - Digits above 9 are lowercase letters `a`–`z`.
 - `format_i64` prefixes negative values with `-`; `format_u64` treats its argument as unsigned.
 - The inverse of `to_i64` / `to_u64`: `to_i64(format_i64(n, b), b) == n`.
-- `fmt.i64_to_hex` / `fmt.i64_to_binary` / `fmt.i64_to_octal` remain available; they format the raw
-  two's-complement bit pattern for their fixed base, whereas `format_i64` produces a signed representation.
+- `fmt.i64_to_binary` formats the raw two's-complement bit pattern, whereas `format_i64` produces a signed representation.
 
 #### Quoting (string ↔ quoted literal)
 

@@ -868,34 +868,15 @@ static void test_fmt_center_odd(void) {
     ASSERT_GRAY_STR(r, "--hi---");
 }
 
-static void test_fmt_i64_to_hex(void) {
-    ASSERT_GRAY_STR(gray_fmt_i64_to_hex(arena, 255), "ff");
-    ASSERT_GRAY_STR(gray_fmt_i64_to_hex(arena, 0), "0");
-    ASSERT_GRAY_STR(gray_fmt_i64_to_hex(arena, 16), "10");
-}
-
 static void test_fmt_i64_to_binary(void) {
     ASSERT_GRAY_STR(gray_fmt_i64_to_binary(arena, 10), "1010");
     ASSERT_GRAY_STR(gray_fmt_i64_to_binary(arena, 0), "0");
     ASSERT_GRAY_STR(gray_fmt_i64_to_binary(arena, 1), "1");
 }
 
-static void test_fmt_i64_to_octal(void) {
-    ASSERT_GRAY_STR(gray_fmt_i64_to_octal(arena, 8), "10");
-    ASSERT_GRAY_STR(gray_fmt_i64_to_octal(arena, 0), "0");
-    ASSERT_GRAY_STR(gray_fmt_i64_to_octal(arena, 255), "377");
-}
-
 static void test_fmt_f64_to_fixed(void) {
     ASSERT_GRAY_STR(gray_fmt_f64_to_fixed(arena, 3.14159, 2), "3.14");
     ASSERT_GRAY_STR(gray_fmt_f64_to_fixed(arena, 1.0, 0), "1");
-}
-
-static void test_fmt_f64_to_scientific(void) {
-    GrayString r = gray_fmt_f64_to_scientific(arena, 1234.5);
-    /* Output is platform-dependent in exponent width, just verify it starts right */
-    ASSERT(gray_strings_starts_with(r, gray_string_lit("1.2345")));
-    ASSERT(gray_strings_contains(r, gray_string_lit("e+")));
 }
 
 /* ===== encoding module ===== */
@@ -2080,11 +2061,8 @@ int main(void) {
     RUN_TEST(test_fmt_pad_right);
     RUN_TEST(test_fmt_center);
     RUN_TEST(test_fmt_center_odd);
-    RUN_TEST(test_fmt_i64_to_hex);
     RUN_TEST(test_fmt_i64_to_binary);
-    RUN_TEST(test_fmt_i64_to_octal);
     RUN_TEST(test_fmt_f64_to_fixed);
-    RUN_TEST(test_fmt_f64_to_scientific);
 
     printf("--- encoding ---\n");
     RUN_TEST(test_encoding_base64_encode);

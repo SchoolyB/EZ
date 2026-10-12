@@ -108,14 +108,6 @@ GrayString gray_fmt_center(GrayArena *arena, GrayString string, int64_t width, i
     return (GrayString){buffer, (int32_t)(left_bytes + string.len + right_bytes)};
 }
 
-GrayString gray_fmt_i64_to_hex(GrayArena *arena, int64_t value) {
-    char temporary[GRAY_FMT_INTEGER_BUFFER_SIZE];
-    int length = snprintf(temporary, sizeof(temporary), "%" PRIx64, (uint64_t)value);
-    char *buffer = (char *)gray_arena_alloc_uninitialized(arena, (size_t)length);
-    memcpy(buffer, temporary, (size_t)length);
-    return (GrayString){buffer, length};
-}
-
 GrayString gray_fmt_i64_to_binary(GrayArena *arena, int64_t value) {
     if (value == 0) {
         char *buffer = (char *)gray_arena_alloc_uninitialized(arena, 1);
@@ -135,25 +127,9 @@ GrayString gray_fmt_i64_to_binary(GrayArena *arena, int64_t value) {
     return (GrayString){buffer, length};
 }
 
-GrayString gray_fmt_i64_to_octal(GrayArena *arena, int64_t value) {
-    char temporary[GRAY_FMT_INTEGER_BUFFER_SIZE];
-    int length = snprintf(temporary, sizeof(temporary), "%" PRIo64, (uint64_t)value);
-    char *buffer = (char *)gray_arena_alloc_uninitialized(arena, (size_t)length);
-    memcpy(buffer, temporary, (size_t)length);
-    return (GrayString){buffer, length};
-}
-
 GrayString gray_fmt_f64_to_fixed(GrayArena *arena, double value, int64_t decimals) {
     char temporary[GRAY_FMT_FLOATING_POINT_BUFFER_SIZE];
     int length = snprintf(temporary, sizeof(temporary), "%.*f", (int)decimals, value);
-    char *buffer = (char *)gray_arena_alloc_uninitialized(arena, (size_t)length);
-    memcpy(buffer, temporary, (size_t)length);
-    return (GrayString){buffer, length};
-}
-
-GrayString gray_fmt_f64_to_scientific(GrayArena *arena, double value) {
-    char temporary[GRAY_FMT_FLOATING_POINT_BUFFER_SIZE];
-    int length = snprintf(temporary, sizeof(temporary), "%e", value);
     char *buffer = (char *)gray_arena_alloc_uninitialized(arena, (size_t)length);
     memcpy(buffer, temporary, (size_t)length);
     return (GrayString){buffer, length};

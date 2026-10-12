@@ -8482,7 +8482,6 @@ static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *functi
         {"eprintf",    "fprintf(stderr, ",                       false},
         {"eprintfln",  "fprintf(stderr, ",                       true},
         {"sprintf",    "gray_string_format(gray_default_arena, ", false},
-        {"sprintfln",  "gray_string_format(gray_default_arena, ", true},
     };
     for (int i = 0; i < (int)(sizeof(format_variants) / sizeof(format_variants[0])); i++) {
         if (strcmp(function_name, format_variants[i].name) == 0) {
@@ -8524,22 +8523,8 @@ static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *functi
         return true;
     }
 
-    if (strcmp(function_name, "i64_to_hex") == 0 && node->data.call.argument_count == 1) {
-        emit(codegen, "gray_fmt_i64_to_hex(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
-        return true;
-    }
-
     if (strcmp(function_name, "i64_to_binary") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_fmt_i64_to_binary(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(function_name, "i64_to_octal") == 0 && node->data.call.argument_count == 1) {
-        emit(codegen, "gray_fmt_i64_to_octal(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
@@ -8550,13 +8535,6 @@ static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ", ");
         emit_expression(codegen, node->data.call.arguments[1]);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(function_name, "f64_to_scientific") == 0 && node->data.call.argument_count == 1) {
-        emit(codegen, "gray_fmt_f64_to_scientific(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
     }

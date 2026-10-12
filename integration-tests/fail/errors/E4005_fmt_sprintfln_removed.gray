@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - fmt.sprintfln was removed
+ * Expected: fmt no longer recognises sprintfln
+ */
+
+// expect-error: E4005
+
+import @fmt
+
+do main() {
+    mut result string = fmt.sprintfln("x = %d", 1)
+}
