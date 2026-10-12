@@ -74,7 +74,7 @@ do main() {
 
     mut missing i64 = 0
     for i in range(0, 100) {
-        if !maps.has_key(bag.items, "key${i}") { missing += 1 }
+        if !maps.contains_key(bag.items, "key${i}") { missing += 1 }
     }
     if missing == 0 {
         println("  [PASS] map field via b.items")

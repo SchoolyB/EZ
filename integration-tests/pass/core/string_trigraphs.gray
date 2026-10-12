@@ -39,7 +39,7 @@ do main() {
     mut m map[string:i64] = {"k??=": 1}
     mut b Box = Box{}
     mut words [string] = {"x??!"}
-    if interpolated == "x??=" && maps.has_key(m, "k??=") && b.s == "d??=e" && words[0] == "x??!" && `raw??=` == "raw??=" {
+    if interpolated == "x??=" && maps.contains_key(m, "k??=") && b.s == "d??=e" && words[0] == "x??!" && `raw??=` == "raw??=" {
         println("  [PASS] interpolation, map keys, field defaults, array elements and raw strings")
         passed += 1
     } otherwise {

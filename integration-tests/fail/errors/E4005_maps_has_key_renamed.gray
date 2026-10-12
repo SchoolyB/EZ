@@ -1,0 +1,13 @@
+/*
+ * Error Test: E4005 - maps.has_key was renamed to maps.contains_key
+ * Expected: maps no longer recognises has_key
+ */
+
+// expect-error: E4005
+
+import @maps
+
+do main() {
+    mut m map[string:i64] = {"a": 1}
+    mut found bool = maps.has_key(m, "a")
+}

@@ -807,20 +807,20 @@ do main() {
         failed++
     }
 
-    println("  -- maps.has_key / maps.get_keys --")
+    println("  -- maps.contains_key / maps.get_keys --")
 
-    if maps.has_key(ages, "bob") {
-        println("  [PASS] maps.has_key(ages, \"bob\") = true")
+    if maps.contains_key(ages, "bob") {
+        println("  [PASS] maps.contains_key(ages, \"bob\") = true")
         passed++
     } otherwise {
-        println("  [FAIL] maps.has_key: expected true for \"bob\"")
+        println("  [FAIL] maps.contains_key: expected true for \"bob\"")
         failed++
     }
-    if !maps.has_key(ages, "nobody") {
-        println("  [PASS] maps.has_key(ages, \"nobody\") = false")
+    if !maps.contains_key(ages, "nobody") {
+        println("  [PASS] maps.contains_key(ages, \"nobody\") = false")
         passed++
     } otherwise {
-        println("  [FAIL] maps.has_key: expected false for \"nobody\"")
+        println("  [FAIL] maps.contains_key: expected false for \"nobody\"")
         failed++
     }
 
@@ -2393,7 +2393,7 @@ do main() {
     mut merge_b map[string:i64] = {"b": 2}
     mut mmerge map[string:i64] = maps.merge(merge_a, merge_b)
     maps.remove_key(mmerge, "a")
-    if len(mmerge) == 1 && maps.has_key(mmerge, "b") {
+    if len(mmerge) == 1 && maps.contains_key(mmerge, "b") {
         println("  [PASS] maps.merge / remove_key")
         passed++
     } otherwise {

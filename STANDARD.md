@@ -3552,7 +3552,7 @@ do rows_to_csv(rows [[string]]) -> string {
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `is_empty` | `(m map[K:V]) -> bool` | Check if map is empty |
-| `has_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
+| `contains_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
 | `contains_value` | `(m map[K:V], value V) -> bool` | Check if any entry has the given value |
 | `get_keys` | `(m map[K:V]) -> [K]` | Get all keys as an array |
 | `get_values` | `(m map[K:V]) -> [V]` | Get all values as an array |

@@ -57,7 +57,7 @@ do main() {
         failed = failed + 1
     }
 
-    if maps.has_key(m, "y") == false {
+    if maps.contains_key(m, "y") == false {
         passed = passed + 1
     } otherwise {
         println("[FAIL] removed key is still present")

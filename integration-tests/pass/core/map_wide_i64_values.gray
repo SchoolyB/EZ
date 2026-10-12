@@ -7,7 +7,7 @@
  * *(int64_t *), so an annotated map[K:i128] leaked a C compiler error on read
  * and silently truncated 128-bit values to 64 bits on store. Wired every map
  * slot site (literal, read, assign, compound assign, get_or_default,
- * contains_value, in/has_key) through the wide-integer C type.
+ * contains_value, in/contains_key) through the wide-integer C type.
  */
 
 import @maps
@@ -51,8 +51,8 @@ do main() {
     mut u map[string:u256] = {"big": 999999999999999999999999999999}
     passed += want("u256 value", string(u["big"]) == "999999999999999999999999999999")
 
-    // maps module: has_key / get_or_default / contains_value / get_values
-    passed += want("has_key", maps.has_key(m, "a"))
+    // maps module: contains_key / get_or_default / contains_value / get_values
+    passed += want("contains_key", maps.contains_key(m, "a"))
     passed += want("get_or_default hit", maps.get_or_default(m, "a", 0) == 1)
     passed += want("get_or_default miss", maps.get_or_default(m, "z", 42) == 42)
     passed += want("contains_value", maps.contains_value(m, 2))

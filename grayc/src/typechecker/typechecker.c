@@ -3271,11 +3271,11 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"json", "pretty_print", 2, 2, false, FALLIBLE_TYPE_NONE,       2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
     /* maps */
     {"maps", "clear",          1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "void"},
+    {"maps", "contains_key",   2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "bool"},
     {"maps", "contains_value", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, "bool"},
     {"maps", "get_keys",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
     {"maps", "get_or_default", 3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}, {2, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, NULL},
     {"maps", "get_values",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
-    {"maps", "has_key",        2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "bool"},
     {"maps", "is_empty",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "bool"},
     {"maps", "is_equal",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_MAP}}, "bool"},
     {"maps", "merge",          2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_SAME_AS_FIRST}}, NULL},

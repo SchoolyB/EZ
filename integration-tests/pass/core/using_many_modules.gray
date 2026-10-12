@@ -47,7 +47,7 @@ do main() {
 
     // 4: maps
     mut m map[string:i64] = {"a": 1}
-    if has_key(m, "a") {
+    if contains_key(m, "a") {
         println("  [PASS] maps")
         passed += 1
     } otherwise {

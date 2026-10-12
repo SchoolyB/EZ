@@ -42,7 +42,7 @@ do get_or(kind generic, m map[string:kind], k string, fallback kind) -> kind {
     return fallback
 }
 
-do has_key(kind generic, m map[kind:i64], k kind) -> bool {
+do contains_key(kind generic, m map[kind:i64], k kind) -> bool {
     return k in m
 }
 
@@ -188,12 +188,12 @@ do main() {
     // -- map[kind:V] with generic key and concrete value --
     mut prices map[string:i64] = {"apple": 5}
     mut weights map[i64:i64] = {42: 7}
-    if has_key(string, prices, "apple") && !has_key(string, prices, "pear") &&
-       has_key(i64, weights, 42) && !has_key(i64, weights, 99) {
-        println("  [PASS] has_key across map[string:i64] and map[i64:i64]")
+    if contains_key(string, prices, "apple") && !contains_key(string, prices, "pear") &&
+       contains_key(i64, weights, 42) && !contains_key(i64, weights, 99) {
+        println("  [PASS] contains_key across map[string:i64] and map[i64:i64]")
         passed += 1
     } otherwise {
-        println("  [FAIL] has_key across map[string:i64] and map[i64:i64]")
+        println("  [FAIL] contains_key across map[string:i64] and map[i64:i64]")
         failed += 1
     }
 

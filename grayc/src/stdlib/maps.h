@@ -43,20 +43,20 @@ GrayArray gray_maps_get_keys(GrayArena *arena, GrayMap *map);
 /* maps.values(m) — return array of values */
 GrayArray gray_maps_get_values(GrayArena *arena, GrayMap *map);
 
-/*@man has_key
+/*@man contains_key
  *@module maps
  *@group Query
- *@sig has_key(m map[K:V], key K) -> bool
+ *@sig contains_key(m map[K:V], key K) -> bool
  *@desc Returns true if m contains an entry with the given key.
  *@example
  *   import @maps
  *   mut ages map[string:i64] = {"alice": 30}
- *   println(maps.has_key(ages, "alice"))
- *   println(maps.has_key(ages, "bob"))
+ *   println(maps.contains_key(ages, "alice"))
+ *   println(maps.contains_key(ages, "bob"))
  *@end
  */
-/* maps.has_key(m, key) — check if key exists */
-bool gray_maps_has_key(GrayMap *map, const void *key);
+/* maps.contains_key(m, key) — check if key exists */
+bool gray_maps_contains_key(GrayMap *map, const void *key);
 
 /*@man is_empty
  *@module maps

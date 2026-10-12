@@ -647,12 +647,12 @@ static void test_maps_get_values(void) {
     ASSERT_EQ(GRAY_ARRAY_GET(vals, int64_t, 0), 42);
 }
 
-static void test_maps_has_key(void) {
+static void test_maps_contains_key(void) {
     GrayMap m = gray_map_new_kind(arena, sizeof(int64_t), sizeof(int64_t), 0, GRAY_ELEM_I64, GRAY_ELEM_I64);
     int64_t k = 5, v = 50;
-    ASSERT(!gray_maps_has_key(&m, &k));
+    ASSERT(!gray_maps_contains_key(&m, &k));
     GRAY_MAP_SET(arena, &m, &k, &v);
-    ASSERT(gray_maps_has_key(&m, &k));
+    ASSERT(gray_maps_contains_key(&m, &k));
 }
 
 static void test_maps_is_empty(void) {
@@ -2029,7 +2029,7 @@ int main(void) {
     printf("--- maps ---\n");
     RUN_TEST(test_maps_get_keys);
     RUN_TEST(test_maps_get_values);
-    RUN_TEST(test_maps_has_key);
+    RUN_TEST(test_maps_contains_key);
     RUN_TEST(test_maps_is_empty);
     RUN_TEST(test_maps_contains_value);
     RUN_TEST(test_maps_is_equal);

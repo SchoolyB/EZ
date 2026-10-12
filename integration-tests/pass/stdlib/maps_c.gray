@@ -31,21 +31,21 @@ do main() {
         failed += 1
     }
 
-    // has_key (exists)
-    if maps.has_key(m, "a") == true {
-        println("  [PASS] has_key (exists)")
+    // contains_key (exists)
+    if maps.contains_key(m, "a") == true {
+        println("  [PASS] contains_key (exists)")
         passed += 1
     } otherwise {
-        println("  [FAIL] has_key (exists)")
+        println("  [FAIL] contains_key (exists)")
         failed += 1
     }
 
-    // has_key (missing)
-    if maps.has_key(m, "z") == false {
-        println("  [PASS] has_key (missing)")
+    // contains_key (missing)
+    if maps.contains_key(m, "z") == false {
+        println("  [PASS] contains_key (missing)")
         passed += 1
     } otherwise {
-        println("  [FAIL] has_key (missing)")
+        println("  [FAIL] contains_key (missing)")
         failed += 1
     }
 

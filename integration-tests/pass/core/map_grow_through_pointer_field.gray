@@ -22,7 +22,7 @@ do pool_insert(pool ^Pool, key string, e ^Entry) {
 
 do pool_find(pool ^Pool, key string) -> ^Entry {
     c = pool^.cache
-    if maps.has_key(c, key) {
+    if maps.contains_key(c, key) {
         return c[key]
     }
     return nil

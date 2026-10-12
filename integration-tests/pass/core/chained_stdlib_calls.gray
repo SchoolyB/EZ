@@ -97,19 +97,19 @@ do main() {
         failed += 1
     }
 
-    if maps.has_key(m, "a") == true {
-        println("  [PASS] maps has_key true")
+    if maps.contains_key(m, "a") == true {
+        println("  [PASS] maps contains_key true")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps has_key true")
+        println("  [FAIL] maps contains_key true")
         failed += 1
     }
 
-    if maps.has_key(m, "z") == false {
-        println("  [PASS] maps has_key false")
+    if maps.contains_key(m, "z") == false {
+        println("  [PASS] maps contains_key false")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps has_key false")
+        println("  [FAIL] maps contains_key false")
         failed += 1
     }
 

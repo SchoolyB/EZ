@@ -3393,7 +3393,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
 
         /* Map or array membership */
         GrayType *array_type = codegen_type_of(codegen, node->data.infix.right);
-        /* Map membership: key in map → gray_maps_has_key
+        /* Map membership: key in map → gray_maps_contains_key
          * Bind the map to a temp so &_im works even when the map
          * expression is an rvalue (e.g. pointer field access). */
         if (array_type && array_type->kind == TYPE_KIND_MAP) {
@@ -3404,7 +3404,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
             emit_expression(codegen, node->data.infix.right);
             emit_formatted(codegen, "; %s _ik%d = ", gray_map_element_c_type(codegen, array_type->key_type), membership_id);
             emit_map_slot_value(codegen, array_type->key_type, node->data.infix.left);
-            emit_formatted(codegen, "; gray_maps_has_key(&_im%d, &_ik%d); })", membership_id, membership_id);
+            emit_formatted(codegen, "; gray_maps_contains_key(&_im%d, &_ik%d); })", membership_id, membership_id);
             return;
         }
         /* String membership: char in string or string in string */
@@ -6926,7 +6926,7 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         }
         return true;
     }
-    if ((strcmp(function_name, "has_key") == 0 || strcmp(function_name, "remove_key") == 0) &&
+    if ((strcmp(function_name, "contains_key") == 0 || strcmp(function_name, "remove_key") == 0) &&
         node->data.call.argument_count == 2) {
         bool is_remove = strcmp(function_name, "remove_key") == 0;
         /* Key buffer must match the map's declared key storage type
@@ -6940,7 +6940,7 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         emit_formatted(codegen, "({ %s _k = ", c_key_type);
         emit_map_slot_value(codegen, (map_type && map_type->kind == TYPE_KIND_MAP) ? map_type->key_type : NULL,
             node->data.call.arguments[1]);
-        emit_formatted(codegen, "; %s(", is_remove ? "gray_map_remove" : "gray_maps_has_key");
+        emit_formatted(codegen, "; %s(", is_remove ? "gray_map_remove" : "gray_maps_contains_key");
         emit_address_of(codegen, node->data.call.arguments[0]);
         if (is_remove) emit_formatted(codegen, ", &_k, \"%s\", %d); })", codegen->file, node->token.line);
         else emit(codegen, ", &_k); })");
