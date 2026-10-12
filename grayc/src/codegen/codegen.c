@@ -13097,7 +13097,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
     if (codegen->indent > 0 && codegen->file && node->token.line > 0 &&
         statement_needs_panic_location(codegen, node)) {
         emit_indent(codegen);
-        emit_formatted(codegen, "gray_panic_call_file = \"%s\"; gray_panic_call_line = %d;\n",
+        emit_formatted(codegen, "gray_set_panic_call(\"%s\", %d);\n",
                        codegen->file, node->token.line);
     }
 

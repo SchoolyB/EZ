@@ -29,13 +29,17 @@ static inline int panic_use_color(void) {
  * released when the thread exits. */
 static pthread_key_t gray_thread_state_key;
 static pthread_once_t gray_thread_state_once = PTHREAD_ONCE_INIT;
+/* Set by gray_runtime_init before any thread is spawned, so a thread that
+ * reads it set also sees the key; pthread_once on every access is what made
+ * this accessor expensive. */
+static int gray_thread_state_key_ready = 0;
 
 static void gray_thread_state_make_key(void) {
     pthread_key_create(&gray_thread_state_key, free);
 }
 
 GrayThreadState *gray_thread_state(void) {
-    pthread_once(&gray_thread_state_once, gray_thread_state_make_key);
+    if (!gray_thread_state_key_ready) pthread_once(&gray_thread_state_once, gray_thread_state_make_key);
     GrayThreadState *state = (GrayThreadState *)pthread_getspecific(gray_thread_state_key);
     if (!state) {
         state = (GrayThreadState *)calloc(1, sizeof(GrayThreadState));
@@ -359,6 +363,10 @@ int gray_call_depth = 0;
 static struct timespec gray_runtime_start_time;
 
 void gray_runtime_init(size_t arena_limit) {
+#if defined(__TINYC__)
+    pthread_once(&gray_thread_state_once, gray_thread_state_make_key);
+    gray_thread_state_key_ready = 1;
+#endif
     gray_map_init_seed();
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_heap_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);

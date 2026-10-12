@@ -73,6 +73,14 @@ GrayThreadState *gray_thread_state(void);
 #define gray_total_alloc_count (gray_thread_state()->total_alloc_count)
 #define gray_panic_call_file (gray_thread_state()->panic_call_file)
 #define gray_panic_call_line (gray_thread_state()->panic_call_line)
+/* One accessor call for the pair; generated code stamps the location before
+ * every statement that can panic. */
+#define gray_set_panic_call(file, line) \
+    do { GrayThreadState *gray_state = gray_thread_state(); \
+         gray_state->panic_call_file = (file); gray_state->panic_call_line = (line); } while (0)
+#else
+#define gray_set_panic_call(file, line) \
+    do { gray_panic_call_file = (file); gray_panic_call_line = (line); } while (0)
 #endif
 
 /* Per-thread default arena — each thread (including spawned threads) gets its own. */
