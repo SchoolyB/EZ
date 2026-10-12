@@ -7296,61 +7296,28 @@ static bool emit_server_call(CodeGen *codegen, AstNode *node, const char *functi
 static bool emit_http_call(CodeGen *codegen, AstNode *node, const char *function_name) {
     bool is_multi_variable = current_variable_is_result_temporary(codegen);
     const char *suffix = is_multi_variable ? "_result" : "";
-    if (strcmp(function_name, "get") == 0 && node->data.call.argument_count == 2) {
-        emit_formatted(codegen, "gray_http_get%s(gray_default_arena, ", suffix);
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", ");
-        emit_address_of(codegen, node->data.call.arguments[1]);
-        emit(codegen, ")");
-        return true;
-    }
-    if (strcmp(function_name, "post") == 0 && node->data.call.argument_count == 3) {
-        emit_formatted(codegen, "gray_http_post%s(gray_default_arena, ", suffix);
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", ");
-        emit_expression(codegen, node->data.call.arguments[1]);
-        emit(codegen, ", ");
-        emit_address_of(codegen, node->data.call.arguments[2]);
-        emit(codegen, ")");
-        return true;
-    }
-    if (strcmp(function_name, "put") == 0 && node->data.call.argument_count == 3) {
-        emit_formatted(codegen, "gray_http_put%s(gray_default_arena, ", suffix);
-        emit_expression(codegen, node->data.call.arguments[0]);
+    bool has_body = strcmp(function_name, "post") == 0 || strcmp(function_name, "put") == 0 ||
+        strcmp(function_name, "patch") == 0;
+    bool no_body = strcmp(function_name, "get") == 0 || strcmp(function_name, "delete") == 0 ||
+        strcmp(function_name, "head") == 0;
+    if (!has_body && !no_body) return false;
+
+    /* headers is the last argument and may be omitted */
+    int headers_index = has_body ? 2 : 1;
+    int argument_count = node->data.call.argument_count;
+    if (argument_count != headers_index && argument_count != headers_index + 1) return false;
+
+    emit_formatted(codegen, "gray_http_%s%s(gray_default_arena, ", function_name, suffix);
+    emit_expression(codegen, node->data.call.arguments[0]);
+    if (has_body) {
         emit(codegen, ", ");
         emit_expression(codegen, node->data.call.arguments[1]);
-        emit(codegen, ", ");
-        emit_address_of(codegen, node->data.call.arguments[2]);
-        emit(codegen, ")");
-        return true;
     }
-    if (strcmp(function_name, "delete") == 0 && node->data.call.argument_count == 2) {
-        emit_formatted(codegen, "gray_http_delete%s(gray_default_arena, ", suffix);
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", ");
-        emit_address_of(codegen, node->data.call.arguments[1]);
-        emit(codegen, ")");
-        return true;
-    }
-    if (strcmp(function_name, "head") == 0 && node->data.call.argument_count == 2) {
-        emit_formatted(codegen, "gray_http_head%s(gray_default_arena, ", suffix);
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", ");
-        emit_address_of(codegen, node->data.call.arguments[1]);
-        emit(codegen, ")");
-        return true;
-    }
-    if (strcmp(function_name, "patch") == 0 && node->data.call.argument_count == 3) {
-        emit_formatted(codegen, "gray_http_patch%s(gray_default_arena, ", suffix);
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", ");
-        emit_expression(codegen, node->data.call.arguments[1]);
-        emit(codegen, ", ");
-        emit_address_of(codegen, node->data.call.arguments[2]);
-        emit(codegen, ")");
-        return true;
-    }
-    return false;
+    emit(codegen, ", ");
+    if (argument_count > headers_index) emit_address_of(codegen, node->data.call.arguments[headers_index]);
+    else emit(codegen, "NULL");
+    emit(codegen, ")");
+    return true;
 }
 
 /* --- @net module --- */

@@ -3219,12 +3219,12 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"fmt", "printfln",      2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "sprintf",       2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     /* http */
-    {"http", "delete", 2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
-    {"http", "get",    2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
-    {"http", "head",   2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
-    {"http", "patch",  3, 3, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}, {2, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
-    {"http", "post",   3, 3, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}, {2, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
-    {"http", "put",    3, 3, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}, {2, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
+    {"http", "delete", 1, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
+    {"http", "get",    1, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
+    {"http", "head",   1, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
+    {"http", "patch",  2, 3, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}, {2, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
+    {"http", "post",   2, 3, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}, {2, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
+    {"http", "put",    2, 3, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}, {2, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
     /* io */
     {"io", "append_bytes",   2, 2, true,  FALLIBLE_TYPE_BOOL,         2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_U8_ARRAY}}, "bool"},
     {"io", "append_file",    2, 2, true,  FALLIBLE_TYPE_BOOL,         2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "bool"},

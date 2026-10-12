@@ -1,0 +1,83 @@
+/*
+ * Test: http get, delete, head, post, put and patch accept a call with no
+ * headers argument and send no custom headers
+ */
+
+import @net
+import @http
+import @strings
+import @threads
+
+const TEST_PORT i64 = 47218
+
+mut seen string = ""
+mut listener Listener
+
+do echo() {
+    mut conn, _ = net.accept(listener)
+    mut request, _ = net.receive(conn, 65536)
+    seen = strings.to_lower(request)
+    // the client sends a body as its own write, after the head
+    if strings.contains(seen, "content-length:") && strings.ends_with(seen, "\r\n\r\n") {
+        mut _, _ = net.receive(conn, 65536)
+    }
+    mut _, _ = net.send(conn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+    net.close(conn)
+}
+
+do check(label string, expected_line string, line_count i64, status i64, err Error, &passed i64, &failed i64) {
+    if err == nil && status == 200 && strings.starts_with(seen, expected_line) && strings.count(seen, "\r\n") == line_count {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}: ${seen}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+    mut url = "http://127.0.0.1:47218/"
+
+    mut thread = threads.spawn(()echo)
+    mut get_response, get_err = http.get(url)
+    threads.join(thread)
+    check("get", "get / http/1.1", 4, get_response.status, get_err, passed, failed)
+
+    thread = threads.spawn(()echo)
+    mut delete_response, delete_err = http.delete(url)
+    threads.join(thread)
+    check("delete", "delete / http/1.1", 4, delete_response.status, delete_err, passed, failed)
+
+    thread = threads.spawn(()echo)
+    mut head_response, head_err = http.head(url)
+    threads.join(thread)
+    check("head", "head / http/1.1", 4, head_response.status, head_err, passed, failed)
+
+    thread = threads.spawn(()echo)
+    mut post_response, post_err = http.post(url, "a=1")
+    threads.join(thread)
+    check("post", "post / http/1.1", 6, post_response.status, post_err, passed, failed)
+
+    thread = threads.spawn(()echo)
+    mut put_response, put_err = http.put(url, "a=1")
+    threads.join(thread)
+    check("put", "put / http/1.1", 6, put_response.status, put_err, passed, failed)
+
+    thread = threads.spawn(()echo)
+    mut patch_response, patch_err = http.patch(url, "a=1")
+    threads.join(thread)
+    check("patch", "patch / http/1.1", 6, patch_response.status, patch_err, passed, failed)
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

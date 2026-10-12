@@ -4006,12 +4006,12 @@ HTTP client for making requests. Currently supports HTTP only.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string, headers map[string:string]) -> (HttpResponse, Error)` | GET request — always use destructuring |
-| `post` | `(url string, body string, headers map[string:string]) -> (HttpResponse, Error)` | POST request — always use destructuring |
-| `put` | `(url string, body string, headers map[string:string]) -> (HttpResponse, Error)` | PUT request — always use destructuring |
-| `patch` | `(url string, body string, headers map[string:string]) -> (HttpResponse, Error)` | PATCH request — always use destructuring |
-| `delete` | `(url string, headers map[string:string]) -> (HttpResponse, Error)` | DELETE request — always use destructuring |
-| `head` | `(url string, headers map[string:string]) -> (HttpResponse, Error)` | HEAD request — always use destructuring |
+| `get` | `(url string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | GET request — always use destructuring |
+| `post` | `(url string, body string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | POST request — always use destructuring |
+| `put` | `(url string, body string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | PUT request — always use destructuring |
+| `patch` | `(url string, body string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | PATCH request — always use destructuring |
+| `delete` | `(url string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | DELETE request — always use destructuring |
+| `head` | `(url string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | HEAD request — always use destructuring |
 
 `get`, `post`, `put`, `patch`, `delete`, and `head` are fallible: destructure the result (`mut resp, err = ...` or `mut resp, _ = ...`).
 
