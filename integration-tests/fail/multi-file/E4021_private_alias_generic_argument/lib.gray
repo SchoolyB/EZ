@@ -1,0 +1,5 @@
+private alias Id = i64
+
+do identity(kind generic, value kind) -> kind {
+    return value
+}

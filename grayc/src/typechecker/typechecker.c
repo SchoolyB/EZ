@@ -7540,6 +7540,11 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
         typechecker_error_undefined_type(checker, type_argument, label);
         return NULL;
     }
+    /* E4015/E4021: the type argument is a written type name like any annotation. */
+    if (private_type_leaf(checker, label)) {
+        reject_private_type(checker, type_argument, label);
+        return NULL;
+    }
     /* Bind what the name reaches, not the alias spelling. The instantiation is
      * mangled and substituted by binding, so an alias bound as itself gave a
      * return type no annotation of the underlying type would accept. */
