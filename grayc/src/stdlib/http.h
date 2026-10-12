@@ -20,7 +20,7 @@
  *@field status i64
  *@field body string
  *@field headers map[string:string]
- *@desc The response object returned by all http request functions. It is the same type server handlers return, so a handler can return one unchanged. Also available when the server module is imported.
+ *@desc The response object returned by all http request functions. Header names in headers are canonicalized: the first letter of each hyphen-separated word is uppercase and the rest lowercase. It is the same type server handlers return, so a handler can return one unchanged. Also available when the server module is imported.
  *@example
  *   import @http
  *   mut headers map[string:string] = {:}

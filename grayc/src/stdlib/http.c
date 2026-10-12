@@ -193,6 +193,16 @@ static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int d
             if (value_length > 0 && value_start[value_length - 1] == '\r') value_length--;
 
             GrayString key = gray_string_new(arena, line, key_length);
+            /* Canonical form: each hyphen-separated word is Capitalized. */
+            char *key_text = (char *)key.data;
+            bool word_start = true;
+            for (int32_t i = 0; i < key.len; i++) {
+                char letter = key_text[i];
+                if (letter == '-') { word_start = true; continue; }
+                if (word_start && letter >= 'a' && letter <= 'z') key_text[i] = (char)(letter - 'a' + 'A');
+                else if (!word_start && letter >= 'A' && letter <= 'Z') key_text[i] = (char)(letter - 'A' + 'a');
+                word_start = false;
+            }
             GrayString value = gray_string_new(arena, value_start, value_length);
             GRAY_MAP_SET(arena, &resp.headers, &key, &value);
         }

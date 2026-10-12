@@ -4042,7 +4042,7 @@ A failed request returns an Error with a fixed message and a specific code: `Uns
 |-------|------|-------------|
 | `status` | `i64` | HTTP status code |
 | `body` | `string` | Response body |
-| `headers` | `map[string:string]` | Response headers; the content type is `headers["Content-Type"]` |
+| `headers` | `map[string:string]` | Response headers; names are canonicalized (the first letter of each hyphen-separated word is uppercase, the rest lowercase), so the content type is `headers["Content-Type"]` whatever case the server sent |
 
 ### 9.12 Crypto Module (`@crypto`)
 
