@@ -36,24 +36,35 @@ size_t json_escaped_len(GrayString string) {
 
 void json_append_escaped(char *buffer, int *position, GrayString string) {
     static const char hex[] = "0123456789abcdef";
-    buffer[(*position)++] = '"';
+    /* The output pointer lives in a local: a char store may alias *position,
+     * which would force a reload and store of it after every byte. */
+    char *output = buffer + *position;
+    *output++ = '"';
+    int32_t run_start = 0;
     for (int32_t i = 0; i < string.len; i++) {
         unsigned char character = (unsigned char)string.data[i];
-        if (character == '"') { buffer[(*position)++] = '\\'; buffer[(*position)++] = '"'; }
-        else if (character == '\\') { buffer[(*position)++] = '\\'; buffer[(*position)++] = '\\'; }
-        else if (character == '\b') { buffer[(*position)++] = '\\'; buffer[(*position)++] = 'b'; }
-        else if (character == '\f') { buffer[(*position)++] = '\\'; buffer[(*position)++] = 'f'; }
-        else if (character == '\n') { buffer[(*position)++] = '\\'; buffer[(*position)++] = 'n'; }
-        else if (character == '\r') { buffer[(*position)++] = '\\'; buffer[(*position)++] = 'r'; }
-        else if (character == '\t') { buffer[(*position)++] = '\\'; buffer[(*position)++] = 't'; }
-        else if (character < 0x20) {
-            buffer[(*position)++] = '\\'; buffer[(*position)++] = 'u';
-            buffer[(*position)++] = '0'; buffer[(*position)++] = '0';
-            buffer[(*position)++] = hex[character >> 4]; buffer[(*position)++] = hex[character & 0xf];
+        if (character >= 0x20 && character != '"' && character != '\\') continue;
+        memcpy(output, string.data + run_start, (size_t)(i - run_start));
+        output += i - run_start;
+        run_start = i + 1;
+        *output++ = '\\';
+        switch (character) {
+            case '"': *output++ = '"'; break;
+            case '\\': *output++ = '\\'; break;
+            case '\b': *output++ = 'b'; break;
+            case '\f': *output++ = 'f'; break;
+            case '\n': *output++ = 'n'; break;
+            case '\r': *output++ = 'r'; break;
+            case '\t': *output++ = 't'; break;
+            default:
+                *output++ = 'u'; *output++ = '0'; *output++ = '0';
+                *output++ = hex[character >> 4]; *output++ = hex[character & 0xf];
         }
-        else buffer[(*position)++] = (char)character;
     }
-    buffer[(*position)++] = '"';
+    memcpy(output, string.data + run_start, (size_t)(string.len - run_start));
+    output += string.len - run_start;
+    *output++ = '"';
+    *position = (int)(output - buffer);
 }
 
 /* Enum field helpers. Both fall through every variant, matching the linear
