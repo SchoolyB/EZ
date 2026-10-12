@@ -1,6 +1,6 @@
 /*
- * Test: #json struct stringify with escaping and exact sizing
- * Verifies that json.stringify() properly escapes special characters
+ * Test: #json struct encode with escaping and exact sizing
+ * Verifies that json.encode() properly escapes special characters
  * in string fields and handles various field types correctly.
  */
 
@@ -24,38 +24,38 @@ do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 
-    // Test 1: basic stringify contains name
+    // Test 1: basic encode contains name
     mut b Basic = Basic{name: "Alice", age: 30, active: true}
-    mut s string = json.stringify(b)
+    mut s string = json.encode(b)
     if strings.contains(s, "Alice") {
-        println("  [PASS] stringify contains name")
+        println("  [PASS] encode contains name")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify missing name: ${s}")
+        println("  [FAIL] encode missing name: ${s}")
         failed += 1
     }
 
     // Test 2: i64 field in output
     if strings.contains(s, "30") {
-        println("  [PASS] stringify contains age")
+        println("  [PASS] encode contains age")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify missing age: ${s}")
+        println("  [FAIL] encode missing age: ${s}")
         failed += 1
     }
 
     // Test 3: bool field in output
     if strings.contains(s, "true") {
-        println("  [PASS] stringify contains bool")
+        println("  [PASS] encode contains bool")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify missing bool: ${s}")
+        println("  [FAIL] encode missing bool: ${s}")
         failed += 1
     }
 
     // Test 4: string with quotes is escaped
     mut w WithSpecialChars = WithSpecialChars{text: "say \"hello\"", value: 1}
-    mut qs string = json.stringify(w)
+    mut qs string = json.encode(w)
     if strings.contains(qs, "\\\"") {
         println("  [PASS] quotes are escaped in output")
         passed += 1
@@ -66,7 +66,7 @@ do main() {
 
     // Test 5: string with backslash is escaped
     mut w2 WithSpecialChars = WithSpecialChars{text: "path\\to\\file", value: 2}
-    mut bs string = json.stringify(w2)
+    mut bs string = json.encode(w2)
     if strings.contains(bs, "\\\\") {
         println("  [PASS] backslashes are escaped in output")
         passed += 1
@@ -78,7 +78,7 @@ do main() {
     // Test 6: long string doesn't overflow buffer
     mut long_name string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnop"
     mut lb Basic = Basic{name: long_name, age: 99, active: false}
-    mut ls string = json.stringify(lb)
+    mut ls string = json.encode(lb)
     if strings.contains(ls, long_name) {
         println("  [PASS] long string preserved without overflow")
         passed += 1

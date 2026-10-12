@@ -1,7 +1,7 @@
 /*
  * json_struct_roundtrip.gray - #json struct serialization covers every
  * supported primitive field type (i64, u64, f64, string, bool) through
- * both json.stringify and json.parse.
+ * both json.encode and json.parse.
  */
 
 import @json
@@ -21,13 +21,13 @@ do main() {
     mut failed i64 = 0
 
     mut r Record = Record{id: -7, count: 42, ratio: 1.5, label: "hello", active: true}
-    mut js string = json.stringify(r)
+    mut js string = json.encode(r)
 
     if js == "{\"id\": -7, \"count\": 42, \"ratio\": 1.5, \"label\": \"hello\", \"active\": true}" {
-        println("  [PASS] stringify all primitive field types")
+        println("  [PASS] encode all primitive field types")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify: got ${js}")
+        println("  [FAIL] encode: got ${js}")
         failed += 1
     }
 

@@ -56,7 +56,7 @@ do main() {
     mut c Calc = Calc{_pad: 0}
 
     mut p Point = Point{x: 1, y: 2}
-    if len(json.stringify(p)) > 0 {
+    if len(json.encode(p)) > 0 {
         println("  [PASS] #json struct")
         passed += 1
     } otherwise {

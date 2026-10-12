@@ -3269,7 +3269,6 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"json", "is_valid",     1, 1, false, FALLIBLE_TYPE_NONE,       1, {{0, EXPECTED_ARGUMENT_STRING}}, "bool"},
     {"json", "parse",        1, 1, false, FALLIBLE_TYPE_NONE,       1, {{0, EXPECTED_ARGUMENT_STRING}}, NULL},
     {"json", "pretty_print", 2, 2, false, FALLIBLE_TYPE_NONE,       2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"json", "stringify",    1, 1, false, FALLIBLE_TYPE_NONE,       0, {{0}},"string"},
     /* maps */
     {"maps", "clear",          1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "void"},
     {"maps", "contains_value", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, "bool"},
@@ -6550,15 +6549,24 @@ static bool json_encodable_scalar(const GrayType *type) {
     }
 }
 
-/* What json.encode() accepts: a primitive, a flat array of primitives, or a
- * string-keyed map of primitives. Anything else (struct, opaque type, nested
- * array, array/map of aggregates, non-string map key) reaches codegen with no
- * path for it and crashes or emits garbage. */
-static bool type_is_json_encodable(const GrayType *type) {
+static bool struct_name_has_json_attribute(TypeChecker *checker, const char *struct_name);
+
+/* What json.encode() accepts: a primitive, a flat array of primitives, a
+ * string-keyed map of primitives, or a #json struct or an array of one.
+ * Anything else (plain struct, opaque type, nested array, array/map of
+ * aggregates, non-string map key) reaches codegen with no path for it and
+ * crashes or emits garbage. */
+static bool type_is_json_encodable(TypeChecker *checker, const GrayType *type) {
     if (!type || type->kind == TYPE_KIND_UNKNOWN) return true; /* can't judge yet */
     if (json_encodable_scalar(type)) return true;
-    if (type->kind == TYPE_KIND_ARRAY)
-        return type->element_type && json_encodable_scalar(type_from_name(type->element_type));
+    if (type->kind == TYPE_KIND_STRUCT) return struct_name_has_json_attribute(checker, type->name);
+    if (type->kind == TYPE_KIND_ARRAY) {
+        if (!type->element_type) return false;
+        GrayType *element_type = type_from_name(type->element_type);
+        if (element_type && element_type->kind == TYPE_KIND_STRUCT)
+            return struct_name_has_json_attribute(checker, element_type->name);
+        return json_encodable_scalar(element_type);
+    }
     if (type->kind == TYPE_KIND_MAP)
         return type->key_type && strcmp(type->key_type, "string") == 0 &&
                type->value_type && json_encodable_scalar(type_from_name(type->value_type));
@@ -6579,11 +6587,11 @@ static bool csv_array_element_is_valid(const GrayType *type) {
 }
 
 /* True when a struct type by this name carries the #json attribute — the
- * only shape json.parse()/json.stringify() can actually process.
+ * only shape json.parse()/json.encode() can actually process.
  * gray_json_parse_<Name> is only generated for a #json struct, and
- * stringify's field-walking codegen only exists for one; anything else
+ * encode's field-walking codegen only exists for one; anything else
  * falls back to a raw GrayMap decode (parse) or emits no fields at all
- * (stringify). */
+ * (encode). */
 static bool struct_name_has_json_attribute(TypeChecker *checker, const char *struct_name) {
     if (!struct_name) return false;
     AstNode *struct_declaration = find_struct_in_program(checker, struct_name);
@@ -6602,7 +6610,7 @@ static bool json_field_type_supported(TypeChecker *checker, const char *type_nam
 }
 
 /* True when `t` is a #json struct, an array of one, or a map — the only
- * target/argument shapes json.parse()/json.stringify() can process. A map
+ * target/argument shapes json.parse()/json.encode() can process. A map
  * target/argument goes through the dedicated map-based fallback
  * (gray_json_decode / gray_json_encode_map), which is a genuinely valid
  * path, not a mistake — only a bare scalar, a non-#json struct, or an
@@ -7373,27 +7381,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
         }
     } else if (strcmp(module_name, "json") == 0) {
         /* E5026: json.encode only serializes scalars, flat arrays of scalars,
-         * and string-keyed maps of scalars. */
+         * string-keyed maps of scalars, and #json structs (or arrays of one). */
         if (strcmp(member_function_name, "encode") == 0 && node->data.call.argument_count >= 1) {
             AstNode *first_argument = node->data.call.arguments[0];
             GrayType *first_argument_type = resolve_expression(checker, first_argument);
-            if (!type_is_json_encodable(first_argument_type)) {
+            if (!type_is_json_encodable(checker, first_argument_type)) {
                 typechecker_error_argument_type(checker, first_argument, 1, "json.encode",
-                    "a primitive, a flat array of primitives, or a string-keyed map of primitives",
+                    "a primitive, a flat array of primitives, a string-keyed map of primitives, or a #json struct (or an array of one)",
                     type_name(first_argument_type));
-            }
-        }
-        /* E3174: json.stringify()'s argument must be a #json struct (or
-         * array of one) — its field-walking codegen only exists for one;
-         * anything else (a plain struct, a bare primitive, ...) compiles
-         * and runs clean, silently producing "{}" with none of the
-         * value's data. */
-        if (strcmp(member_function_name, "stringify") == 0 && node->data.call.argument_count >= 1) {
-            AstNode *first_argument = node->data.call.arguments[0];
-            GrayType *first_argument_type = resolve_expression(checker, first_argument);
-            if (first_argument_type && first_argument_type->kind != TYPE_KIND_UNKNOWN && !type_is_json_struct_or_array(checker, first_argument_type)) {
-                NODE_ERROR_FORMATTED(checker, first_argument, "E3174",
-                    type_display_name(checker, first_argument_type), "stringify");
             }
         }
     } else if (strcmp(module_name, "csv") == 0) {

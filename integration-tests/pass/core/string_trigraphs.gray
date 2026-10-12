@@ -58,7 +58,7 @@ do main() {
     }
 
     mut d Doc = Doc{name: "v"}
-    mut text string = json.stringify(d)
+    mut text string = json.encode(d)
     mut back Doc = json.parse(text)
     if text == "{\"k??=y\": \"v\"}" && back.name == "v" {
         println("  [PASS] a #json key with ?? round-trips")

@@ -2228,7 +2228,7 @@ const MAX_RETRIES i64 = 5
 
 #### 7.5.2 `#json` Attribute
 
-The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically, with no manual encoding/decoding calls and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.stringify()`.
+The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically, with no manual encoding/decoding calls and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.encode()`.
 
 ```gray
 import @json
@@ -2246,11 +2246,11 @@ do main() {
     println(u.name)            // Alice
 
     // Serialize back to JSON, fields are mapped automatically
-    println(json.stringify(u)) // {"name": "Alice", "age": 25, "active": true}
+    println(json.encode(u)) // {"name": "Alice", "age": 25, "active": true}
 }
 ```
 
-`json.parse()` returns a fully typed struct (or array of structs), and `json.stringify()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly with no reflection, no runtime schema lookup, and no intermediate map step.
+`json.parse()` returns a fully typed struct (or array of structs), and `json.encode()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly with no reflection, no runtime schema lookup, and no intermediate map step.
 
 By default, a field's JSON key is its Grayscale name. A field can serialize under a different key with a trailing tag, the same backtick-string spelling Go and Odin use:
 
@@ -2262,7 +2262,7 @@ const User struct {
 }
 ```
 
-`json.stringify()`/`json.parse()` then use `"Name"`/`"Age"` as the JSON keys instead of `name`/`age`.
+`json.encode()`/`json.parse()` then use `"Name"`/`"Age"` as the JSON keys instead of `name`/`age`.
 
 A field of any sized number type (`i8` through `i256`, `u8` through `u256`, `f32`, `f64`) is encoded and decoded at that type. `json.parse()` panics on a number field whose JSON value is not a number of that type or does not fit it.
 
@@ -2292,9 +2292,9 @@ const Task struct {
 
 do main() {
     mut t Task = Task{name: "deploy", priority: Priority.HIGH, owner: Role.ADMIN}
-    println(json.stringify(t)) // {"name": "deploy", "priority": 1, "owner": "admin"}
+    println(json.encode(t)) // {"name": "deploy", "priority": 1, "owner": "admin"}
 
-    mut back Task = json.parse(json.stringify(t))
+    mut back Task = json.parse(json.encode(t))
     println(back.priority == Priority.HIGH) // true
 }
 ```
@@ -2311,7 +2311,7 @@ A `#json` struct field may be a number type, `string`, `bool`, an enum, another 
 - A `#json` struct's fields are either all tagged or all untagged — mixing the two within one struct is not allowed. This is scoped per struct, not per file: a file that aggregates many structs is free to tag some and leave others untagged, as long as each struct is internally consistent.
 - Two fields of the same `#json` struct serialize under distinct keys.
 - A `#json` struct requires `import @json` in the same file; the generated serializer helpers depend on the json module.
-- Without `#json`, the struct has no serialization machinery and `json.parse()` / `json.stringify()` will fail.
+- Without `#json`, the struct has no serialization machinery and `json.parse()` / `json.encode()` will fail.
 - Supported field types: `i64`, `u64`, `f64`, `string`, `bool`, and non-tagged enums (serialized by backing type).
 - `json.parse()` into an array of a `#json` struct (`[Task]`) parses each element independently, so an enum field works there with no extra handling.
 
@@ -3775,8 +3775,7 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 |----------|-----------|-------------|
 | `decode` | `(text string) -> (map[string:string], Error)` | Decode JSON string to map — always use destructuring |
 | `parse` | `(text string) -> T` | Parse JSON into a `#json` struct (context-dependent) |
-| `encode` | `(value T) -> string` | Encode to JSON string. Accepts any primitive (integers, `f32`/`f64`, `char`, `bool`, `string`), a flat array of primitives, or a string-keyed map of primitives. `char` encodes as its codepoint number. For `#json` structs use `stringify`. |
-| `stringify` | `(value T) -> string` | Encode a `#json` struct to a JSON string |
+| `encode` | `(value T) -> string` | Encode to JSON string. Accepts any primitive (integers, `f32`/`f64`, `char`, `bool`, `string`), a flat array of primitives, a string-keyed map of primitives, or a `#json` struct or array of `#json` structs. `char` encodes as its codepoint number. |
 | `pretty_print` | `(m map[K:V], indent i64) -> string` | Pretty-print a map as indented JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 

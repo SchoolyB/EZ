@@ -72,7 +72,7 @@ do main() {
     }
 
     mut original P = P{name: "q\"b\\c\nd\te", n: 4}
-    mut back P = json.parse(json.stringify(original))
+    mut back P = json.parse(json.encode(original))
     if back.name == original.name && back.n == 4 {
         println("  [PASS] struct round trip keeps escaped characters")
     } else {

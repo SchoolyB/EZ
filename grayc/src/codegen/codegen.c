@@ -7608,7 +7608,7 @@ static char json_prim_class(const char *type_name) {
     }
 }
 
-/* json.parse / json.stringify on a #json struct or an array of #json structs
+/* json.parse / json.encode on a #json struct or an array of #json structs
  * dispatch to the generated per-struct helper. Returns false for any other
  * type so the caller can fall back to the map path. */
 static bool emit_json_struct_call(CodeGen *codegen, const char *operation, GrayType *type, AstNode *argument) {
@@ -7627,6 +7627,9 @@ static bool emit_json_call(CodeGen *codegen, AstNode *node, const char *function
     if (strcmp(function_name_text, "encode") == 0) {
         AstNode *argument = node->data.call.arguments[0];
         GrayType *argument_type = codegen_type_of(codegen, argument);
+        /* A #json struct or an array of them goes to the generated per-struct
+         * helper; checked first because the array of structs is also an array. */
+        if (emit_json_struct_call(codegen, "encode_struct", argument_type, argument)) return true;
         if (argument_type && argument_type->kind == TYPE_KIND_MAP) {
             const char *function_name = "gray_json_encode_map";
             switch (json_prim_class(argument_type->value_type)) {
@@ -7693,22 +7696,6 @@ static bool emit_json_call(CodeGen *codegen, AstNode *node, const char *function
         emit(codegen, "gray_json_decode(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
-        return true;
-    }
-    /* json.stringify(); dispatch to per-struct helper when
-     * the argument is a #json struct. */
-    if (strcmp(function_name_text, "stringify") == 0 && node->data.call.argument_count >= 1) {
-        AstNode *argument = node->data.call.arguments[0];
-        GrayType *argument_type = codegen_type_of(codegen, argument);
-        /* Array of #json structs included: without it an array argument fell
-         * straight to the map fallback below, which reinterprets the
-         * GrayArray's raw memory as a GrayMap and segfaults reading its
-         * (nonexistent) key/value metadata. */
-        if (emit_json_struct_call(codegen, "stringify", argument_type, argument)) return true;
-        /* Fallback: encode as map */
-        emit(codegen, "({ __auto_type _jtmp = ");
-        emit_expression(codegen, argument);
-        emit(codegen, "; gray_json_encode_map(gray_default_arena, (GrayMap *)&_jtmp); })");
         return true;
     }
     if (strcmp(function_name_text, "is_valid") == 0) {
@@ -14380,15 +14367,15 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         if (!statement->data.struct_declaration.is_json) continue;
         const char *struct_name = statement->data.struct_declaration.name;
         emit_formatted(codegen, "static GrayStruct_%s gray_json_parse_%s(GrayArena *arena, GrayString text);\n", struct_name, struct_name);
-        emit_formatted(codegen, "static GrayString gray_json_stringify_%s(GrayArena *arena, GrayStruct_%s _s);\n", struct_name, struct_name);
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_%s(GrayArena *arena, GrayStruct_%s _s);\n", struct_name, struct_name);
         emit_formatted(codegen, "static GrayArray gray_json_parse_array_%s(GrayArena *arena, GrayString text);\n", struct_name);
-        emit_formatted(codegen, "static GrayString gray_json_stringify_array_%s(GrayArena *arena, GrayArray _arr);\n", struct_name);
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_array_%s(GrayArena *arena, GrayArray _arr);\n", struct_name);
     }
-    /* emit JSON parse/stringify helpers for #json structs. Each
+    /* emit JSON parse/encode helpers for #json structs. Each
      * #json struct gets two static functions:
      *   - gray_json_parse_<Name>(arena, json_string) → GrayStruct_<Name>
-     *   - gray_json_stringify_<Name>(arena, struct_value) → GrayString
-     * These are called by json.parse() / json.stringify() which the
+     *   - gray_json_encode_struct_<Name>(arena, struct_value) → GrayString
+     * These are called by json.parse() / json.encode() which the
      * typechecker dispatches based on the target/argument struct type. */
     for (int i = 0; i < codegen->struct_declaration_count; i++) {
         AstNode *statement = codegen->struct_declarations[i];
@@ -14475,8 +14462,8 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         }
         emit_formatted(codegen, "    return _r;\n}\n\n");
 
-        /* --- stringify: struct → JSON string --- */
-        emit_formatted(codegen, "static GrayString gray_json_stringify_%s(GrayArena *arena, GrayStruct_%s _s) {\n", struct_name, struct_name);
+        /* --- encode: struct → JSON string --- */
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_%s(GrayArena *arena, GrayStruct_%s _s) {\n", struct_name, struct_name);
 
         /* Pass 1: compute exact buffer size at runtime.
          * Field names are identifiers (no escaping), so their contribution
@@ -14518,7 +14505,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                 if (composite_type->kind == TYPE_KIND_ARRAY) {
                     GrayType *element_type = type_from_name(composite_type->element_type);
                     if (element_type->kind == TYPE_KIND_STRUCT) {
-                        emit_formatted(codegen, "    GrayString _nt%d = gray_json_stringify_array_%s(arena, _s.%s);\n",
+                        emit_formatted(codegen, "    GrayString _nt%d = gray_json_encode_struct_array_%s(arena, _s.%s);\n",
                             j, codegen_resolve_type(codegen, composite_type->element_type), sanitize_name(field->name));
                     } else {
                         const char *encode_function = "gray_json_encode_array_signed_integer";
@@ -14533,7 +14520,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                         emit_formatted(codegen, "    GrayString _nt%d = %s(arena, &_s.%s);\n", j, encode_function, sanitize_name(field->name));
                     }
                 } else {
-                    emit_formatted(codegen, "    GrayString _nt%d = gray_json_stringify_%s(arena, _s.%s);\n",
+                    emit_formatted(codegen, "    GrayString _nt%d = gray_json_encode_struct_%s(arena, _s.%s);\n",
                         j, codegen_resolve_type(codegen, field->type_name), sanitize_name(field->name));
                 }
                 emit_formatted(codegen, "    _need += (size_t)_nt%d.len;\n", j);
@@ -14595,17 +14582,14 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         emit_formatted(codegen, "    return _result;\n");
         emit_formatted(codegen, "}\n\n");
 
-        /* --- stringify array: GrayArray of structs → JSON array string ---
-         * Symmetric with parse array above; json.stringify() previously had
-         * no dedicated codegen path for an array argument at all and fell
-         * to the generic map-fallback, which reinterprets the GrayArray's
-         * raw memory as a GrayMap and segfaults. */
-        emit_formatted(codegen, "static GrayString gray_json_stringify_array_%s(GrayArena *arena, GrayArray _arr) {\n", struct_name);
+        /* --- encode array: GrayArray of structs → JSON array string ---
+         * Symmetric with parse array above. */
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_array_%s(GrayArena *arena, GrayArray _arr) {\n", struct_name);
         emit_formatted(codegen, "    GrayString *_parts = (GrayString *)gray_arena_alloc(arena, sizeof(GrayString) * (size_t)(_arr.len > 0 ? _arr.len : 1));\n");
         emit_formatted(codegen, "    size_t _need = 2;\n");
         emit_formatted(codegen, "    for (int32_t _i = 0; _i < _arr.len; _i++) {\n");
         emit_formatted(codegen, "        GrayStruct_%s _item = *(GrayStruct_%s *)((char *)_arr.data + (size_t)_i * (size_t)_arr.elem_size);\n", struct_name, struct_name);
-        emit_formatted(codegen, "        GrayString _js = gray_json_stringify_%s(arena, _item);\n", struct_name);
+        emit_formatted(codegen, "        GrayString _js = gray_json_encode_struct_%s(arena, _item);\n", struct_name);
         emit_formatted(codegen, "        _parts[_i] = _js;\n");
         emit_formatted(codegen, "        _need += (size_t)_js.len;\n");
         emit_formatted(codegen, "        if (_i > 0) _need += 2;\n");
