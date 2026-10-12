@@ -507,13 +507,6 @@ GrayString gray_strings_set_char_at(GrayArena *arena, GrayString string, int64_t
     return strings_splice(arena, string, (int32_t)index, 1, gray_builtin_char_to_utf8(arena, codepoint));
 }
 
-bool gray_strings_is_alpha(char character)      { return gray_ascii_is_alpha((unsigned char)character); }
-bool gray_strings_is_digit(char character)      { return gray_ascii_is_digit((unsigned char)character); }
-bool gray_strings_is_alnum(char character)      { return gray_ascii_is_alnum((unsigned char)character); }
-bool gray_strings_is_whitespace(char character) { return gray_ascii_is_space((unsigned char)character); }
-bool gray_strings_is_upper(char character)      { return gray_ascii_is_upper((unsigned char)character); }
-bool gray_strings_is_lower(char character)      { return gray_ascii_is_lower((unsigned char)character); }
-
 /* --- Builder --- */
 
 #define GRAY_BUILDER_MIN_CAPACITY 16

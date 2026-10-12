@@ -292,22 +292,25 @@ static void test_strings_from_chars(void) {
     ASSERT_GRAY_STR(r, "hi");
 }
 
-static void test_strings_classification(void) {
-    ASSERT(gray_strings_is_alpha('a'));
-    ASSERT(gray_strings_is_alpha('Z'));
-    ASSERT(!gray_strings_is_alpha('1'));
-    ASSERT(gray_strings_is_digit('5'));
-    ASSERT(!gray_strings_is_digit('a'));
-    ASSERT(gray_strings_is_alnum('a'));
-    ASSERT(gray_strings_is_alnum('3'));
-    ASSERT(!gray_strings_is_alnum('!'));
-    ASSERT(gray_strings_is_whitespace(' '));
-    ASSERT(gray_strings_is_whitespace('\t'));
-    ASSERT(!gray_strings_is_whitespace('a'));
-    ASSERT(gray_strings_is_upper('A'));
-    ASSERT(!gray_strings_is_upper('a'));
-    ASSERT(gray_strings_is_lower('a'));
-    ASSERT(!gray_strings_is_lower('A'));
+static void test_chars_classification(void) {
+    ASSERT(gray_chars_is_alpha('a'));
+    ASSERT(gray_chars_is_alpha('Z'));
+    ASSERT(!gray_chars_is_alpha('1'));
+    ASSERT(gray_chars_is_digit('5'));
+    ASSERT(!gray_chars_is_digit('a'));
+    ASSERT(gray_chars_is_alnum('a'));
+    ASSERT(gray_chars_is_alnum('3'));
+    ASSERT(!gray_chars_is_alnum('!'));
+    ASSERT(gray_chars_is_whitespace(' '));
+    ASSERT(gray_chars_is_whitespace('\t'));
+    ASSERT(!gray_chars_is_whitespace('a'));
+    ASSERT(gray_chars_is_upper('A'));
+    ASSERT(!gray_chars_is_upper('a'));
+    ASSERT(gray_chars_is_lower('a'));
+    ASSERT(!gray_chars_is_lower('A'));
+    ASSERT(!gray_chars_is_alpha(0x141));
+    ASSERT(!gray_chars_is_alnum(0x141));
+    ASSERT(!gray_chars_is_upper(0x141));
 }
 
 /* --- char editing (#2560): each returns a new string, input untouched --- */
@@ -1996,7 +1999,7 @@ int main(void) {
     RUN_TEST(test_strings_char_at);
     RUN_TEST(test_strings_to_chars);
     RUN_TEST(test_strings_from_chars);
-    RUN_TEST(test_strings_classification);
+    RUN_TEST(test_chars_classification);
     RUN_TEST(test_strings_append_char);
     RUN_TEST(test_strings_prepend_char);
     RUN_TEST(test_strings_insert_char_at);

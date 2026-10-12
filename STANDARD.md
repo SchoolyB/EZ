@@ -3474,17 +3474,6 @@ result.
 | `equal_fold` | `(a string, b string) -> bool` | Case-insensitive equality (ASCII) |
 | `compare` | `(a string, b string) -> i64` | Bytewise comparison; -1 if `a` sorts first, 1 if `b` does, 0 if equal |
 
-#### Classification Functions
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `is_alpha` | `(c char) -> bool` | True if c is an ASCII letter (a-z, A-Z) |
-| `is_digit` | `(c char) -> bool` | True if c is a decimal digit (0-9) |
-| `is_alnum` | `(c char) -> bool` | True if c is a letter or digit |
-| `is_whitespace` | `(c char) -> bool` | True if c is space, tab, newline, or carriage return |
-| `is_upper` | `(c char) -> bool` | True if c is an uppercase letter (A-Z) |
-| `is_lower` | `(c char) -> bool` | True if c is a lowercase letter (a-z) |
-
 #### Transformation Functions
 
 | Function | Signature | Description |
@@ -4627,9 +4616,9 @@ Read-only introspection into the compiler-managed arenas (default + heap), execu
 
 ### 9.29 Chars Module (`@chars`)
 
-Scalar operations on a single `char`. `strings` provides the general classification
-predicates (`is_alpha`, `is_digit`, `is_upper`, `is_lower`, …); `chars` adds ASCII case
-folding plus the lexer-flavored predicates and an escape renderer.
+Scalar operations on a single `char`: the classification predicates (`is_alpha`,
+`is_digit`, `is_upper`, `is_lower`, …), ASCII case folding, and an escape renderer.
+Every predicate is ASCII-only; a non-ASCII codepoint always returns `false`.
 
 #### Case
 
@@ -4645,6 +4634,12 @@ non-ASCII codepoints (`char` is a full Unicode codepoint) are returned unchanged
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `is_alpha` | `(c char) -> bool` | ASCII letter (a-z, A-Z) |
+| `is_digit` | `(c char) -> bool` | Decimal digit (0-9) |
+| `is_alnum` | `(c char) -> bool` | ASCII letter or decimal digit |
+| `is_whitespace` | `(c char) -> bool` | Space, tab, newline, carriage return, vertical tab, or form feed |
+| `is_upper` | `(c char) -> bool` | Uppercase ASCII letter (A-Z) |
+| `is_lower` | `(c char) -> bool` | Lowercase ASCII letter (a-z) |
 | `is_ascii` | `(c char) -> bool` | 7-bit ASCII codepoint (0–127) |
 | `is_control` | `(c char) -> bool` | ASCII control char: C0 range (0–31) or DEL (127) |
 | `is_printable` | `(c char) -> bool` | Printable ASCII, space (32) through `~` (126) |

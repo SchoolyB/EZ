@@ -8,6 +8,7 @@
  */
 
 import @strings
+import @chars
 
 do main() {
     println("=== Strings ASCII Helpers Test ===")
@@ -95,12 +96,12 @@ do main() {
     }
 
     // -- classification predicates --
-    mut cls_ok bool = strings.is_alpha('Z') && !strings.is_alpha('7') && !strings.is_alpha('-')
-    cls_ok = cls_ok && strings.is_digit('0') && !strings.is_digit('a')
-    cls_ok = cls_ok && strings.is_alnum('m') && strings.is_alnum('4') && !strings.is_alnum(' ')
-    cls_ok = cls_ok && strings.is_upper('A') && !strings.is_upper('a')
-    cls_ok = cls_ok && strings.is_lower('z') && !strings.is_lower('Z')
-    cls_ok = cls_ok && strings.is_whitespace('\t') && strings.is_whitespace('\r') && !strings.is_whitespace('x')
+    mut cls_ok bool = chars.is_alpha('Z') && !chars.is_alpha('7') && !chars.is_alpha('-')
+    cls_ok = cls_ok && chars.is_digit('0') && !chars.is_digit('a')
+    cls_ok = cls_ok && chars.is_alnum('m') && chars.is_alnum('4') && !chars.is_alnum(' ')
+    cls_ok = cls_ok && chars.is_upper('A') && !chars.is_upper('a')
+    cls_ok = cls_ok && chars.is_lower('z') && !chars.is_lower('Z')
+    cls_ok = cls_ok && chars.is_whitespace('\t') && chars.is_whitespace('\r') && !chars.is_whitespace('x')
     if cls_ok {
         println("  [PASS] classification predicates")
         passed += 1
