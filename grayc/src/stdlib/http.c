@@ -212,6 +212,25 @@ static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int d
     return resp;
 }
 
+/* True when `headers` has an entry named `name`, compared case-insensitively. */
+static bool headers_contain(GrayMap *headers, const char *name) {
+    if (!headers) return false;
+    for (int32_t i = 0; i < headers->order_len; i++) {
+        int32_t slot = headers->order[i];
+        if (slot < 0) continue;
+        GrayString *key = (GrayString *)gray_map_key_at(headers, slot);
+        if (key && http_ascii_equal_ignore_case(key->data, key->len, name)) return true;
+    }
+    return false;
+}
+
+/* The client always sets these itself; a caller entry for one is not sent. */
+static bool header_is_client_managed(GrayString name) {
+    return http_ascii_equal_ignore_case(name.data, name.len, "host") ||
+           http_ascii_equal_ignore_case(name.data, name.len, "content-length") ||
+           http_ascii_equal_ignore_case(name.data, name.len, "connection");
+}
+
 /* A failed request: status 0, the fixed `detail` as the body, and the error
  * code the result variants report. */
 static GrayHttpResponse request_failure(GrayArena *arena, GrayHttpResponse failure, int64_t *error_code,
@@ -259,13 +278,16 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     int header_length;
 
     if (body.data && body.len > 0) {
+        /* The form default applies only when the caller names no Content-Type. */
+        const char *default_content_type = headers_contain(custom_headers, "content-type")
+            ? "" : "Content-Type: application/x-www-form-urlencoded\r\n";
         header_length = snprintf(header, sizeof(header),
             "%s %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-Length: %d\r\n"
-            "Content-Type: application/x-www-form-urlencoded\r\n"
+            "%s"
             "Connection: close\r\n",
-            method, path, host, (int)body.len);
+            method, path, host, (int)body.len, default_content_type);
     } else {
         header_length = snprintf(header, sizeof(header),
             "%s %s HTTP/1.1\r\n"
@@ -282,6 +304,7 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
             GrayString *header_key = (GrayString *)gray_map_key_at(custom_headers, slot);
             GrayString *header_value = (GrayString *)gray_map_value_at(custom_headers, slot);
             if (!header_key || !header_value) continue;
+            if (header_is_client_managed(*header_key)) continue;
             int remaining = (int)(sizeof(header)) - header_length;
             if (remaining <= 0) {
                 gray_net_close(sock);

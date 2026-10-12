@@ -54,7 +54,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig post(url string, body string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP POST request to url with the given body and optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP POST request to url with the given body and optional custom headers. Sends form-urlencoded as the Content-Type unless headers names one; Host, Content-Length and Connection in headers are not sent. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Content-Type": "application/json"}
@@ -67,7 +67,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig put(url string, body string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP PUT request to url with the given body and optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP PUT request to url with the given body and optional custom headers. Sends form-urlencoded as the Content-Type unless headers names one; Host, Content-Length and Connection in headers are not sent. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Content-Type": "application/json"}
@@ -80,7 +80,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig patch(url string, body string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP PATCH request to url with the given body and optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP PATCH request to url with the given body and optional custom headers. Sends form-urlencoded as the Content-Type unless headers names one; Host, Content-Length and Connection in headers are not sent. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Content-Type": "application/json"}

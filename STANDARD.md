@@ -4030,6 +4030,8 @@ HTTP client for making requests. Currently supports HTTP only.
 
 A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error with code `OutOfRange` and no truncated body. A `Transfer-Encoding: chunked` body is decoded: `resp.body` is the concatenated chunk data, and a malformed chunk returns an Error with code `ParseFailure`.
 
+A request with a body sends `Content-Type: application/x-www-form-urlencoded` only when the caller's headers name no `Content-Type` (names are compared case-insensitively). `Host`, `Content-Length`, and `Connection` are always set by the client; a caller entry for any of them is not sent.
+
 A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
 
 #### HttpResponse Type
