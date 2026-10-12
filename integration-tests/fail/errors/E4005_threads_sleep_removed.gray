@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - threads.sleep was removed
+ * Expected: threads no longer recognises sleep; use the sleep_ms builtin
+ */
+
+// expect-error: E4005
+
+import @threads
+
+do main() {
+    threads.sleep(1)
+}

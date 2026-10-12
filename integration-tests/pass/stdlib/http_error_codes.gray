@@ -17,7 +17,7 @@ do serve() {
     mut conn, _ = net.accept(listener)
     mut _, _ = net.receive(conn, 65536)
     if hold {
-        threads.sleep(11500)
+        sleep_ms(11500)
     } otherwise {
         mut _, _ = net.send(conn, canned)
     }

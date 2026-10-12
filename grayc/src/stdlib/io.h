@@ -233,18 +233,6 @@ bool gray_io_append_bytes(GrayString path, GrayArray data);
  *@end
  */
 
-/*@man rename_file
- *@module io
- *@group File Operations
- *@sig rename_file(old_path string, new_path string) -> (bool, Error)
- *@desc Renames (or moves) the file at old_path to new_path. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
- *@example
- *   import @io
- *   mut ok, _ = io.rename_file("old.txt", "new.txt")
- *@end
- */
-bool gray_io_rename_file(GrayString old_path, GrayString new_path);
-
 /*@man copy_file
  *@module io
  *@group File Operations
@@ -475,7 +463,6 @@ GrayResult_i64    gray_io_file_size_result(GrayArena *arena, GrayString path);
 GrayResult_bool gray_io_write_file_result(GrayArena *arena, GrayString path, GrayString content);
 GrayResult_bool gray_io_delete_file_result(GrayArena *arena, GrayString path);
 GrayResult_bool gray_io_append_file_result(GrayArena *arena, GrayString path, GrayString content);
-GrayResult_bool gray_io_rename_file_result(GrayArena *arena, GrayString old_path, GrayString new_path);
 GrayResult_bool gray_io_copy_file_result(GrayArena *arena, GrayString source, GrayString destination);
 GrayResult_bool gray_io_move_file_result(GrayArena *arena, GrayString source, GrayString destination);
 GrayResult_array gray_io_glob_result(GrayArena *arena, GrayString pattern);

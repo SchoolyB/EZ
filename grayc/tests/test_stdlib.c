@@ -1380,8 +1380,7 @@ static void test_regex_find_result_err(void) {
 /* ===== builtins module ===== */
 
 /* Not currently reachable from Grayscale source — no bare `sleep()` is
- * wired into the typechecker/codegen (only @threads' threads.sleep is).
- * Tested at the zero-duration boundary so the suite doesn't actually wait. */
+ * wired into the typechecker/codegen. Tested at the zero-duration boundary so the suite doesn't actually wait. */
 static void test_builtin_sleep_s_zero(void) {
     gray_builtin_sleep_s(0);
 }
@@ -1762,7 +1761,6 @@ static void test_uuid_generate_is_v4(void) {
     ASSERT_EQ(text.len, 36);
     ASSERT(gray_uuid_is_valid(text));
     ASSERT_EQ(gray_uuid_version(id), 4);
-    ASSERT_EQ(gray_uuid_version(gray_uuid_generate_random(arena)), 4);
 }
 
 static void test_uuid_generate_time_ordered_is_v7(void) {

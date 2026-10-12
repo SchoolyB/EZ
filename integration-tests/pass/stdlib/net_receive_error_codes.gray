@@ -3,7 +3,6 @@
  */
 
 import @net
-import @threads
 
 const TEST_PORT i64 = 47214
 
@@ -41,9 +40,9 @@ do main() {
     mut resetting, _ = net.connect("127.0.0.1", TEST_PORT)
     mut resetting_peer, _ = net.accept(listener)
     mut _, _ = net.send(resetting, "unread")
-    threads.sleep(100)
+    sleep_ms(100)
     net.close(resetting_peer)
-    threads.sleep(100)
+    sleep_ms(100)
     mut _, reset_err = net.receive(resetting, 16)
     if reset_err != nil && reset_err.code == .ConnectionReset {
         println("  [PASS] reset connection returns ConnectionReset")

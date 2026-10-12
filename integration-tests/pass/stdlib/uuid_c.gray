@@ -29,14 +29,14 @@ do main() {
         failed += 1
     }
 
-    // generate_random also yields a valid 36-char UUID
-    mut hy UUID = uuid.generate_random()
+    // generate also yields a valid 36-char UUID
+    mut hy UUID = uuid.generate()
     mut hs string = uuid.to_string(hy)
     if len(hs) == 36 && uuid.is_valid(hs) {
-        println("  [PASS] generate_random")
+        println("  [PASS] generate")
         passed += 1
     } otherwise {
-        println("  [FAIL] generate_random: len=${len(hs)}")
+        println("  [FAIL] generate: len=${len(hs)}")
         failed += 1
     }
 
@@ -79,22 +79,22 @@ do main() {
         failed += 1
     }
 
-    // generate_random returns a valid v4 UUID
-    mut v4 UUID = uuid.generate_random()
+    // generate returns a valid v4 UUID
+    mut v4 UUID = uuid.generate()
     mut v4s string = uuid.to_string(v4)
     if len(v4s) == 36 && uuid.is_valid(v4s) {
-        println("  [PASS] generate_random returns valid 36-char UUID")
+        println("  [PASS] generate returns valid 36-char UUID")
         passed += 1
     } otherwise {
-        println("  [FAIL] generate_random returns valid 36-char UUID")
+        println("  [FAIL] generate returns valid 36-char UUID")
         failed += 1
     }
     // v4 version nibble lives at character index 14
     if to_char(v4s, 14) == '4' {
-        println("  [PASS] generate_random has version 4")
+        println("  [PASS] generate has version 4")
         passed += 1
     } otherwise {
-        println("  [FAIL] generate_random has version 4: got '${to_char(v4s, 14)}'")
+        println("  [FAIL] generate has version 4: got '${to_char(v4s, 14)}'")
         failed += 1
     }
 

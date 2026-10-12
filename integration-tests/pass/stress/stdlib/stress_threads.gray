@@ -23,7 +23,6 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] spawn/join — got ${thread_result}") failed += 1 }
 
-    // Note: threads.sleep is not a standard function — use std.sleep_ms instead
     println("  [PASS] basic thread test complete")
     passed += 1
 

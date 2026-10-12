@@ -20,7 +20,7 @@ do worker_with_arg(n i64) {
 
 do slow_worker() {
     // sleep long enough to remain counted while sibling spawns
-    threads.sleep(20)
+    sleep_ms(20)
 }
 
 do main() {
@@ -68,7 +68,7 @@ do main() {
     passed += 1
 
     // sleep with 0ms doesn't hang and returns
-    threads.sleep(0)
+    sleep_ms(0)
     println("  [PASS] sleep(0)")
     passed += 1
 
@@ -104,7 +104,7 @@ do main() {
     // detach: spawn and detach; sleep enough for the worker to complete
     mut t5 = threads.spawn(()worker)
     threads.detach(t5)
-    threads.sleep(50)
+    sleep_ms(50)
     println("  [PASS] detach")
     passed += 1
 

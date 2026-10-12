@@ -24,8 +24,8 @@ do serve() {
 do main() {
     mut worker = threads.spawn(()serve)
     threads.detach(worker)
-    threads.sleep(300)
+    sleep_ms(300)
     mut headers map[string:string] = {:}
     mut resp, err = http.get("http://127.0.0.1:18742/", headers)
-    threads.sleep(300)
+    sleep_ms(300)
 }

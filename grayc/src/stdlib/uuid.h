@@ -26,18 +26,6 @@
  *@end
  */
 
-/*@man generate_random
- *@module uuid
- *@group Generation
- *@sig generate_random() -> UUID
- *@desc Generates an RFC 4122 version 4 (random) UUID, 36-character lowercase hyphenated. The version nibble is 4.
- *@example
- *   import @uuid
- *   mut id UUID = uuid.generate_random()
- *   println(uuid.to_string(id))
- *@end
- */
-
 /*@man generate_time_ordered
  *@module uuid
  *@group Generation
@@ -183,7 +171,6 @@ GrayUUID gray_uuid_from_bytes(GrayArena *arena, GrayArray *bytes);
 int64_t gray_uuid_version(GrayUUID uuid);
 GrayUuidTimestamp gray_uuid_timestamp(GrayUUID uuid);
 GrayString gray_uuid_generate_compact(GrayArena *arena, GrayUUID uuid);
-GrayUUID gray_uuid_generate_random(GrayArena *arena);
 GrayUUID gray_uuid_generate_time_ordered(GrayArena *arena);
 bool gray_uuid_is_valid(GrayString string);
 GrayUUID gray_uuid_parse(GrayArena *arena, GrayString string);

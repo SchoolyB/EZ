@@ -502,12 +502,6 @@ bool gray_io_append_bytes(GrayString path, GrayArray data) {
     return io_close_written(file, written == (size_t)data.len);
 }
 
-bool gray_io_rename_file(GrayString old_path, GrayString new_path) {
-    validate_path(old_path);
-    validate_path(new_path);
-    return rename(old_path.data, new_path.data) == 0;
-}
-
 /* ---- New file operations ---- */
 
 bool gray_io_copy_file(GrayString source, GrayString destination) {
@@ -738,11 +732,6 @@ GrayResult_bool gray_io_append_file_result(GrayArena *arena, GrayString path, Gr
     }
     GRAY_RESULT_WRAP_BOOL(arena, gray_io_append_file(path, content), gray_errno_code(errno),
         gray_string_format(arena, "cannot append to '%s'", path.data));
-}
-
-GrayResult_bool gray_io_rename_file_result(GrayArena *arena, GrayString old_path, GrayString new_path) {
-    GRAY_RESULT_WRAP_BOOL(arena, gray_io_rename_file(old_path, new_path), gray_errno_code(errno),
-        gray_string_format(arena, "cannot rename '%s' to '%s'", old_path.data, new_path.data));
 }
 
 GrayResult_bool gray_io_copy_file_result(GrayArena *arena, GrayString source, GrayString destination) {

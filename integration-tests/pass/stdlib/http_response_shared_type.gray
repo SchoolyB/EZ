@@ -66,7 +66,7 @@ do main() {
 
     mut worker = threads.spawn(()serve)
     threads.detach(worker)
-    threads.sleep(300)
+    sleep_ms(300)
 
     mut headers map[string:string] = {:}
     mut home_resp HttpResponse, home_err Error = http.get("http://127.0.0.1:18741/home", headers)

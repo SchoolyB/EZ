@@ -52,7 +52,7 @@ do main() {
 
     // rename
     mut renamed string = "/tmp/gray_io_c_test_renamed.txt"
-    mut _, _ = io.rename_file(test_file, renamed)
+    mut _, _ = io.move_file(test_file, renamed)
     if io.file_exists(renamed) {
         println("  [PASS] rename")
         passed += 1

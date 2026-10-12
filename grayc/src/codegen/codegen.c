@@ -7088,9 +7088,6 @@ static bool emit_uuid_call(CodeGen *codegen, AstNode *node, const char *function
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")"); return true;
     }
-    if (strcmp(function_name, "generate_random") == 0) {
-        emit(codegen, "gray_uuid_generate_random(gray_default_arena)"); return true;
-    }
     if (strcmp(function_name, "generate_v5") == 0) {
         emit(codegen, "gray_uuid_generate_v5(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
@@ -8338,7 +8335,6 @@ static bool emit_io_call(CodeGen *codegen, AstNode *node, const char *function_n
         strcmp(function_name, "write_file") == 0 ||
         strcmp(function_name, "delete_file") == 0 ||
         strcmp(function_name, "append_file") == 0 ||
-        strcmp(function_name, "rename_file") == 0 ||
         strcmp(function_name, "copy_file") == 0 ||
         strcmp(function_name, "move_file") == 0 ||
         strcmp(function_name, "list_dir") == 0 ||
@@ -8567,12 +8563,6 @@ static bool emit_threads_call(CodeGen *codegen, AstNode *node, const char *funct
     }
     if (strcmp(function_name, "yield") == 0) {
         emit(codegen, "gray_threads_yield()");
-        return true;
-    }
-    if (strcmp(function_name, "sleep") == 0) {
-        emit(codegen, "gray_threads_sleep(");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
         return true;
     }
     if (strcmp(function_name, "thread_count") == 0) {

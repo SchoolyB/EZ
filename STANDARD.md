@@ -3817,7 +3817,6 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `is_directory` | `(path string) -> bool` | Check if path is a directory |
 | `file_size` | `(path string) -> i64` | Get file size in bytes (fallible; see below) |
 | `delete_file` | `(path string) -> bool` | Delete file |
-| `rename_file` | `(old_path string, new_path string) -> bool` | Rename file |
 | `copy_file` | `(src string, dst string) -> bool` | Copy file |
 | `move_file` | `(src string, dst string) -> bool` | Move file |
 
@@ -3869,7 +3868,6 @@ The functions below are fallible: they return `(T, Error)`, and the tables above
 | `write_file` | `(bool, Error)` |
 | `append_file` | `(bool, Error)` |
 | `delete_file` | `(bool, Error)` |
-| `rename_file` | `(bool, Error)` |
 | `copy_file` | `(bool, Error)` |
 | `move_file` | `(bool, Error)` |
 | `list_dir` | `([string], Error)` |
@@ -4084,7 +4082,6 @@ A failed request returns an Error with a fixed message and a specific code: `Uns
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `generate` | `() -> UUID` | Generate UUID v4 (hyphenated, 36 chars) |
-| `generate_random` | `() -> UUID` | RFC 4122 v4 (random), hyphenated, lowercase |
 | `generate_time_ordered` | `() -> UUID` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
 | `generate_v5` | `(namespace UUID, name string) -> UUID` | Deterministic RFC 4122 v5 (name-based, SHA-1) |
 | `generate_compact` | `(id UUID) -> string` | Strip hyphens from a UUID, returning a 32-char hex string |
@@ -4322,7 +4319,6 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `is_alive` | `(t Thread) -> bool` | True while the thread's body has not returned. Not valid after `detach` or `join` |
 | `get_id` | `() -> i64` | Get the current thread's ID |
 | `yield` | `()` | Hint the scheduler to run another runnable thread |
-| `sleep` | `(ms i64)` | Sleep the current thread for `ms` milliseconds |
 | `thread_count` | `() -> i64` | Number of live threads spawned through this module (excludes main and non-Grayscale threads) |
 
 ### 9.22 Sync Module (`@sync`)

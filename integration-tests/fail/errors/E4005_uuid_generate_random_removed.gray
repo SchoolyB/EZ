@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - uuid.generate_random was removed
+ * Expected: uuid no longer recognises generate_random; use uuid.generate
+ */
+
+// expect-error: E4005
+
+import @uuid
+
+do main() {
+    mut id UUID = uuid.generate_random()
+}
