@@ -2850,10 +2850,12 @@ static void warn_if_enum_deprecated(TypeChecker *checker, AstNode *node, int enu
         checker->enum_deprecated_messages[enum_index]);
 }
 
-/* Check a declared type-name string (var-decl / param / return / field
- * annotation) against the struct and enum registries and warn if it
- * names a deprecated one. Bare names only — [Old]/^Old wrappers are not
- * unwrapped, matching the scope of this pass.
+static bool type_name_components(const char *written, char component[2][MESSAGE_BUFFER_SIZE],
+                                 int *out_count);
+
+/* Check a written type name (annotation, `new`/`size_of` argument, generic
+ * type argument, alias target) against the struct and enum registries and
+ * warn if it names a deprecated one, at any depth of ^T, [T] and map[K:V].
  *
  * self_struct_name: pass the enclosing struct's own name when checking a
  * struct-scoped function's param/return types, so a deprecated struct's
@@ -2865,6 +2867,13 @@ static void warn_if_type_name_deprecated(TypeChecker *checker, AstNode *node, co
     const char *self_struct_name) {
     if (!type_name) return;
     if (self_struct_name && strcmp(type_name, self_struct_name) == 0) return;
+    char component[2][MESSAGE_BUFFER_SIZE];
+    int component_count;
+    if (type_name_components(type_name, component, &component_count)) {
+        for (int i = 0; i < component_count; i++)
+            warn_if_type_name_deprecated(checker, node, component[i], self_struct_name);
+        return;
+    }
     StructInfo *struct_info = find_struct(checker, type_name);
     if (struct_info) {
         warn_if_struct_deprecated(checker, node, struct_info);
@@ -7553,6 +7562,7 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
         label = target;
         type_argument->data.label.value = target;
     }
+    warn_if_type_name_deprecated(checker, type_argument, label, NULL);
     return label;
 }
 
@@ -8806,6 +8816,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
                      * path understands: a label holding the registry name. */
                     const char *resolved = resolve_type_alias(checker,
                         checker_resolve_type_name(checker, written));
+                    warn_if_type_name_deprecated(checker, argument, resolved, NULL);
                     if (argument->kind != NODE_LABEL || strcmp(resolved, written) != 0) {
                         AstNode *label = ast_allocate(checker->arena, NODE_LABEL, argument->token);
                         label->data.label.value = resolved;
@@ -12468,6 +12479,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         new_type = resolve_type_alias(checker, new_type);
         node->data.new_expression.type_name = new_type;
         typechecker_mark_type_module_used(checker, new_type);
+        warn_if_type_name_deprecated(checker, node, new_type, NULL);
         GrayType *narrowed_type = type_from_name(new_type);
         bool known = is_struct_name(checker, new_type) ||
                      is_enum_name(checker, new_type) ||
@@ -17310,6 +17322,8 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
         if (checker->function_depth > 0) {
             NODE_ERROR_FORMATTED(checker, node, "E2053", "alias", node->data.alias_declaration.name);
         }
+        warn_if_type_name_deprecated(checker, node,
+            checker_resolve_type_name(checker, node->data.alias_declaration.target_type), NULL);
         break;
 
     case NODE_WHEN_STATEMENT:
