@@ -11161,6 +11161,15 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
                 return &TYPE_UNKNOWN;
             }
         }
+        /* A call returning one value, given to several names (`a, b = f()`):
+         * every `_tmp.vN` is the value itself. */
+        if (symbol && symbol->return_types && symbol->return_count == 1 &&
+            strncmp(object_name, GRAY_SYNTHETIC_TEMPORARY, sizeof(GRAY_SYNTHETIC_TEMPORARY) - 1) == 0 &&
+            member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
+            node->kind = NODE_LABEL;
+            node->data.label.value = object_name;
+            return symbol->return_types[0];
+        }
         /* Multi-return .v0/.v1 access takes priority over struct field
          * lookup when the symbol has ret_types set. Without this, stdlib
          * functions returning struct types (Socket, HttpResponse, etc.)
@@ -11190,7 +11199,14 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
                 NODE_ERROR_FORMATTED(checker, node, "E3006", symbol->return_count, field_index + 1);
                 result = &TYPE_UNKNOWN;
             } else if (!symbol->return_types && field_index > 0) {
-                /* Single-return function used in multi-variable assignment */
+                /* A call returning one value, given to several names
+                 * (`a, b = f()`): the value goes to every name. check_block
+                 * rewrites the `.v0` binding to match. */
+                if (strncmp(object_name, GRAY_SYNTHETIC_TEMPORARY, sizeof(GRAY_SYNTHETIC_TEMPORARY) - 1) == 0) {
+                    node->kind = NODE_LABEL;
+                    node->data.label.value = object_name;
+                    return symbol->type;
+                }
                 NODE_ERROR_FORMATTED(checker, node, "E3006", 1, field_index + 1);
                 result = &TYPE_UNKNOWN;
             } else {
@@ -13312,6 +13328,30 @@ static void check_block(TypeChecker *checker, AstNode *node) {
         }
     }
     mark_elided_array_copies(checker, node);
+    /* A single-value call given to several names: once a later binding has
+     * become the temporary itself, the `.v0` binding must too. */
+    if (node->data.block.count >= 3) {
+        AstNode *first = node->data.block.statements[0];
+        if (first && first->kind == NODE_VARIABLE_DECLARATION &&
+            strncmp(first->data.variable_declaration.name, GRAY_SYNTHETIC_TEMPORARY, sizeof(GRAY_SYNTHETIC_TEMPORARY) - 1) == 0) {
+            const char *temporary_name = first->data.variable_declaration.name;
+            AstNode *last = node->data.block.statements[node->data.block.count - 1];
+            AstNode *last_value = (last && last->kind == NODE_VARIABLE_DECLARATION) ? last->data.variable_declaration.value : NULL;
+            if (last_value && last_value->kind == NODE_LABEL && last_value->data.label.value &&
+                strcmp(last_value->data.label.value, temporary_name) == 0) {
+                for (int i = 1; i < node->data.block.count; i++) {
+                    AstNode *binding = node->data.block.statements[i];
+                    AstNode *binding_value = (binding && binding->kind == NODE_VARIABLE_DECLARATION) ? binding->data.variable_declaration.value : NULL;
+                    if (binding_value && binding_value->kind == NODE_MEMBER_EXPRESSION &&
+                        binding_value->data.member.object->kind == NODE_LABEL &&
+                        strcmp(binding_value->data.member.object->data.label.value, temporary_name) == 0) {
+                        binding_value->kind = NODE_LABEL;
+                        binding_value->data.label.value = temporary_name;
+                    }
+                }
+            }
+        }
+    }
     /* E3006: multi-var destructuring with fewer variables than return values.
      * Desugared blocks look like: _gray_tmpN = call(); a = _gray_tmpN.v0; b = _gray_tmpN.v1; ...
      * If variable_count < ret_count, trailing return values are silently lost. */

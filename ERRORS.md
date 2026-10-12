@@ -1,9 +1,9 @@
 # Grayscale Error Code Reference
 
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
-> Run `./scripts/generate_errors.gray` to regenerate.
+> Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 531 codes** (380 errors, 17 warnings, 134 panics)
+**Total: 533 codes** (382 errors, 17 warnings, 134 panics)
 
 ---
 
@@ -90,6 +90,8 @@
 | `E2097` | syntax | a 'generic' parameter cannot have a default value; its argument is the type the caller passes |
 | `E2098` | syntax | imports must come before all other declarations in the file |
 | `E2099` | syntax | a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify |
+| `E2100` | syntax | %d names but %d values in declaration; give one value per name, or a single value for all of them |
+| `E2101` | syntax | a declaration with a list of values takes one shared type after the last name; per-name types are not supported |
 | `E3001` | types | type mismatch: cannot assign %s to %s |
 | `E3002` | types | invalid operands: cannot use '%s' with %s and %s |
 | `E3003` | types | %s index must be an integer, got %s |
@@ -582,4 +584,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 21:07:31 UTC*
+*Generated on 2026-10-12 23:22:34 UTC*

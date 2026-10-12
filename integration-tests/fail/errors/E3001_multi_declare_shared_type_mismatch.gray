@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3001 - the shared type applies to every name
+ */
+// expect-error: E3001
+
+do pair() -> (string, i64) {
+    return "a", 1
+}
+
+do main() {
+    s, n i64 = pair()
+}

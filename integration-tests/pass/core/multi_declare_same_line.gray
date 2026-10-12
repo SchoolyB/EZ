@@ -1,0 +1,66 @@
+/*
+ * multi_declare_same_line.gray - several names declared on one line
+ */
+
+const LIMIT_LOW, LIMIT_HIGH i64 = 1, 99
+mut shared_a, shared_b i64 = 7
+
+do one() -> i64 { return 5 }
+do two() -> (i64, i64) { return 1, 2 }
+
+do check(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a, b, c i64 = 1, 2, 3
+    check("one value per name", a == 1 && b == 2 && c == 3, passed, failed)
+
+    d, e, f = 4, 5, 6
+    check("bare, type inferred", d == 4 && e == 5 && f == 6, passed, failed)
+
+    const g, h = "x", "y"
+    check("const, type inferred", g == "x" && h == "y", passed, failed)
+
+    mut zero_a, zero_b string
+    mut zero_c, zero_d i64
+    check("no value is zero-initialized", zero_a == "" && zero_b == "" && zero_c == 0 && zero_d == 0, passed, failed)
+
+    flag_a, flag_b, flag_c = false
+    check("one value for every name", !flag_a && !flag_b && !flag_c, passed, failed)
+
+    small_a, small_b f32 = 1.5
+    check("shared type takes a literal", small_a == 1.5 && small_b == 1.5, passed, failed)
+
+    sum_a, sum_b = one()
+    check("single-value call for every name", sum_a == 5 && sum_b == 5, passed, failed)
+
+    mut first, second i64 = two()
+    check("call destructuring with a shared type", first == 1 && second == 2, passed, failed)
+
+    mut kept, _ = one(), one()
+    check("throwaway discarding a call in a list", kept == 5, passed, failed)
+
+    const fixed_a, fixed_b i64 = 10, 20
+    check("const with a shared type", fixed_a == 10 && fixed_b == 20, passed, failed)
+
+    check("file-scope const list", LIMIT_LOW == 1 && LIMIT_HIGH == 99, passed, failed)
+    check("file-scope one value for every name", shared_a == 7 && shared_b == 7, passed, failed)
+
+    println("")
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("FAILED")
+    } otherwise {
+        println("ALL PASSED")
+    }
+}

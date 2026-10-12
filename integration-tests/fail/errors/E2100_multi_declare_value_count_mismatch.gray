@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2100 - three names, two values
+ */
+// expect-error: E2100
+
+do main() {
+    x, y, z i64 = 1, 2
+}

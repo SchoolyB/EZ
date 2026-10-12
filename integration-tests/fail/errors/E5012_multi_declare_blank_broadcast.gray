@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5012 - '_' cannot take a plain value given to every name
+ */
+// expect-error: E5012
+
+do main() {
+    mut x, y, _ i64 = 0
+}

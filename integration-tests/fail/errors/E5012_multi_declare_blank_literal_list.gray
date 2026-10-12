@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5012 - '_' in a list of values must discard a call's result
+ */
+// expect-error: E5012
+
+do main() {
+    mut x, _ = 1, 2
+}

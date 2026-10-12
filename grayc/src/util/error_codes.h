@@ -102,7 +102,9 @@
     GRAY_ERROR("E2096", "syntax", "'generic' declares a type parameter and is only valid as the type of a function parameter; it cannot be used in variable declarations, struct fields, enum variants, return types, container element types, tuple positions, or global variables") \
     GRAY_ERROR("E2097", "syntax", "a 'generic' parameter cannot have a default value; its argument is the type the caller passes") \
     GRAY_ERROR("E2098", "syntax", "imports must come before all other declarations in the file") \
-    GRAY_ERROR("E2099", "syntax", "a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify")
+    GRAY_ERROR("E2099", "syntax", "a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify") \
+    GRAY_ERROR("E2100", "syntax", "%d names but %d values in declaration; give one value per name, or a single value for all of them") \
+    GRAY_ERROR("E2101", "syntax", "a declaration with a list of values takes one shared type after the last name; per-name types are not supported")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define GRAY_TYPE_ERRORS \

@@ -1157,6 +1157,18 @@ Variables declared this way:
 - Can be reassigned after declaration
 - Are scoped to their containing block
 
+Several names can be declared on one line. A type written after the last name applies to every name:
+
+```gray
+x, y, z i64 = 1, 2, 3      // one value per name
+mut a, b = "hi", 4         // types inferred separately
+x, y, z i64                // zero-initialized (warns for each name)
+ok, done, ready = false    // one value for every name
+lo, hi i64 = pair()        // a call returning two values
+```
+
+N names take N values, no value (a type is required), one value for every name, or one call returning N values. A different number of values is an error, and per-name types (`x i64, y f64 = 1, 2.0`) are not allowed with a list of values.
+
 A declaration with a type annotation but no value is allowed and zero-initializes the variable (`0`, `0.0`, `""`, `false`, and so on). Because a dropped `= value` is easy to miss, the compiler emits a warning in that case:
 
 ```gray
@@ -1174,6 +1186,7 @@ Constants are declared using the `const` keyword:
 const PI f64 = 3.14159
 const MAX_SIZE i64 = 100
 const origin = Point{x: 0, y: 0}
+const LOW, HIGH i64 = 1, 99     // several constants on one line
 ```
 
 > ⚠️ At file scope, `const` declarations of primitive types (integer and float types, `string`, `bool`, `char`) and arrays require explicit type annotations. Struct literals and enum values can still be inferred. Inside function bodies, type inference works for all `const` declarations.

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2101 - per-name types with a list of values
+ */
+// expect-error: E2101
+
+do main() {
+    x i64, y f64 = 1, 2.0
+}
