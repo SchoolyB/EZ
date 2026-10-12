@@ -10668,9 +10668,26 @@ static bool field_type_needs_arena_escape(GrayType *field_type) {
  * (map/array/string/struct literal) lives as long as the heap-allocated
  * struct it's being attached to, rather than the current function's own
  * scoped arena that gets destroyed when the function returns. */
-static void emit_heap_escaped_field_assign(CodeGen *codegen, AstNode *node, const char *reference_text) {
+static void emit_heap_escaped_field_assign(CodeGen *codegen, AstNode *node, GrayType *field_type, const char *reference_text) {
     emit_formatted(codegen, "{ GrayArena *_esc_h = gray_default_arena; gray_default_arena = gray_heap_arena; %s = ", reference_text);
-    emit_expression(codegen, node->data.assign.value);
+    const char *field_type_name = field_type ? type_name(field_type) : NULL;
+    if (field_type_name && composite_value_aliases(codegen, field_type_name, node->data.assign.value)) {
+        /* A named array/map/struct still lives in the function's own arena;
+         * copy it into the heap arena the swap just selected. */
+        int unique_id = codegen_next_id(codegen);
+        char source_variable[SHORT_VARIABLE_BUFFER_SIZE];
+        snprintf(source_variable, sizeof(source_variable), "_hv%d", unique_id);
+        const char *c_type = field_type_name[0] == '[' ? "GrayArray"
+                           : strncmp(field_type_name, "map[", 4) == 0 ? "GrayMap"
+                           : gray_type_to_c_codegen(codegen, field_type_name);
+        emit_formatted(codegen, "({ %s %s = ", c_type, source_variable);
+        emit_expression(codegen, node->data.assign.value);
+        emit(codegen, "; ");
+        emit_value_deep_copy(codegen, field_type_name, source_variable);
+        emit(codegen, "; })");
+    } else {
+        emit_expression(codegen, node->data.assign.value);
+    }
     emit(codegen, "; gray_default_arena = _esc_h; }");
 }
 
@@ -11196,7 +11213,7 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             is_heap_variable(codegen, pointer_target->data.label.value)) {
             GrayType *field_type = codegen_type_of(codegen, node->data.assign.target);
             if (field_type_needs_arena_escape(field_type)) {
-                emit_heap_escaped_field_assign(codegen, node, field_reference);
+                emit_heap_escaped_field_assign(codegen, node, field_type, field_reference);
                 emit(codegen, "; }\n");
                 return;
             }
@@ -11262,7 +11279,7 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
                     emit_pointer_capture(codegen, node, object);
                     char reference_holder[MESSAGE_BUFFER_SIZE];
                     snprintf(reference_holder, sizeof(reference_holder), "_dp->%s", sanitize_name(field));
-                    emit_heap_escaped_field_assign(codegen, node, reference_holder);
+                    emit_heap_escaped_field_assign(codegen, node, field_type, reference_holder);
                     emit(codegen, "; }\n");
                     return;
                 }
