@@ -280,3 +280,4 @@ Thank you to everyone who has contributed to Grayscale!
 <a href="https://github.com/confucius40"><img src="https://github.com/confucius40.png" width="50" height="50" alt="confucius40"/></a>
 <a href="https://github.com/sjh9714"><img src="https://github.com/sjh9714.png" width="50" height="50" alt="sjh9714"/></a>
 <a href="https://github.com/coincoin57660-byte"><img src="https://github.com/coincoin57660-byte.png" width="50" height="50" alt="coincoin57660-byte"/></a>
+<a href="https://github.com/KeuqS"><img src="https://github.com/KeuqS.png" width="50" height="50" alt="KeuqS"/></a>
