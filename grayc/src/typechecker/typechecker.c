@@ -13916,6 +13916,14 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
             NODE_ERROR_FORMATTED(checker, node, "E4003",
                 VARIABLE_DISPLAY_NAME(node), existing->definition_line != 0 ? existing->definition_line : existing->parameter_line);
         }
+        /* A `generic` parameter is not a scope symbol, but its name is as
+         * taken at the top level of the body as an ordinary parameter's. */
+        if (!existing && checker->current_function_declaration &&
+            checker->current_scope->depth + 1 == checker->current_function_scope_depth &&
+            generic_bindings_find(&checker->generics, node->data.variable_declaration.name) >= 0) {
+            NODE_ERROR_FORMATTED(checker, node, "E4003",
+                VARIABLE_DISPLAY_NAME(node), checker->current_function_declaration->token.line);
+        }
         /* W2002/W2007: check if variable shadows outer scope */
         if (!existing && checker->current_scope->parent) {
             Symbol *outer_symbol = scope_lookup(checker->current_scope->parent,
