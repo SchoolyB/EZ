@@ -1,7 +1,7 @@
 # Grayscale Error Code Reference
 
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
-> Run `./scripts/generate_errors.sh` to regenerate.
+> Run `./scripts/generate_errors.gray` to regenerate.
 
 **Total: 531 codes** (380 errors, 17 warnings, 134 panics)
 
@@ -582,4 +582,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 20:51:43 UTC*
+*Generated on 2026-10-12 21:07:31 UTC*
