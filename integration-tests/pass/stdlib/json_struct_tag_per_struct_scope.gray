@@ -24,20 +24,20 @@ do main() {
     mut failed i64 = 0
 
     mut t Tagged = Tagged{name: "Alice"}
-    if json.stringify(t) == "{\"Name\": \"Alice\"}" {
+    if json.encode(t) == "{\"Name\": \"Alice\"}" {
         println("  [PASS] tagged struct uses its tag")
         passed += 1
     } otherwise {
-        println("  [FAIL] tagged struct: got ${json.stringify(t)}")
+        println("  [FAIL] tagged struct: got ${json.encode(t)}")
         failed += 1
     }
 
     mut u Untagged = Untagged{age: 30}
-    if json.stringify(u) == "{\"age\": 30}" {
+    if json.encode(u) == "{\"age\": 30}" {
         println("  [PASS] untagged struct in the same file still uses field names")
         passed += 1
     } otherwise {
-        println("  [FAIL] untagged struct: got ${json.stringify(u)}")
+        println("  [FAIL] untagged struct: got ${json.encode(u)}")
         failed += 1
     }
 

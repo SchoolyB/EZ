@@ -1,0 +1,9 @@
+// Error Test: E4021 - a private type alias is unreachable from another file
+// as the type argument of a generic call, the same as in an annotation.
+// expect-error: E4021
+// expect-error-count: 1
+import "./lib"
+
+do main() {
+    println(lib.identity(lib.Id, 3))
+}

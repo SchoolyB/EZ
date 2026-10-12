@@ -21,15 +21,15 @@ const Pool struct {
     items [i64]
 }
 
-do has_caret(p ^Pool, k string) -> bool { return maps.has_key(p^.cache, k) }
-do has_auto(p ^Pool, k string) -> bool { return maps.has_key(p.cache, k) }
+do has_caret(p ^Pool, k string) -> bool { return maps.contains_key(p^.cache, k) }
+do has_auto(p ^Pool, k string) -> bool { return maps.contains_key(p.cache, k) }
 do keys_caret(p ^Pool) -> [string] { return maps.get_keys(p^.cache) }
 do drop_caret(p ^Pool, k string) { maps.remove_key(p^.cache, k) }
 do wipe_caret(p ^Pool) { maps.clear(p^.cache) }
 do push_caret(p ^Pool, v i64) { arrays.append(p^.items, v) }
 do push_auto(p ^Pool, v i64) { arrays.append(p.items, v) }
 
-do has_deref(m ^map[string:i64], k string) -> bool { return maps.has_key(m^, k) }
+do has_deref(m ^map[string:i64], k string) -> bool { return maps.contains_key(m^, k) }
 do push_deref(a ^[i64], v i64) { arrays.append(a^, v) }
 
 do main() {
@@ -47,10 +47,10 @@ do main() {
     p^.cache = c
 
     if has_caret(p, "a") && has_auto(p, "b") && !has_caret(p, "z") {
-        println("  [PASS] maps.has_key through p^.field and p.field")
+        println("  [PASS] maps.contains_key through p^.field and p.field")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has_key gave the wrong answer")
+        println("  [FAIL] maps.contains_key gave the wrong answer")
         failed += 1
     }
 

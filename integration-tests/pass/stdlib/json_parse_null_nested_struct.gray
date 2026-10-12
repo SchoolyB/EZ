@@ -1,0 +1,38 @@
+/*
+ * Test: json.parse leaves a nested #json struct at its zero value for null
+ */
+
+import @json
+
+#json
+const Inner struct {
+    x i64
+}
+
+#json
+const Outer struct {
+    inner Inner
+    items [Inner]
+    n i64
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut o Outer = json.parse("{\"inner\":null,\"items\":[null,{\"x\":2}],\"n\":3}")
+    if o.inner.x == 0 && o.n == 3 && len(o.items) == 2 && o.items[0].x == 0 && o.items[1].x == 2 {
+        println("  [PASS] null nested struct and array element are zero values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] null nested struct: inner=${o.inner.x} n=${o.n} items=${len(o.items)}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

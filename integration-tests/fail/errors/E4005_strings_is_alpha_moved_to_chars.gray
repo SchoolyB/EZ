@@ -1,0 +1,12 @@
+/*
+ * Error Test: strings.is_alpha was moved to chars
+ * Expected: strings no longer recognises is_alpha
+ */
+
+// expect-error: E4005
+
+import @strings
+
+do main() {
+    mut result bool = strings.is_alpha('a')
+}

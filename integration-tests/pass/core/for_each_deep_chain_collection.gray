@@ -1,0 +1,71 @@
+/*
+ * for_each_deep_chain_collection.gray - a for_each whose collection is reached
+ * through a pointer parameter, a map index and further pointer fields declares
+ * its loop variable with the element type.
+ */
+
+const Field struct {
+    name string
+}
+
+const Decl struct {
+    members [Field]
+    by_name map[string:Field]
+}
+
+const Node struct {
+    decl ^Decl
+}
+
+const Gen struct {
+    nodes map[string:^Node]
+}
+
+do count_members(generator ^Gen, key string) -> i64 {
+    mut total i64 = 0
+    for_each field in generator^.nodes[key]^.decl^.members {
+        total += len(field.name)
+    }
+    return total
+}
+
+do count_named(generator ^Gen, key string) -> i64 {
+    mut total i64 = 0
+    for_each field_key, field in generator^.nodes[key]^.decl^.by_name {
+        total += len(field.name) + len(field_key)
+    }
+    return total
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut members [Field] = {Field{name: "ab"}, Field{name: "cde"}}
+    mut by_name map[string:Field] = {"k": Field{name: "xyz"}}
+    mut decl Decl = Decl{members: members, by_name: by_name}
+    mut node Node = Node{decl: addr(decl)}
+    mut nodes map[string:^Node] = {"n": addr(node)}
+    mut generator Gen = Gen{nodes: nodes}
+
+    if count_members(addr(generator), "n") == 5 {
+        passed += 1
+    } otherwise {
+        println("[FAIL] array collection through map index chain")
+        failed += 1
+    }
+
+    if count_named(addr(generator), "n") == 4 {
+        passed += 1
+    } otherwise {
+        println("[FAIL] map collection through map index chain")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

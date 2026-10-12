@@ -1,0 +1,7 @@
+private const Hidden struct {
+    z i64
+}
+
+do make(kind generic) -> ^kind {
+    return new(kind)
+}

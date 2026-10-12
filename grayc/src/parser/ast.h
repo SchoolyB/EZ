@@ -316,6 +316,11 @@ struct AstNode {
              * back to `place` before anything else can observe either: codegen
              * shares the array instead of copying it. */
             bool elides_copy;
+            /* Set by the type checker when the initializer reads a variable
+             * of the declared name from an enclosing scope. The C variable
+             * would be in scope inside its own initializer, so codegen
+             * evaluates the initializer into a temporary first. */
+            bool shadows_own_initializer;
         } variable_declaration;
 
         /* NODE_ASSIGN_STATEMENT */

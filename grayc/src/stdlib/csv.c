@@ -18,8 +18,12 @@
 #include <errno.h>
 
 /* RFC 4180 parser with a caller-chosen field delimiter. gray_csv_parse and
- * gray_csv_parse_delimited are thin wrappers over this. */
-static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, char delim) {
+ * gray_csv_parse_delimited are thin wrappers over this. On malformed quoting
+ * (an unterminated quote, text after a closing quote, or a quote inside an
+ * unquoted field) it stores the 1-based row in *bad_row and returns the rows
+ * parsed so far; otherwise *bad_row is 0. */
+static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, char delim, int32_t *bad_row) {
+    *bad_row = 0;
     GrayArray rows = gray_array_new(arena, sizeof(GrayArray), 8, GRAY_ELEM_ARRAY);
     const char *cursor = csv_string.data;
     const char *end_cursor = cursor + csv_string.len;
@@ -41,7 +45,12 @@ static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, ch
                     else cursor++;
                 }
                 field_length = (int32_t)(cursor - field_start);
-                if (cursor < end_cursor) cursor++; /* skip closing quote */
+                if (cursor >= end_cursor) { *bad_row = rows.len + 1; return rows; }
+                cursor++; /* skip closing quote */
+                if (cursor < end_cursor && *cursor != delim && *cursor != '\n' && *cursor != '\r') {
+                    *bad_row = rows.len + 1;
+                    return rows;
+                }
 
                 /* RFC 4180 §2.7: unescape doubled quotes ("") to single (") */
                 if (memchr(field_start, '"', (size_t)field_length)) {
@@ -60,6 +69,7 @@ static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, ch
                 field_start = cursor;
                 while (cursor < end_cursor && *cursor != delim && *cursor != '\n' && *cursor != '\r') cursor++;
                 field_length = (int32_t)(cursor - field_start);
+                if (memchr(field_start, '"', (size_t)field_length)) { *bad_row = rows.len + 1; return rows; }
             }
 
             GrayString field = gray_string_new(arena, field_start, field_length);
@@ -82,12 +92,22 @@ static GrayArray csv_parse_delimited(GrayArena *arena, GrayString csv_string, ch
     return rows;
 }
 
+static _Noreturn void csv_malformed_quoting(int32_t row) {
+    gray_panic_code("P0148", "csv: malformed quoting in row %d", row);
+}
+
 GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string) {
-    return csv_parse_delimited(arena, csv_string, ',');
+    int32_t bad_row;
+    GrayArray rows = csv_parse_delimited(arena, csv_string, ',', &bad_row);
+    if (bad_row) csv_malformed_quoting(bad_row);
+    return rows;
 }
 
 GrayArray gray_csv_parse_delimited(GrayArena *arena, GrayString csv_string, int32_t delimiter) {
-    return csv_parse_delimited(arena, csv_string, (char)delimiter);
+    int32_t bad_row;
+    GrayArray rows = csv_parse_delimited(arena, csv_string, (char)delimiter, &bad_row);
+    if (bad_row) csv_malformed_quoting(bad_row);
+    return rows;
 }
 
 /* --- Helpers shared by the [[string]] / [map[string:string]] views --- */
@@ -264,45 +284,6 @@ int32_t gray_csv_detect_delimiter(GrayString sample) {
     return (int32_t)(unsigned char)best;
 }
 
-GrayString gray_csv_to_json(GrayArena *arena, GrayArray *data) {
-    GrayArray maps = gray_csv_to_maps(arena, data);
-    GrayStringsBuilder *builder = gray_strings_builder(arena);
-    gray_strings_builder_append_char(builder, '[');
-    for (int32_t i = 0; i < maps.len; i++) {
-        if (i > 0) gray_strings_builder_append_char(builder, ',');
-        GrayMap *map = (GrayMap *)((char *)maps.data + (size_t)i * sizeof(GrayMap));
-        gray_strings_builder_append(builder, gray_json_encode_map(arena, map));
-    }
-    gray_strings_builder_append_char(builder, ']');
-    return gray_strings_build(arena, builder);
-}
-
-GrayString gray_csv_to_markdown(GrayArena *arena, GrayArray *data) {
-    if (data->len == 0) return gray_string_lit("");
-    GrayStringsBuilder *builder = gray_strings_builder(arena);
-    for (int32_t i = 0; i < data->len; i++) {
-        GrayArray *row_array = csv_row(data, i);
-        gray_strings_builder_append_char(builder, '|');
-        for (int32_t j = 0; j < row_array->len; j++) {
-            GrayString cell = csv_cell(row_array, j);
-            for (int32_t column_index = 0; column_index < cell.len; column_index++) {
-                if (cell.data[column_index] == '|') gray_strings_builder_append_char(builder, '\\');
-                gray_strings_builder_append_char(builder, (int32_t)(unsigned char)cell.data[column_index]);
-            }
-            gray_strings_builder_append_char(builder, '|');
-        }
-        gray_strings_builder_append_char(builder, '\n');
-        if (i == 0) {
-            gray_strings_builder_append_char(builder, '|');
-            for (int32_t j = 0; j < row_array->len; j++) {
-                gray_strings_builder_append(builder, gray_string_lit("---|"));
-            }
-            gray_strings_builder_append_char(builder, '\n');
-        }
-    }
-    return gray_strings_build(arena, builder);
-}
-
 /* Row-filter callback plumbing: filter_rows is emitted inline by codegen (it
  * takes a Grayscale func value), so there is no C entry point for it here. */
 
@@ -400,61 +381,4 @@ GrayArray gray_csv_headers(GrayArena *arena, GrayArray *data) {
         return gray_array_copy(arena, &first_row);
     }
     return gray_array_new(arena, sizeof(GrayString), 0, GRAY_ELEM_STRING);
-}
-
-/* fopen takes a C string, so an embedded NUL would silently cut the path
- * short and open a different file. */
-static void csv_validate_path(GrayString path) {
-    if (memchr(path.data, '\0', (size_t)path.len))
-        gray_panic_code("P0143", "csv: a file path contains an embedded null byte");
-}
-
-GrayArray gray_csv_read(GrayArena *arena, GrayString path) {
-    csv_validate_path(path);
-    FILE *file = fopen(path.data, "rb");
-    if (!file) return gray_array_new(arena, sizeof(GrayArray), 1, GRAY_ELEM_ARRAY);
-    GrayString content = gray_io_read_file_impl(arena, file);
-    fclose(file);
-    if (content.data == NULL)
-        gray_panic_code("P0114", "csv.read_file: input exceeds maximum string length");
-    return gray_csv_parse(arena, content);
-}
-
-bool gray_csv_write(GrayArena *arena, GrayString path, GrayArray *data) {
-    csv_validate_path(path);
-    GrayString csv_text = gray_csv_stringify(arena, data);
-    FILE *file = fopen(path.data, "wb");
-    if (!file) return false;
-    fwrite(csv_text.data, 1, (size_t)csv_text.len, file);
-    fclose(file);
-    return true;
-}
-
-/* _result variants */
-
-GrayResult_array gray_csv_read_result(GrayArena *arena, GrayString path) {
-    csv_validate_path(path);
-    GrayResult_array result;
-    FILE *file = fopen(path.data, "rb");
-    if (!file) {
-        result.v0 = gray_array_new(arena, sizeof(GrayArray), 0, GRAY_ELEM_ARRAY);
-        result.v1 = gray_error_new(arena, gray_errno_code(errno), gray_string_format(arena, "cannot read CSV file '%s'", path.data));
-        return result;
-    }
-    GrayString content = gray_io_read_file_impl(arena, file);
-    fclose(file);
-    if (content.data == NULL) {
-        result.v0 = gray_array_new(arena, sizeof(GrayArray), 0, GRAY_ELEM_ARRAY);
-        result.v1 = gray_error_new(arena, GRAY_ERR_OutOfRange, gray_string_format(arena,
-            "cannot read '%s': file exceeds maximum string length", path.data));
-        return result;
-    }
-    result.v0 = gray_csv_parse(arena, content);
-    result.v1 = NULL;
-    return result;
-}
-
-GrayResult_bool gray_csv_write_result(GrayArena *arena, GrayString path, GrayArray *data) {
-    GRAY_RESULT_WRAP_BOOL(arena, gray_csv_write(arena, path, data), gray_errno_code(errno),
-        gray_string_format(arena, "cannot write CSV file '%s'", path.data));
 }

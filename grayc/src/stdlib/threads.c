@@ -136,16 +136,6 @@ void gray_threads_yield(void) {
     sched_yield();
 }
 
-void gray_threads_sleep(int64_t milliseconds) {
-    if (milliseconds < 0) milliseconds = 0;
-    struct timespec request_time;
-    request_time.tv_sec  = (time_t)(milliseconds / 1000);
-    request_time.tv_nsec = (long)((milliseconds % 1000) * 1000000L);
-    /* Restart on signal interruption — the user asked for a sleep, not a
-     * sleep-or-signal. */
-    while (nanosleep(&request_time, &request_time) == -1 && errno == EINTR) {}
-}
-
 int64_t gray_threads_thread_count(void) {
     return atomic_load(&gray_threads_live_count);
 }

@@ -47,12 +47,12 @@ do main() {
         failed += 1
     }
 
-    mut again Outer = json.parse(json.stringify(parsed))
+    mut again Outer = json.parse(json.encode(parsed))
     if again.name == "a" && again.inner.n == 7 && again.ids[1] == 2 && again.tags[0] == "x" && again.items[0].n == 1 && again.ratios[0] == 1.5 {
-        println("  [PASS] stringify round trip")
+        println("  [PASS] encode round trip")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify round trip: ${json.stringify(parsed)}")
+        println("  [FAIL] encode round trip: ${json.encode(parsed)}")
         failed += 1
     }
 

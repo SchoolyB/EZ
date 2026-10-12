@@ -17,9 +17,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <time.h>
-#if defined(__APPLE__)
 #include <sys/stat.h>
-#endif
 #include <ctype.h>
 
 #include "util/arena.h"
@@ -60,7 +58,7 @@ static void print_usage(void) {
     fprintf(stderr, "\nOptions:\n");
     fprintf(stderr, "  -o <file>       Output binary name (default: based on input filename)\n");
     fprintf(stderr, "  -c              Emit C source only (don't compile)\n");
-    fprintf(stderr, "  -O0, -O1, -O2   Optimization level (default: -O2)\n");
+    fprintf(stderr, "  -O0, -O1, -O2, -O3  Optimization level (default: -O3 for GCC, -O2 otherwise)\n");
     fprintf(stderr, "  -g              Include debug symbols\n");
     fprintf(stderr, "  -v, --verbose   Show compilation commands\n");
     fprintf(stderr, "  --time          Show compilation timing\n");
@@ -443,7 +441,6 @@ static const char *const STDLIB_SOURCES[] = {
     "vendor/sqlite3.c"
 };
 
-#if defined(__APPLE__)
 /* The first line of `<compiler> --version`, or an empty string. */
 static void c_compiler_banner(const char *c_compiler, bool is_command, char *banner, size_t banner_size) {
     banner[0] = '\0';
@@ -463,7 +460,16 @@ static void c_compiler_banner(const char *c_compiler, bool is_command, char *ban
     if (capture) fclose(capture);
     arena_destroy(arena);
 }
-#endif
+
+/* GCC runs array-heavy loops about 25% faster at -O3 than at -O2 and Clang does
+ * not, so GCC gets -O3 by default. Asks the compiler itself, since on macOS
+ * /usr/bin/gcc is Clang. */
+static bool c_compiler_is_gcc(const char *c_compiler, bool is_command) {
+    char banner[256];
+    c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
+    return banner[0] && strstr(banner, "clang") == NULL &&
+           (strstr(banner, "gcc") != NULL || strstr(banner, "GCC") != NULL || strncmp(banner, "cc (", 4) == 0);
+}
 
 /* libgrayrt.a is built by the system Clang. On macOS a different compiler
  * (Homebrew GCC) lays out thread-local variables differently and cannot link
@@ -481,7 +487,6 @@ static bool c_compiler_cannot_link_archive(const char *c_compiler, bool is_comma
 #endif
 }
 
-#if defined(__APPLE__)
 typedef struct {
     const char *directory;
     time_t archive_modified;
@@ -498,10 +503,11 @@ static bool note_newer_runtime_file(const char *name, void *context) {
     return !staleness->is_stale;
 }
 
-/* A compiler that cannot link the prebuilt libgrayrt.a would otherwise rebuild
- * the whole runtime on every compile (tens of seconds). Build it once with that
- * compiler into the temp directory, keyed by the compiler's version banner and
- * the runtime directory, and rebuild when any runtime or stdlib file is newer.
+/* A compiler that cannot link the prebuilt libgrayrt.a (a --cc compiler, or
+ * Homebrew GCC on macOS) would otherwise rebuild the whole runtime on every
+ * compile (tens of seconds). Build it once with that compiler into the temp
+ * directory, keyed by the full compiler command (a cross target's flags
+ * select a different archive), its version banner and the runtime directory, and rebuild when any runtime or stdlib file is newer.
  * SQLite stays out of the archive (a program that uses it builds from source).
  * Returns false, leaving the from-source build to run, if anything fails. */
 static bool ensure_runtime_archive(const char *c_compiler, bool is_command, const char *runtime_directory,
@@ -509,8 +515,8 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
     uint64_t key = 14695981039346656037ULL;
-    const char *const key_parts[] = {banner, runtime_directory};
-    for (size_t part = 0; part < 2; part++)
+    const char *const key_parts[] = {c_compiler, banner, runtime_directory};
+    for (size_t part = 0; part < 3; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
     snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", gray_temporary_directory(),
@@ -578,7 +584,6 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     arena_destroy(arena);
     return is_built;
 }
-#endif
 
 static const char *detect_c_compiler(void) {
     /* GRAY_CC / CC are checked, not trusted: a stale CC=cc from a profile must
@@ -1715,7 +1720,7 @@ typedef enum {
 } ArgumentsStatus;
 
 static ArgumentsStatus parse_arguments(int argc, char **argv, CompilerOptions *options) {
-    *options = (CompilerOptions){ .optimization_level = "-O2" };
+    *options = (CompilerOptions){0};
 
     if (argc < 2) {
         print_usage();
@@ -2210,15 +2215,14 @@ int main(int argc, char **argv) {
      * The archive is built for the host; a --cc compiler (a cross target) needs
      * the runtime compiled from source for its own target instead. */
     gray_path_join(lib_path, sizeof(lib_path), runtime_directory, "../libgrayrt.a");
-    if (options.c_compiler_override || c_compiler_is_tinycc(c_compiler_command)) {
-        /* fall through to the from-source build below; TinyCC also cannot
+    if (c_compiler_is_tinycc(c_compiler_command)) {
+        /* fall through to the from-source build below; TinyCC cannot
          * link objects another compiler built, or share its thread-local
          * layout (see gray_thread_state in runtime.h) */
-    } else if (c_compiler_cannot_link_archive(c_compiler_command, false)) {
-#if defined(__APPLE__)
+    } else if (options.c_compiler_override || c_compiler_cannot_link_archive(c_compiler_command, false)) {
         has_archive = !strstr(c_source, "#include \"sqlite.h\"") &&
-                      ensure_runtime_archive(c_compiler_command, false, runtime_directory, lib_path, sizeof(lib_path));
-#endif
+                      ensure_runtime_archive(c_compiler_command, options.c_compiler_override != NULL, runtime_directory,
+                                             lib_path, sizeof(lib_path));
     } else if (gray_file_readable(lib_path)) {
         has_archive = true;
     } else {
@@ -2263,7 +2267,10 @@ int main(int argc, char **argv) {
 #endif
     const bool is_tinycc = c_compiler_is_tinycc(c_compiler_command);
     if (options.should_emit_debug_symbols) argument_vector_push(&c_compiler_arguments, "-g");
-    argument_vector_push(&c_compiler_arguments, options.optimization_level);
+    const char *optimization_level = options.optimization_level;
+    if (!optimization_level)
+        optimization_level = c_compiler_is_gcc(c_compiler_command, options.c_compiler_override != NULL) ? "-O3" : "-O2";
+    argument_vector_push(&c_compiler_arguments, optimization_level);
     /* One section per function/variable so the linker's dead-strip pass (added
      * below) can drop the runtime and stdlib code the program never calls —
      * a trivial program links a fraction of libgrayrt.a instead of all of it.

@@ -1,0 +1,50 @@
+/*
+ * generic_func_param.gray - a func-typed parameter naming a generic
+ * parameter accepts a function whose signature matches the bound type.
+ */
+
+do apply(kind generic, f func(kind) -> kind, v kind) -> kind {
+    return f(v)
+}
+
+do produce(kind generic, f func() -> kind) -> kind {
+    return f()
+}
+
+do inc(x i64) -> i64 {
+    return x + 1
+}
+
+do shout(s string) -> string {
+    return "${s}!"
+}
+
+do seven() -> i64 {
+    return 7
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if apply(i64, ()inc, 1) == 2 && apply(string, ()shout, "hi") == "hi!" {
+        passed += 1
+    } otherwise {
+        println("[FAIL] func(kind) -> kind")
+        failed += 1
+    }
+
+    if produce(i64, ()seven) == 7 {
+        passed += 1
+    } otherwise {
+        println("[FAIL] func() -> kind")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,77 @@
+/*
+ * Test: http client sends one Content-Type (the caller's wins over the form
+ * default) and never sends a caller's Host, Content-Length or Connection
+ */
+
+import @net
+import @http
+import @strings
+import @threads
+
+const TEST_PORT i64 = 47217
+
+mut seen string = ""
+mut listener Listener
+
+do echo() {
+    mut conn, _ = net.accept(listener)
+    mut request, _ = net.receive(conn, 65536)
+    seen = strings.to_lower(request)
+    mut _, _ = net.send(conn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+    net.close(conn)
+}
+
+do post(headers map[string:string]) -> string {
+    mut server_thread = threads.spawn(()echo)
+    mut _, _ = http.post("http://127.0.0.1:47217/", "{\"a\": 1}", headers)
+    threads.join(server_thread)
+    return seen
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    mut json_headers map[string:string] = {"content-type": "application/json"}
+    mut json_request = post(json_headers)
+    if strings.count(json_request, "content-type:") == 1 && strings.contains(json_request, "content-type: application/json\r\n") {
+        println("  [PASS] caller Content-Type is sent once and wins over the default")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] caller Content-Type: ${json_request}")
+        failed += 1
+    }
+
+    mut no_headers map[string:string] = {:}
+    mut default_request = post(no_headers)
+    if strings.count(default_request, "content-type:") == 1 && strings.contains(default_request, "content-type: application/x-www-form-urlencoded\r\n") {
+        println("  [PASS] default Content-Type is sent when the caller names none")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] default Content-Type: ${default_request}")
+        failed += 1
+    }
+
+    mut managed_headers map[string:string] = {"Host": "evil.example", "CONTENT-LENGTH": "999", "connection": "keep-alive"}
+    mut managed_request = post(managed_headers)
+    if strings.count(managed_request, "host:") == 1 && !strings.contains(managed_request, "evil.example") &&
+       strings.count(managed_request, "content-length:") == 1 && !strings.contains(managed_request, "999") &&
+       strings.count(managed_request, "connection:") == 1 && !strings.contains(managed_request, "keep-alive") {
+        println("  [PASS] caller Host, Content-Length and Connection are not sent")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] managed headers: ${managed_request}")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

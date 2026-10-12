@@ -47,7 +47,7 @@ GrayArray gray_maps_get_values(GrayArena *arena, GrayMap *map) {
     return array;
 }
 
-bool gray_maps_has_key(GrayMap *map, const void *key) {
+bool gray_maps_contains_key(GrayMap *map, const void *key) {
     return gray_map_has(map, key);
 }
 

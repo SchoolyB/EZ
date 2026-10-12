@@ -1,8 +1,8 @@
 /*
  * fmt_formatting.gray - Integration tests for @fmt formatting functions
  * Tests: sprintf, pad_left, pad_right, center,
- *        i64_to_hex, i64_to_binary, i64_to_octal,
- *        f64_to_fixed, f64_to_scientific
+ *        sprintf %x, i64_to_binary, sprintf %o,
+ *        f64_to_fixed, sprintf %e
  */
 
 import @fmt
@@ -102,23 +102,23 @@ do main() {
         failed += 1
     }
 
-    // Test 10: i64_to_hex
-    mut hex string = fmt.i64_to_hex(255)
+    // Test 10: sprintf %x
+    mut hex string = fmt.sprintf("%x", {255})
     if hex == "ff" {
-        println("  [PASS] i64_to_hex")
+        println("  [PASS] sprintf %x")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_hex: got '${hex}'")
+        println("  [FAIL] sprintf %x: got '${hex}'")
         failed += 1
     }
 
-    // Test 11: i64_to_hex zero
-    mut hex0 string = fmt.i64_to_hex(0)
+    // Test 11: sprintf %x zero
+    mut hex0 string = fmt.sprintf("%x", {0})
     if hex0 == "0" {
-        println("  [PASS] i64_to_hex zero")
+        println("  [PASS] sprintf %x zero")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_hex zero: got '${hex0}'")
+        println("  [FAIL] sprintf %x zero: got '${hex0}'")
         failed += 1
     }
 
@@ -152,23 +152,23 @@ do main() {
         failed += 1
     }
 
-    // Test 15: i64_to_octal
-    mut oct string = fmt.i64_to_octal(8)
+    // Test 15: sprintf %o
+    mut oct string = fmt.sprintf("%o", {8})
     if oct == "10" {
-        println("  [PASS] i64_to_octal")
+        println("  [PASS] sprintf %o")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_octal: got '${oct}'")
+        println("  [FAIL] sprintf %o: got '${oct}'")
         failed += 1
     }
 
-    // Test 16: i64_to_octal zero
-    mut oct0 string = fmt.i64_to_octal(0)
+    // Test 16: sprintf %o zero
+    mut oct0 string = fmt.sprintf("%o", {0})
     if oct0 == "0" {
-        println("  [PASS] i64_to_octal zero")
+        println("  [PASS] sprintf %o zero")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_octal zero: got '${oct0}'")
+        println("  [FAIL] sprintf %o zero: got '${oct0}'")
         failed += 1
     }
 
@@ -192,23 +192,23 @@ do main() {
         failed += 1
     }
 
-    // Test 19: f64_to_scientific
-    mut fs string = fmt.f64_to_scientific(1230.0)
+    // Test 19: sprintf %e
+    mut fs string = fmt.sprintf("%e", {1230.0})
     if fs == "1.230000e+03" {
-        println("  [PASS] f64_to_scientific")
+        println("  [PASS] sprintf %e")
         passed += 1
     } otherwise {
-        println("  [FAIL] f64_to_scientific: got '${fs}'")
+        println("  [FAIL] sprintf %e: got '${fs}'")
         failed += 1
     }
 
-    // Test 20: f64_to_scientific small number
-    mut fs2 string = fmt.f64_to_scientific(0.00123)
+    // Test 20: sprintf %e small number
+    mut fs2 string = fmt.sprintf("%e", {0.00123})
     if fs2 == "1.230000e-03" {
-        println("  [PASS] f64_to_scientific small")
+        println("  [PASS] sprintf %e small")
         passed += 1
     } otherwise {
-        println("  [FAIL] f64_to_scientific small: got '${fs2}'")
+        println("  [FAIL] sprintf %e small: got '${fs2}'")
         failed += 1
     }
 

@@ -1,0 +1,7 @@
+// expect-contains: .gray:
+/* Panic Test: P0148 - csv.parse with text after a closing quote */
+import @csv
+
+do main() {
+    println(csv.parse("\"a\"b,c"))
+}

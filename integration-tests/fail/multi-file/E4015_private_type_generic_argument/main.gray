@@ -1,0 +1,10 @@
+// Error Test: E4015 - a private struct is unreachable from another file as
+// the type argument of a generic call, the same as in an annotation.
+// expect-error: E4015
+// expect-error-count: 1
+import "./lib"
+
+do main() {
+    mut hidden = lib.make(lib.Hidden)
+    println(hidden^.z)
+}

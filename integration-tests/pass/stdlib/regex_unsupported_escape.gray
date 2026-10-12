@@ -18,8 +18,9 @@ do main() {
     // is_match returns false rather than matching the literal letter
     if regex.is_match("\\d+", "order 42") == false { passed += 1 } otherwise { println("  [FAIL] \\d+ matched") }
 
-    // count treats it as an invalid pattern (0)
-    if regex.count("\\w+", "hello world") == 0 { passed += 1 } otherwise { println("  [FAIL] \\w+ counted") }
+    // count reports it as an invalid pattern
+    mut word_count, word_err = regex.count("\\w+", "hello world")
+    if word_count == 0 && word_err != nil { passed += 1 } otherwise { println("  [FAIL] \\w+ counted") }
 
     // fallible functions surface an error
     mut hits, err = regex.find_all("\\d+", "a 1 b 2")

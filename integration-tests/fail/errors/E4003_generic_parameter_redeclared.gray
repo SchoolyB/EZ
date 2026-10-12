@@ -1,0 +1,15 @@
+/*
+ * Error Test: E4003 - a local variable redeclares a generic parameter's name
+ * at the top level of the function body
+ * Expected: compile-time error on the declaration
+ */
+
+do pick(kind generic, value kind) -> kind {
+    mut kind i64 = 3
+    println(kind)
+    return value
+}
+
+do main() {
+    println(pick(string, "s"))
+}

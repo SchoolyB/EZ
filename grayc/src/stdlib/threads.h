@@ -138,19 +138,6 @@ int64_t gray_threads_id(void);
 /* Hint the scheduler to run another runnable thread. */
 void gray_threads_yield(void);
 
-/*@man sleep
- *@module threads
- *@group Control
- *@sig sleep(ms i64)
- *@desc Sleep the current thread for ms milliseconds.
- *@example
- *   import @threads
- *   threads.sleep(1000)
- *@end
- */
-/* Sleep the current thread for `ms` milliseconds. */
-void gray_threads_sleep(int64_t milliseconds);
-
 /*@man thread_count
  *@module threads
  *@group Query

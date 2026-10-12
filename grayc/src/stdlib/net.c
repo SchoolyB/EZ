@@ -38,18 +38,23 @@ GraySocket gray_net_dial(GrayArena *arena, GrayString host, int64_t port) {
     snprintf(port_text, sizeof(port_text), "%d", (int)port);
 
     if (getaddrinfo(host_buffer, port_text, &hints, &address_results) != 0) {
+        errno = ENOENT; /* the host did not resolve; getaddrinfo leaves errno alone */
         return sock;
     }
 
     int file_descriptor = socket(address_results->ai_family, address_results->ai_socktype, address_results->ai_protocol);
     if (file_descriptor < 0) {
+        int saved_errno = errno;
         freeaddrinfo(address_results);
+        errno = saved_errno;
         return sock;
     }
 
     if (connect(file_descriptor, address_results->ai_addr, address_results->ai_addrlen) != 0) {
+        int saved_errno = errno;
         gray_sock_close(file_descriptor);
         freeaddrinfo(address_results);
+        errno = saved_errno;
         return sock;
     }
 
@@ -64,24 +69,54 @@ void gray_net_close(GraySocket sock) {
     }
 }
 
-int64_t gray_net_send(GraySocket sock, GrayString data) {
-    if (sock.file_descriptor < 0 || !data.data) return -1;
-    int64_t sent = (int64_t)send(sock.file_descriptor, data.data, (int)data.len, 0);
-    return (int64_t)sent;
+/* Writes all of data, looping over short writes. Returns false when the
+ * system reports an error; *written then holds the bytes sent before it. */
+static bool net_send_all(GraySocket sock, GrayString data, int64_t *written) {
+    *written = 0;
+    if (sock.file_descriptor < 0 || !data.data) return false;
+    gray_sock_suppress_sigpipe(sock.file_descriptor);
+    while (*written < data.len) {
+        int64_t sent = (int64_t)send(sock.file_descriptor, data.data + *written, (int)(data.len - *written), GRAY_SEND_FLAGS);
+        if (sent < 0) {
+            if (errno == EINTR) continue;
+            return false;
+        }
+        *written += sent;
+    }
+    return true;
 }
 
-GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
+int64_t gray_net_send(GraySocket sock, GrayString data) {
+    int64_t written;
+    return net_send_all(sock, data, &written) ? written : -1;
+}
+
+/* Reads up to maximum_bytes. An empty result sets *error_number to the
+ * system error that ended the read, or 0 when the peer closed cleanly. */
+GrayString gray_net_recv_status(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number) {
+    *error_number = 0;
     if (sock.file_descriptor < 0 || maximum_bytes <= 0) return (GrayString){"", 0};
 
     size_t buffer_size = (size_t)maximum_bytes;
     if (buffer_size > GRAY_NET_MAX_RECEIVE_BUFFER_SIZE) buffer_size = GRAY_NET_MAX_RECEIVE_BUFFER_SIZE; /* cap at 1MB */
     char *buffer = gray_arena_alloc_uninitialized(arena, buffer_size + 1);
 
-    int64_t bytes_received = (int64_t)recv(sock.file_descriptor, buffer, (int)buffer_size, 0);
-    if (bytes_received <= 0) return (GrayString){"", 0};
+    int64_t bytes_received;
+    do {
+        bytes_received = (int64_t)recv(sock.file_descriptor, buffer, (int)buffer_size, 0);
+    } while (bytes_received < 0 && errno == EINTR);
+    if (bytes_received <= 0) {
+        if (bytes_received < 0) *error_number = errno;
+        return (GrayString){"", 0};
+    }
 
     buffer[bytes_received] = '\0';
     return (GrayString){buffer, (int32_t)bytes_received};
+}
+
+GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
+    int error_number;
+    return gray_net_recv_status(arena, sock, maximum_bytes, &error_number);
 }
 
 GraySocket gray_net_accept(GrayArena *arena, GraySocket listener) {
@@ -205,8 +240,7 @@ GrayResult_socket gray_net_accept_result(GrayArena *arena, GraySocket listener) 
 
 GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayString data) {
     GrayResult_i64 result;
-    result.v0 = gray_net_send(sock, data);
-    if (result.v0 < 0) {
+    if (!net_send_all(sock, data, &result.v0)) {
         result.v1 = gray_error_new(arena, gray_errno_code(errno), gray_string_format(arena, "send failed on fd %d", sock.file_descriptor));
     } else {
         result.v1 = NULL;
@@ -216,11 +250,17 @@ GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayStrin
 
 GrayResult_string gray_net_recv_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
     GrayResult_string result;
-    result.v0 = gray_net_recv(arena, sock, maximum_bytes);
-    if (result.v0.len == 0 && sock.file_descriptor >= 0) {
-        result.v1 = gray_error_new(arena, GRAY_ERR_Closed, gray_string_format(arena, "recv returned no data on fd %d", sock.file_descriptor));
+    int error_number;
+    result.v0 = gray_net_recv_status(arena, sock, maximum_bytes, &error_number);
+    result.v1 = NULL;
+    if (result.v0.len > 0 || sock.file_descriptor < 0) return result;
+    if (error_number == 0) {
+        result.v1 = gray_error_new(arena, GRAY_ERR_Closed, gray_string_format(arena, "connection closed by peer"));
+    } else if (error_number == EAGAIN || error_number == EWOULDBLOCK || error_number == ETIMEDOUT) {
+        /* The socket is blocking, so this is the set_timeout period elapsing. */
+        result.v1 = gray_error_new(arena, GRAY_ERR_Timeout, gray_string_format(arena, "receive timed out"));
     } else {
-        result.v1 = NULL;
+        result.v1 = gray_error_new(arena, gray_errno_code(error_number), gray_string_format(arena, "receive failed"));
     }
     return result;
 }

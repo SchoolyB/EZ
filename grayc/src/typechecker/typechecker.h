@@ -320,6 +320,11 @@ typedef struct {
      * codegen for other instantiations. */
     bool should_suppress_type_table_writes;
 
+    /* The variable whose initializer is being checked, and whether that
+     * initializer read a variable of the same name. */
+    const char *initialized_variable_name;
+    bool is_initializer_reading_own_name;
+
     /* Import tracking for unused import warnings */
     const char **imported_modules;
     const char **import_files;   /* source file each import came from (NULL = main) */

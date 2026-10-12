@@ -11,7 +11,7 @@ do add_name(s string) {
     arrays.append(names, s + "!")
 }
 
-do has_key(name string) -> bool {
+do contains_key(name string) -> bool {
     return keys[name] == 1
 }
 

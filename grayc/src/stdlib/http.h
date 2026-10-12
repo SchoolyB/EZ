@@ -20,7 +20,7 @@
  *@field status i64
  *@field body string
  *@field headers map[string:string]
- *@desc The response object returned by all http request functions. It is the same type server handlers return, so a handler can return one unchanged. Also available when the server module is imported.
+ *@desc The response object returned by all http request functions. Header names in headers are canonicalized: the first letter of each hyphen-separated word is uppercase and the rest lowercase. It is the same type server handlers return, so a handler can return one unchanged. Also available when the server module is imported.
  *@example
  *   import @http
  *   mut headers map[string:string] = {:}
@@ -40,7 +40,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig get(url string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP GET request to url with optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP GET request to url with optional custom headers. A response over 1 MB returns an OutOfRange Error; a chunked body is decoded, and a malformed one returns a ParseFailure Error. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Authorization": "Bearer token"}
@@ -54,7 +54,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig post(url string, body string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP POST request to url with the given body and optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP POST request to url with the given body and optional custom headers. Sends form-urlencoded as the Content-Type unless headers names one; Host, Content-Length and Connection in headers are not sent. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Content-Type": "application/json"}
@@ -67,7 +67,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig put(url string, body string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP PUT request to url with the given body and optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP PUT request to url with the given body and optional custom headers. Sends form-urlencoded as the Content-Type unless headers names one; Host, Content-Length and Connection in headers are not sent. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Content-Type": "application/json"}
@@ -80,7 +80,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig patch(url string, body string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP PATCH request to url with the given body and optional custom headers. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP PATCH request to url with the given body and optional custom headers. Sends form-urlencoded as the Content-Type unless headers names one; Host, Content-Length and Connection in headers are not sent. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Content-Type": "application/json"}

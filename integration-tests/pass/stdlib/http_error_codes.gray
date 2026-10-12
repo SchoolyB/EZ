@@ -1,0 +1,94 @@
+/*
+ * Test: each http request failure returns its own error code and a fixed
+ * message
+ */
+
+import @net
+import @http
+import @threads
+
+const TEST_PORT i64 = 47216
+
+mut canned string = ""
+mut hold bool = false
+mut listener Listener
+
+do serve() {
+    mut conn, _ = net.accept(listener)
+    mut _, _ = net.receive(conn, 65536)
+    if hold {
+        sleep_ms(11500)
+    } otherwise {
+        mut _, _ = net.send(conn, canned)
+    }
+    net.close(conn)
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+    mut no_headers map[string:string] = {:}
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    mut _, https_err = http.get("https://127.0.0.1:47216/", no_headers)
+    if https_err != nil && https_err.code == .Unsupported && https_err.msg == "https:// is not supported; use http://" {
+        println("  [PASS] https URL returns Unsupported")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] https URL")
+        failed += 1
+    }
+
+    mut _, url_err = http.get("ftp://127.0.0.1/", no_headers)
+    if url_err != nil && url_err.code == .InvalidInput && url_err.msg == "invalid URL: expected http:// scheme" {
+        println("  [PASS] malformed URL returns InvalidInput")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] malformed URL")
+        failed += 1
+    }
+
+    // Nothing listens on this port.
+    mut _, refused_err = http.get("http://127.0.0.1:47299/", no_headers)
+    if refused_err != nil && refused_err.code == .ConnectionRefused && refused_err.msg == "connection failed" {
+        println("  [PASS] refused connection returns ConnectionRefused")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] refused connection")
+        failed += 1
+    }
+
+    canned = "this is not an http response at all"
+    mut parse_thread = threads.spawn(()serve)
+    mut _, parse_err = http.get("http://127.0.0.1:47216/", no_headers)
+    threads.join(parse_thread)
+    if parse_err != nil && parse_err.code == .ParseFailure && parse_err.msg == "response is not an HTTP response" {
+        println("  [PASS] non-HTTP response returns ParseFailure")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-HTTP response")
+        failed += 1
+    }
+
+    hold = true
+    mut timeout_thread = threads.spawn(()serve)
+    mut _, timeout_err = http.get("http://127.0.0.1:47216/", no_headers)
+    threads.join(timeout_thread)
+    if timeout_err != nil && timeout_err.code == .Timeout && timeout_err.msg == "request timed out" {
+        println("  [PASS] read timeout returns Timeout")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read timeout")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

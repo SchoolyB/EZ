@@ -1,0 +1,7 @@
+// expect-contains: .gray:
+/* Panic Test: P0148 - csv.parse with an unterminated quote */
+import @csv
+
+do main() {
+    println(csv.parse("\"abc,def\nx,y"))
+}

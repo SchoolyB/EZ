@@ -1,0 +1,38 @@
+/*
+ * Warning Test: W3007 - deprecated struct and enum
+ * Expected: a warning at every reference to a #deprecated type — inside a
+ * container or pointer type, as the argument of new or size_of, as a generic
+ * type argument and as an alias target — not only in a plain annotation.
+ */
+
+#deprecated("use NewPoint")
+const OldPoint struct {
+    x i64
+}
+
+#deprecated("use NewMode")
+const OldMode enum {
+    FAST
+    SLOW
+}
+
+alias PointAlias = OldPoint // warning: OldPoint is deprecated
+
+do make(kind generic) -> ^kind {
+    return new(kind)
+}
+
+do main() {
+    mut created = new(OldPoint)               // warning
+    mut points [OldPoint] = {}                // warning
+    mut lookup map[string:OldPoint] = {:}     // warning
+    mut modes [OldMode] = {}                  // warning
+    mut pointer ^OldPoint = nil               // warning
+    mut generic_created = make(OldPoint)      // warning
+    println("${size_of(OldPoint) > 0}")       // warning
+    println("${size_of(OldMode) > 0}")        // warning
+    println("${created^.x} ${len(points)} ${len(lookup)} ${len(modes)}")
+    if pointer == nil && generic_created != nil {
+        println("ok")
+    }
+}

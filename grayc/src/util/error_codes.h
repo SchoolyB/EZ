@@ -524,7 +524,6 @@
     GRAY_PANIC("P0110", "strconv",    "strconv.format_i64: invalid base %lld; must be between 2 and 36") \
     GRAY_PANIC("P0111", "strconv",    "strconv.format_u64: invalid base %lld; must be between 2 and 36") \
     GRAY_PANIC("P0113", "bounds",     "binary.%s: byte array too short to decode; need %d bytes but have %d") \
-    GRAY_PANIC("P0114", "io",         "csv.read_file: input exceeds maximum string length") \
     GRAY_PANIC("P0115", "runtime",    "read of '%s' on a nil Error; check the error is non-nil before reading its fields") \
     GRAY_PANIC("P0116", "strings",    "string builder size exceeds maximum string length") \
     GRAY_PANIC("P0117", "memory",     "dereferenced a pointer into an arena that has been destroyed or reset") \
@@ -552,11 +551,14 @@
     GRAY_PANIC("P0140", "time",       "time: timestamp %lld is outside the range of dates that can be broken into parts") \
     GRAY_PANIC("P0141", "os",         "os.exec: the command or an argument contains an embedded null byte") \
     GRAY_PANIC("P0142", "json",       "json: a non-finite floating-point value (inf or nan) cannot be written as JSON") \
-    GRAY_PANIC("P0143", "csv",        "csv: a file path contains an embedded null byte") \
     GRAY_PANIC("P0144", "sqlite",     "sqlite: a database path or SQL statement contains an embedded null byte") \
     GRAY_PANIC("P0145", "time",       "time: a format, layout or text contains an embedded null byte") \
     GRAY_PANIC("P0146", "regex",      "regex: a pattern or text contains an embedded null byte") \
-    GRAY_PANIC("P0147", "arithmetic", "cast to %s failed; value '%.*s' does not match any variant of %s")
+    GRAY_PANIC("P0147", "arithmetic", "cast to %s failed; value '%.*s' does not match any variant of %s") \
+    GRAY_PANIC("P0148", "csv",        "csv: malformed quoting in row %d") \
+    GRAY_PANIC("P0149", "json",       "json.parse: input is not valid JSON") \
+    GRAY_PANIC("P0150", "json",       "json.parse: the JSON value is not %s") \
+    GRAY_PANIC("P0151", "json",       "json.parse: duplicate key '%.*s'")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

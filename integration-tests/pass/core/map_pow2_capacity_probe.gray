@@ -72,11 +72,11 @@ do main() {
     }
     mut churn_ok bool = true
     for i in range(1992, 2000) {
-        if !maps.has_key(churn, i) || churn[i] != i {
+        if !maps.contains_key(churn, i) || churn[i] != i {
             churn_ok = false
         }
     }
-    churn_ok = churn_ok && !maps.has_key(churn, 0) && !maps.has_key(churn, 1000)
+    churn_ok = churn_ok && !maps.contains_key(churn, 0) && !maps.contains_key(churn, 1000)
     if churn_ok {
         println("  [PASS] insert/remove churn keeps the live window intact")
         passed += 1
@@ -93,7 +93,7 @@ do main() {
     names["seven"] = "7"
     maps.remove_key(names, "four")
     mut str_ok bool = len(names) == 6 && names["one"] == "1" && names["seven"] == "7"
-    str_ok = str_ok && !maps.has_key(names, "four") && names["six"] == "6"
+    str_ok = str_ok && !maps.contains_key(names, "four") && names["six"] == "6"
     if str_ok {
         println("  [PASS] string-keyed odd-sized literal after add/remove")
         passed += 1

@@ -1,0 +1,13 @@
+// expect-contains: .gray:
+/* Panic Test: P0149 - json.parse with text after the document */
+import @json
+
+#json
+const Rec struct {
+    n i64
+}
+
+do main() {
+    mut r Rec = json.parse("{\"n\": 5} trailing")
+    println("${r.n}")
+}

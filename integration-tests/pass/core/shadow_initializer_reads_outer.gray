@@ -1,0 +1,54 @@
+/*
+ * shadow_initializer_reads_outer.gray - a declaration that shadows an outer
+ * variable can initialize itself from that outer variable.
+ */
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    outer = 5
+    outer_typed i64 = 7
+    names [string] = {"a", "b"}
+
+    if outer > 1 {
+        mut outer = outer
+        outer = outer + 1
+        mut outer_typed i64 = outer_typed + 1
+        mut names [string] = names
+        names[0] = "z"
+
+        if outer == 6 {
+            passed += 1
+        } otherwise {
+            println("[FAIL] inferred shadow reads outer")
+            failed += 1
+        }
+        if outer_typed == 8 {
+            passed += 1
+        } otherwise {
+            println("[FAIL] typed shadow reads outer")
+            failed += 1
+        }
+        if names[0] == "z" {
+            passed += 1
+        } otherwise {
+            println("[FAIL] array shadow holds its own copy")
+            failed += 1
+        }
+    }
+
+    if outer == 5 && outer_typed == 7 && names[0] == "a" {
+        passed += 1
+    } otherwise {
+        println("[FAIL] outer variables unchanged")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

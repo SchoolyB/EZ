@@ -11,5 +11,5 @@ const Holder struct {
 
 do main() {
     mut holder Holder = json.parse("{\"value\": 1e50}")
-    println(json.stringify(holder))
+    println(json.encode(holder))
 }

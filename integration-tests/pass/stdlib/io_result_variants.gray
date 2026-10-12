@@ -123,13 +123,13 @@ do main() {
         failed += 1
     }
 
-    // Test 12: rename_file error path
-    mut rok, rerr = io.rename_file("/tmp/gray_nonexistent_rename", "/tmp/gray_renamed")
+    // Test 12: move_file error path
+    mut rok, rerr = io.move_file("/tmp/gray_nonexistent_rename", "/tmp/gray_renamed")
     if rerr != nil {
-        println("  [PASS] rename_file error caught on nonexistent")
+        println("  [PASS] move_file error caught on nonexistent")
         passed += 1
     } otherwise {
-        println("  [FAIL] rename_file no error, ok=${rok}")
+        println("  [FAIL] move_file no error, ok=${rok}")
         failed += 1
     }
 

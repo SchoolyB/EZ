@@ -20,7 +20,7 @@ do main() {
     }
 
     mut longer [i64] = {255, 8, 99}
-    mut hex string = fmt.sprintfln("%x %o", longer)
+    mut hex string = fmt.sprintf("%x %o\n", longer)
     if hex == "ff 10\n" {
         println("  [PASS] extra elements past the directive count are not read")
         passed += 1

@@ -10,6 +10,7 @@
  */
 
 #include "chars.h"
+#include "ascii.h"
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -21,6 +22,13 @@ int32_t gray_chars_to_upper(int32_t codepoint) {
 int32_t gray_chars_to_lower(int32_t codepoint) {
     return (codepoint >= 'A' && codepoint <= 'Z') ? codepoint + ('a' - 'A') : codepoint;
 }
+
+bool gray_chars_is_alpha(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_alpha((unsigned char)codepoint); }
+bool gray_chars_is_digit(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_digit((unsigned char)codepoint); }
+bool gray_chars_is_alnum(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_alnum((unsigned char)codepoint); }
+bool gray_chars_is_whitespace(int32_t codepoint) { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_space((unsigned char)codepoint); }
+bool gray_chars_is_upper(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_upper((unsigned char)codepoint); }
+bool gray_chars_is_lower(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_lower((unsigned char)codepoint); }
 
 bool gray_chars_is_ascii(int32_t codepoint) {
     return codepoint >= 0 && codepoint <= 0x7F;

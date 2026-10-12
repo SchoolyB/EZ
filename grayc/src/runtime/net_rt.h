@@ -33,6 +33,9 @@ typedef int gray_socklen_t;
 #define gray_sock_timeout_value(milliseconds, out) (*(out) = (DWORD)(milliseconds))
 #define gray_sock_timeout_arg(timeout) ((const char *)&(timeout))
 
+#define GRAY_SEND_FLAGS 0
+static inline void gray_sock_suppress_sigpipe(int file_descriptor) { (void)file_descriptor; }
+
 /* Winsock needs process-wide initialization before any socket call, and every
  * public entry point in these modules may be the first one reached. */
 static inline void gray_net_startup(void) {
@@ -65,6 +68,24 @@ typedef socklen_t gray_socklen_t;
 #define gray_sock_timeout_arg(timeout) (&(timeout))
 
 static inline void gray_net_startup(void) {}
+
+/* A write to a peer that has gone must come back as an error, not kill the
+ * process with SIGPIPE. Linux takes a per-call flag; macOS and the BSDs take a
+ * per-socket option, set before each write. */
+#ifdef MSG_NOSIGNAL
+#define GRAY_SEND_FLAGS MSG_NOSIGNAL
+static inline void gray_sock_suppress_sigpipe(int file_descriptor) { (void)file_descriptor; }
+#else
+#define GRAY_SEND_FLAGS 0
+static inline void gray_sock_suppress_sigpipe(int file_descriptor) {
+#ifdef SO_NOSIGPIPE
+    int enabled = 1;
+    setsockopt(file_descriptor, SOL_SOCKET, SO_NOSIGPIPE, &enabled, sizeof(enabled));
+#else
+    (void)file_descriptor;
+#endif
+}
+#endif
 
 #endif
 

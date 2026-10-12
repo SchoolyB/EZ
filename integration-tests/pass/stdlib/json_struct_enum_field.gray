@@ -1,7 +1,7 @@
 /*
  * json_struct_enum_field.gray - #json struct enum fields, serialized by
  * backing type: an integer-backed enum as a JSON number, a string-backed enum
- * as a JSON string. Covers stringify, parse, and round-trip for both, plus
+ * as a JSON string. Covers encode, parse, and round-trip for both, plus
  * parsing an array of a #json struct that has an enum field.
  */
 
@@ -36,12 +36,12 @@ do main() {
 
     // ==================== integer-backed enum ====================
     mut t Task = Task{name: "deploy", priority: Priority.HIGH}
-    mut tjs string = json.stringify(t)
+    mut tjs string = json.encode(t)
     if tjs == "{\"name\": \"deploy\", \"priority\": 1}" {
-        println("  [PASS] stringify integer-backed enum field")
+        println("  [PASS] encode integer-backed enum field")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify integer-backed enum field: got ${tjs}")
+        println("  [FAIL] encode integer-backed enum field: got ${tjs}")
         failed += 1
     }
 
@@ -55,7 +55,7 @@ do main() {
     }
 
     mut t_low Task = Task{name: "cleanup", priority: Priority.LOW}
-    mut t_low_back Task = json.parse(json.stringify(t_low))
+    mut t_low_back Task = json.parse(json.encode(t_low))
     if t_low_back.priority == Priority.LOW {
         println("  [PASS] round-trip integer-backed enum field, other variant")
         passed += 1
@@ -66,12 +66,12 @@ do main() {
 
     // ==================== string-backed enum ====================
     mut a Account = Account{name: "Alice", role: Role.ADMIN}
-    mut ajs string = json.stringify(a)
+    mut ajs string = json.encode(a)
     if ajs == "{\"name\": \"Alice\", \"role\": \"admin\"}" {
-        println("  [PASS] stringify string-backed enum field")
+        println("  [PASS] encode string-backed enum field")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify string-backed enum field: got ${ajs}")
+        println("  [FAIL] encode string-backed enum field: got ${ajs}")
         failed += 1
     }
 
@@ -85,7 +85,7 @@ do main() {
     }
 
     mut a_user Account = Account{name: "Bob", role: Role.USER}
-    mut a_user_back Account = json.parse(json.stringify(a_user))
+    mut a_user_back Account = json.parse(json.encode(a_user))
     if a_user_back.role == Role.USER {
         println("  [PASS] round-trip string-backed enum field, other variant")
         passed += 1

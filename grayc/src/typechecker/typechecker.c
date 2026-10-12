@@ -2850,10 +2850,12 @@ static void warn_if_enum_deprecated(TypeChecker *checker, AstNode *node, int enu
         checker->enum_deprecated_messages[enum_index]);
 }
 
-/* Check a declared type-name string (var-decl / param / return / field
- * annotation) against the struct and enum registries and warn if it
- * names a deprecated one. Bare names only — [Old]/^Old wrappers are not
- * unwrapped, matching the scope of this pass.
+static bool type_name_components(const char *written, char component[2][MESSAGE_BUFFER_SIZE],
+                                 int *out_count);
+
+/* Check a written type name (annotation, `new`/`size_of` argument, generic
+ * type argument, alias target) against the struct and enum registries and
+ * warn if it names a deprecated one, at any depth of ^T, [T] and map[K:V].
  *
  * self_struct_name: pass the enclosing struct's own name when checking a
  * struct-scoped function's param/return types, so a deprecated struct's
@@ -2865,6 +2867,13 @@ static void warn_if_type_name_deprecated(TypeChecker *checker, AstNode *node, co
     const char *self_struct_name) {
     if (!type_name) return;
     if (self_struct_name && strcmp(type_name, self_struct_name) == 0) return;
+    char component[2][MESSAGE_BUFFER_SIZE];
+    int component_count;
+    if (type_name_components(type_name, component, &component_count)) {
+        for (int i = 0; i < component_count; i++)
+            warn_if_type_name_deprecated(checker, node, component[i], self_struct_name);
+        return;
+    }
     StructInfo *struct_info = find_struct(checker, type_name);
     if (struct_info) {
         warn_if_struct_deprecated(checker, node, struct_info);
@@ -3144,11 +3153,17 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"channels", "try_send",    2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_CHANNEL}, {1, EXPECTED_ARGUMENT_I64}}, "bool"},
     /* chars */
     {"chars", "escape",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "string"},
+    {"chars", "is_alnum", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_alpha", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_ascii",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_control",   1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_digit", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_hex_digit", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_lower", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_printable", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_punct",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_upper", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_whitespace", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_word_char", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "string_width", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"chars", "to_lower",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "char"},
@@ -3175,13 +3190,9 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"csv", "headers",    1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "[string]"},
     {"csv", "parse",      1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_STRING}}, "[[string]]"},
     {"csv", "parse_delimited", 2, 2, false, FALLIBLE_TYPE_NONE,           2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_CHAR}}, "[[string]]"},
-    {"csv", "read_file",  1, 1, true,  FALLIBLE_TYPE_NESTED_ARRAY_STRING, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "[[string]]"},
     {"csv", "select",     2, 2, false, FALLIBLE_TYPE_NONE,                2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_ARRAY}}, "[[string]]"},
     {"csv", "sort_by_column", 2, 2, false, FALLIBLE_TYPE_NONE,            2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_STRING}}, "[[string]]"},
-    {"csv", "to_json",    1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "string"},
     {"csv", "to_maps",    1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "[map[string:string]]"},
-    {"csv", "to_markdown", 1, 1, false, FALLIBLE_TYPE_NONE,               1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "string"},
-    {"csv", "write_file", 2, 2, true,  FALLIBLE_TYPE_BOOL,                2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_ARRAY}}, "bool"},
     /* encoding */
     {"encoding", "base64_decode", 1, 1, true,  FALLIBLE_TYPE_STRING, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"encoding", "base64_encode", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
@@ -3199,18 +3210,14 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"fmt", "eprintf",       2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "eprintfln",     2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "f64_to_fixed",  2, 2,  false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_NUMBER}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"fmt", "f64_to_scientific", 1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_NUMBER}}, "string"},
     {"fmt", "format_bytes",  1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"fmt", "format_number", 1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"fmt", "i64_to_binary", 1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"fmt", "i64_to_hex",    1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"fmt", "i64_to_octal",  1, 1,  false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
     {"fmt", "pad_left",      3, 3,  false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_CHAR}}, "string"},
     {"fmt", "pad_right",     3, 3,  false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_CHAR}}, "string"},
     {"fmt", "printf",        2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "printfln",      2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"fmt", "sprintf",       2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
-    {"fmt", "sprintfln",     2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     /* http */
     {"http", "delete", 2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
     {"http", "get",    2, 2, true, FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_MAP}}, "HttpResponse"},
@@ -3246,7 +3253,6 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"io", "read_stdin_bytes", 0, 0, false, FALLIBLE_TYPE_NONE,       0, {{0}},"[u8]"},
     {"io", "remove_dir",     1, 1, true,  FALLIBLE_TYPE_BOOL,         1, {{0, EXPECTED_ARGUMENT_STRING}}, "bool"},
     {"io", "remove_dir_all", 1, 1, true,  FALLIBLE_TYPE_BOOL,         1, {{0, EXPECTED_ARGUMENT_STRING}}, "bool"},
-    {"io", "rename_file",    2, 2, true,  FALLIBLE_TYPE_BOOL,         2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "bool"},
     {"io", "temp_dir",       0, 0, true,  FALLIBLE_TYPE_STRING,       0, {{0}},"string"},
     {"io", "temp_file",      0, 0, true,  FALLIBLE_TYPE_STRING,       0, {{0}},"string"},
     {"io", "walk",           1, 1, true,  FALLIBLE_TYPE_ARRAY_STRING, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "[string]"},
@@ -3258,14 +3264,13 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"json", "is_valid",     1, 1, false, FALLIBLE_TYPE_NONE,       1, {{0, EXPECTED_ARGUMENT_STRING}}, "bool"},
     {"json", "parse",        1, 1, false, FALLIBLE_TYPE_NONE,       1, {{0, EXPECTED_ARGUMENT_STRING}}, NULL},
     {"json", "pretty_print", 2, 2, false, FALLIBLE_TYPE_NONE,       2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
-    {"json", "stringify",    1, 1, false, FALLIBLE_TYPE_NONE,       0, {{0}},"string"},
     /* maps */
     {"maps", "clear",          1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "void"},
+    {"maps", "contains_key",   2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "bool"},
     {"maps", "contains_value", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, "bool"},
     {"maps", "get_keys",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
     {"maps", "get_or_default", 3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}, {2, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, NULL},
     {"maps", "get_values",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
-    {"maps", "has_key",        2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "bool"},
     {"maps", "is_empty",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "bool"},
     {"maps", "is_equal",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_MAP}}, "bool"},
     {"maps", "merge",          2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_SAME_AS_FIRST}}, NULL},
@@ -3369,7 +3374,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"random", "seed",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "void"},
     {"random", "shuffle",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "$0"},
     /* regex */
-    {"regex", "count",    2, 2, false, FALLIBLE_TYPE_NONE,         2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "i64"},
+    {"regex", "count",    2, 2, true,  FALLIBLE_TYPE_I64,          2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"regex", "escape",   1, 1, false, FALLIBLE_TYPE_NONE,         1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"regex", "find",     2, 2, true,  FALLIBLE_TYPE_STRING,       2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"regex", "find_all", 2, 2, true,  FALLIBLE_TYPE_ARRAY_STRING, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "[string]"},
@@ -3447,13 +3452,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"strings", "from_chars",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "string"},
     {"strings", "index_of",      2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"strings", "insert_char_at", 3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_CHAR}}, "string"},
-    {"strings", "is_alnum",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
-    {"strings", "is_alpha",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
-    {"strings", "is_digit",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"strings", "is_empty",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "bool"},
-    {"strings", "is_lower",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
-    {"strings", "is_upper",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
-    {"strings", "is_whitespace", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"strings", "join",          2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"strings", "last_index_of", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"strings", "prepend_char",  2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_CHAR}}, "string"},
@@ -3493,7 +3492,6 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"threads", "get_id",       0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"i64"},
     {"threads", "is_alive",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_THREAD}}, "bool"},
     {"threads", "join",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_THREAD}}, "void"},
-    {"threads", "sleep",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "void"},
     {"threads", "spawn",        1, 1, false, FALLIBLE_TYPE_NONE, 0, {{0}},"Thread"},
     {"threads", "spawn_arg",    2, 2, false, FALLIBLE_TYPE_NONE, 0, {{0}},"Thread"},
     {"threads", "thread_count", 0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"i64"},
@@ -3536,7 +3534,6 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"uuid", "generate",              0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"UUID"},
     {"uuid", "generate_compact",      1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_UUID}}, "string"},
     {"uuid", "generate_v5",           2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_UUID}, {1, EXPECTED_ARGUMENT_STRING}}, "UUID"},
-    {"uuid", "generate_random",       0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"UUID"},
     {"uuid", "generate_time_ordered", 0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"UUID"},
     {"uuid", "is_valid",              1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "bool"},
     {"uuid", "parse",                 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "UUID"},
@@ -5907,21 +5904,51 @@ static bool literal_entry_mismatches(TypeChecker *checker, GrayType *expected, G
     return !types_assignable(checker, expected, actual);
 }
 
+/* The value a map key or `when` case denotes when it is a compile-time
+ * constant, as a string that is equal exactly when the values are: a string,
+ * char or bool literal, an enum variant, or a constant number expression
+ * (negative, hex, a const integer's name). False when `node` is not one. */
+static bool constant_case_key(TypeChecker *checker, AstNode *node, char *buffer, size_t capacity) {
+    if (!node) return false;
+    switch (node->kind) {
+    case NODE_STRING_VALUE:
+        snprintf(buffer, capacity, "s:%s", node->data.string_value.value);
+        return true;
+    case NODE_CHAR_VALUE:
+        snprintf(buffer, capacity, "c:%d", (int)node->data.char_value.value);
+        return true;
+    case NODE_BOOL_VALUE:
+        snprintf(buffer, capacity, "b:%d", node->data.bool_value.value ? 1 : 0);
+        return true;
+    case NODE_IMPLICIT_ENUM:
+        snprintf(buffer, capacity, "e:%s", node->data.implicit_enum.variant);
+        return true;
+    case NODE_MEMBER_EXPRESSION:
+        if (node->data.member.object && node->data.member.object->kind == NODE_LABEL &&
+            is_enum_name(checker, resolve_type_alias(checker, node->data.member.object->data.label.value))) {
+            snprintf(buffer, capacity, "e:%s", node->data.member.member);
+            return true;
+        }
+        return false;
+    default: {
+        LiteralValue value;
+        if (!constant_fold(checker, node, &value) || value.is_too_large) return false;
+        snprintf(buffer, capacity, "n:%s", literal_text(checker, &value));
+        return true;
+    }
+    }
+}
+
 /* E12006: a map literal that repeats a key. */
 static void check_map_literal_duplicate_keys(TypeChecker *checker, AstNode *node) {
     for (int i = 0; i < node->data.map_value.count; i++) {
-        AstNode *left_key = node->data.map_value.keys[i];
+        char left_key_text[MESSAGE_BUFFER_SIZE];
+        if (!constant_case_key(checker, node->data.map_value.keys[i], left_key_text, sizeof(left_key_text))) continue;
         for (int j = i + 1; j < node->data.map_value.count; j++) {
             AstNode *right_key = node->data.map_value.keys[j];
-            bool is_duplicate = false;
-            if (left_key->kind == NODE_STRING_VALUE && right_key->kind == NODE_STRING_VALUE &&
-                strcmp(left_key->data.string_value.value, right_key->data.string_value.value) == 0) {
-                is_duplicate = true;
-            } else if (left_key->kind == NODE_INTEGER_LITERAL && right_key->kind == NODE_INTEGER_LITERAL &&
-                left_key->data.integer_literal.value == right_key->data.integer_literal.value) {
-                is_duplicate = true;
-            }
-            if (is_duplicate) {
+            char right_key_text[MESSAGE_BUFFER_SIZE];
+            if (constant_case_key(checker, right_key, right_key_text, sizeof(right_key_text)) &&
+                strcmp(left_key_text, right_key_text) == 0) {
                 NODE_ERROR(checker, right_key, "E12006");
             }
         }
@@ -6515,15 +6542,24 @@ static bool json_encodable_scalar(const GrayType *type) {
     }
 }
 
-/* What json.encode() accepts: a primitive, a flat array of primitives, or a
- * string-keyed map of primitives. Anything else (struct, opaque type, nested
- * array, array/map of aggregates, non-string map key) reaches codegen with no
- * path for it and crashes or emits garbage. */
-static bool type_is_json_encodable(const GrayType *type) {
+static bool struct_name_has_json_attribute(TypeChecker *checker, const char *struct_name);
+
+/* What json.encode() accepts: a primitive, a flat array of primitives, a
+ * string-keyed map of primitives, or a #json struct or an array of one.
+ * Anything else (plain struct, opaque type, nested array, array/map of
+ * aggregates, non-string map key) reaches codegen with no path for it and
+ * crashes or emits garbage. */
+static bool type_is_json_encodable(TypeChecker *checker, const GrayType *type) {
     if (!type || type->kind == TYPE_KIND_UNKNOWN) return true; /* can't judge yet */
     if (json_encodable_scalar(type)) return true;
-    if (type->kind == TYPE_KIND_ARRAY)
-        return type->element_type && json_encodable_scalar(type_from_name(type->element_type));
+    if (type->kind == TYPE_KIND_STRUCT) return struct_name_has_json_attribute(checker, type->name);
+    if (type->kind == TYPE_KIND_ARRAY) {
+        if (!type->element_type) return false;
+        GrayType *element_type = type_from_name(type->element_type);
+        if (element_type && element_type->kind == TYPE_KIND_STRUCT)
+            return struct_name_has_json_attribute(checker, element_type->name);
+        return json_encodable_scalar(element_type);
+    }
     if (type->kind == TYPE_KIND_MAP)
         return type->key_type && strcmp(type->key_type, "string") == 0 &&
                type->value_type && json_encodable_scalar(type_from_name(type->value_type));
@@ -6544,11 +6580,11 @@ static bool csv_array_element_is_valid(const GrayType *type) {
 }
 
 /* True when a struct type by this name carries the #json attribute — the
- * only shape json.parse()/json.stringify() can actually process.
+ * only shape json.parse()/json.encode() can actually process.
  * gray_json_parse_<Name> is only generated for a #json struct, and
- * stringify's field-walking codegen only exists for one; anything else
+ * encode's field-walking codegen only exists for one; anything else
  * falls back to a raw GrayMap decode (parse) or emits no fields at all
- * (stringify). */
+ * (encode). */
 static bool struct_name_has_json_attribute(TypeChecker *checker, const char *struct_name) {
     if (!struct_name) return false;
     AstNode *struct_declaration = find_struct_in_program(checker, struct_name);
@@ -6567,7 +6603,7 @@ static bool json_field_type_supported(TypeChecker *checker, const char *type_nam
 }
 
 /* True when `t` is a #json struct, an array of one, or a map — the only
- * target/argument shapes json.parse()/json.stringify() can process. A map
+ * target/argument shapes json.parse()/json.encode() can process. A map
  * target/argument goes through the dedicated map-based fallback
  * (gray_json_decode / gray_json_encode_map), which is a genuinely valid
  * path, not a mistake — only a bare scalar, a non-#json struct, or an
@@ -6971,7 +7007,7 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
 static bool is_printf_function_name(const char *name) {
     return strcmp(name, "printf") == 0 || strcmp(name, "printfln") == 0 ||
            strcmp(name, "eprintf") == 0 || strcmp(name, "eprintfln") == 0 ||
-           strcmp(name, "sprintf") == 0 || strcmp(name, "sprintfln") == 0;
+           strcmp(name, "sprintf") == 0;
 }
 
 /* Returns what a printf directive expects when `value_type` does not satisfy
@@ -7338,27 +7374,14 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
         }
     } else if (strcmp(module_name, "json") == 0) {
         /* E5026: json.encode only serializes scalars, flat arrays of scalars,
-         * and string-keyed maps of scalars. */
+         * string-keyed maps of scalars, and #json structs (or arrays of one). */
         if (strcmp(member_function_name, "encode") == 0 && node->data.call.argument_count >= 1) {
             AstNode *first_argument = node->data.call.arguments[0];
             GrayType *first_argument_type = resolve_expression(checker, first_argument);
-            if (!type_is_json_encodable(first_argument_type)) {
+            if (!type_is_json_encodable(checker, first_argument_type)) {
                 typechecker_error_argument_type(checker, first_argument, 1, "json.encode",
-                    "a primitive, a flat array of primitives, or a string-keyed map of primitives",
+                    "a primitive, a flat array of primitives, a string-keyed map of primitives, or a #json struct (or an array of one)",
                     type_name(first_argument_type));
-            }
-        }
-        /* E3174: json.stringify()'s argument must be a #json struct (or
-         * array of one) — its field-walking codegen only exists for one;
-         * anything else (a plain struct, a bare primitive, ...) compiles
-         * and runs clean, silently producing "{}" with none of the
-         * value's data. */
-        if (strcmp(member_function_name, "stringify") == 0 && node->data.call.argument_count >= 1) {
-            AstNode *first_argument = node->data.call.arguments[0];
-            GrayType *first_argument_type = resolve_expression(checker, first_argument);
-            if (first_argument_type && first_argument_type->kind != TYPE_KIND_UNKNOWN && !type_is_json_struct_or_array(checker, first_argument_type)) {
-                NODE_ERROR_FORMATTED(checker, first_argument, "E3174",
-                    type_display_name(checker, first_argument_type), "stringify");
             }
         }
     } else if (strcmp(module_name, "csv") == 0) {
@@ -7540,6 +7563,11 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
         typechecker_error_undefined_type(checker, type_argument, label);
         return NULL;
     }
+    /* E4015/E4021: the type argument is a written type name like any annotation. */
+    if (private_type_leaf(checker, label)) {
+        reject_private_type(checker, type_argument, label);
+        return NULL;
+    }
     /* Bind what the name reaches, not the alias spelling. The instantiation is
      * mangled and substituted by binding, so an alias bound as itself gave a
      * return type no annotation of the underlying type would accept. */
@@ -7548,6 +7576,7 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
         label = target;
         type_argument->data.label.value = target;
     }
+    warn_if_type_name_deprecated(checker, type_argument, label, NULL);
     return label;
 }
 
@@ -7607,6 +7636,11 @@ static GrayType *resolve_generic_call(TypeChecker *checker, AstNode *node,
             if (argument_type && argument_type->kind == TYPE_KIND_C_FUNCTION) {
                 typechecker_error_argument_type(checker, argument, argument_index + 1,
                     function_name, "a typed value", "a C interop value");
+                continue;
+            }
+            if (function_types_mismatch(checker, argument_type, expected_type)) {
+                NODE_ERROR_FORMATTED(checker, argument, "E3066",
+                    type_display_name(checker, expected_type), type_display_name(checker, argument_type));
                 continue;
             }
             if (!generic_argument_conflicts(checker, expected_type, argument_type)) continue;
@@ -8796,6 +8830,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
                      * path understands: a label holding the registry name. */
                     const char *resolved = resolve_type_alias(checker,
                         checker_resolve_type_name(checker, written));
+                    warn_if_type_name_deprecated(checker, argument, resolved, NULL);
                     if (argument->kind != NODE_LABEL || strcmp(resolved, written) != 0) {
                         AstNode *label = ast_allocate(checker->arena, NODE_LABEL, argument->token);
                         label->data.label.value = resolved;
@@ -11767,6 +11802,9 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
 
     case NODE_LABEL: {
         const char *name = node->data.label.value;
+        if (checker->initialized_variable_name && strcmp(name, checker->initialized_variable_name) == 0 &&
+            scope_lookup(checker->current_scope, name))
+            checker->is_initializer_reading_own_name = true;
 
         /* A type parameter's name used as a value (new(T), size_of(T)) is the
          * type it is bound to, or unknown during the main pass. */
@@ -12458,6 +12496,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         new_type = resolve_type_alias(checker, new_type);
         node->data.new_expression.type_name = new_type;
         typechecker_mark_type_module_used(checker, new_type);
+        warn_if_type_name_deprecated(checker, node, new_type, NULL);
         GrayType *narrowed_type = type_from_name(new_type);
         bool known = is_struct_name(checker, new_type) ||
                      is_enum_name(checker, new_type) ||
@@ -13891,6 +13930,14 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
             NODE_ERROR_FORMATTED(checker, node, "E4003",
                 VARIABLE_DISPLAY_NAME(node), existing->definition_line != 0 ? existing->definition_line : existing->parameter_line);
         }
+        /* A `generic` parameter is not a scope symbol, but its name is as
+         * taken at the top level of the body as an ordinary parameter's. */
+        if (!existing && checker->current_function_declaration &&
+            checker->current_scope->depth + 1 == checker->current_function_scope_depth &&
+            generic_bindings_find(&checker->generics, node->data.variable_declaration.name) >= 0) {
+            NODE_ERROR_FORMATTED(checker, node, "E4003",
+                VARIABLE_DISPLAY_NAME(node), checker->current_function_declaration->token.line);
+        }
         /* W2002/W2007: check if variable shadows outer scope */
         if (!existing && checker->current_scope->parent) {
             Symbol *outer_symbol = scope_lookup(checker->current_scope->parent,
@@ -14328,7 +14375,16 @@ static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
 
     reject_non_json_parse_target(checker, node, node->data.variable_declaration.value, declared);
 
-    declared = check_variable_declaration_initializer(checker, node, declared);
+    {
+        const char *saved_name = checker->initialized_variable_name;
+        bool saved_read = checker->is_initializer_reading_own_name;
+        checker->initialized_variable_name = node->data.variable_declaration.name;
+        checker->is_initializer_reading_own_name = false;
+        declared = check_variable_declaration_initializer(checker, node, declared);
+        node->data.variable_declaration.shadows_own_initializer = checker->is_initializer_reading_own_name;
+        checker->initialized_variable_name = saved_name;
+        checker->is_initializer_reading_own_name = saved_read;
+    }
     check_const_integer_value(checker, node);
 
     /* E3062 (): handle types (channels, mutexes, threads)
@@ -16693,12 +16749,12 @@ static const char *when_case_variant_name(AstNode *value_node) {
 /* True when two when/is case values select the same case. Enum variants are
  * compared by name (the subject type already constrains every case to one
  * enum, so `Color.RED` and `.RED` are the same case). */
-static bool when_case_values_equal(AstNode *left, AstNode *right) {
+static bool when_case_values_equal(TypeChecker *checker, AstNode *left, AstNode *right) {
     if (!left || !right) return false;
-    if (left->kind == NODE_INTEGER_LITERAL && right->kind == NODE_INTEGER_LITERAL)
-        return left->data.integer_literal.value == right->data.integer_literal.value;
-    if (left->kind == NODE_STRING_VALUE && right->kind == NODE_STRING_VALUE)
-        return strcmp(left->data.string_value.value, right->data.string_value.value) == 0;
+    char left_key[MESSAGE_BUFFER_SIZE], right_key[MESSAGE_BUFFER_SIZE];
+    if (constant_case_key(checker, left, left_key, sizeof(left_key)) &&
+        constant_case_key(checker, right, right_key, sizeof(right_key)))
+        return strcmp(left_key, right_key) == 0;
     const char *left_value = when_case_variant_name(left);
     const char *right_value = when_case_variant_name(right);
     return left_value && right_value && strcmp(left_value, right_value) == 0;
@@ -16775,7 +16831,7 @@ static void check_when_statement(TypeChecker *checker, AstNode *node) {
             for (int earlier_case_index = 0; earlier_case_index <= i && !flagged; earlier_case_index++) {
                 int earlier_value_limit = (earlier_case_index == i) ? j : node->data.when_statement.cases[earlier_case_index].value_count;
                 for (int earlier_value_index = 0; earlier_value_index < earlier_value_limit; earlier_value_index++) {
-                    if (when_case_values_equal(value_node, node->data.when_statement.cases[earlier_case_index].values[earlier_value_index])) {
+                    if (when_case_values_equal(checker, value_node, node->data.when_statement.cases[earlier_case_index].values[earlier_value_index])) {
                         NODE_ERROR(checker, value_node, "E2043");
                         flagged = true;
                         break;
@@ -17300,6 +17356,8 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
         if (checker->function_depth > 0) {
             NODE_ERROR_FORMATTED(checker, node, "E2053", "alias", node->data.alias_declaration.name);
         }
+        warn_if_type_name_deprecated(checker, node,
+            checker_resolve_type_name(checker, node->data.alias_declaration.target_type), NULL);
         break;
 
     case NODE_WHEN_STATEMENT:

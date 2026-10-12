@@ -1,8 +1,7 @@
 /*
  * csv_records_c.gray - Integration test for the csv record/format functions
  * added in to_maps, from_maps, column, select,
- * filter_rows, sort_by_column, parse_delimited, detect_delimiter, to_json,
- * to_markdown.
+ * filter_rows, sort_by_column, parse_delimited, detect_delimiter.
  */
 
 import @csv
@@ -107,17 +106,6 @@ do main() {
         println("  [FAIL] detect_delimiter default")
         failed += 1
     }
-
-    // -- to_json --
-    check("to_json", csv.to_json(rows),
-        "[{\"name\":\"Ada\",\"age\":\"36\"},{\"name\":\"Bob\",\"age\":\"12\"},{\"name\":\"Cy\",\"age\":\"20\"}]",
-        passed, failed)
-
-    // -- to_markdown --
-    check("to_markdown", csv.to_markdown(csv.parse("a,b\n1,2")),
-        "|a|b|\n|---|---|\n|1|2|\n", passed, failed)
-    check("to_markdown escapes pipe", csv.to_markdown(csv.parse("h\nx|y")),
-        "|h|\n|---|\n|x\\|y|\n", passed, failed)
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")

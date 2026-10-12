@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - json.stringify was removed
+ * Expected: json no longer recognises stringify; use json.encode
+ */
+
+// expect-error: E4005
+
+import @json
+
+do main() {
+    mut result string = json.stringify(1)
+}

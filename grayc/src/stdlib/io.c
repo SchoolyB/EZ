@@ -348,11 +348,8 @@ GrayString gray_io_normalize(GrayArena *arena, GrayString path) {
 /* Read an already-opened file into a GrayString. Tries seek-based sizing
  * first, falls back to streaming for non-seekable inputs (pipes, /proc,
  * /dev/stdin). Returns {NULL, -1} if the file exceeds INT32_MAX. Caller
- * is responsible for fclose.
- *
- * Not static: csv.c's gray_csv_read/gray_csv_read_result share this
- * instead of re-deriving the same seek/streaming logic. */
-GrayString gray_io_read_file_impl(GrayArena *arena, FILE *file) {
+ * is responsible for fclose. */
+static GrayString gray_io_read_file_impl(GrayArena *arena, FILE *file) {
     long size = -1;
     if (fseek(file, 0, SEEK_END) == 0) {
         size = ftell(file);
@@ -500,12 +497,6 @@ bool gray_io_append_bytes(GrayString path, GrayArray data) {
     if (!file) return false;
     size_t written = fwrite(data.data, 1, (size_t)data.len, file);
     return io_close_written(file, written == (size_t)data.len);
-}
-
-bool gray_io_rename_file(GrayString old_path, GrayString new_path) {
-    validate_path(old_path);
-    validate_path(new_path);
-    return rename(old_path.data, new_path.data) == 0;
 }
 
 /* ---- New file operations ---- */
@@ -738,11 +729,6 @@ GrayResult_bool gray_io_append_file_result(GrayArena *arena, GrayString path, Gr
     }
     GRAY_RESULT_WRAP_BOOL(arena, gray_io_append_file(path, content), gray_errno_code(errno),
         gray_string_format(arena, "cannot append to '%s'", path.data));
-}
-
-GrayResult_bool gray_io_rename_file_result(GrayArena *arena, GrayString old_path, GrayString new_path) {
-    GRAY_RESULT_WRAP_BOOL(arena, gray_io_rename_file(old_path, new_path), gray_errno_code(errno),
-        gray_string_format(arena, "cannot rename '%s' to '%s'", old_path.data, new_path.data));
 }
 
 GrayResult_bool gray_io_copy_file_result(GrayArena *arena, GrayString source, GrayString destination) {

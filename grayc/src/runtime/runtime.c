@@ -29,13 +29,17 @@ static inline int panic_use_color(void) {
  * released when the thread exits. */
 static pthread_key_t gray_thread_state_key;
 static pthread_once_t gray_thread_state_once = PTHREAD_ONCE_INIT;
+/* Set by gray_runtime_init before any thread is spawned, so a thread that
+ * reads it set also sees the key; pthread_once on every access is what made
+ * this accessor expensive. */
+static int gray_thread_state_key_ready = 0;
 
 static void gray_thread_state_make_key(void) {
     pthread_key_create(&gray_thread_state_key, free);
 }
 
 GrayThreadState *gray_thread_state(void) {
-    pthread_once(&gray_thread_state_once, gray_thread_state_make_key);
+    if (!gray_thread_state_key_ready) pthread_once(&gray_thread_state_once, gray_thread_state_make_key);
     GrayThreadState *state = (GrayThreadState *)pthread_getspecific(gray_thread_state_key);
     if (!state) {
         state = (GrayThreadState *)calloc(1, sizeof(GrayThreadState));
@@ -91,6 +95,7 @@ GrayArena *gray_arena_create(size_t initial_size) {
     arena->peak_bytes = initial_size;
     arena->alloc_count = 0;
     arena->is_destroyed = false;
+    arena->counts_toward_total = true;
     return arena;
 }
 
@@ -98,7 +103,7 @@ void *gray_arena_alloc_uninitialized(GrayArena *arena, size_t size) {
     if (arena->is_destroyed)
         gray_panic_code("P0001", "cannot allocate from a destroyed arena; mem.destroy() was already called on this arena");
     arena->alloc_count++;
-    if (arena == gray_default_arena || arena == gray_heap_arena) gray_total_alloc_count++;
+    if (arena->counts_toward_total) gray_total_alloc_count++;
     size = ALIGN_UP(size, 8);
     if (size > arena->current->size - arena->current->used) {
         size_t block_size = arena->default_block_size;
@@ -359,6 +364,10 @@ int gray_call_depth = 0;
 static struct timespec gray_runtime_start_time;
 
 void gray_runtime_init(size_t arena_limit) {
+#if defined(__TINYC__)
+    pthread_once(&gray_thread_state_once, gray_thread_state_make_key);
+    gray_thread_state_key_ready = 1;
+#endif
     gray_map_init_seed();
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_heap_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);

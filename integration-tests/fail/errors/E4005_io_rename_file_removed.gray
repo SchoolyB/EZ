@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - io.rename_file was removed
+ * Expected: io no longer recognises rename_file; use io.move_file
+ */
+
+// expect-error: E4005
+
+import @io
+
+do main() {
+    mut ok, _ = io.rename_file("a.txt", "b.txt")
+}

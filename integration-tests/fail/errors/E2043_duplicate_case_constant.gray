@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2043 - a when case repeats an earlier case written as a
+ * negative integer
+ * Expected: compile-time error on the second case
+ */
+
+do main() {
+    mut value = -1
+    when value {
+        is -1 { println("first") }
+        is -1 { println("second") }
+        default { }
+    }
+}

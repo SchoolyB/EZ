@@ -1,0 +1,63 @@
+/*
+ * Test: response header names are canonicalized, so a lookup by the
+ * canonical name finds a header whatever case the server sent
+ */
+
+import @net
+import @http
+import @threads
+
+const TEST_PORT i64 = 47219
+
+mut canned string = ""
+mut listener Listener
+
+do serve() {
+    mut conn, _ = net.accept(listener)
+    mut _, _ = net.receive(conn, 65536)
+    mut _, _ = net.send(conn, canned)
+    net.close(conn)
+}
+
+do fetch(response string) -> HttpResponse {
+    canned = response
+    mut server_thread = threads.spawn(()serve)
+    mut no_headers map[string:string] = {:}
+    mut resp, _ = http.get("http://127.0.0.1:47219/", no_headers)
+    threads.join(server_thread)
+    return resp
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    mut lower = fetch("HTTP/1.1 200 OK\r\ncontent-type: text/plain\r\nx-request-id: abc\r\nConnection: close\r\n\r\nok")
+    if lower.headers["Content-Type"] == "text/plain" && lower.headers["X-Request-Id"] == "abc" {
+        println("  [PASS] lowercase header names are found by canonical name")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lowercase header names")
+        failed += 1
+    }
+
+    mut upper = fetch("HTTP/1.1 200 OK\r\nCONTENT-TYPE: text/html\r\nX-REQUEST-ID: xyz\r\nConnection: close\r\n\r\nok")
+    if upper.headers["Content-Type"] == "text/html" && upper.headers["X-Request-Id"] == "xyz" {
+        println("  [PASS] uppercase header names are found by canonical name")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uppercase header names")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

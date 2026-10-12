@@ -62,7 +62,7 @@ typedef struct {
  *@module net
  *@group Data
  *@sig send(sock Socket, data string) -> (i64, Error)
- *@desc Sends data over sock and returns the number of bytes written. Always use destructuring (`mut v, err = ...` or `mut v, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends all of data over sock and returns the number of bytes written, which is `len(data)` on success. On failure it returns the bytes written so far and an Error. Always use destructuring (`mut v, err = ...` or `mut v, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @net
  *   mut sock, _ = net.connect("example.com", 80)
@@ -127,6 +127,9 @@ void gray_net_close(GraySocket sock);
 
 /* Send/receive raw data */
 int64_t gray_net_send(GraySocket sock, GrayString data);
+/* Like gray_net_recv; an empty result sets *error_number to the system error,
+ * or 0 when the peer closed cleanly. */
+GrayString gray_net_recv_status(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number);
 GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes);
 
 /* TCP server */

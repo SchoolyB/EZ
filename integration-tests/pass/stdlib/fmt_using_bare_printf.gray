@@ -20,12 +20,12 @@ do main() {
     }
 
     mut values [i64] = {7, 255}
-    mut from_variable string = sprintfln("%d %x", values)
+    mut from_variable string = sprintf("%d %x\n", values)
     if from_variable == "7 ff\n" {
-        println("  [PASS] bare sprintfln formats an array variable")
+        println("  [PASS] bare sprintf with newline formats an array variable")
         passed += 1
     } otherwise {
-        println("  [FAIL] bare sprintfln formats an array variable: got '${from_variable}'")
+        println("  [FAIL] bare sprintf with newline formats an array variable: got '${from_variable}'")
         failed += 1
     }
 

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - fmt.i64_to_octal was removed
+ * Expected: fmt no longer recognises i64_to_octal
+ */
+
+// expect-error: E4005
+
+import @fmt
+
+do main() {
+    mut result string = fmt.i64_to_octal(8)
+}

@@ -1,0 +1,70 @@
+/*
+ * Test: http client returns a response at the size limit whole and reports a
+ * larger one as OutOfRange
+ */
+
+import @net
+import @http
+import @strings
+import @threads
+
+const TEST_PORT i64 = 47215
+const LIMIT i64 = 1048576
+const HEAD string = "HTTP/1.1 200 OK\r\nConnection: close\r\n"
+
+mut canned string = ""
+mut listener Listener
+
+do serve() {
+    mut conn, _ = net.accept(listener)
+    mut _, _ = net.receive(conn, 65536)
+    mut _, _ = net.send(conn, canned)
+    net.close(conn)
+}
+
+do fetch(response string) -> (HttpResponse, Error) {
+    canned = response
+    mut server_thread = threads.spawn(()serve)
+    mut no_headers map[string:string] = {:}
+    mut resp, err = http.get("http://127.0.0.1:47215/", no_headers)
+    threads.join(server_thread)
+    return resp, err
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    // A response of exactly LIMIT bytes is returned whole.
+    mut prefix string = HEAD + "\r\n"
+    mut exact_body string = strings.repeat("y", LIMIT - len(prefix))
+    mut exact, exact_err = fetch(prefix + exact_body)
+    if exact_err == nil && len(exact.body) == len(exact_body) {
+        println("  [PASS] response at the limit is returned whole")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] response at the limit: body=${len(exact.body)}")
+        failed += 1
+    }
+
+    // One byte more is an error, never a truncated body.
+    mut _, over_err = fetch(prefix + exact_body + "y")
+    if over_err != nil && over_err.code == .OutOfRange {
+        println("  [PASS] response over the limit returns OutOfRange")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] response over the limit did not return OutOfRange")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

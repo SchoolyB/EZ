@@ -4,7 +4,7 @@ import "./registry.gray"
 do main() {
     registry.register("a")
     registry.register("b")
-    if registry.has_key("a") && registry.has_key("b") {
+    if registry.contains_key("a") && registry.contains_key("b") {
         println("  [PASS] module map keys survive later calls")
     } else {
         println("  [FAIL] module map keys survive later calls")

@@ -59,33 +59,33 @@ do main() {
         failed += 1
     }
 
-    // i64_to_hex
-    mut hex_val string = fmt.i64_to_hex(255)
+    // sprintf %x
+    mut hex_val string = fmt.sprintf("%x", {255})
     if hex_val == "ff" {
-        println("  [PASS] i64_to_hex")
+        println("  [PASS] sprintf %x")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_hex: expected 'ff', got '${hex_val}'")
+        println("  [FAIL] sprintf %x: expected 'ff', got '${hex_val}'")
         failed += 1
     }
 
-    // i64_to_hex - zero
-    mut hex_zero string = fmt.i64_to_hex(0)
+    // sprintf %x - zero
+    mut hex_zero string = fmt.sprintf("%x", {0})
     if hex_zero == "0" {
-        println("  [PASS] i64_to_hex (zero)")
+        println("  [PASS] sprintf %x (zero)")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_hex (zero): expected '0', got '${hex_zero}'")
+        println("  [FAIL] sprintf %x (zero): expected '0', got '${hex_zero}'")
         failed += 1
     }
 
-    // i64_to_hex - large number
-    mut hex_large string = fmt.i64_to_hex(256)
+    // sprintf %x - large number
+    mut hex_large string = fmt.sprintf("%x", {256})
     if hex_large == "100" {
-        println("  [PASS] i64_to_hex (256)")
+        println("  [PASS] sprintf %x (256)")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_hex (256): expected '100', got '${hex_large}'")
+        println("  [FAIL] sprintf %x (256): expected '100', got '${hex_large}'")
         failed += 1
     }
 
@@ -109,23 +109,23 @@ do main() {
         failed += 1
     }
 
-    // i64_to_octal
-    mut oct_val string = fmt.i64_to_octal(8)
+    // sprintf %o
+    mut oct_val string = fmt.sprintf("%o", {8})
     if oct_val == "10" {
-        println("  [PASS] i64_to_octal")
+        println("  [PASS] sprintf %o")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_octal: expected '10', got '${oct_val}'")
+        println("  [FAIL] sprintf %o: expected '10', got '${oct_val}'")
         failed += 1
     }
 
-    // i64_to_octal - 7
-    mut oct_seven string = fmt.i64_to_octal(7)
+    // sprintf %o - 7
+    mut oct_seven string = fmt.sprintf("%o", {7})
     if oct_seven == "7" {
-        println("  [PASS] i64_to_octal (7)")
+        println("  [PASS] sprintf %o (7)")
         passed += 1
     } otherwise {
-        println("  [FAIL] i64_to_octal (7): expected '7', got '${oct_seven}'")
+        println("  [FAIL] sprintf %o (7): expected '7', got '${oct_seven}'")
         failed += 1
     }
 
@@ -149,13 +149,13 @@ do main() {
         failed += 1
     }
 
-    // f64_to_scientific
-    mut fs_val string = fmt.f64_to_scientific(1234.5)
+    // sprintf %e
+    mut fs_val string = fmt.sprintf("%e", {1234.5})
     if len(fs_val) > 0 {
-        println("  [PASS] f64_to_scientific (output: ${fs_val})")
+        println("  [PASS] sprintf %e (output: ${fs_val})")
         passed += 1
     } otherwise {
-        println("  [FAIL] f64_to_scientific: empty result")
+        println("  [FAIL] sprintf %e: empty result")
         failed += 1
     }
 

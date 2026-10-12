@@ -1,16 +1,16 @@
 /*
- * strings_char_classification.gray - Integration test for strings char classification functions
+ * strings_char_classification.gray - Integration test for chars classification predicates
  */
 
-import @strings
+import @chars
 
 do main() {
-    println("=== Strings Char Classification Test ===")
+    println("=== Chars Classification Predicates Test ===")
     mut passed i64 = 0
     mut failed i64 = 0
 
     // is_alpha - true
-    if strings.is_alpha('a') == true {
+    if chars.is_alpha('a') == true {
         println("  [PASS] is_alpha letter")
         passed += 1
     } otherwise {
@@ -19,7 +19,7 @@ do main() {
     }
 
     // is_alpha - false
-    if strings.is_alpha('1') == false {
+    if chars.is_alpha('1') == false {
         println("  [PASS] is_alpha digit (false)")
         passed += 1
     } otherwise {
@@ -28,7 +28,7 @@ do main() {
     }
 
     // is_digit - true
-    if strings.is_digit('9') == true {
+    if chars.is_digit('9') == true {
         println("  [PASS] is_digit digit")
         passed += 1
     } otherwise {
@@ -37,7 +37,7 @@ do main() {
     }
 
     // is_digit - false
-    if strings.is_digit('z') == false {
+    if chars.is_digit('z') == false {
         println("  [PASS] is_digit letter (false)")
         passed += 1
     } otherwise {
@@ -46,7 +46,7 @@ do main() {
     }
 
     // is_alnum - letter
-    if strings.is_alnum('b') == true {
+    if chars.is_alnum('b') == true {
         println("  [PASS] is_alnum letter")
         passed += 1
     } otherwise {
@@ -55,7 +55,7 @@ do main() {
     }
 
     // is_alnum - digit
-    if strings.is_alnum('3') == true {
+    if chars.is_alnum('3') == true {
         println("  [PASS] is_alnum digit")
         passed += 1
     } otherwise {
@@ -64,7 +64,7 @@ do main() {
     }
 
     // is_alnum - false
-    if strings.is_alnum('!') == false {
+    if chars.is_alnum('!') == false {
         println("  [PASS] is_alnum symbol (false)")
         passed += 1
     } otherwise {
@@ -73,7 +73,7 @@ do main() {
     }
 
     // is_whitespace - space
-    if strings.is_whitespace(' ') == true {
+    if chars.is_whitespace(' ') == true {
         println("  [PASS] is_whitespace space")
         passed += 1
     } otherwise {
@@ -82,7 +82,7 @@ do main() {
     }
 
     // is_whitespace - false
-    if strings.is_whitespace('x') == false {
+    if chars.is_whitespace('x') == false {
         println("  [PASS] is_whitespace letter (false)")
         passed += 1
     } otherwise {
@@ -91,7 +91,7 @@ do main() {
     }
 
     // is_upper - true
-    if strings.is_upper('A') == true {
+    if chars.is_upper('A') == true {
         println("  [PASS] is_upper uppercase")
         passed += 1
     } otherwise {
@@ -100,7 +100,7 @@ do main() {
     }
 
     // is_upper - false
-    if strings.is_upper('a') == false {
+    if chars.is_upper('a') == false {
         println("  [PASS] is_upper lowercase (false)")
         passed += 1
     } otherwise {
@@ -109,7 +109,7 @@ do main() {
     }
 
     // is_lower - true
-    if strings.is_lower('z') == true {
+    if chars.is_lower('z') == true {
         println("  [PASS] is_lower lowercase")
         passed += 1
     } otherwise {
@@ -118,11 +118,28 @@ do main() {
     }
 
     // is_lower - false
-    if strings.is_lower('Z') == false {
+    if chars.is_lower('Z') == false {
         println("  [PASS] is_lower uppercase (false)")
         passed += 1
     } otherwise {
         println("  [FAIL] is_lower uppercase (false)")
+        failed += 1
+    }
+
+    // non-ASCII codepoints are never classified
+    if chars.is_alpha('Ł') == false && chars.is_alnum('Ł') == false && chars.is_upper('Ł') == false && chars.is_lower('ł') == false {
+        println("  [PASS] non-ASCII letters (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-ASCII letters (false)")
+        failed += 1
+    }
+
+    if chars.is_digit('٣') == false && chars.is_whitespace('\u{00A0}') == false {
+        println("  [PASS] non-ASCII digit and space (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-ASCII digit and space (false)")
         failed += 1
     }
 

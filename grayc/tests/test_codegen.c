@@ -896,7 +896,7 @@ static void test_e2e_threads_channel(void) {
     ASSERT_STR_EQ(output, "42,100");
 }
 
-static void test_e2e_threads_sleep(void) {
+static void test_e2e_sleep_ms(void) {
     char *output = compile_and_run(
         ""
         "do main() {\n"
@@ -2691,7 +2691,8 @@ static void test_e2e_regex_module(void) {
         "import @regex\n"
         "do main() {\n"
         "  println(regex.is_match(\"[0-9]+\", \"abc123\"))\n"
-        "  println(regex.count(\"[0-9]\", \"a1b2c3\"))\n"
+        "  mut n, _ = regex.count(\"[0-9]\", \"a1b2c3\")\n"
+        "  println(n)\n"
         "  mut m, _ = regex.find(\"[0-9]+\", \"abc123def\")\n"
         "  println(m)\n"
         "  mut rep, _ = regex.replace(\"[0-9]\", \"a1b2\", \"#\")\n"
@@ -3083,7 +3084,7 @@ int main(void) {
     /* Threads */
     RUN_TEST(test_e2e_threads_spawn_join);
     RUN_TEST(test_e2e_threads_channel);
-    RUN_TEST(test_e2e_threads_sleep);
+    RUN_TEST(test_e2e_sleep_ms);
 
     /* Function references */
     RUN_TEST(test_e2e_function_reference_basic);

@@ -31,7 +31,7 @@ GrayString gray_json_enum_from_str(GrayString raw_text,
  *@module json
  *@group Encoding
  *@sig encode(value T) -> string
- *@desc Encodes a value as a JSON string. Accepts any primitive (integers, f32/f64, char, bool, string), a flat array of primitives, or a string-keyed map of primitives. char is encoded as its codepoint number. For #json structs use stringify() instead.
+ *@desc Encodes a value as a JSON string. Accepts any primitive (integers, f32/f64, char, bool, string), a flat array of primitives, a string-keyed map of primitives, or a #json struct or array of #json structs. char is encoded as its codepoint number.
  *@example
  *   import @json
  *   mut m map[string:string] = {"name": "Alice"}
@@ -40,6 +40,14 @@ GrayString gray_json_enum_from_str(GrayString raw_text,
  *   println(json.encode(true))
  *   mut arr [i64] = {1, 2, 3}
  *   println(json.encode(arr))
+ *
+ *   #json
+ *   const User struct {
+ *       name string
+ *       age i64
+ *   }
+ *   mut u User = json.parse("{\"name\": \"Alice\", \"age\": 25}")
+ *   println(json.encode(u))
  *@end
  */
 /* json.encode(value) — convert map to JSON string */
@@ -60,26 +68,6 @@ GrayString gray_json_encode_map_unsigned_integer(GrayArena *arena, GrayMap *map)
 GrayString gray_json_encode_map_floating_point(GrayArena *arena, GrayMap *map);
 GrayString gray_json_encode_map_bool(GrayArena *arena, GrayMap *map);
 
-/*@man stringify
- *@module json
- *@group Encoding
- *@sig stringify(value T) -> string
- *@desc Encodes a #json struct to a JSON string. Also accepts maps and other types as a fallback. Use on structs marked with the #json attribute.
- *@example
- *   import @json
- *   #json
- *   const User struct {
- *       name string
- *       age i64
- *   }
- *   do main() {
- *       mut u User = json.parse("{\"name\": \"Alice\", \"age\": 25}")
- *       println(json.stringify(u))
- *   }
- *@end
- */
-/* json.stringify — codegen-dispatched to per-struct helper for #json structs */
-
 /*@man decode
  *@module json
  *@group Decoding
@@ -96,7 +84,9 @@ GrayMap gray_json_decode(GrayArena *arena, GrayString text);
 
 /* json.parse field decoding: like gray_json_decode, and *quoted receives the
  * keys whose JSON value was a quoted string. */
-GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted);
+bool gray_json_is_null(GrayString text);
+void gray_json_require_document(GrayString text, char opening, const char *file, int line);
+GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted, const char *file, int line);
 void gray_json_check_field_quoting(GrayMap *quoted, GrayString key, bool expects_string, const char *expected, const char *file, int line);
 bool gray_json_field_as_bool(GrayString value, GrayString key, const char *file, int line);
 

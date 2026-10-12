@@ -275,9 +275,15 @@ static GrayArray regex_split_compiled(GrayArena *arena, regex_t *regex, GrayStri
     return array;
 }
 
-int64_t gray_regex_count(GrayString pattern, GrayString text) {
+GrayResult_i64 gray_regex_count_result(GrayArena *arena, GrayString pattern, GrayString text) {
+    GrayResult_i64 result;
     regex_t regex;
-    if (compile_pattern(pattern, &regex, 0) != 0) return 0;
+    if (compile_pattern(pattern, &regex, 0) != 0) {
+        result.v0 = 0;
+        result.v1 = gray_error_new(arena, GRAY_ERR_ParseFailure, gray_string_format(arena, "invalid regex pattern '%.*s'",
+            pattern.len, pattern.data));
+        return result;
+    }
 
     char *text_buffer = regex_c_string(gray_default_arena, text);
 
@@ -295,7 +301,9 @@ int64_t gray_regex_count(GrayString pattern, GrayString text) {
     }
 
     regex_session_end(&regex);
-    return count;
+    result.v0 = count;
+    result.v1 = NULL;
+    return result;
 }
 
 GrayString gray_regex_escape(GrayArena *arena, GrayString string) {

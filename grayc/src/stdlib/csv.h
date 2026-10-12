@@ -54,32 +54,6 @@
  *@end
  */
 
-/*@man read_file
- *@module csv
- *@group File I/O
- *@sig read_file(path string) -> ([[string]], Error)
- *@desc Reads the CSV file at path and returns parsed rows as an array of string arrays. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
- *@example
- *   import @csv
- *   mut rows, err = csv.read_file("data.csv")
- *   if err != nil { println("failed: ${err}") }
- *   mut unchecked_rows, _ = csv.read_file("data.csv")
- *@end
- */
-
-/*@man write_file
- *@module csv
- *@group File I/O
- *@sig write_file(path string, rows [[string]]) -> (bool, Error)
- *@desc Writes an array of rows (each row an array of strings) to a CSV file at path, with the same RFC 4180 field quoting as encode. Creates the file if it does not exist; overwrites if it does. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
- *@example
- *   import @csv
- *   mut data [[string]] = {{"name", "age"}, {"Alice", "30"}}
- *   mut ok, err = csv.write_file("out.csv", data)
- *   if err != nil { println("failed: ${err}") }
- *@end
- */
-
 /*@man parse_delimited
  *@module csv
  *@group Parsing
@@ -174,28 +148,6 @@
  *@end
  */
 
-/*@man to_json
- *@module csv
- *@group Formatting
- *@sig to_json(data [[string]]) -> string
- *@desc Converts data (via to_maps) to a compact JSON array of objects. Every value is a JSON string, since CSV has no types.
- *@example
- *   import @csv
- *   println(csv.to_json(rows))
- *@end
- */
-
-/*@man to_markdown
- *@module csv
- *@group Formatting
- *@sig to_markdown(data [[string]]) -> string
- *@desc Renders data as a GitHub-flavored Markdown table: row 0 becomes the header plus a '---' separator row, and a pipe in a cell is escaped with a preceding backslash. No column alignment; a trailing newline is included.
- *@example
- *   import @csv
- *   println(csv.to_markdown(rows))
- *@end
- */
-
 /* Parse CSV string into array of arrays of strings */
 GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string);
 GrayArray gray_csv_parse_delimited(GrayArena *arena, GrayString csv_string, int32_t delimiter);
@@ -207,23 +159,11 @@ GrayArray  gray_csv_from_maps(GrayArena *arena, GrayArray *rows);
 GrayArray  gray_csv_column(GrayArena *arena, GrayArray *data, GrayString name);
 GrayArray  gray_csv_select(GrayArena *arena, GrayArray *data, GrayArray *names);
 GrayArray  gray_csv_sort_by_column(GrayArena *arena, GrayArray *data, GrayString name);
-GrayString gray_csv_to_json(GrayArena *arena, GrayArray *data);
-GrayString gray_csv_to_markdown(GrayArena *arena, GrayArray *data);
 
 /* Convert array of arrays of strings to CSV string */
 GrayString gray_csv_stringify(GrayArena *arena, GrayArray *data);
 
 /* Extract the first row (headers) from parsed CSV data */
 GrayArray gray_csv_headers(GrayArena *arena, GrayArray *data);
-
-/* Read CSV file */
-GrayArray gray_csv_read(GrayArena *arena, GrayString path);
-
-/* Write CSV to file */
-bool gray_csv_write(GrayArena *arena, GrayString path, GrayArray *data);
-
-/* _result variants */
-GrayResult_array gray_csv_read_result(GrayArena *arena, GrayString path);
-GrayResult_bool gray_csv_write_result(GrayArena *arena, GrayString path, GrayArray *data);
 
 #endif

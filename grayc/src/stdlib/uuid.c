@@ -198,11 +198,6 @@ GrayString gray_uuid_generate_compact(GrayArena *arena, GrayUUID uuid) {
     return gray_string_new(arena, buffer, GRAY_UUID_COMPACT_LENGTH);
 }
 
-GrayUUID gray_uuid_generate_random(GrayArena *arena) {
-    /* Alias for the canonical hyphenated v4 form. */
-    return gray_uuid_generate(arena);
-}
-
 /* RFC 9562 §5.7 — UUID v7:
  *   bytes[0..5]   48-bit Unix timestamp (ms), big-endian
  *   bytes[6]      version 7 (high nibble) + 4 random bits

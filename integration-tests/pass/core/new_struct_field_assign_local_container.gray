@@ -1,0 +1,93 @@
+/*
+ * Test: a local array or map assigned to a field of a new() struct through a
+ * pointer survives the function that built it.
+ */
+
+import @arrays
+import @maps
+
+const Names struct {
+    names [string]
+}
+
+const Bag struct {
+    items map[string:i64]
+}
+
+do make_dot() -> ^Names {
+    s = new(Names)
+    mut names [string]
+    arrays.append(names, "abc")
+    s.names = names
+    return s
+}
+
+do make_caret() -> ^Names {
+    s = new(Names)
+    mut names [string]
+    arrays.append(names, "def")
+    s^.names = names
+    return s
+}
+
+do make_bag() -> ^Bag {
+    b = new(Bag)
+    mut m map[string:i64] = {:}
+    for i in range(0, 100) { m["key${i}"] = i }
+    b.items = m
+    return b
+}
+
+do scribble(i i64) -> i64 {
+    mut tmp [string]
+    arrays.append(tmp, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx${i}")
+    arrays.append(tmp, "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy${i}")
+    mut m map[string:i64] = {:}
+    for j in range(0, 100) { m["zzz${j}"] = j }
+    return len(tmp) + len(m)
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    dot = make_dot()
+    caret = make_caret()
+    bag = make_bag()
+    for i in range(0, 100) { mut _ = scribble(i) }
+
+    if dot.names[0] == "abc" {
+        println("  [PASS] array field via s.names")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array field via s.names: ${dot.names[0]}")
+        failed += 1
+    }
+
+    if caret.names[0] == "def" {
+        println("  [PASS] array field via s^.names")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array field via s^.names: ${caret.names[0]}")
+        failed += 1
+    }
+
+    mut missing i64 = 0
+    for i in range(0, 100) {
+        if !maps.contains_key(bag.items, "key${i}") { missing += 1 }
+    }
+    if missing == 0 {
+        println("  [PASS] map field via b.items")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map field missing ${missing} keys")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

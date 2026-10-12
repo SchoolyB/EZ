@@ -39,6 +39,84 @@ int32_t gray_chars_to_upper(int32_t codepoint);
  */
 int32_t gray_chars_to_lower(int32_t codepoint);
 
+/*@man is_alpha
+ *@module chars
+ *@group Classification
+ *@sig is_alpha(c char) -> bool
+ *@desc True when c is an ASCII letter (a-z or A-Z). Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_alpha('a'))   // true
+ *   println(chars.is_alpha('1'))   // false
+ *@end
+ */
+bool gray_chars_is_alpha(int32_t codepoint);
+
+/*@man is_digit
+ *@module chars
+ *@group Classification
+ *@sig is_digit(c char) -> bool
+ *@desc True when c is a decimal digit (0-9). Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_digit('5'))   // true
+ *   println(chars.is_digit('a'))   // false
+ *@end
+ */
+bool gray_chars_is_digit(int32_t codepoint);
+
+/*@man is_alnum
+ *@module chars
+ *@group Classification
+ *@sig is_alnum(c char) -> bool
+ *@desc True when c is an ASCII letter or decimal digit. Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_alnum('3'))   // true
+ *   println(chars.is_alnum('!'))   // false
+ *@end
+ */
+bool gray_chars_is_alnum(int32_t codepoint);
+
+/*@man is_whitespace
+ *@module chars
+ *@group Classification
+ *@sig is_whitespace(c char) -> bool
+ *@desc True when c is space, tab, newline, carriage return, vertical tab, or form feed. Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_whitespace(' '))   // true
+ *   println(chars.is_whitespace('a'))   // false
+ *@end
+ */
+bool gray_chars_is_whitespace(int32_t codepoint);
+
+/*@man is_upper
+ *@module chars
+ *@group Classification
+ *@sig is_upper(c char) -> bool
+ *@desc True when c is an uppercase ASCII letter (A-Z). Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_upper('A'))   // true
+ *   println(chars.is_upper('a'))   // false
+ *@end
+ */
+bool gray_chars_is_upper(int32_t codepoint);
+
+/*@man is_lower
+ *@module chars
+ *@group Classification
+ *@sig is_lower(c char) -> bool
+ *@desc True when c is a lowercase ASCII letter (a-z). Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_lower('a'))   // true
+ *   println(chars.is_lower('A'))   // false
+ *@end
+ */
+bool gray_chars_is_lower(int32_t codepoint);
+
 /*@man is_ascii
  *@module chars
  *@group Classification

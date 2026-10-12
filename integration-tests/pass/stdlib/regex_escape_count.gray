@@ -26,14 +26,22 @@ do main() {
     mut passed i64 = 0
 
     // count: non-overlapping matches
-    passed += check_int("count digits", regex.count("[0-9]+", "a1b22c333"), 3)
-    passed += check_int("count none", regex.count("z+", "abc"), 0)
-    passed += check_int("count invalid pattern", regex.count("[unclosed", "abc"), 0)
-    passed += check_int("count single", regex.count("cat", "cat cat dog cat"), 3)
+    mut digits_count, digits_err = regex.count("[0-9]+", "a1b22c333")
+    passed += check_int("count digits", digits_count, 3)
+    if digits_err == nil { passed += 1 } otherwise { println("  [FAIL] count digits: unexpected error") }
+    mut none_count, none_err = regex.count("z+", "abc")
+    passed += check_int("count none", none_count, 0)
+    if none_err == nil { passed += 1 } otherwise { println("  [FAIL] count none: unexpected error") }
+    mut invalid_count, invalid_err = regex.count("[unclosed", "abc")
+    passed += check_int("count invalid pattern", invalid_count, 0)
+    if invalid_err != nil { passed += 1 } otherwise { println("  [FAIL] count invalid pattern: no error") }
+    mut single_count, _ = regex.count("cat", "cat cat dog cat")
+    passed += check_int("count single", single_count, 3)
 
     // count agrees with find_all
     mut hits, _ = regex.find_all("[a-z]+", "one two three")
-    passed += check_int("count matches find_all", regex.count("[a-z]+", "one two three"), len(hits))
+    mut words_count, _ = regex.count("[a-z]+", "one two three")
+    passed += check_int("count matches find_all", words_count, len(hits))
 
     // escape: metacharacters get a backslash
     passed += check("escape dots and parens", regex.escape("a.b(c)"), "a\\.b\\(c\\)")
@@ -56,8 +64,8 @@ do main() {
     }
 
     println("")
-    println("Results: ${passed}/10 passed")
-    if passed == 10 {
+    println("Results: ${passed}/13 passed")
+    if passed == 13 {
         println("ALL TESTS PASSED")
     } otherwise {
         println("SOME TESTS FAILED")

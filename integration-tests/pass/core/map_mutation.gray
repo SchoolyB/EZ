@@ -35,7 +35,7 @@ do main() {
 
     // Test 3: remove key
     maps.remove_key(m, "a")
-    if len(m) == 1 && !maps.has_key(m, "a") {
+    if len(m) == 1 && !maps.contains_key(m, "a") {
         println("  [PASS] remove key")
         passed += 1
     } otherwise {

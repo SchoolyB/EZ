@@ -23,7 +23,7 @@ do main() {
         failed += 1
     }
 
-    // Map membership -> gray_maps_has_key (maps.h)
+    // Map membership -> gray_maps_contains_key (maps.h)
     mut ages map[string:i64] = {"ada": 36}
     if "ada" in ages {
         println("  [PASS] \"ada\" in ages")

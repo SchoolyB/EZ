@@ -21,7 +21,8 @@ do main() {
     // 5000 six-byte tokens = 30000 bytes, well past the old 8191 cap
     mut big string = strings.repeat("ab-12 ", 5000)
 
-    passed += check_int("count", regex.count("[0-9]+", big), 5000)
+    mut big_count, _ = regex.count("[0-9]+", big)
+    passed += check_int("count", big_count, 5000)
 
     mut fa, _ = regex.find_all("[0-9]+", big)
     passed += check_int("find_all", len(fa), 5000)

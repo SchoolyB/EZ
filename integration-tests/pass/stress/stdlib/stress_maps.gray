@@ -17,19 +17,19 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] is_empty") failed += 1 }
 
-    // has_key
+    // contains_key
     mut m map[string:i64] = {"a": 1, "b": 2, "c": 3}
-    if maps.has_key(m, "a") {
-        println("  [PASS] has_key found")
+    if maps.contains_key(m, "a") {
+        println("  [PASS] contains_key found")
         passed += 1
-    } otherwise { println("  [FAIL] has_key") failed += 1 }
+    } otherwise { println("  [FAIL] contains_key") failed += 1 }
 
-    // has_key not found
-    mut hk = maps.has_key(m, "z")
+    // contains_key not found
+    mut hk = maps.contains_key(m, "z")
     if !hk {
-        println("  [PASS] has_key not found")
+        println("  [PASS] contains_key not found")
         passed += 1
-    } otherwise { println("  [FAIL] has_key not found") failed += 1 }
+    } otherwise { println("  [FAIL] contains_key not found") failed += 1 }
 
     // keys
     mut ks [string] = maps.get_keys(m)

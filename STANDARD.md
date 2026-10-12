@@ -2228,7 +2228,7 @@ const MAX_RETRIES i64 = 5
 
 #### 7.5.2 `#json` Attribute
 
-The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically, with no manual encoding/decoding calls and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.stringify()`.
+The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically, with no manual encoding/decoding calls and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.encode()`.
 
 ```gray
 import @json
@@ -2246,11 +2246,11 @@ do main() {
     println(u.name)            // Alice
 
     // Serialize back to JSON, fields are mapped automatically
-    println(json.stringify(u)) // {"name": "Alice", "age": 25, "active": true}
+    println(json.encode(u)) // {"name": "Alice", "age": 25, "active": true}
 }
 ```
 
-`json.parse()` returns a fully typed struct (or array of structs), and `json.stringify()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly with no reflection, no runtime schema lookup, and no intermediate map step.
+`json.parse()` returns a fully typed struct (or array of structs), and `json.encode()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly with no reflection, no runtime schema lookup, and no intermediate map step.
 
 By default, a field's JSON key is its Grayscale name. A field can serialize under a different key with a trailing tag, the same backtick-string spelling Go and Odin use:
 
@@ -2262,9 +2262,11 @@ const User struct {
 }
 ```
 
-`json.stringify()`/`json.parse()` then use `"Name"`/`"Age"` as the JSON keys instead of `name`/`age`.
+`json.encode()`/`json.parse()` then use `"Name"`/`"Age"` as the JSON keys instead of `name`/`age`.
 
 A field of any sized number type (`i8` through `i256`, `u8` through `u256`, `f32`, `f64`) is encoded and decoded at that type. `json.parse()` panics on a number field whose JSON value is not a number of that type or does not fit it.
+
+`json.parse()` also panics when the text is not one valid JSON document (a single-quoted key, a trailing comma, a leading-zero number, an invalid escape, a raw control character in a string, or text after the document), when the top-level value is not an object (an array for an array target), or when an object repeats a key.
 
 An enum field is serialized by the enum's backing type. An integer-backed enum (the default) becomes a JSON number — the variant's underlying value; a string-backed enum becomes a JSON string — the variant's string value. `json.parse()` reverses the mapping:
 
@@ -2290,9 +2292,9 @@ const Task struct {
 
 do main() {
     mut t Task = Task{name: "deploy", priority: Priority.HIGH, owner: Role.ADMIN}
-    println(json.stringify(t)) // {"name": "deploy", "priority": 1, "owner": "admin"}
+    println(json.encode(t)) // {"name": "deploy", "priority": 1, "owner": "admin"}
 
-    mut back Task = json.parse(json.stringify(t))
+    mut back Task = json.parse(json.encode(t))
     println(back.priority == Priority.HIGH) // true
 }
 ```
@@ -2309,7 +2311,7 @@ A `#json` struct field may be a number type, `string`, `bool`, an enum, another 
 - A `#json` struct's fields are either all tagged or all untagged — mixing the two within one struct is not allowed. This is scoped per struct, not per file: a file that aggregates many structs is free to tag some and leave others untagged, as long as each struct is internally consistent.
 - Two fields of the same `#json` struct serialize under distinct keys.
 - A `#json` struct requires `import @json` in the same file; the generated serializer helpers depend on the json module.
-- Without `#json`, the struct has no serialization machinery and `json.parse()` / `json.stringify()` will fail.
+- Without `#json`, the struct has no serialization machinery and `json.parse()` / `json.encode()` will fail.
 - Supported field types: `i64`, `u64`, `f64`, `string`, `bool`, and non-tagged enums (serialized by backing type).
 - `json.parse()` into an array of a `#json` struct (`[Task]`) parses each element independently, so an enum field works there with no extra handling.
 
@@ -3472,17 +3474,6 @@ result.
 | `equal_fold` | `(a string, b string) -> bool` | Case-insensitive equality (ASCII) |
 | `compare` | `(a string, b string) -> i64` | Bytewise comparison; -1 if `a` sorts first, 1 if `b` does, 0 if equal |
 
-#### Classification Functions
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `is_alpha` | `(c char) -> bool` | True if c is an ASCII letter (a-z, A-Z) |
-| `is_digit` | `(c char) -> bool` | True if c is a decimal digit (0-9) |
-| `is_alnum` | `(c char) -> bool` | True if c is a letter or digit |
-| `is_whitespace` | `(c char) -> bool` | True if c is space, tab, newline, or carriage return |
-| `is_upper` | `(c char) -> bool` | True if c is an uppercase letter (A-Z) |
-| `is_lower` | `(c char) -> bool` | True if c is a lowercase letter (a-z) |
-
 #### Transformation Functions
 
 | Function | Signature | Description |
@@ -3561,7 +3552,7 @@ do rows_to_csv(rows [[string]]) -> string {
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `is_empty` | `(m map[K:V]) -> bool` | Check if map is empty |
-| `has_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
+| `contains_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
 | `contains_value` | `(m map[K:V], value V) -> bool` | Check if any entry has the given value |
 | `get_keys` | `(m map[K:V]) -> [K]` | Get all keys as an array |
 | `get_values` | `(m map[K:V]) -> [V]` | Get all values as an array |
@@ -3784,8 +3775,7 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 |----------|-----------|-------------|
 | `decode` | `(text string) -> (map[string:string], Error)` | Decode JSON string to map — always use destructuring |
 | `parse` | `(text string) -> T` | Parse JSON into a `#json` struct (context-dependent) |
-| `encode` | `(value T) -> string` | Encode to JSON string. Accepts any primitive (integers, `f32`/`f64`, `char`, `bool`, `string`), a flat array of primitives, or a string-keyed map of primitives. `char` encodes as its codepoint number. For `#json` structs use `stringify`. |
-| `stringify` | `(value T) -> string` | Encode a `#json` struct to a JSON string |
+| `encode` | `(value T) -> string` | Encode to JSON string. Accepts any primitive (integers, `f32`/`f64`, `char`, `bool`, `string`), a flat array of primitives, a string-keyed map of primitives, or a `#json` struct or array of `#json` structs. `char` encodes as its codepoint number. |
 | `pretty_print` | `(m map[K:V], indent i64) -> string` | Pretty-print a map as indented JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
@@ -3827,7 +3817,6 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `is_directory` | `(path string) -> bool` | Check if path is a directory |
 | `file_size` | `(path string) -> i64` | Get file size in bytes (fallible; see below) |
 | `delete_file` | `(path string) -> bool` | Delete file |
-| `rename_file` | `(old_path string, new_path string) -> bool` | Rename file |
 | `copy_file` | `(src string, dst string) -> bool` | Copy file |
 | `move_file` | `(src string, dst string) -> bool` | Move file |
 
@@ -3879,7 +3868,6 @@ The functions below are fallible: they return `(T, Error)`, and the tables above
 | `write_file` | `(bool, Error)` |
 | `append_file` | `(bool, Error)` |
 | `delete_file` | `(bool, Error)` |
-| `rename_file` | `(bool, Error)` |
 | `copy_file` | `(bool, Error)` |
 | `move_file` | `(bool, Error)` |
 | `list_dir` | `([string], Error)` |
@@ -3933,7 +3921,7 @@ when mode {
 
 #### Path Resolution
 
-All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `csv.read_file`, `csv.write_file`, and `sqlite.open`) are resolved relative to the **current working directory** of the process, the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
+All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `sqlite.open`) are resolved relative to the **current working directory** of the process, the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
 
 ```gray
 // Given project layout:
@@ -4026,6 +4014,12 @@ HTTP client for making requests. Currently supports HTTP only.
 
 `get`, `post`, `put`, `patch`, `delete`, and `head` are fallible: destructure the result (`mut resp, err = ...` or `mut resp, _ = ...`).
 
+A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error with code `OutOfRange` and no truncated body. A `Transfer-Encoding: chunked` body is decoded: `resp.body` is the concatenated chunk data, and a malformed chunk returns an Error with code `ParseFailure`.
+
+A request with a body sends `Content-Type: application/x-www-form-urlencoded` only when the caller's headers name no `Content-Type` (names are compared case-insensitively). `Host`, `Content-Length`, and `Connection` are always set by the client; a caller entry for any of them is not sent.
+
+A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
+
 #### HttpResponse Type
 
 `HttpResponse` is one type shared by `@http` and `@server`: it is available when either is imported, and `HttpResponse`, `http.HttpResponse` and `server.HttpResponse` all name it. A server handler can return a response from `http.get` unchanged.
@@ -4034,7 +4028,7 @@ HTTP client for making requests. Currently supports HTTP only.
 |-------|------|-------------|
 | `status` | `i64` | HTTP status code |
 | `body` | `string` | Response body |
-| `headers` | `map[string:string]` | Response headers; the content type is `headers["Content-Type"]` |
+| `headers` | `map[string:string]` | Response headers; names are canonicalized (the first letter of each hyphen-separated word is uppercase, the rest lowercase), so the content type is `headers["Content-Type"]` whatever case the server sent |
 
 ### 9.12 Crypto Module (`@crypto`)
 
@@ -4088,7 +4082,6 @@ HTTP client for making requests. Currently supports HTTP only.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `generate` | `() -> UUID` | Generate UUID v4 (hyphenated, 36 chars) |
-| `generate_random` | `() -> UUID` | RFC 4122 v4 (random), hyphenated, lowercase |
 | `generate_time_ordered` | `() -> UUID` | RFC 9562 v7 (time-ordered), hyphenated, lowercase. Sorts by creation time |
 | `generate_v5` | `(namespace UUID, name string) -> UUID` | Deterministic RFC 4122 v5 (name-based, SHA-1) |
 | `generate_compact` | `(id UUID) -> string` | Strip hyphens from a UUID, returning a 32-char hex string |
@@ -4269,10 +4262,10 @@ Regular expression operations using POSIX extended regex syntax.
 | `find_all_groups` | `(pattern string, text string) -> ([[string]], Error)` | Capture groups for every match — always use destructuring |
 | `replace` | `(pattern string, text string, replacement string) -> (string, Error)` | Replace matches — always use destructuring |
 | `split` | `(pattern string, text string) -> ([string], Error)` | Split by pattern — always use destructuring |
-| `count` | `(pattern string, text string) -> i64` | Number of non-overlapping matches; 0 for an invalid pattern |
+| `count` | `(pattern string, text string) -> (i64, Error)` | Number of non-overlapping matches — always use destructuring |
 | `escape` | `(s string) -> string` | Backslash-escape regex metacharacters so `s` matches literally |
 
-`find`, `find_all`, `find_groups`, `find_all_groups`, `replace`, and `split` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
+`find`, `find_all`, `find_groups`, `find_all_groups`, `replace`, `split`, and `count` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
 
 POSIX ERE has no Perl-style shorthand classes. `\d`, `\w`, `\s`, `\b` (and `\D`, `\W`, `\S`, `\B`) are rejected as invalid patterns — use the POSIX bracket classes instead: `[[:digit:]]`, `[[:alnum:]_]`, `[[:space:]]`.
 
@@ -4282,12 +4275,10 @@ Reading and writing CSV (Comma-Separated Values) data.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `parse` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array |
+| `parse` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array; panics (P0148) on malformed quoting: an unterminated quote, text after a closing quote, or a quote inside an unquoted field |
 | `parse_delimited` | `(csv_string string, delimiter char) -> [[string]]` | Like `parse`, but fields split on `delimiter` (e.g. `'\t'`, `';'`); RFC 4180 quoting still applies |
 | `detect_delimiter` | `(sample string) -> char` | Most frequent of `,` `;` `\t` `\|` on the first line of `sample`, defaulting to `,` |
 | `encode` | `(data [[string]]) -> string` | Encode 2D array to CSV string; a field containing `,`, `"`, CR, or LF is quoted per RFC 4180 with embedded `"` doubled |
-| `read_file` | `(path string) -> ([[string]], Error)` | Read and parse CSV file — always use destructuring |
-| `write_file` | `(path string, data [[string]]) -> (bool, Error)` | Write 2D array to CSV file (same RFC 4180 quoting as `encode`) — always use destructuring |
 | `headers` | `(data [[string]]) -> [string]` | Extract header row from parsed CSV data |
 | `to_maps` | `(data [[string]]) -> [map[string:string]]` | Rows 1..N as maps keyed by header name (short row omits keys, long row drops extras); `<= 1` row gives an empty array |
 | `from_maps` | `(rows [map[string:string]]) -> [[string]]` | Inverse of `to_maps`; header is the union of keys in first-seen order, a missing key becomes `""` |
@@ -4295,8 +4286,6 @@ Reading and writing CSV (Comma-Separated Values) data.
 | `select` | `(data [[string]], names [string]) -> [[string]]` | Project the named columns in order, keeping the header row; panics on an unknown name |
 | `filter_rows` | `(data [[string]], predicate func([string]) -> bool) -> [[string]]` | Keep row 0 unconditionally and each later row where `predicate` is true; the header is never passed to `predicate` |
 | `sort_by_column` | `(data [[string]], name string) -> [[string]]` | New array with data rows stably sorted ascending lexicographically by column `name`; header stays first; panics on an unknown name |
-| `to_json` | `(data [[string]]) -> string` | Compact JSON array of objects (via `to_maps`); every value is a JSON string |
-| `to_markdown` | `(data [[string]]) -> string` | GitHub-flavored Markdown table; row 0 is the header plus a `---` separator, `\|` in a cell is escaped, trailing newline |
 
 ### 9.20 Net Module (`@net`)
 
@@ -4307,7 +4296,7 @@ TCP sockets and DNS resolution.
 | `connect` | `(host string, port i64) -> (Socket, Error)` | Connect to a remote host — always use destructuring |
 | `listen` | `(port i64, host string = "0.0.0.0") -> (Listener, Error)` | Listen for incoming connections on a port, bound to host (default: all interfaces) — always use destructuring |
 | `accept` | `(listener Listener) -> (Socket, Error)` | Accept an incoming connection — always use destructuring |
-| `send` | `(sock Socket, data string) -> (i64, Error)` | Send data over a socket, returns bytes sent — always use destructuring |
+| `send` | `(sock Socket, data string) -> (i64, Error)` | Send all of `data` over a socket, looping over short writes; returns `len(data)` on success, or the bytes written so far with an Error — always use destructuring |
 | `receive` | `(sock Socket, max_bytes i64) -> (string, Error)` | Receive up to `max_bytes` bytes from a socket — always use destructuring |
 | `close` | `(sock Socket)` | Close a socket or listener |
 | `set_timeout` | `(sock Socket, ms i64)` | Set read/write timeout in milliseconds |
@@ -4328,7 +4317,6 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `is_alive` | `(t Thread) -> bool` | True while the thread's body has not returned. Not valid after `detach` or `join` |
 | `get_id` | `() -> i64` | Get the current thread's ID |
 | `yield` | `()` | Hint the scheduler to run another runnable thread |
-| `sleep` | `(ms i64)` | Sleep the current thread for `ms` milliseconds |
 | `thread_count` | `() -> i64` | Number of live threads spawned through this module (excludes main and non-Grayscale threads) |
 
 ### 9.22 Sync Module (`@sync`)
@@ -4340,7 +4328,7 @@ Synchronization primitives for thread-safe access to shared data. Compiler-only 
 | `mutex` | `() -> Mutex` | Create a new mutex |
 | `lock` | `(m Mutex)` | Acquire a mutex |
 | `unlock` | `(m Mutex)` | Release a mutex |
-| `try_lock` | `(m Mutex)` | Try to acquire a mutex (non-blocking) |
+| `try_lock` | `(m Mutex) -> bool` | Try to acquire a mutex (non-blocking); true if acquired, false if already locked |
 | `destroy` | `(m Mutex)` | Destroy a mutex |
 
 ### 9.23 Channels Module (`@channels`)
@@ -4423,7 +4411,6 @@ Formatted output and string formatting functions.
 | `eprintf` | `(format string, args [T])` | Print formatted string to stderr |
 | `eprintfln` | `(format string, args [T])` | Print formatted string to stderr with trailing newline |
 | `sprintf` | `(format string, args [T]) -> string` | Return formatted string |
-| `sprintfln` | `(format string, args [T]) -> string` | Return formatted string with trailing newline |
 
 One array element per format directive; each is independently `i64`, `u64`, `f64`, `string`, `bool`, `char`, or a bigint (`i128`/`u128`/`i256`/`u256`, integer directives only). Composite types are rejected.
 
@@ -4486,11 +4473,8 @@ fmt.printfln("%d-%02d-%02d", parts)           // "2026-09-28"
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `i64_to_hex` | `(n i64) -> string` | Format integer as lowercase hexadecimal (no `0x` prefix); a negative `n` is formatted as its 64-bit two's-complement bits |
 | `i64_to_binary` | `(n i64) -> string` | Format integer as binary; a negative `n` is formatted as its 64-bit two's-complement bits |
-| `i64_to_octal` | `(n i64) -> string` | Format integer as octal; a negative `n` is formatted as its 64-bit two's-complement bits |
 | `f64_to_fixed` | `(f f64, decimals i64) -> string` | Format f64 with fixed decimal places |
-| `f64_to_scientific` | `(f f64) -> string` | Format f64 in scientific notation |
 | `format_number` | `(n i64) -> string` | Decimal string with ASCII comma thousands separators (`1234567` → `"1,234,567"`, `-1000` → `"-1,000"`) |
 | `format_bytes` | `(n i64) -> string` | Human-readable byte count in binary units B/KiB/MiB/GiB/TiB/PiB; whole bytes below 1024 (`"1023 B"`), one decimal above (`"1.5 KiB"`) |
 
@@ -4548,8 +4532,7 @@ outside 2–36 (a compile-time error when the base is a literal).
 - Digits above 9 are lowercase letters `a`–`z`.
 - `format_i64` prefixes negative values with `-`; `format_u64` treats its argument as unsigned.
 - The inverse of `to_i64` / `to_u64`: `to_i64(format_i64(n, b), b) == n`.
-- `fmt.i64_to_hex` / `fmt.i64_to_binary` / `fmt.i64_to_octal` remain available; they format the raw
-  two's-complement bit pattern for their fixed base, whereas `format_i64` produces a signed representation.
+- `fmt.i64_to_binary` formats the raw two's-complement bit pattern, whereas `format_i64` produces a signed representation.
 
 #### Quoting (string ↔ quoted literal)
 
@@ -4619,9 +4602,9 @@ Read-only introspection into the compiler-managed arenas (default + heap), execu
 
 ### 9.29 Chars Module (`@chars`)
 
-Scalar operations on a single `char`. `strings` provides the general classification
-predicates (`is_alpha`, `is_digit`, `is_upper`, `is_lower`, …); `chars` adds ASCII case
-folding plus the lexer-flavored predicates and an escape renderer.
+Scalar operations on a single `char`: the classification predicates (`is_alpha`,
+`is_digit`, `is_upper`, `is_lower`, …), ASCII case folding, and an escape renderer.
+Every predicate is ASCII-only; a non-ASCII codepoint always returns `false`.
 
 #### Case
 
@@ -4637,6 +4620,12 @@ non-ASCII codepoints (`char` is a full Unicode codepoint) are returned unchanged
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `is_alpha` | `(c char) -> bool` | ASCII letter (a-z, A-Z) |
+| `is_digit` | `(c char) -> bool` | Decimal digit (0-9) |
+| `is_alnum` | `(c char) -> bool` | ASCII letter or decimal digit |
+| `is_whitespace` | `(c char) -> bool` | Space, tab, newline, carriage return, vertical tab, or form feed |
+| `is_upper` | `(c char) -> bool` | Uppercase ASCII letter (A-Z) |
+| `is_lower` | `(c char) -> bool` | Lowercase ASCII letter (a-z) |
 | `is_ascii` | `(c char) -> bool` | 7-bit ASCII codepoint (0–127) |
 | `is_control` | `(c char) -> bool` | ASCII control char: C0 range (0–31) or DEL (127) |
 | `is_printable` | `(c char) -> bool` | Printable ASCII, space (32) through `~` (126) |

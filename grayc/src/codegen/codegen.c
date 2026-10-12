@@ -3393,7 +3393,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
 
         /* Map or array membership */
         GrayType *array_type = codegen_type_of(codegen, node->data.infix.right);
-        /* Map membership: key in map → gray_maps_has_key
+        /* Map membership: key in map → gray_maps_contains_key
          * Bind the map to a temp so &_im works even when the map
          * expression is an rvalue (e.g. pointer field access). */
         if (array_type && array_type->kind == TYPE_KIND_MAP) {
@@ -3404,7 +3404,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
             emit_expression(codegen, node->data.infix.right);
             emit_formatted(codegen, "; %s _ik%d = ", gray_map_element_c_type(codegen, array_type->key_type), membership_id);
             emit_map_slot_value(codegen, array_type->key_type, node->data.infix.left);
-            emit_formatted(codegen, "; gray_maps_has_key(&_im%d, &_ik%d); })", membership_id, membership_id);
+            emit_formatted(codegen, "; gray_maps_contains_key(&_im%d, &_ik%d); })", membership_id, membership_id);
             return;
         }
         /* String membership: char in string or string in string */
@@ -6926,7 +6926,7 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         }
         return true;
     }
-    if ((strcmp(function_name, "has_key") == 0 || strcmp(function_name, "remove_key") == 0) &&
+    if ((strcmp(function_name, "contains_key") == 0 || strcmp(function_name, "remove_key") == 0) &&
         node->data.call.argument_count == 2) {
         bool is_remove = strcmp(function_name, "remove_key") == 0;
         /* Key buffer must match the map's declared key storage type
@@ -6940,7 +6940,7 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         emit_formatted(codegen, "({ %s _k = ", c_key_type);
         emit_map_slot_value(codegen, (map_type && map_type->kind == TYPE_KIND_MAP) ? map_type->key_type : NULL,
             node->data.call.arguments[1]);
-        emit_formatted(codegen, "; %s(", is_remove ? "gray_map_remove" : "gray_maps_has_key");
+        emit_formatted(codegen, "; %s(", is_remove ? "gray_map_remove" : "gray_maps_contains_key");
         emit_address_of(codegen, node->data.call.arguments[0]);
         if (is_remove) emit_formatted(codegen, ", &_k, \"%s\", %d); })", codegen->file, node->token.line);
         else emit(codegen, ", &_k); })");
@@ -7088,9 +7088,6 @@ static bool emit_uuid_call(CodeGen *codegen, AstNode *node, const char *function
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")"); return true;
     }
-    if (strcmp(function_name, "generate_random") == 0) {
-        emit(codegen, "gray_uuid_generate_random(gray_default_arena)"); return true;
-    }
     if (strcmp(function_name, "generate_v5") == 0) {
         emit(codegen, "gray_uuid_generate_v5(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
@@ -7144,7 +7141,6 @@ static bool emit_uuid_call(CodeGen *codegen, AstNode *node, const char *function
 static const PassthroughCall regex_passthrough[] = {
     {"is_valid", 1, "gray_regex_is_valid"},
     {"is_match", 2, "gray_regex_match"},
-    {"count", 2, "gray_regex_count"},
     {NULL, 0, NULL},
 };
 
@@ -7153,6 +7149,14 @@ static bool emit_regex_call(CodeGen *codegen, AstNode *node, const char *functio
     if (strcmp(function_name, "escape") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_regex_escape(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ")");
+        return true;
+    }
+    if (strcmp(function_name, "count") == 0 && node->data.call.argument_count == 2) {
+        emit(codegen, "gray_regex_count_result(gray_default_arena, ");
+        emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ", ");
+        emit_expression(codegen, node->data.call.arguments[1]);
         emit(codegen, ")");
         return true;
     }
@@ -7488,15 +7492,8 @@ static const PassthroughCall csv_passthrough[] = {
 };
 
 static bool emit_csv_call(CodeGen *codegen, AstNode *node, const char *function_name) {
-    bool is_multi_variable = current_variable_is_result_temporary(codegen);
     if (strcmp(function_name, "parse") == 0) {
         emit(codegen, "gray_csv_parse(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
-        return true;
-    }
-    if (strcmp(function_name, "read_file") == 0) {
-        emit_formatted(codegen, "gray_csv_read%s(gray_default_arena, ", is_multi_variable ? "_result" : "");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
@@ -7522,9 +7519,8 @@ static bool emit_csv_call(CodeGen *codegen, AstNode *node, const char *function_
         return true;
     }
     if (emit_passthrough_call(codegen, node, function_name, csv_passthrough)) return true;
-    /* Single-array-arg record views: to_maps / from_maps / to_json / to_markdown */
-    if ((strcmp(function_name, "to_maps") == 0 || strcmp(function_name, "from_maps") == 0 ||
-         strcmp(function_name, "to_json") == 0 || strcmp(function_name, "to_markdown") == 0) &&
+    /* Single-array-arg record views: to_maps / from_maps */
+    if ((strcmp(function_name, "to_maps") == 0 || strcmp(function_name, "from_maps") == 0) &&
         node->data.call.argument_count == 1) {
         emit_formatted(codegen, "({ GrayArray _csv_a = ");
         emit_expression(codegen, node->data.call.arguments[0]);
@@ -7560,22 +7556,6 @@ static bool emit_csv_call(CodeGen *codegen, AstNode *node, const char *function_
         emit(codegen, "if (_cf_i == 0 || _cf_fn(_cf_row)) { GRAY_ARRAY_PUSH(gray_default_arena, &_cf_res, &_cf_row); } } _cf_res; })");
         return true;
     }
-    if (strcmp(function_name, "write_file") == 0) {
-        if (is_multi_variable) {
-            emit(codegen, "({ GrayArray _csv_a = ");
-            emit_expression(codegen, node->data.call.arguments[1]);
-            emit(codegen, "; gray_csv_write_result(gray_default_arena, ");
-            emit_expression(codegen, node->data.call.arguments[0]);
-            emit(codegen, ", &_csv_a); })");
-        } else {
-            emit(codegen, "({ GrayArray _csv_a = ");
-            emit_expression(codegen, node->data.call.arguments[1]);
-            emit(codegen, "; gray_csv_write(gray_default_arena, ");
-            emit_expression(codegen, node->data.call.arguments[0]);
-            emit(codegen, ", &_csv_a); })");
-        }
-        return true;
-    }
     return false;
 }
 
@@ -7601,7 +7581,7 @@ static char json_prim_class(const char *type_name) {
     }
 }
 
-/* json.parse / json.stringify on a #json struct or an array of #json structs
+/* json.parse / json.encode on a #json struct or an array of #json structs
  * dispatch to the generated per-struct helper. Returns false for any other
  * type so the caller can fall back to the map path. */
 static bool emit_json_struct_call(CodeGen *codegen, const char *operation, GrayType *type, AstNode *argument) {
@@ -7620,6 +7600,9 @@ static bool emit_json_call(CodeGen *codegen, AstNode *node, const char *function
     if (strcmp(function_name_text, "encode") == 0) {
         AstNode *argument = node->data.call.arguments[0];
         GrayType *argument_type = codegen_type_of(codegen, argument);
+        /* A #json struct or an array of them goes to the generated per-struct
+         * helper; checked first because the array of structs is also an array. */
+        if (emit_json_struct_call(codegen, "encode_struct", argument_type, argument)) return true;
         if (argument_type && argument_type->kind == TYPE_KIND_MAP) {
             const char *function_name = "gray_json_encode_map";
             switch (json_prim_class(argument_type->value_type)) {
@@ -7686,22 +7669,6 @@ static bool emit_json_call(CodeGen *codegen, AstNode *node, const char *function
         emit(codegen, "gray_json_decode(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
-        return true;
-    }
-    /* json.stringify(); dispatch to per-struct helper when
-     * the argument is a #json struct. */
-    if (strcmp(function_name_text, "stringify") == 0 && node->data.call.argument_count >= 1) {
-        AstNode *argument = node->data.call.arguments[0];
-        GrayType *argument_type = codegen_type_of(codegen, argument);
-        /* Array of #json structs included: without it an array argument fell
-         * straight to the map fallback below, which reinterprets the
-         * GrayArray's raw memory as a GrayMap and segfaults reading its
-         * (nonexistent) key/value metadata. */
-        if (emit_json_struct_call(codegen, "stringify", argument_type, argument)) return true;
-        /* Fallback: encode as map */
-        emit(codegen, "({ __auto_type _jtmp = ");
-        emit_expression(codegen, argument);
-        emit(codegen, "; gray_json_encode_map(gray_default_arena, (GrayMap *)&_jtmp); })");
         return true;
     }
     if (strcmp(function_name_text, "is_valid") == 0) {
@@ -8345,7 +8312,6 @@ static bool emit_io_call(CodeGen *codegen, AstNode *node, const char *function_n
         strcmp(function_name, "write_file") == 0 ||
         strcmp(function_name, "delete_file") == 0 ||
         strcmp(function_name, "append_file") == 0 ||
-        strcmp(function_name, "rename_file") == 0 ||
         strcmp(function_name, "copy_file") == 0 ||
         strcmp(function_name, "move_file") == 0 ||
         strcmp(function_name, "list_dir") == 0 ||
@@ -8475,7 +8441,6 @@ static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *functi
         {"eprintf",    "fprintf(stderr, ",                       false},
         {"eprintfln",  "fprintf(stderr, ",                       true},
         {"sprintf",    "gray_string_format(gray_default_arena, ", false},
-        {"sprintfln",  "gray_string_format(gray_default_arena, ", true},
     };
     for (int i = 0; i < (int)(sizeof(format_variants) / sizeof(format_variants[0])); i++) {
         if (strcmp(function_name, format_variants[i].name) == 0) {
@@ -8517,22 +8482,8 @@ static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *functi
         return true;
     }
 
-    if (strcmp(function_name, "i64_to_hex") == 0 && node->data.call.argument_count == 1) {
-        emit(codegen, "gray_fmt_i64_to_hex(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
-        return true;
-    }
-
     if (strcmp(function_name, "i64_to_binary") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_fmt_i64_to_binary(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(function_name, "i64_to_octal") == 0 && node->data.call.argument_count == 1) {
-        emit(codegen, "gray_fmt_i64_to_octal(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
@@ -8543,13 +8494,6 @@ static bool emit_format_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ", ");
         emit_expression(codegen, node->data.call.arguments[1]);
-        emit(codegen, ")");
-        return true;
-    }
-
-    if (strcmp(function_name, "f64_to_scientific") == 0 && node->data.call.argument_count == 1) {
-        emit(codegen, "gray_fmt_f64_to_scientific(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
     }
@@ -8596,12 +8540,6 @@ static bool emit_threads_call(CodeGen *codegen, AstNode *node, const char *funct
     }
     if (strcmp(function_name, "yield") == 0) {
         emit(codegen, "gray_threads_yield()");
-        return true;
-    }
-    if (strcmp(function_name, "sleep") == 0) {
-        emit(codegen, "gray_threads_sleep(");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
         return true;
     }
     if (strcmp(function_name, "thread_count") == 0) {
@@ -10401,6 +10339,25 @@ static bool inferred_composite_type(CodeGen *codegen, AstNode *value, char *outp
 
 static void emit_variable_declaration(CodeGen *codegen, AstNode *node,
                                       const char *source_name) {
+    /* The initializer reads an outer variable of the declared name, which the
+     * new C variable would hide inside its own initializer. Evaluate it into a
+     * temporary first and initialize the variable from that. */
+    if (node->data.variable_declaration.shadows_own_initializer && codegen->indent > 0 &&
+        node->data.variable_declaration.value) {
+        AstNode *value = node->data.variable_declaration.value;
+        char *temporary_name = xmalloc(VARIABLE_NAME_BUFFER_SIZE);
+        snprintf(temporary_name, VARIABLE_NAME_BUFFER_SIZE, "_gray_shadow%d", codegen_next_id(codegen));
+        AstNode temporary_declaration = *node;
+        temporary_declaration.data.variable_declaration.name = temporary_name;
+        temporary_declaration.data.variable_declaration.shadows_own_initializer = false;
+        emit_variable_declaration(codegen, &temporary_declaration, temporary_name);
+        node->data.variable_declaration.shadows_own_initializer = false;
+        node->data.variable_declaration.value = make_temporary_label(codegen, value, temporary_name);
+        emit_variable_declaration(codegen, node, source_name);
+        node->data.variable_declaration.value = value;
+        node->data.variable_declaration.shadows_own_initializer = true;
+        return;
+    }
     emit_indent(codegen);
 
     char inferred_type_name[TYPE_NAME_MAX];
@@ -10649,9 +10606,26 @@ static bool field_type_needs_arena_escape(GrayType *field_type) {
  * (map/array/string/struct literal) lives as long as the heap-allocated
  * struct it's being attached to, rather than the current function's own
  * scoped arena that gets destroyed when the function returns. */
-static void emit_heap_escaped_field_assign(CodeGen *codegen, AstNode *node, const char *reference_text) {
+static void emit_heap_escaped_field_assign(CodeGen *codegen, AstNode *node, GrayType *field_type, const char *reference_text) {
     emit_formatted(codegen, "{ GrayArena *_esc_h = gray_default_arena; gray_default_arena = gray_heap_arena; %s = ", reference_text);
-    emit_expression(codegen, node->data.assign.value);
+    const char *field_type_name = field_type ? type_name(field_type) : NULL;
+    if (field_type_name && composite_value_aliases(codegen, field_type_name, node->data.assign.value)) {
+        /* A named array/map/struct still lives in the function's own arena;
+         * copy it into the heap arena the swap just selected. */
+        int unique_id = codegen_next_id(codegen);
+        char source_variable[SHORT_VARIABLE_BUFFER_SIZE];
+        snprintf(source_variable, sizeof(source_variable), "_hv%d", unique_id);
+        const char *c_type = field_type_name[0] == '[' ? "GrayArray"
+                           : strncmp(field_type_name, "map[", 4) == 0 ? "GrayMap"
+                           : gray_type_to_c_codegen(codegen, field_type_name);
+        emit_formatted(codegen, "({ %s %s = ", c_type, source_variable);
+        emit_expression(codegen, node->data.assign.value);
+        emit(codegen, "; ");
+        emit_value_deep_copy(codegen, field_type_name, source_variable);
+        emit(codegen, "; })");
+    } else {
+        emit_expression(codegen, node->data.assign.value);
+    }
     emit(codegen, "; gray_default_arena = _esc_h; }");
 }
 
@@ -11177,7 +11151,7 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             is_heap_variable(codegen, pointer_target->data.label.value)) {
             GrayType *field_type = codegen_type_of(codegen, node->data.assign.target);
             if (field_type_needs_arena_escape(field_type)) {
-                emit_heap_escaped_field_assign(codegen, node, field_reference);
+                emit_heap_escaped_field_assign(codegen, node, field_type, field_reference);
                 emit(codegen, "; }\n");
                 return;
             }
@@ -11243,7 +11217,7 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
                     emit_pointer_capture(codegen, node, object);
                     char reference_holder[MESSAGE_BUFFER_SIZE];
                     snprintf(reference_holder, sizeof(reference_holder), "_dp->%s", sanitize_name(field));
-                    emit_heap_escaped_field_assign(codegen, node, reference_holder);
+                    emit_heap_escaped_field_assign(codegen, node, field_type, reference_holder);
                     emit(codegen, "; }\n");
                     return;
                 }
@@ -12765,6 +12739,13 @@ static void emit_foreach_map(CodeGen *codegen, AstNode *node, AstNode *coll,
     const char *c_value_type = "int64_t";
     if (collection_type->key_type) c_key_type = gray_map_element_c_type(codegen, collection_type->key_type);
     if (collection_type->value_type) c_value_type = gray_map_element_c_type(codegen, collection_type->value_type);
+    /* Ring-buffer results; the collection expression emitted below can wrap
+     * the buffer, so keep copies. */
+    char c_key_type_copy[MESSAGE_BUFFER_SIZE], c_value_type_copy[MESSAGE_BUFFER_SIZE];
+    snprintf(c_key_type_copy, sizeof(c_key_type_copy), "%s", c_key_type);
+    snprintf(c_value_type_copy, sizeof(c_value_type_copy), "%s", c_value_type);
+    c_key_type = c_key_type_copy;
+    c_value_type = c_value_type_copy;
 
     *out_map_needs_temporary = (coll->kind != NODE_LABEL);
     if (*out_map_needs_temporary) {
@@ -12885,6 +12866,13 @@ static void emit_foreach_array(CodeGen *codegen, AstNode *node, AstNode *coll,
                 ? "GrayString" : gray_type_to_c_codegen(codegen, element_type_name);
         }
     }
+
+    /* gray_type_to_c_codegen returns a slot of a small ring buffer, and the
+     * collection expression emitted below makes enough calls of its own to
+     * wrap it. Keep a copy that outlives them. */
+    char c_element_type_copy[MESSAGE_BUFFER_SIZE];
+    snprintf(c_element_type_copy, sizeof(c_element_type_copy), "%s", c_element_type);
+    c_element_type = c_element_type_copy;
 
     int array_length_id = codegen_next_id(codegen);
     char length_name[SHORT_VARIABLE_BUFFER_SIZE];
@@ -13064,7 +13052,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
     if (codegen->indent > 0 && codegen->file && node->token.line > 0 &&
         statement_needs_panic_location(codegen, node)) {
         emit_indent(codegen);
-        emit_formatted(codegen, "gray_panic_call_file = \"%s\"; gray_panic_call_line = %d;\n",
+        emit_formatted(codegen, "gray_set_panic_call(\"%s\", %d);\n",
                        codegen->file, node->token.line);
     }
 
@@ -14333,7 +14321,7 @@ static void emit_json_element_decode(CodeGen *codegen, const char *element_type_
         emit_formatted(codegen, "            gray_json_field_decode(_es, GRAY_ELEM_KIND_OF(%s), &_e, \"%s\", %d);\n",
             gray_type_to_c_codegen(codegen, element_type_name), codegen->file, line);
     } else {
-        emit_formatted(codegen, "            _e = gray_json_parse_%s(arena, _es);\n", resolved_element_type);
+        emit_formatted(codegen, "            if (!gray_json_is_null(_es)) _e = gray_json_parse_%s(arena, _es);\n", resolved_element_type);
     }
 }
 
@@ -14345,15 +14333,15 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         if (!statement->data.struct_declaration.is_json) continue;
         const char *struct_name = statement->data.struct_declaration.name;
         emit_formatted(codegen, "static GrayStruct_%s gray_json_parse_%s(GrayArena *arena, GrayString text);\n", struct_name, struct_name);
-        emit_formatted(codegen, "static GrayString gray_json_stringify_%s(GrayArena *arena, GrayStruct_%s _s);\n", struct_name, struct_name);
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_%s(GrayArena *arena, GrayStruct_%s _s);\n", struct_name, struct_name);
         emit_formatted(codegen, "static GrayArray gray_json_parse_array_%s(GrayArena *arena, GrayString text);\n", struct_name);
-        emit_formatted(codegen, "static GrayString gray_json_stringify_array_%s(GrayArena *arena, GrayArray _arr);\n", struct_name);
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_array_%s(GrayArena *arena, GrayArray _arr);\n", struct_name);
     }
-    /* emit JSON parse/stringify helpers for #json structs. Each
+    /* emit JSON parse/encode helpers for #json structs. Each
      * #json struct gets two static functions:
      *   - gray_json_parse_<Name>(arena, json_string) → GrayStruct_<Name>
-     *   - gray_json_stringify_<Name>(arena, struct_value) → GrayString
-     * These are called by json.parse() / json.stringify() which the
+     *   - gray_json_encode_struct_<Name>(arena, struct_value) → GrayString
+     * These are called by json.parse() / json.encode() which the
      * typechecker dispatches based on the target/argument struct type. */
     for (int i = 0; i < codegen->struct_declaration_count; i++) {
         AstNode *statement = codegen->struct_declarations[i];
@@ -14365,7 +14353,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         emit_formatted(codegen, "static GrayStruct_%s gray_json_parse_%s(GrayArena *arena, GrayString text) {\n", struct_name, struct_name);
         emit_formatted(codegen, "    GrayStruct_%s _r = {0};\n", struct_name);
         emit_formatted(codegen, "    GrayMap _q;\n");
-        emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q);\n");
+        emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q, \"%s\", %d);\n", codegen->file, statement->token.line);
         for (int j = 0; j < field_count; j++) {
             StructField *field = &statement->data.struct_declaration.fields[j];
             /* A `` `json:"Name"` `` tag maps the field under that JSON key
@@ -14405,7 +14393,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                         emit_json_element_decode(codegen, composite_type->element_type, statement->token.line);
                         emit_formatted(codegen, "            gray_array_push(arena, &_r.%s, &_e, __FILE__, __LINE__);\n        } } }\n", sanitize_name(field->name));
                     } else {
-                        emit_formatted(codegen, "      if (_v) { _r.%s = gray_json_parse_%s(arena, *(GrayString *)_v); } }\n",
+                        emit_formatted(codegen, "      if (_v && !gray_json_is_null(*(GrayString *)_v)) { _r.%s = gray_json_parse_%s(arena, *(GrayString *)_v); } }\n",
                             sanitize_name(field->name), resolved_field_type);
                     }
                 } else if (codegen_is_enum(codegen, resolved_field_type) && !codegen_enum_is_tagged(codegen, resolved_field_type)) {
@@ -14440,8 +14428,8 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         }
         emit_formatted(codegen, "    return _r;\n}\n\n");
 
-        /* --- stringify: struct → JSON string --- */
-        emit_formatted(codegen, "static GrayString gray_json_stringify_%s(GrayArena *arena, GrayStruct_%s _s) {\n", struct_name, struct_name);
+        /* --- encode: struct → JSON string --- */
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_%s(GrayArena *arena, GrayStruct_%s _s) {\n", struct_name, struct_name);
 
         /* Pass 1: compute exact buffer size at runtime.
          * Field names are identifiers (no escaping), so their contribution
@@ -14483,7 +14471,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                 if (composite_type->kind == TYPE_KIND_ARRAY) {
                     GrayType *element_type = type_from_name(composite_type->element_type);
                     if (element_type->kind == TYPE_KIND_STRUCT) {
-                        emit_formatted(codegen, "    GrayString _nt%d = gray_json_stringify_array_%s(arena, _s.%s);\n",
+                        emit_formatted(codegen, "    GrayString _nt%d = gray_json_encode_struct_array_%s(arena, _s.%s);\n",
                             j, codegen_resolve_type(codegen, composite_type->element_type), sanitize_name(field->name));
                     } else {
                         const char *encode_function = "gray_json_encode_array_signed_integer";
@@ -14498,7 +14486,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                         emit_formatted(codegen, "    GrayString _nt%d = %s(arena, &_s.%s);\n", j, encode_function, sanitize_name(field->name));
                     }
                 } else {
-                    emit_formatted(codegen, "    GrayString _nt%d = gray_json_stringify_%s(arena, _s.%s);\n",
+                    emit_formatted(codegen, "    GrayString _nt%d = gray_json_encode_struct_%s(arena, _s.%s);\n",
                         j, codegen_resolve_type(codegen, field->type_name), sanitize_name(field->name));
                 }
                 emit_formatted(codegen, "    _need += (size_t)_nt%d.len;\n", j);
@@ -14549,6 +14537,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
 
         /* --- parse array: JSON array string → GrayArray of structs --- */
         emit_formatted(codegen, "static GrayArray gray_json_parse_array_%s(GrayArena *arena, GrayString text) {\n", struct_name);
+        emit_formatted(codegen, "    gray_json_require_document(text, '[', \"%s\", %d);\n", codegen->file, statement->token.line);
         emit_formatted(codegen, "    GrayArray _elems = gray_json_split_array(arena, text);\n");
         emit_formatted(codegen, "    GrayArray _result = GRAY_ARRAY_NEW_OF(arena, GrayStruct_%s, _elems.len > 0 ? _elems.len : 4);\n", struct_name);
         emit_formatted(codegen, "    for (int32_t _i = 0; _i < _elems.len; _i++) {\n");
@@ -14559,17 +14548,14 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         emit_formatted(codegen, "    return _result;\n");
         emit_formatted(codegen, "}\n\n");
 
-        /* --- stringify array: GrayArray of structs → JSON array string ---
-         * Symmetric with parse array above; json.stringify() previously had
-         * no dedicated codegen path for an array argument at all and fell
-         * to the generic map-fallback, which reinterprets the GrayArray's
-         * raw memory as a GrayMap and segfaults. */
-        emit_formatted(codegen, "static GrayString gray_json_stringify_array_%s(GrayArena *arena, GrayArray _arr) {\n", struct_name);
+        /* --- encode array: GrayArray of structs → JSON array string ---
+         * Symmetric with parse array above. */
+        emit_formatted(codegen, "static GrayString gray_json_encode_struct_array_%s(GrayArena *arena, GrayArray _arr) {\n", struct_name);
         emit_formatted(codegen, "    GrayString *_parts = (GrayString *)gray_arena_alloc(arena, sizeof(GrayString) * (size_t)(_arr.len > 0 ? _arr.len : 1));\n");
         emit_formatted(codegen, "    size_t _need = 2;\n");
         emit_formatted(codegen, "    for (int32_t _i = 0; _i < _arr.len; _i++) {\n");
         emit_formatted(codegen, "        GrayStruct_%s _item = *(GrayStruct_%s *)((char *)_arr.data + (size_t)_i * (size_t)_arr.elem_size);\n", struct_name, struct_name);
-        emit_formatted(codegen, "        GrayString _js = gray_json_stringify_%s(arena, _item);\n", struct_name);
+        emit_formatted(codegen, "        GrayString _js = gray_json_encode_struct_%s(arena, _item);\n", struct_name);
         emit_formatted(codegen, "        _parts[_i] = _js;\n");
         emit_formatted(codegen, "        _need += (size_t)_js.len;\n");
         emit_formatted(codegen, "        if (_i > 0) _need += 2;\n");
