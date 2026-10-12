@@ -124,7 +124,7 @@
 | `E3041` | types | cannot interpolate %s of tagged enum '%s' |
 | `E3043` | types | cannot convert %s to %s |
 | `E3044` | types | cannot access field '%s' on type '%s'; use an instance variable instead |
-| `E3045` | types | 'or_return' requires a function that returns (T, Error); '%s()' does not return an error |
+| `E3045` | types | '%s' requires a function that returns (T, Error); '%s()' does not return an error |
 | `E3046` | types | integer literal %s does not fit any integer type; integers range from -2^255 (i256) to 2^256 - 1 (u256) |
 | `E3047` | types | enum '%s' has no member '%s' |
 | `E3048` | types | operator '+' on strings requires both operands to be strings; got '%s' and '%s' |
@@ -162,7 +162,7 @@
 | `E3086` | types | 'fmt.%s' format string must be a string literal; use string interpolation for dynamic values |
 | `E3087` | types | '%%n' is not permitted in fmt format strings |
 | `E3088` | types | 'fmt.%s' format directive '%%%s' expects %s but element %d has type '%s' |
-| `E3089` | usage | '%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it |
+| `E3089` | usage | '%s()' can fail; use 'mut val, err = %s()' to handle the error, 'mut val, _ = %s()' to discard it, or add 'or_return' to propagate it or 'or_panic' to abort |
 | `E3090` | types | '!' only works on bool; got '%s' |
 | `E3091` | types | '%s' cannot be used as a condition |
 | `E3092` | types | cannot compare '%s' to nil; only Error types and pointers can be nil |
@@ -584,4 +584,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 23:22:34 UTC*
+*Generated on 2026-10-12 23:41:59 UTC*

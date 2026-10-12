@@ -1,0 +1,8 @@
+// expect-contains: config must hold a port number
+/* Panic Test: P0076 - or_panic with a message aborts with that message */
+import @strconv
+
+do main() {
+    mut port = strconv.to_i64("abc") or_panic "config must hold a port number"
+    println(port)
+}

@@ -1,0 +1,58 @@
+/*
+ * or_panic.gray - or_panic binds the value when the call succeeds
+ */
+
+import @strconv
+import @io
+
+do lookup(key string) -> (i64, Error) {
+    if key == "port" { return 8080, nil }
+    return 0, error(.NotFound, "no such key: ${key}")
+}
+
+do pair() -> (i64, Error) { return 3, nil }
+
+do helper_without_error_return() -> i64 {
+    mut value = lookup("port") or_panic
+    return value + 1
+}
+
+do check(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut port = lookup("port") or_panic
+    check("user function in main", port == 8080, passed, failed)
+
+    const fixed = lookup("port") or_panic
+    check("const declaration", fixed == 8080, passed, failed)
+
+    mut typed i64 = pair() or_panic
+    check("typed declaration", typed == 3, passed, failed)
+
+    mut parsed = strconv.to_i64("42") or_panic
+    check("stdlib fallible function", parsed == 42, passed, failed)
+
+    mut custom = strconv.to_i64("7") or_panic "must be a number"
+    check("custom message, success", custom == 7, passed, failed)
+
+    check("function with no Error in its return type", helper_without_error_return() == 8081, passed, failed)
+
+    println("")
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("FAILED")
+    } otherwise {
+        println("ALL PASSED")
+    }
+}

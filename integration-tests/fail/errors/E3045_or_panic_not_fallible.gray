@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3045 - or_panic on a function that does not return (T, Error)
+ */
+// expect-error: E3045
+
+do plain() -> i64 { return 1 }
+
+do main() {
+    mut x = plain() or_panic
+    println(x)
+}

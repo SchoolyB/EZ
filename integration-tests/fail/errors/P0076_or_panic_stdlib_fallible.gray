@@ -1,0 +1,8 @@
+// expect-contains: cannot read
+/* Panic Test: P0076 - or_panic on a fallible stdlib call aborts with its message */
+import @io
+
+do main() {
+    mut contents = io.read_file("/nonexistent/or_panic_test.txt") or_panic
+    println(contents)
+}

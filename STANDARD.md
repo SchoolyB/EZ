@@ -115,8 +115,8 @@ The following words are reserved and may not be used as identifiers:
 as_long_as   break       case        continue    default
 defer        elif        else        ensure      for
 for_each     if          is          loop        or
-or_return    otherwise   return      switch      when
-while
+or_panic     or_return   otherwise   return      switch
+when         while
 ```
 
 **Declarations:**
@@ -1850,6 +1850,15 @@ do run() -> Error {
 ```
 
 When the call returns a non-nil error, `or_return` immediately returns from the enclosing function. Without explicit fallback values it returns zero values for the enclosing function's non-error slots plus the original error. A destructuring `or_return` binds every non-error slot the call returns; a statement with no binding discards them. Both the call and the enclosing function must have `Error` as their last return type.
+
+The `or_panic` keyword aborts instead of propagating. It follows a single-variable declaration whose call returns `(T, Error)`:
+
+```gray
+mut port = lookup("port") or_panic
+mut n = strconv.to_i64(text) or_panic "config must hold a port number"
+```
+
+When the call returns a non-nil error, the program panics with the error's message, or with the string written after `or_panic`. Otherwise the value is bound. Unlike `or_return`, it is legal in `main()` and in functions that return no `Error`. Both `mut` and `const` declarations are accepted.
 
 ---
 

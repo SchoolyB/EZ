@@ -1463,6 +1463,12 @@ static char *make_or_return_temporary_name(Arena *arena) {
     return name;
 }
 
+static char *make_or_panic_temporary_name(Arena *arena) {
+    char *name = arena_allocate(arena, TEMPORARY_NAME_BUFFER_SIZE);
+    snprintf(name, TEMPORARY_NAME_BUFFER_SIZE, GRAY_SYNTHETIC_OR_PANIC "%d", gray_or_return_temporary_id++);
+    return name;
+}
+
 /* `mut <temporary_name> = value`, marked synthetic, with the type inferred. */
 static AstNode *make_synthetic_temporary_declaration(Parser *parser, char *temporary_name, AstNode *value) {
     AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
@@ -1555,6 +1561,61 @@ static AstNode *build_or_return_guard(Parser *parser, const char *temporary_name
     return if_statement;
 }
 
+/* Build the abort guard for or_panic:
+ *
+ *     if (_tmp.verr != nil) { panic(<message>) }
+ *
+ * The message is the one the user wrote after `or_panic`, else the error's
+ * own. `verr` is rewritten by the typechecker exactly as for or_return. */
+static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name, AstNode *message) {
+    Token token = parser->current_token;
+
+    AstNode *if_statement = ast_allocate(parser->arena, NODE_IF_STATEMENT, token);
+    AstNode *error_access = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+    AstNode *temporary_label = ast_allocate(parser->arena, NODE_LABEL, token);
+    temporary_label->data.label.value = temporary_name;
+    error_access->data.member.object = temporary_label;
+    error_access->data.member.member = OR_RETURN_ERROR_SLOT;
+    AstNode *nil_value = ast_allocate(parser->arena, NODE_NIL_VALUE, token);
+    AstNode *condition = ast_allocate(parser->arena, NODE_INFIX_EXPRESSION, token);
+    condition->data.infix.left = error_access;
+    condition->data.infix.operator = TOKEN_NOT_EQUAL;
+    condition->data.infix.right = nil_value;
+    if_statement->data.if_statement.condition = condition;
+
+    if (!message) {
+        AstNode *message_access = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+        AstNode *error_again = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+        AstNode *label_again = ast_allocate(parser->arena, NODE_LABEL, token);
+        label_again->data.label.value = temporary_name;
+        error_again->data.member.object = label_again;
+        error_again->data.member.member = OR_RETURN_ERROR_SLOT;
+        message_access->data.member.object = error_again;
+        message_access->data.member.member = "msg";
+        message = message_access;
+    }
+
+    AstNode *panic_label = ast_allocate(parser->arena, NODE_LABEL, token);
+    panic_label->data.label.value = "panic";
+    AstNode *panic_call = ast_allocate(parser->arena, NODE_CALL_EXPRESSION, token);
+    panic_call->data.call.function = panic_label;
+    panic_call->data.call.arguments = arena_allocate(parser->arena, sizeof(AstNode *));
+    panic_call->data.call.arguments[0] = message;
+    panic_call->data.call.argument_count = 1;
+    panic_call->data.call.argument_names = NULL;
+    AstNode *panic_statement = ast_allocate(parser->arena, NODE_EXPRESSION_STATEMENT, token);
+    panic_statement->data.expression_statement.expression = panic_call;
+
+    AstNode *panic_block = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, token);
+    panic_block->data.block.capacity = 1;
+    panic_block->data.block.count = 0;
+    panic_block->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *));
+    panic_block->data.block.statements[panic_block->data.block.count++] = panic_statement;
+    if_statement->data.if_statement.consequence = panic_block;
+    if_statement->data.if_statement.alternative = NULL;
+    return if_statement;
+}
+
 /* If peek is or_return, consume it and desugar
  *
  *     <declaration with value = expr> or_return
@@ -1568,13 +1629,29 @@ static AstNode *build_or_return_guard(Parser *parser, const char *temporary_name
  * Returns the desugared block, or NULL if no or_return was present
  * (caller keeps the original declaration untouched). */
 static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declaration) {
-    if (!peek_token_is(parser, TOKEN_OR_RETURN)) return NULL;
-    next_token(parser); /* consume or_return */
+    bool is_panic = peek_token_is(parser, TOKEN_OR_PANIC);
+    if (!is_panic && !peek_token_is(parser, TOKEN_OR_RETURN)) return NULL;
+    next_token(parser); /* consume or_return / or_panic */
 
     AstNode *fallback_values[MAX_MULTI_VARIABLES];
-    int fallback_count = parse_or_return_fallbacks(parser, fallback_values);
+    int fallback_count = 0;
+    AstNode *panic_message = NULL;
+    if (is_panic) {
+        /* an optional message on the same line: `or_panic "config is bad"` */
+        int or_panic_line = parser->current_token.line;
+        if (parser->peek_token.line == or_panic_line &&
+            !peek_token_is(parser, TOKEN_END_OF_FILE) && !peek_token_is(parser, TOKEN_SEMICOLON) &&
+            !peek_token_is(parser, TOKEN_RIGHT_BRACE)) {
+            next_token(parser);
+            panic_message = parse_expression(parser, PRECEDENCE_LOWEST);
+            if (!panic_message) return NULL;
+        }
+    } else {
+        fallback_count = parse_or_return_fallbacks(parser, fallback_values);
+    }
 
-    char *temporary_name = make_or_return_temporary_name(parser->arena);
+    char *temporary_name = is_panic ? make_or_panic_temporary_name(parser->arena)
+                                    : make_or_return_temporary_name(parser->arena);
 
     AstNode *block = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
     block->data.block.capacity = 3;
@@ -1585,8 +1662,9 @@ static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declarat
     block->data.block.statements[block->data.block.count++] =
         make_synthetic_temporary_declaration(parser, temporary_name, original_declaration->data.variable_declaration.value);
 
-    block->data.block.statements[block->data.block.count++] =
-        build_or_return_guard(parser, temporary_name, fallback_values, fallback_count);
+    block->data.block.statements[block->data.block.count++] = is_panic
+        ? build_or_panic_guard(parser, temporary_name, panic_message)
+        : build_or_return_guard(parser, temporary_name, fallback_values, fallback_count);
 
     /* x = _tmp.v0 */
     AstNode *unwrapped_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);

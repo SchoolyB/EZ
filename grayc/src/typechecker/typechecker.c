@@ -13549,7 +13549,7 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
     /* E4026: 'main' is reserved for the entry-point function */
     check_reserved_main(checker, node->data.variable_declaration.name,
         NODE_FILE(checker, node), node->token.line, node->token.column);
-    /* E3045: or_return on non-error-returning function */
+    /* E3045: or_return / or_panic on non-error-returning function */
     if (strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR, sizeof(GRAY_SYNTHETIC_OR) - 1) == 0 &&
         node->data.variable_declaration.value && node->data.variable_declaration.value->kind == NODE_CALL_EXPRESSION) {
         AstNode *call_function = node->data.variable_declaration.value->data.call.function;
@@ -13575,7 +13575,9 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
                     strncpy(display, call_name, sizeof(display) - 1);
                     display[sizeof(display) - 1] = '\0';
                 }
-                NODE_ERROR_FORMATTED(checker, node->data.variable_declaration.value, "E3045", display);
+                const char *keyword = strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR_PANIC,
+                    sizeof(GRAY_SYNTHETIC_OR_PANIC) - 1) == 0 ? "or_panic" : "or_return";
+                NODE_ERROR_FORMATTED(checker, node->data.variable_declaration.value, "E3045", keyword, display);
             }
         }
     }

@@ -117,6 +117,7 @@ typedef enum {
     TOKEN_BLANK,
     TOKEN_ENSURE,
     TOKEN_OR_RETURN,
+    TOKEN_OR_PANIC,
     TOKEN_EXTERN,
     TOKEN_GENERIC,
 

@@ -56,6 +56,7 @@ static const KeywordEntry keywords[] = {
     {"nil",         TOKEN_NIL},
     {"not_in",      TOKEN_NOT_IN},
     {"or",          TOKEN_OR_KEYWORD},
+    {"or_panic",    TOKEN_OR_PANIC},
     {"or_return",   TOKEN_OR_RETURN},
     {"otherwise",   TOKEN_OTHERWISE},
     {"private",     TOKEN_PRIVATE},
@@ -214,6 +215,7 @@ const char *token_type_name(TokenType type) {
     case TOKEN_BLANK:          return "_";
     case TOKEN_ENSURE:         return "ensure";
     case TOKEN_OR_RETURN:      return "or_return";
+    case TOKEN_OR_PANIC:       return "or_panic";
     case TOKEN_EXTERN:         return "extern";
     case TOKEN_GENERIC:        return "generic";
     case TOKEN_PRIVATE:        return "private";

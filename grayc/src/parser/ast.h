@@ -21,6 +21,9 @@
 #define GRAY_SYNTHETIC_PREFIX  "_gray_"
 #define GRAY_SYNTHETIC_TEMPORARY     "_gray_tmp"
 #define GRAY_SYNTHETIC_OR      "_gray_or"
+/* An or_panic temporary: GRAY_SYNTHETIC_OR is its prefix, so every or_return
+ * check also covers it. */
+#define GRAY_SYNTHETIC_OR_PANIC "_gray_or_panic"
 
 /* Sentinel member name for the or_return propagation guard's error access.
  * The parser emits `_gray_orN.verr`; the typechecker rewrites it to the

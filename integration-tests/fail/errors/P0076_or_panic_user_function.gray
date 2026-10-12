@@ -1,0 +1,14 @@
+// expect-contains: no such key: hostname
+/* Panic Test: P0076 - or_panic aborts with the error's message */
+
+do lookup(key string) -> (i64, Error) {
+    if key == "port" { return 8080, nil }
+    return 0, error(.NotFound, "no such key: ${key}")
+}
+
+do main() {
+    mut port = lookup("port") or_panic
+    println("listening on ${port}")
+    mut missing = lookup("hostname") or_panic
+    println("unreachable ${missing}")
+}
