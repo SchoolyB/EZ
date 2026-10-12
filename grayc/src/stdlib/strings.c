@@ -178,13 +178,26 @@ GrayString gray_strings_trim_right(GrayArena *arena, GrayString string) {
     return gray_string_new(arena, string.data, end_index);
 }
 
+/* Index of the first occurrence of needle at or after from, or -1. memchr
+ * finds each candidate by the needle's first byte, so memcmp runs only where
+ * that byte matches instead of at every position. Requires needle.len > 0 and
+ * 0 <= from <= string.len. */
+static int32_t gray_strings_find(GrayString string, GrayString needle, int32_t from) {
+    if (needle.len > string.len - from) return -1;
+    const char *end = string.data + string.len - needle.len + 1;
+    const char *cursor = string.data + from;
+    while (cursor < end) {
+        cursor = memchr(cursor, needle.data[0], (size_t)(end - cursor));
+        if (!cursor) return -1;
+        if (memcmp(cursor + 1, needle.data + 1, (size_t)needle.len - 1) == 0) return (int32_t)(cursor - string.data);
+        cursor++;
+    }
+    return -1;
+}
+
 bool gray_strings_contains(GrayString string, GrayString substring) {
     if (substring.len == 0) return true;
-    if (substring.len > string.len) return false;
-    for (int32_t i = 0; i <= string.len - substring.len; i++) {
-        if (memcmp(string.data + i, substring.data, (size_t)substring.len) == 0) return true;
-    }
-    return false;
+    return gray_strings_find(string, substring, 0) >= 0;
 }
 
 bool gray_strings_starts_with(GrayString string, GrayString prefix) {
@@ -199,18 +212,15 @@ bool gray_strings_ends_with(GrayString string, GrayString suffix) {
 
 int64_t gray_strings_index_of(GrayString string, GrayString substring) {
     if (substring.len == 0) return 0;
-    if (substring.len > string.len) return -1;
-    for (int32_t i = 0; i <= string.len - substring.len; i++) {
-        if (memcmp(string.data + i, substring.data, (size_t)substring.len) == 0) return i;
-    }
-    return -1;
+    return gray_strings_find(string, substring, 0);
 }
 
 int64_t gray_strings_last_index_of(GrayString string, GrayString substring) {
     if (substring.len == 0) return string.len;
     if (substring.len > string.len) return -1;
     for (int32_t i = string.len - substring.len; i >= 0; i--) {
-        if (memcmp(string.data + i, substring.data, (size_t)substring.len) == 0) return i;
+        if (string.data[i] == substring.data[0] &&
+            memcmp(string.data + i + 1, substring.data + 1, (size_t)substring.len - 1) == 0) return i;
     }
     return -1;
 }
@@ -218,11 +228,9 @@ int64_t gray_strings_last_index_of(GrayString string, GrayString substring) {
 int64_t gray_strings_count(GrayString string, GrayString substring) {
     if (substring.len == 0) return 0;
     int64_t count = 0;
-    for (int32_t i = 0; i <= string.len - substring.len; i++) {
-        if (memcmp(string.data + i, substring.data, (size_t)substring.len) == 0) {
-            count++;
-            i += substring.len - 1;
-        }
+    for (int32_t i = gray_strings_find(string, substring, 0); i >= 0;
+         i = gray_strings_find(string, substring, i + substring.len)) {
+        count++;
     }
     return count;
 }
@@ -255,15 +263,15 @@ GrayString gray_strings_replace(GrayArena *arena, GrayString string, GrayString 
     int32_t new_length = (int32_t)new_length_wide;
     char *buffer = gray_arena_alloc_uninitialized(arena, (size_t)new_length + 1);
     int32_t position = 0;
-    for (int32_t i = 0; i < string.len; ) {
-        if (i <= string.len - old_text.len && memcmp(string.data + i, old_text.data, (size_t)old_text.len) == 0) {
-            memcpy(buffer + position, new_text.data, (size_t)new_text.len);
-            position += new_text.len;
-            i += old_text.len;
-        } else {
-            buffer[position++] = string.data[i++];
-        }
+    int32_t i = 0;
+    for (int32_t match; (match = gray_strings_find(string, old_text, i)) >= 0; i = match + old_text.len) {
+        memcpy(buffer + position, string.data + i, (size_t)(match - i));
+        position += match - i;
+        memcpy(buffer + position, new_text.data, (size_t)new_text.len);
+        position += new_text.len;
     }
+    memcpy(buffer + position, string.data + i, (size_t)(string.len - i));
+    position += string.len - i;
     buffer[position] = '\0';
     GrayString result = { buffer, position };
     return result;
@@ -345,13 +353,9 @@ GrayArray gray_strings_split(GrayArena *arena, GrayString string, GrayString sep
         return array;
     }
     int32_t start = 0;
-    for (int32_t i = 0; i <= string.len - separator.len; i++) {
-        if (memcmp(string.data + i, separator.data, (size_t)separator.len) == 0) {
-            GrayString part = gray_string_new(arena, string.data + start, i - start);
-            GRAY_ARRAY_PUSH(arena, &array, &part);
-            i += separator.len - 1;
-            start = i + 1;
-        }
+    for (int32_t i; (i = gray_strings_find(string, separator, start)) >= 0; start = i + separator.len) {
+        GrayString part = gray_string_new(arena, string.data + start, i - start);
+        GRAY_ARRAY_PUSH(arena, &array, &part);
     }
     GrayString last = gray_string_new(arena, string.data + start, string.len - start);
     GRAY_ARRAY_PUSH(arena, &array, &last);
@@ -381,14 +385,11 @@ GrayArray gray_strings_split_n(GrayArena *arena, GrayString string, GrayString s
     }
     int32_t start = 0;
     /* Stop splitting once one slot is left; it takes the whole remainder. */
-    for (int32_t i = 0; maximum_parts > 1 && i <= string.len - separator.len; i++) {
-        if (memcmp(string.data + i, separator.data, (size_t)separator.len) == 0) {
-            GrayString part = gray_string_new(arena, string.data + start, i - start);
-            GRAY_ARRAY_PUSH(arena, &array, &part);
-            i += separator.len - 1;
-            start = i + 1;
-            maximum_parts--;
-        }
+    for (int32_t i; maximum_parts > 1 && (i = gray_strings_find(string, separator, start)) >= 0;
+         start = i + separator.len) {
+        GrayString part = gray_string_new(arena, string.data + start, i - start);
+        GRAY_ARRAY_PUSH(arena, &array, &part);
+        maximum_parts--;
     }
     GrayString last = gray_string_new(arena, string.data + start, string.len - start);
     GRAY_ARRAY_PUSH(arena, &array, &last);
