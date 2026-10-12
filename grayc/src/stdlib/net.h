@@ -127,6 +127,9 @@ void gray_net_close(GraySocket sock);
 
 /* Send/receive raw data */
 int64_t gray_net_send(GraySocket sock, GrayString data);
+/* Like gray_net_recv; an empty result sets *error_number to the system error,
+ * or 0 when the peer closed cleanly. */
+GrayString gray_net_recv_status(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number);
 GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes);
 
 /* TCP server */

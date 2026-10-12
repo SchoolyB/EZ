@@ -4030,6 +4030,8 @@ HTTP client for making requests. Currently supports HTTP only.
 
 A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error with code `OutOfRange` and no truncated body. A `Transfer-Encoding: chunked` body is decoded: `resp.body` is the concatenated chunk data, and a malformed chunk returns an Error with code `ParseFailure`.
 
+A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
+
 #### HttpResponse Type
 
 `HttpResponse` is one type shared by `@http` and `@server`: it is available when either is imported, and `HttpResponse`, `http.HttpResponse` and `server.HttpResponse` all name it. A server handler can return a response from `http.get` unchanged.

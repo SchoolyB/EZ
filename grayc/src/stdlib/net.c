@@ -38,18 +38,23 @@ GraySocket gray_net_dial(GrayArena *arena, GrayString host, int64_t port) {
     snprintf(port_text, sizeof(port_text), "%d", (int)port);
 
     if (getaddrinfo(host_buffer, port_text, &hints, &address_results) != 0) {
+        errno = ENOENT; /* the host did not resolve; getaddrinfo leaves errno alone */
         return sock;
     }
 
     int file_descriptor = socket(address_results->ai_family, address_results->ai_socktype, address_results->ai_protocol);
     if (file_descriptor < 0) {
+        int saved_errno = errno;
         freeaddrinfo(address_results);
+        errno = saved_errno;
         return sock;
     }
 
     if (connect(file_descriptor, address_results->ai_addr, address_results->ai_addrlen) != 0) {
+        int saved_errno = errno;
         gray_sock_close(file_descriptor);
         freeaddrinfo(address_results);
+        errno = saved_errno;
         return sock;
     }
 
@@ -88,7 +93,7 @@ int64_t gray_net_send(GraySocket sock, GrayString data) {
 
 /* Reads up to maximum_bytes. An empty result sets *error_number to the
  * system error that ended the read, or 0 when the peer closed cleanly. */
-static GrayString net_recv_bytes(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number) {
+GrayString gray_net_recv_status(GrayArena *arena, GraySocket sock, int64_t maximum_bytes, int *error_number) {
     *error_number = 0;
     if (sock.file_descriptor < 0 || maximum_bytes <= 0) return (GrayString){"", 0};
 
@@ -111,7 +116,7 @@ static GrayString net_recv_bytes(GrayArena *arena, GraySocket sock, int64_t maxi
 
 GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
     int error_number;
-    return net_recv_bytes(arena, sock, maximum_bytes, &error_number);
+    return gray_net_recv_status(arena, sock, maximum_bytes, &error_number);
 }
 
 GraySocket gray_net_accept(GrayArena *arena, GraySocket listener) {
@@ -246,7 +251,7 @@ GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayStrin
 GrayResult_string gray_net_recv_result(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
     GrayResult_string result;
     int error_number;
-    result.v0 = net_recv_bytes(arena, sock, maximum_bytes, &error_number);
+    result.v0 = gray_net_recv_status(arena, sock, maximum_bytes, &error_number);
     result.v1 = NULL;
     if (result.v0.len > 0 || sock.file_descriptor < 0) return result;
     if (error_number == 0) {

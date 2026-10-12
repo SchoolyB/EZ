@@ -10,6 +10,7 @@
 
 #include "http.h"
 #include "net.h"
+#include <errno.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -211,6 +212,15 @@ static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int d
     return resp;
 }
 
+/* A failed request: status 0, the fixed `detail` as the body, and the error
+ * code the result variants report. */
+static GrayHttpResponse request_failure(GrayArena *arena, GrayHttpResponse failure, int64_t *error_code,
+                                        int64_t code, const char *detail) {
+    failure.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
+    if (error_code) *error_code = code;
+    return failure;
+}
+
 /* Core HTTP request function */
 static GrayHttpResponse do_request(GrayArena *arena, const char *method,
                                   GrayString url, GrayString body, GrayMap *custom_headers, int64_t *error_code) {
@@ -223,25 +233,22 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     gray_cstr(url, url_buffer, sizeof(url_buffer));
 
     if (strncmp(url_buffer, "https://", 8) == 0) {
-        const char *detail = "https:// is not supported; use http://";
-        error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-        return error_response;
+        return request_failure(arena, error_response, error_code, GRAY_ERR_Unsupported,
+            "https:// is not supported; use http://");
     }
 
     char host[GRAY_HTTP_HOST_BUFFER_SIZE], path[GRAY_HTTP_PATH_BUFFER_SIZE];
     int port;
     if (!parse_url(url_buffer, host, sizeof(host), &port, path, sizeof(path))) {
-        const char *detail = "invalid URL: expected http:// scheme";
-        error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-        return error_response;
+        return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
+            "invalid URL: expected http:// scheme");
     }
 
     /* Connect */
     GrayString host_text = gray_string_new(arena, host, (int32_t)strlen(host));
     GraySocket sock = gray_net_dial(arena, host_text, port);
     if (sock.file_descriptor < 0) {
-        error_response.body = gray_string_new(arena, "connection failed", 17);
-        return error_response;
+        return request_failure(arena, error_response, error_code, gray_errno_code(errno), "connection failed");
     }
 
     /* Set 10s timeout */
@@ -278,17 +285,15 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
             int remaining = (int)(sizeof(header)) - header_length;
             if (remaining <= 0) {
                 gray_net_close(sock);
-                const char *detail = "request headers too large";
-                error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-                return error_response;
+                return request_failure(arena, error_response, error_code, GRAY_ERR_OutOfRange,
+                    "request headers too large");
             }
             int bytes_received = snprintf(header + header_length, (size_t)remaining,
                 "%.*s: %.*s\r\n", (int)header_key->len, header_key->data, (int)header_value->len, header_value->data);
             if (bytes_received < 0 || bytes_received >= remaining) {
                 gray_net_close(sock);
-                const char *detail = "request headers too large";
-                error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-                return error_response;
+                return request_failure(arena, error_response, error_code, GRAY_ERR_OutOfRange,
+                    "request headers too large");
             }
             header_length += bytes_received;
         }
@@ -302,26 +307,31 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
 
     if (header_length <= 0 || (size_t)header_length >= sizeof(header)) {
         gray_net_close(sock);
-        const char *detail = "request URL or path too long";
-        error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-        return error_response;
+        return request_failure(arena, error_response, error_code, GRAY_ERR_OutOfRange,
+            "request URL or path too long");
     }
 
     GrayString header_text = {header, (int32_t)header_length};
-    gray_net_send(sock, header_text);
-    if (body.data && body.len > 0) {
-        gray_net_send(sock, body);
+    bool sent = gray_net_send(sock, header_text) >= 0;
+    if (sent && body.data && body.len > 0) {
+        sent = gray_net_send(sock, body) >= 0;
+    }
+    if (!sent) {
+        int64_t code = gray_errno_code(errno);
+        gray_net_close(sock);
+        return request_failure(arena, error_response, error_code, code, "request send failed");
     }
 
     /* Receive response (up to 1MB) — heap-allocated to avoid stack overflow */
     char *response_buffer = malloc(GRAY_HTTP_RESPONSE_BUFFER_SIZE + 1);
     if (!response_buffer) {
         gray_net_close(sock);
-        return error_response;
+        return request_failure(arena, error_response, error_code, GRAY_ERR_Unavailable, "out of memory");
     }
     int total = 0;
+    int receive_error = 0;
     while (total < GRAY_HTTP_RESPONSE_BUFFER_SIZE) {
-        GrayString chunk = gray_net_recv(arena, sock, GRAY_HTTP_RESPONSE_BUFFER_SIZE - total);
+        GrayString chunk = gray_net_recv_status(arena, sock, GRAY_HTTP_RESPONSE_BUFFER_SIZE - total, &receive_error);
         if (chunk.len <= 0) break;
         memcpy(response_buffer + total, chunk.data, (size_t)chunk.len);
         total += chunk.len;
@@ -335,22 +345,30 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
 
     gray_net_close(sock);
 
+    if (receive_error != 0) {
+        free(response_buffer);
+        /* The socket is blocking, so this is the 10 s timeout elapsing. */
+        if (receive_error == EAGAIN || receive_error == EWOULDBLOCK || receive_error == ETIMEDOUT)
+            return request_failure(arena, error_response, error_code, GRAY_ERR_Timeout, "request timed out");
+        return request_failure(arena, error_response, error_code, gray_errno_code(receive_error), "receive failed");
+    }
+
     if (over_limit) {
         free(response_buffer);
-        const char *detail = "response exceeds the 1 MB limit";
-        error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-        if (error_code) *error_code = GRAY_ERR_OutOfRange;
-        return error_response;
+        return request_failure(arena, error_response, error_code, GRAY_ERR_OutOfRange,
+            "response exceeds the 1 MB limit");
     }
 
     bool malformed;
     GrayHttpResponse result = parse_response(arena, response_buffer, total, &malformed);
     free(response_buffer);
+    if (result.status == 0) {
+        return request_failure(arena, error_response, error_code, GRAY_ERR_ParseFailure,
+            "response is not an HTTP response");
+    }
     if (malformed) {
-        const char *detail = "malformed chunked response body";
-        error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
-        if (error_code) *error_code = GRAY_ERR_ParseFailure;
-        return error_response;
+        return request_failure(arena, error_response, error_code, GRAY_ERR_ParseFailure,
+            "malformed chunked response body");
     }
     return result;
 }
@@ -381,12 +399,12 @@ GrayHttpResponse gray_http_patch(GrayArena *arena, GrayString url, GrayString bo
 
 /* _result variants — status==0 indicates connection/request failure */
 
-static GrayResult_http http_result(GrayArena *arena, GrayHttpResponse resp, const char *method, int64_t error_code) {
+static GrayResult_http http_result(GrayArena *arena, GrayHttpResponse resp, int64_t error_code) {
     GrayResult_http result;
     result.v0 = resp;
     if (resp.status == 0) {
-        result.v1 = gray_error_new(arena, error_code, gray_string_format(arena, "HTTP %s failed: %.*s",
-            method, resp.body.len, resp.body.data));
+        /* The body of a failed request is its fixed detail text. */
+        result.v1 = gray_error_new(arena, error_code, resp.body);
     } else {
         result.v1 = NULL;
     }
@@ -394,37 +412,37 @@ static GrayResult_http http_result(GrayArena *arena, GrayHttpResponse resp, cons
 }
 
 GrayResult_http gray_http_get_result(GrayArena *arena, GrayString url, GrayMap *headers) {
-    int64_t error_code = GRAY_ERR_IoFailure;
+    int64_t error_code = GRAY_ERR_Unknown;
     GrayHttpResponse resp = do_request(arena, "GET", url, (GrayString){"", 0}, headers, &error_code);
-    return http_result(arena, resp, "GET", error_code);
+    return http_result(arena, resp, error_code);
 }
 
 GrayResult_http gray_http_post_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
-    int64_t error_code = GRAY_ERR_IoFailure;
+    int64_t error_code = GRAY_ERR_Unknown;
     GrayHttpResponse resp = do_request(arena, "POST", url, body, headers, &error_code);
-    return http_result(arena, resp, "POST", error_code);
+    return http_result(arena, resp, error_code);
 }
 
 GrayResult_http gray_http_put_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
-    int64_t error_code = GRAY_ERR_IoFailure;
+    int64_t error_code = GRAY_ERR_Unknown;
     GrayHttpResponse resp = do_request(arena, "PUT", url, body, headers, &error_code);
-    return http_result(arena, resp, "PUT", error_code);
+    return http_result(arena, resp, error_code);
 }
 
 GrayResult_http gray_http_delete_result(GrayArena *arena, GrayString url, GrayMap *headers) {
-    int64_t error_code = GRAY_ERR_IoFailure;
+    int64_t error_code = GRAY_ERR_Unknown;
     GrayHttpResponse resp = do_request(arena, "DELETE", url, (GrayString){"", 0}, headers, &error_code);
-    return http_result(arena, resp, "DELETE", error_code);
+    return http_result(arena, resp, error_code);
 }
 
 GrayResult_http gray_http_head_result(GrayArena *arena, GrayString url, GrayMap *headers) {
-    int64_t error_code = GRAY_ERR_IoFailure;
+    int64_t error_code = GRAY_ERR_Unknown;
     GrayHttpResponse resp = do_request(arena, "HEAD", url, (GrayString){"", 0}, headers, &error_code);
-    return http_result(arena, resp, "HEAD", error_code);
+    return http_result(arena, resp, error_code);
 }
 
 GrayResult_http gray_http_patch_result(GrayArena *arena, GrayString url, GrayString body, GrayMap *headers) {
-    int64_t error_code = GRAY_ERR_IoFailure;
+    int64_t error_code = GRAY_ERR_Unknown;
     GrayHttpResponse resp = do_request(arena, "PATCH", url, body, headers, &error_code);
-    return http_result(arena, resp, "PATCH", error_code);
+    return http_result(arena, resp, error_code);
 }
