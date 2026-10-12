@@ -62,7 +62,7 @@ typedef struct {
  *@module net
  *@group Data
  *@sig send(sock Socket, data string) -> (i64, Error)
- *@desc Sends data over sock and returns the number of bytes written. Always use destructuring (`mut v, err = ...` or `mut v, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends all of data over sock and returns the number of bytes written, which is `len(data)` on success. On failure it returns the bytes written so far and an Error. Always use destructuring (`mut v, err = ...` or `mut v, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @net
  *   mut sock, _ = net.connect("example.com", 80)

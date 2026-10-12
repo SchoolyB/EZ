@@ -4309,7 +4309,7 @@ TCP sockets and DNS resolution.
 | `connect` | `(host string, port i64) -> (Socket, Error)` | Connect to a remote host — always use destructuring |
 | `listen` | `(port i64, host string = "0.0.0.0") -> (Listener, Error)` | Listen for incoming connections on a port, bound to host (default: all interfaces) — always use destructuring |
 | `accept` | `(listener Listener) -> (Socket, Error)` | Accept an incoming connection — always use destructuring |
-| `send` | `(sock Socket, data string) -> (i64, Error)` | Send data over a socket, returns bytes sent — always use destructuring |
+| `send` | `(sock Socket, data string) -> (i64, Error)` | Send all of `data` over a socket, looping over short writes; returns `len(data)` on success, or the bytes written so far with an Error — always use destructuring |
 | `receive` | `(sock Socket, max_bytes i64) -> (string, Error)` | Receive up to `max_bytes` bytes from a socket — always use destructuring |
 | `close` | `(sock Socket)` | Close a socket or listener |
 | `set_timeout` | `(sock Socket, ms i64)` | Set read/write timeout in milliseconds |

@@ -1,0 +1,63 @@
+/*
+ * Test: net.send writes the whole string and reports a failed write
+ */
+
+import @net
+import @strings
+import @threads
+
+const TEST_PORT i64 = 47213
+const PAYLOAD_SIZE i64 = 8000000
+
+mut peer Socket
+mut received i64 = 0
+
+do drain() {
+    loop {
+        mut chunk, err = net.receive(peer, 65536)
+        if err != nil || len(chunk) == 0 { break }
+        received += len(chunk)
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut listener, _ = net.listen(TEST_PORT, "127.0.0.1")
+    mut client, _ = net.connect("127.0.0.1", TEST_PORT)
+    mut accepted, _ = net.accept(listener)
+    peer = accepted
+
+    mut reader = threads.spawn(()drain)
+    mut payload string = strings.repeat("x", PAYLOAD_SIZE)
+    mut sent, err = net.send(client, payload)
+    net.close(client)
+    threads.join(reader)
+
+    if err == nil && sent == PAYLOAD_SIZE && received == PAYLOAD_SIZE {
+        println("  [PASS] send wrote and the peer received every byte")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] send: sent=${sent} received=${received}")
+        failed += 1
+    }
+
+    net.close(accepted)
+    mut _, send_error = net.send(client, payload)
+    if send_error != nil {
+        println("  [PASS] send on a closed socket returns an Error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] send on a closed socket returned no Error")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

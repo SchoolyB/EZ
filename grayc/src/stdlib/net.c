@@ -64,10 +64,26 @@ void gray_net_close(GraySocket sock) {
     }
 }
 
+/* Writes all of data, looping over short writes. Returns false when the
+ * system reports an error; *written then holds the bytes sent before it. */
+static bool net_send_all(GraySocket sock, GrayString data, int64_t *written) {
+    *written = 0;
+    if (sock.file_descriptor < 0 || !data.data) return false;
+    gray_sock_suppress_sigpipe(sock.file_descriptor);
+    while (*written < data.len) {
+        int64_t sent = (int64_t)send(sock.file_descriptor, data.data + *written, (int)(data.len - *written), GRAY_SEND_FLAGS);
+        if (sent < 0) {
+            if (errno == EINTR) continue;
+            return false;
+        }
+        *written += sent;
+    }
+    return true;
+}
+
 int64_t gray_net_send(GraySocket sock, GrayString data) {
-    if (sock.file_descriptor < 0 || !data.data) return -1;
-    int64_t sent = (int64_t)send(sock.file_descriptor, data.data, (int)data.len, 0);
-    return (int64_t)sent;
+    int64_t written;
+    return net_send_all(sock, data, &written) ? written : -1;
 }
 
 GrayString gray_net_recv(GrayArena *arena, GraySocket sock, int64_t maximum_bytes) {
@@ -205,8 +221,7 @@ GrayResult_socket gray_net_accept_result(GrayArena *arena, GraySocket listener) 
 
 GrayResult_i64 gray_net_send_result(GrayArena *arena, GraySocket sock, GrayString data) {
     GrayResult_i64 result;
-    result.v0 = gray_net_send(sock, data);
-    if (result.v0 < 0) {
+    if (!net_send_all(sock, data, &result.v0)) {
         result.v1 = gray_error_new(arena, gray_errno_code(errno), gray_string_format(arena, "send failed on fd %d", sock.file_descriptor));
     } else {
         result.v1 = NULL;
