@@ -9,6 +9,7 @@
 #   BENCH_RUNS=N            run-phase iterations   (default 5)
 #   BENCH_COMPILE_RUNS=N    compile-phase iters    (default 3)
 #   GRAY=/path/to/gray      compiler to benchmark  (default ../gray)
+#   GRAY_CC=<compiler>      C compiler gray builds with (default: gray's pick)
 #
 set -euo pipefail
 
@@ -99,6 +100,15 @@ cpu="${cpu//\"/}"
 commit="$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 gray_version="$("$GRAY" version 2>&1 | awk '{ gsub(/\033\[[0-9;]*m/, "") } /Installed/ { print $2; exit }' || true)"
 [ -n "$gray_version" ] || gray_version="unknown"
+# The C compiler `gray build` resolves, as `gray report` prints it.
+report="$("$GRAY" report 2>&1 | awk '{ gsub(/\033\[[0-9;]*m/, "") } 1' || true)"
+c_compiler="$(printf '%s\n' "$report" | sed -n 's/^C compiler: *//p' | head -n 1)"
+c_compiler_version="$(printf '%s\n' "$report" | sed -n '/^C compiler:/{n;s/^ *//;p;}' | head -n 1)"
+[ -n "$c_compiler" ] || c_compiler="unknown"
+c_compiler="${c_compiler//\\/}"
+c_compiler="${c_compiler//\"/}"
+c_compiler_version="${c_compiler_version//\\/}"
+c_compiler_version="${c_compiler_version//\"/}"
 timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
 # ---- run -------------------------------------------------------------------
@@ -107,6 +117,9 @@ value() { # <result-line> <key>
 }
 
 print_header "Latest Run ($(printf '%s' "$timestamp" | sed 's/T/ /; s/Z/ UTC/'))"
+printf 'C compiler: %s' "$c_compiler"
+[ -z "$c_compiler_version" ] || printf ' (%s)' "$c_compiler_version"
+printf '\n'
 
 for name in $workloads; do
     src="$work/$name.gray"
@@ -166,6 +179,8 @@ fi
     printf '  "timestamp": "%s",\n' "$timestamp"
     printf '  "commit": "%s",\n' "$commit"
     printf '  "gray_version": "%s",\n' "$gray_version"
+    printf '  "c_compiler": "%s",\n' "$c_compiler"
+    printf '  "c_compiler_version": "%s",\n' "$c_compiler_version"
     printf '  "machine": {\n'
     printf '    "os": "%s",\n' "$os_name"
     printf '    "arch": "%s",\n' "$arch"

@@ -78,6 +78,7 @@ relative to its own location, so generate them once first with
 | `BENCH_RUNS` | 5 | Run-phase iterations per workload |
 | `BENCH_COMPILE_RUNS` | 3 | Compile-phase iterations per workload |
 | `GRAY` | `../gray` | Compiler binary to benchmark |
+| `GRAY_CC` | gray's pick (`CC`, then `clang`, `gcc`, `cc`) | C compiler `gray build` uses; recorded in the output and `results.json` |
 | `BENCH_GEN` | `benchmarks/.gen` | Fixture directory a workload reads |
 
 ## results.json
@@ -85,6 +86,7 @@ relative to its own location, so generate them once first with
 ```json
 {
   "timestamp": "...", "commit": "...", "gray_version": "...",
+  "c_compiler": "...", "c_compiler_version": "...",
   "machine": { "os": "...", "arch": "...", "kernel": "...", "cpu": "...", "cores": 8 },
   "config": { "run_runs": 5, "compile_runs": 3 },
   "workloads": [
