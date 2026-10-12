@@ -10401,6 +10401,25 @@ static bool inferred_composite_type(CodeGen *codegen, AstNode *value, char *outp
 
 static void emit_variable_declaration(CodeGen *codegen, AstNode *node,
                                       const char *source_name) {
+    /* The initializer reads an outer variable of the declared name, which the
+     * new C variable would hide inside its own initializer. Evaluate it into a
+     * temporary first and initialize the variable from that. */
+    if (node->data.variable_declaration.shadows_own_initializer && codegen->indent > 0 &&
+        node->data.variable_declaration.value) {
+        AstNode *value = node->data.variable_declaration.value;
+        char *temporary_name = xmalloc(VARIABLE_NAME_BUFFER_SIZE);
+        snprintf(temporary_name, VARIABLE_NAME_BUFFER_SIZE, "_gray_shadow%d", codegen_next_id(codegen));
+        AstNode temporary_declaration = *node;
+        temporary_declaration.data.variable_declaration.name = temporary_name;
+        temporary_declaration.data.variable_declaration.shadows_own_initializer = false;
+        emit_variable_declaration(codegen, &temporary_declaration, temporary_name);
+        node->data.variable_declaration.shadows_own_initializer = false;
+        node->data.variable_declaration.value = make_temporary_label(codegen, value, temporary_name);
+        emit_variable_declaration(codegen, node, source_name);
+        node->data.variable_declaration.value = value;
+        node->data.variable_declaration.shadows_own_initializer = true;
+        return;
+    }
     emit_indent(codegen);
 
     char inferred_type_name[TYPE_NAME_MAX];

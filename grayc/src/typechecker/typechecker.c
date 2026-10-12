@@ -11788,6 +11788,9 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
 
     case NODE_LABEL: {
         const char *name = node->data.label.value;
+        if (checker->initialized_variable_name && strcmp(name, checker->initialized_variable_name) == 0 &&
+            scope_lookup(checker->current_scope, name))
+            checker->is_initializer_reading_own_name = true;
 
         /* A type parameter's name used as a value (new(T), size_of(T)) is the
          * type it is bound to, or unknown during the main pass. */
@@ -14350,7 +14353,16 @@ static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
 
     reject_non_json_parse_target(checker, node, node->data.variable_declaration.value, declared);
 
-    declared = check_variable_declaration_initializer(checker, node, declared);
+    {
+        const char *saved_name = checker->initialized_variable_name;
+        bool saved_read = checker->is_initializer_reading_own_name;
+        checker->initialized_variable_name = node->data.variable_declaration.name;
+        checker->is_initializer_reading_own_name = false;
+        declared = check_variable_declaration_initializer(checker, node, declared);
+        node->data.variable_declaration.shadows_own_initializer = checker->is_initializer_reading_own_name;
+        checker->initialized_variable_name = saved_name;
+        checker->is_initializer_reading_own_name = saved_read;
+    }
     check_const_integer_value(checker, node);
 
     /* E3062 (): handle types (channels, mutexes, threads)
