@@ -4340,7 +4340,7 @@ Synchronization primitives for thread-safe access to shared data. Compiler-only 
 | `mutex` | `() -> Mutex` | Create a new mutex |
 | `lock` | `(m Mutex)` | Acquire a mutex |
 | `unlock` | `(m Mutex)` | Release a mutex |
-| `try_lock` | `(m Mutex)` | Try to acquire a mutex (non-blocking) |
+| `try_lock` | `(m Mutex) -> bool` | Try to acquire a mutex (non-blocking); true if acquired, false if already locked |
 | `destroy` | `(m Mutex)` | Destroy a mutex |
 
 ### 9.23 Channels Module (`@channels`)
