@@ -273,6 +273,11 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     /* Set 10s timeout */
     gray_net_set_timeout(sock, GRAY_HTTP_TIMEOUT_MILLISECONDS);
 
+    /* The Host header carries the port unless it is the default one. */
+    char host_header[GRAY_HTTP_HOST_BUFFER_SIZE + 8];
+    if (port == GRAY_HTTP_DEFAULT_PORT) snprintf(host_header, sizeof(host_header), "%s", host);
+    else snprintf(host_header, sizeof(host_header), "%s:%d", host, port);
+
     /* Build headers — body is sent separately to avoid truncation */
     char header[GRAY_HTTP_HEADER_BUFFER_SIZE];
     int header_length;
@@ -287,13 +292,13 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
             "Content-Length: %d\r\n"
             "%s"
             "Connection: close\r\n",
-            method, path, host, (int)body.len, default_content_type);
+            method, path, host_header, (int)body.len, default_content_type);
     } else {
         header_length = snprintf(header, sizeof(header),
             "%s %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Connection: close\r\n",
-            method, path, host);
+            method, path, host_header);
     }
 
     /* Append custom headers */

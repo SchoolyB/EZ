@@ -1,0 +1,72 @@
+/*
+ * Test: http client sends the port in the Host header unless it is 80
+ */
+
+import @net
+import @http
+import @strings
+import @threads
+
+const TEST_PORT i64 = 47218
+
+mut seen string = ""
+mut listener Listener
+
+do echo() {
+    mut conn, _ = net.accept(listener)
+    mut request, _ = net.receive(conn, 65536)
+    seen = request
+    mut _, _ = net.send(conn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+    net.close(conn)
+}
+
+do get_host_line(url string) -> string {
+    mut server_thread = threads.spawn(()echo)
+    mut no_headers map[string:string] = {:}
+    mut _, _ = http.get(url, no_headers)
+    threads.join(server_thread)
+    return seen
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    mut with_port = get_host_line("http://127.0.0.1:47218/")
+    if strings.contains(with_port, "Host: 127.0.0.1:47218\r\n") {
+        println("  [PASS] non-default port is in the Host header")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-default port: ${with_port}")
+        failed += 1
+    }
+
+    // Port 80 is the default and is left out. Binding it can need privileges,
+    // so the case runs only where the listen succeeds.
+    net.close(listener)
+    mut default_bound, default_err = net.listen(80, "127.0.0.1")
+    if default_err == nil {
+        listener = default_bound
+        mut without_port = get_host_line("http://127.0.0.1/")
+        if strings.contains(without_port, "Host: 127.0.0.1\r\n") {
+            println("  [PASS] default port is left out of the Host header")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] default port: ${without_port}")
+            failed += 1
+        }
+        net.close(listener)
+    } otherwise {
+        println("  [SKIP] cannot listen on port 80")
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
