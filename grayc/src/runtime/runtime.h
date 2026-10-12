@@ -44,6 +44,7 @@ typedef struct {
     size_t peak_bytes;        /* high-water mark of total_allocated */
     size_t alloc_count;       /* cumulative allocations on this arena */
     bool is_destroyed;
+    bool counts_toward_total; /* allocations feed gray_total_alloc_count; false for mem.arena() arenas */
 } GrayArena;
 
 GrayArena *gray_arena_create(size_t initial_size);
@@ -94,8 +95,10 @@ extern _Thread_local GrayArena *gray_default_arena;
 extern _Thread_local GrayArena *gray_heap_arena;
 #endif
 
-/* Cumulative count of allocations made against whichever arena is installed
- * as the default or heap arena. Tracked separately from GrayArena::alloc_count
+/* Cumulative count of allocations made against arenas flagged
+ * counts_toward_total: the default and heap arenas, the per-loop, per-if and
+ * per-function arenas swapped in over them, and thread arenas — every arena
+ * except those from mem.arena(). Tracked separately from GrayArena::alloc_count
  * because a loop body swaps in a fresh per-iteration arena and destroys it
  * every pass: reading the installed arena's own counter makes the total drop
  * to zero on loop entry and discards everything the body allocated.

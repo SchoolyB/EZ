@@ -95,6 +95,7 @@ GrayArena *gray_arena_create(size_t initial_size) {
     arena->peak_bytes = initial_size;
     arena->alloc_count = 0;
     arena->is_destroyed = false;
+    arena->counts_toward_total = true;
     return arena;
 }
 
@@ -102,7 +103,7 @@ void *gray_arena_alloc_uninitialized(GrayArena *arena, size_t size) {
     if (arena->is_destroyed)
         gray_panic_code("P0001", "cannot allocate from a destroyed arena; mem.destroy() was already called on this arena");
     arena->alloc_count++;
-    if (arena == gray_default_arena || arena == gray_heap_arena) gray_total_alloc_count++;
+    if (arena->counts_toward_total) gray_total_alloc_count++;
     size = ALIGN_UP(size, 8);
     if (size > arena->current->size - arena->current->used) {
         size_t block_size = arena->default_block_size;

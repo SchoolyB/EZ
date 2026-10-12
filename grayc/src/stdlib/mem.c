@@ -19,7 +19,9 @@ GrayArena *gray_mem_arena(int64_t size) {
         gray_panic_code("P0061", "mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB",
             (long long)size);
     }
-    return gray_arena_create((size_t)size);
+    GrayArena *arena = gray_arena_create((size_t)size);
+    arena->counts_toward_total = false;
+    return arena;
 }
 
 void gray_mem_destroy(GrayArena *arena, const char *file, int line) {
