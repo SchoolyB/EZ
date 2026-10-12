@@ -174,28 +174,6 @@
  *@end
  */
 
-/*@man to_json
- *@module csv
- *@group Formatting
- *@sig to_json(data [[string]]) -> string
- *@desc Converts data (via to_maps) to a compact JSON array of objects. Every value is a JSON string, since CSV has no types.
- *@example
- *   import @csv
- *   println(csv.to_json(rows))
- *@end
- */
-
-/*@man to_markdown
- *@module csv
- *@group Formatting
- *@sig to_markdown(data [[string]]) -> string
- *@desc Renders data as a GitHub-flavored Markdown table: row 0 becomes the header plus a '---' separator row, and a pipe in a cell is escaped with a preceding backslash. No column alignment; a trailing newline is included.
- *@example
- *   import @csv
- *   println(csv.to_markdown(rows))
- *@end
- */
-
 /* Parse CSV string into array of arrays of strings */
 GrayArray gray_csv_parse(GrayArena *arena, GrayString csv_string);
 GrayArray gray_csv_parse_delimited(GrayArena *arena, GrayString csv_string, int32_t delimiter);
@@ -207,8 +185,6 @@ GrayArray  gray_csv_from_maps(GrayArena *arena, GrayArray *rows);
 GrayArray  gray_csv_column(GrayArena *arena, GrayArray *data, GrayString name);
 GrayArray  gray_csv_select(GrayArena *arena, GrayArray *data, GrayArray *names);
 GrayArray  gray_csv_sort_by_column(GrayArena *arena, GrayArray *data, GrayString name);
-GrayString gray_csv_to_json(GrayArena *arena, GrayArray *data);
-GrayString gray_csv_to_markdown(GrayArena *arena, GrayArray *data);
 
 /* Convert array of arrays of strings to CSV string */
 GrayString gray_csv_stringify(GrayArena *arena, GrayArray *data);

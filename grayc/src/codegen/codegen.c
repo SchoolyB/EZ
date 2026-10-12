@@ -7529,9 +7529,8 @@ static bool emit_csv_call(CodeGen *codegen, AstNode *node, const char *function_
         return true;
     }
     if (emit_passthrough_call(codegen, node, function_name, csv_passthrough)) return true;
-    /* Single-array-arg record views: to_maps / from_maps / to_json / to_markdown */
-    if ((strcmp(function_name, "to_maps") == 0 || strcmp(function_name, "from_maps") == 0 ||
-         strcmp(function_name, "to_json") == 0 || strcmp(function_name, "to_markdown") == 0) &&
+    /* Single-array-arg record views: to_maps / from_maps */
+    if ((strcmp(function_name, "to_maps") == 0 || strcmp(function_name, "from_maps") == 0) &&
         node->data.call.argument_count == 1) {
         emit_formatted(codegen, "({ GrayArray _csv_a = ");
         emit_expression(codegen, node->data.call.arguments[0]);

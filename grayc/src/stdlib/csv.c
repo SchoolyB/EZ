@@ -284,45 +284,6 @@ int32_t gray_csv_detect_delimiter(GrayString sample) {
     return (int32_t)(unsigned char)best;
 }
 
-GrayString gray_csv_to_json(GrayArena *arena, GrayArray *data) {
-    GrayArray maps = gray_csv_to_maps(arena, data);
-    GrayStringsBuilder *builder = gray_strings_builder(arena);
-    gray_strings_builder_append_char(builder, '[');
-    for (int32_t i = 0; i < maps.len; i++) {
-        if (i > 0) gray_strings_builder_append_char(builder, ',');
-        GrayMap *map = (GrayMap *)((char *)maps.data + (size_t)i * sizeof(GrayMap));
-        gray_strings_builder_append(builder, gray_json_encode_map(arena, map));
-    }
-    gray_strings_builder_append_char(builder, ']');
-    return gray_strings_build(arena, builder);
-}
-
-GrayString gray_csv_to_markdown(GrayArena *arena, GrayArray *data) {
-    if (data->len == 0) return gray_string_lit("");
-    GrayStringsBuilder *builder = gray_strings_builder(arena);
-    for (int32_t i = 0; i < data->len; i++) {
-        GrayArray *row_array = csv_row(data, i);
-        gray_strings_builder_append_char(builder, '|');
-        for (int32_t j = 0; j < row_array->len; j++) {
-            GrayString cell = csv_cell(row_array, j);
-            for (int32_t column_index = 0; column_index < cell.len; column_index++) {
-                if (cell.data[column_index] == '|') gray_strings_builder_append_char(builder, '\\');
-                gray_strings_builder_append_char(builder, (int32_t)(unsigned char)cell.data[column_index]);
-            }
-            gray_strings_builder_append_char(builder, '|');
-        }
-        gray_strings_builder_append_char(builder, '\n');
-        if (i == 0) {
-            gray_strings_builder_append_char(builder, '|');
-            for (int32_t j = 0; j < row_array->len; j++) {
-                gray_strings_builder_append(builder, gray_string_lit("---|"));
-            }
-            gray_strings_builder_append_char(builder, '\n');
-        }
-    }
-    return gray_strings_build(arena, builder);
-}
-
 /* Row-filter callback plumbing: filter_rows is emitted inline by codegen (it
  * takes a Grayscale func value), so there is no C entry point for it here. */
 

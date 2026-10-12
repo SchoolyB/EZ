@@ -1,0 +1,13 @@
+/*
+ * Error Test: E4005 - csv.to_markdown was removed
+ * Expected: csv no longer recognises to_markdown
+ */
+
+// expect-error: E4005
+
+import @csv
+
+do main() {
+    mut rows [[string]] = csv.parse("a,b\n1,2")
+    mut text string = csv.to_markdown(rows)
+}

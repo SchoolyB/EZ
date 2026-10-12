@@ -1620,26 +1620,6 @@ static void test_csv_sort_by_column_is_lexicographic(void) {
     ASSERT_CSV_CELL(sorted, 3, 0, "9");
 }
 
-static void test_csv_to_json(void) {
-    GrayArray data = gray_csv_parse(arena, gray_string_lit("a,b\n1,2\n3,4"));
-    GrayString json = gray_csv_to_json(arena, &data);
-    ASSERT_GRAY_STR(json, "[{\"a\":\"1\",\"b\":\"2\"},{\"a\":\"3\",\"b\":\"4\"}]");
-}
-
-static void test_csv_to_json_header_only_is_empty_array(void) {
-    GrayArray data = gray_csv_parse(arena, gray_string_lit("a,b"));
-    GrayString json = gray_csv_to_json(arena, &data);
-    ASSERT_GRAY_STR(json, "[]");
-}
-
-static void test_csv_to_markdown(void) {
-    GrayArray data = gray_csv_parse(arena, gray_string_lit("a,b\n1,x|y"));
-    GrayString table = gray_csv_to_markdown(arena, &data);
-    ASSERT(gray_strings_contains(table, gray_string_lit("---")));
-    ASSERT(gray_strings_contains(table, gray_string_lit("x\\|y")));
-    ASSERT_EQ(table.data[table.len - 1], '\n');
-}
-
 static void test_csv_stringify_quotes_special_fields(void) {
     GrayArray data = gray_csv_parse(arena, gray_string_lit("\"a,b\",\"say \"\"hi\"\"\",\"l1\nl2\",plain"));
     GrayString text = gray_csv_stringify(arena, &data);
@@ -2172,9 +2152,6 @@ int main(void) {
     RUN_TEST(test_csv_select_reorders_and_keeps_header);
     RUN_TEST(test_csv_sort_by_column_is_stable_and_keeps_header_first);
     RUN_TEST(test_csv_sort_by_column_is_lexicographic);
-    RUN_TEST(test_csv_to_json);
-    RUN_TEST(test_csv_to_json_header_only_is_empty_array);
-    RUN_TEST(test_csv_to_markdown);
     RUN_TEST(test_csv_stringify_quotes_special_fields);
     RUN_TEST(test_csv_stringify_parse_round_trip);
 

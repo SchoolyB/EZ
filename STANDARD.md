@@ -4291,8 +4291,6 @@ Reading and writing CSV (Comma-Separated Values) data.
 | `select` | `(data [[string]], names [string]) -> [[string]]` | Project the named columns in order, keeping the header row; panics on an unknown name |
 | `filter_rows` | `(data [[string]], predicate func([string]) -> bool) -> [[string]]` | Keep row 0 unconditionally and each later row where `predicate` is true; the header is never passed to `predicate` |
 | `sort_by_column` | `(data [[string]], name string) -> [[string]]` | New array with data rows stably sorted ascending lexicographically by column `name`; header stays first; panics on an unknown name |
-| `to_json` | `(data [[string]]) -> string` | Compact JSON array of objects (via `to_maps`); every value is a JSON string |
-| `to_markdown` | `(data [[string]]) -> string` | GitHub-flavored Markdown table; row 0 is the header plus a `---` separator, `\|` in a cell is escaped, trailing newline |
 
 ### 9.20 Net Module (`@net`)
 
