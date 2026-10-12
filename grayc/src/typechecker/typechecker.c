@@ -5916,21 +5916,51 @@ static bool literal_entry_mismatches(TypeChecker *checker, GrayType *expected, G
     return !types_assignable(checker, expected, actual);
 }
 
+/* The value a map key or `when` case denotes when it is a compile-time
+ * constant, as a string that is equal exactly when the values are: a string,
+ * char or bool literal, an enum variant, or a constant number expression
+ * (negative, hex, a const integer's name). False when `node` is not one. */
+static bool constant_case_key(TypeChecker *checker, AstNode *node, char *buffer, size_t capacity) {
+    if (!node) return false;
+    switch (node->kind) {
+    case NODE_STRING_VALUE:
+        snprintf(buffer, capacity, "s:%s", node->data.string_value.value);
+        return true;
+    case NODE_CHAR_VALUE:
+        snprintf(buffer, capacity, "c:%d", (int)node->data.char_value.value);
+        return true;
+    case NODE_BOOL_VALUE:
+        snprintf(buffer, capacity, "b:%d", node->data.bool_value.value ? 1 : 0);
+        return true;
+    case NODE_IMPLICIT_ENUM:
+        snprintf(buffer, capacity, "e:%s", node->data.implicit_enum.variant);
+        return true;
+    case NODE_MEMBER_EXPRESSION:
+        if (node->data.member.object && node->data.member.object->kind == NODE_LABEL &&
+            is_enum_name(checker, resolve_type_alias(checker, node->data.member.object->data.label.value))) {
+            snprintf(buffer, capacity, "e:%s", node->data.member.member);
+            return true;
+        }
+        return false;
+    default: {
+        LiteralValue value;
+        if (!constant_fold(checker, node, &value) || value.is_too_large) return false;
+        snprintf(buffer, capacity, "n:%s", literal_text(checker, &value));
+        return true;
+    }
+    }
+}
+
 /* E12006: a map literal that repeats a key. */
 static void check_map_literal_duplicate_keys(TypeChecker *checker, AstNode *node) {
     for (int i = 0; i < node->data.map_value.count; i++) {
-        AstNode *left_key = node->data.map_value.keys[i];
+        char left_key_text[MESSAGE_BUFFER_SIZE];
+        if (!constant_case_key(checker, node->data.map_value.keys[i], left_key_text, sizeof(left_key_text))) continue;
         for (int j = i + 1; j < node->data.map_value.count; j++) {
             AstNode *right_key = node->data.map_value.keys[j];
-            bool is_duplicate = false;
-            if (left_key->kind == NODE_STRING_VALUE && right_key->kind == NODE_STRING_VALUE &&
-                strcmp(left_key->data.string_value.value, right_key->data.string_value.value) == 0) {
-                is_duplicate = true;
-            } else if (left_key->kind == NODE_INTEGER_LITERAL && right_key->kind == NODE_INTEGER_LITERAL &&
-                left_key->data.integer_literal.value == right_key->data.integer_literal.value) {
-                is_duplicate = true;
-            }
-            if (is_duplicate) {
+            char right_key_text[MESSAGE_BUFFER_SIZE];
+            if (constant_case_key(checker, right_key, right_key_text, sizeof(right_key_text)) &&
+                strcmp(left_key_text, right_key_text) == 0) {
                 NODE_ERROR(checker, right_key, "E12006");
             }
         }
@@ -16735,12 +16765,12 @@ static const char *when_case_variant_name(AstNode *value_node) {
 /* True when two when/is case values select the same case. Enum variants are
  * compared by name (the subject type already constrains every case to one
  * enum, so `Color.RED` and `.RED` are the same case). */
-static bool when_case_values_equal(AstNode *left, AstNode *right) {
+static bool when_case_values_equal(TypeChecker *checker, AstNode *left, AstNode *right) {
     if (!left || !right) return false;
-    if (left->kind == NODE_INTEGER_LITERAL && right->kind == NODE_INTEGER_LITERAL)
-        return left->data.integer_literal.value == right->data.integer_literal.value;
-    if (left->kind == NODE_STRING_VALUE && right->kind == NODE_STRING_VALUE)
-        return strcmp(left->data.string_value.value, right->data.string_value.value) == 0;
+    char left_key[MESSAGE_BUFFER_SIZE], right_key[MESSAGE_BUFFER_SIZE];
+    if (constant_case_key(checker, left, left_key, sizeof(left_key)) &&
+        constant_case_key(checker, right, right_key, sizeof(right_key)))
+        return strcmp(left_key, right_key) == 0;
     const char *left_value = when_case_variant_name(left);
     const char *right_value = when_case_variant_name(right);
     return left_value && right_value && strcmp(left_value, right_value) == 0;
@@ -16817,7 +16847,7 @@ static void check_when_statement(TypeChecker *checker, AstNode *node) {
             for (int earlier_case_index = 0; earlier_case_index <= i && !flagged; earlier_case_index++) {
                 int earlier_value_limit = (earlier_case_index == i) ? j : node->data.when_statement.cases[earlier_case_index].value_count;
                 for (int earlier_value_index = 0; earlier_value_index < earlier_value_limit; earlier_value_index++) {
-                    if (when_case_values_equal(value_node, node->data.when_statement.cases[earlier_case_index].values[earlier_value_index])) {
+                    if (when_case_values_equal(checker, value_node, node->data.when_statement.cases[earlier_case_index].values[earlier_value_index])) {
                         NODE_ERROR(checker, value_node, "E2043");
                         flagged = true;
                         break;

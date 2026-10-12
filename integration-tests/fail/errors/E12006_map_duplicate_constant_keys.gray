@@ -1,0 +1,12 @@
+/*
+ * Error Test: E12006 - a map literal repeats a key written as a negative
+ * integer, whatever the spelling of the earlier one.
+ * Expected: compile-time error on the second key
+ */
+
+const ONE i64 = 1
+
+do main() {
+    mut table map[i64:i64] = {-1: 1, ONE: 2, -1: 3}
+    println(len(table))
+}
