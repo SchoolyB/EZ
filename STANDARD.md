@@ -2266,6 +2266,8 @@ const User struct {
 
 A field of any sized number type (`i8` through `i256`, `u8` through `u256`, `f32`, `f64`) is encoded and decoded at that type. `json.parse()` panics on a number field whose JSON value is not a number of that type or does not fit it.
 
+`json.parse()` also panics when the text is not one valid JSON document (a single-quoted key, a trailing comma, a leading-zero number, an invalid escape, a raw control character in a string, or text after the document), when the top-level value is not an object (an array for an array target), or when an object repeats a key.
+
 An enum field is serialized by the enum's backing type. An integer-backed enum (the default) becomes a JSON number — the variant's underlying value; a string-backed enum becomes a JSON string — the variant's string value. `json.parse()` reverses the mapping:
 
 ```gray

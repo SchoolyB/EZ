@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 530 codes** (380 errors, 17 warnings, 133 panics)
+**Total: 533 codes** (380 errors, 17 warnings, 136 panics)
 
 ---
 
@@ -557,6 +557,9 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0146` | regex | regex: a pattern or text contains an embedded null byte |
 | `P0147` | arithmetic | cast to %s failed; value '%.*s' does not match any variant of %s |
 | `P0148` | csv | csv: malformed quoting in row %d |
+| `P0149` | json | json.parse: input is not valid JSON |
+| `P0150` | json | json.parse: the JSON value is not %s |
+| `P0151` | json | json.parse: duplicate key '%.*s' |
 
 ---
 
@@ -581,4 +584,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 19:16:42 UTC*
+*Generated on 2026-10-12 19:23:49 UTC*

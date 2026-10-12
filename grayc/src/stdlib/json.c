@@ -462,7 +462,7 @@ static GrayString parse_json_value_as_string(GrayArena *arena, const char **curs
 /* Decodes an object into a map of value text. When `quoted` is non-NULL it
  * receives the keys whose JSON value was a quoted string, since the value
  * text alone cannot tell "7" from 7. */
-static GrayMap json_decode_object(GrayArena *arena, GrayString text, GrayMap *quoted) {
+static GrayMap json_decode_object(GrayArena *arena, GrayString text, GrayMap *quoted, const char *file, int line) {
     GrayMap map = gray_map_new_kind(arena, sizeof(GrayString), sizeof(GrayString), 8, GRAY_ELEM_STRING, GRAY_ELEM_STRING);
     if (quoted) *quoted = gray_map_new_kind(arena, sizeof(GrayString), sizeof(GrayString), 8, GRAY_ELEM_STRING, GRAY_ELEM_STRING);
     const char *cursor = text.data;
@@ -483,6 +483,9 @@ static GrayMap json_decode_object(GrayArena *arena, GrayString text, GrayMap *qu
         skip_whitespace(&cursor, end_cursor);
         bool value_is_quoted = cursor < end_cursor && *cursor == '"';
         GrayString value = parse_json_value_as_string(arena, &cursor, end_cursor);
+        /* Only json.parse (which passes `quoted`) rejects a repeated key. */
+        if (quoted && gray_map_get(&map, &key))
+            gray_panic_code_at(file, line, "P0151", "json.parse: duplicate key '%.*s'", (int)key.len, key.data);
         GRAY_MAP_SET(arena, &map, &key, &value);
         if (quoted && value_is_quoted) {
             GrayString marker = gray_string_lit("");
@@ -496,11 +499,30 @@ static GrayMap json_decode_object(GrayArena *arena, GrayString text, GrayMap *qu
 }
 
 GrayMap gray_json_decode(GrayArena *arena, GrayString text) {
-    return json_decode_object(arena, text, NULL);
+    return json_decode_object(arena, text, NULL, NULL, 0);
 }
 
-GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted) {
-    return json_decode_object(arena, text, quoted);
+/* True when the value text is the JSON literal null, which leaves a nested
+ * #json struct at its zero value. */
+bool gray_json_is_null(GrayString text) {
+    return text.len == 4 && memcmp(text.data, "null", 4) == 0;
+}
+
+/* json.parse's gate: the text must be one valid JSON document whose top-level
+ * value is the opening character the target type needs ('{' or '['). */
+void gray_json_require_document(GrayString text, char opening, const char *file, int line) {
+    if (!gray_json_is_valid(text))
+        gray_panic_code_at(file, line, "P0149", "json.parse: input is not valid JSON");
+    const char *cursor = text.data;
+    skip_whitespace(&cursor, text.data + text.len);
+    if (*cursor != opening)
+        gray_panic_code_at(file, line, "P0150", "json.parse: the JSON value is not %s",
+            opening == '{' ? "an object" : "an array");
+}
+
+GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted, const char *file, int line) {
+    gray_json_require_document(text, '{', file, line);
+    return json_decode_object(arena, text, quoted, file, line);
 }
 
 void gray_json_check_field_quoting(GrayMap *quoted, GrayString key, bool expects_string, const char *expected, const char *file, int line) {

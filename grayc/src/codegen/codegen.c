@@ -14383,7 +14383,7 @@ static void emit_json_element_decode(CodeGen *codegen, const char *element_type_
         emit_formatted(codegen, "            gray_json_field_decode(_es, GRAY_ELEM_KIND_OF(%s), &_e, \"%s\", %d);\n",
             gray_type_to_c_codegen(codegen, element_type_name), codegen->file, line);
     } else {
-        emit_formatted(codegen, "            _e = gray_json_parse_%s(arena, _es);\n", resolved_element_type);
+        emit_formatted(codegen, "            if (!gray_json_is_null(_es)) _e = gray_json_parse_%s(arena, _es);\n", resolved_element_type);
     }
 }
 
@@ -14415,7 +14415,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         emit_formatted(codegen, "static GrayStruct_%s gray_json_parse_%s(GrayArena *arena, GrayString text) {\n", struct_name, struct_name);
         emit_formatted(codegen, "    GrayStruct_%s _r = {0};\n", struct_name);
         emit_formatted(codegen, "    GrayMap _q;\n");
-        emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q);\n");
+        emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q, \"%s\", %d);\n", codegen->file, statement->token.line);
         for (int j = 0; j < field_count; j++) {
             StructField *field = &statement->data.struct_declaration.fields[j];
             /* A `` `json:"Name"` `` tag maps the field under that JSON key
@@ -14455,7 +14455,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                         emit_json_element_decode(codegen, composite_type->element_type, statement->token.line);
                         emit_formatted(codegen, "            gray_array_push(arena, &_r.%s, &_e, __FILE__, __LINE__);\n        } } }\n", sanitize_name(field->name));
                     } else {
-                        emit_formatted(codegen, "      if (_v) { _r.%s = gray_json_parse_%s(arena, *(GrayString *)_v); } }\n",
+                        emit_formatted(codegen, "      if (_v && !gray_json_is_null(*(GrayString *)_v)) { _r.%s = gray_json_parse_%s(arena, *(GrayString *)_v); } }\n",
                             sanitize_name(field->name), resolved_field_type);
                     }
                 } else if (codegen_is_enum(codegen, resolved_field_type) && !codegen_enum_is_tagged(codegen, resolved_field_type)) {
@@ -14599,6 +14599,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
 
         /* --- parse array: JSON array string → GrayArray of structs --- */
         emit_formatted(codegen, "static GrayArray gray_json_parse_array_%s(GrayArena *arena, GrayString text) {\n", struct_name);
+        emit_formatted(codegen, "    gray_json_require_document(text, '[', \"%s\", %d);\n", codegen->file, statement->token.line);
         emit_formatted(codegen, "    GrayArray _elems = gray_json_split_array(arena, text);\n");
         emit_formatted(codegen, "    GrayArray _result = GRAY_ARRAY_NEW_OF(arena, GrayStruct_%s, _elems.len > 0 ? _elems.len : 4);\n", struct_name);
         emit_formatted(codegen, "    for (int32_t _i = 0; _i < _elems.len; _i++) {\n");

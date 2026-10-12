@@ -1,0 +1,13 @@
+// expect-contains: .gray:
+/* Panic Test: P0151 - json.parse with a duplicate key */
+import @json
+
+#json
+const Rec struct {
+    n i64
+}
+
+do main() {
+    mut r Rec = json.parse("{\"n\": 1, \"n\": 2}")
+    println("${r.n}")
+}

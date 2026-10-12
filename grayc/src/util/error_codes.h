@@ -557,7 +557,10 @@
     GRAY_PANIC("P0145", "time",       "time: a format, layout or text contains an embedded null byte") \
     GRAY_PANIC("P0146", "regex",      "regex: a pattern or text contains an embedded null byte") \
     GRAY_PANIC("P0147", "arithmetic", "cast to %s failed; value '%.*s' does not match any variant of %s") \
-    GRAY_PANIC("P0148", "csv",        "csv: malformed quoting in row %d")
+    GRAY_PANIC("P0148", "csv",        "csv: malformed quoting in row %d") \
+    GRAY_PANIC("P0149", "json",       "json.parse: input is not valid JSON") \
+    GRAY_PANIC("P0150", "json",       "json.parse: the JSON value is not %s") \
+    GRAY_PANIC("P0151", "json",       "json.parse: duplicate key '%.*s'")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

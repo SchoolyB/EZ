@@ -1,0 +1,13 @@
+// expect-contains: .gray:
+/* Panic Test: P0150 - json.parse with an array document */
+import @json
+
+#json
+const Rec struct {
+    n i64
+}
+
+do main() {
+    mut r Rec = json.parse("[]")
+    println("${r.n}")
+}

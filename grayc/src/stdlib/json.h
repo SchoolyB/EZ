@@ -96,7 +96,9 @@ GrayMap gray_json_decode(GrayArena *arena, GrayString text);
 
 /* json.parse field decoding: like gray_json_decode, and *quoted receives the
  * keys whose JSON value was a quoted string. */
-GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted);
+bool gray_json_is_null(GrayString text);
+void gray_json_require_document(GrayString text, char opening, const char *file, int line);
+GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted, const char *file, int line);
 void gray_json_check_field_quoting(GrayMap *quoted, GrayString key, bool expects_string, const char *expected, const char *file, int line);
 bool gray_json_field_as_bool(GrayString value, GrayString key, const char *file, int line);
 
