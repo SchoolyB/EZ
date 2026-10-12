@@ -1,0 +1,86 @@
+/*
+ * Test: http client decodes chunked bodies and reports a malformed chunked
+ * body as ParseFailure
+ */
+
+import @net
+import @http
+import @threads
+
+const TEST_PORT i64 = 47215
+const HEAD string = "HTTP/1.1 200 OK\r\nConnection: close\r\n"
+
+mut canned string = ""
+mut listener Listener
+
+do serve() {
+    mut conn, _ = net.accept(listener)
+    mut _, _ = net.receive(conn, 65536)
+    mut _, _ = net.send(conn, canned)
+    net.close(conn)
+}
+
+do fetch(response string) -> (HttpResponse, Error) {
+    canned = response
+    mut server_thread = threads.spawn(()serve)
+    mut no_headers map[string:string] = {:}
+    mut resp, err = http.get("http://127.0.0.1:47215/", no_headers)
+    threads.join(server_thread)
+    return resp, err
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut bound, _ = net.listen(TEST_PORT, "127.0.0.1")
+    listener = bound
+
+    // Single chunk
+    mut single, single_err = fetch(HEAD + "Transfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n")
+    if single_err == nil && single.body == "hello" {
+        println("  [PASS] single chunk decoded")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] single chunk: [${single.body}]")
+        failed += 1
+    }
+
+    // Several chunks, one with an extension and one with an upper-case hex size
+    mut several, several_err = fetch(HEAD + "Transfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n6;ext=1\r\n world\r\nA\r\n0123456789\r\n0\r\n\r\n")
+    if several_err == nil && several.body == "hello world0123456789" {
+        println("  [PASS] several chunks and a chunk extension decoded")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] several chunks: [${several.body}]")
+        failed += 1
+    }
+
+    // Declared size longer than the data present
+    mut _, truncated_err = fetch(HEAD + "Transfer-Encoding: chunked\r\n\r\n10\r\nshort\r\n0\r\n\r\n")
+    if truncated_err != nil && truncated_err.code == .ParseFailure {
+        println("  [PASS] truncated chunk returns ParseFailure")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] truncated chunk did not return ParseFailure")
+        failed += 1
+    }
+
+    // Non-hex size
+    mut _, nonhex_err = fetch(HEAD + "Transfer-Encoding: chunked\r\n\r\nzz\r\nhello\r\n0\r\n\r\n")
+    if nonhex_err != nil && nonhex_err.code == .ParseFailure {
+        println("  [PASS] non-hex chunk size returns ParseFailure")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-hex chunk size did not return ParseFailure")
+        failed += 1
+    }
+
+    net.close(listener)
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

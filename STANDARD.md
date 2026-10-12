@@ -4028,7 +4028,7 @@ HTTP client for making requests. Currently supports HTTP only.
 
 `get`, `post`, `put`, `patch`, `delete`, and `head` are fallible: destructure the result (`mut resp, err = ...` or `mut resp, _ = ...`).
 
-A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error with code `OutOfRange` and no truncated body.
+A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error with code `OutOfRange` and no truncated body. A `Transfer-Encoding: chunked` body is decoded: `resp.body` is the concatenated chunk data, and a malformed chunk returns an Error with code `ParseFailure`.
 
 #### HttpResponse Type
 

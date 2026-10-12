@@ -80,8 +80,78 @@ static bool parse_url(const char *url_text, char *host, size_t host_size,
     return host[0] != '\0';
 }
 
-/* Parse HTTP response: extract status code, headers, body */
-static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int data_length) {
+static bool http_ascii_equal_ignore_case(const char *left, int32_t left_length, const char *right) {
+    if ((size_t)left_length != strlen(right)) return false;
+    for (int32_t i = 0; i < left_length; i++) {
+        char left_char = left[i], right_char = right[i];
+        if (left_char >= 'A' && left_char <= 'Z') left_char = (char)(left_char - 'A' + 'a');
+        if (right_char >= 'A' && right_char <= 'Z') right_char = (char)(right_char - 'A' + 'a');
+        if (left_char != right_char) return false;
+    }
+    return true;
+}
+
+/* True when the response headers carry Transfer-Encoding: chunked. */
+static bool response_is_chunked(GrayMap *headers) {
+    for (int32_t i = 0; i < headers->order_len; i++) {
+        int32_t slot = headers->order[i];
+        if (slot < 0) continue;
+        GrayString *key = (GrayString *)gray_map_key_at(headers, slot);
+        GrayString *value = (GrayString *)gray_map_value_at(headers, slot);
+        if (!key || !value || !http_ascii_equal_ignore_case(key->data, key->len, "transfer-encoding")) continue;
+        for (int32_t start = 0; start + 7 <= value->len; start++) {
+            if (http_ascii_equal_ignore_case(value->data + start, 7, "chunked")) return true;
+        }
+    }
+    return false;
+}
+
+/* Decodes a chunked body into its concatenated chunk data. Returns false on a
+ * non-hex size, a chunk shorter than its declared size, or a body that ends
+ * before the terminating zero-size chunk. */
+static bool decode_chunked_body(GrayArena *arena, const char *data, int32_t data_length, GrayString *decoded) {
+    char *output = gray_arena_alloc_uninitialized(arena, (size_t)data_length + 1);
+    int32_t output_length = 0;
+    int32_t position = 0;
+    for (;;) {
+        /* Size line: hex digits, then an optional ";extension", then CRLF. */
+        int64_t size = 0;
+        int32_t digit_count = 0;
+        while (position < data_length) {
+            char digit = data[position];
+            int value;
+            if (digit >= '0' && digit <= '9') value = digit - '0';
+            else if (digit >= 'a' && digit <= 'f') value = digit - 'a' + 10;
+            else if (digit >= 'A' && digit <= 'F') value = digit - 'A' + 10;
+            else break;
+            if (++digit_count > 8) return false;
+            size = size * 16 + value;
+            position++;
+        }
+        if (digit_count == 0) return false;
+        if (position < data_length && data[position] != ';' && data[position] != '\r' && data[position] != '\n') return false;
+        while (position < data_length && data[position] != '\n') position++;
+        if (position >= data_length) return false;
+        position++; /* the LF */
+
+        if (size == 0) break;
+        if (data_length - position < size) return false;
+        memcpy(output + output_length, data + position, (size_t)size);
+        output_length += (int32_t)size;
+        position += (int32_t)size;
+        if (position < data_length && data[position] == '\r') position++;
+        if (position >= data_length || data[position] != '\n') return false;
+        position++;
+    }
+    output[output_length] = '\0';
+    *decoded = (GrayString){output, output_length};
+    return true;
+}
+
+/* Parse HTTP response: extract status code, headers, body. *malformed is set
+ * when a chunked body cannot be decoded. */
+static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int data_length, bool *malformed) {
+    *malformed = false;
     GrayHttpResponse resp;
     resp.status = 0;
     resp.body = (GrayString){"", 0};
@@ -110,7 +180,8 @@ static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int d
     if (line) line++;
     while (line && line < header_end) {
         const char *end_of_line = strchr(line, '\n');
-        if (!end_of_line || end_of_line > header_end) break;
+        /* The last header's LF sits one past header_end in a CRLF separator. */
+        if (!end_of_line || end_of_line > header_end + 1) break;
 
         const char *colon = memchr(line, ':', (size_t)(end_of_line - line));
         if (colon) {
@@ -130,7 +201,9 @@ static GrayHttpResponse parse_response(GrayArena *arena, const char *data, int d
     /* Body */
     if (body_start) {
         int32_t body_length = (int32_t)(data_length - (int)(body_start - data));
-        if (body_length > 0) {
+        if (body_length > 0 && response_is_chunked(&resp.headers)) {
+            if (!decode_chunked_body(arena, body_start, body_length, &resp.body)) *malformed = true;
+        } else if (body_length > 0) {
             resp.body = gray_string_new(arena, body_start, body_length);
         }
     }
@@ -270,8 +343,15 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
         return error_response;
     }
 
-    GrayHttpResponse result = parse_response(arena, response_buffer, total);
+    bool malformed;
+    GrayHttpResponse result = parse_response(arena, response_buffer, total, &malformed);
     free(response_buffer);
+    if (malformed) {
+        const char *detail = "malformed chunked response body";
+        error_response.body = gray_string_new(arena, detail, (int32_t)strlen(detail));
+        if (error_code) *error_code = GRAY_ERR_ParseFailure;
+        return error_response;
+    }
     return result;
 }
 

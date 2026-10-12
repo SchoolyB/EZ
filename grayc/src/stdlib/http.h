@@ -40,7 +40,7 @@ typedef struct {
  *@module http
  *@group Requests
  *@sig get(url string, headers map[string:string]) -> (HttpResponse, Error)
- *@desc Sends an HTTP GET request to url with optional custom headers. A response over 1 MB returns an OutOfRange Error. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
+ *@desc Sends an HTTP GET request to url with optional custom headers. A response over 1 MB returns an OutOfRange Error; a chunked body is decoded, and a malformed one returns a ParseFailure Error. Always use destructuring (`mut resp, err = ...` or `mut resp, _ = ...`) — single-variable assignment is a compile error.
  *@example
  *   import @http
  *   mut headers map[string:string] = {"Authorization": "Bearer token"}
