@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - csv.read_file was removed
+ * Expected: csv no longer recognises read_file; use io.read_file with csv.parse / csv.encode
+ */
+
+// expect-error: E4005
+
+import @csv
+
+do main() {
+    mut rows, _ = csv.read_file("data.csv")
+}

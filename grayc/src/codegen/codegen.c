@@ -7492,15 +7492,8 @@ static const PassthroughCall csv_passthrough[] = {
 };
 
 static bool emit_csv_call(CodeGen *codegen, AstNode *node, const char *function_name) {
-    bool is_multi_variable = current_variable_is_result_temporary(codegen);
     if (strcmp(function_name, "parse") == 0) {
         emit(codegen, "gray_csv_parse(gray_default_arena, ");
-        emit_expression(codegen, node->data.call.arguments[0]);
-        emit(codegen, ")");
-        return true;
-    }
-    if (strcmp(function_name, "read_file") == 0) {
-        emit_formatted(codegen, "gray_csv_read%s(gray_default_arena, ", is_multi_variable ? "_result" : "");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
@@ -7561,22 +7554,6 @@ static bool emit_csv_call(CodeGen *codegen, AstNode *node, const char *function_
         emit(codegen, "for (int32_t _cf_i = 0; _cf_i < _cf_src.len; _cf_i++) { ");
         emit(codegen, "GrayArray _cf_row = ((GrayArray *)_cf_src.data)[_cf_i]; ");
         emit(codegen, "if (_cf_i == 0 || _cf_fn(_cf_row)) { GRAY_ARRAY_PUSH(gray_default_arena, &_cf_res, &_cf_row); } } _cf_res; })");
-        return true;
-    }
-    if (strcmp(function_name, "write_file") == 0) {
-        if (is_multi_variable) {
-            emit(codegen, "({ GrayArray _csv_a = ");
-            emit_expression(codegen, node->data.call.arguments[1]);
-            emit(codegen, "; gray_csv_write_result(gray_default_arena, ");
-            emit_expression(codegen, node->data.call.arguments[0]);
-            emit(codegen, ", &_csv_a); })");
-        } else {
-            emit(codegen, "({ GrayArray _csv_a = ");
-            emit_expression(codegen, node->data.call.arguments[1]);
-            emit(codegen, "; gray_csv_write(gray_default_arena, ");
-            emit_expression(codegen, node->data.call.arguments[0]);
-            emit(codegen, ", &_csv_a); })");
-        }
         return true;
     }
     return false;

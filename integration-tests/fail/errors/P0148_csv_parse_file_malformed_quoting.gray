@@ -1,0 +1,10 @@
+// expect-contains: .gray:
+/* Panic Test: P0148 - csv.parse of file contents with malformed quoting */
+import @csv
+import @io
+
+do main() {
+    mut _, _ = io.write_file("/tmp/gray_csv_malformed_quoting.csv", "a,b\n\"x\"y,z")
+    mut text, _ = io.read_file("/tmp/gray_csv_malformed_quoting.csv")
+    println(csv.parse(text))
+}

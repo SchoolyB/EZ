@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - csv.write_file was removed
+ * Expected: csv no longer recognises write_file; use io.write_file with csv.parse / csv.encode
+ */
+
+// expect-error: E4005
+
+import @csv
+
+do main() {
+    mut ok, _ = csv.write_file("out.csv", csv.parse("a,b"))
+}

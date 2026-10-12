@@ -3190,11 +3190,9 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"csv", "headers",    1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "[string]"},
     {"csv", "parse",      1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_STRING}}, "[[string]]"},
     {"csv", "parse_delimited", 2, 2, false, FALLIBLE_TYPE_NONE,           2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_CHAR}}, "[[string]]"},
-    {"csv", "read_file",  1, 1, true,  FALLIBLE_TYPE_NESTED_ARRAY_STRING, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "[[string]]"},
     {"csv", "select",     2, 2, false, FALLIBLE_TYPE_NONE,                2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_ARRAY}}, "[[string]]"},
     {"csv", "sort_by_column", 2, 2, false, FALLIBLE_TYPE_NONE,            2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_STRING}}, "[[string]]"},
     {"csv", "to_maps",    1, 1, false, FALLIBLE_TYPE_NONE,                1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "[map[string:string]]"},
-    {"csv", "write_file", 2, 2, true,  FALLIBLE_TYPE_BOOL,                2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_ARRAY}}, "bool"},
     /* encoding */
     {"encoding", "base64_decode", 1, 1, true,  FALLIBLE_TYPE_STRING, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"encoding", "base64_encode", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},

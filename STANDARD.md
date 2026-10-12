@@ -3921,7 +3921,7 @@ when mode {
 
 #### Path Resolution
 
-All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `csv.read_file`, `csv.write_file`, and `sqlite.open`) are resolved relative to the **current working directory** of the process, the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
+All relative paths passed to `@io` functions (and any other stdlib function that accepts a file path, including `sqlite.open`) are resolved relative to the **current working directory** of the process, the directory from which the program was launched. They are not resolved relative to the source file that contains the call.
 
 ```gray
 // Given project layout:
@@ -4279,8 +4279,6 @@ Reading and writing CSV (Comma-Separated Values) data.
 | `parse_delimited` | `(csv_string string, delimiter char) -> [[string]]` | Like `parse`, but fields split on `delimiter` (e.g. `'\t'`, `';'`); RFC 4180 quoting still applies |
 | `detect_delimiter` | `(sample string) -> char` | Most frequent of `,` `;` `\t` `\|` on the first line of `sample`, defaulting to `,` |
 | `encode` | `(data [[string]]) -> string` | Encode 2D array to CSV string; a field containing `,`, `"`, CR, or LF is quoted per RFC 4180 with embedded `"` doubled |
-| `read_file` | `(path string) -> ([[string]], Error)` | Read and parse CSV file; malformed quoting is returned as an Error — always use destructuring |
-| `write_file` | `(path string, data [[string]]) -> (bool, Error)` | Write 2D array to CSV file (same RFC 4180 quoting as `encode`) — always use destructuring |
 | `headers` | `(data [[string]]) -> [string]` | Extract header row from parsed CSV data |
 | `to_maps` | `(data [[string]]) -> [map[string:string]]` | Rows 1..N as maps keyed by header name (short row omits keys, long row drops extras); `<= 1` row gives an empty array |
 | `from_maps` | `(rows [map[string:string]]) -> [[string]]` | Inverse of `to_maps`; header is the union of keys in first-seen order, a missing key becomes `""` |

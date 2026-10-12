@@ -348,11 +348,8 @@ GrayString gray_io_normalize(GrayArena *arena, GrayString path) {
 /* Read an already-opened file into a GrayString. Tries seek-based sizing
  * first, falls back to streaming for non-seekable inputs (pipes, /proc,
  * /dev/stdin). Returns {NULL, -1} if the file exceeds INT32_MAX. Caller
- * is responsible for fclose.
- *
- * Not static: csv.c's gray_csv_read/gray_csv_read_result share this
- * instead of re-deriving the same seek/streaming logic. */
-GrayString gray_io_read_file_impl(GrayArena *arena, FILE *file) {
+ * is responsible for fclose. */
+static GrayString gray_io_read_file_impl(GrayArena *arena, FILE *file) {
     long size = -1;
     if (fseek(file, 0, SEEK_END) == 0) {
         size = ftell(file);

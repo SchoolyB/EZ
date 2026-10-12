@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 533 codes** (380 errors, 17 warnings, 136 panics)
+**Total: 531 codes** (380 errors, 17 warnings, 134 panics)
 
 ---
 
@@ -523,7 +523,6 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0110` | strconv | strconv.format_i64: invalid base %lld; must be between 2 and 36 |
 | `P0111` | strconv | strconv.format_u64: invalid base %lld; must be between 2 and 36 |
 | `P0113` | bounds | binary.%s: byte array too short to decode; need %d bytes but have %d |
-| `P0114` | io | csv.read_file: input exceeds maximum string length |
 | `P0115` | runtime | read of '%s' on a nil Error; check the error is non-nil before reading its fields |
 | `P0116` | strings | string builder size exceeds maximum string length |
 | `P0117` | memory | dereferenced a pointer into an arena that has been destroyed or reset |
@@ -551,7 +550,6 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0140` | time | time: timestamp %lld is outside the range of dates that can be broken into parts |
 | `P0141` | os | os.exec: the command or an argument contains an embedded null byte |
 | `P0142` | json | json: a non-finite floating-point value (inf or nan) cannot be written as JSON |
-| `P0143` | csv | csv: a file path contains an embedded null byte |
 | `P0144` | sqlite | sqlite: a database path or SQL statement contains an embedded null byte |
 | `P0145` | time | time: a format, layout or text contains an embedded null byte |
 | `P0146` | regex | regex: a pattern or text contains an embedded null byte |
@@ -584,4 +582,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 19:23:49 UTC*
+*Generated on 2026-10-12 20:51:43 UTC*

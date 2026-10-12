@@ -54,32 +54,6 @@
  *@end
  */
 
-/*@man read_file
- *@module csv
- *@group File I/O
- *@sig read_file(path string) -> ([[string]], Error)
- *@desc Reads the CSV file at path and returns parsed rows as an array of string arrays. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
- *@example
- *   import @csv
- *   mut rows, err = csv.read_file("data.csv")
- *   if err != nil { println("failed: ${err}") }
- *   mut unchecked_rows, _ = csv.read_file("data.csv")
- *@end
- */
-
-/*@man write_file
- *@module csv
- *@group File I/O
- *@sig write_file(path string, rows [[string]]) -> (bool, Error)
- *@desc Writes an array of rows (each row an array of strings) to a CSV file at path, with the same RFC 4180 field quoting as encode. Creates the file if it does not exist; overwrites if it does. Always use destructuring — single-variable assignment is a compile error. Relative paths resolve from the working directory where the binary is executed, not the source file location.
- *@example
- *   import @csv
- *   mut data [[string]] = {{"name", "age"}, {"Alice", "30"}}
- *   mut ok, err = csv.write_file("out.csv", data)
- *   if err != nil { println("failed: ${err}") }
- *@end
- */
-
 /*@man parse_delimited
  *@module csv
  *@group Parsing
@@ -191,15 +165,5 @@ GrayString gray_csv_stringify(GrayArena *arena, GrayArray *data);
 
 /* Extract the first row (headers) from parsed CSV data */
 GrayArray gray_csv_headers(GrayArena *arena, GrayArray *data);
-
-/* Read CSV file */
-GrayArray gray_csv_read(GrayArena *arena, GrayString path);
-
-/* Write CSV to file */
-bool gray_csv_write(GrayArena *arena, GrayString path, GrayArray *data);
-
-/* _result variants */
-GrayResult_array gray_csv_read_result(GrayArena *arena, GrayString path);
-GrayResult_bool gray_csv_write_result(GrayArena *arena, GrayString path, GrayArray *data);
 
 #endif

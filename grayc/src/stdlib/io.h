@@ -164,12 +164,6 @@ bool gray_io_is_directory(GrayString path);
  *@end
  */
 
-/* Not a builtin: reads an already-opened file into a GrayString, sizing
- * safely (guards fseek/ftell, caps at INT32_MAX, streams non-seekable
- * input). Returns {NULL, -1} if the file is too large. Shared with
- * csv.c so csv.read_file doesn't re-derive this on its own. */
-GrayString gray_io_read_file_impl(GrayArena *arena, FILE *file);
-
 /* File writing */
 
 /*@man write_file
