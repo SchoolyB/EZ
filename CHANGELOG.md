@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.11.5](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.11.4...grayscale-v0.11.5) (2026-10-12)
+
+
+### Bug Fixes
+
+* **codegen:** copy a local array or map into the heap when assigned to a new() struct field ([#3017](https://github.com/grayscale-lang/grayscale/issues/3017)) ([d7867a1](https://github.com/grayscale-lang/grayscale/commit/d7867a1d6743f9b88a57d21735c7a57a04e544c7))
+* **codegen:** initialize a shadowing variable from the outer variable it reads ([#3018](https://github.com/grayscale-lang/grayscale/issues/3018)) ([4dee938](https://github.com/grayscale-lang/grayscale/commit/4dee938fcfd8b34c97c4fdabb806bf8433c35aab))
+* **codegen:** keep the for_each element type across emitting a deep collection chain ([#3028](https://github.com/grayscale-lang/grayscale/issues/3028)) ([0dd2d79](https://github.com/grayscale-lang/grayscale/commit/0dd2d795674db2ec306b701792eeb95a45bedad8))
+* **csv:** reject malformed quoting in parse and read_file ([#2988](https://github.com/grayscale-lang/grayscale/issues/2988)) ([26452ad](https://github.com/grayscale-lang/grayscale/commit/26452adad0503eae0746f0b69bcfdb58e451ffdd))
+* **http:** canonicalize response header names ([#3057](https://github.com/grayscale-lang/grayscale/issues/3057)) ([7ee2f99](https://github.com/grayscale-lang/grayscale/commit/7ee2f999139849daae0daad38bccca0b2ef971fc))
+* **http:** decode chunked response bodies and keep the last header ([#3053](https://github.com/grayscale-lang/grayscale/issues/3053)) ([adb45e7](https://github.com/grayscale-lang/grayscale/commit/adb45e7c5ce4e1318329bad6586fe0042fc55dad))
+* **http:** include a non-default port in the Host header ([#3054](https://github.com/grayscale-lang/grayscale/issues/3054)) ([dde6647](https://github.com/grayscale-lang/grayscale/commit/dde66477538bddeed560fbf84af8662ef1875112))
+* **http:** return a specific error code and fixed message for each request failure ([#3055](https://github.com/grayscale-lang/grayscale/issues/3055)) ([a118f37](https://github.com/grayscale-lang/grayscale/commit/a118f3711f02516cd5c2a02230e9e6e3eaaab456))
+* **http:** return OutOfRange for a response over the 1 MB limit ([#3056](https://github.com/grayscale-lang/grayscale/issues/3056)) ([1428f3f](https://github.com/grayscale-lang/grayscale/commit/1428f3f9a5170aaae430e8e78ad2336a2c5f739b))
+* **http:** send one Content-Type and drop caller-set Host, Content-Length and Connection ([#3052](https://github.com/grayscale-lang/grayscale/issues/3052)) ([eb51e23](https://github.com/grayscale-lang/grayscale/commit/eb51e23821e8c72a83ac760349261409c71f1c74))
+* **json:** panic when json.parse input is not a valid JSON document ([#2967](https://github.com/grayscale-lang/grayscale/issues/2967)) ([04cfa05](https://github.com/grayscale-lang/grayscale/commit/04cfa0541d754bc3cc0ff2d4e4a380ccfa35c108))
+* **net:** classify net.receive failures as Closed, Timeout or the system error ([#3049](https://github.com/grayscale-lang/grayscale/issues/3049)) ([0e11b71](https://github.com/grayscale-lang/grayscale/commit/0e11b7107cef97df7173c61cd2c4d36d1926a503))
+* **net:** write the whole string in send and report a failed write ([#3050](https://github.com/grayscale-lang/grayscale/issues/3050)) ([77cbd9f](https://github.com/grayscale-lang/grayscale/commit/77cbd9f2aa912002773bc79ac2587ae9f9f22dcb))
+* **stdlib:** step past the stdlib header directory under Clang when the runtime is built from source ([#3022](https://github.com/grayscale-lang/grayscale/issues/3022)) ([66c2153](https://github.com/grayscale-lang/grayscale/commit/66c21538302896e433cd3d6439c2547b4577d44a))
+* **typechecker:** check func-typed generic parameter arguments against the bound type ([#3026](https://github.com/grayscale-lang/grayscale/issues/3026)) ([25568d5](https://github.com/grayscale-lang/grayscale/commit/25568d535c60dbdfe1fe13aee1f2ca583ff8e5f7))
+* **typechecker:** detect duplicate map keys and when cases written as constants ([#3031](https://github.com/grayscale-lang/grayscale/issues/3031)) ([2f54c0f](https://github.com/grayscale-lang/grayscale/commit/2f54c0f020cbd64923a23168e998240290b422ae))
+* **typechecker:** reject a local redeclaring a generic parameter's name in the same scope ([#3030](https://github.com/grayscale-lang/grayscale/issues/3030)) ([f7a6d1f](https://github.com/grayscale-lang/grayscale/commit/f7a6d1f643f0795c537525166a22a8e4707463b4))
+* **typechecker:** reject a private type used as a generic type argument ([#3027](https://github.com/grayscale-lang/grayscale/issues/3027)) ([f746580](https://github.com/grayscale-lang/grayscale/commit/f74658045c5dd1080f2779babd4cbcbf911bb536))
+* **typechecker:** warn on a deprecated type in container, pointer, new, size_of, generic and alias positions ([#3029](https://github.com/grayscale-lang/grayscale/issues/3029)) ([cde660f](https://github.com/grayscale-lang/grayscale/commit/cde660f136fee6848de4e9a971a0931944eacc8d))
+
+
+### Performance Improvements
+
+* **driver:** default to -O3 when the C compiler is GCC ([#3020](https://github.com/grayscale-lang/grayscale/issues/3020)) ([9e42a4f](https://github.com/grayscale-lang/grayscale/commit/9e42a4f55b4e104b4fa36915eb67ba838ecf6e51))
+* **driver:** reuse a cached runtime archive for a --cc compiler ([#3021](https://github.com/grayscale-lang/grayscale/issues/3021)) ([8812855](https://github.com/grayscale-lang/grayscale/commit/881285541c21519f25479787f7d68cca07e29337))
+* **json:** copy unescaped runs with memcpy in json_append_escaped ([#3024](https://github.com/grayscale-lang/grayscale/issues/3024)) ([726f3bf](https://github.com/grayscale-lang/grayscale/commit/726f3bf8c0e2e43889ddfefbd6c0dbd8e9ae23aa))
+* **runtime:** count arena allocations with a flag on the arena ([#3025](https://github.com/grayscale-lang/grayscale/issues/3025)) ([06088f4](https://github.com/grayscale-lang/grayscale/commit/06088f4fc8f35cb5351a91977260d02425d0e710))
+* **runtime:** cut per-thread state lookups under TCC ([#3019](https://github.com/grayscale-lang/grayscale/issues/3019)) ([901ec8a](https://github.com/grayscale-lang/grayscale/commit/901ec8a0a099f1ad34ab05bb52fa942c12d6ab6d))
+* **strings:** find candidates with memchr in search, split and replace ([#3023](https://github.com/grayscale-lang/grayscale/issues/3023)) ([85fd2eb](https://github.com/grayscale-lang/grayscale/commit/85fd2eb2a60585a602dd7cc9e51efb26d2d16ecf))
+
 ## [0.11.4](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.11.3...grayscale-v0.11.4) (2026-10-08)
 
 
