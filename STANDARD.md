@@ -3385,6 +3385,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `fill` | `(&arr [T], value T, count i64)` | Fill array with N copies of value |
 | `sort_asc` | `(&arr [T])` | Sort ascending in-place |
 | `sort_desc` | `(&arr [T])` | Sort descending in-place |
+| `sort_by` | `(&arr [T], less func(T, T) -> bool)` | Sort in-place with a caller-supplied `less`; stable, works on any element type including structs |
 | `swap` | `(&arr [T], i i64, j i64)` | Swap the elements at `i` and `j` in place; panics if either index is out of bounds |
 
 #### Transformation Functions

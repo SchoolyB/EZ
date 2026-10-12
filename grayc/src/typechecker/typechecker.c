@@ -3065,6 +3065,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"arrays", "rotate",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_I64}}, "$0"},
     {"arrays", "slice",        3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_I64}, {2, EXPECTED_ARGUMENT_I64}}, "$0"},
     {"arrays", "sort_asc",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "void"},
+    {"arrays", "sort_by",      2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "void"},
     {"arrays", "sort_desc",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "void"},
     {"arrays", "split_every",  2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_I64}}, "[$0]"},
     {"arrays", "swap",         3, 3, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "void"},
@@ -6743,6 +6744,7 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
          strcmp(member_function_name, "remove_first") == 0 || strcmp(member_function_name, "prepend") == 0 ||
          strcmp(member_function_name, "fill") == 0 || strcmp(member_function_name, "swap") == 0 ||
          strcmp(member_function_name, "sort_asc") == 0 || strcmp(member_function_name, "sort_desc") == 0 ||
+         strcmp(member_function_name, "sort_by") == 0 ||
          strcmp(member_function_name, "clear") == 0) &&
         node->data.call.argument_count > 0) {
         AstNode *first_argument = node->data.call.arguments[0];
@@ -6872,7 +6874,8 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
     if ((strcmp(member_function_name, "map") == 0 || strcmp(member_function_name, "filter") == 0 ||
          strcmp(member_function_name, "reduce") == 0 ||
          strcmp(member_function_name, "any") == 0 || strcmp(member_function_name, "all") == 0 ||
-         strcmp(member_function_name, "find") == 0 || strcmp(member_function_name, "find_index") == 0) && node->data.call.argument_count >= 2) {
+         strcmp(member_function_name, "find") == 0 || strcmp(member_function_name, "find_index") == 0 ||
+         strcmp(member_function_name, "sort_by") == 0) && node->data.call.argument_count >= 2) {
         int callback_index = (strcmp(member_function_name, "reduce") == 0) ? 2 : 1;
         if (callback_index < node->data.call.argument_count) {
             AstNode *callback_argument = node->data.call.arguments[callback_index];
@@ -6938,6 +6941,26 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
                                 char *message = typechecker_format(checker,
                                     "%s callback takes '%s' but array element type is '%s'",
                                     member_function_name, type_name(callback_function_signature->parameter_types[0]), element_type_name);
+                                NODE_ERROR_FORMATTED(checker, callback_argument, "E9004", member_function_name, message);
+                            }
+                        } else if (strcmp(member_function_name, "sort_by") == 0) {
+                            if (callback_function_signature->parameter_count != 2) {
+                                char *message = typechecker_format(checker,
+                                    "sort_by callback must take 2 parameters, got %d",
+                                    callback_function_signature->parameter_count);
+                                NODE_ERROR_FORMATTED(checker, callback_argument, "E9004", member_function_name, message);
+                            } else if (callback_function_signature->return_count < 1 ||
+                                       callback_function_signature->return_types[0]->kind != TYPE_KIND_BOOL) {
+                                NODE_ERROR_FORMATTED(checker, callback_argument, "E9004",
+                                    member_function_name, "sort_by callback must return bool");
+                            } else if (element_type_name &&
+                                       ((callback_function_signature->parameter_types[0] &&
+                                         strcmp(type_name(callback_function_signature->parameter_types[0]), element_type_name) != 0) ||
+                                        (callback_function_signature->parameter_types[1] &&
+                                         strcmp(type_name(callback_function_signature->parameter_types[1]), element_type_name) != 0))) {
+                                char *message = typechecker_format(checker,
+                                    "sort_by callback must take two '%s' parameters to match the array element type",
+                                    element_type_name);
                                 NODE_ERROR_FORMATTED(checker, callback_argument, "E9004", member_function_name, message);
                             }
                         } else { /* reduce */

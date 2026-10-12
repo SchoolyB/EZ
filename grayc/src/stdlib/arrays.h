@@ -470,6 +470,24 @@ void gray_arrays_sort(GrayArray *array, bool descending);
  *@end
  */
 
+/*@man sort_by
+ *@module arrays
+ *@group Modification
+ *@sig sort_by(&arr [T], less func(T, T) -> bool)
+ *@desc Sorts arr in place using a caller-supplied comparison. less(a, b) returns true when a must come before b. Elements for which neither less(a, b) nor less(b, a) is true keep their relative order. Works on any element type, including structs.
+ *@example
+ *   import @arrays
+ *   const Person struct {
+ *       name string
+ *       age i64
+ *   }
+ *   do younger(a Person, b Person) -> bool { return a.age < b.age }
+ *   mut people [Person] = {Person{name: "Bo", age: 30}, Person{name: "Al", age: 25}}
+ *   arrays.sort_by(people, ()younger)
+ *   println(people[0].name)
+ *@end
+ */
+
 /*@man swap
  *@module arrays
  *@group Modification

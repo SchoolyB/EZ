@@ -1,0 +1,13 @@
+/*
+ * Error Test: E5007 - sort_by on a const array
+ */
+// expect-error: E5007
+
+import @arrays
+
+do bigger(a i64, b i64) -> bool { return a > b }
+
+do main() {
+    const numbers [i64,3] = {3, 1, 2}
+    arrays.sort_by(numbers, ()bigger)
+}

@@ -7936,6 +7936,30 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_formatted(codegen, ", %s)", strcmp(function_name, "sort_desc") == 0 ? "true" : "false");
         return true;
     }
+    /* sort_by: stable bottom-up merge sort over the array's own buffer. The
+     * right element is taken only when less(right, left), so equal elements
+     * keep their order. */
+    if (strcmp(function_name, "sort_by") == 0 && node->data.call.argument_count == 2) {
+        const char *c_element_type = gray_type_to_c_codegen(codegen, arrays_closure_element_type_name(codegen, node));
+        emit(codegen, "({ GrayArray *_sb_arr = ");
+        emit_array_argument_address(codegen, node->data.call.arguments[0]);
+        emit_formatted(codegen, "; bool (*_sb_fn)(%s, %s) = (void *)", c_element_type, c_element_type);
+        emit_expression(codegen, node->data.call.arguments[1]);
+        emit_formatted(codegen, "; int32_t _sb_n = _sb_arr->len; %s *_sb_d = (%s *)_sb_arr->data; ", c_element_type, c_element_type);
+        emit_formatted(codegen, "if (_sb_n > 1) { %s *_sb_t = (%s *)malloc(sizeof(%s) * (size_t)_sb_n); ",
+            c_element_type, c_element_type, c_element_type);
+        emit(codegen, "for (int32_t _sb_w = 1; _sb_w < _sb_n; _sb_w *= 2) { "
+            "for (int32_t _sb_lo = 0; _sb_lo < _sb_n; _sb_lo += 2 * _sb_w) { "
+            "int32_t _sb_mid = _sb_lo + _sb_w < _sb_n ? _sb_lo + _sb_w : _sb_n; "
+            "int32_t _sb_hi = _sb_lo + 2 * _sb_w < _sb_n ? _sb_lo + 2 * _sb_w : _sb_n; "
+            "int32_t _sb_i = _sb_lo, _sb_j = _sb_mid, _sb_k = _sb_lo; "
+            "while (_sb_i < _sb_mid && _sb_j < _sb_hi) _sb_t[_sb_k++] = _sb_fn(_sb_d[_sb_j], _sb_d[_sb_i]) ? _sb_d[_sb_j++] : _sb_d[_sb_i++]; "
+            "while (_sb_i < _sb_mid) _sb_t[_sb_k++] = _sb_d[_sb_i++]; "
+            "while (_sb_j < _sb_hi) _sb_t[_sb_k++] = _sb_d[_sb_j++]; } ");
+        emit_formatted(codegen, "memcpy(_sb_d, _sb_t, sizeof(%s) * (size_t)_sb_n); } ", c_element_type);
+        emit(codegen, "free(_sb_t); } })");
+        return true;
+    }
     if ((strcmp(function_name, "contains") == 0 || strcmp(function_name, "index_of") == 0 ||
          strcmp(function_name, "count") == 0) && node->data.call.argument_count == 2) {
         char function_name_buffer[MESSAGE_BUFFER_SIZE];

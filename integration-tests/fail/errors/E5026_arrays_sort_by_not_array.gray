@@ -1,0 +1,13 @@
+/*
+ * Error Test: E5026 - sort_by requires an array as its first argument
+ */
+// expect-error: E5026
+
+import @arrays
+
+do bigger(a i64, b i64) -> bool { return a > b }
+
+do main() {
+    mut number i64 = 3
+    arrays.sort_by(number, ()bigger)
+}
