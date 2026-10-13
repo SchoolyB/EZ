@@ -249,7 +249,7 @@ static bool header_is_client_managed(GrayString name) {
            http_ascii_equal_ignore_case(name.data, name.len, "connection");
 }
 
-/* A header name is an RFC 9110 token; a value carries no CR or LF. Either
+/* A header name is an RFC 9110 token; a value carries no CR, LF or NUL. Either
  * violation would let the caller's text start a new header line. */
 static bool header_is_valid(GrayString name, GrayString value) {
     if (name.len == 0) return false;
@@ -258,7 +258,7 @@ static bool header_is_valid(GrayString name, GrayString value) {
         if (!isalnum(character) && !strchr("!#$%&'*+-.^_`|~", character)) return false;
     }
     for (int32_t i = 0; i < value.len; i++) {
-        if (value.data[i] == '\r' || value.data[i] == '\n') return false;
+        if (value.data[i] == '\r' || value.data[i] == '\n' || value.data[i] == '\0') return false;
     }
     return true;
 }
@@ -312,7 +312,7 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
             if (!header_key || !header_value) continue;
             if (!header_is_valid(*header_key, *header_value)) {
                 return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
-                    "invalid header: name must be a token and value must not contain CR or LF");
+                    "invalid header: name must be a token and value must not contain CR, LF or NUL");
             }
         }
     }
