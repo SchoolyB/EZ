@@ -7695,6 +7695,7 @@ static const PassthroughCall random_passthrough[] = {
     {"rand_f64", 2, "gray_random_f64_range"},
     {"rand_i64", 2, "gray_random_i64_range"},
     {"rand_bool", 0, "gray_random_bool"},
+    {"roll_dice", 2, "gray_random_roll_dice"},
     {"rand_u8", 0, "gray_random_u8"},
     {"rand_char", 0, "gray_random_char"},
     {"rand_char", 2, "gray_random_char_range"},
@@ -7707,6 +7708,12 @@ static bool emit_random_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ", ");
         emit_expression(codegen, node->data.call.arguments[1]);
+        emit(codegen, ")");
+        return true;
+    }
+    if (strcmp(function_name, "rand_bytes") == 0 && node->data.call.argument_count == 1) {
+        emit(codegen, "gray_random_bytes(gray_default_arena, ");
+        emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ")");
         return true;
     }
@@ -8194,7 +8201,8 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
     bool needs_arena = (strcmp(function_name, "reverse") == 0 || strcmp(function_name, "slice") == 0 ||
         strcmp(function_name, "concat") == 0 || strcmp(function_name, "deduplicate") == 0 ||
         strcmp(function_name, "flatten") == 0 || strcmp(function_name, "split_every") == 0 ||
-        strcmp(function_name, "pair") == 0 || strcmp(function_name, "rotate") == 0);
+        strcmp(function_name, "pair") == 0 || strcmp(function_name, "rotate") == 0 ||
+        strcmp(function_name, "counts") == 0);
     bool has_reference_arguments = (strcmp(function_name, "concat") == 0 || strcmp(function_name, "pair") == 0);
     /* These return elements still sharing their nested storage with the
      * source, so the result is copied out of it. */

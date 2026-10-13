@@ -119,6 +119,27 @@ int64_t gray_random_i64_range(int64_t minimum, int64_t maximum) {
     return minimum + (int64_t)(rand64() % (uint64_t)(maximum - minimum));
 }
 
+GrayArray gray_random_bytes(GrayArena *arena, int64_t count) {
+    if (count < 0)
+        gray_panic_code("P0152", "random.rand_bytes: length %lld is negative", (long long)count);
+    GrayArray array = gray_array_new(arena, sizeof(uint8_t), (int32_t)count, GRAY_ELEM_U8);
+    ensure_seed();
+    for (int64_t i = 0; i < count; i++) {
+        uint8_t byte = (uint8_t)(rand() % 256);
+        GRAY_ARRAY_PUSH(arena, &array, &byte);
+    }
+    return array;
+}
+
+int64_t gray_random_roll_dice(int64_t count, int64_t sides) {
+    if (count < 1 || sides < 1)
+        gray_panic_code("P0153", "random.roll_dice: count %lld and sides %lld must both be at least 1", (long long)count, (long long)sides);
+    ensure_seed();
+    int64_t total = 0;
+    for (int64_t i = 0; i < count; i++) total += 1 + (int64_t)(rand64() % (uint64_t)sides);
+    return total;
+}
+
 bool gray_random_bool(void) {
     ensure_seed();
     return rand() % 2 == 0;

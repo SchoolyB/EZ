@@ -3019,7 +3019,8 @@ typedef struct {
     struct { int index; ExpectedArgumentKind kind; } argument_types[STDLIB_MAX_ARGUMENT_CHECKS];
     /* A type name; "$0" for argument 0's type, "$elem0" for its element
      * type, "[$0]" for an array of argument 0's type, "$common" for the
-     * common type of the EXPECTED_ARGUMENT_COMMON_NUMBER arguments; or NULL when a
+     * common type of the EXPECTED_ARGUMENT_COMMON_NUMBER arguments,
+     * "map[$elem0:i64]" for a map keyed by argument 0's element type; or NULL when a
      * module resolver computes it. */
     const char *return_type;
 } StdlibFunctionMetadata;
@@ -3035,6 +3036,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"arrays", "concat",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_SAME_AS_FIRST}}, "$0"},
     {"arrays", "contains",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_ELEMENT_OF_FIRST}}, "bool"},
     {"arrays", "count",        2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_ELEMENT_OF_FIRST}}, "i64"},
+    {"arrays", "counts",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "map[$elem0:i64]"},
     {"arrays", "deduplicate",  1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "$0"},
     {"arrays", "fill",         3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_ELEMENT_OF_FIRST}, {2, EXPECTED_ARGUMENT_I64}}, "void"},
     {"arrays", "filter",       2, 2, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "$0"},
@@ -3156,6 +3158,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"chars", "escape",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "string"},
     {"chars", "is_alnum", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_alpha", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_consonant", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_ascii",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_control",   1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_digit", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
@@ -3164,8 +3167,10 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"chars", "is_printable", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_punct",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_upper", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "is_vowel",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_whitespace", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
     {"chars", "is_word_char", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "bool"},
+    {"chars", "mirror",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "char"},
     {"chars", "string_width", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "i64"},
     {"chars", "to_lower",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "char"},
     {"chars", "to_upper",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_CHAR}}, "char"},
@@ -3370,8 +3375,10 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"random", "rand_char",  0, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_CHAR}, {1, EXPECTED_ARGUMENT_CHAR}}, "char"},
     {"random", "rand_f64",   0, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_NUMBER}, {1, EXPECTED_ARGUMENT_NUMBER}}, "f64"},
     {"random", "rand_i64",   2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
+    {"random", "rand_bytes", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "[u8]"},
     {"random", "rand_string", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"random", "rand_u8",    0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"u8"},
+    {"random", "roll_dice",  2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"random", "sample",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_ARRAY}, {1, EXPECTED_ARGUMENT_I64}}, "$0"},
     {"random", "seed",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "void"},
     {"random", "shuffle",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_ARRAY}}, "$0"},
@@ -3649,6 +3656,13 @@ static GrayType *resolve_return_type(TypeChecker *checker, const StdlibFunctionM
     if (strcmp(return_type_name, "[$0]") == 0) {
         GrayType *first = stdlib_result_array_type(checker, metadata, node);
         return first->kind == TYPE_KIND_UNKNOWN ? first : type_array(type_name(first));
+    }
+    if (strcmp(return_type_name, "map[$elem0:i64]") == 0) {
+        GrayType *element = array_element_type(checker, stdlib_result_array_type(checker, metadata, node));
+        if (element->kind == TYPE_KIND_UNKNOWN) return element;
+        char map_name[TYPE_NAME_MAX];
+        snprintf(map_name, sizeof(map_name), "map[%s:i64]", type_name(element));
+        return type_from_name(map_name);
     }
     if (strcmp(return_type_name, "$common") == 0) {
         GrayType *common = stdlib_common_number_type(checker, metadata, node);
@@ -6834,6 +6848,21 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
                               element_type->kind == TYPE_KIND_BOOL || element_type->kind == TYPE_KIND_ENUM;
             if (!orderable) {
                 NODE_ERROR_FORMATTED(checker, first_argument, "E9007", member_function_name, array_type->element_type);
+            }
+        }
+    }
+    /* E3057: arrays.counts keys its result by the element type, so the
+     * element must be hashable like any map key. */
+    if (strcmp(member_function_name, "counts") == 0 && node->data.call.argument_count > 0) {
+        AstNode *first_argument = node->data.call.arguments[0];
+        GrayType *array_type = resolve_expression(checker, first_argument);
+        if (array_type && array_type->kind == TYPE_KIND_ARRAY && array_type->element_type) {
+            const char *element_name = resolve_type_alias(checker, array_type->element_type);
+            GrayType *element_type = type_from_name(element_name);
+            bool is_struct = element_type->kind == TYPE_KIND_STRUCT && !is_enum_name(checker, element_name);
+            if (is_struct || element_type->kind == TYPE_KIND_ARRAY || element_type->kind == TYPE_KIND_MAP ||
+                element_type->kind == TYPE_KIND_POINTER) {
+                NODE_ERROR_FORMATTED(checker, first_argument, "E3057", element_name);
             }
         }
     }

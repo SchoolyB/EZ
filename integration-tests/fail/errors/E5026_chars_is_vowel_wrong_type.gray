@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5026 - wrong argument type to chars.is_vowel
+ */
+
+// expect-error: E5026
+
+import @chars
+
+do main() {
+    println(chars.is_vowel("a"))
+}

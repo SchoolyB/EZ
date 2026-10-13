@@ -231,6 +231,22 @@ GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *array) {
     return result;
 }
 
+GrayMap gray_arrays_counts(GrayArena *arena, GrayArray *array) {
+    GrayMap result = gray_map_new_kind(arena, array->elem_size, (int32_t)sizeof(int64_t),
+                                       array->len, (int8_t)array->elem_kind, GRAY_ELEM_I64);
+    for (int32_t i = 0; i < array->len; i++) {
+        const void *element = (const char *)array->data + (size_t)i * (size_t)array->elem_size;
+        int64_t *existing = gray_map_get(&result, element);
+        if (existing) {
+            (*existing)++;
+        } else {
+            int64_t one = 1;
+            GRAY_MAP_SET(arena, &result, element, &one);
+        }
+    }
+    return result;
+}
+
 GrayArray gray_arrays_flatten(GrayArena *arena, GrayArray *array) {
     /* Flatten one level: [[T]] -> [T]. Each element of `array` is a GrayArray,
      * and the result holds elements as wide as the inner arrays' own. */

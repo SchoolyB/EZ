@@ -3445,6 +3445,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `slice` | `(arr [T], start i64, end i64) -> [T]` | Return slice |
 | `concat` | `(a [T], b [T]) -> [T]` | Concatenate two arrays |
 | `deduplicate` | `(arr [T]) -> [T]` | Remove duplicate values |
+| `counts` | `(arr [T]) -> map[T:i64]` | Frequency table of each distinct element, keys in order of first occurrence; `T` must be a primitive, `string`, or enum |
 | `flatten` | `(arr [[T]]) -> [T]` | Flatten one level of nesting |
 | `split_every` | `(arr [T], size i64) -> [[T]]` | Split into sub-arrays of given size |
 | `pair` | `(a [T], b [T]) -> [[T]]` | Pair elements from two arrays |
@@ -3814,6 +3815,8 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `rand_char` | `() -> char` | Random printable char |
 | `rand_char` | `(min char, max char) -> char` | Random char [min, max); panics if `min` is not less than `max` |
 | `rand_string` | `(length i64, alphabet string) -> string` | String of `length` characters drawn uniformly from `alphabet`; `length` 0 returns `""`; panics if `alphabet` is empty and `length > 0` |
+| `rand_bytes` | `(n i64) -> [u8]` | `n` random bytes from the module's RNG (reproducible with `seed`, not cryptographically secure); `n` 0 returns an empty array; panics if `n` is negative |
+| `roll_dice` | `(count i64, sides i64) -> i64` | Sum of `count` rolls of a `sides`-sided die, each uniform in `1..sides`; panics if `count` or `sides` is less than 1 |
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n i64) -> [T]` | Return n unique random elements |
@@ -4683,6 +4686,8 @@ non-ASCII codepoints (`char` is a full Unicode codepoint) are returned unchanged
 | `is_punct` | `(c char) -> bool` | Printable ASCII that is not a letter, digit, or space |
 | `is_hex_digit` | `(c char) -> bool` | `0`–`9`, `a`–`f`, or `A`–`F` |
 | `is_word_char` | `(c char) -> bool` | Identifier char: `[A-Za-z0-9_]` |
+| `is_vowel` | `(c char) -> bool` | `a e i o u` in either case; `y` is not a vowel |
+| `is_consonant` | `(c char) -> bool` | ASCII letter that is not a vowel |
 
 Every predicate is ASCII-only: a non-ASCII codepoint always returns `false`.
 
@@ -4691,6 +4696,7 @@ Every predicate is ASCII-only: a non-ASCII codepoint always returns `false`.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `escape` | `(c char) -> string` | Printable rendering for debugging or codegen |
+| `mirror` | `(c char) -> char` | Swaps `(` `)`, `[` `]`, `{` `}`, `<` `>` with their partner; every other codepoint is unchanged |
 
 `escape` renders backslash and the common control characters (`\n`, `\t`, `\r`, `\0`) as
 two-character escapes, other control characters and DEL as `\xNN`, non-ASCII codepoints as

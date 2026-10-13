@@ -13,6 +13,7 @@
 
 #include "../runtime/runtime.h"
 #include "../runtime/array.h"
+#include "../runtime/map.h"
 
 /* Modification */
 
@@ -320,6 +321,19 @@ GrayArray gray_arrays_concat(GrayArena *arena, GrayArray *left, GrayArray *right
  *@end
  */
 GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *array);
+
+/*@man counts
+ *@module arrays
+ *@group Query
+ *@sig counts(arr [T]) -> map[T:i64]
+ *@desc Returns a frequency table mapping each distinct element of arr to the number of times it occurs. Keys appear in order of first occurrence; an empty array returns an empty map. T must be a primitive type, string, or enum.
+ *@example
+ *   import @arrays
+ *   mut votes [string] = {"a", "b", "a", "c", "a"}
+ *   mut tally map[string:i64] = arrays.counts(votes)   // {"a": 3, "b": 1, "c": 1}
+ *@end
+ */
+GrayMap gray_arrays_counts(GrayArena *arena, GrayArray *array);
 
 /*@man flatten
  *@module arrays

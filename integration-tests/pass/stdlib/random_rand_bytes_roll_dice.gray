@@ -1,0 +1,42 @@
+/*
+ * Test: random.rand_bytes and random.roll_dice
+ * Verifies rand_bytes length (including 0), seeded reproducibility, and
+ * that roll_dice stays within count..count*sides.
+ */
+
+import and use @random
+import and use @arrays
+
+do check(label string, got bool) -> i64 {
+    if got {
+        println("  [PASS] ${label}")
+        return 1
+    }
+    println("  [FAIL] ${label}")
+    return 0
+}
+
+do main() {
+    mut passed i64 = 0
+    mut sixteen [u8] = random.rand_bytes(16)
+    passed += check("rand_bytes length", len(sixteen) == 16)
+
+    mut none [u8] = random.rand_bytes(0)
+    passed += check("rand_bytes zero length", len(none) == 0)
+
+    random.seed(42)
+    mut first [u8] = random.rand_bytes(8)
+    random.seed(42)
+    mut second [u8] = random.rand_bytes(8)
+    passed += check("rand_bytes seeded", arrays.is_equal(first, second))
+
+    mut in_range bool = true
+    for i in range(0, 200) {
+        mut total i64 = random.roll_dice(2, 6)
+        if total < 2 || total > 12 {
+            in_range = false
+        }
+    }
+    passed += check("roll_dice 2d6 in 2..12", in_range)
+    passed += check("roll_dice 1d1", random.roll_dice(1, 1) == 1)
+}

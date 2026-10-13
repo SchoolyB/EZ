@@ -1,0 +1,8 @@
+/* Panic Test: P0153 - random.roll_dice with sides less than 1 */
+// expect-contains: P0153
+
+import @random
+
+do main() {
+    println(random.roll_dice(2, 0))
+}

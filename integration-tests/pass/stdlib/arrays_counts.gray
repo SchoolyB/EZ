@@ -1,0 +1,52 @@
+/*
+ * Test: arrays.counts - frequency table keyed by element
+ * Verifies counts per distinct element for string, i64, char and enum
+ * arrays, and that an empty array returns an empty map.
+ */
+
+import and use @arrays
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do check(label string, got i64, want i64) -> i64 {
+    if got == want {
+        println("  [PASS] ${label}")
+        return 1
+    }
+    println("  [FAIL] ${label}: got ${got} want ${want}")
+    return 0
+}
+
+do main() {
+    mut passed i64 = 0
+    mut votes [string] = {"a", "b", "a", "c", "a"}
+    mut tally map[string:i64] = arrays.counts(votes)
+    passed += check("tally length", len(tally), 3)
+    passed += check("tally a", tally["a"], 3)
+    passed += check("tally b", tally["b"], 1)
+    passed += check("tally c", tally["c"], 1)
+
+    mut numbers [i64] = {5, 5, 7, 5, 7, 9}
+    mut number_counts map[i64:i64] = arrays.counts(numbers)
+    passed += check("number 5", number_counts[5], 3)
+    passed += check("number 7", number_counts[7], 2)
+    passed += check("number 9", number_counts[9], 1)
+
+    mut letters [char] = {'x', 'y', 'x'}
+    mut letter_counts map[char:i64] = arrays.counts(letters)
+    passed += check("char x", letter_counts['x'], 2)
+    passed += check("char y", letter_counts['y'], 1)
+
+    mut colors [Color] = {Color.RED, Color.BLUE, Color.RED}
+    mut color_counts map[Color:i64] = arrays.counts(colors)
+    passed += check("enum RED", color_counts[Color.RED], 2)
+    passed += check("enum BLUE", color_counts[Color.BLUE], 1)
+
+    mut empty [i64] = {}
+    mut empty_counts map[i64:i64] = arrays.counts(empty)
+    passed += check("empty length", len(empty_counts), 0)
+}

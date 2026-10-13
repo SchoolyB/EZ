@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5026 - wrong argument type to random.rand_bytes
+ */
+
+// expect-error: E5026
+
+import @random
+
+do main() {
+    println(random.rand_bytes("8"))
+}
