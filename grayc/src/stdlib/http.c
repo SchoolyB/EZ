@@ -10,6 +10,7 @@
 
 #include "http.h"
 #include "net.h"
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -241,6 +242,20 @@ static bool header_is_client_managed(GrayString name) {
            http_ascii_equal_ignore_case(name.data, name.len, "connection");
 }
 
+/* A header name is an RFC 9110 token; a value carries no CR or LF. Either
+ * violation would let the caller's text start a new header line. */
+static bool header_is_valid(GrayString name, GrayString value) {
+    if (name.len == 0) return false;
+    for (int32_t i = 0; i < name.len; i++) {
+        unsigned char character = (unsigned char)name.data[i];
+        if (!isalnum(character) && !strchr("!#$%&'*+-.^_`|~", character)) return false;
+    }
+    for (int32_t i = 0; i < value.len; i++) {
+        if (value.data[i] == '\r' || value.data[i] == '\n') return false;
+    }
+    return true;
+}
+
 /* A failed request: status 0, the fixed `detail` as the body, and the error
  * code the result variants report. */
 static GrayHttpResponse request_failure(GrayArena *arena, GrayHttpResponse failure, int64_t *error_code,
@@ -271,6 +286,20 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     if (!parse_url(url_buffer, host, sizeof(host), &port, path, sizeof(path))) {
         return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
             "invalid URL: expected http:// scheme");
+    }
+
+    if (custom_headers) {
+        for (int32_t i = 0; i < custom_headers->order_len; i++) {
+            int32_t slot = custom_headers->order[i];
+            if (slot < 0) continue;
+            GrayString *header_key = (GrayString *)gray_map_key_at(custom_headers, slot);
+            GrayString *header_value = (GrayString *)gray_map_value_at(custom_headers, slot);
+            if (!header_key || !header_value) continue;
+            if (!header_is_valid(*header_key, *header_value)) {
+                return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
+                    "invalid header: name must be a token and value must not contain CR or LF");
+            }
+        }
     }
 
     /* Connect */
