@@ -2333,6 +2333,13 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node);
 /* Array literal: its element type is the one the type checker resolved for
  * it — the slot it is stored into, or its own elements' type. */
 static void emit_array_value(CodeGen *codegen, AstNode *node) {
+    /* `{}` where the declared type is a map: the parser cannot tell an empty
+     * map from an empty array, so the context decides. */
+    if (node->data.array_value.count == 0 && codegen->current_variable_type &&
+        strncmp(codegen->current_variable_type, "map[", 4) == 0) {
+        emit_element_zero_value(codegen, codegen->current_variable_type, "gray_default_arena");
+        return;
+    }
     GrayType *literal_type = codegen_type_of(codegen, node);
     const char *saved_variable_type = codegen->current_variable_type;
     if (literal_type && literal_type->kind == TYPE_KIND_ARRAY && literal_type->element_type &&
