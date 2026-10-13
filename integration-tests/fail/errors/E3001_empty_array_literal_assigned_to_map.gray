@@ -1,0 +1,5 @@
+do main() {
+    mut counts map[string:i64] = {:}
+    counts = {}
+    println("${len(counts)}")
+}

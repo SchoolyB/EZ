@@ -1,0 +1,4 @@
+do main() {
+    mut rows [map[string:i64]] = {{}}
+    println("${len(rows)}")
+}

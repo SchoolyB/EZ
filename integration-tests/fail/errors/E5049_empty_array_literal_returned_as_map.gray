@@ -1,0 +1,7 @@
+do pick() -> map[string:i64] {
+    return {}
+}
+
+do main() {
+    println("${len(pick())}")
+}

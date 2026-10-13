@@ -3861,8 +3861,9 @@ static void typechecker_check_stdlib_argument_types(TypeChecker *checker, const 
             if ((kind == EXPECTED_ARGUMENT_ELEMENT_OF_FIRST || kind == EXPECTED_ARGUMENT_SAME_AS_FIRST ||
                  kind == EXPECTED_ARGUMENT_KEY_OF_FIRST || kind == EXPECTED_ARGUMENT_VALUE_OF_FIRST) && slot &&
                 (literal_entry_mismatches(checker, slot, argument_type) ||
-                 (slot->kind == TYPE_KIND_MAP && argument_type && argument_type->kind == TYPE_KIND_MAP &&
-                  !map_types_match(slot, argument_type)))) {
+                 (slot->kind == TYPE_KIND_MAP && argument_type &&
+                  ((argument_type->kind == TYPE_KIND_MAP && !map_types_match(slot, argument_type)) ||
+                   argument_type->kind == TYPE_KIND_ARRAY)))) {
                 typechecker_error_argument_type(checker, argument, argument_index + 1, typechecker_format(checker, "%s.%s", module_name, function_name), type_display_name(checker, slot), type_display_name(checker, argument_type));
                 continue;
             }
@@ -6121,7 +6122,14 @@ static GrayType *check_expression_as(TypeChecker *checker, AstNode *value, GrayT
     GrayType *saved_expected = checker->expected_type;
     if (typed_target) checker->expected_type = target;
     GrayType *type;
-    if (typed_target && value->kind == NODE_ARRAY_VALUE && target->kind == TYPE_KIND_ARRAY && target->element_type)
+    /* `{}` is an empty array. Where a map is expected it is typed as one, so
+     * the position's own mismatch check rejects it. */
+    if (typed_target && value->kind == NODE_ARRAY_VALUE && value->data.array_value.count == 0 &&
+        target->kind == TYPE_KIND_MAP)
+    {
+        type = type_array(target->value_type ? target->value_type : "unknown");
+        if (!checker->should_suppress_type_table_writes) typetable_set(checker->type_table, value, type);
+    } else if (typed_target && value->kind == NODE_ARRAY_VALUE && target->kind == TYPE_KIND_ARRAY && target->element_type)
         type = check_array_literal_as(checker, value, target);
     else if (typed_target && value->kind == NODE_MAP_VALUE && target->kind == TYPE_KIND_MAP &&
              target->key_type && target->value_type)
@@ -12388,6 +12396,10 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 }
             }
         }
+        /* The same typing for a position that sets only the expected type. */
+        if (node->data.array_value.count == 0 && saved_array_expected_type &&
+            saved_array_expected_type->kind == TYPE_KIND_MAP)
+            result = type_array(saved_array_expected_type->value_type ? saved_array_expected_type->value_type : "unknown");
         for (int i = 0; i < node->data.array_value.count; i++)
             mark_immutable_literal_source(checker, node->data.array_value.elements[i]);
         checker->expected_type = saved_array_expected_type;
@@ -14070,7 +14082,10 @@ static GrayType *check_variable_declaration_initializer(TypeChecker *checker, As
                      scope_lookup(checker->current_scope, node->data.variable_declaration.value->data.label.value) &&
                      scope_lookup(checker->current_scope, node->data.variable_declaration.value->data.label.value)->is_reference) &&
                    /* Skip mismatch when assigning pointer (addr) to ^T */
-                   !(declared->kind == TYPE_KIND_POINTER && value_type->kind == TYPE_KIND_POINTER)) {
+                   !(declared->kind == TYPE_KIND_POINTER && value_type->kind == TYPE_KIND_POINTER) &&
+                   /* An array literal for a map is reported just below, with its own help. */
+                   !(declared->kind == TYPE_KIND_MAP && node->data.variable_declaration.value &&
+                     node->data.variable_declaration.value->kind == NODE_ARRAY_VALUE)) {
             /* Type mismatch */
             typechecker_error_assign_type(checker, node, type_display_name(checker, value_type), type_display_name(checker, declared));
         }
