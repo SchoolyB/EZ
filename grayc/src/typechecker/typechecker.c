@@ -10318,10 +10318,7 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
         const char *enum_name = resolve_type_alias(checker, ast_member_qualifier(function_node));
         function_node->data.member.object->data.label.value = enum_name;
         const char *variant_name = function_node->data.member.member;
-        int matched_enum_index = -1;
-        for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
-            if (strcmp(checker->enum_names[enum_index], enum_name) == 0) { matched_enum_index = enum_index; break; }
-        }
+        int matched_enum_index = find_enum_index(checker, enum_name);
         if (matched_enum_index >= 0) {
             /* Find variant index */
             int matched_variant_index = -1;

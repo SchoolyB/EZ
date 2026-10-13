@@ -1,0 +1,19 @@
+import and use "./models.gray"
+
+do main() {
+    mut passed i64 = 0
+
+    if name_of(Level.HIGH) == "HIGH" {
+        passed += 1
+    }
+
+    if value_of(0) == Level.LOW {
+        passed += 1
+    }
+
+    if passed == 2 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
