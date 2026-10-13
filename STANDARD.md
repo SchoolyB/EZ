@@ -835,7 +835,7 @@ const PaymentErrors enum { PAYMENT_DECLINED PAYMENT_CANCELED }
 println(PaymentErrors.PAYMENT_DECLINED)  // "PAYMENT_DECLINED" — error-code enums print their name
 ```
 
-Printing a plain enum falls back to its widened integer value — consistent with the earlier tip that a plain enum's underlying value is a real integer under the hood. To get a variant's name, index `names()` (below). String-backed and `#error_code`-tagged enums each carry an obvious human-readable form already (the string literal, or the compiler-owned error-code name table), so those print that instead.
+Printing a plain enum falls back to its widened integer value — consistent with the earlier tip that a plain enum's underlying value is a real integer under the hood. To get a variant's name, use `names()` (below). String-backed and `#error_code`-tagged enums each carry an obvious human-readable form already (the string literal, or the compiler-owned error-code name table), so those print that instead.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -874,6 +874,22 @@ do kind_name(kind TokenKind) -> string {
 ```
 
 `names()` returns each variant's identifier as written, also for a string-backed enum (`Status.names()` is `{"TODO", "DONE"}`, not the string values). The two arrays line up index for index. Calling either on a `#flags` or tagged enum is a compile error.
+
+`names()` is indexed by declaration position, not by value. `names()[cast(kind, i64)]` is correct only when each variant's value equals its position, as in `TokenKind` above. An enum with explicit values that differ from their positions needs the lookup to go through `variants()`, which lines up with `names()`:
+
+```gray
+const Level enum { LOW = 10; MID = 5; HIGH = 1 }
+
+do level_name(level Level) -> string {
+    mut found string = ""
+    for index in range(0, len(Level.variants())) {
+        if Level.variants()[index] == level {
+            found = Level.names()[index]
+        }
+    }
+    return found
+}
+```
 
 **Implicit enum selector (`.VARIANT`):**
 
