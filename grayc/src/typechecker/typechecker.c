@@ -8827,8 +8827,15 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             GrayType *first_argument_type = resolve_expression(checker, node->data.call.arguments[0]);
             reject_void_in_context(checker, node->data.call.arguments[0], first_argument_type,
                 "'len()' argument");
+            const LengthRule *length_rule = first_argument_type ? type_length_rule(first_argument_type) : NULL;
+            /* A struct row matches by name; without the owning module imported
+             * the name is a user struct that merely shares it. */
+            if (length_rule && length_rule->struct_name &&
+                !is_stdlib_opaque_type_available(checker, length_rule->struct_name)) {
+                length_rule = NULL;
+            }
             if (first_argument_type && first_argument_type->kind != TYPE_KIND_UNKNOWN && first_argument_type->kind != TYPE_KIND_VOID &&
-                !type_length_rule(first_argument_type)) {
+                !length_rule) {
                 char accepted[MESSAGE_BUFFER_SIZE];
                 char message[MESSAGE_BUFFER_SIZE];
                 type_length_accepted_list(accepted, sizeof(accepted));

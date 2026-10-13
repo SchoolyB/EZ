@@ -1,0 +1,15 @@
+/*
+ * Error Test: E7015 - len() on a user struct that shares a stdlib type name
+ *
+ * A user struct named Channel, with the channels module not imported, is not
+ * the stdlib Channel and has no length.
+ */
+
+const Channel struct {
+    parts [string]
+}
+
+do main() {
+    mut b Channel = Channel{parts: {"a", "b"}}
+    println(len(b))
+}
