@@ -8294,7 +8294,13 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
     }
     int copied_id = codegen_next_id(codegen);
     if (copied_element) emit_formatted(codegen, "({ GrayArray _ac%d = ", copied_id);
-    emit_formatted(codegen, "gray_arrays_%s(", function_name);
+    /* A plain enum is a 4-byte array element but an 8-byte map key. */
+    const char *counted_element = strcmp(function_name, "counts") == 0
+        ? codegen_array_element_type(codegen, node->data.call.arguments[0]) : NULL;
+    const char *counted_enum = counted_element ? codegen_resolve_type(codegen, counted_element) : NULL;
+    bool counts_enum = counted_enum && codegen_is_enum(codegen, counted_enum) &&
+        !codegen_enum_is_tagged(codegen, counted_enum) && !codegen_enum_is_string(codegen, counted_enum);
+    emit_formatted(codegen, counts_enum ? "gray_arrays_counts_enum(" : "gray_arrays_%s(", function_name);
     if (needs_arena) emit(codegen, "gray_default_arena, ");
     emit_array_argument_address(codegen, node->data.call.arguments[0]);
     for (int i = 1; i < node->data.call.argument_count; i++) {

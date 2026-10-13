@@ -334,6 +334,7 @@ GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *array);
  *@end
  */
 GrayMap gray_arrays_counts(GrayArena *arena, GrayArray *array);
+GrayMap gray_arrays_counts_enum(GrayArena *arena, GrayArray *array);
 
 /*@man flatten
  *@module arrays
