@@ -6651,7 +6651,13 @@ static bool csv_array_element_is_valid(const GrayType *type) {
 static bool struct_name_has_json_attribute(TypeChecker *checker, const char *struct_name) {
     if (!struct_name) return false;
     AstNode *struct_declaration = find_struct_in_program(checker, struct_name);
-    return struct_declaration && struct_declaration->data.struct_declaration.is_json;
+    if (!struct_declaration) {
+        /* A struct of an imported module is registered under its module. */
+        DeclarationEntry *entry = resolve_entry_or_mangled(checker, struct_name);
+        if (entry && entry->kind == DECLARATION_STRUCT) struct_declaration = entry->ast_node;
+    }
+    return struct_declaration && struct_declaration->kind == NODE_STRUCT_DECLARATION &&
+           struct_declaration->data.struct_declaration.is_json;
 }
 
 /* True when a #json struct field of this type can be marshaled: a number,

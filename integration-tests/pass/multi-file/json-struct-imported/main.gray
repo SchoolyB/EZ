@@ -1,0 +1,34 @@
+import @json
+import "./models"
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    point = models.Point{x: 1, y: 2}
+    if json.encode(point) == "{\"x\": 1, \"y\": 2}" {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    mut parsed models.Point = json.parse("{\"x\":3,\"y\":4}")
+    if parsed.x == 3 && parsed.y == 4 {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    mut many [models.Point] = json.parse("[{\"x\":5,\"y\":6}]")
+    if len(many) == 1 && many[0].y == 6 {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if failed == 0 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
