@@ -1,0 +1,12 @@
+/* Panic Test: P0135 - json.parse: a [string] field element that is not a string */
+import @json
+
+#json
+const Payload struct {
+    names [string]
+}
+
+do main() {
+    mut payload Payload = json.parse("{\"names\": [\"a\", 2]}")
+    println(payload)
+}

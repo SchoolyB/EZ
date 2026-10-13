@@ -1,0 +1,12 @@
+/* Panic Test: P0135 - json.parse: a [bool] field element that is not a bool */
+import @json
+
+#json
+const Payload struct {
+    flags [bool]
+}
+
+do main() {
+    mut payload Payload = json.parse("{\"flags\": [1]}")
+    println(payload)
+}

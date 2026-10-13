@@ -1,0 +1,12 @@
+/* Panic Test: P0135 - json.parse: an array field whose JSON value is not an array */
+import @json
+
+#json
+const Payload struct {
+    ids [i64]
+}
+
+do main() {
+    mut payload Payload = json.parse("{\"ids\": {\"a\": 1}}")
+    println(payload)
+}

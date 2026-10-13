@@ -549,6 +549,25 @@ void gray_json_check_field_quoting(GrayMap *quoted, GrayString key, bool expects
         (int)key.len, key.data, expected, is_string ? "a string" : "not a string");
 }
 
+/* An array field's value must be a JSON array; a quoted string, object,
+ * number or literal would otherwise split into an empty array. */
+void gray_json_require_array_field(GrayMap *quoted, GrayString key, GrayString value, const char *file, int line) {
+    const char *cursor = value.data;
+    skip_whitespace(&cursor, value.data + value.len);
+    bool is_quoted = gray_map_get(quoted, &key) != NULL;
+    if (!is_quoted && cursor < value.data + value.len && *cursor == '[') return;
+    gray_panic_code_at(file, line, "P0135", "json.parse: field '%.*s' expects %s, but the JSON value is %s",
+        (int)key.len, key.data, "an array", is_quoted ? "a string" : "not an array");
+}
+
+/* One element of a [string] field: the raw element text must be a JSON string. */
+GrayString gray_json_element_as_string(GrayArena *arena, GrayString element, GrayString key, const char *file, int line) {
+    if (element.len < 2 || element.data[0] != '"')
+        gray_panic_code_at(file, line, "P0135", "json.parse: field '%.*s' expects %s, but the JSON value is %s",
+            (int)key.len, key.data, "a string", "not a string");
+    return gray_json_unquote(arena, element);
+}
+
 bool gray_json_field_as_bool(GrayString value, GrayString key, const char *file, int line) {
     if (value.len == 4 && memcmp(value.data, "true", 4) == 0) return true;
     if (value.len == 5 && memcmp(value.data, "false", 5) == 0) return false;

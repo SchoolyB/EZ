@@ -14457,9 +14457,9 @@ static bool json_field_is_composite(CodeGen *codegen, const StructField *field) 
 static void emit_json_element_decode(CodeGen *codegen, const char *element_type_name, int line) {
     const char *resolved_element_type = codegen_resolve_type(codegen, element_type_name);
     if (strcmp(element_type_name, "string") == 0) {
-        emit(codegen, "            _e = gray_json_unquote(arena, _es);\n");
+        emit_formatted(codegen, "            _e = gray_json_element_as_string(arena, _es, _k, \"%s\", %d);\n", codegen->file, line);
     } else if (strcmp(element_type_name, "bool") == 0) {
-        emit(codegen, "            _e = (_es.len == 4 && memcmp(_es.data, \"true\", 4) == 0);\n");
+        emit_formatted(codegen, "            _e = gray_json_field_as_bool(_es, _k, \"%s\", %d);\n", codegen->file, line);
     } else if (type_kind_is_number(type_from_name(element_type_name)->kind)) {
         emit_formatted(codegen, "            gray_json_field_decode(_es, GRAY_ELEM_KIND_OF(%s), &_e, \"%s\", %d);\n",
             gray_type_to_c_codegen(codegen, element_type_name), codegen->file, line);
@@ -14528,7 +14528,8 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                     emit_json_key_lookup(codegen, json_key);
                     if (composite_type->kind == TYPE_KIND_ARRAY) {
                         const char *element_c_type = gray_type_to_c_codegen(codegen, composite_type->element_type);
-                        emit(codegen, "      if (_v) { GrayArray _ea = gray_json_split_array(arena, *(GrayString *)_v);\n");
+                        emit_formatted(codegen, "      if (_v) { gray_json_require_array_field(&_q, _k, *(GrayString *)_v, \"%s\", %d);\n", codegen->file, statement->token.line);
+                        emit(codegen, "        GrayArray _ea = gray_json_split_array(arena, *(GrayString *)_v);\n");
                         emit_formatted(codegen, "        _r.%s = GRAY_ARRAY_NEW_OF(arena, %s, _ea.len > 0 ? _ea.len : 4);\n", sanitize_name(field->name), element_c_type);
                         emit(codegen, "        for (int32_t _i = 0; _i < _ea.len; _i++) {\n");
                         emit(codegen, "            GrayString _es = *(GrayString *)((char *)_ea.data + (size_t)_i * (size_t)_ea.elem_size);\n");
