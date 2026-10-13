@@ -1,0 +1,7 @@
+const Level enum {
+    LOW = "low"
+}
+
+do f(l Level) -> i64 {
+    return cast(l, i64)
+}

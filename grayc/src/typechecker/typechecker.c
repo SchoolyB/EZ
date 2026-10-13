@@ -9274,7 +9274,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             source_type->kind == TYPE_KIND_BOOL || is_tagged_enum_type(checker, source_type)) {
             char *message = typechecker_format(checker,
                 "cannot convert %s to %s; only numeric types can be converted",
-                type_name(source_type), function_name);
+                type_display_name(checker, source_type), function_name);
             diagnostic_error_help(checker->diagnostics, "E3043", message,
                 NODE_FILE(checker, node), node->token.line, node->token.column, 0,
                 "only numeric conversions are supported");
@@ -9289,7 +9289,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
                    source_type->kind == TYPE_KIND_STRUCT || source_type->kind == TYPE_KIND_POINTER ||
                    source_type->kind == TYPE_KIND_NIL || is_tagged_enum_type(checker, source_type)) {
             NODE_ERROR_FORMATTED_HELP(checker, node, "E3043",
-                "use string interpolation or access individual elements", type_name(source_type), "string");
+                "use string interpolation or access individual elements", type_display_name(checker, source_type), "string");
         }
         result = &TYPE_STRING;
     } else if (strcmp(function_name, "bool") == 0 && node->data.call.argument_count == 1) {
@@ -9299,7 +9299,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             source_type->kind == TYPE_KIND_STRING || source_type->kind == TYPE_KIND_NIL ||
             is_tagged_enum_type(checker, source_type)) {
             NODE_ERROR_FORMATTED_HELP(checker, node, "E3043",
-                "only numeric types and bools can be converted", type_name(source_type), "bool");
+                "only numeric types and bools can be converted", type_display_name(checker, source_type), "bool");
         }
         result = &TYPE_BOOL;
     } else if ((strcmp(function_name, "i8") == 0 || strcmp(function_name, "i16") == 0 ||
@@ -12648,7 +12648,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 if (source_type->kind == TYPE_KIND_ARRAY && source_type->element_type)
                     snprintf(type_name_buffer, sizeof(type_name_buffer), "[%s]", source_type->element_type);
                 else {
-                    strncpy(type_name_buffer, type_name(source_type), sizeof(type_name_buffer) - 1);
+                    strncpy(type_name_buffer, type_display_name(checker, source_type), sizeof(type_name_buffer) - 1);
                     type_name_buffer[sizeof(type_name_buffer) - 1] = '\0';
                 }
                 char *message = typechecker_format(checker,

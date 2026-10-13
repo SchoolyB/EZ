@@ -1,0 +1,5 @@
+import "./q"
+
+do main() {
+    println(q.f(q.Level.LOW))
+}
