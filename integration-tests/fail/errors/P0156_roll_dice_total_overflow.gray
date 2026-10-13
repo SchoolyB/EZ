@@ -1,0 +1,5 @@
+import @random
+
+do main() {
+    println(random.roll_dice(10, 9223372036854775807))
+}

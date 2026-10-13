@@ -136,7 +136,11 @@ int64_t gray_random_roll_dice(int64_t count, int64_t sides) {
         gray_panic_code("P0153", "random.roll_dice: count %lld and sides %lld must both be at least 1", (long long)count, (long long)sides);
     ensure_seed();
     int64_t total = 0;
-    for (int64_t i = 0; i < count; i++) total = gray_add_check(total, 1 + (int64_t)(rand64() % (uint64_t)sides), __FILE__, __LINE__);
+    for (int64_t i = 0; i < count; i++) {
+        int64_t roll = 1 + (int64_t)(rand64() % (uint64_t)sides);
+        if (__builtin_add_overflow(total, roll, &total))
+            gray_panic_code("P0156", "random.roll_dice: total of %lld dice with %lld sides overflows i64", (long long)count, (long long)sides);
+    }
     return total;
 }
 
