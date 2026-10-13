@@ -4015,6 +4015,12 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 | `arch` | `() -> string` | Get CPU architecture |
 | `cpu_count` | `() -> i64` | Number of logical CPUs available to the process; falls back to 1 |
 | `is_tty` | `() -> bool` | True if standard output is a terminal (not a file or pipe) |
+| `cpu_usage` | `(interval_ms i64) -> (f64, Error)` | Busy percentage (0.0–100.0) of all logical CPUs over a window of `interval_ms`; blocks for the window; panics if `interval_ms` is less than 1 |
+| `memory_usage` | `() -> (i64, i64, Error)` | `(used, total)` bytes of physical memory; `used` excludes memory available to new allocations |
+| `disk_usage` | `(path string) -> (i64, i64, Error)` | `(used, total)` bytes of the filesystem containing `path`; a missing path returns `(0, 0)` and a `NotFound` Error |
+| `load_average` | `() -> ([f64], Error)` | 1, 5 and 15 minute load averages |
+
+The four live metrics are fallible. macOS and Linux are supported; on any other platform (Windows) each returns an Error with code `Unsupported`.
 
 #### Process Execution
 

@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 540 codes** (387 errors, 17 warnings, 136 panics)
+**Total: 541 codes** (387 errors, 17 warnings, 137 panics)
 
 ---
 
@@ -567,6 +567,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0151` | json | json.parse: duplicate key '%.*s' |
 | `P0152` | random | random.rand_bytes called with a negative length |
 | `P0153` | random | random.roll_dice called with a count or sides less than 1 |
+| `P0154` | os | os.cpu_usage called with an interval_ms less than 1 |
 
 ---
 
@@ -591,4 +592,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-13 15:08:25 UTC*
+*Generated on 2026-10-13 15:12:38 UTC*

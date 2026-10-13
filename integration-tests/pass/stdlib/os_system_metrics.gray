@@ -1,0 +1,49 @@
+/*
+ * Test: os.cpu_usage, os.memory_usage, os.disk_usage, os.load_average
+ * Verifies each live metric is in range, that cpu_usage blocks for its
+ * interval, that a missing path gives NotFound and zeros, and that the
+ * three-value result works with or_default.
+ */
+
+import and use @os
+import and use @time
+
+do check(label string, got bool) -> i64 {
+    if got {
+        println("  [PASS] ${label}")
+        return 1
+    }
+    println("  [FAIL] ${label}")
+    return 0
+}
+
+do main() {
+    mut passed i64 = 0
+
+    mut start i64 = time.now_ms()
+    mut cpu, cpu_err = os.cpu_usage(100)
+    mut elapsed i64 = time.now_ms() - start
+    passed += check("cpu_usage no error", cpu_err == nil)
+    passed += check("cpu_usage in 0..100", cpu >= 0.0 && cpu <= 100.0)
+    passed += check("cpu_usage blocks for interval", elapsed >= 100)
+
+    mut used, total, memory_err = os.memory_usage()
+    passed += check("memory_usage no error", memory_err == nil)
+    passed += check("memory_usage 0 < used <= total", used > 0 && used <= total)
+
+    mut disk_used, disk_total, disk_err = os.disk_usage("/")
+    passed += check("disk_usage no error", disk_err == nil)
+    passed += check("disk_usage 0 < used <= total", disk_used > 0 && disk_used <= disk_total)
+
+    mut missing_used, missing_total, missing_err = os.disk_usage("/definitely/missing/path")
+    passed += check("disk_usage missing is NotFound", missing_err != nil && missing_err.code == ErrorCode.NotFound)
+    passed += check("disk_usage missing is zeros", missing_used == 0 && missing_total == 0)
+
+    mut load, load_err = os.load_average()
+    passed += check("load_average no error", load_err == nil)
+    passed += check("load_average has 3 non-negative values",
+        len(load) == 3 && load[0] >= 0.0 && load[1] >= 0.0 && load[2] >= 0.0)
+
+    mut default_used, default_total = os.memory_usage() or_default 0, 0
+    passed += check("memory_usage or_default", default_used > 0 && default_used <= default_total)
+}

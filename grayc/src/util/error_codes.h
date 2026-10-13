@@ -567,7 +567,8 @@
     GRAY_PANIC("P0150", "json",       "json.parse: the JSON value is not %s") \
     GRAY_PANIC("P0151", "json",       "json.parse: duplicate key '%.*s'") \
     GRAY_PANIC("P0152", "random",     "random.rand_bytes called with a negative length") \
-    GRAY_PANIC("P0153", "random",     "random.roll_dice called with a count or sides less than 1")
+    GRAY_PANIC("P0153", "random",     "random.roll_dice called with a count or sides less than 1") \
+    GRAY_PANIC("P0154", "os",         "os.cpu_usage called with an interval_ms less than 1")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

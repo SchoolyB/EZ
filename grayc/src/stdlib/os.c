@@ -20,6 +20,14 @@
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <time.h>
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#endif
+#if !GRAY_RUNTIME_WINDOWS
+#include <sys/statvfs.h>
+#endif
 #if GRAY_RUNTIME_WINDOWS
 #include "../runtime/win32.h"
 #include <direct.h>
@@ -230,6 +238,145 @@ int64_t gray_os_cpu_count(void) {
     long n = 0;
 #endif
     return n > 0 ? (int64_t)n : 1;
+}
+
+/* ---- Live system metrics ---- */
+
+#if defined(__APPLE__) || defined(__linux__)
+#define GRAY_OS_METRICS_SUPPORTED 1
+#else
+#define GRAY_OS_METRICS_SUPPORTED 0
+#endif
+
+#if !GRAY_OS_METRICS_SUPPORTED
+static GrayError *os_metrics_unsupported(GrayArena *arena, const char *function_name) {
+    return gray_error_new(arena, GRAY_ERR_Unsupported,
+        gray_string_format(arena, "os.%s is not supported on this platform", function_name));
+}
+#endif
+
+#if GRAY_OS_METRICS_SUPPORTED
+/* Reads the cumulative CPU time counters: `busy` and `total` are in
+ * scheduler ticks, summed over every logical CPU. */
+static bool os_read_cpu_times(uint64_t *busy, uint64_t *total) {
+#if defined(__APPLE__)
+    host_cpu_load_info_data_t load;
+    mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t)&load, &count) != KERN_SUCCESS)
+        return false;
+    uint64_t idle = load.cpu_ticks[CPU_STATE_IDLE];
+    *total = (uint64_t)load.cpu_ticks[CPU_STATE_USER] + load.cpu_ticks[CPU_STATE_SYSTEM] +
+             load.cpu_ticks[CPU_STATE_NICE] + idle;
+    *busy = *total - idle;
+    return true;
+#else
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) return false;
+    unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0;
+    int fields = fscanf(file, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+    fclose(file);
+    if (fields < 4) return false;
+    uint64_t idle_total = idle + iowait;
+    *total = user + nice + system + idle_total + irq + softirq + steal;
+    *busy = *total - idle_total;
+    return true;
+#endif
+}
+#endif
+
+GrayOsCpuUsageResult gray_os_cpu_usage(GrayArena *arena, int64_t interval_ms) {
+    if (interval_ms < 1)
+        gray_panic_code("P0154", "os.cpu_usage: interval_ms %lld must be at least 1", (long long)interval_ms);
+#if GRAY_OS_METRICS_SUPPORTED
+    uint64_t busy_before, total_before, busy_after, total_after;
+    if (!os_read_cpu_times(&busy_before, &total_before))
+        return (GrayOsCpuUsageResult){0.0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read CPU time counters"))};
+    struct timespec remaining = { (time_t)(interval_ms / 1000), (long)(interval_ms % 1000) * 1000000L };
+    while (nanosleep(&remaining, &remaining) != 0 && errno == EINTR) {}
+    if (!os_read_cpu_times(&busy_after, &total_after))
+        return (GrayOsCpuUsageResult){0.0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read CPU time counters"))};
+    uint64_t total_delta = total_after - total_before;
+    if (total_delta == 0) return (GrayOsCpuUsageResult){0.0, NULL};
+    double usage = 100.0 * (double)(busy_after - busy_before) / (double)total_delta;
+    if (usage < 0.0) usage = 0.0;
+    if (usage > 100.0) usage = 100.0;
+    return (GrayOsCpuUsageResult){usage, NULL};
+#else
+    return (GrayOsCpuUsageResult){0.0, os_metrics_unsupported(arena, "cpu_usage")};
+#endif
+}
+
+GrayOsUsageResult gray_os_memory_usage(GrayArena *arena) {
+#if GRAY_OS_METRICS_SUPPORTED
+    int64_t total = 0, available = 0;
+#if defined(__APPLE__)
+    uint64_t memory_size = 0;
+    size_t memory_size_length = sizeof(memory_size);
+    vm_size_t page_size = 0;
+    vm_statistics64_data_t statistics;
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    if (sysctlbyname("hw.memsize", &memory_size, &memory_size_length, NULL, 0) != 0 ||
+        host_page_size(mach_host_self(), &page_size) != KERN_SUCCESS ||
+        host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info64_t)&statistics, &count) != KERN_SUCCESS)
+        return (GrayOsUsageResult){0, 0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read memory counters"))};
+    total = (int64_t)memory_size;
+    available = (int64_t)(((uint64_t)statistics.free_count + statistics.inactive_count +
+                           statistics.speculative_count) * page_size);
+#else
+    FILE *file = fopen("/proc/meminfo", "r");
+    if (!file) return (GrayOsUsageResult){0, 0, gray_error_new(arena, GRAY_ERR_IoFailure,
+        gray_string_lit("cannot read memory counters"))};
+    char line[256];
+    bool found_total = false, found_available = false;
+    while (fgets(line, sizeof(line), file) && !(found_total && found_available)) {
+        long long kilobytes;
+        if (sscanf(line, "MemTotal: %lld kB", &kilobytes) == 1) { total = kilobytes * 1024; found_total = true; }
+        else if (sscanf(line, "MemAvailable: %lld kB", &kilobytes) == 1) { available = kilobytes * 1024; found_available = true; }
+    }
+    fclose(file);
+    if (!found_total || !found_available)
+        return (GrayOsUsageResult){0, 0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read memory counters"))};
+#endif
+    if (available > total) available = total;
+    return (GrayOsUsageResult){total - available, total, NULL};
+#else
+    return (GrayOsUsageResult){0, 0, os_metrics_unsupported(arena, "memory_usage")};
+#endif
+}
+
+GrayOsUsageResult gray_os_disk_usage(GrayArena *arena, GrayString path) {
+    if (strlen(path.data) != (size_t)path.len)
+        gray_panic_code("P0103", "file path contains an embedded null byte");
+#if GRAY_OS_METRICS_SUPPORTED
+    struct statvfs filesystem;
+    if (statvfs(path.data, &filesystem) != 0)
+        return (GrayOsUsageResult){0, 0, gray_error_new(arena, gray_errno_code(errno),
+            gray_string_format(arena, "cannot read disk usage of '%s'", path.data))};
+    int64_t total = (int64_t)filesystem.f_blocks * (int64_t)filesystem.f_frsize;
+    int64_t free_bytes = (int64_t)filesystem.f_bfree * (int64_t)filesystem.f_frsize;
+    return (GrayOsUsageResult){total - free_bytes, total, NULL};
+#else
+    return (GrayOsUsageResult){0, 0, os_metrics_unsupported(arena, "disk_usage")};
+#endif
+}
+
+GrayOsLoadAverageResult gray_os_load_average(GrayArena *arena) {
+    GrayArray load = gray_array_new(arena, sizeof(double), 3, GRAY_ELEM_F64);
+#if GRAY_OS_METRICS_SUPPORTED
+    double samples[3];
+    if (getloadavg(samples, 3) != 3)
+        return (GrayOsLoadAverageResult){load, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read load averages"))};
+    for (int i = 0; i < 3; i++) GRAY_ARRAY_PUSH(arena, &load, &samples[i]);
+    return (GrayOsLoadAverageResult){load, NULL};
+#else
+    return (GrayOsLoadAverageResult){load, os_metrics_unsupported(arena, "load_average")};
+#endif
 }
 
 bool gray_os_is_tty(void) {

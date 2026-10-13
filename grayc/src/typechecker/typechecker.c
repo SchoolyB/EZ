@@ -3004,6 +3004,7 @@ typedef enum {
     FALLIBLE_TYPE_ARRAY_STRING, FALLIBLE_TYPE_NESTED_ARRAY_STRING, FALLIBLE_TYPE_ARRAY_U8, FALLIBLE_TYPE_ARRAY_MAP,
     FALLIBLE_TYPE_STRUCT_DATABASE, FALLIBLE_TYPE_STRUCT_SOCKET, FALLIBLE_TYPE_STRUCT_LISTENER,
     FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, FALLIBLE_TYPE_STRUCT_MAP,
+    FALLIBLE_TYPE_ARRAY_F64, FALLIBLE_TYPE_I64_PAIR,
 } FallibleType;
 
 #define STDLIB_MAX_ARGUMENT_CHECKS 6
@@ -3356,6 +3357,10 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     /* os */
     {"os", "arch",        0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"string"},
     {"os", "args",        0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"[string]"},
+    {"os", "cpu_usage",   1, 1, true,  FALLIBLE_TYPE_F64,       1, {{0, EXPECTED_ARGUMENT_I64}}, "f64"},
+    {"os", "memory_usage", 0, 0, true, FALLIBLE_TYPE_I64_PAIR,  0, {{0}}, "i64"},
+    {"os", "disk_usage",  1, 1, true,  FALLIBLE_TYPE_I64_PAIR,  1, {{0, EXPECTED_ARGUMENT_STRING}}, "i64"},
+    {"os", "load_average", 0, 0, true, FALLIBLE_TYPE_ARRAY_F64, 0, {{0}}, "[f64]"},
     {"os", "cpu_count",   0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"i64"},
     {"os", "current_dir", 0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"string"},
     {"os", "current_os",  0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"Platform"},
@@ -3698,6 +3703,8 @@ static GrayType *typechecker_get_fallible_stdlib_type(const char *module_name, c
     case FALLIBLE_TYPE_ARRAY_STRING:        return type_array("string");
     case FALLIBLE_TYPE_NESTED_ARRAY_STRING: return type_array("[string]");
     case FALLIBLE_TYPE_ARRAY_U8:          return type_array("u8");
+    case FALLIBLE_TYPE_ARRAY_F64:           return type_array("f64");
+    case FALLIBLE_TYPE_I64_PAIR:            return &TYPE_I64;
     case FALLIBLE_TYPE_ARRAY_MAP:           return type_array("map[string:string]");
     case FALLIBLE_TYPE_STRUCT_DATABASE:     return type_struct("Database");
     case FALLIBLE_TYPE_STRUCT_SOCKET:       return type_struct("Socket");
@@ -4482,10 +4489,14 @@ static bool apply_stdlib_call_returns(TypeChecker *checker, const char *temporar
     if (typechecker_is_fallible_stdlib(module_name, function_name)) {
         GrayType *primary = typechecker_get_fallible_stdlib_type(module_name, function_name);
         if (primary) {
-            GrayType **return_types = xmalloc(sizeof(GrayType *) * 2);
+            /* (i64, i64, Error) for the used/total pair; (T, Error) otherwise. */
+            bool is_pair = find_stdlib_metadata(module_name, function_name)->success_type == FALLIBLE_TYPE_I64_PAIR;
+            int slot_count = is_pair ? 3 : 2;
+            GrayType **return_types = xmalloc(sizeof(GrayType *) * (size_t)slot_count);
             return_types[0] = primary;
-            return_types[1] = type_from_name("Error");
-            set_temporary_return_slots(checker, temporary_name, return_types, 2);
+            if (is_pair) return_types[1] = primary;
+            return_types[slot_count - 1] = type_from_name("Error");
+            set_temporary_return_slots(checker, temporary_name, return_types, slot_count);
             return true;
         }
     }

@@ -8299,6 +8299,20 @@ static bool emit_os_call(CodeGen *codegen, AstNode *node, const char *function_n
         emit(codegen, ")");
         return true;
     }
+    if (strcmp(function_name, "cpu_usage") == 0) {
+        emit(codegen, "gray_os_cpu_usage(gray_default_arena, ");
+        emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ")");
+        return true;
+    }
+    if (strcmp(function_name, "memory_usage") == 0) { emit(codegen, "gray_os_memory_usage(gray_default_arena)"); return true; }
+    if (strcmp(function_name, "load_average") == 0) { emit(codegen, "gray_os_load_average(gray_default_arena)"); return true; }
+    if (strcmp(function_name, "disk_usage") == 0) {
+        emit(codegen, "gray_os_disk_usage(gray_default_arena, ");
+        emit_expression(codegen, node->data.call.arguments[0]);
+        emit(codegen, ")");
+        return true;
+    }
     if (strcmp(function_name, "exec") == 0) {
         emit(codegen, "gray_os_exec(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);

@@ -241,4 +241,67 @@ void gray_os_init(int argc, char **argv);
 typedef struct { int64_t v0; GrayString v1; GrayString v2; bool v3; } GrayOsExecResult;
 GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray args);
 
+/*@man cpu_usage
+ *@module os
+ *@group System
+ *@sig cpu_usage(interval_ms i64) -> (f64, Error)
+ *@desc Samples the system CPU time counters, waits interval_ms, samples again, and returns the busy fraction of that window as a percentage from 0.0 to 100.0, averaged across all logical CPUs. Blocks for interval_ms. Panics if interval_ms is less than 1. Returns an Error with code Unsupported on a platform without the counters (Windows) and IoFailure if they cannot be read.
+ *@example
+ *   import @os
+ *   mut cpu, err = os.cpu_usage(250)
+ *   if err == nil {
+ *       println("cpu ${cpu}%")
+ *   }
+ *@end
+ */
+typedef struct { double v0; GrayError *v1; } GrayOsCpuUsageResult;
+GrayOsCpuUsageResult gray_os_cpu_usage(GrayArena *arena, int64_t interval_ms);
+
+/*@man memory_usage
+ *@module os
+ *@group System
+ *@sig memory_usage() -> (i64, i64, Error)
+ *@desc Returns (used, total) in bytes of physical memory. used is total minus the memory available to new allocations, so reclaimable cache does not count as used. Returns an Error with code Unsupported on a platform without the counters (Windows) and IoFailure if they cannot be read.
+ *@example
+ *   import @os
+ *   mut used, total, err = os.memory_usage()
+ *   if err == nil {
+ *       println("memory ${used} / ${total} bytes")
+ *   }
+ *@end
+ */
+typedef struct { int64_t v0; int64_t v1; GrayError *v2; } GrayOsUsageResult;
+GrayOsUsageResult gray_os_memory_usage(GrayArena *arena);
+
+/*@man disk_usage
+ *@module os
+ *@group System
+ *@sig disk_usage(path string) -> (i64, i64, Error)
+ *@desc Returns (used, total) in bytes of the filesystem that contains path. A path that does not exist returns (0, 0) and an Error with code NotFound. Returns an Error with code Unsupported on a platform without the counters (Windows).
+ *@example
+ *   import @os
+ *   mut used, total, err = os.disk_usage("/")
+ *   if err == nil {
+ *       println("disk ${used} / ${total} bytes")
+ *   }
+ *@end
+ */
+GrayOsUsageResult gray_os_disk_usage(GrayArena *arena, GrayString path);
+
+/*@man load_average
+ *@module os
+ *@group System
+ *@sig load_average() -> ([f64], Error)
+ *@desc Returns the 1, 5 and 15 minute load averages as a three-element array. Returns an Error with code Unsupported on a platform without the counters (Windows) and IoFailure if they cannot be read.
+ *@example
+ *   import @os
+ *   mut load, err = os.load_average()
+ *   if err == nil {
+ *       println("load ${load[0]} ${load[1]} ${load[2]}")
+ *   }
+ *@end
+ */
+typedef struct { GrayArray v0; GrayError *v1; } GrayOsLoadAverageResult;
+GrayOsLoadAverageResult gray_os_load_average(GrayArena *arena);
+
 #endif

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3089 - fallible os.cpu_usage assigned to a single variable
+ */
+
+// expect-error: E3089
+
+import @os
+
+do main() {
+    mut result = os.cpu_usage(250)
+    println(result)
+}
