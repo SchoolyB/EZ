@@ -1,0 +1,16 @@
+/*
+ * Test: names() and variants() on an enum reached through a module qualifier
+ */
+import "./lib.gray"
+
+do main() {
+    names = lib.Mood.names()
+    assert(len(names) == 2, "one name per variant")
+    assert(names[0] == "HAPPY" && names[1] == "SAD", "names in declaration order")
+
+    variants = lib.Mood.variants()
+    assert(len(variants) == 2, "one value per variant")
+    assert(variants[0] == lib.Mood.HAPPY && variants[1] == lib.Mood.SAD, "values in declaration order")
+
+    println("ALL TESTS PASSED")
+}

@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 536 codes** (385 errors, 17 warnings, 134 panics)
+**Total: 537 codes** (386 errors, 17 warnings, 134 panics)
 
 ---
 
@@ -281,6 +281,7 @@
 | `E3206` | types | range step cannot be zero |
 | `E3207` | types | 'or_default' has %d fallback value(s) but the call returns %d value(s) besides the Error; give one fallback per value |
 | `E3208` | types | 'or_default' fallback of type '%s' does not match the call's '%s' value |
+| `E3209` | types | '%s.%s()' is not available on a %s enum; it is only generated for plain enums |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -587,4 +588,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 23:51:18 UTC*
+*Generated on 2026-10-13 01:06:45 UTC*

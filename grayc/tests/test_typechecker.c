@@ -926,6 +926,15 @@ static void test_error_E3208_or_default_type(void) {
     diagnostic_destroy(diagnostics);
 }
 
+static void test_error_E3209_enum_names_on_flags_enum(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "#flags\n"
+        "const Perms enum { READ; WRITE }\n"
+        "do main() { println(Perms.names()) }");
+    ASSERT(has_error_code(diagnostics, "E3209"));
+    diagnostic_destroy(diagnostics);
+}
+
 /* --- E4xxx: Additional name errors --- */
 
 static void test_error_E4014_shadow_module(void) {
@@ -2947,6 +2956,7 @@ int main(void) {
     RUN_TEST(test_error_E3043_invalid_cast);
     RUN_TEST(test_error_E3167_cast_pointer_reinterpret);
     RUN_TEST(test_error_E3045_or_return_no_error);
+    RUN_TEST(test_error_E3209_enum_names_on_flags_enum);
     RUN_TEST(test_error_E3045_or_default_no_error);
     RUN_TEST(test_error_E3207_or_default_count);
     RUN_TEST(test_error_E3208_or_default_type);

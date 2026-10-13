@@ -10210,6 +10210,23 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
             for (int variant_index = 0; variant_index < checker->enum_value_counts[matched_enum_index]; variant_index++) {
                 if (strcmp(checker->enum_values[matched_enum_index][variant_index], variant_name) == 0) { matched_variant_index = variant_index; break; }
             }
+            /* Every plain enum has names() -> [string] and variants() -> [Enum],
+             * both in declaration order. */
+            bool is_names_call = strcmp(variant_name, "names") == 0;
+            if (matched_variant_index < 0 && (is_names_call || strcmp(variant_name, "variants") == 0)) {
+                const char *display_name = checker->enum_display_names[matched_enum_index];
+                const char *enum_kind = checker->is_enum_flags[matched_enum_index] ? "flags"
+                    : checker->is_enum_tagged[matched_enum_index] ? "tagged" : NULL;
+                if (node->data.call.argument_count != 0) {
+                    typechecker_error_arity(checker, node,
+                        typechecker_format(checker, "%s.%s", display_name, variant_name),
+                        "0", node->data.call.argument_count);
+                } else if (enum_kind) {
+                    NODE_ERROR_FORMATTED(checker, node, "E3209", display_name, variant_name, enum_kind);
+                }
+                if (is_names_call) return type_array("string");
+                return type_array(checker_resolve_enum_key(checker, enum_name));
+            }
             if (matched_variant_index < 0) {
                 NODE_ERROR_FORMATTED(checker, node, "E3047", enum_name, variant_name);
                 result = &TYPE_UNKNOWN;

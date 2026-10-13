@@ -835,7 +835,7 @@ const PaymentErrors enum { PAYMENT_DECLINED PAYMENT_CANCELED }
 println(PaymentErrors.PAYMENT_DECLINED)  // "PAYMENT_DECLINED" — error-code enums print their name
 ```
 
-A plain enum has no name table generated for it, so printing one falls back to its widened integer value — consistent with the earlier tip that a plain enum's underlying value is a real integer under the hood. String-backed and `#error_code`-tagged enums each carry an obvious human-readable form already (the string literal, or the compiler-owned error-code name table), so those print that instead.
+Printing a plain enum falls back to its widened integer value — consistent with the earlier tip that a plain enum's underlying value is a real integer under the hood. To get a variant's name, index `names()` (below). String-backed and `#error_code`-tagged enums each carry an obvious human-readable form already (the string literal, or the compiler-owned error-code name table), so those print that instead.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -857,6 +857,23 @@ Enum values are accessed using dot notation:
 mut dir = Direction.NORTH
 mut status = Status.TODO
 ```
+
+**Variant names and values:**
+
+Every plain enum (not `#flags`, not tagged) has two generated functions, both in declaration order:
+
+```gray
+const TokenKind enum { INT; FLOAT; PLUS }
+
+TokenKind.names()      // {"INT", "FLOAT", "PLUS"}  ([string])
+TokenKind.variants()   // {TokenKind.INT, TokenKind.FLOAT, TokenKind.PLUS}  ([TokenKind])
+
+do kind_name(kind TokenKind) -> string {
+    return TokenKind.names()[cast(kind, i64)]
+}
+```
+
+`names()` returns each variant's identifier as written, also for a string-backed enum (`Status.names()` is `{"TODO", "DONE"}`, not the string values). The two arrays line up index for index. Calling either on a `#flags` or tagged enum is a compile error.
 
 **Implicit enum selector (`.VARIANT`):**
 

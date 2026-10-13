@@ -188,7 +188,7 @@ var langManDocs = map[string]LangManEntry{
 	"enum": {
 		Kind:    "keyword",
 		Syntax:  "const <Name> enum { VARIANT ... }",
-		Desc:    "Defines a type with a fixed set of named values. Variants auto-increment from 0 by default.",
+		Desc:    "Defines a type with a fixed set of named values. Variants auto-increment from 0 by default. A plain enum also has Name.names() -> [string] and Name.variants() -> [Name], both in declaration order.",
 		Example: "const Direction enum {\n    NORTH\n    EAST\n    SOUTH\n    WEST\n}",
 	},
 	"import": {

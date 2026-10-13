@@ -8751,6 +8751,39 @@ static void emit_variant_payload_arguments(CodeGen *codegen, AstNode *node, Enum
     }
 }
 
+/* `Color.names()` and `Color.variants()` on a plain enum: a fresh array of the
+ * variant names or values, in declaration order. Returns true when emitted. */
+static bool emit_enum_generated_call(CodeGen *codegen, AstNode *node) {
+    AstNode *function = node->data.call.function;
+    const char *qualifier = ast_member_qualifier(function);
+    if (!qualifier || node->data.call.argument_count != 0) return false;
+    const char *member = function->data.member.member;
+    bool is_names = strcmp(member, "names") == 0;
+    if (!is_names && strcmp(member, "variants") != 0) return false;
+
+    const char *enum_name = qualifier;
+    if (!codegen_is_enum(codegen, enum_name)) {
+        const char *resolved_name = codegen_resolve_type(codegen, enum_name);
+        if (resolved_name == enum_name || !codegen_is_enum(codegen, resolved_name)) return false;
+        enum_name = resolved_name;
+    }
+    if (codegen_enum_is_tagged(codegen, enum_name)) return false;
+    AstNode *declaration = codegen->enum_declarations[codegen_enum_index(codegen, enum_name)];
+    if (!declaration) return false;
+
+    const char *c_element_type = is_names ? "GrayString" : gray_type_to_c_codegen(codegen, enum_name);
+    int value_count = declaration->data.enum_declaration.value_count;
+    emit_formatted(codegen, "({ GrayArray _en_arr = GRAY_ARRAY_NEW_OF(gray_default_arena, %s, %d); ", c_element_type, value_count);
+    for (int i = 0; i < value_count; i++) {
+        const char *value_name = declaration->data.enum_declaration.values[i].name;
+        if (is_names) emit_formatted(codegen, "{ GrayString _en_v = gray_string_lit(\"%s\"); ", value_name);
+        else emit_formatted(codegen, "{ %s _en_v = GrayEnum_%s_%s; ", c_element_type, enum_name, value_name);
+        emit(codegen, "GRAY_ARRAY_PUSH(gray_default_arena, &_en_arr, &_en_v); } ");
+    }
+    emit(codegen, "_en_arr; })");
+    return true;
+}
+
 /* Tagged enum construction: explicit `Shape.Circle(3.14)` or implicit
  * `.Circle(3.14)`. Returns true when it emitted the constructor. */
 static bool emit_tagged_enum_construction(CodeGen *codegen, AstNode *node) {
@@ -9312,6 +9345,7 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
         }
     }
 
+    if (emit_enum_generated_call(codegen, node)) return;
     if (emit_tagged_enum_construction(codegen, node)) return;
 
     /* Struct-namespaced (Name.func()) and mod.Struct.func() chains */

@@ -975,6 +975,18 @@ static void test_e2e_or_return(void) {
     ASSERT_STR_EQ(output, "success");
 }
 
+static void test_e2e_enum_names_variants(void) {
+    char *output = compile_and_run(
+        ""
+        "const Color enum { RED; GREEN; BLUE }\n"
+        "do main() {\n"
+        "  println(Color.names()[1])\n"
+        "  println(len(Color.variants()))\n"
+        "}");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "GREEN\n3");
+}
+
 static void test_e2e_or_default(void) {
     char *output = compile_and_run(
         ""
@@ -3112,6 +3124,7 @@ int main(void) {
     /* or_return */
     RUN_TEST(test_e2e_or_return);
     RUN_TEST(test_e2e_or_default);
+    RUN_TEST(test_e2e_enum_names_variants);
 
     /* Enum attributes */
     RUN_TEST(test_e2e_flags_enum);
