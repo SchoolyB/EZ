@@ -7500,6 +7500,11 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
             }
         }
     } else if (strcmp(module_name, "json") == 0) {
+        /* E3210: json.parse() takes its #json target from a declaration or
+         * a return slot; anywhere else codegen would emit the raw decode. */
+        if (strcmp(member_function_name, "parse") == 0 && node != checker->json_parse_target_call) {
+            NODE_ERROR(checker, node, "E3210");
+        }
         /* E5026: json.encode only serializes scalars, flat arrays of scalars,
          * string-keyed maps of scalars, and #json structs (or arrays of one). */
         if (strcmp(member_function_name, "encode") == 0 && node->data.call.argument_count >= 1) {
@@ -14638,6 +14643,7 @@ static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
     }
 
     reject_non_json_parse_target(checker, node, node->data.variable_declaration.value, declared);
+    checker->json_parse_target_call = node->data.variable_declaration.value;
 
     {
         const char *saved_name = checker->initialized_variable_name;
@@ -15276,6 +15282,7 @@ static void check_return_statement(TypeChecker *checker, AstNode *node) {
         if (diagnostic_error_count(checker->diagnostics) > errors_before_value) is_multi_value_rejected = true;
         /* Each value is stored into its return slot. */
         GrayType *slot = i < checker->current_return_count ? checker->current_return_types[i] : NULL;
+        checker->json_parse_target_call = node->data.return_statement.values[i];
         check_expression_as(checker, node->data.return_statement.values[i], slot);
     }
     /* main() exits when control reaches the closing brace; an

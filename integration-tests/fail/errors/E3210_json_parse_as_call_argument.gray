@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3210 - json.parse() as a call argument has no declared target
+ * type; it used to leak a C error passing GrayMap to a GrayString parameter.
+ */
+
+import @json
+
+do main() {
+    println(json.encode(json.parse("{\"a\": 1}")))
+}

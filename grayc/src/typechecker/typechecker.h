@@ -419,6 +419,10 @@ typedef struct {
      * Cleared after use to prevent stale context. */
     GrayType *expected_type;
 
+    /* The json.parse() call whose result lands in a declaration or a return
+     * slot, the only positions codegen has a #json target type for. */
+    AstNode *json_parse_target_call;
+
     /* Number literal expressions a context read without giving them a type.
      * Each still untyped when its statement finishes takes its default type
      * (i64, or f64 for a decimal literal) then. */
