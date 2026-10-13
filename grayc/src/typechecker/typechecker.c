@@ -14643,7 +14643,8 @@ static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
     }
 
     reject_non_json_parse_target(checker, node, node->data.variable_declaration.value, declared);
-    checker->json_parse_target_call = node->data.variable_declaration.value;
+    checker->json_parse_target_call =
+        node->data.variable_declaration.type_name ? node->data.variable_declaration.value : NULL;
 
     {
         const char *saved_name = checker->initialized_variable_name;
