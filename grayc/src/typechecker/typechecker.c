@@ -3275,11 +3275,15 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"maps", "clear",          1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "void"},
     {"maps", "contains_key",   2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "bool"},
     {"maps", "contains_value", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, "bool"},
+    {"maps", "find_key",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, NULL},
+    {"maps", "get_and_remove", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, NULL},
     {"maps", "get_keys",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
+    {"maps", "get_or_insert",  3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}, {2, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, NULL},
     {"maps", "get_or_default", 3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}, {2, EXPECTED_ARGUMENT_VALUE_OF_FIRST}}, NULL},
     {"maps", "get_values",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
     {"maps", "is_empty",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, "bool"},
     {"maps", "is_equal",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_MAP}}, "bool"},
+    {"maps", "sorted_keys",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_MAP}}, NULL},
     {"maps", "merge",          2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_SAME_AS_FIRST}}, NULL},
     {"maps", "remove_key",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "void"},
     /* math */
@@ -4479,6 +4483,22 @@ static bool apply_stdlib_call_returns(TypeChecker *checker, const char *temporar
         }
         GrayType **return_types = xmalloc(sizeof(GrayType *) * 2);
         return_types[0] = element_type;
+        return_types[1] = &TYPE_BOOL;
+        set_temporary_return_slots(checker, temporary_name, return_types, 2);
+        return true;
+    }
+    /* maps.get_and_remove(m, key) -> (V, bool) and maps.find_key(m, value)
+     * -> (K, bool): the first slot is the map's value or key type. */
+    if (strcmp(module_name, "maps") == 0 &&
+        (strcmp(function_name, "get_and_remove") == 0 || strcmp(function_name, "find_key") == 0)) {
+        GrayType *slot_type = &TYPE_I64;
+        if (call && call->kind == NODE_CALL_EXPRESSION && call->data.call.argument_count > 0) {
+            GrayType *map_type = resolve_expression(checker, call->data.call.arguments[0]);
+            const char *slot_name = map_type ? (strcmp(function_name, "find_key") == 0 ? map_type->key_type : map_type->value_type) : NULL;
+            if (slot_name) slot_type = typechecker_type_from_name(checker, slot_name);
+        }
+        GrayType **return_types = xmalloc(sizeof(GrayType *) * 2);
+        return_types[0] = slot_type;
         return_types[1] = &TYPE_BOOL;
         set_temporary_return_slots(checker, temporary_name, return_types, 2);
         return true;
@@ -6411,6 +6431,8 @@ static void reject_multi_value_call(TypeChecker *checker, AstNode *call_expressi
         bool is_multi_value = (signature && signature->return_count > 1) ||
             (name && !signature && (typechecker_is_fallible_stdlib(module_name, name) ||
                 (module_name && strcmp(module_name, "arrays") == 0 && strcmp(name, "find") == 0) ||
+                (module_name && strcmp(module_name, "maps") == 0 &&
+                    (strcmp(name, "get_and_remove") == 0 || strcmp(name, "find_key") == 0)) ||
                 find_stdlib_multi_return(module_name, name)));
         if (is_multi_value) {
             char *message = typechecker_format(checker, "return value of '%s()' is not used", name);
@@ -6426,7 +6448,9 @@ static void reject_multi_value_call(TypeChecker *checker, AstNode *call_expressi
         if (typechecker_is_fallible_stdlib(module_name, name)) {
             diagnostic_error_code_formatted(checker->diagnostics, "E3089", file, line, column, 0,
                 name, name, name);
-        } else if (module_name && strcmp(module_name, "arrays") == 0 && strcmp(name, "find") == 0) {
+        } else if (module_name && ((strcmp(module_name, "arrays") == 0 && strcmp(name, "find") == 0) ||
+                   (strcmp(module_name, "maps") == 0 &&
+                    (strcmp(name, "get_and_remove") == 0 || strcmp(name, "find_key") == 0)))) {
             diagnostic_error_code_formatted(checker->diagnostics, "E3040", file, line, column, 0,
                 name, 2, name);
         } else {
@@ -6698,7 +6722,13 @@ static GrayType *resolve_maps_call(TypeChecker *checker, AstNode *node, const ch
         if (node->data.call.argument_count > 0) {
             result = resolve_expression(checker, node->data.call.arguments[0]);
         } else result = &TYPE_UNKNOWN;
-    } else if (strcmp(member_function_name, "get_or_default") == 0) {
+    } else if (strcmp(member_function_name, "sorted_keys") == 0) {
+        if (node->data.call.argument_count > 0) {
+            GrayType *map_type = resolve_expression(checker, node->data.call.arguments[0]);
+            result = type_array(map_type && map_type->key_type ? map_type->key_type : "string");
+        } else result = type_array("string");
+    } else if (strcmp(member_function_name, "get_or_default") == 0 ||
+               strcmp(member_function_name, "get_or_insert") == 0) {
         /* get_or_default(m, key, default) -> V. Take V from the map's
          * declared value type; the default argument's type can be a looser
          * literal (e.g. a bare i64 where V is i128 or f64). */
@@ -6716,6 +6746,19 @@ static GrayType *resolve_maps_call(TypeChecker *checker, AstNode *node, const ch
         GrayType *first_argument_type = resolve_expression(checker, first_argument_node);
         if (first_argument_type && first_argument_type->kind == TYPE_KIND_ARRAY) {
             NODE_ERROR_FORMATTED(checker, first_argument_node, "E12001", member_function_name);
+        }
+    }
+    /* E12008: sorted_keys orders by the key, so it must be string, an integer, or char. */
+    if (strcmp(member_function_name, "sorted_keys") == 0 && node->data.call.argument_count >= 1) {
+        AstNode *first_argument = node->data.call.arguments[0];
+        GrayType *map_type = type_table_get(checker->type_table, first_argument);
+        if (map_type && map_type->kind == TYPE_KIND_MAP && map_type->key_type) {
+            GrayType *key_type = type_from_name(resolve_type_alias(checker, map_type->key_type));
+            bool is_orderable = key_type->kind == TYPE_KIND_STRING || key_type->kind == TYPE_KIND_CHAR ||
+                key_type->kind == TYPE_KIND_SIGNED_INTEGER || key_type->kind == TYPE_KIND_UNSIGNED_INTEGER;
+            if (!is_orderable || is_enum_name(checker, map_type->key_type)) {
+                NODE_ERROR_FORMATTED(checker, first_argument, "E12008", map_type->key_type);
+            }
         }
     }
     if (strcmp(member_function_name, "is_equal") == 0 && node->data.call.argument_count >= 2) {
@@ -6744,18 +6787,20 @@ static GrayType *resolve_maps_call(TypeChecker *checker, AstNode *node, const ch
             }
         }
     }
-    if (strcmp(member_function_name, "contains_value") == 0 && node->data.call.argument_count >= 1) {
+    if ((strcmp(member_function_name, "contains_value") == 0 || strcmp(member_function_name, "find_key") == 0) &&
+        node->data.call.argument_count >= 1) {
         AstNode *first_argument = node->data.call.arguments[0];
         GrayType *first_map_type = type_table_get(checker->type_table, first_argument);
         if (first_map_type && first_map_type->kind == TYPE_KIND_MAP && first_map_type->value_type) {
             GrayType *value_type = type_from_name(first_map_type->value_type);
             if (value_type->kind == TYPE_KIND_ARRAY || value_type->kind == TYPE_KIND_MAP || value_type->kind == TYPE_KIND_STRUCT) {
-                NODE_ERROR_FORMATTED(checker, first_argument, "E12007", first_map_type->value_type);
+                NODE_ERROR_FORMATTED(checker, first_argument, "E12007", member_function_name, first_map_type->value_type);
             }
         }
     }
     /* E5007: mutating map functions on const map */
-    if ((strcmp(member_function_name, "clear") == 0 || strcmp(member_function_name, "remove_key") == 0) &&
+    if ((strcmp(member_function_name, "clear") == 0 || strcmp(member_function_name, "remove_key") == 0 ||
+         strcmp(member_function_name, "get_or_insert") == 0 || strcmp(member_function_name, "get_and_remove") == 0) &&
         node->data.call.argument_count > 0) {
         AstNode *first_argument_node = node->data.call.arguments[0];
         report_write_to_const_container(checker, node, first_argument_node, "map");

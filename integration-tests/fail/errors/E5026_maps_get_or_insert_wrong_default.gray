@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5026 - get_or_insert default must match the map's value type
+ */
+
+// expect-error: E5026
+
+import @maps
+
+do main() {
+    mut owner map[string:i64] = {"al": 27}
+    println(maps.get_or_insert(owner, "bo", "unknown"))
+}

@@ -7008,6 +7008,61 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         emit(codegen, ", &_cv); })");
         return true;
     }
+    if (strcmp(function_name, "sorted_keys") == 0 && node->data.call.argument_count == 1) {
+        emit(codegen, "gray_maps_sorted_keys(gray_default_arena, ");
+        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit(codegen, ")");
+        return true;
+    }
+    GrayType *keyed_map_type = node->data.call.argument_count > 0 ? codegen_type_of(codegen, node->data.call.arguments[0]) : NULL;
+    bool is_keyed_map = keyed_map_type && keyed_map_type->kind == TYPE_KIND_MAP;
+    const char *keyed_key_type = (is_keyed_map && keyed_map_type->key_type) ? keyed_map_type->key_type : "i64";
+    const char *keyed_value_type = (is_keyed_map && keyed_map_type->value_type) ? keyed_map_type->value_type : "i64";
+    const char *keyed_c_key = gray_map_element_c_type(codegen, keyed_key_type);
+    const char *keyed_c_value = gray_map_element_c_type(codegen, keyed_value_type);
+    if (strcmp(function_name, "get_or_insert") == 0 && node->data.call.argument_count == 3) {
+        /* The default is stored under the key when it is absent; a map written
+         * inside a loop keeps its entries in the outer arena, like an index
+         * assignment does. */
+        bool in_loop = codegen->loop_scope_depth > 0;
+        const char *store_arena = in_loop ? "_gray_outer_arena" : "gray_default_arena";
+        emit_formatted(codegen, "({ %s _ik = ", keyed_c_key);
+        emit_map_slot_value(codegen, keyed_key_type, node->data.call.arguments[1]);
+        emit_formatted(codegen, "; %s _id = ", keyed_c_value);
+        emit_map_slot_value(codegen, keyed_value_type, node->data.call.arguments[2]);
+        emit(codegen, "; void *_ip = gray_map_get(");
+        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit(codegen, ", &_ik); if (!_ip) { ");
+        if (in_loop && type_needs_deep_copy(codegen, keyed_value_type)) {
+            emit_formatted(codegen, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _id = ", store_arena);
+            emit_value_deep_copy(codegen, keyed_value_type, "_id");
+            emit(codegen, "; gray_default_arena = _esc; } ");
+        }
+        emit_formatted(codegen, "gray_map_set(%s, ", store_arena);
+        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit_formatted(codegen, ", &_ik, &_id, \"%s\", %d); } ", codegen->file, node->token.line);
+        emit(codegen, "_ip ? *(__typeof__(_id) *)_ip : _id; })");
+        return true;
+    }
+    if (strcmp(function_name, "get_and_remove") == 0 && node->data.call.argument_count == 2) {
+        emit_formatted(codegen, "({ %s _rk = ", keyed_c_key);
+        emit_map_slot_value(codegen, keyed_key_type, node->data.call.arguments[1]);
+        emit_formatted(codegen, "; %s _rv = (%s){0}; void *_rp = gray_map_get(", keyed_c_value, keyed_c_value);
+        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit(codegen, ", &_rk); bool _ro = _rp != NULL; if (_ro) { _rv = *(__typeof__(_rv) *)_rp; gray_map_remove(");
+        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit_formatted(codegen, ", &_rk, \"%s\", %d); } (struct { %s v0; bool v1; }){ _rv, _ro }; })",
+            codegen->file, node->token.line, keyed_c_value);
+        return true;
+    }
+    if (strcmp(function_name, "find_key") == 0 && node->data.call.argument_count == 2) {
+        emit_formatted(codegen, "({ %s _fv = ", keyed_c_value);
+        emit_map_slot_value(codegen, keyed_value_type, node->data.call.arguments[1]);
+        emit_formatted(codegen, "; %s _fk = (%s){0}; bool _fo = gray_maps_find_key(", keyed_c_key, keyed_c_key);
+        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit_formatted(codegen, ", &_fv, &_fk); (struct { %s v0; bool v1; }){ _fk, _fo }; })", keyed_c_key);
+        return true;
+    }
     if (strcmp(function_name, "get_or_default") == 0 && node->data.call.argument_count == 3) {
         /* get_or_default(m, key, default); lookup key, return default if missing.
          * The default is evaluated on every call, after the key and before the lookup.

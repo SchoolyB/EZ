@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 541 codes** (387 errors, 17 warnings, 137 panics)
+**Total: 542 codes** (388 errors, 17 warnings, 137 panics)
 
 ---
 
@@ -395,7 +395,8 @@
 | `E9007` | stdlib | 'arrays.%s()' requires a comparable array (numeric, string, bool, or enum), got array of '%s' |
 | `E12001` | stdlib | 'maps.%s()' requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
-| `E12007` | stdlib | 'maps.contains_value()' does not support maps with '%s' values; only primitive and string value types are supported |
+| `E12007` | stdlib | 'maps.%s()' does not support maps with '%s' values; only primitive and string value types are supported |
+| `E12008` | stdlib | 'maps.sorted_keys()' requires string, integer, or char keys, got '%s' |
 | `E8001` | bitwise | '%s' can only be used with integers or #flags enums; got '%s' and '%s' |
 | `E8002` | bitwise | 'bit_not' can only be used with integers; got '%s' |
 
@@ -592,4 +593,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-13 15:12:38 UTC*
+*Generated on 2026-10-13 15:19:17 UTC*

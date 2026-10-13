@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5007 - get_or_insert on an immutable map parameter
+ */
+
+// expect-error: E5007
+
+import @maps
+
+do touch(owner map[string:i64]) -> i64 {
+    return maps.get_or_insert(owner, "bo", 0)
+}
+
+do main() {
+    mut owner map[string:i64] = {"al": 27}
+    println(touch(owner))
+}

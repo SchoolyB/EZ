@@ -1,0 +1,14 @@
+/*
+ * Error Test: E12007 - find_key does not support composite value types
+ */
+
+// expect-error: E12007
+
+import @maps
+
+do main() {
+    mut groups map[string:[i64]] = {"a": {1, 2}}
+    mut key, found = maps.find_key(groups, {1, 2})
+    println(key)
+    println(found)
+}

@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3040 - get_and_remove returns two values
+ */
+
+// expect-error: E3040
+
+import @maps
+
+do main() {
+    mut owner map[string:i64] = {"al": 27}
+    mut age = maps.get_and_remove(owner, "al")
+    println(age)
+}

@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3040 - find_key returns two values
+ */
+
+// expect-error: E3040
+
+import @maps
+
+do main() {
+    mut owner map[string:i64] = {"al": 27}
+    mut who = maps.find_key(owner, 27)
+    println(who)
+}

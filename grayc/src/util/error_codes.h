@@ -423,7 +423,8 @@
     GRAY_ERROR("E9007", "stdlib", "'arrays.%s()' requires a comparable array (numeric, string, bool, or enum), got array of '%s'") \
     GRAY_ERROR("E12001", "stdlib", "'maps.%s()' requires a map argument, got an array") \
     GRAY_ERROR("E12006", "stdlib", "duplicate key in map literal") \
-    GRAY_ERROR("E12007", "stdlib", "'maps.contains_value()' does not support maps with '%s' values; only primitive and string value types are supported")
+    GRAY_ERROR("E12007", "stdlib", "'maps.%s()' does not support maps with '%s' values; only primitive and string value types are supported") \
+    GRAY_ERROR("E12008", "stdlib", "'maps.sorted_keys()' requires string, integer, or char keys, got '%s'")
 
 /* --- E8xxx: Bitwise Operators --- */
 #define GRAY_BITWISE_ERRORS \

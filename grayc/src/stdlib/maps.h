@@ -15,6 +15,58 @@
 #include "../runtime/array.h"
 #include "../runtime/map.h"
 
+/*@man get_or_insert
+ *@module maps
+ *@group Modification
+ *@sig get_or_insert(&m map[K:V], key K, default V) -> V
+ *@desc Returns the value stored under key. If key is absent, stores default under key and returns it. get_or_default is the read-only counterpart.
+ *@example
+ *   import @maps
+ *   mut owner map[string:i64] = {"zoe": 31}
+ *   mut hits i64 = maps.get_or_insert(owner, "cy", 0)   // 0, "cy" now stored
+ *@end
+ */
+
+/*@man sorted_keys
+ *@module maps
+ *@group Query
+ *@sig sorted_keys(m map[K:V]) -> [K]
+ *@desc Returns a new array of the keys of m in ascending order; m is not modified. K must be string, an integer type, or char. Strings order byte-wise, matching strings.compare.
+ *@example
+ *   import @maps
+ *   mut owner map[string:i64] = {"zoe": 31, "al": 27, "bo": 44}
+ *   for_each name in maps.sorted_keys(owner) {
+ *       println(name)   // al, bo, zoe
+ *   }
+ *@end
+ */
+GrayArray gray_maps_sorted_keys(GrayArena *arena, GrayMap *map);
+
+/*@man get_and_remove
+ *@module maps
+ *@group Modification
+ *@sig get_and_remove(&m map[K:V], key K) -> (V, bool)
+ *@desc Removes key from m and returns (value, true). If key is absent, m is unchanged and the zero value of V is returned with false.
+ *@example
+ *   import @maps
+ *   mut owner map[string:i64] = {"zoe": 31}
+ *   mut age, ok = maps.get_and_remove(owner, "zoe")   // 31, true
+ *@end
+ */
+
+/*@man find_key
+ *@module maps
+ *@group Query
+ *@sig find_key(m map[K:V], value V) -> (K, bool)
+ *@desc Returns the key of the first entry, in insertion order, whose value equals value, with true; otherwise the zero value of K with false. V must be a primitive type or string. m is not modified.
+ *@example
+ *   import @maps
+ *   mut owner map[string:i64] = {"zoe": 31, "bo": 44}
+ *   mut who, found = maps.find_key(owner, 44)   // "bo", true
+ *@end
+ */
+bool gray_maps_find_key(GrayMap *map, const void *value, void *key_out);
+
 /*@man get_keys
  *@module maps
  *@group Query

@@ -3607,6 +3607,10 @@ do rows_to_csv(rows [[string]]) -> string {
 | `get_keys` | `(m map[K:V]) -> [K]` | Get all keys as an array |
 | `get_values` | `(m map[K:V]) -> [V]` | Get all values as an array |
 | `get_or_default` | `(m map[K:V], key K, default V) -> V` | Get value or return default if key missing |
+| `get_or_insert` | `(&m map[K:V], key K, default V) -> V` | Get the value, or store `default` under `key` and return it if the key is missing |
+| `sorted_keys` | `(m map[K:V]) -> [K]` | New array of the keys in ascending order; `K` must be `string`, an integer type, or `char`; strings order byte-wise, matching `strings.compare` |
+| `get_and_remove` | `(&m map[K:V], key K) -> (V, bool)` | Remove `key` and return `(value, true)`; if absent the map is unchanged and the result is the zero value of `V` with `false` |
+| `find_key` | `(m map[K:V], value V) -> (K, bool)` | Key of the first entry in insertion order whose value equals `value`, with `true`; otherwise the zero value of `K` with `false`; `V` must be a primitive or `string` |
 | `remove_key` | `(&m map[K:V], key K)` | Remove key-value pair; does nothing if key absent |
 | `clear` | `(&m map[K:V])` | Remove all entries |
 | `merge` | `(m1 map[K:V], m2 map[K:V]) -> map[K:V]` | Combine two maps (m2 overwrites on conflict) |

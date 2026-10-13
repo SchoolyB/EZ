@@ -1,0 +1,12 @@
+/*
+ * Error Test: E12008 - sorted_keys needs string, integer, or char keys
+ */
+
+// expect-error: E12008
+
+import @maps
+
+do main() {
+    mut weights map[f64:i64] = {1.5: 1}
+    println(maps.sorted_keys(weights))
+}
