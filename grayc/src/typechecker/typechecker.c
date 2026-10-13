@@ -6750,12 +6750,14 @@ static GrayType *resolve_maps_call(TypeChecker *checker, AstNode *node, const ch
     /* E12008: sorted_keys orders by the key, so it must be string, an integer, or char. */
     if (strcmp(member_function_name, "sorted_keys") == 0 && node->data.call.argument_count >= 1) {
         AstNode *first_argument = node->data.call.arguments[0];
-        GrayType *map_type = type_table_get(checker->type_table, first_argument);
+        GrayType *map_type = resolve_expression(checker, first_argument);
         if (map_type && map_type->kind == TYPE_KIND_MAP && map_type->key_type) {
             GrayType *key_type = type_from_name(resolve_type_alias(checker, map_type->key_type));
             bool is_orderable = key_type->kind == TYPE_KIND_STRING || key_type->kind == TYPE_KIND_CHAR ||
                 key_type->kind == TYPE_KIND_SIGNED_INTEGER || key_type->kind == TYPE_KIND_UNSIGNED_INTEGER;
-            if (!is_orderable || is_enum_name(checker, map_type->key_type)) {
+            /* An unbound generic key is checked at each instantiation. */
+            bool is_unbound = key_type->kind == TYPE_KIND_UNKNOWN;
+            if (!is_unbound && (!is_orderable || is_enum_name(checker, map_type->key_type))) {
                 NODE_ERROR_FORMATTED(checker, first_argument, "E12008", map_type->key_type);
             }
         }

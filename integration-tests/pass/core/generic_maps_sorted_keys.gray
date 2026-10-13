@@ -1,0 +1,43 @@
+/*
+ * generic_maps_sorted_keys.gray - maps.sorted_keys() inside a generic
+ * function is checked at each instantiation, where the key type is bound.
+ */
+
+import @maps
+
+do keys_sorted(kind generic, m map[kind:i64]) -> [kind] {
+    return maps.sorted_keys(m)
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut by_name map[string:i64] = {"b": 1, "a": 2}
+    mut names [string] = keys_sorted(string, by_name)
+    if len(names) == 2 && names[0] == "a" && names[1] == "b" {
+        println("  [PASS] string keys sort")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string keys: ${names}")
+        failed += 1
+    }
+
+    mut by_number map[i64:i64] = {30: 1, 10: 2, 20: 3}
+    mut numbers [i64] = keys_sorted(i64, by_number)
+    if len(numbers) == 3 && numbers[0] == 10 && numbers[2] == 30 {
+        println("  [PASS] integer keys sort")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] integer keys: ${numbers}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
