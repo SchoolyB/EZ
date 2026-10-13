@@ -8860,8 +8860,15 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
                 char accepted[MESSAGE_BUFFER_SIZE];
                 char message[MESSAGE_BUFFER_SIZE];
                 type_length_accepted_list(accepted, sizeof(accepted));
-                snprintf(message, sizeof(message), "'len()' is not supported for type '%s'; 'len()' works on %s types",
-                    type_name(first_argument_type), accepted);
+                if (first_argument_type->kind == TYPE_KIND_STRUCT) {
+                    /* A user struct can share a listed stdlib type's name. */
+                    snprintf(message, sizeof(message),
+                        "'len()' is not supported for struct '%s'; 'len()' works on %s types, where a listed struct is the stdlib type of that name, not a user struct",
+                        type_display_name(checker, first_argument_type), accepted);
+                } else {
+                    snprintf(message, sizeof(message), "'len()' is not supported for type '%s'; 'len()' works on %s types",
+                        type_name(first_argument_type), accepted);
+                }
                 diagnostic_error_message(checker->diagnostics, "E7015", arena_copy_string(checker->arena, message),
                     NODE_FILE(checker, node->data.call.arguments[0]),
                     node->data.call.arguments[0]->token.line, node->data.call.arguments[0]->token.column, 0);
