@@ -14,6 +14,6 @@
 
 extern import "signal.h"
 
-do main() {
+unsafe do main() {
     extern.signal(2)
 }

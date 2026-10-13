@@ -7,7 +7,7 @@
 
 extern import "math.h"
 
-do main() {
+unsafe do main() {
     mut x f64 = extern.sqrt("x")
     println("${x}")
 }

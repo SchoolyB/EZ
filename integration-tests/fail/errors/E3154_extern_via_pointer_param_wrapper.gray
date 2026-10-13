@@ -11,7 +11,7 @@
 
 extern import "stdlib.h"
 
-do do_free(p ^i64) {
+unsafe do do_free(p ^i64) {
     extern.free(p)
 }
 

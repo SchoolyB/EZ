@@ -15,7 +15,7 @@ const Point struct {
     y i64
 }
 
-do main() {
+unsafe do main() {
     // Primitives
     mut i i64 = 42
     mut f f64 = 3.14

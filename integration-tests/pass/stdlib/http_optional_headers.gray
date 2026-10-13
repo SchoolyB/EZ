@@ -35,7 +35,7 @@ do check(label string, expected_line string, line_count i64, status i64, err Err
     }
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

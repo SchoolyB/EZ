@@ -7,6 +7,6 @@
 
 import @threads
 
-do main() {
+unsafe do main() {
     threads.sleep(1)
 }

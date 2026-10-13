@@ -345,7 +345,12 @@ struct AstNode {
         struct { AstNode *expression; } expression_statement;
 
         /* NODE_BLOCK_STATEMENT */
-        struct { AstNode **statements; int count; int capacity; } block;
+        struct {
+            AstNode **statements;
+            int count;
+            int capacity;
+            bool is_unsafe; /* `unsafe { ... }` block: opens a scope that permits unsafe primitives */
+        } block;
 
         /* NODE_IF_STATEMENT */
         struct {

@@ -1,0 +1,101 @@
+/*
+ * Test: `unsafe { ... }` blocks and `unsafe do` functions permit raw() and
+ * @mem, and a caller of an `unsafe do` function needs no marker of its own.
+ * The block is a real scope: a name declared inside does not leak out.
+ */
+
+import @mem
+
+const Counter struct {
+    n i64
+
+    private unsafe do read(c ^Counter) -> i64 {
+        mut p = raw(c^.n)
+        return p^
+    }
+
+    unsafe do peek(c ^Counter) -> i64 {
+        return read(c)
+    }
+}
+
+unsafe do arena_value() -> i64 {
+    mut arena = mem.arena(4096)
+    mut slot = mem.init(arena, i64)
+    slot^ = 42
+    mut result i64 = slot^
+    mem.destroy(arena)
+    return result
+}
+
+private unsafe do bump(target ^i64) {
+    mut shared = raw(target^)
+    shared^ += 1
+}
+
+do block_value() -> i64 {
+    unsafe {
+        mut arena = mem.arena(1024)
+        mut slot = mem.init(arena, i64)
+        slot^ = 7
+        mut result i64 = slot^
+        mem.destroy(arena)
+        return result
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if arena_value() == 42 { passed += 1 } otherwise {
+        failed += 1
+        eprintln("FAIL: unsafe do with @mem")
+    }
+
+    if block_value() == 7 { passed += 1 } otherwise {
+        failed += 1
+        eprintln("FAIL: return from inside an unsafe block")
+    }
+
+    mut n i64 = 1
+    bump(addr(n))
+    if n == 2 { passed += 1 } otherwise {
+        failed += 1
+        eprintln("FAIL: private unsafe do with raw()")
+    }
+
+    mut c Counter = Counter{n: 9}
+    if Counter.peek(addr(c)) == 9 { passed += 1 } otherwise {
+        failed += 1
+        eprintln("FAIL: unsafe struct function")
+    }
+
+    mut outer i64 = 100
+    unsafe {
+        mut block_local i64 = 1
+        mut view = raw(outer)
+        view^ += block_local
+        unsafe {
+            mut again = raw(outer)
+            again^ += 1
+        }
+    }
+    if outer == 102 { passed += 1 } otherwise {
+        failed += 1
+        eprintln("FAIL: nested unsafe blocks")
+    }
+
+    mut block_local i64 = 3
+    if block_local == 3 { passed += 1 } otherwise {
+        failed += 1
+        eprintln("FAIL: unsafe block scope leaked")
+    }
+
+    println("passed: ${passed}, failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

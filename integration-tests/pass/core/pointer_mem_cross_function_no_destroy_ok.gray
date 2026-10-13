@@ -12,14 +12,14 @@ const Point struct {
     y i64
 }
 
-do make_point(a Arena, x i64, y i64) -> ^Point {
+unsafe do make_point(a Arena, x i64, y i64) -> ^Point {
     mut p ^Point = mem.init(a, Point)
     p^.x = x
     p^.y = y
     return p
 }
 
-do main() {
+unsafe do main() {
     mut a = mem.arena(4096)
     mut p1 ^Point = make_point(a, 1, 2)
     mut p2 ^Point = make_point(a, 3, 4)

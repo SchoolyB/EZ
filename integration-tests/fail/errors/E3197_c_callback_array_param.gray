@@ -14,7 +14,7 @@ do cmp(a [i64], b [i64]) -> i32 {
     return 0
 }
 
-do main() {
+unsafe do main() {
     mut buf ^i64 = extern.malloc(16)
     extern.qsort(buf, 2, 8, ()cmp)
     extern.free(buf)

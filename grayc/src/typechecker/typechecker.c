@@ -7279,8 +7279,21 @@ static GrayType *resolve_fmt_call(TypeChecker *checker, AstNode *node, const cha
     return result;
 }
 
+/* E5065: raw(), the whole mem and threads modules, and extern calls are
+ * Grayscale's unsafe opt-outs; each must sit inside an `unsafe` block or an
+ * `unsafe do` function. `operation` is the name as the user wrote it. */
+static void require_unsafe_context(TypeChecker *checker, AstNode *node, const char *operation) {
+    if (checker->unsafe_depth > 0) return;
+    NODE_ERROR_FORMATTED(checker, node, "E5065", operation);
+}
+
 static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const char *module_name, const char *member_function_name) {
     GrayType *result = &TYPE_UNKNOWN;
+    if (strcmp(module_name, "mem") == 0 || strcmp(module_name, "threads") == 0) {
+        char qualified_function_name[MESSAGE_BUFFER_SIZE];
+        snprintf(qualified_function_name, sizeof(qualified_function_name), "%s.%s()", module_name, member_function_name);
+        require_unsafe_context(checker, node, qualified_function_name);
+    }
     /* E5034: named arguments are not supported for stdlib functions */
     if (typechecker_has_named_arguments(node)) {
         char qualified_function_name[MESSAGE_BUFFER_SIZE];
@@ -8651,6 +8664,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
         result = type_pointer(type_name(argument_type));
     } else if (strcmp(function_name, "raw") == 0 && node->data.call.argument_count == 1) {
         AstNode *argument = node->data.call.arguments[0];
+        require_unsafe_context(checker, node, "raw()");
         reject_unstable_address_target(checker, node, argument, "raw");
         if (!is_assignment_target(checker, argument)) {
             NODE_ERROR_FORMATTED(checker, node, "E3012", "raw", "the address");
@@ -10310,6 +10324,9 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
         if (strcmp(resolved_module_name, "extern") == 0 && is_module_imported) {
             /* Mark all C imports as used */
             mark_import_used(checker, "extern");
+            char extern_call_name[MESSAGE_BUFFER_SIZE];
+            snprintf(extern_call_name, sizeof(extern_call_name), "extern.%s()", member_function_name ? member_function_name : "");
+            require_unsafe_context(checker, node, extern_call_name);
             /* E5034: C functions have no parameter names; grayc cannot see the
              * C signature, so a label would be silently dropped and the
              * arguments passed in written order. Reject before codegen. */
@@ -13368,8 +13385,18 @@ static void check_or_default_fallbacks(TypeChecker *checker, AstNode *block) {
     }
 }
 
+static void check_block_statements(TypeChecker *checker, AstNode *node);
+
+/* An `unsafe` block, or the body of an `unsafe do` function, permits the
+ * unsafe primitives for everything checked inside it. */
 static void check_block(TypeChecker *checker, AstNode *node) {
     if (!node || node->kind != NODE_BLOCK_STATEMENT) return;
+    if (node->data.block.is_unsafe) checker->unsafe_depth++;
+    check_block_statements(checker, node);
+    if (node->data.block.is_unsafe) checker->unsafe_depth--;
+}
+
+static void check_block_statements(TypeChecker *checker, AstNode *node) {
     bool seen_return = false;
     for (int i = 0; i < node->data.block.count; i++) {
         AstNode *statement = node->data.block.statements[i];
@@ -17371,8 +17398,17 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
     case NODE_BLOCK_STATEMENT:
         /* Inline blocks (from multi-var expansion) share parent scope.
          * Only control flow blocks (if, for, etc.) create new scopes,
-         * and those are handled by their own cases. */
-        check_block(checker, node);
+         * and those are handled by their own cases. An `unsafe` block is
+         * a real scope. */
+        if (node->data.block.is_unsafe) {
+            Scope *unsafe_outer = checker->current_scope;
+            checker->current_scope = scope_create(unsafe_outer);
+            check_block(checker, node);
+            scope_destroy(checker->current_scope);
+            checker->current_scope = unsafe_outer;
+        } else {
+            check_block(checker, node);
+        }
         break;
 
     case NODE_IF_STATEMENT:

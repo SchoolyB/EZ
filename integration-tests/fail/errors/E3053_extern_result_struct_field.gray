@@ -11,7 +11,7 @@ const Env struct {
     home string
 }
 
-do main() {
+unsafe do main() {
     mut e Env = Env{home: extern.getenv("HOME")}
     println(e.home)
 }

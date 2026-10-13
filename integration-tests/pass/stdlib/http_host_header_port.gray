@@ -20,7 +20,7 @@ do echo() {
     net.close(conn)
 }
 
-do get_host_line(url string) -> string {
+unsafe do get_host_line(url string) -> string {
     mut server_thread = threads.spawn(()echo)
     mut no_headers map[string:string] = {:}
     mut _, _ = http.get(url, no_headers)

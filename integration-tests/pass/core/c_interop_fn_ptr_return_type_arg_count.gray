@@ -11,7 +11,7 @@ do handler(sig i32) {
     println("caught")
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

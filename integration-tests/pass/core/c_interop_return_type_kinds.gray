@@ -7,7 +7,7 @@
 extern import "math.h"
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     println("=== C interop result: return type kinds ===")
     mut passed i64 = 0
     mut failed i64 = 0

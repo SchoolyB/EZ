@@ -5,7 +5,7 @@
 // expect-error: E3161
 // expect-error-count: 2
 
-do main() {
+unsafe do main() {
     mut s string = "hi"
     mut p ^char = raw(s[0])
     mut q ^char = ref(s[1])

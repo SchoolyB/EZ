@@ -6,7 +6,7 @@
 
 import @mem
 
-do main() {
+unsafe do main() {
     mut a = mem.arena(1024)
     for i in range(0, 3) {
         mut p ^i64 = mem.alloc(a, i)

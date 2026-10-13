@@ -10,7 +10,7 @@ do worker() {
     thread_result = 42
 }
 
-do main() {
+unsafe do main() {
     println("=== Stress: @threads ===")
     mut passed i64 = 0
     mut failed i64 = 0

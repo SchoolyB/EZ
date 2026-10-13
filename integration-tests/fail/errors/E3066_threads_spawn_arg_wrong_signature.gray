@@ -10,7 +10,7 @@ do named(s string) {
     println(s)
 }
 
-do main() {
+unsafe do main() {
     mut t Thread = threads.spawn_arg(()named, 7)
     threads.join(t)
 }

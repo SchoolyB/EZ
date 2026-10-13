@@ -7,7 +7,7 @@
 
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     mut x i32 = extern.abs(nil)
     println("${x}")
 }

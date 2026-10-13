@@ -5,7 +5,7 @@
 
 extern import "stdio.h"
 
-do main() {
+unsafe do main() {
     mut x i128 = 42
     extern.printf("%d", x)
 }

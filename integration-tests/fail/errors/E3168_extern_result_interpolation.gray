@@ -8,6 +8,6 @@
 
 extern import "math.h"
 
-do main() {
+unsafe do main() {
     println("value: ${extern.sqrt(2.0)}")
 }

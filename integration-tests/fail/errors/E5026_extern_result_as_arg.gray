@@ -12,6 +12,6 @@ do use_string(s string) {
     println(s)
 }
 
-do main() {
+unsafe do main() {
     use_string(extern.getenv("HOME"))
 }

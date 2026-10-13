@@ -16,11 +16,11 @@ extern import "stdlib.h"
 
 mut g_counter i64 = 0
 
-do do_free(p ^u8) {
+unsafe do do_free(p ^u8) {
     extern.free(p)
 }
 
-do main() {
+unsafe do main() {
     // file-scope global address into C
     extern.memset(addr(g_counter), 0, 8)
 

@@ -5,7 +5,7 @@
 // expect-error: E3161
 // expect-error-count: 1
 
-do main() {
+unsafe do main() {
     mut a [i64] = {10, 20, 30, 40}
     mut p ^i64 = raw(a[2])
 }

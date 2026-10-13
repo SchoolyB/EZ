@@ -2787,6 +2787,22 @@ static void reject_nested_declaration(Parser *parser, const char *kind, const ch
     }
 }
 
+/* `unsafe do`: consumes the `unsafe` modifier when it directly precedes `do`
+ * and returns true. Anything else is left for the caller to reject. */
+static bool consume_unsafe_modifier(Parser *parser) {
+    if (!current_token_is(parser, TOKEN_UNSAFE) || !peek_token_is(parser, TOKEN_DO)) return false;
+    next_token(parser);
+    return true;
+}
+
+/* The function body's block carries the flag: the typechecker opens the
+ * unsafe context when it checks that body. */
+static void mark_function_unsafe(AstNode *function_declaration) {
+    if (function_declaration && function_declaration->data.function_declaration.body) {
+        function_declaration->data.function_declaration.body->data.block.is_unsafe = true;
+    }
+}
+
 static AstNode *parse_struct_declaration(Parser *parser) {
     /* current_token is the struct name (IDENT), already consumed by caller */
     AstNode *node = ast_allocate(parser->arena, NODE_STRUCT_DECLARATION, parser->current_token);
@@ -2869,8 +2885,10 @@ static AstNode *parse_struct_declaration(Parser *parser) {
             continue;
         }
         /* Check for struct-namespaced function: do func() or private do func() */
+        bool is_unsafe_function = consume_unsafe_modifier(parser);
         if (current_token_is(parser, TOKEN_DO)) {
             AstNode *function_declaration = parse_function_declaration(parser);
+            if (is_unsafe_function) mark_function_unsafe(function_declaration);
             if (function_declaration) {
                 if (has_pending_discard) {
                     function_declaration->data.function_declaration.is_discard = true;
@@ -2889,9 +2907,12 @@ static AstNode *parse_struct_declaration(Parser *parser) {
             next_token(parser);
             continue;
         }
-        if (current_token_is(parser, TOKEN_PRIVATE) && peek_token_is(parser, TOKEN_DO)) {
+        if (current_token_is(parser, TOKEN_PRIVATE) &&
+            (peek_token_is(parser, TOKEN_DO) || peek_token_is(parser, TOKEN_UNSAFE))) {
             next_token(parser); /* consume 'private' */
+            bool is_unsafe_private_function = consume_unsafe_modifier(parser);
             AstNode *function_declaration = parse_function_declaration(parser);
+            if (is_unsafe_private_function) mark_function_unsafe(function_declaration);
             if (function_declaration) {
                 function_declaration->data.function_declaration.is_private = true;
                 if (has_pending_discard) {
@@ -3627,6 +3648,24 @@ static AstNode *parse_statement(Parser *parser) {
         }
         return statement;
     }
+    case TOKEN_UNSAFE: {
+        /* `unsafe { ... }` block or `unsafe do` function */
+        if (peek_token_is(parser, TOKEN_LEFT_BRACE)) {
+            next_token(parser); /* now on '{' */
+            AstNode *block = parse_block_statement(parser);
+            if (block) block->data.block.is_unsafe = true;
+            return block;
+        }
+        if (consume_unsafe_modifier(parser)) {
+            AstNode *function_declaration = parse_function_declaration(parser);
+            mark_function_unsafe(function_declaration);
+            return function_declaration;
+        }
+        diagnostic_error_message(parser->diagnostics, "E2001",
+            arena_copy_string(parser->arena, "expected '{' or 'do' after 'unsafe'"),
+            parser->file, parser->current_token.line, parser->current_token.column, 0);
+        return NULL;
+    }
     case TOKEN_MUT:
     case TOKEN_CONST:
         /* Check for keyword used as name: const for struct / mut for i64 */
@@ -4073,7 +4112,7 @@ AstNode *parser_parse_program(Parser *parser) {
         }
         parser->seen_attribute_mask = 0;
         AstNode *statement = parse_statement(parser);
-        if (statement && statement->kind == NODE_BLOCK_STATEMENT) {
+        if (statement && statement->kind == NODE_BLOCK_STATEMENT && !statement->data.block.is_unsafe) {
             /* `A, B i64 = 1, 2` at file scope: one global per name. */
             for (int i = 0; i < statement->data.block.count; i++) {
                 ARENA_GROW(parser->arena, program->data.program.statements,

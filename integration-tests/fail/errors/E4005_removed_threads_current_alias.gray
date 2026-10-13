@@ -5,7 +5,7 @@
 
 import @threads
 
-do main() {
+unsafe do main() {
     mut id i64 = threads.current()
     println("thread ${id}")
 }

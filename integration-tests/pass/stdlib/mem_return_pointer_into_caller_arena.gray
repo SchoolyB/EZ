@@ -7,7 +7,7 @@
 
 import @mem
 
-do build(keep mem.Arena) -> ^i64 {
+unsafe do build(keep mem.Arena) -> ^i64 {
     mut scratch = mem.arena(64)
     mut tmp ^i64 = mem.alloc(scratch, 7)
     tmp^ = tmp^ + 1
@@ -17,7 +17,7 @@ do build(keep mem.Arena) -> ^i64 {
     return result
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
 
     mut a = mem.arena(1024)

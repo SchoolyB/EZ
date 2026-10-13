@@ -5,7 +5,7 @@
 
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     mut u u64 = extern.atoi("-1")
     println(u)
 }

@@ -7,7 +7,7 @@
 
 extern import "stdlib.h"
 
-do get_home() -> string {
+unsafe do get_home() -> string {
     return extern.getenv("HOME")
 }
 

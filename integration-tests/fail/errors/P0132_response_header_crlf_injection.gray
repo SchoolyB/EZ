@@ -21,7 +21,7 @@ do serve() {
     server.listen(router, 18742, "127.0.0.1")
 }
 
-do main() {
+unsafe do main() {
     mut worker = threads.spawn(()serve)
     threads.detach(worker)
     sleep_ms(300)

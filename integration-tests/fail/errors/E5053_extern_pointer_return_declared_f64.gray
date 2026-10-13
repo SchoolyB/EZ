@@ -8,7 +8,7 @@
 
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     mut x f64 = extern.malloc(16)
     println("${x}")
 }

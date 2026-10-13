@@ -1,5 +1,5 @@
 // Test: addr() pointer in inner scope is not treated as raw
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

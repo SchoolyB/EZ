@@ -13492,6 +13492,20 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         break;
     }
     case NODE_BLOCK_STATEMENT:
+        if (node->data.block.is_unsafe) {
+            /* `unsafe { ... }` is a C scope; it allocates from the enclosing
+             * arena, so it opens no arena of its own. */
+            int previous_raw_variable_count = codegen->raw_variable_count;
+            emit_indent(codegen);
+            emit(codegen, "{\n");
+            codegen->indent++;
+            emit_block(codegen, node);
+            codegen->indent--;
+            emit_indent(codegen);
+            emit(codegen, "}\n");
+            codegen->raw_variable_count = previous_raw_variable_count;
+            break;
+        }
         /* Inline block (e.g., from multi-var declaration expansion) */
         emit_block(codegen, node);
         break;

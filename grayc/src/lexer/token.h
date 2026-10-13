@@ -124,6 +124,7 @@ typedef enum {
 
     /* Module system keywords */
     TOKEN_PRIVATE,
+    TOKEN_UNSAFE,
     TOKEN_USE,
 
     /* When/Is keywords */

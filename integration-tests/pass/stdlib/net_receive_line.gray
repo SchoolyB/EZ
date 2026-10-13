@@ -22,7 +22,7 @@ do serve() {
     net.close(conn)
 }
 
-do connect_to_script(script [string]) -> Socket {
+unsafe do connect_to_script(script [string]) -> Socket {
     chunks = script
     server_thread = threads.spawn(()serve)
     mut sock, _ = net.connect("127.0.0.1", TEST_PORT)
@@ -30,7 +30,7 @@ do connect_to_script(script [string]) -> Socket {
     return sock
 }
 
-do finish(sock Socket) {
+unsafe do finish(sock Socket) {
     threads.join(server_thread)
     net.close(sock)
 }

@@ -1,0 +1,13 @@
+/*
+ * Error Test: E5065 - an extern. call outside an unsafe block or unsafe do
+ * function.
+ */
+// expect-error: E5065
+// expect-error-count: 1
+
+extern import "stdlib.h"
+
+do main() {
+    mut value i64 = extern.abs(-5)
+    println(value)
+}

@@ -387,7 +387,8 @@
     GRAY_ERROR("E5061", "arguments", "'csv.filter_rows()' callback must be func([string]) -> bool") \
     GRAY_ERROR("E5062", "arguments", "default value for parameter '%s' has wrong type; expected %s, got %s") \
     GRAY_ERROR("E5063", "arguments", "'to_char()' index %lld is out of bounds") \
-    GRAY_ERROR("E5064", "arguments", "cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead")
+    GRAY_ERROR("E5064", "arguments", "cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead") \
+    GRAY_ERROR("E5065", "usage", "'%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe do' function")
 
 /* --- E6xxx: Import Problems --- */
 #define GRAY_IMPORT_ERRORS \

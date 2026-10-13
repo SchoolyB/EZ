@@ -23,7 +23,7 @@ do slow_worker() {
     sleep_ms(20)
 }
 
-do main() {
+unsafe do main() {
     println("=== Threads Module Test ===")
     mut passed i64 = 0
     mut failed i64 = 0

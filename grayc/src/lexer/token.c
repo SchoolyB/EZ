@@ -66,6 +66,7 @@ static const KeywordEntry keywords[] = {
     {"struct",      TOKEN_STRUCT},
     {"switch",      TOKEN_WHEN},
     {"true",        TOKEN_TRUE},
+    {"unsafe",      TOKEN_UNSAFE},
     {"use",         TOKEN_USE},
     {"using",       TOKEN_USING},
     {"when",        TOKEN_WHEN},
@@ -221,6 +222,7 @@ const char *token_type_name(TokenType type) {
     case TOKEN_EXTERN:         return "extern";
     case TOKEN_GENERIC:        return "generic";
     case TOKEN_PRIVATE:        return "private";
+    case TOKEN_UNSAFE:         return "unsafe";
     case TOKEN_USE:            return "use";
     case TOKEN_WHEN:           return "when";
     case TOKEN_IS:             return "is";

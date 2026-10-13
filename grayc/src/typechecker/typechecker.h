@@ -483,6 +483,11 @@ typedef struct {
      * use of a range is E3205. */
     const AstNode *range_use;
 
+    /* How many enclosing `unsafe` blocks / `unsafe do` bodies the node being
+     * checked sits inside. Non-zero permits raw(), @mem, @threads, and
+     * extern calls. */
+    int unsafe_depth;
+
 } TypeChecker;
 
 /* Create and run the type checker */

@@ -8,7 +8,7 @@ const Point struct {
     y i64
 }
 
-do main() {
+unsafe do main() {
     println("=== raw() pointer tests ===")
     mut passed i64 = 0
     mut failed i64 = 0

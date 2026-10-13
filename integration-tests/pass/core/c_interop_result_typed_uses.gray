@@ -10,7 +10,7 @@ extern import "math.h"
 extern import "stdlib.h"
 extern import "string.h"
 
-do main() {
+unsafe do main() {
     println("=== C interop result: typed uses ===")
     mut passed i64 = 0
     mut failed i64 = 0

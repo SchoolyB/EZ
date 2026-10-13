@@ -8,7 +8,7 @@
 
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     mut m map[string:string] = {:}
     m["a"] = extern.getenv("HOME")
     println(m["a"])

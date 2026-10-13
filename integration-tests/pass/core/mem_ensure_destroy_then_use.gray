@@ -8,14 +8,14 @@
 
 import @mem
 
-do make_value(a Arena) -> i64 {
+unsafe do make_value(a Arena) -> i64 {
     ensure mem.destroy(a)
     mut p ^i64 = mem.init(a, i64)
     p^ = 5
     return p^
 }
 
-do reset_twice(a Arena) -> i64 {
+unsafe do reset_twice(a Arena) -> i64 {
     ensure mem.reset(a)
     mem.reset(a)
     mut p ^i64 = mem.init(a, i64)
@@ -23,7 +23,7 @@ do reset_twice(a Arena) -> i64 {
     return p^
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

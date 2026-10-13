@@ -14,7 +14,7 @@ do on_exit() {
     println("  [exit] ${parts[0]} ${parts[1]} ${parts[2]}")
 }
 
-do main() {
+unsafe do main() {
     println("=== C Interop atexit Callback Test ===")
     mut passed i64 = 0
     mut failed i64 = 0

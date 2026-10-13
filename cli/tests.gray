@@ -146,7 +146,7 @@ do sum2(a i64, b i64) -> i64 {
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

@@ -10,7 +10,7 @@
 extern import "stdlib.h"
 extern import "string.h"
 
-do main() {
+unsafe do main() {
     println("=== C Interop POSIX Names Test ===")
     mut passed i64 = 0
     mut failed i64 = 0

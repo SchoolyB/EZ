@@ -1,5 +1,5 @@
 // Test: raw(p^) and addr(p^) compile and produce correct results
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
     mut x i64 = 42

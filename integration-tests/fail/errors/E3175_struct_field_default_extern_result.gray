@@ -2,10 +2,11 @@
  * Error Test: E3175 - an extern.func() result used as a struct field default
  * is caught before it reaches the C compiler. STANDARD 8.6 only allows an
  * extern result in a type-annotated declaration, cast(), from_c_string(), or an
- * extern-call argument -- not a struct field default.
+ * extern-call argument -- not a struct field default. The call also sits
+ * outside an unsafe block, so E5065 is reported alongside it.
  */
 // expect-error: E3175
-// expect-error-count: 1
+// expect-error-count: 2
 
 extern import "stdlib.h"
 

@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2001 - `unsafe` must be followed by a block or `do`.
+ */
+// expect-error: E2001
+// expect-error-count: 1
+
+do main() {
+    unsafe println("hello")
+}

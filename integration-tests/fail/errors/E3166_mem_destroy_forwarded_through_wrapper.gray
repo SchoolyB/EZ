@@ -8,7 +8,7 @@
 
 import @mem
 
-do helper(a Arena) {
+unsafe do helper(a Arena) {
     mem.destroy(a)
 }
 
@@ -16,7 +16,7 @@ do outer(a Arena) {
     helper(a)
 }
 
-do main() {
+unsafe do main() {
     mut a = mem.arena(1024)
     outer(a)
     mem.destroy(a)
