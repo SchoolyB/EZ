@@ -7035,27 +7035,24 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         emit_map_slot_value(codegen, keyed_key_type, node->data.call.arguments[1]);
         emit_formatted(codegen, "; %s _id = ", keyed_c_value);
         emit_map_slot_value(codegen, keyed_value_type, node->data.call.arguments[2]);
-        emit(codegen, "; void *_ip = gray_map_get(");
+        emit(codegen, "; GrayMap *_im = ");
         emit_address_of(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", &_ik); if (!_ip) { ");
+        emit(codegen, "; void *_ip = gray_map_get(_im, &_ik); if (!_ip) { ");
         if (in_loop && type_needs_deep_copy(codegen, keyed_value_type)) {
             emit_formatted(codegen, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _id = ", store_arena);
             emit_value_deep_copy(codegen, keyed_value_type, "_id");
             emit(codegen, "; gray_default_arena = _esc; } ");
         }
-        emit_formatted(codegen, "gray_map_set(%s, ", store_arena);
-        emit_address_of(codegen, node->data.call.arguments[0]);
-        emit_formatted(codegen, ", &_ik, &_id, \"%s\", %d); } ", codegen->file, node->token.line);
+        emit_formatted(codegen, "gray_map_set(%s, _im, &_ik, &_id, \"%s\", %d); } ", store_arena, codegen->file, node->token.line);
         emit(codegen, "_ip ? *(__typeof__(_id) *)_ip : _id; })");
         return true;
     }
     if (strcmp(function_name, "get_and_remove") == 0 && node->data.call.argument_count == 2) {
         emit_formatted(codegen, "({ %s _rk = ", keyed_c_key);
         emit_map_slot_value(codegen, keyed_key_type, node->data.call.arguments[1]);
-        emit_formatted(codegen, "; %s _rv = (%s){0}; void *_rp = gray_map_get(", keyed_c_value, keyed_c_value);
+        emit_formatted(codegen, "; %s _rv = (%s){0}; GrayMap *_rm = ", keyed_c_value, keyed_c_value);
         emit_address_of(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", &_rk); bool _ro = _rp != NULL; if (_ro) { _rv = *(__typeof__(_rv) *)_rp; gray_map_remove(");
-        emit_address_of(codegen, node->data.call.arguments[0]);
+        emit(codegen, "; void *_rp = gray_map_get(_rm, &_rk); bool _ro = _rp != NULL; if (_ro) { _rv = *(__typeof__(_rv) *)_rp; gray_map_remove(_rm");
         emit_formatted(codegen, ", &_rk, \"%s\", %d); } (struct { %s v0; bool v1; }){ _rv, _ro }; })",
             codegen->file, node->token.line, keyed_c_value);
         return true;
