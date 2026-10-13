@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 542 codes** (388 errors, 17 warnings, 137 panics)
+**Total: 543 codes** (388 errors, 17 warnings, 138 panics)
 
 ---
 
@@ -386,7 +386,7 @@
 | `E6017` | imports | import '%s' matches both a .gray and a .grayscale file; import one by its full file name |
 | `E7006` | stdlib | 'threads.spawn()' requires a function reference; use '()func_name' or 'ref(func_name)' |
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 to 1114111) |
-| `E7015` | stdlib | 'len()' is not supported for type '%s'; 'len()' works on string, array, and map types |
+| `E7015` | stdlib | 'len()' is not supported for type '%s' |
 | `E9002` | stdlib | 'arrays.%s()' requires a numeric array, got array of '%s' |
 | `E9003` | stdlib | 'arrays.%s()' requires a function reference; use '()func_name' to pass a function |
 | `E9004` | stdlib | 'arrays.%s()' callback signature mismatch; %s |
@@ -569,6 +569,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0152` | random | random.rand_bytes called with a negative length |
 | `P0153` | random | random.roll_dice called with a count or sides less than 1 |
 | `P0154` | os | os.cpu_usage called with an interval_ms less than 1 |
+| `P0155` | runtime | len() of a range exceeds the largest i64 |
 
 ---
 
@@ -593,4 +594,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-13 15:19:17 UTC*
+*Generated on 2026-10-13 15:26:58 UTC*

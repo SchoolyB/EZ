@@ -3291,7 +3291,7 @@ running the child so output is not reordered.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `len` | `(collection T) -> i64` | Length of array, map, or string (byte length for strings, not character count) |
+| `len` | `(collection T) -> i64` | Length of a string (byte length, not character count), array, map, Channel (values buffered), Builder (bytes written), or range (iteration count) |
 | `type_of` | `(value T) -> string` | Returns the Grayscale type name as a string (e.g. `"i64"`, `"u64"`, `"f64"`, `"string"`, `"i128"`, `"u256"`). Accepts any type. |
 | `size_of` | `(Type) -> i64` | Size of type in bytes |
 | `fields` | `(instance T) -> [string]` | Returns the field names of a struct as an array of strings in declaration order. Accepts struct instances and pointers to structs. |
@@ -3577,7 +3577,6 @@ plain (immutable) parameter is a compile error.
 | `builder_append_bytes` | `(&b Builder, data [u8]) -> void` | Append every byte of `data` |
 | `builder_append_i64` | `(&b Builder, n i64) -> void` | Append the decimal text of `n` |
 | `builder_append_line` | `(&b Builder, s string) -> void` | Append `s` followed by a newline |
-| `builder_len` | `(b Builder) -> i64` | Bytes accumulated so far |
 | `builder_clear` | `(&b Builder) -> void` | Reset length to zero, keeping capacity |
 | `build` | `(b Builder) -> string` | Copy the accumulated bytes into a new string; the builder stays usable |
 

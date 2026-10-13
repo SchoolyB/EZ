@@ -414,7 +414,7 @@
 #define GRAY_STDLIB_ERRORS \
     GRAY_ERROR("E7006", "stdlib", "'threads.spawn()' requires a function reference; use '()func_name' or 'ref(func_name)'") \
     GRAY_ERROR("E7014", "stdlib", "cannot convert %lld to char; value must be a valid Unicode code point (0 to 1114111)") \
-    GRAY_ERROR("E7015", "stdlib", "'len()' is not supported for type '%s'; 'len()' works on string, array, and map types") \
+    GRAY_ERROR("E7015", "stdlib", "'len()' is not supported for type '%s'") \
     GRAY_ERROR("E9002", "stdlib", "'arrays.%s()' requires a numeric array, got array of '%s'") \
     GRAY_ERROR("E9003", "stdlib", "'arrays.%s()' requires a function reference; use '()func_name' to pass a function") \
     GRAY_ERROR("E9004", "stdlib", "'arrays.%s()' callback signature mismatch; %s") \
@@ -569,7 +569,8 @@
     GRAY_PANIC("P0151", "json",       "json.parse: duplicate key '%.*s'") \
     GRAY_PANIC("P0152", "random",     "random.rand_bytes called with a negative length") \
     GRAY_PANIC("P0153", "random",     "random.roll_dice called with a count or sides less than 1") \
-    GRAY_PANIC("P0154", "os",         "os.cpu_usage called with an interval_ms less than 1")
+    GRAY_PANIC("P0154", "os",         "os.cpu_usage called with an interval_ms less than 1") \
+    GRAY_PANIC("P0155", "runtime",    "len() of a range exceeds the largest i64")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

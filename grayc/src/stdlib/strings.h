@@ -651,18 +651,7 @@ void gray_strings_builder_append_i64(GrayStringsBuilder *builder, int64_t value)
  */
 void gray_strings_builder_append_line(GrayStringsBuilder *builder, GrayString string);
 
-/*@man builder_len
- *@module strings
- *@group Builder
- *@sig builder_len(b Builder) -> i64
- *@desc Returns the number of bytes accumulated in the builder so far.
- *@example
- *   import @strings
- *   mut b Builder = strings.builder()
- *   strings.builder_append(b, "abc")
- *   println(strings.builder_len(b))
- *@end
- */
+/* The bytes written so far; what len() emits. */
 int64_t gray_strings_builder_len(GrayStringsBuilder *builder);
 
 /*@man builder_clear

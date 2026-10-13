@@ -683,3 +683,32 @@ GrayType *type_from_name(const char *name) {
 
     return &TYPE_UNKNOWN;
 }
+
+static const LengthRule length_rules[] = {
+    {TYPE_KIND_STRING, NULL,      "string",  "len",   NULL},
+    {TYPE_KIND_ARRAY,  NULL,      "array",   "len",   NULL},
+    {TYPE_KIND_MAP,    NULL,      "map",     "count", NULL},
+    {TYPE_KIND_STRUCT, "Channel", "Channel", NULL,    "gray_channels_len"},
+    {TYPE_KIND_STRUCT, "Builder", "Builder", NULL,    "gray_strings_builder_len"},
+    {TYPE_KIND_RANGE,  NULL,      "range",   NULL,    NULL},
+};
+
+#define LENGTH_RULE_COUNT (sizeof(length_rules) / sizeof(length_rules[0]))
+
+const LengthRule *type_length_rule(GrayType *type) {
+    for (size_t index = 0; index < LENGTH_RULE_COUNT; index++) {
+        const LengthRule *rule = &length_rules[index];
+        if (rule->kind != type->kind) continue;
+        if (!rule->struct_name || (type->name && strcmp(rule->struct_name, type->name) == 0)) return rule;
+    }
+    return NULL;
+}
+
+void type_length_accepted_list(char *buffer, size_t buffer_size) {
+    size_t used = 0;
+    buffer[0] = '\0';
+    for (size_t index = 0; index < LENGTH_RULE_COUNT && used < buffer_size; index++) {
+        const char *separator = index == 0 ? "" : (index == LENGTH_RULE_COUNT - 1 ? ", and " : ", ");
+        used += (size_t)snprintf(buffer + used, buffer_size - used, "%s%s", separator, length_rules[index].label);
+    }
+}

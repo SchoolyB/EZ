@@ -1,7 +1,7 @@
 /*
  * strings_builder_c.gray - Integration test for strings.Builder (compiler)
  * Covers: builder, builder_append, builder_append_char, builder_append_bytes,
- * builder_append_i64, builder_append_line, builder_len, builder_clear, build.
+ * builder_append_i64, builder_append_line, len, builder_clear, build.
  */
 
 import @strings
@@ -41,7 +41,7 @@ do main() {
     // -- empty builder --
     mut e Builder = strings.builder()
     check("empty build", strings.build(e), "", passed, failed)
-    check_int("empty len", strings.builder_len(e), 0, passed, failed)
+    check_int("empty len", len(e), 0, passed, failed)
 
     // -- append strings --
     mut b Builder = strings.builder()
@@ -49,7 +49,7 @@ do main() {
     strings.builder_append(b, ", ")
     strings.builder_append(b, "world")
     check("append build", strings.build(b), "Hello, world", passed, failed)
-    check_int("append len", strings.builder_len(b), 12, passed, failed)
+    check_int("append len", len(b), 12, passed, failed)
 
     // -- build is repeatable and non-destructive --
     strings.builder_append(b, "!")
@@ -61,7 +61,7 @@ do main() {
     strings.builder_append_char(c, 'é')
     strings.builder_append_char(c, '!')
     check("append_char build", strings.build(c), "Aé!", passed, failed)
-    check_int("append_char u8 len", strings.builder_len(c), 4, passed, failed)
+    check_int("append_char u8 len", len(c), 4, passed, failed)
 
     // -- append_int --
     mut n Builder = strings.builder()
@@ -87,7 +87,7 @@ do main() {
     mut r Builder = strings.builder()
     strings.builder_append(r, "discard me")
     strings.builder_clear(r)
-    check_int("len after clear", strings.builder_len(r), 0, passed, failed)
+    check_int("len after clear", len(r), 0, passed, failed)
     strings.builder_append(r, "fresh")
     check("build after clear", strings.build(r), "fresh", passed, failed)
 
@@ -103,7 +103,7 @@ do main() {
     for i in range(0, 50) {
         strings.builder_append(g, "ab")
     }
-    check_int("reserve+grow len", strings.builder_len(g), 100, passed, failed)
+    check_int("reserve+grow len", len(g), 100, passed, failed)
     check("reserve+grow head", strings.slice(strings.build(g), 0, 6), "ababab", passed, failed)
 
     println("Results: ${passed} passed, ${failed} failed")

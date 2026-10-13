@@ -1322,6 +1322,25 @@ static inline bool GrayRange_i64_contains(GrayRange_i64 range, int64_t value, co
            ((uint64_t)range.start - (uint64_t)value) % (0 - (uint64_t)range.step) == 0;
 }
 
+/* The iteration count in closed form. The distance is taken in uint64_t so it
+ * cannot overflow; a count above INT64_MAX panics. */
+static inline int64_t GrayRange_i64_len(GrayRange_i64 range, const char *file, int line) {
+    if (range.step == 0) gray_panic_code_at(file, line, "P0090", "range step cannot be zero");
+    uint64_t distance, stride;
+    if (range.step > 0) {
+        if (range.start >= range.stop) return 0;
+        distance = (uint64_t)range.stop - (uint64_t)range.start;
+        stride = (uint64_t)range.step;
+    } else {
+        if (range.start <= range.stop) return 0;
+        distance = (uint64_t)range.start - (uint64_t)range.stop;
+        stride = 0 - (uint64_t)range.step;
+    }
+    uint64_t count = (distance - 1) / stride + 1;
+    if (count > (uint64_t)INT64_MAX) gray_panic_code_at(file, line, "P0155", "len() of a range exceeds the largest i64");
+    return (int64_t)count;
+}
+
 #define GRAY_DEFINE_WIDE_RANGE(WIDE) \
 typedef struct { gray_##WIDE start, stop, step; } GrayRange_##WIDE; \
 static inline bool GrayRange_##WIDE##_has_zero_step(GrayRange_##WIDE range) { \
@@ -1337,6 +1356,22 @@ static inline bool GrayRange_##WIDE##_contains(GrayRange_##WIDE range, gray_##WI
         ? gray_##WIDE##_ge(value, range.start) && gray_##WIDE##_lt(value, range.stop) \
         : gray_##WIDE##_le(value, range.start) && gray_##WIDE##_gt(value, range.stop); \
     return is_inside && gray_##WIDE##_eq(gray_##WIDE##_mod(gray_##WIDE##_sub(value, range.start), range.step, file, line), zero); \
+} \
+static inline int64_t GrayRange_##WIDE##_len(GrayRange_##WIDE range, const char *file, int line) { \
+    gray_##WIDE zero = gray_##WIDE##_from_u64(0); \
+    gray_##WIDE one = gray_##WIDE##_from_u64(1); \
+    gray_##WIDE quotient; \
+    if (gray_##WIDE##_eq(range.step, zero)) gray_panic_code_at(file, line, "P0090", "range step cannot be zero"); \
+    if (gray_##WIDE##_gt(range.step, zero)) { \
+        if (gray_##WIDE##_ge(range.start, range.stop)) return 0; \
+        quotient = gray_##WIDE##_div(gray_##WIDE##_sub_checked(gray_##WIDE##_sub_checked(range.stop, range.start, file, line), one, file, line), range.step, file, line); \
+    } else { \
+        if (gray_##WIDE##_le(range.start, range.stop)) return 0; \
+        quotient = gray_##WIDE##_div(gray_##WIDE##_add(gray_##WIDE##_sub_checked(range.stop, range.start, file, line), one), range.step, file, line); \
+    } \
+    if (gray_##WIDE##_ge(quotient, gray_##WIDE##_from_u64((uint64_t)INT64_MAX))) \
+        gray_panic_code_at(file, line, "P0155", "len() of a range exceeds the largest i64"); \
+    return gray_##WIDE##_to_i64(quotient, file, line) + 1; \
 }
 
 GRAY_DEFINE_WIDE_RANGE(i128)

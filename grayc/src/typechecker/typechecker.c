@@ -3457,7 +3457,6 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"strings", "builder_append_i64",  2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_BUILDER}, {1, EXPECTED_ARGUMENT_I64}}, "void"},
     {"strings", "builder_append_line", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_BUILDER}, {1, EXPECTED_ARGUMENT_STRING}}, "void"},
     {"strings", "builder_clear",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_BUILDER}}, "void"},
-    {"strings", "builder_len",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_BUILDER}}, "i64"},
     {"strings", "builder_reserve",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_BUILDER}, {1, EXPECTED_ARGUMENT_I64}}, "void"},
     {"strings", "capitalize",    1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"strings", "char_at",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}}, "char"},
@@ -8820,13 +8819,8 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             result = type_pointer(pointee_name);
         }
     } else if (strcmp(function_name, "len") == 0) {
-        /* E7015 (): len() only works on string / array / map.
-         * Codegen blindly emits '.len' on the receiver, which
-         * works for the runtime's GrayArray / GrayMap / GrayString
-         * structs but bombs with a raw clang "no member 'len'"
-         * on anything else; structs, enums, primitives,
-         * pointers, func refs, errors. Validate the argument
-         * type here instead of letting it leak. */
+        /* E7015: len() works only on the types in the length table; codegen
+         * emits from the same row, so anything else would leak a C error. */
         if (node->data.call.argument_count != 1) {
             typechecker_error_arity(checker, node, "len", "1", node->data.call.argument_count);
         } else {
@@ -8834,9 +8828,15 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             reject_void_in_context(checker, node->data.call.arguments[0], first_argument_type,
                 "'len()' argument");
             if (first_argument_type && first_argument_type->kind != TYPE_KIND_UNKNOWN && first_argument_type->kind != TYPE_KIND_VOID &&
-                first_argument_type->kind != TYPE_KIND_STRING && first_argument_type->kind != TYPE_KIND_ARRAY &&
-                first_argument_type->kind != TYPE_KIND_MAP) {
-                NODE_ERROR_FORMATTED(checker, node->data.call.arguments[0], "E7015", type_name(first_argument_type));
+                !type_length_rule(first_argument_type)) {
+                char accepted[MESSAGE_BUFFER_SIZE];
+                char message[MESSAGE_BUFFER_SIZE];
+                type_length_accepted_list(accepted, sizeof(accepted));
+                snprintf(message, sizeof(message), "'len()' is not supported for type '%s'; 'len()' works on %s types",
+                    type_name(first_argument_type), accepted);
+                diagnostic_error_message(checker->diagnostics, "E7015", arena_copy_string(checker->arena, message),
+                    NODE_FILE(checker, node->data.call.arguments[0]),
+                    node->data.call.arguments[0]->token.line, node->data.call.arguments[0]->token.column, 0);
             }
         }
         result = &TYPE_I64;
@@ -9956,8 +9956,9 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
     bool is_reference_call = (node->data.call.function &&
         node->data.call.function->kind == NODE_LABEL &&
         strcmp(node->data.call.function->data.label.value, "ref") == 0);
-    bool is_type_of_call = node->data.call.function && node->data.call.function->kind == NODE_LABEL &&
-        strcmp(node->data.call.function->data.label.value, "type_of") == 0;
+    bool takes_range_argument = node->data.call.function && node->data.call.function->kind == NODE_LABEL &&
+        (strcmp(node->data.call.function->data.label.value, "type_of") == 0 ||
+         strcmp(node->data.call.function->data.label.value, "len") == 0);
     int callee_leading_parameters = 0;
     AstNode *callee_declaration = callee_function_declaration(checker, node, &callee_leading_parameters);
     for (int i = 0; i < node->data.call.argument_count; i++) {
@@ -9988,7 +9989,7 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
             continue;
         if (is_printf_values_literal(checker, node, i))
             continue;
-        if (is_type_of_call) allow_range_use(checker, node->data.call.arguments[i]);
+        if (takes_range_argument) allow_range_use(checker, node->data.call.arguments[i]);
         resolve_expression(checker, node->data.call.arguments[i]);
 
         /* E3040: a multi-return call cannot appear in single-value

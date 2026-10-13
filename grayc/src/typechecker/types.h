@@ -101,6 +101,25 @@ bool type_is_numeric(GrayType *type);
 bool type_is_integer(GrayType *type);
 const char *type_name(GrayType *type);
 
+/* The one table of types len() accepts. The typechecker accepts exactly these,
+ * codegen emits `<argument>.<c_member>` or `<c_function>(<argument>)` from the
+ * same row, and E7015 names them. A row with neither c_member nor c_function
+ * is a range, whose helper is named after the range's C type. A new type opts
+ * in with one row. struct_name is set when the row matches a named stdlib type
+ * rather than a whole kind. */
+typedef struct {
+    TypeKind kind;
+    const char *struct_name;
+    const char *label;
+    const char *c_member;
+    const char *c_function;
+} LengthRule;
+
+const LengthRule *type_length_rule(GrayType *type);
+
+/* Writes "string, array, map, Channel, Builder, and range" into buffer. */
+void type_length_accepted_list(char *buffer, size_t buffer_size);
+
 /* How a value of one type converts to another. This and
  * type_binary_result() are the only definition of the sized-type rules. */
 typedef enum {

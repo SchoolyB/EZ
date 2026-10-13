@@ -6014,14 +6014,19 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
     if (strcmp(function_name, "len") == 0 && node->data.call.argument_count == 1) {
         AstNode *argument = node->data.call.arguments[0];
         GrayType *type = codegen_type_of(codegen, argument);
-        if (type && type->kind == TYPE_KIND_MAP) {
-            emit(codegen, "(int64_t)(");
+        const LengthRule *rule = type ? type_length_rule(type) : NULL;
+        if (rule && rule->kind == TYPE_KIND_RANGE) {
+            emit_formatted(codegen, "%s_len(", gray_type_to_c_codegen(codegen, type->name));
             emit_expression(codegen, argument);
-            emit(codegen, ").count");
+            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        } else if (rule && rule->c_function) {
+            emit_formatted(codegen, "%s(", rule->c_function);
+            emit_expression(codegen, argument);
+            emit(codegen, ")");
         } else {
             emit(codegen, "(int64_t)(");
             emit_expression(codegen, argument);
-            emit(codegen, ").len");
+            emit_formatted(codegen, ").%s", rule ? rule->c_member : "len");
         }
         return true;
     }

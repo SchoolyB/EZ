@@ -126,3 +126,13 @@ void gray_channels_close(GrayChannel handle) {
     pthread_cond_broadcast(&channel->not_empty);
     pthread_mutex_unlock(&channel->mutex);
 }
+
+int64_t gray_channels_len(GrayChannel handle) {
+    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
+    if (!channel) return 0;
+
+    pthread_mutex_lock(&channel->mutex);
+    int64_t buffered = channel->count;
+    pthread_mutex_unlock(&channel->mutex);
+    return buffered;
+}
