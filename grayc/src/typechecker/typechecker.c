@@ -13731,6 +13731,20 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
         NODE_FILE(checker, node), node->token.line, node->token.column);
     /* E3045: or_return / or_panic / or_default on non-error-returning function */
     if (strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR, sizeof(GRAY_SYNTHETIC_OR) - 1) == 0 &&
+        node->data.variable_declaration.value && node->data.variable_declaration.value->kind != NODE_CALL_EXPRESSION) {
+        const char *temporary_name = node->data.variable_declaration.name;
+        const char *keyword = strncmp(temporary_name, GRAY_SYNTHETIC_OR_PANIC, sizeof(GRAY_SYNTHETIC_OR_PANIC) - 1) == 0 ? "or_panic"
+            : strncmp(temporary_name, GRAY_SYNTHETIC_OR_DEFAULT, sizeof(GRAY_SYNTHETIC_OR_DEFAULT) - 1) == 0 ? "or_default"
+            : "or_return";
+        char message[MESSAGE_BUFFER_SIZE];
+        snprintf(message, sizeof(message),
+            "'%s' requires a function that returns (T, Error); the operand is not a function call", keyword);
+        diagnostic_error_message(checker->diagnostics, "E3045", arena_copy_string(checker->arena, message),
+            NODE_FILE(checker, node->data.variable_declaration.value),
+            node->data.variable_declaration.value->token.line,
+            node->data.variable_declaration.value->token.column, 0);
+    }
+    if (strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR, sizeof(GRAY_SYNTHETIC_OR) - 1) == 0 &&
         node->data.variable_declaration.value && node->data.variable_declaration.value->kind == NODE_CALL_EXPRESSION) {
         AstNode *call_function = node->data.variable_declaration.value->data.call.function;
         const char *call_name = NULL;
