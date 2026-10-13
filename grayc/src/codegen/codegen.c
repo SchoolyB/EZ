@@ -14501,6 +14501,15 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
         /* --- parse: JSON string → struct --- */
         emit_formatted(codegen, "static GrayStruct_%s gray_json_parse_%s(GrayArena *arena, GrayString text) {\n", struct_name, struct_name);
         emit_formatted(codegen, "    GrayStruct_%s _r = {0};\n", struct_name);
+        /* A field the JSON omits keeps its zero value, which for an enum is
+         * its default variant, not C's all-zero. */
+        for (int j = 0; j < field_count; j++) {
+            StructField *field = &statement->data.struct_declaration.fields[j];
+            const char *field_enum_name = codegen_resolve_type(codegen, field->type_name);
+            const char *default_variant = codegen_enum_default_variant(codegen, field_enum_name);
+            if (default_variant)
+                emit_formatted(codegen, "    _r.%s = GrayEnum_%s_%s;\n", sanitize_name(field->name), field_enum_name, default_variant);
+        }
         emit_formatted(codegen, "    GrayMap _q;\n");
         emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q, \"%s\", %d);\n", codegen->file, statement->token.line);
         for (int j = 0; j < field_count; j++) {

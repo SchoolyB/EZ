@@ -1,0 +1,37 @@
+import @json
+
+const Kind enum {
+    ALPHA = "alpha"
+    BETA = "beta"
+}
+
+#json
+const Wrapper struct {
+    kind Kind
+    count i64
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut parsed Wrapper = json.parse("{\"count\":1}")
+    if parsed.kind == Kind.ALPHA && parsed.count == 1 {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    mut again Wrapper = json.parse(json.encode(parsed))
+    if again.kind == Kind.ALPHA {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if failed == 0 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
