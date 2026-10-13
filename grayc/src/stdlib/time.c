@@ -284,10 +284,53 @@ GrayString gray_time_format_duration(GrayArena *arena, int64_t seconds) {
 
 int64_t gray_time_add_days(int64_t timestamp, int64_t days)       { return gray_add_check(timestamp, gray_mul_check(days, SECONDS_PER_DAY, __FILE__, __LINE__), __FILE__, __LINE__); }
 int64_t gray_time_add_hours(int64_t timestamp, int64_t hours)     { return gray_add_check(timestamp, gray_mul_check(hours, SECONDS_PER_HOUR, __FILE__, __LINE__), __FILE__, __LINE__); }
+int64_t gray_time_add_minutes(int64_t timestamp, int64_t minutes) { return gray_add_check(timestamp, gray_mul_check(minutes, SECONDS_PER_MINUTE, __FILE__, __LINE__), __FILE__, __LINE__); }
 int64_t gray_time_add_seconds(int64_t timestamp, int64_t seconds) { return gray_add_check(timestamp, seconds, __FILE__, __LINE__); }
 
 int64_t gray_time_start_of_day(int64_t timestamp) { return gray_mul_check(time_floor_divide(timestamp, SECONDS_PER_DAY), SECONDS_PER_DAY, __FILE__, __LINE__); }
 int64_t gray_time_end_of_day(int64_t timestamp)   { return gray_add_check(gray_time_start_of_day(timestamp), SECONDS_PER_DAY - 1, __FILE__, __LINE__); }
+
+/* Seconds into the day of `timestamp`, 0..86399. */
+static int64_t time_seconds_into_day(int64_t timestamp) {
+    return timestamp - time_floor_divide(timestamp, SECONDS_PER_DAY) * SECONDS_PER_DAY;
+}
+
+/* Seconds at 00:00:00 UTC on the first day of the month `month_index` counts
+ * from year 0 (year * 12 + month - 1). The year-length product is the range
+ * guard: it overflows, and panics, exactly when the date is past i64 seconds. */
+static int64_t time_start_of_month_index(int64_t month_index) {
+    int64_t year = time_floor_divide(month_index, 12);
+    int month = (int)(month_index - year * 12) + 1;
+    gray_mul_check(year, 31556952, __FILE__, __LINE__);
+    return gray_mul_check(gray_days_from_civil(year, month, 1), SECONDS_PER_DAY, __FILE__, __LINE__);
+}
+
+static int64_t time_month_index(int64_t timestamp) {
+    struct tm *parts = get_time_parts(timestamp);
+    return (int64_t)(parts->tm_year + 1900) * 12 + parts->tm_mon;
+}
+
+int64_t gray_time_start_of_month(int64_t timestamp) {
+    return time_start_of_month_index(time_month_index(timestamp));
+}
+
+int64_t gray_time_end_of_month(int64_t timestamp) {
+    return gray_add_check(time_start_of_month_index(time_month_index(timestamp) + 1), -1, __FILE__, __LINE__);
+}
+
+int64_t gray_time_add_months(int64_t timestamp, int64_t months) {
+    struct tm *parts = get_time_parts(timestamp);
+    int64_t month_index = gray_add_check((int64_t)(parts->tm_year + 1900) * 12 + parts->tm_mon, months, __FILE__, __LINE__);
+    int64_t year = time_floor_divide(month_index, 12);
+    int month = (int)(month_index - year * 12) + 1;
+    int day = parts->tm_mday;
+    int last_day = (int)gray_time_days_in_month(year, month);
+    if (day > last_day) day = last_day;
+    gray_mul_check(year, 31556952, __FILE__, __LINE__);
+    int64_t days = gray_days_from_civil(year, month, day);
+    return gray_add_check(gray_mul_check(days, SECONDS_PER_DAY, __FILE__, __LINE__),
+                          time_seconds_into_day(timestamp), __FILE__, __LINE__);
+}
 
 int64_t gray_time_days_in_month(int64_t year, int64_t month) {
     if (month < 1 || month > 12) {

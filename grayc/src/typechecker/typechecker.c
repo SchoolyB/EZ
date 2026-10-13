@@ -3512,6 +3512,8 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"threads", "yield",        0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"void"},
     /* time */
     {"time", "add_days",    2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
+    {"time", "add_minutes", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
+    {"time", "add_months",  2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "add_hours",   2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "add_seconds", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "date",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},
@@ -3520,6 +3522,8 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"time", "days_in_month", 2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "diff",       2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_I64}, {1, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "elapsed_ms", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
+    {"time", "end_of_month", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
+    {"time", "start_of_month", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "end_of_day", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"time", "format",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_I64}}, "string"},
     {"time", "format_duration", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "string"},

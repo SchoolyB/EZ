@@ -368,6 +368,31 @@ int64_t gray_time_add_days(int64_t timestamp, int64_t days);
  */
 int64_t gray_time_add_hours(int64_t timestamp, int64_t hours);
 
+/*@man add_minutes
+ *@module time
+ *@group Arithmetic
+ *@sig add_minutes(timestamp i64, n i64) -> i64
+ *@desc Returns timestamp shifted by n minutes (n may be negative).
+ *@example
+ *   import @time
+ *   mut later i64 = time.add_minutes(time.now(), 90)
+ *@end
+ */
+int64_t gray_time_add_minutes(int64_t timestamp, int64_t minutes);
+
+/*@man add_months
+ *@module time
+ *@group Arithmetic
+ *@sig add_months(timestamp i64, n i64) -> i64
+ *@desc Returns timestamp shifted by n calendar months in UTC (n may be negative), carrying across year boundaries. The day of month and the time of day are kept; if the target month is shorter the day clamps to its last day, so Jan 31 plus 1 month is Feb 28 (Feb 29 in a leap year). Panics on arithmetic overflow.
+ *@example
+ *   import @time
+ *   mut t, _ = time.from_parts(2026, 1, 31, 9, 30, 0)
+ *   println(time.date(time.add_months(t, 1)))   // 2026-02-28
+ *@end
+ */
+int64_t gray_time_add_months(int64_t timestamp, int64_t months);
+
 /*@man add_seconds
  *@module time
  *@group Arithmetic
@@ -403,6 +428,30 @@ int64_t gray_time_start_of_day(int64_t timestamp);
  *@end
  */
 int64_t gray_time_end_of_day(int64_t timestamp);
+
+/*@man start_of_month
+ *@module time
+ *@group Arithmetic
+ *@sig start_of_month(timestamp i64) -> i64
+ *@desc Returns the Unix timestamp of 00:00:00 UTC on the first day of the month containing timestamp.
+ *@example
+ *   import @time
+ *   mut first i64 = time.start_of_month(time.now())
+ *@end
+ */
+int64_t gray_time_start_of_month(int64_t timestamp);
+
+/*@man end_of_month
+ *@module time
+ *@group Arithmetic
+ *@sig end_of_month(timestamp i64) -> i64
+ *@desc Returns the Unix timestamp of 23:59:59 UTC on the last day of the month containing timestamp, leap-year aware (the last whole second, like end_of_day).
+ *@example
+ *   import @time
+ *   mut last i64 = time.end_of_month(time.now())
+ *@end
+ */
+int64_t gray_time_end_of_month(int64_t timestamp);
 
 /*@man days_in_month
  *@module time

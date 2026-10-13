@@ -3792,9 +3792,13 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `since` | `(t i64) -> i64` | Seconds elapsed from t to now; equivalent to `diff(t, now())` |
 | `add_days` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` days (`n` may be negative); pure Unix arithmetic, no calendar/DST logic |
 | `add_hours` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` hours |
+| `add_minutes` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` minutes |
+| `add_months` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` calendar months (UTC); day and time of day are kept, and the day clamps to the target month's last day (Jan 31 + 1 month is Feb 28, or Feb 29 in a leap year); panics on overflow |
 | `add_seconds` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` seconds |
 | `start_of_day` | `(timestamp i64) -> i64` | Unix timestamp of `00:00:00` UTC on the same day |
 | `end_of_day` | `(timestamp i64) -> i64` | Unix timestamp of `23:59:59` UTC on the same day (`start_of_day + 86399`) |
+| `start_of_month` | `(timestamp i64) -> i64` | Unix timestamp of `00:00:00` UTC on the first day of the same month |
+| `end_of_month` | `(timestamp i64) -> i64` | Unix timestamp of `23:59:59` UTC on the last day of the same month; leap-year aware |
 
 #### Performance Timing
 
