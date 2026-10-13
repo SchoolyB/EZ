@@ -7684,9 +7684,11 @@ static bool emit_json_call(CodeGen *codegen, AstNode *node, const char *function
             emit_expression(codegen, argument);
             emit(codegen, "); gray_string_new(gray_default_arena, _jbuf, (int32_t)strlen(_jbuf)); })");
         } else if (argument_type && argument_type->kind == TYPE_KIND_FLOATING_POINT) {
-            emit(codegen, "({ char _jbuf[64]; snprintf(_jbuf, sizeof(_jbuf), \"%g\", (double)");
+            bool is_f32 = argument_type->name && strcmp(argument_type->name, "f32") == 0;
+            emit_formatted(codegen, "({ %s _jv = ", is_f32 ? "float" : "double");
             emit_expression(codegen, argument);
-            emit(codegen, "); gray_string_new(gray_default_arena, _jbuf, (int32_t)strlen(_jbuf)); })");
+            emit_formatted(codegen, "; gray_json_number_text(gray_default_arena, %s, &_jv); })",
+                is_f32 ? "GRAY_ELEM_F32" : "GRAY_ELEM_F64");
         } else if (argument_type && argument_type->kind == TYPE_KIND_BOOL) {
             emit(codegen, "(");
             emit_expression(codegen, argument);

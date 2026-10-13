@@ -54,6 +54,17 @@ do main() {
         failed += 1
     }
 
+    mut scalar64 f64 = 0.30000000000000004
+    mut scalar32 f32 = 16777216.0
+    if json.encode(scalar64) == "0.30000000000000004" && json.encode(scalar32) == "16777216" &&
+        json.encode(123456789.123) == "123456789.123" {
+        println("  [PASS] bare f32 and f64 arguments keep every digit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] scalar arguments: ${json.encode(scalar64)} ${json.encode(scalar32)}")
+        failed += 1
+    }
+
     if json.encode(0.1) == "0.1" {
         println("  [PASS] a short value keeps its short form")
         passed += 1
