@@ -1,0 +1,73 @@
+/*
+ * maps_get_or_insert_copies_composite_default.gray - maps.get_or_insert()
+ * stores and returns its own copy of a composite default, so later writes
+ * through the caller's variable or the returned value never reach the map.
+ */
+
+import @maps
+
+const Bag struct {
+    items [i64]
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut source [i64] = {1, 2}
+    mut array_map map[string:[i64]] = {:}
+    mut got [i64] = maps.get_or_insert(array_map, "x", source)
+    source[0] = 100
+    got[1] = 77
+    if array_map["x"][0] == 1 && array_map["x"][1] == 2 {
+        println("  [PASS] array default is copied on store and on return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array default: ${array_map["x"]}")
+        failed += 1
+    }
+
+    mut bag Bag = Bag{items: {1, 2}}
+    mut bags map[string:Bag] = {:}
+    mut bag_got Bag = maps.get_or_insert(bags, "x", bag)
+    bag.items[0] = 100
+    bag_got.items[1] = 77
+    if bags["x"].items[0] == 1 && bags["x"].items[1] == 2 {
+        println("  [PASS] struct default is copied on store and on return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct default: ${bags["x"].items}")
+        failed += 1
+    }
+
+    mut inner map[string:i64] = {"a": 1}
+    mut nested map[string:map[string:i64]] = {:}
+    mut inner_got map[string:i64] = maps.get_or_insert(nested, "x", inner)
+    inner["a"] = 100
+    inner_got["b"] = 2
+    if nested["x"]["a"] == 1 && len(nested["x"]) == 1 {
+        println("  [PASS] map default is copied on store and on return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map default: ${nested["x"]}")
+        failed += 1
+    }
+
+    mut hit [i64] = maps.get_or_insert(array_map, "x", {9})
+    hit[0] = 50
+    if array_map["x"][0] == 1 {
+        println("  [PASS] present key returns a copy of the stored value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] present key: ${array_map["x"]}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

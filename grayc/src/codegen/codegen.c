@@ -7026,11 +7026,15 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
     const char *keyed_c_key = gray_map_element_c_type(codegen, keyed_key_type);
     const char *keyed_c_value = gray_map_element_c_type(codegen, keyed_value_type);
     if (strcmp(function_name, "get_or_insert") == 0 && node->data.call.argument_count == 3) {
-        /* The default is stored under the key when it is absent; a map written
-         * inside a loop keeps its entries in the outer arena, like an index
-         * assignment does. */
+        /* The default is stored under the key when it is absent. The stored
+         * value and the returned value are each their own copy of a composite
+         * default, as an index assignment would make; a map written inside a
+         * loop keeps its entries in the outer arena. */
         bool in_loop = codegen->loop_scope_depth > 0;
         const char *store_arena = in_loop ? "_gray_outer_arena" : "gray_default_arena";
+        bool copy_stored = in_loop ? type_needs_deep_copy(codegen, keyed_value_type)
+                                   : type_shares_storage(codegen, keyed_value_type);
+        bool copy_returned = type_shares_storage(codegen, keyed_value_type);
         emit_formatted(codegen, "({ %s _ik = ", keyed_c_key);
         emit_map_slot_value(codegen, keyed_key_type, node->data.call.arguments[1]);
         emit_formatted(codegen, "; %s _id = ", keyed_c_value);
@@ -7038,13 +7042,23 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         emit(codegen, "; GrayMap *_im = ");
         emit_address_of(codegen, node->data.call.arguments[0]);
         emit(codegen, "; void *_ip = gray_map_get(_im, &_ik); if (!_ip) { ");
-        if (in_loop && type_needs_deep_copy(codegen, keyed_value_type)) {
-            emit_formatted(codegen, "{ GrayArena *_esc = gray_default_arena; gray_default_arena = %s; _id = ", store_arena);
+        if (copy_stored) {
+            emit_formatted(codegen, "GrayArena *_esc = gray_default_arena; gray_default_arena = %s; "
+                "__typeof__(_id) _is = ", store_arena);
             emit_value_deep_copy(codegen, keyed_value_type, "_id");
-            emit(codegen, "; gray_default_arena = _esc; } ");
+            emit_formatted(codegen, "; gray_default_arena = _esc; gray_map_set(%s, _im, &_ik, &_is, \"%s\", %d); } ",
+                store_arena, codegen->file, node->token.line);
+        } else {
+            emit_formatted(codegen, "gray_map_set(%s, _im, &_ik, &_id, \"%s\", %d); } ",
+                store_arena, codegen->file, node->token.line);
         }
-        emit_formatted(codegen, "gray_map_set(%s, _im, &_ik, &_id, \"%s\", %d); } ", store_arena, codegen->file, node->token.line);
-        emit(codegen, "_ip ? *(__typeof__(_id) *)_ip : _id; })");
+        emit(codegen, "__typeof__(_id) _ir = _ip ? *(__typeof__(_id) *)_ip : _id; ");
+        if (copy_returned) {
+            emit(codegen, "_ir = ");
+            emit_value_deep_copy(codegen, keyed_value_type, "_ir");
+            emit(codegen, "; ");
+        }
+        emit(codegen, "_ir; })");
         return true;
     }
     if (strcmp(function_name, "get_and_remove") == 0 && node->data.call.argument_count == 2) {
