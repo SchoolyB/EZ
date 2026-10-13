@@ -39,11 +39,8 @@ static bool parse_url(const char *url_text, char *host, size_t host_size,
         return false;
     }
 
-    /* Reject empty host or host containing characters that would break HTTP headers */
+    /* Reject an empty host */
     if (*cursor == '\0' || *cursor == '/' || *cursor == ':') return false;
-    for (const char *scan_cursor = cursor; *scan_cursor && *scan_cursor != '/' && *scan_cursor != ':'; scan_cursor++) {
-        if (*scan_cursor == ' ' || *scan_cursor == '\t' || *scan_cursor == '\r' || *scan_cursor == '\n') return false;
-    }
 
     /* Extract host[:port] */
     const char *slash = strchr(cursor, '/');
@@ -65,15 +62,11 @@ static bool parse_url(const char *url_text, char *host, size_t host_size,
         *port = GRAY_HTTP_DEFAULT_PORT;
     }
 
-    /* Path — reject CR/LF to prevent header injection via request line */
     if (slash) {
         size_t path_length = strlen(slash);
         if (path_length >= path_size) path_length = path_size - 1;
         memcpy(path, slash, path_length);
         path[path_length] = '\0';
-        for (size_t i = 0; i < path_length; i++) {
-            if (path[i] == '\r' || path[i] == '\n') return false;
-        }
     } else {
         path[0] = '/';
         path[1] = '\0';
@@ -279,6 +272,14 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     if (strncmp(url_buffer, "https://", 8) == 0) {
         return request_failure(arena, error_response, error_code, GRAY_ERR_Unsupported,
             "https:// is not supported; use http://");
+    }
+
+    /* A space or control byte would break the request line or inject headers. */
+    for (const char *scan_cursor = url_buffer; *scan_cursor; scan_cursor++) {
+        unsigned char byte = (unsigned char)*scan_cursor;
+        if (byte <= ' ' || byte == 0x7f)
+            return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
+                "invalid URL: contains a space or control character");
     }
 
     char host[GRAY_HTTP_HOST_BUFFER_SIZE], path[GRAY_HTTP_PATH_BUFFER_SIZE];
