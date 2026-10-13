@@ -7281,7 +7281,7 @@ static GrayType *resolve_fmt_call(TypeChecker *checker, AstNode *node, const cha
 
 /* E5065: raw(), the whole mem and threads modules, and extern calls are
  * Grayscale's unsafe opt-outs; each must sit inside an `unsafe` block or an
- * `unsafe do` function. `operation` is the name as the user wrote it. */
+ * unsafe function. `operation` is the name as the user wrote it. */
 static void require_unsafe_context(TypeChecker *checker, AstNode *node, const char *operation) {
     if (checker->unsafe_depth > 0) return;
     NODE_ERROR_FORMATTED(checker, node, "E5065", operation);
@@ -13387,7 +13387,7 @@ static void check_or_default_fallbacks(TypeChecker *checker, AstNode *block) {
 
 static void check_block_statements(TypeChecker *checker, AstNode *node);
 
-/* An `unsafe` block, or the body of an `unsafe do` function, permits the
+/* An `unsafe` block, or the body of an unsafe function, permits the
  * unsafe primitives for everything checked inside it. */
 static void check_block(TypeChecker *checker, AstNode *node) {
     if (!node || node->kind != NODE_BLOCK_STATEMENT) return;

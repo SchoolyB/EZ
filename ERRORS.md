@@ -366,7 +366,7 @@
 | `E5062` | arguments | default value for parameter '%s' has wrong type; expected %s, got %s |
 | `E5063` | arguments | 'to_char()' index %lld is out of bounds |
 | `E5064` | arguments | cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead |
-| `E5065` | usage | '%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe do' function |
+| `E5065` | usage | '%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no source files |
@@ -589,4 +589,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-13 01:29:39 UTC*
+*Generated on 2026-10-13 13:49:09 UTC*

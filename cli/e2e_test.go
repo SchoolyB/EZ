@@ -142,7 +142,7 @@ func TestE2E_Run_NativeCrashIsReported(t *testing.T) {
 	}
 	dir := t.TempDir()
 	src := filepath.Join(dir, "crash.gray")
-	os.WriteFile(src, []byte("extern import \"signal.h\"\n\ndo main() {\n    extern.raise(11)\n}\n"), 0644)
+	os.WriteFile(src, []byte("extern import \"signal.h\"\n\ndo main() {\n    unsafe {\n        extern.raise(11)\n    }\n}\n"), 0644)
 
 	_, stderr, code := runGray(t, src)
 	if code != 128+11 {

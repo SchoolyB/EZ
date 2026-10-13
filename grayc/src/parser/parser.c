@@ -3649,7 +3649,7 @@ static AstNode *parse_statement(Parser *parser) {
         return statement;
     }
     case TOKEN_UNSAFE: {
-        /* `unsafe { ... }` block or `unsafe do` function */
+        /* `unsafe { ... }` block or unsafe function */
         if (peek_token_is(parser, TOKEN_LEFT_BRACE)) {
             next_token(parser); /* now on '{' */
             AstNode *block = parse_block_statement(parser);

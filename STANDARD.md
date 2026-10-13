@@ -519,7 +519,7 @@ mut q ^i64 = raw(x)
 // q^ dereference has no nil-check — if q were nil, behavior is undefined
 ```
 
-`raw()` is considered unsafe and is intended for performance-critical code where nil checks are a measurable overhead and the programmer guarantees pointer validity. Prefer `addr()` in all other cases. `raw()` may only appear inside an `unsafe` block or an `unsafe do` function (see 11.7).
+`raw()` is considered unsafe and is intended for performance-critical code where nil checks are a measurable overhead and the programmer guarantees pointer validity. Prefer `addr()` in all other cases. `raw()` may only appear inside an `unsafe` block or an unsafe function (see 11.7).
 
 > 💡 **Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value, handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
 
@@ -2672,7 +2672,7 @@ if f != h { println("different") }  // different
 
 #### 7.6.6 Restrictions
 
-> 💡 **Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own `do` function if you need to pass them as a callback.
+> 💡 **Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own function if you need to pass them as a callback.
 
 | Operation | Result |
 |-----------|--------|
@@ -5026,7 +5026,7 @@ Grayscale is **memory safe by default**. ASBAM prevents common memory errors aut
 
 For programs that stay in the safe subset — no `@mem`, no `raw()`, no threading, no C interop — the pointer checker makes use-after-free a compile error, not a runtime hazard. `@mem`, `raw()`, threading, and `extern import` are Grayscale's explicit unsafe opt-outs; reaching for one of them is what puts memory safety back in the programmer's hands.
 
-**The `unsafe` marker.** The four opt-outs are lexically marked. `raw()`, every function of the `@mem` and `@threads` modules, and every `extern.` call is a compile error (E5065) unless it sits inside an `unsafe { ... }` block or an `unsafe do` function:
+**The `unsafe` marker.** The four opt-outs are lexically marked. `raw()`, every function of the `@mem` and `@threads` modules, and every `extern.` call is a compile error (E5065) unless it sits inside an `unsafe { ... }` block or an unsafe function:
 
 ```gray
 import @mem
@@ -5052,7 +5052,7 @@ private unsafe do bump(counter ^i64) {
 - `unsafe do` marks the whole function body. With `private`, the order is `private unsafe do`.
 - The marker sits where the unsafe surface is touched. A function that uses an unsafe primitive inside its own `unsafe` block or `unsafe do` body does not force its callers to open one.
 - `import @mem`, `import @threads`, and `extern import` stay legal at file scope; the error is raised at the call.
-- An `unsafe` block nested inside another `unsafe` block or `unsafe do` function is legal and redundant.
+- An `unsafe` block nested inside another `unsafe` block or unsafe function is legal and redundant.
 
 ### 11.8 Under the Hood
 

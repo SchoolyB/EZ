@@ -1,5 +1,5 @@
 /*
- * Error Test: E5065 - raw() outside an unsafe block or unsafe do function.
+ * Error Test: E5065 - raw() outside an unsafe block or unsafe function.
  */
 // expect-error: E5065
 // expect-error-count: 1

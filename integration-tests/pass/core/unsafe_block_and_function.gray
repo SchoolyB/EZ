@@ -1,6 +1,6 @@
 /*
- * Test: `unsafe { ... }` blocks and `unsafe do` functions permit raw() and
- * @mem, and a caller of an `unsafe do` function needs no marker of its own.
+ * Test: `unsafe { ... }` blocks and unsafe functions permit raw() and
+ * @mem, and a caller of an unsafe function needs no marker of its own.
  * The block is a real scope: a name declared inside does not leak out.
  */
 
