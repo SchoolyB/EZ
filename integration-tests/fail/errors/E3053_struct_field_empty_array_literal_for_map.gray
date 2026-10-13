@@ -1,0 +1,8 @@
+const Table struct {
+    counts map[string:i64]
+}
+
+do main() {
+    mut table = Table{counts: {}}
+    println("${len(table.counts)}")
+}

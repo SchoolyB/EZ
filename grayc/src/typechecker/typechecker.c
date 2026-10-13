@@ -11606,6 +11606,12 @@ static GrayType *resolve_struct_value(TypeChecker *checker, AstNode *node) {
             }
             if (!found) {
                 NODE_ERROR_FORMATTED(checker, node, "E3010", struct_name, field_name);
+            } else if (expected_type && expected_type->kind == TYPE_KIND_MAP &&
+                       node->data.struct_value.field_values[i]->kind == NODE_ARRAY_VALUE) {
+                AstNode *map_initializer = node->data.struct_value.field_values[i];
+                NODE_ERROR_FORMATTED_HELP(checker, map_initializer, "E3053",
+                    map_initializer->data.array_value.count == 0 ? "use '{:}' for an empty map" : "map literals use '{key: value, ...}' syntax",
+                    "a struct field", type_display_name(checker, expected_type), "an array literal");
             } else if (expected_type && value_type->kind != TYPE_KIND_UNKNOWN &&
                        expected_type->kind != TYPE_KIND_UNKNOWN &&
                        /* kinds differ, OR both are pointers to different types,
