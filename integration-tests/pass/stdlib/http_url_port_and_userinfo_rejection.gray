@@ -1,0 +1,24 @@
+import @http
+
+do main() {
+    mut headers map[string:string] = {:}
+    mut rejected i64 = 0
+
+    mut _, large_port_err = http.get("http://127.0.0.1:99999/", headers)
+    if large_port_err != nil && large_port_err.code == ErrorCode.InvalidInput { rejected += 1 }
+
+    mut _, zero_port_err = http.get("http://127.0.0.1:0/", headers)
+    if zero_port_err != nil && zero_port_err.code == ErrorCode.InvalidInput { rejected += 1 }
+
+    mut _, text_port_err = http.get("http://127.0.0.1:abc/", headers)
+    if text_port_err != nil && text_port_err.code == ErrorCode.InvalidInput { rejected += 1 }
+
+    mut _, userinfo_err = http.get("http://user:pass@127.0.0.1:18765/", headers)
+    if userinfo_err != nil && userinfo_err.code == ErrorCode.InvalidInput { rejected += 1 }
+
+    if rejected != 4 {
+        panic("expected 4 malformed URLs to be InvalidInput, got ${rejected}")
+    }
+
+    println("ALL TESTS PASSED")
+}

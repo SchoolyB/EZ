@@ -45,6 +45,12 @@ static bool parse_url(const char *url_text, char *host, size_t host_size,
     /* Extract host[:port] */
     const char *slash = strchr(cursor, '/');
     const char *colon = strchr(cursor, ':');
+    const char *authority_end = slash ? slash : cursor + strlen(cursor);
+
+    /* Userinfo (user:pass@host) is not supported. */
+    for (const char *scan_cursor = cursor; scan_cursor < authority_end; scan_cursor++) {
+        if (*scan_cursor == '@') return false;
+    }
 
     if (colon && (!slash || colon < slash)) {
         /* host:port */
@@ -52,7 +58,15 @@ static bool parse_url(const char *url_text, char *host, size_t host_size,
         if (host_length >= host_size) host_length = host_size - 1;
         memcpy(host, cursor, host_length);
         host[host_length] = '\0';
-        *port = atoi(colon + 1);
+        long port_value = 0;
+        if (colon + 1 == authority_end) return false;
+        for (const char *digit = colon + 1; digit < authority_end; digit++) {
+            if (*digit < '0' || *digit > '9') return false;
+            port_value = port_value * 10 + (*digit - '0');
+            if (port_value > 65535) return false;
+        }
+        if (port_value < 1) return false;
+        *port = (int)port_value;
     } else {
         /* host only */
         size_t host_length = slash ? (size_t)(slash - cursor) : strlen(cursor);
