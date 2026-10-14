@@ -174,7 +174,30 @@ GrayResult_i64 gray_time_from_parts_result(int64_t year, int64_t month, int64_t 
                             hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second, NULL};
 }
 
-int64_t gray_time_diff(int64_t start, int64_t end_index) { return gray_sub_check(end_index, start, __FILE__, __LINE__); }
+/* Checked i64 arithmetic that panics at the .gray call site, naming the
+ * time function whose result left the range. */
+static int64_t time_checked_add(const char *function_name, int64_t left, int64_t right) {
+    int64_t result;
+    if (__builtin_add_overflow(left, right, &result))
+        gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
+    return result;
+}
+
+static int64_t time_checked_sub(const char *function_name, int64_t left, int64_t right) {
+    int64_t result;
+    if (__builtin_sub_overflow(left, right, &result))
+        gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
+    return result;
+}
+
+static int64_t time_checked_mul(const char *function_name, int64_t left, int64_t right) {
+    int64_t result;
+    if (__builtin_mul_overflow(left, right, &result))
+        gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
+    return result;
+}
+
+int64_t gray_time_diff(int64_t start, int64_t end_index) { return time_checked_sub("diff", end_index, start); }
 
 int64_t gray_time_since(int64_t start) { return gray_time_diff(start, gray_time_now()); }
 
@@ -282,13 +305,17 @@ GrayString gray_time_format_duration(GrayArena *arena, int64_t seconds) {
     return gray_string_new(arena, buffer, position);
 }
 
-int64_t gray_time_add_days(int64_t timestamp, int64_t days)       { return gray_add_check(timestamp, gray_mul_check(days, SECONDS_PER_DAY, __FILE__, __LINE__), __FILE__, __LINE__); }
-int64_t gray_time_add_hours(int64_t timestamp, int64_t hours)     { return gray_add_check(timestamp, gray_mul_check(hours, SECONDS_PER_HOUR, __FILE__, __LINE__), __FILE__, __LINE__); }
-int64_t gray_time_add_minutes(int64_t timestamp, int64_t minutes) { return gray_add_check(timestamp, gray_mul_check(minutes, SECONDS_PER_MINUTE, __FILE__, __LINE__), __FILE__, __LINE__); }
-int64_t gray_time_add_seconds(int64_t timestamp, int64_t seconds) { return gray_add_check(timestamp, seconds, __FILE__, __LINE__); }
+int64_t gray_time_add_days(int64_t timestamp, int64_t days)       { return time_checked_add("add_days", timestamp, time_checked_mul("add_days", days, SECONDS_PER_DAY)); }
+int64_t gray_time_add_hours(int64_t timestamp, int64_t hours)     { return time_checked_add("add_hours", timestamp, time_checked_mul("add_hours", hours, SECONDS_PER_HOUR)); }
+int64_t gray_time_add_minutes(int64_t timestamp, int64_t minutes) { return time_checked_add("add_minutes", timestamp, time_checked_mul("add_minutes", minutes, SECONDS_PER_MINUTE)); }
+int64_t gray_time_add_seconds(int64_t timestamp, int64_t seconds) { return time_checked_add("add_seconds", timestamp, seconds); }
 
-int64_t gray_time_start_of_day(int64_t timestamp) { return gray_mul_check(time_floor_divide(timestamp, SECONDS_PER_DAY), SECONDS_PER_DAY, __FILE__, __LINE__); }
-int64_t gray_time_end_of_day(int64_t timestamp)   { return gray_add_check(gray_time_start_of_day(timestamp), SECONDS_PER_DAY - 1, __FILE__, __LINE__); }
+static int64_t time_start_of_day(const char *function_name, int64_t timestamp) {
+    return time_checked_mul(function_name, time_floor_divide(timestamp, SECONDS_PER_DAY), SECONDS_PER_DAY);
+}
+
+int64_t gray_time_start_of_day(int64_t timestamp) { return time_start_of_day("start_of_day", timestamp); }
+int64_t gray_time_end_of_day(int64_t timestamp)   { return time_checked_add("end_of_day", time_start_of_day("end_of_day", timestamp), SECONDS_PER_DAY - 1); }
 
 /* Seconds into the day of `timestamp`, 0..86399. */
 static int64_t time_seconds_into_day(int64_t timestamp) {
@@ -298,11 +325,11 @@ static int64_t time_seconds_into_day(int64_t timestamp) {
 /* Seconds at 00:00:00 UTC on the first day of the month `month_index` counts
  * from year 0 (year * 12 + month - 1). The year-length product is the range
  * guard: it overflows, and panics, exactly when the date is past i64 seconds. */
-static int64_t time_start_of_month_index(int64_t month_index) {
+static int64_t time_start_of_month_index(const char *function_name, int64_t month_index) {
     int64_t year = time_floor_divide(month_index, 12);
     int month = (int)(month_index - year * 12) + 1;
-    gray_mul_check(year, 31556952, __FILE__, __LINE__);
-    return gray_mul_check(gray_days_from_civil(year, month, 1), SECONDS_PER_DAY, __FILE__, __LINE__);
+    time_checked_mul(function_name, year, 31556952);
+    return time_checked_mul(function_name, gray_days_from_civil(year, month, 1), SECONDS_PER_DAY);
 }
 
 static int64_t time_month_index(int64_t timestamp) {
@@ -311,25 +338,25 @@ static int64_t time_month_index(int64_t timestamp) {
 }
 
 int64_t gray_time_start_of_month(int64_t timestamp) {
-    return time_start_of_month_index(time_month_index(timestamp));
+    return time_start_of_month_index("start_of_month", time_month_index(timestamp));
 }
 
 int64_t gray_time_end_of_month(int64_t timestamp) {
-    return gray_add_check(time_start_of_month_index(time_month_index(timestamp) + 1), -1, __FILE__, __LINE__);
+    return time_checked_add("end_of_month", time_start_of_month_index("end_of_month", time_month_index(timestamp) + 1), -1);
 }
 
 int64_t gray_time_add_months(int64_t timestamp, int64_t months) {
     struct tm *parts = get_time_parts(timestamp);
-    int64_t month_index = gray_add_check((int64_t)(parts->tm_year + 1900) * 12 + parts->tm_mon, months, __FILE__, __LINE__);
+    int64_t month_index = time_checked_add("add_months", (int64_t)(parts->tm_year + 1900) * 12 + parts->tm_mon, months);
     int64_t year = time_floor_divide(month_index, 12);
     int month = (int)(month_index - year * 12) + 1;
     int day = parts->tm_mday;
     int last_day = (int)gray_time_days_in_month(year, month);
     if (day > last_day) day = last_day;
-    gray_mul_check(year, 31556952, __FILE__, __LINE__);
+    time_checked_mul("add_months", year, 31556952);
     int64_t days = gray_days_from_civil(year, month, day);
-    return gray_add_check(gray_mul_check(days, SECONDS_PER_DAY, __FILE__, __LINE__),
-                          time_seconds_into_day(timestamp), __FILE__, __LINE__);
+    return time_checked_add("add_months", time_checked_mul("add_months", days, SECONDS_PER_DAY),
+                            time_seconds_into_day(timestamp));
 }
 
 int64_t gray_time_days_in_month(int64_t year, int64_t month) {

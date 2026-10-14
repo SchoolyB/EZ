@@ -572,7 +572,8 @@
     GRAY_PANIC("P0153", "random",     "random.roll_dice called with a count or sides less than 1") \
     GRAY_PANIC("P0154", "os",         "os.cpu_usage called with an interval_ms less than 1") \
     GRAY_PANIC("P0155", "runtime",    "len() of a range exceeds the largest i64") \
-    GRAY_PANIC("P0156", "random",     "random.roll_dice total exceeds the largest i64")
+    GRAY_PANIC("P0156", "random",     "random.roll_dice total exceeds the largest i64") \
+    GRAY_PANIC("P0157", "time",       "time function result exceeds the range of i64")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \
