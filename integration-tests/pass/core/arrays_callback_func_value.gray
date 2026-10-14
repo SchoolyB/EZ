@@ -1,0 +1,52 @@
+import @arrays
+
+const Holder struct {
+    cmp func(i64, i64) -> bool
+}
+
+do lt(a i64, b i64) -> bool { return a < b }
+do double(x i64) -> i64 { return x * 2 }
+do positive(x i64) -> bool { return x > 0 }
+do add(acc i64, x i64) -> i64 { return acc + x }
+
+do sort_with(&arr [i64], less func(i64, i64) -> bool) {
+    arrays.sort_by(arr, less)
+}
+
+do map_with(arr [i64], transform func(i64) -> i64) -> [i64] {
+    return arrays.map(arr, transform)
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a [i64] = {3, 1, 2}
+    sort_with(a, ()lt)
+    if a[0] == 1 && a[1] == 2 && a[2] == 3 { passed += 1 } otherwise { failed += 1 }
+
+    const f = ()lt
+    mut b [i64] = {3, 1, 2}
+    arrays.sort_by(b, f)
+    if b[0] == 1 && b[2] == 3 { passed += 1 } otherwise { failed += 1 }
+
+    mut h Holder = Holder{cmp: ()lt}
+    mut c [i64] = {3, 1, 2}
+    arrays.sort_by(c, h.cmp)
+    if c[0] == 1 && c[2] == 3 { passed += 1 } otherwise { failed += 1 }
+
+    mut d [i64] = map_with({1, 2, 3}, ()double)
+    if d[0] == 2 && d[2] == 6 { passed += 1 } otherwise { failed += 1 }
+
+    const keep = ()positive
+    mut e [i64] = arrays.filter({-1, 2, -3, 4}, keep)
+    if len(e) == 2 { passed += 1 } otherwise { failed += 1 }
+
+    const sum = ()add
+    if arrays.reduce({1, 2, 3}, 0, sum) == 6 { passed += 1 } otherwise { failed += 1 }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        exit(1)
+    }
+}

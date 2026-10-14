@@ -7002,7 +7002,29 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
         int callback_index = (strcmp(member_function_name, "reduce") == 0) ? 2 : 1;
         if (callback_index < node->data.call.argument_count) {
             AstNode *callback_argument = node->data.call.arguments[callback_index];
-            if (callback_argument->kind != NODE_FUNCTION_REFERENCE &&
+            /* A func-typed value (a parameter, a const holding ()name, a
+             * struct field) is checked through its declared signature. */
+            FunctionSignature typed_callback_signature;
+            bool is_typed_callback = false;
+            if (callback_argument->kind != NODE_FUNCTION_REFERENCE) {
+                GrayType *callback_type = resolve_expression(checker, callback_argument);
+                if (callback_type && callback_type->kind == TYPE_KIND_FUNCTION && callback_type->function_signature) {
+                    GrayFunctionSignature *type_signature = callback_type->function_signature;
+                    memset(&typed_callback_signature, 0, sizeof(typed_callback_signature));
+                    typed_callback_signature.parameter_count = type_signature->parameter_count;
+                    typed_callback_signature.parameter_types = arena_allocate(checker->arena,
+                        sizeof(GrayType *) * (size_t)(type_signature->parameter_count + 1));
+                    for (int i = 0; i < type_signature->parameter_count; i++)
+                        typed_callback_signature.parameter_types[i] = type_from_name(type_signature->parameter_types[i]);
+                    typed_callback_signature.return_count = type_signature->return_count;
+                    typed_callback_signature.return_types = arena_allocate(checker->arena,
+                        sizeof(GrayType *) * (size_t)(type_signature->return_count + 1));
+                    for (int i = 0; i < type_signature->return_count; i++)
+                        typed_callback_signature.return_types[i] = type_from_name(type_signature->return_types[i]);
+                    is_typed_callback = true;
+                }
+            }
+            if (!is_typed_callback && callback_argument->kind != NODE_FUNCTION_REFERENCE &&
                 !(callback_argument->kind == NODE_CALL_EXPRESSION &&
                   callback_argument->data.call.function->kind == NODE_LABEL &&
                   strcmp(callback_argument->data.call.function->data.label.value, "ref") == 0)) {
@@ -7013,8 +7035,10 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
                     callback_argument->data.function_reference.function->kind == NODE_LABEL) {
                     reference_name = callback_argument->data.function_reference.function->data.label.value;
                 }
-                FunctionSignature *callback_function_signature = NULL;
-                if (reference_name) {
+                FunctionSignature *callback_function_signature = is_typed_callback ? &typed_callback_signature : NULL;
+                if (is_typed_callback) {
+                    /* signature taken from the func type */
+                } else if (reference_name) {
                     callback_function_signature = find_function(checker, reference_name);
                 } else if (callback_argument->kind == NODE_FUNCTION_REFERENCE) {
                     AstNode *referenced = callback_argument->data.function_reference.function;
