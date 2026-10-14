@@ -6442,9 +6442,11 @@ static void reject_multi_value_call(TypeChecker *checker, AstNode *call_expressi
                     (strcmp(name, "get_and_remove") == 0 || strcmp(name, "find_key") == 0)) ||
                 find_stdlib_multi_return(module_name, name)));
         if (is_multi_value) {
-            char *message = typechecker_format(checker, "return value of '%s()' is not used", name);
+            char *message = module_name
+                ? typechecker_format(checker, "return value of '%s.%s()' is not used", module_name, name)
+                : typechecker_format(checker, "return value of '%s()' is not used", name);
             diagnostic_error_help(checker->diagnostics, "E5011", message, file, line, column, 0,
-                "the call's result is discarded here; wrap the call in a function that handles it");
+                "assign the result to a variable, or use 'mut _ = ...' to discard it");
         }
         return;
     }
@@ -16212,6 +16214,12 @@ static void pointer_checker_check_mem_escape(TypeChecker *checker, AstNode *expr
  * call under defer/ensure — must not return a value. */
 static void check_discarded_call_result(TypeChecker *checker, AstNode *node,
                                         AstNode *expression, GrayType *expression_type) {
+    /* A stdlib tuple result with no table return type (arrays.find,
+     * maps.find_key, maps.get_and_remove) resolves to unknown; classify it
+     * by name. */
+    if (expression && expression->kind == NODE_CALL_EXPRESSION &&
+        (!expression_type || expression_type->kind == TYPE_KIND_UNKNOWN))
+        reject_multi_value_call(checker, expression, node, true);
     if (expression && expression->kind == NODE_CALL_EXPRESSION && expression_type &&
         expression_type->kind != TYPE_KIND_VOID && expression_type->kind != TYPE_KIND_UNKNOWN &&
         /* An extern. C call as a statement is a side-effect call; C code
