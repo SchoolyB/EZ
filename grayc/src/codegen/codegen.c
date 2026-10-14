@@ -8024,18 +8024,22 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_formatted(codegen, ", %s)", strcmp(function_name, "sort_desc") == 0 ? "true" : "false");
         return true;
     }
-    /* sort_by: stable bottom-up merge sort over the array's own buffer. The
-     * right element is taken only when less(right, left), so equal elements
-     * keep their order. */
+    /* sort_by: stable bottom-up merge sort. The right element is taken only
+     * when less(right, left), so equal elements keep their order. The sort
+     * runs on a snapshot in the default arena (no malloc to leak when the
+     * comparator panics) and is written back through the array's current
+     * buffer, so a comparator that grows or shrinks the array cannot leave
+     * the result in a stale buffer. */
     if (strcmp(function_name, "sort_by") == 0 && node->data.call.argument_count == 2) {
         const char *c_element_type = gray_type_to_c_codegen(codegen, arrays_closure_element_type_name(codegen, node));
         emit(codegen, "({ GrayArray *_sb_arr = ");
         emit_array_argument_address(codegen, node->data.call.arguments[0]);
         emit_formatted(codegen, "; bool (*_sb_fn)(%s, %s) = (void *)", c_element_type, c_element_type);
         emit_expression(codegen, node->data.call.arguments[1]);
-        emit_formatted(codegen, "; int32_t _sb_n = _sb_arr->len; %s *_sb_d = (%s *)_sb_arr->data; ", c_element_type, c_element_type);
-        emit_formatted(codegen, "if (_sb_n > 1) { %s *_sb_t = (%s *)malloc(sizeof(%s) * (size_t)_sb_n); ",
-            c_element_type, c_element_type, c_element_type);
+        emit_formatted(codegen, "; int32_t _sb_n = _sb_arr->len; if (_sb_n > 1) { "
+            "%s *_sb_d = (%s *)gray_arena_alloc_uninitialized(gray_default_arena, 2 * sizeof(%s) * (size_t)_sb_n); "
+            "%s *_sb_t = _sb_d + _sb_n; memcpy(_sb_d, _sb_arr->data, sizeof(%s) * (size_t)_sb_n); ",
+            c_element_type, c_element_type, c_element_type, c_element_type, c_element_type);
         emit(codegen, "for (int32_t _sb_w = 1; _sb_w < _sb_n; _sb_w *= 2) { "
             "for (int32_t _sb_lo = 0; _sb_lo < _sb_n; _sb_lo += 2 * _sb_w) { "
             "int32_t _sb_mid = _sb_lo + _sb_w < _sb_n ? _sb_lo + _sb_w : _sb_n; "
@@ -8043,9 +8047,10 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
             "int32_t _sb_i = _sb_lo, _sb_j = _sb_mid, _sb_k = _sb_lo; "
             "while (_sb_i < _sb_mid && _sb_j < _sb_hi) _sb_t[_sb_k++] = _sb_fn(_sb_d[_sb_j], _sb_d[_sb_i]) ? _sb_d[_sb_j++] : _sb_d[_sb_i++]; "
             "while (_sb_i < _sb_mid) _sb_t[_sb_k++] = _sb_d[_sb_i++]; "
-            "while (_sb_j < _sb_hi) _sb_t[_sb_k++] = _sb_d[_sb_j++]; } ");
-        emit_formatted(codegen, "memcpy(_sb_d, _sb_t, sizeof(%s) * (size_t)_sb_n); } ", c_element_type);
-        emit(codegen, "free(_sb_t); } })");
+            "while (_sb_j < _sb_hi) _sb_t[_sb_k++] = _sb_d[_sb_j++]; } "
+            "memcpy(_sb_d, _sb_t, sizeof(*_sb_d) * (size_t)_sb_n); } ");
+        emit_formatted(codegen, "memcpy(_sb_arr->data, _sb_d, sizeof(%s) * (size_t)(_sb_arr->len < _sb_n ? _sb_arr->len : _sb_n)); } })",
+            c_element_type);
         return true;
     }
     if ((strcmp(function_name, "contains") == 0 || strcmp(function_name, "index_of") == 0 ||
