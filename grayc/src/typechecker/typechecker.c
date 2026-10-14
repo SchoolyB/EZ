@@ -16353,8 +16353,31 @@ static void check_discarded_call_result(TypeChecker *checker, AstNode *node,
     }
 }
 
+/* A write to a whole variable (`x = v`, `x += v`, `x++`) is not a read of it,
+ * so the reference the write makes does not count toward W1001. The symbol
+ * is looked up by name, because `x = v` may declare `x` while it is checked. */
+static const char *whole_variable_write_name(AstNode *target) {
+    return target && target->kind == NODE_LABEL ? target->data.label.value : NULL;
+}
+
+static bool symbol_was_used_before_write(TypeChecker *checker, const char *name) {
+    Symbol *symbol = name ? checker_lookup_symbol(checker, name) : NULL;
+    return symbol && symbol->was_used;
+}
+
+static void restore_symbol_used_flag(TypeChecker *checker, const char *name, bool was_used) {
+    Symbol *symbol = name ? checker_lookup_symbol(checker, name) : NULL;
+    if (symbol) symbol->was_used = was_used;
+}
+
 static void check_expression_statement(TypeChecker *checker, AstNode *node) {
+    AstNode *written = node->data.expression_statement.expression;
+    bool is_step = written && written->kind == NODE_POSTFIX_EXPRESSION &&
+        (written->data.postfix.operator == TOKEN_INCREMENT || written->data.postfix.operator == TOKEN_DECREMENT);
+    const char *step_name = is_step ? whole_variable_write_name(written->data.postfix.left) : NULL;
+    bool step_was_used = symbol_was_used_before_write(checker, step_name);
     GrayType *expression_type = resolve_expression(checker, node->data.expression_statement.expression);
+    restore_symbol_used_flag(checker, step_name, step_was_used);
     /* E3081: bare function name used as statement without call */
     AstNode *expression = node->data.expression_statement.expression;
     if (expression && expression->kind == NODE_LABEL) {
@@ -17679,9 +17702,13 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
         check_variable_declaration(checker, node);
         break;
 
-    case NODE_ASSIGN_STATEMENT:
+    case NODE_ASSIGN_STATEMENT: {
+        const char *written_name = whole_variable_write_name(node->data.assign.target);
+        bool written_was_used = symbol_was_used_before_write(checker, written_name);
         check_assign_statement(checker, node);
+        restore_symbol_used_flag(checker, written_name, written_was_used);
         break;
+    }
 
     case NODE_RETURN_STATEMENT:
         check_return_statement(checker, node);
