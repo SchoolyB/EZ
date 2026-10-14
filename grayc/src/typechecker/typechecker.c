@@ -16305,6 +16305,28 @@ static bool condition_type_is_not_bool(GrayType *condition_type) {
         condition_type->kind != TYPE_KIND_C_FUNCTION;
 }
 
+/* W1001: every non-parameter variable of `scope` that was never read. The
+ * declaration's own file is used: definition_line numbers the file holding
+ * the function body, which is not the entry file when the function came from
+ * an import. */
+static void report_unused_variables(TypeChecker *checker, Scope *scope, AstNode *function_node) {
+    for (int symbol_index = 0; symbol_index < scope->count; symbol_index++) {
+        Symbol *symbol = &scope->symbols[symbol_index];
+        if (symbol->was_used || symbol->name[0] == '_' || symbol->definition_line <= 0) continue;
+        bool is_parameter = false;
+        for (int parameter_index = 0; parameter_index < function_node->data.function_declaration.parameter_count; parameter_index++) {
+            if (strcmp(function_node->data.function_declaration.parameters[parameter_index].name, symbol->name) == 0) {
+                is_parameter = true;
+                break;
+            }
+        }
+        if (is_parameter) continue;
+        diagnostic_warning_code_formatted(checker->diagnostics, "W1001",
+            NODE_FILE(checker, function_node), symbol->definition_line, symbol->definition_column, 0,
+            symbol->name);
+    }
+}
+
 static void check_if_statement(TypeChecker *checker, AstNode *node) {
     GrayType *condition_type = resolve_expression(checker, node->data.if_statement.condition);
     /* E3038 (): void function call as condition. The same check
@@ -16328,6 +16350,7 @@ static void check_if_statement(TypeChecker *checker, AstNode *node) {
     checker->current_scope = if_body;
     check_block(checker, node->data.if_statement.consequence);
     checker->current_scope = if_outer;
+    if (checker->current_function_declaration) report_unused_variables(checker, if_body, checker->current_function_declaration);
     scope_destroy(if_body);
     PointerCheckerArenaSnapshot pointer_checker_then = pointer_checker_snapshot(checker);
     pointer_checker_restore(checker, pointer_checker_before);
@@ -16336,6 +16359,7 @@ static void check_if_statement(TypeChecker *checker, AstNode *node) {
         checker->current_scope = else_body;
         check_statement(checker, node->data.if_statement.alternative);
         checker->current_scope = if_outer;
+        if (checker->current_function_declaration) report_unused_variables(checker, else_body, checker->current_function_declaration);
         scope_destroy(else_body);
     }
     pointer_checker_join(checker, pointer_checker_then);
@@ -16405,6 +16429,7 @@ static void check_for_statement(TypeChecker *checker, AstNode *node) {
     check_block(checker, node->data.for_statement.body);
     checker->loop_depth--;
     checker->current_scope = outer;
+    if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
     scope_destroy(loop_scope);
 }
 
@@ -16444,6 +16469,7 @@ static void check_for_each_statement(TypeChecker *checker, AstNode *node) {
                 node->token.line, node->token.column, 0);
             resolve_expression(checker, node->data.for_each.collection);
             checker->current_scope = outer;
+            if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
             scope_destroy(loop_scope);
             return;
         }
@@ -16532,6 +16558,7 @@ static void check_for_each_statement(TypeChecker *checker, AstNode *node) {
     check_block(checker, node->data.for_each.body);
     checker->loop_depth--;
     checker->current_scope = outer;
+    if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
     scope_destroy(loop_scope);
 }
 
@@ -16559,6 +16586,7 @@ static void check_while_statement(TypeChecker *checker, AstNode *node) {
     check_block(checker, node->data.while_statement.body);
     checker->loop_depth--;
     checker->current_scope = while_outer_scope;
+    if (checker->current_function_declaration) report_unused_variables(checker, while_scope, checker->current_function_declaration);
     scope_destroy(while_scope);
 }
 
@@ -16896,28 +16924,7 @@ static void check_function_declaration(TypeChecker *checker, AstNode *node) {
     }
 
     /* Warn about unused variables in this function scope */
-    for (int symbol_index = 0; symbol_index < function_scope->count; symbol_index++) {
-        Symbol *symbol = &function_scope->symbols[symbol_index];
-        if (!symbol->was_used && symbol->name[0] != '_' && symbol->definition_line > 0) {
-            /* Skip function parameters (they have definition_line == 0 or from param list) */
-            bool is_parameter = false;
-            for (int parameter_index = 0; parameter_index < node->data.function_declaration.parameter_count; parameter_index++) {
-                if (strcmp(node->data.function_declaration.parameters[parameter_index].name, symbol->name) == 0) {
-                    is_parameter = true;
-                    break;
-                }
-            }
-            if (!is_parameter) {
-                /* definition_line numbers the file holding the function body, which
-                 * is not the entry file when the function came from an
-                 * import. A local cannot outlive its function, so the
-                 * declaration node names the right file. */
-                diagnostic_warning_code_formatted(checker->diagnostics, "W1001",
-                    NODE_FILE(checker, node), symbol->definition_line, symbol->definition_column, 0,
-                    symbol->name);
-            }
-        }
-    }
+    report_unused_variables(checker, function_scope, node);
 
     if (checker->current_return_types) free(checker->current_return_types);
     if (checker->current_return_type_names) free(checker->current_return_type_names);
@@ -17374,6 +17381,7 @@ static void check_when_statement(TypeChecker *checker, AstNode *node) {
         else { PointerCheckerArenaSnapshot snapshot = pointer_checker_merged; pointer_checker_join(checker, snapshot);
                pointer_checker_merged = pointer_checker_snapshot(checker); pointer_checker_snapshot_free(snapshot); }
         checker->current_scope = case_outer;
+        if (checker->current_function_declaration) report_unused_variables(checker, case_body, checker->current_function_declaration);
         scope_destroy(case_body);
     }
     checker->expected_type = saved_when_expected;
@@ -17387,6 +17395,7 @@ static void check_when_statement(TypeChecker *checker, AstNode *node) {
         else { PointerCheckerArenaSnapshot snapshot = pointer_checker_merged; pointer_checker_join(checker, snapshot);
                pointer_checker_merged = pointer_checker_snapshot(checker); pointer_checker_snapshot_free(snapshot); }
         checker->current_scope = default_outer_scope;
+        if (checker->current_function_declaration) report_unused_variables(checker, default_scope, checker->current_function_declaration);
         scope_destroy(default_scope);
         /* W3006: empty default branch */
         if (node->data.when_statement.default_body->data.block.count == 0) {
@@ -17617,6 +17626,7 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
             Scope *unsafe_outer = checker->current_scope;
             checker->current_scope = scope_create(unsafe_outer);
             check_block(checker, node);
+            if (checker->current_function_declaration) report_unused_variables(checker, checker->current_scope, checker->current_function_declaration);
             scope_destroy(checker->current_scope);
             checker->current_scope = unsafe_outer;
         } else {
@@ -17654,6 +17664,7 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
         check_block(checker, node->data.loop_statement.body);
         checker->loop_depth--;
         checker->current_scope = loop_outer_scope;
+        if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
         scope_destroy(loop_scope);
         break;
     }

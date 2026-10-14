@@ -1787,6 +1787,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
         }
     }
     node->data.variable_declaration.name = parser->current_token.literal;
+    Token first_name_token = parser->current_token;
 
     /* Optional type annotation. TOKEN_GENERIC is included so `generic` in a
      * declaration flows through parse_complex_type and lands on its E2096
@@ -1836,7 +1837,9 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
             /* Collect all variable names and types */
             const char *names[MAX_MULTI_VARIABLES];
             const char *types[MAX_MULTI_VARIABLES];
+            Token name_tokens[MAX_MULTI_VARIABLES]; /* each name's own position */
             int variable_count = 0;
+            name_tokens[variable_count] = first_name_token;
             names[variable_count] = node->data.variable_declaration.name;
             types[variable_count] = node->data.variable_declaration.type_name;
             variable_count++;
@@ -1856,6 +1859,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                     diagnostic_error_code_formatted(parser->diagnostics, "E2062", parser->file, parser->current_token.line, parser->current_token.column, 0, MAX_MULTI_VARIABLES);
                     return NULL;
                 }
+                name_tokens[variable_count] = parser->current_token;
                 names[variable_count] = parser->current_token.literal;
                 if (current_token_is(parser, TOKEN_BLANK)) names[variable_count] = "_";
                 if (peek_token_is(parser, TOKEN_IDENTIFIER) || peek_token_is(parser, TOKEN_CARET) ||
@@ -1910,7 +1914,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                 declarations->data.block.count = 0;
                 declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * variable_count);
                 for (int i = 0; i < variable_count; i++) {
-                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, node->token);
+                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
                     declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
                     declaration->data.variable_declaration.name = names[i];
                     declaration->data.variable_declaration.type_name = types[i];
@@ -1976,7 +1980,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                     }
                 }
                 for (int i = 0; i < variable_count; i++) {
-                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, node->token);
+                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
                     declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
                     declaration->data.variable_declaration.name = names[i];
                     declaration->data.variable_declaration.type_name = types[i];
@@ -2020,7 +2024,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                 declarations->data.block.count = 0;
                 declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * variable_count);
                 for (int i = 0; i < variable_count; i++) {
-                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, node->token);
+                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
                     declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
                     declaration->data.variable_declaration.name = names[i];
                     declaration->data.variable_declaration.type_name = types[i];
@@ -2078,7 +2082,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
 
             /* Individual declarations: type x = _tmp.v0 */
             for (int i = 0; i < variable_count; i++) {
-                AstNode *binding_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
+                AstNode *binding_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
                 binding_declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
                 binding_declaration->data.variable_declaration.name = names[i];
                 binding_declaration->data.variable_declaration.type_name = types[i];
