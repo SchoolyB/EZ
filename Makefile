@@ -154,7 +154,7 @@ build: stubs
 	@echo "Building gray CLI (with embedded runtime)..."
 	@# Content-hash the staged assets once here so the installed wrapper does
 	@# not hash them on every invocation just to name its extract dir.
-	@TAG=$$($(MAKE) -s embed-tag); \
+	@TAG=$$("$(MAKE)" -s embed-tag) || exit 1; \
 	$(GO) build -ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X $(MODULE)/internal/driver.embedTag=$$TAG" -o $(BINARY_NAME) ./cli
 	@echo ""
 	@echo "Build complete: ./$(BINARY_NAME)"
@@ -216,6 +216,8 @@ clean:
 # those files' contents. LC_ALL=C keeps the order identical across platforms.
 # The release workflow runs this too, so there is one definition of the tag.
 embed-tag:
+	@cd $(EMBED_DIR)/src && test -n "$$(find . -type f | LC_ALL=C sort)" || \
+	  { echo "embed-tag: no source files found under $(EMBED_DIR)/src (is find/sort the POSIX one?)" >&2; exit 1; }
 	@{ cat $(EMBED_DIR)/grayc $(EMBED_DIR)/libgrayrt.a; \
 	   cd $(EMBED_DIR)/src && files=$$(find . -type f | LC_ALL=C sort) && \
 	   printf '%s\n' "$$files" && for file in $$files; do cat "$$file"; done; \
