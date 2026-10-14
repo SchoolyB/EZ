@@ -13159,6 +13159,29 @@ static bool expression_contains_call(AstNode *node) {
 /* Check if ALL paths through a block end in a return statement */
 static bool block_has_return(AstNode *node); /* forward declaration */
 
+/* True when `node` holds a `break` that leaves the enclosing loop. A nested
+ * loop owns its own breaks, so it is not entered. */
+static bool contains_loop_break(AstNode *node) {
+    if (!node) return false;
+    if (node->kind == NODE_BREAK_STATEMENT) return true;
+    if (node->kind == NODE_BLOCK_STATEMENT) {
+        for (int i = 0; i < node->data.block.count; i++) {
+            if (contains_loop_break(node->data.block.statements[i])) return true;
+        }
+    }
+    if (node->kind == NODE_IF_STATEMENT) {
+        return contains_loop_break(node->data.if_statement.consequence) ||
+               contains_loop_break(node->data.if_statement.alternative);
+    }
+    if (node->kind == NODE_WHEN_STATEMENT) {
+        for (int i = 0; i < node->data.when_statement.case_count; i++) {
+            if (contains_loop_break(node->data.when_statement.cases[i].body)) return true;
+        }
+        return contains_loop_break(node->data.when_statement.default_body);
+    }
+    return false;
+}
+
 static bool all_paths_return(AstNode *node) {
     if (!node) return false;
     if (node->kind == NODE_RETURN_STATEMENT) return true;
@@ -13191,9 +13214,11 @@ static bool all_paths_return(AstNode *node) {
         }
         return true;
     }
-    /* loop { ... return ... }; an infinite loop with a return always returns */
+    /* loop { ... return ... }; an infinite loop with a return always returns,
+     * unless a break can leave it. */
     if (node->kind == NODE_LOOP_STATEMENT) {
-        return block_has_return(node->data.loop_statement.body);
+        return block_has_return(node->data.loop_statement.body) &&
+               !contains_loop_break(node->data.loop_statement.body);
     }
     return false;
 }

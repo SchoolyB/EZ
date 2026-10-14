@@ -1,0 +1,22 @@
+/*
+ * A break that leaves an inner loop does not leave the outer loop, so the
+ * outer loop still terminates the function through its return.
+ */
+do first_over(limit i64) -> i64 {
+    loop {
+        for i in range(0, 10) {
+            if i > limit {
+                break
+            }
+        }
+        return limit
+    }
+}
+
+do main() {
+    if first_over(3) != 3 {
+        println("FAILED")
+        exit(1)
+    }
+    println("ALL TESTS PASSED")
+}

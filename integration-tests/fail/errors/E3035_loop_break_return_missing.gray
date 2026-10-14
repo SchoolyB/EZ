@@ -1,0 +1,12 @@
+do pick(x i64) -> i64 {
+    loop {
+        if x > 3 {
+            break
+        }
+        return 1
+    }
+}
+
+do main() {
+    println(pick(5))
+}
