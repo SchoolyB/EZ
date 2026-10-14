@@ -1,0 +1,36 @@
+/*
+ * multi_declaration_initializer_scope.gray - Initializers in a multi-name
+ * declaration see only the enclosing scope, never names declared on the
+ * same line.
+ */
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a i64 = 3
+    if true {
+        mut a, b = 5, a
+        if a == 5 && b == 3 {
+            println("  [PASS] mut a, b = 5, a reads the outer a")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] mut a, b = 5, a reads the outer a")
+            failed += 1
+        }
+    }
+
+    const c, d = 7, a
+    if c == 7 && d == 3 {
+        println("  [PASS] const c, d = 7, a")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const c, d = 7, a")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        exit(1)
+    }
+}

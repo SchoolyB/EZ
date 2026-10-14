@@ -1,0 +1,4 @@
+do main() {
+    mut p, q = 1, p
+    println("${p} ${q}")
+}

@@ -1765,6 +1765,9 @@ static AstNode *parse_discard_statement(Parser *parser) {
     return node;
 }
 
+/* Numbers the temporaries that hold a multi-name declaration's values. */
+static int multi_variable_counter = 0;
+
 static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) {
     AstNode *node = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
 
@@ -1951,16 +1954,39 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                 for (int i = 0; i < variable_count; i++) {
                     if (strcmp(names[i], "_") == 0) check_discard_target(parser, values[i]);
                 }
+                /* Every initializer is evaluated before any name is bound, so
+                 * an initializer never sees a name declared on the same line.
+                 * At file scope there is no statement to hold a temporary. */
+                bool uses_temporaries = parser->current_function != NULL;
+                int statement_capacity = uses_temporaries ? variable_count * 2 : variable_count;
                 AstNode *declarations = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
-                declarations->data.block.capacity = variable_count;
+                declarations->data.block.capacity = statement_capacity;
                 declarations->data.block.count = 0;
-                declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * variable_count);
+                declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * statement_capacity);
+                char *temporary_names[MAX_MULTI_VARIABLES];
+                if (uses_temporaries) {
+                    for (int i = 0; i < variable_count; i++) {
+                        temporary_names[i] = arena_allocate(parser->arena, TEMPORARY_NAME_BUFFER_SIZE);
+                        snprintf(temporary_names[i], TEMPORARY_NAME_BUFFER_SIZE,
+                                 GRAY_SYNTHETIC_TEMPORARY "%d", multi_variable_counter++);
+                        AstNode *temporary_declaration =
+                            make_synthetic_temporary_declaration(parser, temporary_names[i], values[i]);
+                        temporary_declaration->data.variable_declaration.type_name = types[i];
+                        declarations->data.block.statements[declarations->data.block.count++] = temporary_declaration;
+                    }
+                }
                 for (int i = 0; i < variable_count; i++) {
                     AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, node->token);
                     declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
                     declaration->data.variable_declaration.name = names[i];
                     declaration->data.variable_declaration.type_name = types[i];
-                    declaration->data.variable_declaration.value = values[i];
+                    if (uses_temporaries) {
+                        AstNode *label = ast_allocate(parser->arena, NODE_LABEL, parser->current_token);
+                        label->data.label.value = temporary_names[i];
+                        declaration->data.variable_declaration.value = label;
+                    } else {
+                        declaration->data.variable_declaration.value = values[i];
+                    }
                     declarations->data.block.statements[declarations->data.block.count++] = declaration;
                 }
                 return declarations;
@@ -2021,7 +2047,6 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
              * or_return prefix so the typechecker validates the (..., Error)
              * tail (E3045) and skips the "fewer variables than return values"
              * check — the trailing Error slot is consumed by the guard. */
-            static int multi_variable_counter = 0;
             char *temporary_name;
             if (has_or_default) {
                 temporary_name = make_or_default_temporary_name(parser->arena);

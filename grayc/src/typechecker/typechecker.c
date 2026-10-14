@@ -12157,7 +12157,8 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 NODE_ERROR_FORMATTED(checker, node, "E3100", name);
             }
             result = &TYPE_UNKNOWN;
-        } else if (!is_enum_name(checker, name) &&
+        } else if (strncmp(name, GRAY_SYNTHETIC_PREFIX, strlen(GRAY_SYNTHETIC_PREFIX)) != 0 &&
+                   !is_enum_name(checker, name) &&
                    !is_struct_name(checker, name) &&
                    !typechecker_is_imported_module(checker, name) &&
                    !is_enum_name(checker, resolve_type_alias(checker, name)) &&
