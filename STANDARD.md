@@ -4100,7 +4100,7 @@ A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error
 
 A request with a body sends `Content-Type: application/x-www-form-urlencoded` only when the caller's headers name no `Content-Type` (names are compared case-insensitively). `Host`, `Content-Length`, and `Connection` are always set by the client; a caller entry for any of them is not sent.
 
-A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
+A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL or an IPv6 address literal, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
 
 #### HttpResponse Type
 

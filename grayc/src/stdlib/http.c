@@ -26,67 +26,72 @@
 #define GRAY_HTTP_MINIMUM_RESPONSE_LENGTH    12
 
 
-/* Parse a URL into host, port, and path components */
-static bool parse_url(const char *url_text, char *host, size_t host_size,
-                      int *port, char *path, size_t path_size) {
-    /* Require http:// or https:// scheme */
-    const char *cursor = url_text;
-    if (strncmp(cursor, "http://", 7) == 0) {
-        cursor += 7;
-    } else if (strncmp(cursor, "https://", 8) == 0) {
-        return false;
-    } else {
-        return false;
+/* True when `text` starts with `prefix`, ignoring ASCII case. */
+static bool starts_with_ignore_case(const char *text, const char *prefix) {
+    for (; *prefix; text++, prefix++) {
+        char text_char = *text, prefix_char = *prefix;
+        if (text_char >= 'A' && text_char <= 'Z') text_char = (char)(text_char - 'A' + 'a');
+        if (text_char != prefix_char) return false;
+    }
+    return true;
+}
+
+/* Parse a URL into host, port, and path components. Returns NULL on success,
+ * otherwise the failure message, with the matching code in *failure_code. The
+ * fragment is dropped; a query directly after the authority gets a "/" path. */
+static const char *parse_url(const char *url_text, char *host, size_t host_size,
+                             int *port, char *path, size_t path_size, int64_t *failure_code) {
+    *failure_code = GRAY_ERR_InvalidInput;
+    if (!starts_with_ignore_case(url_text, "http://"))
+        return "invalid URL: expected http:// scheme";
+    const char *cursor = url_text + 7;
+
+    if (*cursor == '[') {
+        *failure_code = GRAY_ERR_Unsupported;
+        return "IPv6 address literals are not supported";
     }
 
-    /* Reject an empty host */
-    if (*cursor == '\0' || *cursor == '/' || *cursor == ':') return false;
+    /* The authority ends at the first '/', '?' or '#'. */
+    const char *authority_end = cursor + strcspn(cursor, "/?#");
 
-    /* Extract host[:port] */
-    const char *slash = strchr(cursor, '/');
-    const char *colon = strchr(cursor, ':');
-    const char *authority_end = slash ? slash : cursor + strlen(cursor);
-
-    /* Userinfo (user:pass@host) is not supported. */
     for (const char *scan_cursor = cursor; scan_cursor < authority_end; scan_cursor++) {
-        if (*scan_cursor == '@') return false;
+        if (*scan_cursor == '@') return "invalid URL: userinfo is not supported";
     }
 
-    if (colon && (!slash || colon < slash)) {
-        /* host:port */
-        size_t host_length = (size_t)(colon - cursor);
-        if (host_length >= host_size) host_length = host_size - 1;
-        memcpy(host, cursor, host_length);
-        host[host_length] = '\0';
+    const char *colon = memchr(cursor, ':', (size_t)(authority_end - cursor));
+    const char *host_end = colon ? colon : authority_end;
+    size_t host_length = (size_t)(host_end - cursor);
+    if (host_length == 0) return "invalid URL: empty host";
+    if (host_length >= host_size) return "invalid URL: host is too long";
+    memcpy(host, cursor, host_length);
+    host[host_length] = '\0';
+
+    *port = GRAY_HTTP_DEFAULT_PORT;
+    if (colon) {
+        if (colon + 1 == authority_end) return "invalid URL: empty port";
         long port_value = 0;
-        if (colon + 1 == authority_end) return false;
         for (const char *digit = colon + 1; digit < authority_end; digit++) {
-            if (*digit < '0' || *digit > '9') return false;
+            if (*digit < '0' || *digit > '9') return "invalid URL: port must be a number from 1 to 65535";
             port_value = port_value * 10 + (*digit - '0');
-            if (port_value > 65535) return false;
+            if (port_value > 65535) return "invalid URL: port must be a number from 1 to 65535";
         }
-        if (port_value < 1) return false;
+        if (port_value < 1) return "invalid URL: port must be a number from 1 to 65535";
         *port = (int)port_value;
-    } else {
-        /* host only */
-        size_t host_length = slash ? (size_t)(slash - cursor) : strlen(cursor);
-        if (host_length >= host_size) host_length = host_size - 1;
-        memcpy(host, cursor, host_length);
-        host[host_length] = '\0';
-        *port = GRAY_HTTP_DEFAULT_PORT;
     }
 
-    if (slash) {
-        size_t path_length = strlen(slash);
-        if (path_length >= path_size) path_length = path_size - 1;
-        memcpy(path, slash, path_length);
-        path[path_length] = '\0';
-    } else {
+    const char *target = authority_end;
+    size_t target_length = strcspn(target, "#");
+    size_t prefix_length = (*target == '/' || target_length == 0) ? 0 : 1;
+    if (target_length == 0) {
         path[0] = '/';
         path[1] = '\0';
+        return NULL;
     }
-
-    return host[0] != '\0';
+    if (prefix_length + target_length >= path_size) return "invalid URL: path is too long";
+    if (prefix_length) path[0] = '/';
+    memcpy(path + prefix_length, target, target_length);
+    path[prefix_length + target_length] = '\0';
+    return NULL;
 }
 
 static bool http_ascii_equal_ignore_case(const char *left, int32_t left_length, const char *right) {
@@ -283,7 +288,7 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     char url_buffer[GRAY_HTTP_URL_BUFFER_SIZE];
     gray_cstr(url, url_buffer, sizeof(url_buffer));
 
-    if (strncmp(url_buffer, "https://", 8) == 0) {
+    if (starts_with_ignore_case(url_buffer, "https://")) {
         return request_failure(arena, error_response, error_code, GRAY_ERR_Unsupported,
             "https:// is not supported; use http://");
     }
@@ -298,9 +303,11 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
 
     char host[GRAY_HTTP_HOST_BUFFER_SIZE], path[GRAY_HTTP_PATH_BUFFER_SIZE];
     int port;
-    if (!parse_url(url_buffer, host, sizeof(host), &port, path, sizeof(path))) {
-        return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
-            "invalid URL: expected http:// scheme");
+    int64_t parse_failure_code;
+    const char *parse_failure = parse_url(url_buffer, host, sizeof(host), &port, path, sizeof(path),
+                                          &parse_failure_code);
+    if (parse_failure) {
+        return request_failure(arena, error_response, error_code, parse_failure_code, parse_failure);
     }
 
     if (custom_headers) {
