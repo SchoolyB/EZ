@@ -179,7 +179,7 @@
     GRAY_ERROR("E3086", "types", "'fmt.%s' format string must be a string literal; use string interpolation for dynamic values") \
     GRAY_ERROR("E3087", "types", "'%%n' is not permitted in fmt format strings") \
     GRAY_ERROR("E3088", "types", "'fmt.%s' format directive '%%%s' expects %s but element %d has type '%s'") \
-    GRAY_ERROR("E3089", "usage", "'%s()' can fail; use 'mut val, err = %s()' to handle the error, 'mut val, _ = %s()' to discard it, or add 'or_return' to propagate it or 'or_panic' to abort") \
+    GRAY_ERROR("E3089", "usage", "'%s()' can fail; use '%s' to handle the error, '%s' to discard it, or add %s") \
     GRAY_ERROR("E3090", "types", "'!' only works on bool; got '%s'") \
     GRAY_ERROR("E3091", "types", "'%s' cannot be used as a condition") \
     GRAY_ERROR("E3092", "types", "cannot compare '%s' to nil; only Error types and pointers can be nil") \

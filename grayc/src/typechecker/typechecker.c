@@ -6455,8 +6455,15 @@ static void reject_multi_value_call(TypeChecker *checker, AstNode *call_expressi
             name, signature->return_count, name);
     } else if (name && !signature) {
         if (typechecker_is_fallible_stdlib(module_name, name)) {
-            diagnostic_error_code_formatted(checker->diagnostics, "E3089", file, line, column, 0,
-                name, name, name);
+            /* or_panic needs a single-variable declaration, so a call that
+             * returns a used/total pair is offered or_default instead. */
+            const StdlibFunctionMetadata *metadata = find_stdlib_metadata(module_name, name);
+            bool is_pair = metadata && metadata->success_type == FALLIBLE_TYPE_I64_PAIR;
+            diagnostic_error_code_formatted(checker->diagnostics, "E3089", file, line, column, 0, name,
+                typechecker_format(checker, is_pair ? "mut first, second, err = %s()" : "mut val, err = %s()", name),
+                typechecker_format(checker, is_pair ? "mut first, second, _ = %s()" : "mut val, _ = %s()", name),
+                is_pair ? "'or_return' to propagate it or 'or_default' to substitute fallback values"
+                        : "'or_return' to propagate it, 'or_panic' to abort, or 'or_default' to substitute a fallback value");
         } else if (module_name && ((strcmp(module_name, "arrays") == 0 && strcmp(name, "find") == 0) ||
                    (strcmp(module_name, "maps") == 0 &&
                     (strcmp(name, "get_and_remove") == 0 || strcmp(name, "find_key") == 0)))) {

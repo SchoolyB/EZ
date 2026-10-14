@@ -163,7 +163,7 @@
 | `E3086` | types | 'fmt.%s' format string must be a string literal; use string interpolation for dynamic values |
 | `E3087` | types | '%%n' is not permitted in fmt format strings |
 | `E3088` | types | 'fmt.%s' format directive '%%%s' expects %s but element %d has type '%s' |
-| `E3089` | usage | '%s()' can fail; use 'mut val, err = %s()' to handle the error, 'mut val, _ = %s()' to discard it, or add 'or_return' to propagate it or 'or_panic' to abort |
+| `E3089` | usage | '%s()' can fail; use '%s' to handle the error, '%s' to discard it, or add %s |
 | `E3090` | types | '!' only works on bool; got '%s' |
 | `E3091` | types | '%s' cannot be used as a condition |
 | `E3092` | types | cannot compare '%s' to nil; only Error types and pointers can be nil |
@@ -598,4 +598,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-14 19:39:56 UTC*
+*Generated on 2026-10-14 20:04:26 UTC*
