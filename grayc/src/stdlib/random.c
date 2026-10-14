@@ -16,6 +16,7 @@
 #endif
 
 #include "random.h"
+#include "builtins.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -159,11 +160,43 @@ int32_t gray_random_char(void) {
     return (int32_t)(32 + rand() % 95); /* printable ASCII */
 }
 
+#define GRAY_SURROGATE_FIRST 0xD800
+#define GRAY_SURROGATE_LAST  0xDFFF
+
 int32_t gray_random_char_range(int32_t minimum, int32_t maximum) {
     if (minimum >= maximum)
         gray_panic_code("P0134", "random.rand_char: range [%d, %d) is empty; min must be less than max", (int)minimum, (int)maximum);
+    if (minimum >= GRAY_SURROGATE_FIRST && maximum - 1 <= GRAY_SURROGATE_LAST)
+        gray_panic_code("P0158", "random.rand_char: range [%d, %d) holds only surrogate codepoints", (int)minimum, (int)maximum);
     ensure_seed();
-    return minimum + (int32_t)(rand() % (maximum - minimum));
+    /* A surrogate is not a valid char; draw again so the result stays
+     * uniform over the codepoints that are. */
+    int32_t codepoint;
+    do {
+        codepoint = minimum + (int32_t)(rand() % (maximum - minimum));
+    } while (codepoint >= GRAY_SURROGATE_FIRST && codepoint <= GRAY_SURROGATE_LAST);
+    return codepoint;
+}
+
+/* Appends `codepoint` as UTF-8 (1 to 4 bytes) and returns the byte count. */
+static size_t random_encode_utf8(int32_t codepoint, char *output) {
+    if (codepoint < 0x80) { output[0] = (char)codepoint; return 1; }
+    if (codepoint < 0x800) {
+        output[0] = (char)(0xC0 | (codepoint >> 6));
+        output[1] = (char)(0x80 | (codepoint & 0x3F));
+        return 2;
+    }
+    if (codepoint < 0x10000) {
+        output[0] = (char)(0xE0 | (codepoint >> 12));
+        output[1] = (char)(0x80 | ((codepoint >> 6) & 0x3F));
+        output[2] = (char)(0x80 | (codepoint & 0x3F));
+        return 3;
+    }
+    output[0] = (char)(0xF0 | (codepoint >> 18));
+    output[1] = (char)(0x80 | ((codepoint >> 12) & 0x3F));
+    output[2] = (char)(0x80 | ((codepoint >> 6) & 0x3F));
+    output[3] = (char)(0x80 | (codepoint & 0x3F));
+    return 4;
 }
 
 GrayString gray_random_string(GrayArena *arena, int64_t length, GrayString alphabet) {
@@ -173,12 +206,21 @@ GrayString gray_random_string(GrayArena *arena, int64_t length, GrayString alpha
             "random.rand_string: alphabet is empty but length is %lld", (long long)length);
     }
     ensure_seed();
-    char *buffer = gray_arena_alloc_uninitialized(arena, (size_t)length + 1);
-    for (int64_t i = 0; i < length; i++) {
-        buffer[i] = alphabet.data[rand() % alphabet.len];
-    }
-    buffer[length] = '\0';
-    return gray_string_new(arena, buffer, (int32_t)length);
+    /* Draw whole characters, not bytes: decode the alphabet once, then pick
+     * from its codepoints and encode each pick. */
+    int32_t *codepoints = gray_arena_alloc_uninitialized(arena, sizeof(int32_t) * (size_t)alphabet.len);
+    int32_t codepoint_count = 0;
+    const uint8_t *cursor = (const uint8_t *)alphabet.data;
+    const uint8_t *end_cursor = cursor + alphabet.len;
+    while (cursor < end_cursor)
+        cursor += gray_builtin_utf8_next(cursor, end_cursor, &codepoints[codepoint_count++]);
+
+    char *buffer = gray_arena_alloc_uninitialized(arena, (size_t)length * 4 + 1);
+    size_t byte_length = 0;
+    for (int64_t i = 0; i < length; i++)
+        byte_length += random_encode_utf8(codepoints[rand() % codepoint_count], buffer + byte_length);
+    buffer[byte_length] = '\0';
+    return gray_string_new(arena, buffer, (int32_t)byte_length);
 }
 
 GrayArray gray_random_shuffle(GrayArena *arena, GrayArray *array) {

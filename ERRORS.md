@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 546 codes** (389 errors, 17 warnings, 140 panics)
+**Total: 547 codes** (389 errors, 17 warnings, 141 panics)
 
 ---
 
@@ -573,6 +573,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0155` | runtime | len() of a range exceeds the largest i64 |
 | `P0156` | random | random.roll_dice total exceeds the largest i64 |
 | `P0157` | time | time function result exceeds the range of i64 |
+| `P0158` | random | random.rand_char range holds only surrogate codepoints |
 
 ---
 
@@ -597,4 +598,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-14 18:56:21 UTC*
+*Generated on 2026-10-14 19:39:56 UTC*

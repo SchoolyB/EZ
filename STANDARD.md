@@ -3836,7 +3836,7 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `rand_bool` | `() -> bool` | Random boolean |
 | `rand_u8` | `() -> u8` | Random u8 [0, 255] |
 | `rand_char` | `() -> char` | Random printable char |
-| `rand_char` | `(min char, max char) -> char` | Random char [min, max); panics if `min` is not less than `max` |
+| `rand_char` | `(min char, max char) -> char` | Random char [min, max), never a surrogate (U+D800–U+DFFF); panics if `min` is not less than `max` or the range holds only surrogates |
 | `rand_string` | `(length i64, alphabet string) -> string` | String of `length` characters drawn uniformly from `alphabet`; `length` 0 returns `""`; panics if `alphabet` is empty and `length > 0` |
 | `rand_bytes` | `(n i64) -> [u8]` | `n` random bytes from the module's RNG (reproducible with `seed`, not cryptographically secure); `n` 0 returns an empty array; panics if `n` is negative |
 | `roll_dice` | `(count i64, sides i64) -> i64` | Sum of `count` rolls of a `sides`-sided die, each uniform in `1..sides`; panics if `count` or `sides` is less than 1 |
