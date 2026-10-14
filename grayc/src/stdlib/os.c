@@ -8,10 +8,13 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-/* Must precede every system header: exposes sysconf(_SC_NPROCESSORS_ONLN),
- * which <unistd.h> hides under a strict _POSIX_C_SOURCE. */
+/* Must precede every system header: exposes sysconf(_SC_NPROCESSORS_ONLN)
+ * and getloadavg(), which <unistd.h> and <stdlib.h> hide under a strict
+ * _POSIX_C_SOURCE (glibc needs _DEFAULT_SOURCE for the latter). */
 #if defined(__APPLE__)
 #define _DARWIN_C_SOURCE 1
+#elif defined(__linux__)
+#define _DEFAULT_SOURCE 1
 #endif
 
 #include "os.h"
