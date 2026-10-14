@@ -8,9 +8,7 @@
 package driver
 
 import (
-	"crypto/sha256"
 	"embed"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -39,11 +37,12 @@ var (
 	extractErr         error
 )
 
-// embedTag is the 16-hex-char content hash of embeddedGrayc concatenated with
-// embeddedLibgrayrt, computed once at build time and injected via -ldflags (see
-// the Makefile). It names the per-content extraction directory without a fresh
-// process having to SHA-256 ~2.4MB of assets on every invocation. Empty in a
-// bare `go build ./cli` dev build, where the runtime hash below is used instead.
+// embedTag is the 16-hex-char content hash of every embedded input: grayc,
+// libgrayrt.a, and the src/ tree (file list and contents). `make embed-tag`
+// computes it and the build injects it via -ldflags, so a fresh process never
+// hashes the assets and a changed source file always names a new extraction
+// directory. Empty in a bare `go build ./cli` dev build, which has no embedded
+// compiler and falls back to a path search.
 var embedTag string
 
 // extractEmbedded materialises the embedded grayc binary, libgrayrt.a, and
@@ -57,23 +56,15 @@ func extractEmbedded() (string, error) {
 		// bootstrap ships a compiler without the runtime archive, which is
 		// enough for check, fmt, doc, and --emit-c. Only a missing compiler
 		// means "this is a dev build, fall back to a path search".
-		if len(embeddedGrayc) == 0 {
+		if len(embeddedGrayc) == 0 || embedTag == "" {
 			extractErr = ErrNoEmbed
 			return
 		}
 
-		// Content-address the pair so a new gray binary (built against new
-		// compiler artifacts) lands in a fresh directory instead of
-		// reusing a stale extraction from an older install. The tag is
-		// normally baked in at build time; hash at runtime only when it is
-		// not (a bare `go build ./cli`).
+		// Content-address the embedded inputs so a new gray binary lands in a
+		// fresh directory instead of reusing a stale extraction from an
+		// older install.
 		tag := embedTag
-		if tag == "" {
-			h := sha256.New()
-			h.Write(embeddedGrayc)
-			h.Write(embeddedLibgrayrt)
-			tag = hex.EncodeToString(h.Sum(nil))[:16]
-		}
 
 		home, err := os.UserHomeDir()
 		if err != nil {

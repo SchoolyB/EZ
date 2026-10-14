@@ -196,7 +196,8 @@ jobs:
           EXE=""
           if [ "${{ matrix.goos }}" = "windows" ]; then EXE=".exe"; fi
           BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
-          go build -ldflags "-X main.Version=${RELEASE_TAG} -X main.BuildTime=${BUILD_TIME}" -o "gray${EXE}" ./cli
+          EMBED_TAG=$(make -s SHELL=bash embed-tag)
+          go build -ldflags "-X main.Version=${RELEASE_TAG} -X main.BuildTime=${BUILD_TIME} -X github.com/grayscale-lang/grayscale/internal/driver.embedTag=${EMBED_TAG}" -o "gray${EXE}" ./cli
         shell: bash
 
       - name: Package single-binary release

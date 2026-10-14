@@ -1,10 +1,10 @@
 # Grayscale Language Build System
-.PHONY: build stubs install uninstall clean help leaks benchmark \
+.PHONY: build embed-tag stubs install uninstall clean help leaks benchmark \
        test test-unit test-e2e test-integration test-go \
        test-ubsan test-asan
 
 # Reject unknown targets before running anything.
-KNOWN_TARGETS := build stubs install uninstall clean help leaks benchmark \
+KNOWN_TARGETS := build embed-tag stubs install uninstall clean help leaks benchmark \
                  test test-unit test-e2e test-integration test-go \
                  test-ubsan test-asan
 UNKNOWN_TARGETS := $(filter-out $(KNOWN_TARGETS),$(MAKECMDGOALS))
@@ -153,9 +153,8 @@ build: stubs
 	@cp grayc/src/util/*.h $(EMBED_DIR)/src/util/
 	@echo "Building gray CLI (with embedded runtime)..."
 	@# Content-hash the staged assets once here so the installed wrapper does
-	@# not SHA-256 ~2.4MB on every invocation just to name its extract dir.
-	@# Must match embedded.go's runtime fallback: sha256(grayc || libgrayrt.a).
-	@TAG=$$(cat $(EMBED_DIR)/grayc $(EMBED_DIR)/libgrayrt.a | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-16); \
+	@# not hash them on every invocation just to name its extract dir.
+	@TAG=$$($(MAKE) -s embed-tag); \
 	$(GO) build -ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X $(MODULE)/internal/driver.embedTag=$$TAG" -o $(BINARY_NAME) ./cli
 	@echo ""
 	@echo "Build complete: ./$(BINARY_NAME)"
@@ -211,3 +210,13 @@ clean:
 	@rm -rf $(EMBED_DIR)/src
 	@"$(MAKE)" -C grayc clean
 	@echo "Clean complete"
+
+# Prints the 16-hex tag that names the extracted runtime directory: sha256 of
+# grayc, libgrayrt.a, the sorted relative file list of $(EMBED_DIR)/src, and
+# those files' contents. LC_ALL=C keeps the order identical across platforms.
+# The release workflow runs this too, so there is one definition of the tag.
+embed-tag:
+	@{ cat $(EMBED_DIR)/grayc $(EMBED_DIR)/libgrayrt.a; \
+	   cd $(EMBED_DIR)/src && files=$$(find . -type f | LC_ALL=C sort) && \
+	   printf '%s\n' "$$files" && for file in $$files; do cat "$$file"; done; \
+	} | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-16

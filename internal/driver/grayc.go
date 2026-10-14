@@ -172,6 +172,9 @@ func Build(file string, opts BuildOpts) (int, error) {
 		return 1, err
 	}
 
+	if opts.Verbose {
+		fmt.Fprintf(os.Stderr, "runtime directory: %s\n", filepath.Dir(graycPath))
+	}
 	return execute(graycPath, buildArgs(file, opts))
 }
 
