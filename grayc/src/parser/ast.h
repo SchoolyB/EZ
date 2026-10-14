@@ -316,6 +316,10 @@ struct AstNode {
             bool is_mutable;
             bool is_private;
             bool is_synthetic;         /* parser-generated temporary, not user-written */
+            /* File-scope multi-name declaration: the names declared before
+             * this one on the same line. The initializer cannot see them. */
+            const char **earlier_group_names;
+            int earlier_group_count;
             /* Set by the type checker on `mut xs = place` when `xs` is stored
              * back to `place` before anything else can observe either: codegen
              * shares the array instead of copying it. */

@@ -285,6 +285,8 @@ typedef struct {
     int loop_depth;               /* >0 means inside a loop */
     int function_depth;               /* >0 means inside a function body */
     bool is_in_file_scope_initializer;      /* checking a file-scope declaration's initializer */
+    const char **hidden_group_names;        /* names the file-scope initializer being checked cannot see */
+    int hidden_group_count;
     GrayType **current_return_types; /* expected return types of current function */
     const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;

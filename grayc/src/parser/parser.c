@@ -1990,6 +1990,10 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                         declaration->data.variable_declaration.value = label;
                     } else {
                         declaration->data.variable_declaration.value = values[i];
+                        const char **earlier_names = arena_allocate(parser->arena, sizeof(char *) * (size_t)(i + 1));
+                        for (int earlier = 0; earlier < i; earlier++) earlier_names[earlier] = names[earlier];
+                        declaration->data.variable_declaration.earlier_group_names = earlier_names;
+                        declaration->data.variable_declaration.earlier_group_count = i;
                     }
                     declarations->data.block.statements[declarations->data.block.count++] = declaration;
                 }

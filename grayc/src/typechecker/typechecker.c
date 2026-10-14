@@ -12088,6 +12088,15 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
 
     case NODE_LABEL: {
         const char *name = node->data.label.value;
+        bool is_hidden_group_name = false;
+        for (int hidden_index = 0; hidden_index < checker->hidden_group_count; hidden_index++) {
+            if (strcmp(checker->hidden_group_names[hidden_index], name) == 0) is_hidden_group_name = true;
+        }
+        if (is_hidden_group_name) {
+            NODE_ERROR_FORMATTED(checker, node, "E4001", name);
+            result = &TYPE_UNKNOWN;
+            break;
+        }
         if (checker->initialized_variable_name && strcmp(name, checker->initialized_variable_name) == 0 &&
             scope_lookup(checker->current_scope, name))
             checker->is_initializer_reading_own_name = true;
@@ -14037,10 +14046,20 @@ static GrayType *check_variable_declaration_initializer(TypeChecker *checker, As
          * reaches the C compiler as an undeclared identifier. Function bodies
          * are exempt: codegen emits file-scope declarations ahead of them. */
         bool saved_is_in_file_scope_initializer = checker->is_in_file_scope_initializer;
-        if (checker->function_depth == 0) checker->is_in_file_scope_initializer = true;
+        const char **saved_hidden_group_names = checker->hidden_group_names;
+        int saved_hidden_group_count = checker->hidden_group_count;
+        if (checker->function_depth == 0) {
+            checker->is_in_file_scope_initializer = true;
+            /* Every initializer of a multi-name declaration is evaluated
+             * before any of its names binds, as inside a function. */
+            checker->hidden_group_names = node->data.variable_declaration.earlier_group_names;
+            checker->hidden_group_count = node->data.variable_declaration.earlier_group_count;
+        }
         allow_range_use(checker, node->data.variable_declaration.value);
         GrayType *value_type = check_expression_as(checker, node->data.variable_declaration.value, declared);
         checker->is_in_file_scope_initializer = saved_is_in_file_scope_initializer;
+        checker->hidden_group_names = saved_hidden_group_names;
+        checker->hidden_group_count = saved_hidden_group_count;
 
         /* E3050/E3051: an array or map literal with no type annotation needs
          * one — unless this is a `mut` declaration whose literal is built only
