@@ -1,0 +1,9 @@
+import @maps
+
+do make() -> map[string:i64] {
+    return {"a": 1}
+}
+
+do main() {
+    maps.clear(make())
+}

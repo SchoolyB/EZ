@@ -1,0 +1,5 @@
+import @strings
+
+do main() {
+    strings.builder_append(strings.builder(), "x")
+}

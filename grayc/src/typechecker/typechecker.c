@@ -6589,6 +6589,22 @@ static void check_mutable_argument(TypeChecker *checker, AstNode *argument,
     }
 }
 
+/* E3027: a literal or call result passed to a stdlib function's mutable (&)
+ * parameter. The mutation lands on a temporary and is lost. A named place is
+ * left to the const checks (E5007) the stdlib call path already runs. */
+static void report_temporary_for_stdlib_mutable_parameter(TypeChecker *checker, AstNode *argument,
+                                                          const char *parameter_name,
+                                                          const char *module_name,
+                                                          const char *member_function_name) {
+    if (argument->kind == NODE_LABEL || argument->kind == NODE_MEMBER_EXPRESSION ||
+        argument->kind == NODE_INDEX_EXPRESSION ||
+        (argument->kind == NODE_POSTFIX_EXPRESSION && argument->data.postfix.operator == TOKEN_CARET))
+        return;
+    check_mutable_argument(checker, argument,
+        typechecker_format(checker, "mutable parameter '%s'", parameter_name),
+        typechecker_format(checker, "%s.%s", module_name, member_function_name));
+}
+
 /* A primitive json.encode can serialize as a JSON number/bool/string: every
  * integer and floating-point width (i8..i64, u8..u64, f32, f64),
  * char (as its codepoint), bool and string. Bigints are excluded — they are
@@ -6819,6 +6835,7 @@ static GrayType *resolve_maps_call(TypeChecker *checker, AstNode *node, const ch
         node->data.call.argument_count > 0) {
         AstNode *first_argument_node = node->data.call.arguments[0];
         report_write_to_const_container(checker, node, first_argument_node, "map");
+        report_temporary_for_stdlib_mutable_parameter(checker, first_argument_node, "m", "maps", member_function_name);
     }
     return result;
 }
@@ -6839,6 +6856,7 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
         node->data.call.argument_count > 0) {
         AstNode *first_argument = node->data.call.arguments[0];
         report_write_to_const_container(checker, node, first_argument, "array");
+        report_temporary_for_stdlib_mutable_parameter(checker, first_argument, "arr", "arrays", member_function_name);
     }
     /* E5051: length-changing array functions on a fixed-size struct
      * field, resolved through member-expression chains (o.field,
@@ -7476,6 +7494,7 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
              strcmp(member_function_name, "builder_clear") == 0) &&
             node->data.call.argument_count > 0) {
             AstNode *first_argument_node = node->data.call.arguments[0];
+            report_temporary_for_stdlib_mutable_parameter(checker, first_argument_node, "b", "strings", member_function_name);
             if (first_argument_node->kind == NODE_LABEL) {
                 Symbol *symbol = scope_lookup(checker->current_scope, first_argument_node->data.label.value);
                 if (symbol && !symbol->is_mutable) {
