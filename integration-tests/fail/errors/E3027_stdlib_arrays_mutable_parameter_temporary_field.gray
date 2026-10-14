@@ -1,0 +1,14 @@
+// expect-contains: E3027
+import @arrays
+
+const Holder struct {
+    items [i64]
+}
+
+do make() -> Holder {
+    return Holder{items: {1}}
+}
+
+do main() {
+    arrays.append(make().items, 2)
+}

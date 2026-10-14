@@ -6548,6 +6548,22 @@ static void retarget_member_object(AstNode *member, const char *type_name) {
     member->data.member.object = label;
 }
 
+/* True when a member/index chain is rooted at a call result or struct literal
+ * with no pointer along the way: the field or element is a copy inside a
+ * temporary, so a write through it is lost. A pointer in the chain
+ * auto-dereferences to memory that outlives the expression. */
+static bool chain_rooted_at_temporary(TypeChecker *checker, AstNode *expression) {
+    AstNode *current = expression;
+    while (current->kind == NODE_MEMBER_EXPRESSION || current->kind == NODE_INDEX_EXPRESSION) {
+        current = current->kind == NODE_MEMBER_EXPRESSION ? current->data.member.object
+                                                          : current->data.index_expression.left;
+        GrayType *type = type_table_get(checker->type_table, current);
+        if (type && type->kind == TYPE_KIND_POINTER) return false;
+    }
+    return current != expression &&
+           (current->kind == NODE_CALL_EXPRESSION || current->kind == NODE_STRUCT_VALUE);
+}
+
 /* E3027: validate that an argument passed to a mutable (&) parameter is a
  * mutable assignment target. Emits a diagnostic and returns if the argument
  * is a constant variable, an enum constant, or a literal/expression. */
@@ -6576,6 +6592,9 @@ static void check_mutable_argument(TypeChecker *checker, AstNode *argument,
                 NODE_ERROR_FORMATTED(checker, argument, "E3027",
                     "a field or element of a constant", parameter_description, function_display);
             }
+        } else if (chain_rooted_at_temporary(checker, argument)) {
+            NODE_ERROR_FORMATTED(checker, argument, "E3027",
+                "a field or element of a temporary", parameter_description, function_display);
         }
     } else if (argument->kind == NODE_POSTFIX_EXPRESSION &&
                argument->data.postfix.operator == TOKEN_CARET) {
@@ -6598,9 +6617,11 @@ static void report_temporary_for_stdlib_mutable_parameter(TypeChecker *checker, 
                                                           const char *parameter_name,
                                                           const char *module_name,
                                                           const char *member_function_name) {
-    if (argument->kind == NODE_LABEL || argument->kind == NODE_MEMBER_EXPRESSION ||
-        argument->kind == NODE_INDEX_EXPRESSION ||
+    if (argument->kind == NODE_LABEL ||
         (argument->kind == NODE_POSTFIX_EXPRESSION && argument->data.postfix.operator == TOKEN_CARET))
+        return;
+    if ((argument->kind == NODE_MEMBER_EXPRESSION || argument->kind == NODE_INDEX_EXPRESSION) &&
+        !chain_rooted_at_temporary(checker, argument))
         return;
     check_mutable_argument(checker, argument,
         typechecker_format(checker, "mutable parameter '%s'", parameter_name),
