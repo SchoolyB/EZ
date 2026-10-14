@@ -6995,8 +6995,17 @@ static GrayType *resolve_arrays_call(TypeChecker *checker, AstNode *node, const 
                     callback_argument->data.function_reference.function->kind == NODE_LABEL) {
                     reference_name = callback_argument->data.function_reference.function->data.label.value;
                 }
+                FunctionSignature *callback_function_signature = NULL;
                 if (reference_name) {
-                    FunctionSignature *callback_function_signature = find_function(checker, reference_name);
+                    callback_function_signature = find_function(checker, reference_name);
+                } else if (callback_argument->kind == NODE_FUNCTION_REFERENCE) {
+                    AstNode *referenced = callback_argument->data.function_reference.function;
+                    if (referenced->kind == NODE_MEMBER_EXPRESSION && referenced->data.member.object &&
+                        referenced->data.member.object->kind == NODE_LABEL)
+                        callback_function_signature = find_module_function(checker,
+                            referenced->data.member.object->data.label.value, referenced->data.member.member);
+                }
+                {
                     if (callback_function_signature) {
                         AstNode *array_argument = node->data.call.arguments[0];
                         GrayType *array_type = type_table_get(checker->type_table, array_argument);

@@ -1,0 +1,8 @@
+import @arrays
+import "./sm"
+
+do main() {
+    mut ns [i64] = {10, 2, 3}
+    arrays.sort_by(ns, ()sm.by_str)
+    println(ns)
+}
