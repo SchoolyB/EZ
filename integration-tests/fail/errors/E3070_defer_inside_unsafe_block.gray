@@ -1,0 +1,7 @@
+// expect-error: E3070
+do main() {
+    unsafe {
+        defer println("deferred")
+        println("body")
+    }
+}

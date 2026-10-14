@@ -13300,7 +13300,9 @@ static void check_no_nested_ensure(TypeChecker *checker, AstNode *node, bool nes
     }
     if (node->kind == NODE_BLOCK_STATEMENT) {
         for (int i = 0; i < node->data.block.count; i++) {
-            check_no_nested_ensure(checker, node->data.block.statements[i], nested);
+            AstNode *statement = node->data.block.statements[i];
+            /* A block inside a block (`unsafe { }`) is its own scope. */
+            check_no_nested_ensure(checker, statement, nested || statement->kind == NODE_BLOCK_STATEMENT);
         }
         return;
     }
