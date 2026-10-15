@@ -8,12 +8,15 @@
 package driver
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 )
 
@@ -41,9 +44,44 @@ var (
 // libgrayrt.a, and the src/ tree (file list and contents). `make embed-tag`
 // computes it and the build injects it via -ldflags, so a fresh process never
 // hashes the assets and a changed source file always names a new extraction
-// directory. Empty in a bare `go build ./cli` dev build, which has no embedded
-// compiler and falls back to a path search.
+// directory. Empty outside `make build` (e.g. `go test`), where
+// computeEmbedTag produces the same value at runtime.
 var embedTag string
+
+// computeEmbedTag mirrors the Makefile's embed-tag target: sha256 of grayc,
+// libgrayrt.a, the byte-sorted "./"-prefixed src/ file list (one per line),
+// then each file's contents in that order.
+func computeEmbedTag() (string, error) {
+	var names []string
+	err := fs.WalkDir(embeddedSrc, "runtime/src", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			names = append(names, "./"+path[len("runtime/src/"):])
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	sort.Strings(names)
+
+	hash := sha256.New()
+	hash.Write(embeddedGrayc)
+	hash.Write(embeddedLibgrayrt)
+	for _, name := range names {
+		hash.Write([]byte(name + "\n"))
+	}
+	for _, name := range names {
+		data, err := embeddedSrc.ReadFile("runtime/src/" + name[2:])
+		if err != nil {
+			return "", err
+		}
+		hash.Write(data)
+	}
+	return hex.EncodeToString(hash.Sum(nil))[:16], nil
+}
 
 // extractEmbedded materialises the embedded grayc binary, libgrayrt.a, and
 // runtime/stdlib source files into a per-content-hash subdirectory of
@@ -56,7 +94,7 @@ func extractEmbedded() (string, error) {
 		// bootstrap ships a compiler without the runtime archive, which is
 		// enough for check, fmt, doc, and --emit-c. Only a missing compiler
 		// means "this is a dev build, fall back to a path search".
-		if len(embeddedGrayc) == 0 || embedTag == "" {
+		if len(embeddedGrayc) == 0 {
 			extractErr = ErrNoEmbed
 			return
 		}
@@ -65,6 +103,13 @@ func extractEmbedded() (string, error) {
 		// fresh directory instead of reusing a stale extraction from an
 		// older install.
 		tag := embedTag
+		if tag == "" {
+			var err error
+			if tag, err = computeEmbedTag(); err != nil {
+				extractErr = fmt.Errorf("cannot hash embedded runtime: %w", err)
+				return
+			}
+		}
 
 		home, err := os.UserHomeDir()
 		if err != nil {
