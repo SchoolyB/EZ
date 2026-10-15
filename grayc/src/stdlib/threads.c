@@ -47,8 +47,13 @@ static void *thread_entry(void *raw_argument) {
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
     free(gray_default_arena);
     gray_default_arena = NULL;
-    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
-    free(gray_heap_arena);
+    /* A pointer from new(), or a global assigned inside the thread, can be
+     * read after the thread exits, so a heap arena that holds anything lives
+     * until the program exits. */
+    if (gray_arena_usage(gray_heap_arena) == 0) {
+        gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+        free(gray_heap_arena);
+    }
     gray_heap_arena = NULL;
     atomic_fetch_sub(&gray_threads_live_count, 1);
     atomic_store(&state->alive, 0);
