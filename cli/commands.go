@@ -522,7 +522,7 @@ func reportCPUModel() string {
 }
 
 // reportCCompiler resolves the C compiler grayc will actually invoke
-// (honouring $GRAY_CC, then $CC, else the first of clang/gcc/cc on PATH) and returns
+// (honouring $GRAY_CC, then $CC, else the first of cc/gcc/clang on PATH, gcc/clang/cc on Windows) and returns
 // its resolved path, first line of --version output, and target triple.
 func reportCCompiler() (path, version, triple string) {
 	cc := os.Getenv("GRAY_CC")
@@ -530,7 +530,12 @@ func reportCCompiler() (path, version, triple string) {
 		cc = os.Getenv("CC")
 	}
 	if cc == "" {
-		for _, candidate := range []string{"clang", "gcc", "cc"} {
+		// Same order as grayc's detect_c_compiler.
+		candidates := []string{"cc", "gcc", "clang"}
+		if runtime.GOOS == "windows" {
+			candidates = []string{"gcc", "clang", "cc"}
+		}
+		for _, candidate := range candidates {
 			if p, err := exec.LookPath(candidate); err == nil {
 				cc = p
 				break
