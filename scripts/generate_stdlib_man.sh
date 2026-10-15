@@ -36,7 +36,7 @@ for header in "$STDLIB_DIR"/*.h; do
     in_block && /\*@example/ { in_ex = 1; next }
     in_block && /\*@end/     { in_ex = 0; next }
     in_block && in_ex {
-      line = $0; sub(/^ \*   /, "", line)
+      line = $0; sub(/^ \*   /, "", line); sub(/^ \*$/, "", line)
       gsub(/\\/, "\\\\", line)
       gsub(/"/, "\\\"", line)
       ex = (ex == "" ? line : ex "\\n" line); next

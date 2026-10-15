@@ -56,6 +56,7 @@ fi
         in_block && in_ex {
             line = $0
             sub(/^ \*   /, "", line)
+            sub(/^ \*$/, "", line)
             gsub(/"/, "\\\"", line)
             ex = (ex == "" ? line : ex "\\n" line)
             next
