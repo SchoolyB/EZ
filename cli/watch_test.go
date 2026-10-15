@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -57,13 +58,13 @@ func TestScanImports(t *testing.T) {
 	os.WriteFile(src, []byte(
 		"import @math\n"+
 			"import @strings, @io\n"+
-			"import ./utils\n"+
-			"import ./helpers using sqrt\n"+
+			"import \"./utils\"\n"+
+			"import lib_helpers \"./lib/helpers\", \"./models\"\n"+
 			"do main() {}\n",
 	), 0o644)
 
 	got := scanImports(src)
-	want := []string{"@math", "@strings", "@io", "./utils", "./helpers"}
+	want := []string{"@math", "@strings", "@io", "./utils", "./lib/helpers", "./models"}
 
 	if len(got) != len(want) {
 		t.Fatalf("scanImports got %v, want %v", got, want)
@@ -174,7 +175,7 @@ func TestCollectFilesToWatch_LocalImport(t *testing.T) {
 	dir := t.TempDir()
 	main := filepath.Join(dir, "main.gray")
 	util := filepath.Join(dir, "util.gray")
-	os.WriteFile(main, []byte("import ./util\ndo main() {}\n"), 0o644)
+	os.WriteFile(main, []byte("import \"./util\"\ndo main() {}\n"), 0o644)
 	os.WriteFile(util, []byte("do helper() {}\n"), 0o644)
 
 	files := collectFilesToWatch(main)
@@ -209,5 +210,34 @@ func TestShortPath(t *testing.T) {
 	outside := "/completely/different/path/program.gray"
 	if got := shortPath(outside); got == "" {
 		t.Error("shortPath returned empty string for outside-cwd path")
+	}
+}
+
+func TestCollectFilesToWatch_TransitiveAndDirectoryImports(t *testing.T) {
+	dir := t.TempDir()
+	write := func(relative, content string) string {
+		path := filepath.Join(dir, relative)
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		os.WriteFile(path, []byte(content), 0o644)
+		return path
+	}
+	main := write("main.gray", "import \"./helper\"\nimport \"./models\"\nimport lib_mid \"./mid\"\ndo main() {}\n")
+	write("helper.gray", "")
+	write("models/a.gray", "import \"../shared.gray\"\n")
+	write("models/sub/ignored.gray", "")
+	write("shared.gray", "")
+	write("mid.gray", "import \"./deep/leaf\"\n")
+	write("deep/leaf.gray", "")
+
+	var names []string
+	for _, f := range collectFilesToWatch(main) {
+		relative, _ := filepath.Rel(dir, f)
+		names = append(names, filepath.ToSlash(relative))
+	}
+	sort.Strings(names)
+
+	want := []string{"deep/leaf.gray", "helper.gray", "main.gray", "mid.gray", "models/a.gray", "shared.gray"}
+	if strings.Join(names, ",") != strings.Join(want, ",") {
+		t.Errorf("got %v, want %v", names, want)
 	}
 }
