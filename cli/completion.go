@@ -54,6 +54,13 @@ func completeRoot(cmd *cobra.Command, args []string, toComplete string) ([]strin
 	if listed == "" {
 		listed = "."
 	}
+	// The shell leaves a quoted or unexpanded ~ for the program to resolve;
+	// completions keep the ~ the user typed.
+	if strings.HasPrefix(listed, "~"+string(filepath.Separator)) {
+		if home, homeErr := os.UserHomeDir(); homeErr == nil {
+			listed = filepath.Join(home, listed[2:])
+		}
+	}
 	entries, err := os.ReadDir(listed)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
