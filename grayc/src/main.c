@@ -2337,6 +2337,10 @@ int main(int argc, char **argv) {
      * declarations in the shared runtime headers against the archive. */
     argument_vector_push(&c_compiler_arguments, "-std=c11");
     argument_vector_push(&c_compiler_arguments, "-D_POSIX_C_SOURCE=200809L");
+    /* An explicit _POSIX_C_SOURCE also turns off glibc's default feature set,
+     * which hides realpath (declared under _DEFAULT_SOURCE or XSI only). It
+     * adds declarations and changes no layout, so the archive still matches. */
+    argument_vector_push(&c_compiler_arguments, "-D_DEFAULT_SOURCE");
     /* Darwin's -D_POSIX_C_SOURCE strict mode hides BSD names (u_int, ...) that
      * its own system headers use; vendored sqlite3.c, built from source for a
      * mac target, includes those headers. Inert on glibc. */
