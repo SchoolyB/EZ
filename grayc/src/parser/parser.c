@@ -446,8 +446,16 @@ static const char *parse_complex_type(Parser *parser) {
         return built_type_name;
     } else if (current_token_is(parser, TOKEN_CARET)) {
         /* Pointer type: ^T; recurse to support ^^T, ^^^T, etc. */
+        if (++parser->type_nesting > 64) {
+            diagnostic_error_message(parser->diagnostics, "E2001",
+                arena_copy_string(parser->arena,"type nesting is too deep; maximum depth is 64"),
+                parser->file, parser->current_token.line, parser->current_token.column, 0);
+            parser->type_nesting--;
+            return NULL;
+        }
         next_token(parser);
         const char *pointee = parse_complex_type(parser);
+        parser->type_nesting--;
         if (!pointee) return NULL;
         size_t type_name_length = strlen(pointee) + 2;
         char *built_type_name = arena_allocate(parser->arena, type_name_length);
@@ -1441,7 +1449,15 @@ static AstNode *parse_expression(Parser *parser, Precedence precedence) {
     AstNode *left = parse_prefix(parser);
     if (!left) { parser->depth--; return NULL; }
 
+    int chain_length = 0;
     while (!peek_token_is(parser, TOKEN_END_OF_FILE) && precedence < get_token_precedence(parser->peek_token.type)) {
+        if (++chain_length > MAX_PARSE_DEPTH) {
+            diagnostic_error_message(parser->diagnostics, "E2001",
+                arena_copy_string(parser->arena,"expression is nested too deeply; maximum depth is 256"),
+                parser->file, parser->peek_token.line, parser->peek_token.column, 0);
+            parser->depth--;
+            return NULL;
+        }
         next_token(parser);
         left = parse_infix(parser, left);
         if (!left) { parser->depth--; return NULL; }
