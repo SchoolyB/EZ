@@ -861,12 +861,15 @@ var crossBuildCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
 	crossCmd.AddCommand(crossBuildCmd, crossTargetsCmd)
 	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, newCmd, watchCmd, manCmd, verifyCmd, crossCmd, testCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		// A completion script reads stdout, and a Tab press must not wait on the network.
+		if isCompletionCommand(cmd) {
+			return
+		}
 		CheckForUpdateAsync()
 	}
 	// Custom help for root only: hide -h (users have `gray help`) and -v (use `gray version`)
@@ -930,6 +933,12 @@ See the full language standard: https://github.com/grayscale-lang/grayscale/blob
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing directory")
 	newCmd.Flags().StringP("server-type", "s", "normal", "Server template type: minimal, normal")
 
+	rootCmd.ValidArgsFunction = completeRoot
+	for _, sourceCmd := range []*cobra.Command{buildCmd, checkCmd, watchCmd, fmtCmd, docCmd, testCmd, crossBuildCmd} {
+		sourceCmd.ValidArgsFunction = completeSourceFiles
+	}
+	manCmd.ValidArgsFunction = completeManNames
+
 	crossBuildCmd.Flags().String("target", "", "Target platform (run 'gray cross targets' to list)")
 	crossBuildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	crossBuildCmd.Flags().Bool("emit-c", false, "Emit generated C source to a file (no binary)")
@@ -937,4 +946,8 @@ See the full language standard: https://github.com/grayscale-lang/grayscale/blob
 	crossBuildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	crossBuildCmd.Flags().Bool("no-color", false, "Disable colored output")
 	crossBuildCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+
+	_ = newCmd.RegisterFlagCompletionFunc("template", completeFixedValues("basic", "cli", "lib", "multi", "server", "client"))
+	_ = newCmd.RegisterFlagCompletionFunc("server-type", completeFixedValues("minimal", "normal"))
+	_ = crossBuildCmd.RegisterFlagCompletionFunc("target", completeCrossTargets)
 }

@@ -5207,6 +5207,7 @@ The `gray` command-line tool provides the following commands:
 | `gray version` | Show version information |
 | `gray cross build <file.gray>` | Cross-compile for another platform via Zig |
 | `gray cross targets` | List supported cross-compilation targets |
+| `gray completion <shell>` | Generate a shell tab-completion script |
 
 ### Global Flags
 
@@ -5557,6 +5558,30 @@ List all supported cross-compilation targets and their corresponding Zig triples
 ```
 gray cross targets
 ```
+
+### 13.17 `gray completion`
+
+Generate a tab-completion script for `bash`, `zsh`, `fish`, or `powershell`.
+
+```
+gray completion <shell>
+```
+
+Load the script once for your shell:
+
+| Shell | Setup |
+|-------|-------|
+| zsh | add `source <(gray completion zsh)` to `~/.zshrc`, after `compinit` has run |
+| bash | add `source <(gray completion bash)` to `~/.bashrc` |
+| fish | `gray completion fish > ~/.config/fish/completions/gray.fish` |
+| powershell | add `gray completion powershell \| Out-String \| Invoke-Expression` to your profile |
+
+Once loaded, Tab completes:
+
+- subcommand names
+- `.gray` and `.grayscale` files and directories, for `gray <file>` and the commands that take source paths (`build`, `check`, `watch`, `fmt`, `doc`, `test`, `cross build`)
+- flag values for `gray new --template`, `gray new --server-type`, and `gray cross build --target`
+- names for `gray man`, such as `gray man os.exec`
 
 ---
 
