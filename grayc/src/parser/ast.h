@@ -537,6 +537,10 @@ char *generic_bindings_substitute(const GenericBindings *bindings, const char *t
  * place the shape is tested, so a phase asks for the qualifier instead of
  * open-coding the node-kind check. */
 
+/* Turns a node into a label spelled `value`. The label's reference flags are
+ * cleared: its union storage still holds the previous kind's bytes. */
+void ast_convert_to_label(AstNode *node, const char *value);
+
 /* The bare name a member expression is written against — "mod" in mod.f(),
  * "Type" in Type.VARIANT, "v" in v.field — or NULL when the object is not a
  * plain name. */

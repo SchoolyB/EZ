@@ -7767,8 +7767,7 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
         snprintf(qualified, sizeof(qualified), "%s.%s",
             ast_member_qualifier(type_argument), type_argument->data.member.member);
         if (type_argument_names_a_type(checker, qualified)) {
-            type_argument->kind = NODE_LABEL;
-            type_argument->data.label.value = arena_copy_string(checker->arena, qualified);
+            ast_convert_to_label(type_argument, arena_copy_string(checker->arena, qualified));
         }
     }
     if (type_argument->kind != NODE_LABEL) {
@@ -9828,8 +9827,7 @@ static void normalize_qualified_enum_call(TypeChecker *checker, AstNode *node) {
 
     mark_import_used(checker, raw_module_name);
     mark_import_used(checker, typechecker_resolve_alias(checker, raw_module_name));
-    object->kind = NODE_LABEL;
-    object->data.label.value = arena_copy_string(checker->arena, prefixed);
+    ast_convert_to_label(object, arena_copy_string(checker->arena, prefixed));
 }
 
 /* Does a bare name name a struct or enum type — its own spelling, or the one
@@ -11400,8 +11398,7 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
         if (symbol && symbol->return_types && symbol->return_count == 1 &&
             strncmp(object_name, GRAY_SYNTHETIC_TEMPORARY, sizeof(GRAY_SYNTHETIC_TEMPORARY) - 1) == 0 &&
             member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
-            node->kind = NODE_LABEL;
-            node->data.label.value = object_name;
+            ast_convert_to_label(node, object_name);
             return symbol->return_types[0];
         }
         /* Multi-return .v0/.v1 access takes priority over struct field
@@ -11437,8 +11434,7 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
                  * (`a, b = f()`): the value goes to every name. check_block
                  * rewrites the `.v0` binding to match. */
                 if (strncmp(object_name, GRAY_SYNTHETIC_TEMPORARY, sizeof(GRAY_SYNTHETIC_TEMPORARY) - 1) == 0) {
-                    node->kind = NODE_LABEL;
-                    node->data.label.value = object_name;
+                    ast_convert_to_label(node, object_name);
                     return symbol->type;
                 }
                 NODE_ERROR_FORMATTED(checker, node, "E3006", 1, field_index + 1);
@@ -13680,8 +13676,7 @@ static void check_block_statements(TypeChecker *checker, AstNode *node) {
                     if (binding_value && binding_value->kind == NODE_MEMBER_EXPRESSION &&
                         binding_value->data.member.object->kind == NODE_LABEL &&
                         strcmp(binding_value->data.member.object->data.label.value, temporary_name) == 0) {
-                        binding_value->kind = NODE_LABEL;
-                        binding_value->data.label.value = temporary_name;
+                        ast_convert_to_label(binding_value, temporary_name);
                     }
                 }
             }
