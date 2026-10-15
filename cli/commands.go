@@ -99,7 +99,11 @@ var checkCmd = &cobra.Command{
 		if !isDir && !hasSourceExtension(args[0]) {
 			return fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file", args[0])
 		}
-		code, err := driver.Check(args[0], quietArgs(cmd))
+		compilerArgs, err := compilerFlagArgs(cmd)
+		if err != nil {
+			return err
+		}
+		code, err := driver.Check(args[0], compilerArgs)
 		if err != nil {
 			return fmt.Errorf("error: %v", err)
 		}
@@ -120,6 +124,27 @@ func quietArgs(cmd *cobra.Command) []string {
 		return []string{"--quiet", quiet}
 	}
 	return nil
+}
+
+// compilerFlagArgs turns the global --quiet, --no-color, and --arena-limit
+// flags into compiler arguments and applies --cc to the environment. It is
+// shared by the commands that run or check a source file.
+func compilerFlagArgs(cmd *cobra.Command) ([]string, error) {
+	compilerArgs := quietArgs(cmd)
+	if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
+		compilerArgs = append(compilerArgs, "--no-color")
+	}
+	if arenaLimitStr, _ := cmd.Flags().GetString("arena-limit"); arenaLimitStr != "" {
+		arenaLimit, err := parseArenaLimit(arenaLimitStr)
+		if err != nil {
+			return nil, err
+		}
+		compilerArgs = append(compilerArgs, fmt.Sprintf("--arena-limit=%d", arenaLimit))
+	}
+	if err := applyCompilerFlag(cmd); err != nil {
+		return nil, err
+	}
+	return compilerArgs, nil
 }
 
 // applyCompilerFlag makes --cc the C compiler for this invocation by setting
@@ -752,19 +777,8 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Prepend compiler flags (before program args)
-		var compilerArgs []string
-		compilerArgs = append(compilerArgs, quietArgs(cmd)...)
-		if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
-			compilerArgs = append(compilerArgs, "--no-color")
-		}
-		if arenaLimitStr, _ := cmd.Flags().GetString("arena-limit"); arenaLimitStr != "" {
-			arenaLimit, err := parseArenaLimit(arenaLimitStr)
-			if err != nil {
-				return err
-			}
-			compilerArgs = append(compilerArgs, fmt.Sprintf("--arena-limit=%d", arenaLimit))
-		}
-		if err := applyCompilerFlag(cmd); err != nil {
+		compilerArgs, err := compilerFlagArgs(cmd)
+		if err != nil {
 			return err
 		}
 		compilerArgs = append(compilerArgs, extraArgs...)
@@ -945,7 +959,13 @@ See the full language standard: https://github.com/grayscale-lang/grayscale/blob
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	buildCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+	checkCmd.Flags().Bool("no-color", false, "Disable colored output")
+	checkCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	checkCmd.Flags().String("cc", "", "C compiler to use (a name on PATH or a path); overrides GRAY_CC and CC")
 	watchCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+	watchCmd.Flags().Bool("no-color", false, "Disable colored output")
+	watchCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	watchCmd.Flags().String("cc", "", "C compiler to use (a name on PATH or a path); overrides GRAY_CC and CC")
 	testCmd.Flags().Bool("no-color", false, "Disable colored output")
 
 	docCmd.Flags().StringP("output", "o", defaultDocOutputPath, "Path to write generated markdown")

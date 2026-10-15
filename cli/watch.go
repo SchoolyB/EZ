@@ -36,10 +36,9 @@ var watchCmd = &cobra.Command{
 func runWatch(cmd *cobra.Command, args []string) error {
 	target := args[0]
 
-	var compilerArgs []string
-	compilerArgs = append(compilerArgs, quietArgs(cmd)...)
-	if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
-		compilerArgs = append(compilerArgs, "--no-color")
+	compilerArgs, err := compilerFlagArgs(cmd)
+	if err != nil {
+		return err
 	}
 
 	// Resolve to absolute path
