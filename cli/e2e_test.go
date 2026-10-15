@@ -704,3 +704,30 @@ func TestE2E_Build_SourceFilenameIsEscapedInGeneratedC(t *testing.T) {
 		t.Errorf("panic location does not name the original file, got:\n%s", combined.String())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// diagnostics do not echo an entire long source line
+// ---------------------------------------------------------------------------
+
+func TestE2E_Check_DiagnosticsWindowALongSourceLine(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "long_line.gray")
+	program := "do main() {\n    mut x bool = " + strings.Repeat("not ", 4000) + "true\n}\n"
+	if err := os.WriteFile(src, []byte(program), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := runGray(t, "check", src)
+	if code == 0 {
+		t.Fatalf("expected gray check to fail, got exit 0")
+	}
+	output := combinedOutput(stdout, stderr)
+	if !strings.Contains(output, "undefined variable 'not'") {
+		t.Fatalf("expected the undefined-variable diagnostic, got:\n%.400s", output)
+	}
+	for _, line := range strings.Split(output, "\n") {
+		if len(line) > 400 {
+			t.Fatalf("a diagnostic line is %d bytes; a long source line must be windowed:\n%.200s...", len(line), line)
+		}
+	}
+}

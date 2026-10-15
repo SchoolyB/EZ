@@ -20,6 +20,12 @@
 #define MAX_ERRORS_DISPLAYED 20
 #define DIAGNOSTIC_INITIAL_CAPACITY     16
 #define DIAGNOSTIC_FORMAT_BUFFER_SIZE      1024
+/* Widest slice of a source line a diagnostic echoes. A longer line is cut to
+ * this window around the error column, so the output of one diagnostic does
+ * not grow with the length of the line it points into. */
+#define DIAGNOSTIC_SOURCE_WINDOW_COLUMNS    100
+#define DIAGNOSTIC_ELISION_MARKER           "..."
+#define DIAGNOSTIC_ELISION_COLUMNS          3
 
 #include "colors.h"
 
@@ -298,21 +304,52 @@ static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *diagnostic
     }
 
     if (source_line_text && diagnostic_entry->line > 0) {
-        /* Line number gutter */
-        fprintf(stderr, "   %s|%s\n", color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET));
-        fprintf(stderr, "%s%3d%s %s|%s %s\n",
-            color_code(diagnostics, COLOR_BLUE), diagnostic_entry->line, color_code(diagnostics, COLOR_RESET),
-            color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET),
-            source_line_text);
-
-        /* Underline */
         int start = diagnostic_entry->column > 0 ? diagnostic_entry->column : 1;
         int end = diagnostic_entry->end_column > 0 ? diagnostic_entry->end_column : start;
         int span_length = end - start + 1;
         if (span_length < 1) span_length = 1;
 
+        /* Cut a long line to a window around the error column. Both window
+         * edges step back/forward off a UTF-8 continuation byte so a
+         * multi-byte character is never split. */
+        int line_length = (int)strlen(source_line_text);
+        int window_start = 0;
+        int window_end = line_length;
+        if (line_length > DIAGNOSTIC_SOURCE_WINDOW_COLUMNS) {
+            int error_index = start - 1 < line_length ? start - 1 : line_length - 1;
+            window_start = error_index - DIAGNOSTIC_SOURCE_WINDOW_COLUMNS / 2;
+            if (window_start < 0) window_start = 0;
+            window_end = window_start + DIAGNOSTIC_SOURCE_WINDOW_COLUMNS;
+            if (window_end > line_length) {
+                window_end = line_length;
+                window_start = window_end - DIAGNOSTIC_SOURCE_WINDOW_COLUMNS;
+            }
+            while (window_start > 0 && ((unsigned char)source_line_text[window_start] & 0xC0) == 0x80) window_start--;
+            while (window_end < line_length && ((unsigned char)source_line_text[window_end] & 0xC0) == 0x80) window_end++;
+        }
+        bool is_cut_left = window_start > 0;
+        bool is_cut_right = window_end < line_length;
+
+        /* Line number gutter */
+        fprintf(stderr, "   %s|%s\n", color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET));
+        fprintf(stderr, "%s%3d%s %s|%s %s%.*s%s\n",
+            color_code(diagnostics, COLOR_BLUE), diagnostic_entry->line, color_code(diagnostics, COLOR_RESET),
+            color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET),
+            is_cut_left ? DIAGNOSTIC_ELISION_MARKER : "",
+            window_end - window_start, source_line_text + window_start,
+            is_cut_right ? DIAGNOSTIC_ELISION_MARKER : "");
+
+        /* Underline, aligned to the (possibly cut) text above and clipped to it */
+        int padding = start - 1 - window_start + (is_cut_left ? DIAGNOSTIC_ELISION_COLUMNS : 0);
+        int maximum_padding = DIAGNOSTIC_SOURCE_WINDOW_COLUMNS + DIAGNOSTIC_ELISION_COLUMNS;
+        if (padding < 0) padding = 0;
+        if (padding > maximum_padding) padding = maximum_padding;
+        int visible_span = window_end - (start - 1);
+        if (span_length > visible_span) span_length = visible_span;
+        if (span_length < 1) span_length = 1;
+
         fprintf(stderr, "   %s|%s ", color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET));
-        for (int i = 1; i < start; i++) {
+        for (int i = 0; i < padding; i++) {
             fputc(' ', stderr);
         }
         fprintf(stderr, "%s%s", color_code(diagnostics, COLOR_BOLD), color_code(diagnostics, severity_color));
