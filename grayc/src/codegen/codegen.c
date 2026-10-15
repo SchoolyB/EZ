@@ -4804,6 +4804,13 @@ static void emit_expression(CodeGen *codegen, AstNode *node) {
     GrayType *node_type = codegen_type_of(codegen, node);
     if (node_type && node_type->kind == TYPE_KIND_LITERAL)
         codegen_internal_error("an untyped number literal reached codegen", codegen->file, node->token.line);
+    if (node == codegen->module_store_value) {
+        codegen->module_store_value = NULL;
+        emit(codegen, "({ GrayString _store_source = ");
+        emit_expression(codegen, node);
+        emit(codegen, "; gray_string_new(gray_default_arena, _store_source.data, _store_source.len); })");
+        return;
+    }
     if (node->folded_literal) {
         emit_folded_literal(codegen, node);
         return;
@@ -13290,8 +13297,17 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                           "if (gray_heap_arena) gray_default_arena = gray_heap_arena;\n");
             codegen->indent++;
         }
+        if (to_module && node->kind == NODE_ASSIGN_STATEMENT &&
+            node->data.assign.operator == TOKEN_ASSIGN && node->data.assign.value &&
+            (node->data.assign.value->kind == NODE_LABEL || node->data.assign.value->kind == NODE_MEMBER_EXPRESSION ||
+             node->data.assign.value->kind == NODE_INDEX_EXPRESSION)) {
+            GrayType *value_type = codegen_type_of(codegen, node->data.assign.value);
+            if (value_type && value_type->kind == TYPE_KIND_STRING)
+                codegen->module_store_value = node->data.assign.value;
+        }
         if (node->kind == NODE_ASSIGN_STATEMENT) emit_assign_statement(codegen, node);
         else emit_expression_statement(codegen, node);
+        codegen->module_store_value = NULL;
         if (to_module) {
             codegen->indent--;
             emit_indent(codegen);
