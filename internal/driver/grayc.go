@@ -167,8 +167,18 @@ func buildArgs(file string, opts BuildOpts) []string {
 
 // Build compiles a Grayscale source file to a native binary via grayc build.
 func Build(file string, opts BuildOpts) (int, error) {
-	if opts.Output != "" && sameExistingFile(file, opts.Output) {
-		return 1, fmt.Errorf("output path '%s' is the input file; choose a different -o path", opts.Output)
+	if opts.Output != "" {
+		if sameExistingFile(file, opts.Output) {
+			return 1, fmt.Errorf("output path '%s' is the input file; choose a different -o path", opts.Output)
+		}
+		if info, statErr := os.Stat(opts.Output); statErr == nil && info.IsDir() {
+			return 1, fmt.Errorf("output path '%s' is a directory; name a file with -o", opts.Output)
+		}
+		if parent := filepath.Dir(opts.Output); parent != "." {
+			if info, statErr := os.Stat(parent); statErr != nil || !info.IsDir() {
+				return 1, fmt.Errorf("output path '%s' cannot be written: directory '%s' does not exist", opts.Output, parent)
+			}
+		}
 	}
 	graycPath, err := Find()
 	if err != nil {

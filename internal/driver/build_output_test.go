@@ -20,3 +20,16 @@ func TestBuildRefusesOutputEqualToInput(t *testing.T) {
 		t.Errorf("source was modified: %q (%v)", contents, readErr)
 	}
 }
+
+func TestBuildRefusesUnusableOutputPath(t *testing.T) {
+	directory := t.TempDir()
+	source := filepath.Join(directory, "one.gray")
+	if err := os.WriteFile(source, []byte("do main() { }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, output := range []string{directory, filepath.Join(directory, "nodir", "app")} {
+		if code, err := Build(source, BuildOpts{Output: output}); err == nil || code == 0 {
+			t.Errorf("Build accepted unusable output %q: code=%d err=%v", output, code, err)
+		}
+	}
+}
