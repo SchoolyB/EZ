@@ -231,6 +231,44 @@ static const char *codegen_declaration_name(CodeGen *codegen, AstNode *node,
 
 static char *normalize_path_separators(const char *path);
 
+/* Returns `text` escaped for the inside of a C string literal, so C reads back
+ * exactly those bytes: a quote or backslash cannot close or escape the
+ * literal, a control byte (a newline would end a #line directive) is written
+ * as a three-digit octal escape that cannot swallow the characters after it,
+ * and "\?" keeps "??x" from reading as a trigraph. Caller frees. */
+static char *escape_c_string_literal(const char *text) {
+    size_t length = strlen(text);
+    char *escaped = xmalloc(length * 4 + 1);
+    char *cursor = escaped;
+    for (const char *source = text; *source; source++) {
+        unsigned char byte = (unsigned char)*source;
+        if (byte == '"' || byte == '\\' || byte == '?') {
+            *cursor++ = '\\';
+            *cursor++ = (char)byte;
+        } else if (byte >= 0x20 && byte < 0x7F) {
+            *cursor++ = (char)byte;
+        } else {
+            cursor += sprintf(cursor, "\\%03o", byte);
+        }
+    }
+    *cursor = '\0';
+    return escaped;
+}
+
+/* codegen->file escaped for a C string literal. codegen->file itself stays
+ * raw: embed() and the per-file comparisons need the real path. The escaped
+ * copy is rebuilt only when codegen->file changes (per function body). */
+static const char *codegen_file_literal(CodeGen *codegen) {
+    const char *file = codegen->file ? codegen->file : "";
+    if (!codegen->file_literal_source || strcmp(codegen->file_literal_source, file) != 0) {
+        free(codegen->file_literal_source);
+        free(codegen->file_literal_text);
+        codegen->file_literal_source = strdup(file);
+        codegen->file_literal_text = escape_c_string_literal(file);
+    }
+    return codegen->file_literal_text;
+}
+
 static void emit(CodeGen *codegen, const char *text) {
     append_string_to_buffer(&codegen->output, text);
 }
@@ -285,7 +323,7 @@ static const char *panic_call(CodeGen *codegen, const AstNode *location_node,
                               const char *code, const char *c_arguments) {
     const char *message = gray_error_message(code);
     if (!message) message = "runtime panic";  /* unregistered code: still emit valid C */
-    const char *file = codegen->file ? codegen->file : "";
+    const char *file = codegen_file_literal(codegen) ? codegen_file_literal(codegen) : "";
     int line = location_node ? location_node->token.line : 0;
     if (!c_arguments) c_arguments = "";
     const char *format = "gray_panic_code_at(\"%s\", %d, \"%s\", \"%s\"%s)";
@@ -371,9 +409,9 @@ static bool integer_type_name_bounds(const char *type_name,
 static void emit_sized_bounds_arguments(CodeGen *codegen, const char *minimum_text, const char *maximum_text,
                                    bool is_unsigned, const char *type_name, int line) {
     if (is_unsigned)
-        emit_formatted(codegen, "%s, \"%s\", \"%s\", %d", maximum_text, type_name, codegen->file, line);
+        emit_formatted(codegen, "%s, \"%s\", \"%s\", %d", maximum_text, type_name, codegen_file_literal(codegen), line);
     else
-        emit_formatted(codegen, "%s, %s, \"%s\", \"%s\", %d", minimum_text, maximum_text, type_name, codegen->file, line);
+        emit_formatted(codegen, "%s, %s, \"%s\", \"%s\", %d", minimum_text, maximum_text, type_name, codegen_file_literal(codegen), line);
 }
 
 /* Emit the overflow-checked negation of a signed (non-wide) integer of type
@@ -388,9 +426,9 @@ static void emit_checked_negation(CodeGen *codegen, GrayType *integer_type, AstN
     if (operand_c_text) emit(codegen, operand_c_text);
     else emit_expression(codegen, operand);
     if (sized)
-        emit_formatted(codegen, ", %s, %s, \"%s\", \"%s\", %d)", source_minimum, source_maximum, integer_type->name, codegen->file, line);
+        emit_formatted(codegen, ", %s, %s, \"%s\", \"%s\", %d)", source_minimum, source_maximum, integer_type->name, codegen_file_literal(codegen), line);
     else
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), line);
 }
 
 /* A char holds a Unicode codepoint, U+0000–U+10FFFF; a conversion to char is
@@ -1497,7 +1535,7 @@ static void emit_mem_check_live_open(CodeGen *codegen, AstNode *arena_expression
     emit(codegen, ", (void *)(");
 }
 static void emit_mem_check_live_close(CodeGen *codegen, int line) {
-    emit_formatted(codegen, "), \"%s\", %d)", codegen->file, line);
+    emit_formatted(codegen, "), \"%s\", %d)", codegen_file_literal(codegen), line);
 }
 
 /* Returns true if the named enum is string-backed.
@@ -1876,7 +1914,7 @@ static void emit_stored_range_membership(CodeGen *codegen, AstNode *location_nod
     emit_expression(codegen, range_node);
     emit_formatted(codegen, "; if (%s_has_zero_step(_gray_range_%d)) { %s; } %s_contains(_gray_range_%d, _gray_subject_%d, \"%s\", %d); })",
         range_c_type, range_id, panic_call(codegen, location_node, "P0090", ""),
-        range_c_type, range_id, range_id, codegen->file, location_node->token.line);
+        range_c_type, range_id, range_id, codegen_file_literal(codegen), location_node->token.line);
 }
 
 /* Emit a shift amount as an int64_t. A wide amount too large for int64_t
@@ -1887,7 +1925,7 @@ static void emit_shift_amount(CodeGen *codegen, AstNode *amount, int maximum_amo
     if (wide) {
         emit_formatted(codegen, "%s_shift_amount(", wide_integer_prefix(wide));
         emit_expression(codegen, amount);
-        emit_formatted(codegen, ", %d, \"%s\", %d)", maximum_amount, codegen->file, amount->token.line);
+        emit_formatted(codegen, ", %d, \"%s\", %d)", maximum_amount, codegen_file_literal(codegen), amount->token.line);
         return;
     }
     emit(codegen, "(int64_t)(");
@@ -2652,7 +2690,7 @@ static void emit_map_value(CodeGen *codegen, AstNode *node) {
         } else {
             emit_map_slot_value(codegen, gray_value_type_name, node->data.map_value.values[i]);
         }
-        emit_formatted(codegen, "; gray_map_set(gray_default_arena, &_ml%d, &_mk, &_mv, \"%s\", %d); } ", my_counter, codegen->file, node->token.line);
+        emit_formatted(codegen, "; gray_map_set(gray_default_arena, &_ml%d, &_mk, &_mv, \"%s\", %d); } ", my_counter, codegen_file_literal(codegen), node->token.line);
     }
     emit_formatted(codegen, "_ml%d; })", my_counter);
 }
@@ -3019,7 +3057,7 @@ static void emit_prefix_expression(CodeGen *codegen, AstNode *node) {
         if (wide_integer_type && (strcmp(wide_integer_type, "i128") == 0 || strcmp(wide_integer_type, "i256") == 0)) {
             emit_formatted(codegen, "%s_neg_checked(", wide_integer_prefix(wide_integer_type));
             emit_expression(codegen, node->data.prefix.right);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
             return;
         }
     }
@@ -3112,7 +3150,7 @@ static void emit_arithmetic(CodeGen *codegen, TokenType operator, GrayType *type
         emit_arithmetic_operand(codegen, left, left_c, type);
         emit(codegen, ", ");
         emit_arithmetic_operand(codegen, right, right_c, type);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, location_node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), location_node->token.line);
         return;
     }
     /* A file-scope constant initializer must be a C constant expression;
@@ -3169,7 +3207,7 @@ static void emit_arithmetic(CodeGen *codegen, TokenType operator, GrayType *type
     emit_arithmetic_operand(codegen, right, right_c, type);
     emit(codegen, ", ");
     if (sized) emit_sized_bounds_arguments(codegen, source_minimum, source_maximum, sized_unsigned, name, location_node->token.line);
-    else emit_formatted(codegen, "\"%s\", %d", codegen->file, location_node->token.line);
+    else emit_formatted(codegen, "\"%s\", %d", codegen_file_literal(codegen), location_node->token.line);
     emit(codegen, ")");
 }
 
@@ -3263,7 +3301,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
             emit_expression(codegen, node->data.infix.left);
             emit(codegen, ", ");
             emit_shift_amount(codegen, node->data.infix.right, strstr(shifted_wide, "256") ? 255 : 127);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
             return;
         }
         GrayType *shift_type = codegen_type_of(codegen, node->data.infix.left);
@@ -3353,7 +3391,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
                                             "&& %s_eq(%s_mod(%s_sub(_gray_in_value_%d, _gray_in_start_%d), _gray_in_step_%d, \"%s\", %d), %s_from_u64(0)); })",
                         membership_id, prefix, membership_id, membership_id, prefix, membership_id, membership_id,
                         prefix, membership_id, membership_id, prefix, membership_id, membership_id,
-                        prefix, prefix, prefix, membership_id, membership_id, membership_id, codegen->file, node->token.line, prefix);
+                        prefix, prefix, prefix, membership_id, membership_id, membership_id, codegen_file_literal(codegen), node->token.line, prefix);
                 } else {
                     emit_formatted(codegen, "%s_ge(_gray_in_value_%d, _gray_in_start_%d) && %s_lt(_gray_in_value_%d, _gray_in_end_%d); })",
                         prefix, membership_id, membership_id, prefix, membership_id, membership_id);
@@ -3504,7 +3542,7 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
         if (mem_arena) emit_mem_check_live_open(codegen, mem_arena);
         emit_expression(codegen, pointer_node);
         if (mem_arena) emit_mem_check_live_close(codegen, target->token.line);
-        if (!is_raw) emit_formatted(codegen, "), \"%s\", %d))", codegen->file, target->token.line);
+        if (!is_raw) emit_formatted(codegen, "), \"%s\", %d))", codegen_file_literal(codegen), target->token.line);
         else emit(codegen, "))");
         return;
     }
@@ -3519,7 +3557,7 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
             emit_place_address(codegen, left);
             emit_formatted(codegen, ", %s, ", c_element_type);
             emit_expression(codegen, index);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, target->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), target->token.line);
             return;
         }
         if (left_type && left_type->kind == TYPE_KIND_MAP && left_type->key_type && left_type->value_type) {
@@ -3548,7 +3586,7 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
             if (!is_raw) emit(codegen, "gray_ptr_check((void *)(");
             else emit(codegen, "(");
             emit_expression(codegen, object);
-            if (!is_raw) emit_formatted(codegen, "), \"%s\", %d))", codegen->file, target->token.line);
+            if (!is_raw) emit_formatted(codegen, "), \"%s\", %d))", codegen_file_literal(codegen), target->token.line);
             else emit(codegen, "))");
             emit_formatted(codegen, "->%s)", field);
             return;
@@ -3631,7 +3669,7 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
                 if (mem_arena) emit_mem_check_live_open(codegen, mem_arena);
                 emit_expression(codegen, dereferenced_left);
                 if (mem_arena) emit_mem_check_live_close(codegen, node->token.line);
-                emit_formatted(codegen, "), \"%s\", %d))", codegen->file, node->token.line);
+                emit_formatted(codegen, "), \"%s\", %d))", codegen_file_literal(codegen), node->token.line);
             } else {
                 emit(codegen, "({ __auto_type _dp = ");
                 emit_expression(codegen, dereferenced_left);
@@ -3639,7 +3677,7 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
                 if (mem_arena) {
                     emit(codegen, "*(__typeof__(_dp))gray_mem_check_live(");
                     emit_expression(codegen, mem_arena);
-                    emit_formatted(codegen, ", (void *)_dp, \"%s\", %d); })", codegen->file, node->token.line);
+                    emit_formatted(codegen, ", (void *)_dp, \"%s\", %d); })", codegen_file_literal(codegen), node->token.line);
                 } else {
                     emit(codegen, "*_dp; })");
                 }
@@ -3920,7 +3958,7 @@ static void emit_member_expression(CodeGen *codegen, AstNode *node) {
                     emit_formatted(codegen, "((%s *)gray_ptr_check((void *)(", c_pointee);
                     emit_expression(codegen, node->data.member.object);
                     emit_formatted(codegen, "), \"%s\", %d))->%s",
-                        codegen->file, node->token.line,
+                        codegen_file_literal(codegen), node->token.line,
                         sanitize_name(node->data.member.member));
                 } else {
                     emit(codegen, "({ __auto_type _dp = ");
@@ -4069,7 +4107,7 @@ static void emit_index_expression(CodeGen *codegen, AstNode *node) {
                       temporary_id, panic_call(codegen, node, "P0080", ""), temporary_id, sanitize_name(array_pointer_field));
             }
             emit_expression(codegen, node->data.index_expression.index);
-            emit_formatted(codegen, ", \"%s\", %d); }))", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d); }))", codegen_file_literal(codegen), node->token.line);
         } else if (node->data.index_expression.left->kind == NODE_POSTFIX_EXPRESSION &&
                    node->data.index_expression.left->data.postfix.operator == TOKEN_CARET) {
             /* p^[i]: direct dereference of container pointer */
@@ -4086,7 +4124,7 @@ static void emit_index_expression(CodeGen *codegen, AstNode *node) {
                       temporary_id, panic_call(codegen, node, "P0080", ""), temporary_id);
             }
             emit_expression(codegen, node->data.index_expression.index);
-            emit_formatted(codegen, ", \"%s\", %d); }))", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d); }))", codegen_file_literal(codegen), node->token.line);
         } else if (node->data.index_expression.left->kind == NODE_CALL_EXPRESSION ||
                    index_left_is_map_lookup(codegen, node->data.index_expression.left) ||
                    (node->data.index_expression.left->kind == NODE_INDEX_EXPRESSION &&
@@ -4096,13 +4134,13 @@ static void emit_index_expression(CodeGen *codegen, AstNode *node) {
             emit_expression(codegen, node->data.index_expression.left);
             emit_formatted(codegen, "; GRAY_ARRAY_GET_AT(_ea%d, %s, ", element_array_id, c_element_type);
             emit_expression(codegen, node->data.index_expression.index);
-            emit_formatted(codegen, ", \"%s\", %d); })", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d); })", codegen_file_literal(codegen), node->token.line);
         } else {
             emit_formatted(codegen, "GRAY_ARRAY_GET_AT(");
             emit_expression(codegen, node->data.index_expression.left);
             emit_formatted(codegen, ", %s, ", c_element_type);
             emit_expression(codegen, node->data.index_expression.index);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         }
     } else if (left_type && left_type->kind == TYPE_KIND_MAP) {
         /* Map key access; use temp to handle rvalue keys like literals */
@@ -4177,15 +4215,15 @@ static void emit_wide_integer_target_conversion(CodeGen *codegen, const char *ta
         }
         emit_formatted(codegen, "gray_cast_%s_to_%s(", source_wide_integer, target);
         emit_expression(codegen, value);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), line);
     } else if (value_kind == TYPE_KIND_FLOATING_POINT) {
         emit_formatted(codegen, "gray_f64_to_%s((double)(", target);
         emit_expression(codegen, value);
-        emit_formatted(codegen, "), \"%s\", %d)", codegen->file, line);
+        emit_formatted(codegen, "), \"%s\", %d)", codegen_file_literal(codegen), line);
     } else if (target[0] == 'u' && value_kind == TYPE_KIND_SIGNED_INTEGER) {
         emit_formatted(codegen, "gray_cast_i64_to_%s((int64_t)(", target);
         emit_expression(codegen, value);
-        emit_formatted(codegen, "), \"%s\", %d)", codegen->file, line);
+        emit_formatted(codegen, "), \"%s\", %d)", codegen_file_literal(codegen), line);
     } else {
         emit_scalar_to_wide_integer(codegen, target, value, value_type);
     }
@@ -4244,13 +4282,13 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
                     emit_formatted(codegen, "_cv%d; ", unique_id);
                 else
                     emit_formatted(codegen, "gray_cast_%s_to_%s(_cv%d, \"%s\", %d); ",
-                        source_element_type, destination_element_type, unique_id, codegen->file, node->token.line);
+                        source_element_type, destination_element_type, unique_id, codegen_file_literal(codegen), node->token.line);
             } else if (is_source_floating_point) {
                 emit_formatted(codegen, "gray_f64_to_%s((double)_cv%d, \"%s\", %d); ",
-                    destination_element_type, unique_id, codegen->file, node->token.line);
+                    destination_element_type, unique_id, codegen_file_literal(codegen), node->token.line);
             } else if (destination_element_type[0] == 'u' && source_element->kind == TYPE_KIND_SIGNED_INTEGER) {
                 emit_formatted(codegen, "gray_cast_i64_to_%s((int64_t)_cv%d, \"%s\", %d); ",
-                    destination_element_type, unique_id, codegen->file, node->token.line);
+                    destination_element_type, unique_id, codegen_file_literal(codegen), node->token.line);
             } else if (source_element->kind == TYPE_KIND_UNSIGNED_INTEGER) {
                 emit_formatted(codegen, "%s_from_u64((uint64_t)_cv%d); ",
                     wide_integer_prefix(destination_element_type), unique_id);
@@ -4267,14 +4305,14 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             } else if (array_maximum) {
                 emit_formatted(codegen, "(%s)%s(%s_to_%s(_cv%d, \"%s\", %d), ", destination_c_type,
                     is_array_unsigned ? "gray_ucast_check_u64" : "gray_cast_check", source_prefix,
-                    is_array_unsigned ? "u64" : "i64", unique_id, codegen->file, node->token.line);
+                    is_array_unsigned ? "u64" : "i64", unique_id, codegen_file_literal(codegen), node->token.line);
                 emit_sized_bounds_arguments(codegen, array_minimum, array_maximum, is_array_unsigned,
                                             destination_element_type, node->token.line);
                 emit(codegen, "); ");
             } else {
                 emit_formatted(codegen, "(%s)%s_to_%s(_cv%d, \"%s\", %d); ", destination_c_type, source_prefix,
                     strcmp(destination_element_type, "u64") == 0 ? "u64" : "i64", unique_id,
-                    codegen->file, node->token.line);
+                    codegen_file_literal(codegen), node->token.line);
             }
         } else if (array_maximum) {
             /* Narrowing to a sized integer: range-check the source as it is. */
@@ -4286,10 +4324,10 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             /* floating-point → integer: use overflow-safe floating-point conversion */
             if (is_destination_unsigned_integer) {
                 emit_formatted(codegen, "((%s*)_cr%d.data)[_ci%d] = (%s)gray_f64_to_u64((double)_cv%d, \"%s\", %d); ",
-                    destination_c_type, unique_id, unique_id, destination_c_type, unique_id, codegen->file, node->token.line);
+                    destination_c_type, unique_id, unique_id, destination_c_type, unique_id, codegen_file_literal(codegen), node->token.line);
             } else {
                 emit_formatted(codegen, "((%s*)_cr%d.data)[_ci%d] = (%s)gray_f64_to_i64((double)_cv%d, \"%s\", %d); ",
-                    destination_c_type, unique_id, unique_id, destination_c_type, unique_id, codegen->file, node->token.line);
+                    destination_c_type, unique_id, unique_id, destination_c_type, unique_id, codegen_file_literal(codegen), node->token.line);
             }
         } else {
             emit_formatted(codegen, "((%s*)_cr%d.data)[_ci%d] = (%s)_cv%d; ", destination_c_type, unique_id, unique_id, destination_c_type, unique_id);
@@ -4317,7 +4355,7 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             ? target_enum_declaration->data.enum_declaration.original_name : target;
         emit_formatted(codegen, "}, %d, \"%s\", \"%s\", %d)",
             target_enum_declaration->data.enum_declaration.value_count,
-            display, codegen->file, node->token.line);
+            display, codegen_file_literal(codegen), node->token.line);
         return;
     }
     if (codegen_enum_is_string(codegen, target) ||
@@ -4351,17 +4389,17 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
         /* f64 → i64: overflow-safe */
         emit(codegen, "gray_f64_to_i64((double)(");
         emit_expression(codegen, value);
-        emit_formatted(codegen, "), \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, "), \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
     } else if ((strcmp(target, "u64") == 0) && value_kind == TYPE_KIND_FLOATING_POINT) {
         /* f64 → u64: negative values and overflow are undefined behavior in C; panic instead */
         emit(codegen, "gray_f64_to_u64((double)(");
         emit_expression(codegen, value);
-        emit_formatted(codegen, "), \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, "), \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
     } else if (value_kind == TYPE_KIND_STRING && is_wide_integer_type_name(target)) {
         /* string → wide integer: parsed and range-checked at runtime */
         emit_formatted(codegen, "gray_builtin_string_to_%s(", target);
         emit_expression(codegen, value);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
     } else if (value_kind == TYPE_KIND_STRING) {
         /* string → numeric (targets other than i64/f64 handled above):
          * parse to int64/double first, then apply narrowing check */
@@ -4427,17 +4465,17 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
                     else
                         emit_formatted(codegen, "(%s)gray_cast_check(%s_to_i64(", gray_type_to_c_codegen(codegen, target), bounds_prefix);
                     emit_expression(codegen, value);
-                    emit_formatted(codegen, ", \"%s\", %d), ", codegen->file, node->token.line);
+                    emit_formatted(codegen, ", \"%s\", %d), ", codegen_file_literal(codegen), node->token.line);
                     emit_sized_bounds_arguments(codegen, narrow_minimum, narrow_maximum, narrow_unsigned, target, node->token.line);
                     emit(codegen, ")");
                 } else if (is_destination_unsigned) {
                     emit_formatted(codegen, "(%s)%s_to_u64(", gray_type_to_c_codegen(codegen, target), bounds_prefix);
                     emit_expression(codegen, value);
-                    emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+                    emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
                 } else {
                     emit_formatted(codegen, "(%s)%s_to_i64(", gray_type_to_c_codegen(codegen, target), bounds_prefix);
                     emit_expression(codegen, value);
-                    emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+                    emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
                 }
             }
             return;
@@ -4464,7 +4502,7 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
              * either sign. */
             emit_formatted(codegen, "(uint64_t)gray_ucast_check((int64_t)(");
             emit_expression(codegen, value);
-            emit_formatted(codegen, "), 18446744073709551615ULL, \"%s\", \"%s\", %d)", target, codegen->file, node->token.line);
+            emit_formatted(codegen, "), 18446744073709551615ULL, \"%s\", \"%s\", %d)", target, codegen_file_literal(codegen), node->token.line);
         } else if ((strcmp(target, "i64") == 0) &&
                    value_kind == TYPE_KIND_UNSIGNED_INTEGER &&
                    value_type && value_type->name &&
@@ -4472,7 +4510,7 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             /* u64 → i64: panic if value exceeds INT64_MAX */
             emit_formatted(codegen, "(int64_t)gray_u64_to_i64_check((uint64_t)(");
             emit_expression(codegen, value);
-            emit_formatted(codegen, "), \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, "), \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         } else if (codegen_is_enum(codegen, target) &&
                    !codegen_enum_is_string(codegen, target) &&
                    !codegen_enum_is_tagged(codegen, target)) {
@@ -4498,7 +4536,7 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             emit_formatted(codegen, "}, %d, %s, \"%s\", \"%s\", %d)",
                 target_enum_declaration->data.enum_declaration.value_count,
                 target_enum_declaration->data.enum_declaration.is_flags ? "true" : "false",
-                display, codegen->file, node->token.line);
+                display, codegen_file_literal(codegen), node->token.line);
         } else {
             emit_formatted(codegen, "((%s)(", gray_type_to_c_codegen(codegen, target));
             emit_expression(codegen, value);
@@ -5489,7 +5527,7 @@ static void emit_format_arguments(CodeGen *codegen, AstNode *node, int values_id
         } else {
             char element_read[MESSAGE_BUFFER_SIZE];
             snprintf(element_read, sizeof(element_read), "(*(%s *)gray_array_get_ptr(&_gray_format_values%d, %d, \"%s\", %d))",
-                c_element_type, values_id, value_index, codegen->file, node->token.line);
+                c_element_type, values_id, value_index, codegen_file_literal(codegen), node->token.line);
             emit(codegen, ", ");
             emit_format_value(codegen, format_value_type(codegen, node, value_index), directives[i], NULL, element_read);
         }
@@ -6019,7 +6057,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
         if (rule && rule->kind == TYPE_KIND_RANGE) {
             emit_formatted(codegen, "%s_len(", gray_type_to_c_codegen(codegen, type->name));
             emit_expression(codegen, argument);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         } else if (rule && rule->c_function) {
             emit_formatted(codegen, "%s(", rule->c_function);
             emit_expression(codegen, argument);
@@ -6279,13 +6317,13 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
         /* tok.file comes straight from the parser for imported files, so it
          * still needs the separator normalization codegen->file already had. */
         char *normalized = location_token.file ? normalize_path_separators(location_token.file) : NULL;
-        const char *file = normalized ? normalized : codegen->file;
         /* The path is escaped like any string literal: a quote, backslash
          * or "??" in it would otherwise break or rewrite the C literal. */
+        char *escaped = normalized ? escape_c_string_literal(normalized) : NULL;
         emit(codegen, "(GrayStruct_SourceLocation){.file = gray_string_lit(\"");
-        for (const char *cursor = file ? file : ""; *cursor; cursor++)
-            append_c_literal_byte(codegen, (unsigned char)*cursor);
+        emit(codegen, escaped ? escaped : codegen_file_literal(codegen));
         emit_formatted(codegen, "\"), .line = %d, .column = %d}", location_token.line, location_token.column);
+        free(escaped);
         free(normalized);
         return true;
     }
@@ -6351,7 +6389,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
         } else {
             emit(codegen, ", gray_string_lit(\"\")");
         }
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         return true;
     }
 
@@ -6430,7 +6468,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
                                    is_source_unsigned ? "gray_ucast_check_u64" : "gray_ucast_check");
                 emit_formatted(codegen, "((%s)%s_to_%s(", cast_type, source_prefix, to_suffix);
                 emit_expression(codegen, c_string_argument);
-                emit_formatted(codegen, ", \"%s\", %d))", codegen->file, node->token.line);
+                emit_formatted(codegen, ", \"%s\", %d))", codegen_file_literal(codegen), node->token.line);
                 if (to_char) {
                     emit(codegen, ", ");
                     emit_sized_bounds_arguments(codegen, NULL, CHAR_CODEPOINT_MAX, true, "char", node->token.line);
@@ -6509,7 +6547,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ", ");
         emit_expression(codegen, node->data.call.arguments[1]);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         return true;
     }
 
@@ -6554,7 +6592,7 @@ static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_
     if (strcmp(function_name, "destroy") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_mem_destroy(");
         emit_expression(codegen, node->data.call.arguments[0]);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         return true;
     }
     if (strcmp(function_name, "init") == 0 && node->data.call.argument_count == 2) {
@@ -6640,7 +6678,7 @@ static bool emit_math_call(CodeGen *codegen, AstNode *node, const char *function
             }
             emit_formatted(codegen, "%s_%s_checked(", wide_integer_prefix(argument_type->name), function_name);
             emit_expression(codegen, argument);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
             return true;
         }
         if (argument_type && argument_type->kind == TYPE_KIND_SIGNED_INTEGER) {
@@ -6894,7 +6932,7 @@ static void emit_mutable_call_argument(CodeGen *codegen, AstNode *argument, bool
             emit_expression(codegen, argument->data.index_expression.left);
             emit(codegen, ", ");
             emit_expression(codegen, argument->data.index_expression.index);
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, argument->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), argument->token.line);
         }
         return;
     }
@@ -6948,14 +6986,14 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
             node->data.call.arguments[1]);
         emit_formatted(codegen, "; %s(", is_remove ? "gray_map_remove" : "gray_maps_contains_key");
         emit_address_of(codegen, node->data.call.arguments[0]);
-        if (is_remove) emit_formatted(codegen, ", &_k, \"%s\", %d); })", codegen->file, node->token.line);
+        if (is_remove) emit_formatted(codegen, ", &_k, \"%s\", %d); })", codegen_file_literal(codegen), node->token.line);
         else emit(codegen, ", &_k); })");
         return true;
     }
     if (strcmp(function_name, "clear") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_map_clear(");
         emit_address_of(codegen, node->data.call.arguments[0]);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         return true;
     }
     if (strcmp(function_name, "is_empty") == 0 && node->data.call.argument_count == 1) {
@@ -7048,10 +7086,10 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
                 "__typeof__(_id) _is = ", store_arena);
             emit_value_deep_copy(codegen, keyed_value_type, "_id");
             emit_formatted(codegen, "; gray_default_arena = _esc; gray_map_set(%s, _im, &_ik, &_is, \"%s\", %d); } ",
-                store_arena, codegen->file, node->token.line);
+                store_arena, codegen_file_literal(codegen), node->token.line);
         } else {
             emit_formatted(codegen, "gray_map_set(%s, _im, &_ik, &_id, \"%s\", %d); } ",
-                store_arena, codegen->file, node->token.line);
+                store_arena, codegen_file_literal(codegen), node->token.line);
         }
         emit(codegen, "__typeof__(_id) _ir = _ip ? *(__typeof__(_id) *)_ip : _id; ");
         if (copy_returned) {
@@ -7069,7 +7107,7 @@ static bool emit_maps_call(CodeGen *codegen, AstNode *node, const char *function
         emit_address_of(codegen, node->data.call.arguments[0]);
         emit(codegen, "; void *_rp = gray_map_get(_rm, &_rk); bool _ro = _rp != NULL; if (_ro) { _rv = *(__typeof__(_rv) *)_rp; gray_map_remove(_rm");
         emit_formatted(codegen, ", &_rk, \"%s\", %d); } (struct { %s v0; bool v1; }){ _rv, _ro }; })",
-            codegen->file, node->token.line, keyed_c_value);
+            codegen_file_literal(codegen), node->token.line, keyed_c_value);
         return true;
     }
     if (strcmp(function_name, "find_key") == 0 && node->data.call.argument_count == 2) {
@@ -7513,7 +7551,7 @@ static bool emit_binary_call(CodeGen *codegen, AstNode *node, const char *functi
     if (is_encode) emit(codegen, "gray_default_arena, ");
     if (is_decode) {
         emit_address_of(codegen, node->data.call.arguments[0]);
-        emit_formatted(codegen, ", \"%s\", %d", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d", codegen_file_literal(codegen), node->token.line);
     } else {
         /* encode_<T>: range-check a value narrower than it arrives, like a
          * parameter of type T. */
@@ -7826,13 +7864,13 @@ static bool emit_random_call(CodeGen *codegen, AstNode *node, const char *functi
         if (expression_is_assignable(node->data.call.arguments[0])) {
             emit(codegen, "({ int32_t _ri = gray_random_choice_index(");
             emit_expression(codegen, node->data.call.arguments[0]);
-            emit_formatted(codegen, ".len, \"%s\", %d); *(%s *)gray_array_get_ptr(&", codegen->file, node->token.line, c_element_type);
+            emit_formatted(codegen, ".len, \"%s\", %d); *(%s *)gray_array_get_ptr(&", codegen_file_literal(codegen), node->token.line, c_element_type);
             emit_expression(codegen, node->data.call.arguments[0]);
-            emit_formatted(codegen, ", _ri, \"%s\", %d); })", codegen->file, node->token.line);
+            emit_formatted(codegen, ", _ri, \"%s\", %d); })", codegen_file_literal(codegen), node->token.line);
         } else {
             emit(codegen, "({ __auto_type _ra = ");
             emit_expression(codegen, node->data.call.arguments[0]);
-            emit_formatted(codegen, "; int32_t _ri = gray_random_choice_index(_ra.len, \"%s\", %d); *(%s *)gray_array_get_ptr(&_ra, _ri, \"%s\", %d); })", codegen->file, node->token.line, c_element_type, codegen->file, node->token.line);
+            emit_formatted(codegen, "; int32_t _ri = gray_random_choice_index(_ra.len, \"%s\", %d); *(%s *)gray_array_get_ptr(&_ra, _ri, \"%s\", %d); })", codegen_file_literal(codegen), node->token.line, c_element_type, codegen_file_literal(codegen), node->token.line);
         }
         return true;
     }
@@ -7946,7 +7984,7 @@ static void emit_arrays_out_call(CodeGen *codegen, const char *function_name, As
     emit_formatted(codegen, "({ %s _ar%d; %s(", c_element_type, unique_id, function_name);
     emit_array_argument_address(codegen, array_argument);
     emit_formatted(codegen, ", &_ar%d", unique_id);
-    if (with_location) emit_formatted(codegen, ", \"%s\", %d", codegen->file, location_node->token.line);
+    if (with_location) emit_formatted(codegen, ", \"%s\", %d", codegen_file_literal(codegen), location_node->token.line);
     emit_formatted(codegen, "); _ar%d; })", unique_id);
 }
 
@@ -8258,7 +8296,7 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
     if (strcmp(function_name, "average") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_arrays_average(");
         emit_array_argument_address(codegen, node->data.call.arguments[0]);
-        emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         return true;
     }
     /* The sum, smallest and largest are the element type. */
@@ -10792,13 +10830,13 @@ static void emit_array_element_store(CodeGen *codegen, AstNode *node, GrayType *
         emit_formatted(codegen, "gray_string_concat(%s, GRAY_ARRAY_GET_AT(%s, GrayString, ",
             codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena", array_reference);
         emit_expression(codegen, index_node);
-        emit_formatted(codegen, ", \"%s\", %d), ", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d), ", codegen_file_literal(codegen), node->token.line);
         emit_expression(codegen, node->data.assign.value);
         emit(codegen, ")");
     } else {
         emit_composite_operand(codegen, left_type->element_type, node->data.assign.value);
     }
-    emit_formatted(codegen, ", \"%s\", %d); }\n", codegen->file, node->token.line);
+    emit_formatted(codegen, ", \"%s\", %d); }\n", codegen_file_literal(codegen), node->token.line);
 }
 
 /* arr[i] = v and compound forms; `left` is the indexed array expression. */
@@ -10891,7 +10929,7 @@ static void emit_array_index_assign(CodeGen *codegen, AstNode *node, AstNode *le
         emit(codegen, ", GrayString, ");
         emit_expression(codegen, node->data.assign.target->data.index_expression.index);
         emit_formatted(codegen, ", gray_string_new(_gray_outer_arena, _esc_v.data, _esc_v.len), \"%s\", %d); }\n",
-            codegen->file, node->token.line);
+            codegen_file_literal(codegen), node->token.line);
         return;
     }
     emit_formatted(codegen, "%s(", array_store_macro(codegen));
@@ -10906,13 +10944,13 @@ static void emit_array_index_assign(CodeGen *codegen, AstNode *node, AstNode *le
         emit_expression(codegen, left);
         emit(codegen, ", GrayString, ");
         emit_expression(codegen, node->data.assign.target->data.index_expression.index);
-        emit_formatted(codegen, ", \"%s\", %d), ", codegen->file, node->token.line);
+        emit_formatted(codegen, ", \"%s\", %d), ", codegen_file_literal(codegen), node->token.line);
         emit_expression(codegen, node->data.assign.value);
         emit(codegen, ")");
     } else {
         emit_composite_operand(codegen, left_type->element_type, node->data.assign.value);
     }
-    emit_formatted(codegen, ", \"%s\", %d);\n", codegen->file, node->token.line);
+    emit_formatted(codegen, ", \"%s\", %d);\n", codegen_file_literal(codegen), node->token.line);
 }
 
 /* m[key] = v and compound forms; `left` is the indexed map expression. */
@@ -11047,41 +11085,41 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
         if (ms_compound) {
             /* _mp was captured above; just set and close the outer block. */
             emit_formatted(codegen, "gray_map_set(%s, &_mp->%s, &_mk, &_mv, \"%s\", %d); }\n",
-                ms_arena, sanitize_name(left->data.member.member), codegen->file, node->token.line);
+                ms_arena, sanitize_name(left->data.member.member), codegen_file_literal(codegen), node->token.line);
         } else {
             /* Nil-check the pointer, then use -> to yield an assignable target. */
             emit_formatted(codegen, "{ __auto_type _mp = ");
             emit_expression(codegen, map_pointer_object);
             if (map_raw) {
                 emit_formatted(codegen, "; gray_map_set(%s, &_mp->%s, &_mk, &_mv, \"%s\", %d); } }\n",
-                    ms_arena, sanitize_name(left->data.member.member), codegen->file, node->token.line);
+                    ms_arena, sanitize_name(left->data.member.member), codegen_file_literal(codegen), node->token.line);
             } else {
                 emit_formatted(codegen, "; if (!_mp) { %s; } "
                     "gray_map_set(%s, &_mp->%s, &_mk, &_mv, \"%s\", %d); } }\n",
-                    panic_call(codegen, node, "P0080", ""), ms_arena, sanitize_name(left->data.member.member), codegen->file, node->token.line);
+                    panic_call(codegen, node, "P0080", ""), ms_arena, sanitize_name(left->data.member.member), codegen_file_literal(codegen), node->token.line);
             }
         }
     } else if (map_direct_deref) {
         if (ms_compound) {
             /* _mp was captured above; pass it directly as GrayMap*. */
             emit_formatted(codegen, "gray_map_set(%s, _mp, &_mk, &_mv, \"%s\", %d); }\n",
-                ms_arena, codegen->file, node->token.line);
+                ms_arena, codegen_file_literal(codegen), node->token.line);
         } else {
             emit_formatted(codegen, "{ __auto_type _mp = ");
             emit_expression(codegen, left->data.postfix.left);
             if (map_deref_raw) {
                 emit_formatted(codegen, "; gray_map_set(%s, _mp, &_mk, &_mv, \"%s\", %d); } }\n",
-                    ms_arena, codegen->file, node->token.line);
+                    ms_arena, codegen_file_literal(codegen), node->token.line);
             } else {
                 emit_formatted(codegen, "; if (!_mp) { %s; } "
                     "gray_map_set(%s, _mp, &_mk, &_mv, \"%s\", %d); } }\n",
-                    panic_call(codegen, node, "P0080", ""), ms_arena, codegen->file, node->token.line);
+                    panic_call(codegen, node, "P0080", ""), ms_arena, codegen_file_literal(codegen), node->token.line);
             }
         }
     } else {
         emit_formatted(codegen, "gray_map_set(%s, &", ms_arena);
         emit_expression(codegen, left);
-        emit_formatted(codegen, ", &_mk, &_mv, \"%s\", %d); }\n", codegen->file, node->token.line);
+        emit_formatted(codegen, ", &_mk, &_mv, \"%s\", %d); }\n", codegen_file_literal(codegen), node->token.line);
     }
 }
 
@@ -12494,7 +12532,7 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
             } else {
                 emit_formatted(codegen, "%s_from_u64(1)", prefix);
             }
-            emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         } else if (iterable_node->data.range_expression.start) {
             /* range(start, end) or range(start, end, step) */
             /* Determine comparison direction: static for literal step, runtime ternary for variable. */
@@ -12531,7 +12569,7 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
                 if (start_id >= 0) emit_formatted(codegen, "_gray_start_%d", start_id);
                 else emit_expression(codegen, iterable_node->data.range_expression.start);
                 emit_formatted(codegen, "; _gray_step_%d > 0 ? %s < _gray_end_%d : %s > _gray_end_%d", range_step_id, variable_name, range_step_id, variable_name, range_step_id);
-                emit_formatted(codegen, "; %s = gray_add_check(%s, _gray_step_%d, \"%s\", %d)", variable_name, variable_name, range_step_id, codegen->file, node->token.line);
+                emit_formatted(codegen, "; %s = gray_add_check(%s, _gray_step_%d, \"%s\", %d)", variable_name, variable_name, range_step_id, codegen_file_literal(codegen), node->token.line);
             } else if (zero_step) {
                 /* P0090: literal zero step always panics; emit panic then a dead loop */
                 emit_formatted(codegen, "%s;\n", panic_call(codegen, node, "P0090", ""));
@@ -12565,7 +12603,7 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
                     } else {
                         emit_expression(codegen, step);
                     }
-                    emit_formatted(codegen, ", \"%s\", %d)", codegen->file, node->token.line);
+                    emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
                 } else {
                     emit(codegen, "++");
                 }
@@ -12600,11 +12638,11 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
             range_c_type, range_id, variable_name, variable_name);
         if (wide) emit_formatted(codegen, "%s_add_checked", wide_integer_prefix(wide));
         else emit(codegen, "gray_add_check");
-        emit_formatted(codegen, "(%s, _gray_range_%d.step, \"%s\", %d)", variable_name, range_id, codegen->file, node->token.line);
+        emit_formatted(codegen, "(%s, _gray_range_%d.step, \"%s\", %d)", variable_name, range_id, codegen_file_literal(codegen), node->token.line);
         emit(codegen, ") {\n");
     } else {
         codegen_internal_error("non-range for loop reached codegen",
-                               codegen->file, node->token.line);
+                               codegen_file_literal(codegen), node->token.line);
     }
 
     int previous_wide_integer_variable_count = codegen->wide_integer_variable_count;
@@ -12819,7 +12857,7 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
     if (node->data.function_declaration.body) {
         /* Stack depth guard */
         emit_indent(codegen);
-        emit_formatted(codegen, "gray_enter_func(\"%s\", %d);\n", codegen->file, node->token.line);
+        emit_formatted(codegen, "gray_enter_func(\"%s\", %d);\n", codegen_file_literal(codegen), node->token.line);
         emit_block(codegen, node->data.function_declaration.body);
         /* Emit ensure cleanup at end of function (for implicit returns) */
         emit_ensure_cleanup(codegen);
@@ -13062,8 +13100,8 @@ static void emit_foreach_array(CodeGen *codegen, AstNode *node, AstNode *coll,
     codegen->indent++;
     emit_indent(codegen);
     emit_formatted(codegen, "%s %s = GRAY_ARRAY_GET_AT(", c_element_type, sanitize_name(node->data.for_each.variable_name));
-    if (*out_collection_needs_temporary) emit_formatted(codegen, "%s, %s, %s, \"%s\", %d);\n", array_temporary_name, c_element_type, index_name, codegen->file, node->token.line);
-    else { emit_expression(codegen, coll); emit_formatted(codegen, ", %s, %s, \"%s\", %d);\n", c_element_type, index_name, codegen->file, node->token.line); }
+    if (*out_collection_needs_temporary) emit_formatted(codegen, "%s, %s, %s, \"%s\", %d);\n", array_temporary_name, c_element_type, index_name, codegen_file_literal(codegen), node->token.line);
+    else { emit_expression(codegen, coll); emit_formatted(codegen, ", %s, %s, \"%s\", %d);\n", c_element_type, index_name, codegen_file_literal(codegen), node->token.line); }
 
     /* Track a wide-integer element binding so reads resolve to the wide integer type.
      * The caller restores wide_integer_variable_count after the loop body. */
@@ -13155,11 +13193,14 @@ static bool statement_needs_panic_location(CodeGen *codegen, AstNode *node) {
 }
 
 /* Emits `#line N "file"` at column 0 (a directive must not be indented).
- * file is codegen->file, already forward-slash normalized by
- * normalize_path_separators — never re-escaped here. */
+ * file is a forward-slash normalized path; it is escaped for the string
+ * literal here, since a quote or newline in a filename would otherwise end
+ * the directive and let the rest of the name through as C. */
 static void emit_line_directive(CodeGen *codegen, const char *file, int line) {
     if (!codegen->should_emit_line_directives) return;
-    emit_formatted(codegen, "#line %d \"%s\"\n", line, file);
+    char *escaped = escape_c_string_literal(file);
+    emit_formatted(codegen, "#line %d \"%s\"\n", line, escaped);
+    free(escaped);
 }
 
 /* Points subsequent generated C — compiler scaffolding with no .gray origin,
@@ -13194,7 +13235,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         statement_needs_panic_location(codegen, node)) {
         emit_indent(codegen);
         emit_formatted(codegen, "gray_set_panic_call(\"%s\", %d);\n",
-                       codegen->file, node->token.line);
+                       codegen_file_literal(codegen), node->token.line);
     }
 
     /* Map this statement back to its .gray source for cc diagnostics,
@@ -13459,7 +13500,7 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                             if (!emit_wide_integer_coerced(codegen, when_wide_integer, range->data.range_expression.step))
                                 emit_expression(codegen, range->data.range_expression.step);
                             emit_formatted(codegen, ", \"%s\", %d), %s_from_u64(0))",
-                                codegen->file, node->token.line, prefix);
+                                codegen_file_literal(codegen), node->token.line, prefix);
                         }
                         emit(codegen, ")");
                     } else {
@@ -14469,12 +14510,12 @@ static bool json_field_is_composite(CodeGen *codegen, const StructField *field) 
 static void emit_json_element_decode(CodeGen *codegen, const char *element_type_name, int line) {
     const char *resolved_element_type = codegen_resolve_type(codegen, element_type_name);
     if (strcmp(element_type_name, "string") == 0) {
-        emit_formatted(codegen, "            _e = gray_json_element_as_string(arena, _es, _k, \"%s\", %d);\n", codegen->file, line);
+        emit_formatted(codegen, "            _e = gray_json_element_as_string(arena, _es, _k, \"%s\", %d);\n", codegen_file_literal(codegen), line);
     } else if (strcmp(element_type_name, "bool") == 0) {
-        emit_formatted(codegen, "            _e = gray_json_field_as_bool(_es, _k, \"%s\", %d);\n", codegen->file, line);
+        emit_formatted(codegen, "            _e = gray_json_field_as_bool(_es, _k, \"%s\", %d);\n", codegen_file_literal(codegen), line);
     } else if (type_kind_is_number(type_from_name(element_type_name)->kind)) {
         emit_formatted(codegen, "            gray_json_field_decode(_es, GRAY_ELEM_KIND_OF(%s), &_e, \"%s\", %d);\n",
-            gray_type_to_c_codegen(codegen, element_type_name), codegen->file, line);
+            gray_type_to_c_codegen(codegen, element_type_name), codegen_file_literal(codegen), line);
     } else {
         emit_formatted(codegen, "            if (!gray_json_is_null(_es)) _e = gray_json_parse_%s(arena, _es);\n", resolved_element_type);
     }
@@ -14517,7 +14558,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                 emit_formatted(codegen, "    _r.%s = GrayEnum_%s_%s;\n", sanitize_name(field->name), field_enum_name, default_variant);
         }
         emit_formatted(codegen, "    GrayMap _q;\n");
-        emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q, \"%s\", %d);\n", codegen->file, statement->token.line);
+        emit_formatted(codegen, "    GrayMap _m = gray_json_decode_fields(arena, text, &_q, \"%s\", %d);\n", codegen_file_literal(codegen), statement->token.line);
         for (int j = 0; j < field_count; j++) {
             StructField *field = &statement->data.struct_declaration.fields[j];
             /* A `` `json:"Name"` `` tag maps the field under that JSON key
@@ -14527,18 +14568,18 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
             if (strcmp(field->type_name, "string") == 0) {
                 emit_json_key_lookup(codegen, json_key);
                 emit_formatted(codegen, "      if (_v) { gray_json_check_field_quoting(&_q, _k, true, \"a string\", \"%s\", %d); _r.%s = *(GrayString *)_v; } }\n",
-                    codegen->file, statement->token.line, sanitize_name(field->name));
+                    codegen_file_literal(codegen), statement->token.line, sanitize_name(field->name));
             } else if (type_kind_is_number(type_from_name(field->type_name)->kind)) {
                 /* A number field of any sized type decodes at that type. */
                 emit_json_key_lookup(codegen, json_key);
                 emit_formatted(codegen, "      if (_v) { gray_json_check_field_quoting(&_q, _k, false, \"a number\", \"%s\", %d); gray_json_field_decode(*(GrayString *)_v, GRAY_ELEM_KIND_OF(%s), &_r.%s, \"%s\", %d); } }\n",
-                    codegen->file, statement->token.line,
+                    codegen_file_literal(codegen), statement->token.line,
                     gray_type_to_c_codegen(codegen, field->type_name), sanitize_name(field->name),
-                    codegen->file, statement->token.line);
+                    codegen_file_literal(codegen), statement->token.line);
             } else if (strcmp(field->type_name, "bool") == 0) {
                 emit_json_key_lookup(codegen, json_key);
                 emit_formatted(codegen, "      if (_v) { gray_json_check_field_quoting(&_q, _k, false, \"a bool\", \"%s\", %d); _r.%s = gray_json_field_as_bool(*(GrayString *)_v, _k, \"%s\", %d); } }\n",
-                    codegen->file, statement->token.line, sanitize_name(field->name), codegen->file, statement->token.line);
+                    codegen_file_literal(codegen), statement->token.line, sanitize_name(field->name), codegen_file_literal(codegen), statement->token.line);
             } else {
                 /* Enum field: serialized by backing type. Tagged enums are
                  * rejected on #json structs at typecheck time (E3173), so
@@ -14549,7 +14590,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                     emit_json_key_lookup(codegen, json_key);
                     if (composite_type->kind == TYPE_KIND_ARRAY) {
                         const char *element_c_type = gray_type_to_c_codegen(codegen, composite_type->element_type);
-                        emit_formatted(codegen, "      if (_v) { gray_json_require_array_field(&_q, _k, *(GrayString *)_v, \"%s\", %d);\n", codegen->file, statement->token.line);
+                        emit_formatted(codegen, "      if (_v) { gray_json_require_array_field(&_q, _k, *(GrayString *)_v, \"%s\", %d);\n", codegen_file_literal(codegen), statement->token.line);
                         emit(codegen, "        GrayArray _ea = gray_json_split_array(arena, *(GrayString *)_v);\n");
                         emit_formatted(codegen, "        _r.%s = GRAY_ARRAY_NEW_OF(arena, %s, _ea.len > 0 ? _ea.len : 4);\n", sanitize_name(field->name), element_c_type);
                         emit(codegen, "        for (int32_t _i = 0; _i < _ea.len; _i++) {\n");
@@ -14702,7 +14743,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
 
         /* --- parse array: JSON array string → GrayArray of structs --- */
         emit_formatted(codegen, "static GrayArray gray_json_parse_array_%s(GrayArena *arena, GrayString text) {\n", struct_name);
-        emit_formatted(codegen, "    gray_json_require_document(text, '[', \"%s\", %d);\n", codegen->file, statement->token.line);
+        emit_formatted(codegen, "    gray_json_require_document(text, '[', \"%s\", %d);\n", codegen_file_literal(codegen), statement->token.line);
         emit_formatted(codegen, "    GrayArray _elems = gray_json_split_array(arena, text);\n");
         emit_formatted(codegen, "    GrayArray _result = GRAY_ARRAY_NEW_OF(arena, GrayStruct_%s, _elems.len > 0 ? _elems.len : 4);\n", struct_name);
         emit_formatted(codegen, "    for (int32_t _i = 0; _i < _elems.len; _i++) {\n");
@@ -14931,7 +14972,7 @@ static void codegen_emit_main(CodeGen *codegen, const TopLevelStatements *top_le
                 ? function_node->data.function_declaration.original_name : function_node->data.function_declaration.name;
             emit_formatted(codegen,
                 "    gray_test_run(\"%s\", gray_fn_%s, \"%s\", %d);\n",
-                name, function_node->data.function_declaration.name, codegen->file, function_node->token.line);
+                name, function_node->data.function_declaration.name, codegen_file_literal(codegen), function_node->token.line);
         }
         emit(codegen, "    int _gray_test_rc = gray_test_end();\n");
         emit(codegen, "    return _gray_test_rc;\n");
@@ -15012,6 +15053,8 @@ void codegen_destroy(CodeGen *codegen) {
     buffer_destroy(&codegen->output);
     buffer_destroy(&codegen->global_initializer);
     free(codegen->file_owned);
+    free(codegen->file_literal_source);
+    free(codegen->file_literal_text);
     free(codegen->enum_names);
     free(codegen->is_enum_string);
     free(codegen->is_enum_tagged);

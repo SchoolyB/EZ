@@ -41,6 +41,8 @@ typedef struct {
     bool needs_strings_header;
     const char *file;
     char *file_owned; /* normalized copy backing `file`; freed by codegen_destroy */
+    char *file_literal_source;  /* raw `file` the cached literal below was built from */
+    char *file_literal_text;    /* `file` escaped for a C string literal; see codegen_file_literal */
 
     /* Track declared type names for codegen */
     const char **enum_names;

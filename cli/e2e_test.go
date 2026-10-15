@@ -660,3 +660,47 @@ func TestE2E_Help(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// source filenames are escaped in generated C
+// ---------------------------------------------------------------------------
+
+func TestE2E_Build_SourceFilenameIsEscapedInGeneratedC(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a quote or newline cannot appear in a Windows filename")
+	}
+	dir := t.TempDir()
+	name := "a\"b\nint injected_symbol;\n.gray"
+	src := filepath.Join(dir, name)
+	program := "do main() {\n    mut divisor i64 = 0\n    println(10 / divisor)\n}\n"
+	if err := os.WriteFile(src, []byte(program), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	generated := filepath.Join(dir, "out.c")
+	_, stderr, code := runGray(t, "build", "--emit-c", "-o", generated, src)
+	if code != 0 {
+		t.Fatalf("gray build --emit-c exited %d; stderr: %s", code, stderr)
+	}
+	text, err := os.ReadFile(generated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(text), "\n") {
+		if strings.HasPrefix(line, "int injected_symbol;") {
+			t.Fatalf("filename injected a line of C into the output: %q", line)
+		}
+	}
+
+	binary := filepath.Join(dir, "prog")
+	if _, stderr, code := runGray(t, "build", "-o", binary, src); code != 0 {
+		t.Fatalf("gray build exited %d; stderr: %s", code, stderr)
+	}
+	var combined bytes.Buffer
+	run := exec.Command(binary)
+	run.Stdout, run.Stderr = &combined, &combined
+	_ = run.Run()
+	if !strings.Contains(combined.String(), "at "+src+":3:") {
+		t.Errorf("panic location does not name the original file, got:\n%s", combined.String())
+	}
+}
