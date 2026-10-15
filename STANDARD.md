@@ -5528,7 +5528,7 @@ gray cross build <file.gray> --target <target> [flags]
 | Flag | Description |
 |------|-------------|
 | `--target <target>` | Target platform (required) |
-| `-o, --output <name>` | Output binary name |
+| `-o, --output <name>` | Output binary name (default: the source file name without its extension, followed by `-` and the target, with `.exe` appended for Windows targets, e.g. `main-linux-arm64`) |
 | `--emit-c` | Emit generated C source to a file (no binary) |
 | `--time` | Show compilation timing |
 | `-q, --quiet <codes>` | Suppress warnings (`all` or comma-separated codes) |

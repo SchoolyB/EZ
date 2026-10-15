@@ -986,6 +986,12 @@ var crossBuildCmd = &cobra.Command{
 			return err
 		}
 		opts.CC = fmt.Sprintf("%s cc -target %s", zigPath, zigTriple)
+		if opts.Output == "" && !opts.EmitC {
+			opts.Output = strings.TrimSuffix(args[0], filepath.Ext(args[0])) + "-" + target
+			if strings.HasPrefix(target, "windows-") {
+				opts.Output += ".exe"
+			}
+		}
 
 		code, err := driver.Build(args[0], opts)
 		if err != nil {
