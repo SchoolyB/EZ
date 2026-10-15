@@ -31,7 +31,7 @@ const (
 //   - exactly one trailing newline at EOF
 func formatGraySource(src []byte) []byte {
 	lines := strings.Split(string(src), "\n")
-	startsInRaw := rawStringLineStarts(string(src), len(lines))
+	startsInRaw, _ := multiLineLiteralLineStarts(string(src), len(lines))
 
 	// Expand leading tabs and strip trailing whitespace on each line. A line
 	// that starts inside a raw string keeps its leading whitespace, and one
@@ -81,21 +81,23 @@ func formatGraySource(src []byte) []byte {
 	return []byte(strings.Join(out, "\n") + "\n")
 }
 
-// rawStringLineStarts reports, for each line of src, whether the line begins
-// inside a multi-line raw string literal. Raw strings are the only literal
-// that spans lines; backticks inside comments, strings, and char literals do
-// not open one.
-func rawStringLineStarts(src string, lineCount int) []bool {
+// multiLineLiteralLineStarts reports, for each line of src, whether the line
+// begins inside a multi-line raw string literal and whether it begins inside
+// a block comment. Backticks inside comments, strings, and char literals do
+// not open a raw string.
+func multiLineLiteralLineStarts(src string, lineCount int) (inRawString, inBlockComment []bool) {
 	const (
 		inCode = iota
 		inLineComment
-		inBlockComment
+		inBlockCommentState
 		inString
 		inChar
 		inRaw
 	)
 	starts := make([]bool, 0, lineCount)
 	starts = append(starts, false)
+	comments := make([]bool, 0, lineCount)
+	comments = append(comments, false)
 	state := inCode
 	interpolationDepth := 0
 	var nestedQuote byte // a string or char literal inside an interpolation
@@ -106,6 +108,7 @@ func rawStringLineStarts(src string, lineCount int) []bool {
 				state = inCode
 			}
 			starts = append(starts, state == inRaw)
+			comments = append(comments, state == inBlockCommentState)
 			continue
 		}
 		switch state {
@@ -115,7 +118,7 @@ func rawStringLineStarts(src string, lineCount int) []bool {
 				state = inLineComment
 				i++
 			case c == '/' && i+1 < len(src) && src[i+1] == '*':
-				state = inBlockComment
+				state = inBlockCommentState
 				i++
 			case c == '"':
 				state = inString
@@ -126,7 +129,7 @@ func rawStringLineStarts(src string, lineCount int) []bool {
 			case c == '`':
 				state = inRaw
 			}
-		case inBlockComment:
+		case inBlockCommentState:
 			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
 				state = inCode
 				i++
@@ -165,8 +168,9 @@ func rawStringLineStarts(src string, lineCount int) []bool {
 	}
 	for len(starts) < lineCount {
 		starts = append(starts, false)
+		comments = append(comments, false)
 	}
-	return starts
+	return starts, comments
 }
 
 // runFmt is the entry point invoked by the Cobra fmtCmd. It returns the

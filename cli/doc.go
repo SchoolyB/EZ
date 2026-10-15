@@ -12,7 +12,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -132,14 +131,14 @@ func collectDocsFromFile(filename string) []DocEntry {
 		return entries
 	}
 
-	f, err := os.Open(absPath)
+	data, err := os.ReadFile(absPath)
 	if err != nil {
 		fmt.Printf("Error reading file %s: %v\n", filename, err)
 		return entries
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	sourceLines := strings.Split(string(data), "\n")
+	inRawString, inBlockComment := multiLineLiteralLineStarts(string(data), len(sourceLines))
 	var pendingDoc string
 	var inBlock bool
 	var blockLines []string
@@ -149,10 +148,15 @@ func collectDocsFromFile(filename string) []DocEntry {
 	braceDepth := 0
 	lineNo := 0
 
-	for scanner.Scan() {
+	for index, sourceLine := range sourceLines {
 		lineNo++
-		line := scanner.Text()
+		line := strings.TrimSuffix(sourceLine, "\r")
 		trimmed := strings.TrimSpace(line)
+
+		// Text inside a raw string or block comment is not a declaration.
+		if inRawString[index] || inBlockComment[index] {
+			continue
+		}
 
 		// Collecting a block (struct/enum body)
 		if inBlock {
