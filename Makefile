@@ -11,6 +11,9 @@ UNKNOWN_TARGETS := $(filter-out $(KNOWN_TARGETS),$(MAKECMDGOALS))
 ifneq ($(UNKNOWN_TARGETS),)
   $(error Unknown target(s): $(UNKNOWN_TARGETS). Run 'make help' for valid targets)
 endif
+ifneq ($(filter-out 0 1,$(words $(MAKECMDGOALS))),)
+  $(error pass exactly one target. Run 'make help' for valid targets)
+endif
 
 # Windows (MSYS2/Git Bash/MinGW make) needs an .exe suffix on every binary.
 # GNU make sets OS=Windows_NT there; everywhere else EXE is empty and every
