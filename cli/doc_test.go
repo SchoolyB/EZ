@@ -33,3 +33,16 @@ func TestCollectDocsJoinsWrappedFunctionSignature(t *testing.T) {
 		t.Errorf("got %+v", entries)
 	}
 }
+
+func TestCollectDocsKeepsMultiLineVariableInitializer(t *testing.T) {
+	src := "#doc(\"names\")\nconst NAMES [string, 2] = {\n    \"a\",\n    \"b\"\n}\n"
+	path := filepath.Join(t.TempDir(), "f.gray")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries := collectDocsFromFile(path)
+	want := "const NAMES [string, 2] = {\n    \"a\",\n    \"b\"\n}"
+	if len(entries) != 1 || entries[0].Signature != want || entries[0].Line != 2 {
+		t.Errorf("got %+v", entries)
+	}
+}

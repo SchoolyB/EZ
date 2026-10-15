@@ -262,8 +262,20 @@ func collectDocsFromFile(filename string) []DocEntry {
 					pendingDoc = ""
 				}
 			} else if isVarDecl(trimmed) {
-				// File-scope variable (const or mut)
+				// File-scope variable (const or mut). An initializer that
+				// opens a bracket continues until it closes.
+				declarationLine := lineNo
 				sig := trimmed
+				depth := strings.Count(line, "{") + strings.Count(line, "[") + strings.Count(line, "(") -
+					strings.Count(line, "}") - strings.Count(line, "]") - strings.Count(line, ")")
+				for depth > 0 && index+1 < len(sourceLines) {
+					index++
+					lineNo++
+					continuation := strings.TrimSuffix(sourceLines[index], "\r")
+					sig += "\n" + continuation
+					depth += strings.Count(continuation, "{") + strings.Count(continuation, "[") + strings.Count(continuation, "(") -
+						strings.Count(continuation, "}") - strings.Count(continuation, "]") - strings.Count(continuation, ")")
+				}
 				name := extractVarName(trimmed)
 				entries = append(entries, DocEntry{
 					Name:        name,
@@ -271,7 +283,7 @@ func collectDocsFromFile(filename string) []DocEntry {
 					Signature:   sig,
 					Description: pendingDoc,
 					File:        absPath,
-					Line:        lineNo,
+					Line:        declarationLine,
 				})
 				pendingDoc = ""
 			} else {
