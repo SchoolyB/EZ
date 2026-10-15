@@ -250,7 +250,7 @@ tests/test_runtime$(EXE): tests/test_runtime.c $(RT_TEST_DEPS)
 	$(CC) $(RT_CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
 
 tests/test_panics$(EXE): tests/test_panics.c $(PANIC_TEST_DEPS)
-	$(CC) $(RT_CFLAGS) -D_DARWIN_C_SOURCE -D_DEFAULT_SOURCE $(INCLUDES) -o $@ $^ $(LDFLAGS) -lpthread
+	$(CC) $(RT_CFLAGS) -D_DARWIN_C_SOURCE -D_XOPEN_SOURCE=700 $(INCLUDES) -o $@ $^ $(LDFLAGS) -lpthread
 
 # Objects needed by the stdlib test binary (runtime + tested stdlib modules)
 STDLIB_TEST_DEPS = src/runtime/runtime.o src/runtime/array.o src/runtime/map.o \
