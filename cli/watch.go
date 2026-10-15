@@ -29,7 +29,7 @@ var watchCmd = &cobra.Command{
 	Use:   "watch [file.gray | file.grayscale | directory]",
 	Short: "Watch files and re-run on changes",
 	Long:  `Watch a file or directory for changes and automatically re-run.`,
-	Args:  cobra.ExactArgs(1),
+	Args:  argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
 	RunE:  runWatch,
 }
 

@@ -69,10 +69,29 @@ func parseArenaLimit(s string) (uint64, error) {
 	return n * multiplier, nil
 }
 
+// argsWithUsage validates a command's positional argument count and, on a
+// mismatch, names the command and shows its usage and an example in the shape
+// the CLI uses for unknown commands. atLeast accepts one or more arguments;
+// otherwise exactly one is required.
+func argsWithUsage(atLeast bool, requires, usage, example string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		path := cmd.CommandPath()
+		if len(args) == 0 {
+			return fmt.Errorf("error: %s requires %s\n  usage:   %s %s\n  example: %s %s",
+				path, requires, path, usage, path, example)
+		}
+		if !atLeast && len(args) > 1 {
+			return fmt.Errorf("error: %s takes one argument, received %d\n  usage:   %s %s\n  example: %s %s",
+				path, len(args), path, usage, path, example)
+		}
+		return nil
+	}
+}
+
 var checkCmd = &cobra.Command{
 	Use:   "check [file.gray | file.grayscale | directory]",
 	Short: "Type-check a file or project without compiling",
-	Args:  cobra.ExactArgs(1),
+	Args:  argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Allow directories for project-wide check
 		info, statErr := os.Stat(args[0])
@@ -153,7 +172,7 @@ func commonBuildOpts(cmd *cobra.Command) (driver.BuildOpts, error) {
 var buildCmd = &cobra.Command{
 	Use:   "build [file.gray]",
 	Short: "Compile a Grayscale source file to a native binary",
-	Args:  cobra.ExactArgs(1),
+	Args:  argsWithUsage(false, "a <file.gray>", "<file.gray>", "main.gray"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !hasSourceExtension(args[0]) {
 			return fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file", args[0])
@@ -180,9 +199,9 @@ var installCmd = &cobra.Command{
 	Long: "Install a specific Grayscale version by exact semver, replacing the current " +
 		"install. Downgrades and pre-release versions are supported.\n\n" +
 		"Examples:\n" +
-		"  gray install 2.5.0\n" +
-		"  gray install 3.0.0-beta.2",
-	Args: cobra.ExactArgs(1),
+		"  gray install \"grayscale: v0.11.5\"\n" +
+		"  gray install v0.11.5",
+	Args: argsWithUsage(false, "a <version>", "<version>", "\"grayscale: v0.11.5\""),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runInstall(args[0])
 	},
@@ -230,7 +249,7 @@ Examples:
 
 Output is written to DOCS.md by default. Use -o/--output to write
 to a different path (parent directories are created as needed).`,
-	Args: cobra.MinimumNArgs(1),
+	Args: argsWithUsage(true, "a <path>", "<path>", "./..."),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		output, _ := cmd.Flags().GetString("output")
 		if !generateDocs(args, output) {
@@ -254,7 +273,7 @@ Examples:
   gray fmt --check ./...  Exit non-zero if any file would change (CI gate)
 
 By default files are rewritten in place. Use --check for a non-mutating CI gate.`,
-	Args: cobra.MinimumNArgs(1),
+	Args: argsWithUsage(true, "a <path>", "<path>", "./..."),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		check, _ := cmd.Flags().GetBool("check")
 		exit := runFmt(args, check)
@@ -810,7 +829,7 @@ var crossTargetsCmd = &cobra.Command{
 var crossBuildCmd = &cobra.Command{
 	Use:   "build [file.gray]",
 	Short: "Cross-compile a Grayscale source file for another platform",
-	Args:  cobra.ExactArgs(1),
+	Args:  argsWithUsage(false, "a <file.gray>", "<file.gray> --target <target>", "main.gray --target linux-amd64"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !hasSourceExtension(args[0]) {
 			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file\n", args[0])
