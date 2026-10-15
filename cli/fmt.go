@@ -33,12 +33,26 @@ func formatGraySource(src []byte) []byte {
 	lines := strings.Split(string(src), "\n")
 	startsInRaw, _ := multiLineLiteralLineStarts(string(src), len(lines))
 
+	// A CRLF line ending is kept as it was; the "\r" is set aside so it is
+	// neither mistaken for line content nor lost.
+	endsInCarriageReturn := make([]bool, len(lines))
+	for i, line := range lines {
+		if strings.HasSuffix(line, "\r") {
+			endsInCarriageReturn[i] = true
+			lines[i] = strings.TrimSuffix(line, "\r")
+		}
+	}
+
 	// Expand leading tabs and strip trailing whitespace on each line. A line
 	// that starts inside a raw string keeps its leading whitespace, and one
 	// that ends inside a raw string keeps its trailing whitespace, since both
 	// belong to the literal's value.
 	for i, line := range lines {
 		endsInRaw := i+1 < len(startsInRaw) && startsInRaw[i+1]
+		if !startsInRaw[i] && !endsInRaw && strings.TrimSpace(line) == "" {
+			lines[i] = ""
+			continue
+		}
 		j := 0
 		var prefix strings.Builder
 		if !startsInRaw[i] {
@@ -61,24 +75,38 @@ func formatGraySource(src []byte) []byte {
 
 	// Collapse runs of more than 2 consecutive blank lines.
 	var out []string
+	var outCarriageReturn []bool
 	blank := 0
 	for i, line := range lines {
 		if line == "" && !startsInRaw[i] {
 			blank++
-			if blank <= maxConsecutiveBlankLines {
-				out = append(out, line)
+			if blank > maxConsecutiveBlankLines {
+				continue
 			}
 		} else {
 			blank = 0
-			out = append(out, line)
 		}
+		out = append(out, line)
+		outCarriageReturn = append(outCarriageReturn, endsInCarriageReturn[i])
 	}
 
 	// Strip trailing blank lines, then add exactly one trailing newline.
 	for len(out) > 0 && out[len(out)-1] == "" {
 		out = out[:len(out)-1]
+		outCarriageReturn = outCarriageReturn[:len(outCarriageReturn)-1]
 	}
-	return []byte(strings.Join(out, "\n") + "\n")
+	var result strings.Builder
+	for i, line := range out {
+		result.WriteString(line)
+		if outCarriageReturn[i] {
+			result.WriteByte('\r')
+		}
+		result.WriteByte('\n')
+	}
+	if len(out) == 0 {
+		result.WriteByte('\n')
+	}
+	return []byte(result.String())
 }
 
 // multiLineLiteralLineStarts reports, for each line of src, whether the line

@@ -144,3 +144,11 @@ func TestFormatGraySourceBacktickInCommentOrStringIsNotRaw(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestFormatGraySourceCRLF(t *testing.T) {
+	in := "do main() {  \r\n\tprintln(\"a\")   \r\n\r\n\r\n\r\n\r\n\r\n\tprintln(\"b\")\r\n}\r\n"
+	want := "do main() {\r\n    println(\"a\")\r\n\r\n\r\n    println(\"b\")\r\n}\r\n"
+	if got := string(formatGraySource([]byte(in))); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
