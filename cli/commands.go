@@ -239,7 +239,13 @@ var updateCmd = &cobra.Command{
 		"Without flags, installs the latest stable release and prints a note " +
 		"if a newer pre-release is available.\n\n" +
 		"With --pre, installs the latest pre-release (alpha, beta, or rc).",
-	Args: cobra.MaximumNArgs(1),
+	Args: func(cmd *cobra.Command, args []string) error {
+		// The argument is the download URL, meaningful only with --confirm.
+		if confirm, _ := cmd.Flags().GetBool("confirm"); confirm {
+			return cobra.MaximumNArgs(1)(cmd, args)
+		}
+		return cobra.NoArgs(cmd, args)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		confirm, _ := cmd.Flags().GetBool("confirm")
 		pre, _ := cmd.Flags().GetBool("pre")
@@ -254,6 +260,7 @@ var updateCmd = &cobra.Command{
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		rootCmd.Printf("%s\n", getVersionString())
 	},
@@ -312,6 +319,7 @@ By default files are rewritten in place. Use --check for a non-mutating CI gate.
 var reportCmd = &cobra.Command{
 	Use:   "report",
 	Short: "Print system info for bug reports",
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Grayscale Bug Report Info")
 		fmt.Println("======================")
@@ -663,7 +671,7 @@ func printLangEntry(displayName string, entry LangManEntry) {
 var manCmd = &cobra.Command{
 	Use:   "man [name]",
 	Short: "Show documentation for a builtin or stdlib function",
-	Args:  cobra.ArbitraryArgs,
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			printManUsage()
@@ -825,6 +833,7 @@ var crossCmd = &cobra.Command{
 var crossTargetsCmd = &cobra.Command{
 	Use:   "targets",
 	Short: "List supported cross-compilation targets",
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		targets := make([]string, 0, len(crossTargets))
 		for t := range crossTargets {
