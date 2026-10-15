@@ -46,3 +46,10 @@ func TestCollectDocsKeepsMultiLineVariableInitializer(t *testing.T) {
 		t.Errorf("got %+v", entries)
 	}
 }
+
+func TestExtractDocStringHandlesEscapedQuote(t *testing.T) {
+	got := extractDocString(`#doc("Has \"quotes\" inside")`)
+	if got != `Has "quotes" inside` {
+		t.Errorf("got %q", got)
+	}
+}

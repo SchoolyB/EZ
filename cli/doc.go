@@ -309,11 +309,26 @@ func extractDocString(line string) string {
 		return ""
 	}
 	quote := rest[start]
-	end := strings.IndexByte(rest[start+1:], quote)
-	if end < 0 {
-		return ""
+	var description strings.Builder
+	for i := start + 1; i < len(rest); i++ {
+		switch c := rest[i]; {
+		case c == quote:
+			return description.String()
+		case c == '\\' && i+1 < len(rest):
+			i++
+			switch rest[i] {
+			case 'n':
+				description.WriteByte('\n')
+			case 't':
+				description.WriteByte('\t')
+			default:
+				description.WriteByte(rest[i])
+			}
+		default:
+			description.WriteByte(c)
+		}
 	}
-	return rest[start+1 : start+1+end]
+	return ""
 }
 
 // extractFuncName extracts function name from "do funcname(" or "private do funcname("
