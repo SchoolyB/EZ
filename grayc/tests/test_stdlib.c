@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <unistd.h>
 
 static GrayArena *arena;
 
@@ -1430,14 +1431,18 @@ static void test_net_listen_host_accept_send_recv(void) {
 }
 
 static void test_builtin_input(void) {
-    FILE *saved_stdin = stdin;
     FILE *tmp = tmpfile();
     ASSERT_NOT_NULL(tmp);
     fputs("hello world\n", tmp);
     rewind(tmp);
-    stdin = tmp;
+    /* stdin is a macro on mingw and cannot be assigned, so the temporary file
+     * takes over the standard input descriptor instead. */
+    int saved_descriptor = dup(fileno(stdin));
+    dup2(fileno(tmp), fileno(stdin));
     GrayString r = gray_builtin_input(arena);
-    stdin = saved_stdin;
+    dup2(saved_descriptor, fileno(stdin));
+    close(saved_descriptor);
+    clearerr(stdin);
     fclose(tmp);
     ASSERT_GRAY_STR(r, "hello world");
 }
