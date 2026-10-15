@@ -31,29 +31,39 @@ const (
 //   - exactly one trailing newline at EOF
 func formatGraySource(src []byte) []byte {
 	lines := strings.Split(string(src), "\n")
+	startsInRaw := rawStringLineStarts(string(src), len(lines))
 
-	// Expand leading tabs and strip trailing whitespace on each line.
+	// Expand leading tabs and strip trailing whitespace on each line. A line
+	// that starts inside a raw string keeps its leading whitespace, and one
+	// that ends inside a raw string keeps its trailing whitespace, since both
+	// belong to the literal's value.
 	for i, line := range lines {
-		// Expand leading tabs: count leading tab/space mix, replace tabs with 4 spaces.
+		endsInRaw := i+1 < len(startsInRaw) && startsInRaw[i+1]
 		j := 0
 		var prefix strings.Builder
-		for j < len(line) && (line[j] == '\t' || line[j] == ' ') {
-			if line[j] == '\t' {
-				prefix.WriteString(strings.Repeat(" ", tabWidth))
-			} else {
-				prefix.WriteByte(' ')
+		if !startsInRaw[i] {
+			// Expand leading tabs: count leading tab/space mix, replace tabs with 4 spaces.
+			for j < len(line) && (line[j] == '\t' || line[j] == ' ') {
+				if line[j] == '\t' {
+					prefix.WriteString(strings.Repeat(" ", tabWidth))
+				} else {
+					prefix.WriteByte(' ')
+				}
+				j++
 			}
-			j++
 		}
-		rest := strings.TrimRight(line[j:], " \t")
+		rest := line[j:]
+		if !endsInRaw {
+			rest = strings.TrimRight(rest, " \t")
+		}
 		lines[i] = prefix.String() + rest
 	}
 
 	// Collapse runs of more than 2 consecutive blank lines.
 	var out []string
 	blank := 0
-	for _, line := range lines {
-		if line == "" {
+	for i, line := range lines {
+		if line == "" && !startsInRaw[i] {
 			blank++
 			if blank <= maxConsecutiveBlankLines {
 				out = append(out, line)
@@ -69,6 +79,94 @@ func formatGraySource(src []byte) []byte {
 		out = out[:len(out)-1]
 	}
 	return []byte(strings.Join(out, "\n") + "\n")
+}
+
+// rawStringLineStarts reports, for each line of src, whether the line begins
+// inside a multi-line raw string literal. Raw strings are the only literal
+// that spans lines; backticks inside comments, strings, and char literals do
+// not open one.
+func rawStringLineStarts(src string, lineCount int) []bool {
+	const (
+		inCode = iota
+		inLineComment
+		inBlockComment
+		inString
+		inChar
+		inRaw
+	)
+	starts := make([]bool, 0, lineCount)
+	starts = append(starts, false)
+	state := inCode
+	interpolationDepth := 0
+	var nestedQuote byte // a string or char literal inside an interpolation
+	for i := 0; i < len(src); i++ {
+		c := src[i]
+		if c == '\n' {
+			if state == inLineComment {
+				state = inCode
+			}
+			starts = append(starts, state == inRaw)
+			continue
+		}
+		switch state {
+		case inCode:
+			switch {
+			case c == '/' && i+1 < len(src) && src[i+1] == '/':
+				state = inLineComment
+				i++
+			case c == '/' && i+1 < len(src) && src[i+1] == '*':
+				state = inBlockComment
+				i++
+			case c == '"':
+				state = inString
+				interpolationDepth = 0
+				nestedQuote = 0
+			case c == '\'':
+				state = inChar
+			case c == '`':
+				state = inRaw
+			}
+		case inBlockComment:
+			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
+				state = inCode
+				i++
+			}
+		case inChar:
+			if c == '\\' && i+1 < len(src) && src[i+1] != '\n' {
+				i++
+			} else if c == '\'' {
+				state = inCode
+			}
+		case inRaw:
+			if c == '`' {
+				state = inCode
+			}
+		case inString:
+			switch {
+			case c == '\\' && i+1 < len(src) && src[i+1] != '\n':
+				i++
+			case nestedQuote != 0:
+				if c == nestedQuote {
+					nestedQuote = 0
+				}
+			case c == '$' && i+1 < len(src) && src[i+1] == '{':
+				interpolationDepth++
+				i++
+			case interpolationDepth > 0 && (c == '"' || c == '\''):
+				nestedQuote = c
+			case interpolationDepth > 0 && c == '{':
+				interpolationDepth++
+			case interpolationDepth > 0 && c == '}':
+				interpolationDepth--
+			case interpolationDepth == 0 && c == '"':
+				state = inCode
+			}
+		}
+	}
+	for len(starts) < lineCount {
+		starts = append(starts, false)
+	}
+	return starts
 }
 
 // runFmt is the entry point invoked by the Cobra fmtCmd. It returns the
