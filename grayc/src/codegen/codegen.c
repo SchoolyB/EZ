@@ -2426,7 +2426,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
             snprintf(inner_variable_type, sizeof(inner_variable_type), "%s", element_type_name);
             codegen->current_variable_type = inner_variable_type;
         }
-        emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayArray[]){");
+        emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayArray[%d]){", count);
         for (int i = 0; i < count; i++) {
             if (i > 0) emit(codegen, ", ");
             emit_expression(codegen, node->data.array_value.elements[i]);
@@ -2438,7 +2438,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
 
     /* Array of maps: elements are map literals */
     if (node->data.array_value.elements[0]->kind == NODE_MAP_VALUE) {
-        emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayMap[]){");
+        emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayMap[%d]){", count);
         for (int i = 0; i < count; i++) {
             if (i > 0) emit(codegen, ", ");
             emit_expression(codegen, node->data.array_value.elements[i]);
@@ -2595,7 +2595,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
         }
     }
 
-    emit_formatted(codegen, "gray_array_from(gray_default_arena, (%s[]){", c_type);
+    emit_formatted(codegen, "gray_array_from(gray_default_arena, (%s[%d]){", c_type, count);
     for (int i = 0; i < count; i++) {
         if (i > 0) emit(codegen, ", ");
         /* A wide integer element array stores gray_i128/gray_i256 values, so every
@@ -4345,7 +4345,8 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
         AstNode *target_enum_declaration = codegen->enum_declarations[codegen_enum_index(codegen, target)];
         emit(codegen, "gray_enum_cast_check_string(");
         emit_expression(codegen, value);
-        emit(codegen, ", (const GrayString[]){");
+        emit_formatted(codegen, ", (const GrayString[%d]){",
+            target_enum_declaration->data.enum_declaration.value_count);
         for (int variant_index = 0; variant_index < target_enum_declaration->data.enum_declaration.value_count; variant_index++) {
             if (variant_index > 0) emit(codegen, ", ");
             emit_formatted(codegen, "GrayEnum_%s_%s", target,
@@ -4523,7 +4524,8 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             emit_formatted(codegen, "(%s)gray_enum_cast_check((int64_t)(",
                 gray_type_to_c_codegen(codegen, target));
             emit_expression(codegen, value);
-            emit(codegen, "), (const int64_t[]){");
+            emit_formatted(codegen, "), (const int64_t[%d]){",
+                target_enum_declaration->data.enum_declaration.value_count);
             for (int variant_index = 0; variant_index < target_enum_declaration->data.enum_declaration.value_count; variant_index++) {
                 if (variant_index > 0) emit(codegen, ", ");
                 emit_formatted(codegen, "GrayEnum_%s_%s", target,
@@ -6144,7 +6146,7 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
             if (struct_field_count == 0) {
                 emit(codegen, "gray_array_from(gray_default_arena, (GrayString[]){gray_string_lit(\"\")}, sizeof(GrayString), 0, GRAY_ELEM_STRING)");
             } else {
-                emit(codegen, "gray_array_from(gray_default_arena, (GrayString[]){");
+                emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayString[%d]){", struct_field_count);
                 for (int i = 0; i < struct_field_count; i++) {
                     if (i > 0) emit(codegen, ", ");
                     emit_formatted(codegen, "gray_string_lit(\"%s\")", struct_declaration->data.struct_declaration.fields[i].name);
@@ -6653,7 +6655,7 @@ static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_
                 else if (element_type->kind == TYPE_KIND_STRING) c_type = "GrayString";
                 else if (element_type->kind == TYPE_KIND_BOOL) c_type = "bool";
             }
-            emit_formatted(codegen, "gray_array_from(_aa%d, (%s[]){", unique_id, c_type);
+            emit_formatted(codegen, "gray_array_from(_aa%d, (%s[%d]){", unique_id, c_type, count);
             for (int i = 0; i < count; i++) {
                 if (i > 0) emit(codegen, ", ");
                 emit_expression(codegen, value_argument->data.array_value.elements[i]);
@@ -14626,8 +14628,8 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                     emit_json_key_lookup(codegen, json_key);
                     emit(codegen, "      if (_v) { GrayString _sv = *(GrayString *)_v;\n");
                     if (codegen_enum_is_string(codegen, resolved_field_type)) {
-                        emit_formatted(codegen, "        _r.%s = gray_json_enum_from_str(_sv, (const GrayString[]){",
-                            sanitize_name(field->name));
+                        emit_formatted(codegen, "        _r.%s = gray_json_enum_from_str(_sv, (const GrayString[%d]){",
+                            sanitize_name(field->name), field_enum_declaration->data.enum_declaration.value_count);
                         for (int variant_index = 0; variant_index < field_enum_declaration->data.enum_declaration.value_count; variant_index++) {
                             if (variant_index > 0) emit(codegen, ", ");
                             emit_formatted(codegen, "GrayEnum_%s_%s", resolved_field_type, field_enum_declaration->data.enum_declaration.values[variant_index].name);
@@ -14636,8 +14638,9 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
                             field_enum_declaration->data.enum_declaration.value_count, enum_display_name);
                     } else {
                         emit(codegen, "        int64_t _iv = gray_builtin_string_to_i64(_sv);\n");
-                        emit_formatted(codegen, "        _r.%s = (%s)gray_json_enum_from_number(_sv, _iv, (const int64_t[]){",
-                            sanitize_name(field->name), gray_type_to_c_codegen(codegen, resolved_field_type));
+                        emit_formatted(codegen, "        _r.%s = (%s)gray_json_enum_from_number(_sv, _iv, (const int64_t[%d]){",
+                            sanitize_name(field->name), gray_type_to_c_codegen(codegen, resolved_field_type),
+                            field_enum_declaration->data.enum_declaration.value_count);
                         for (int variant_index = 0; variant_index < field_enum_declaration->data.enum_declaration.value_count; variant_index++) {
                             if (variant_index > 0) emit(codegen, ", ");
                             emit_formatted(codegen, "GrayEnum_%s_%s", resolved_field_type, field_enum_declaration->data.enum_declaration.values[variant_index].name);
