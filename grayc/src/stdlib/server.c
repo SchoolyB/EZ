@@ -246,6 +246,9 @@ typedef struct {
 
 static void *cleanup_connection(ConnCtx *connection_context, GrayArena *arena) {
     gray_default_arena = NULL;
+    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+    free(gray_heap_arena);
+    gray_heap_arena = NULL;
     gray_sock_close(connection_context->client_descriptor);
     free(connection_context);
     gray_arena_destroy(arena, __FILE__, __LINE__);
@@ -301,6 +304,9 @@ static void *handle_connection(void *argument) {
      * a handler's returned response is copied into it; it lives until the
      * response has been sent. */
     gray_default_arena = arena;
+    /* new() allocates from the thread's heap arena, which this thread does not
+     * inherit from main; it lives until the connection is cleaned up. */
+    gray_heap_arena = gray_arena_create(GRAY_SERVER_REQUEST_ARENA);
 
     /* Apply read timeout so slow or idle connections don't hold threads indefinitely */
     GRAY_SOCK_TIMEOUT_TYPE timeout_value;

@@ -1,0 +1,58 @@
+/*
+ * Test: new() inside a server route handler keeps the server alive across requests
+ */
+
+import @http
+import @server
+import @threads
+
+const TEST_PORT i64 = 47231
+
+const Counter struct {
+    n i64
+}
+
+do heap_handler(req HttpRequest) -> HttpResponse {
+    mut counter ^Counter = new(Counter)
+    counter^.n = 41
+    return server.text(200, "n=${counter^.n + 1}")
+}
+
+do serve() {
+    mut router = server.add_router()
+    server.add_route(router, "GET", "/heap", ()heap_handler)
+    server.listen(router, TEST_PORT, "127.0.0.1")
+}
+
+unsafe do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut listener = threads.spawn(()serve)
+    sleep_ms(300)
+
+    mut first, first_error = http.get("http://127.0.0.1:47231/heap")
+    mut second, second_error = http.get("http://127.0.0.1:47231/heap")
+
+    if first_error == nil && first.body == "n=42" {
+        println("  [PASS] handler using new() answered the first request")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] first request: ${first.body}")
+        failed += 1
+    }
+    if second_error == nil && second.body == "n=42" {
+        println("  [PASS] server still answered a second request")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] second request: ${second.body}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

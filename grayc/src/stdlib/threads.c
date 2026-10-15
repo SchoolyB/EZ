@@ -37,6 +37,9 @@ static void *thread_entry(void *raw_argument) {
     ThreadArg *thread_argument = (ThreadArg *)raw_argument;
     GrayThreadInternal *state = thread_argument->state;
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
+    /* new() allocates from the thread's heap arena, which a spawned thread does
+     * not inherit from main; it lives until the thread exits. */
+    gray_heap_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     if (thread_argument->entry_with_argument)
         thread_argument->entry_with_argument(thread_argument->argument);
     else
@@ -44,6 +47,9 @@ static void *thread_entry(void *raw_argument) {
     gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
     free(gray_default_arena);
     gray_default_arena = NULL;
+    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+    free(gray_heap_arena);
+    gray_heap_arena = NULL;
     atomic_fetch_sub(&gray_threads_live_count, 1);
     atomic_store(&state->alive, 0);
     /* Rendezvous with detach(): both sides increment detached, and
