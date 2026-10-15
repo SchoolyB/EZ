@@ -325,11 +325,13 @@ void gray_builtin_sleep_ns(int64_t nanoseconds);
 
 /*@man raw
  *@sig raw(variable T) -> ^T
- *@desc Returns a raw pointer to a variable. Unlike addr(), raw pointers are unsafe: dereferences skip nil-check panics and the compiler does not enforce const-source write protection. Use only in performance-critical code where pointer validity is guaranteed.
+ *@desc Returns a raw pointer to a variable. Unlike addr(), raw pointers are unsafe: dereferences skip nil-check panics and the compiler does not enforce const-source write protection. Use only in performance-critical code where pointer validity is guaranteed. Unsafe: requires an unsafe block or an unsafe function.
  *@example
- *   mut x i64 = 10
- *   mut p = raw(x)
- *   println(p^)
+ *   unsafe {
+ *       mut x i64 = 10
+ *       mut p = raw(x)
+ *       println(p^)
+ *   }
  *@end
  */
 

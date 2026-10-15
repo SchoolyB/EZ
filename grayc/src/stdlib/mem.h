@@ -18,10 +18,12 @@
  *@module mem
  *@group Arena
  *@sig arena(size i64) -> Arena
- *@desc Create a new arena with the given initial block size in bytes.
+ *@desc Create a new arena with the given initial block size in bytes. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mut a Arena = mem.arena(4096)
+ *   unsafe {
+ *       mut a Arena = mem.arena(4096)
+ *   }
  *@end
  */
 /* mem.arena(size) — create a new arena with initial block size */
@@ -31,10 +33,12 @@ GrayArena *gray_mem_arena(int64_t size);
  *@module mem
  *@group Arena
  *@sig destroy(a Arena)
- *@desc Destroy an arena and free all its memory.
+ *@desc Destroy an arena and free all its memory. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mem.destroy(a)
+ *   unsafe {
+ *       mem.destroy(a)
+ *   }
  *@end
  */
 /* mem.destroy(arena) — destroy an arena and free all its memory */
@@ -44,10 +48,12 @@ void gray_mem_destroy(GrayArena *arena, const char *file, int line);
  *@module mem
  *@group Arena
  *@sig reset(a Arena)
- *@desc Reset an arena for reuse. Keeps allocated blocks but marks all memory as free.
+ *@desc Reset an arena for reuse. Keeps allocated blocks but marks all memory as free. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mem.reset(a)
+ *   unsafe {
+ *       mem.reset(a)
+ *   }
  *@end
  */
 /* mem.reset(arena) — reset arena for reuse (keeps allocated blocks) */
@@ -57,11 +63,13 @@ void gray_mem_reset(GrayArena *arena);
  *@module mem
  *@group Arena
  *@sig usage(a Arena) -> i64
- *@desc Return the number of bytes currently used in the arena.
+ *@desc Return the number of bytes currently used in the arena. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mut used i64 = mem.usage(a)
- *   println("${used} bytes used")
+ *   unsafe {
+ *       mut used i64 = mem.usage(a)
+ *       println("${used} bytes used")
+ *   }
  *@end
  */
 /* mem.usage(arena) — return bytes currently used in the arena */
@@ -71,11 +79,13 @@ int64_t gray_mem_usage(GrayArena *arena);
  *@module mem
  *@group Allocation
  *@sig alloc(a Arena, value T) -> ^T
- *@desc Allocate a value on the given arena and return a pointer to it. Works with primitives, strings, and arrays.
+ *@desc Allocate a value on the given arena and return a pointer to it. Works with primitives, strings, and arrays. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mut a Arena = mem.arena(4096)
- *   mut p ^i64 = mem.alloc(a, 42)
+ *   unsafe {
+ *       mut a Arena = mem.arena(4096)
+ *       mut p ^i64 = mem.alloc(a, 42)
+ *   }
  *@end
  */
 /*
@@ -88,11 +98,13 @@ int64_t gray_mem_usage(GrayArena *arena);
  *@module mem
  *@group Allocation
  *@sig init(a Arena, Type) -> ^Type
- *@desc Allocate a zero-initialized value of the given type on the arena and return a pointer to it.
+ *@desc Allocate a zero-initialized value of the given type on the arena and return a pointer to it. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mut a Arena = mem.arena(4096)
- *   mut p ^i64 = mem.init(a, i64)
+ *   unsafe {
+ *       mut a Arena = mem.arena(4096)
+ *       mut p ^i64 = mem.init(a, i64)
+ *   }
  *@end
  */
 /* mem.init(arena, Type) — handled by codegen */
@@ -101,10 +113,12 @@ int64_t gray_mem_usage(GrayArena *arena);
  *@module mem
  *@group Raw
  *@sig raw_copy(dest ^T, src ^T, n i64)
- *@desc Copy n bytes from src to dest.
+ *@desc Copy n bytes from src to dest. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mem.raw_copy(dest, src, 64)
+ *   unsafe {
+ *       mem.raw_copy(dest, src, 64)
+ *   }
  *@end
  */
 /* mem.copy(dest, src, n) — copy n bytes from src to dest (memcpy) */
@@ -114,10 +128,12 @@ void gray_mem_copy(void *dest, const void *source, int64_t byte_count);
  *@module mem
  *@group Raw
  *@sig zero(ptr ^T, n i64)
- *@desc Zero n bytes starting at ptr.
+ *@desc Zero n bytes starting at ptr. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mem.zero(ptr, 128)
+ *   unsafe {
+ *       mem.zero(ptr, 128)
+ *   }
  *@end
  */
 /* mem.zero(ptr, n) — zero n bytes starting at ptr (memset 0) */
@@ -127,10 +143,12 @@ void gray_mem_zero(void *pointer, int64_t byte_count);
  *@module mem
  *@group Raw
  *@sig fill(ptr ^T, val i64, n i64)
- *@desc Set n bytes starting at ptr to val.
+ *@desc Set n bytes starting at ptr to val. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @mem
- *   mem.fill(ptr, 0xFF, 64)
+ *   unsafe {
+ *       mem.fill(ptr, 0xFF, 64)
+ *   }
  *@end
  */
 /* mem.set(ptr, val, n) — set n bytes to val (memset) */
