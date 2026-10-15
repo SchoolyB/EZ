@@ -5220,6 +5220,19 @@ These flags are available on `gray <file>`, `build`, `check`, and `watch`:
 | `--arena-limit=<size>` | Maximum arena memory per program. Accepts a size with unit suffix: `KB`, `MB`, or `GB` (e.g. `512MB`, `1GB`). Defaults to `1GB`. When exceeded at runtime, the program panics. |
 | `--cc <compiler>` | C compiler for this invocation (see [C Compiler](#c-compiler)). |
 
+### Command Help
+
+Every command prints its own help. `gray [command] --help` and `gray help [command]` are equivalent.
+
+```bash
+gray build --help
+gray help build
+```
+
+The output has the command's description and examples, then its usage line and its flags. For a subcommand, name the parent first: `gray cross build --help` or `gray help cross build`.
+
+`gray help` with no command, like `gray --help`, prints the root help: the command list and the global flags.
+
 ### C Compiler
 
 `gray` compiles the generated C with the first of `$GRAY_CC`, `$CC`, `cc`, `gcc` or `clang` found on PATH. GCC, Clang and TinyCC (`tcc`) are supported. TinyCC compiles much faster, which suits the edit-run loop; it builds the runtime from source on every compile instead of linking `libgrayrt.a`.
@@ -5501,8 +5514,8 @@ gray install <version>
 ```
 
 ```bash
-gray install 3.0.0
-gray install 3.1.0-beta.2
+gray install v0.11.5
+gray install "grayscale: v0.11.5"
 ```
 
 ### 13.13 `gray version`
