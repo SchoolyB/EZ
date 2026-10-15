@@ -1042,6 +1042,11 @@ func isTrustedUpdateURL(rawURL string) bool {
 	if err != nil {
 		return false
 	}
+	for _, segment := range strings.Split(u.Path, "/") {
+		if segment == ".." || segment == "." {
+			return false
+		}
+	}
 	return u.Scheme == "https" &&
 		u.Host == trustedUpdateHost &&
 		strings.HasPrefix(u.Path, trustedUpdatePathPrefix)
