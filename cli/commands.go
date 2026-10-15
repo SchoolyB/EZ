@@ -460,10 +460,23 @@ func reportInstallPath() string {
 	if err != nil {
 		return "unknown"
 	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(exe, home) {
-		return "~" + strings.TrimPrefix(exe, home)
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return redactHome(exe, home)
 	}
 	return exe
+}
+
+// redactHome replaces a leading home directory in path with "~". A path that
+// only shares the home directory's leading characters is left as it is.
+func redactHome(path, home string) string {
+	relative, err := filepath.Rel(home, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return path
+	}
+	if relative == "." {
+		return "~"
+	}
+	return "~" + string(filepath.Separator) + relative
 }
 
 // reportKernel returns `uname -sr` output (e.g. "Darwin 25.5.0"). On Windows,

@@ -329,3 +329,19 @@ func TestValidateQuiet(t *testing.T) {
 		})
 	}
 }
+
+func TestRedactHome(t *testing.T) {
+	cases := []struct{ path, home, want string }{
+		{"/Users/marshall/code/gray", "/Users/marshall", "~/code/gray"},
+		{"/Users/marshallburns/code/gray", "/Users/marshall", "/Users/marshallburns/code/gray"},
+		{"/opt/gray", "/Users/marshall", "/opt/gray"},
+		{"/Users/marshall", "/Users/marshall", "~"},
+	}
+	for _, c := range cases {
+		t.Run(c.path, func(t *testing.T) {
+			if got := redactHome(c.path, c.home); got != c.want {
+				t.Errorf("redactHome(%q, %q) = %q, want %q", c.path, c.home, got, c.want)
+			}
+		})
+	}
+}
