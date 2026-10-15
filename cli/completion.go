@@ -71,7 +71,13 @@ func completeRoot(cmd *cobra.Command, args []string, toComplete string) ([]strin
 		if !strings.HasPrefix(name, prefix) || (strings.HasPrefix(name, ".") && !strings.HasPrefix(prefix, ".")) {
 			continue
 		}
-		if entry.IsDir() {
+		isDirectory := entry.IsDir()
+		if entry.Type()&os.ModeSymlink != 0 {
+			if info, statErr := os.Stat(filepath.Join(listed, name)); statErr == nil {
+				isDirectory = info.IsDir()
+			}
+		}
+		if isDirectory {
 			completions = append(completions, directory+name+string(filepath.Separator))
 		} else if hasSourceExtension(name) {
 			completions = append(completions, directory+name)

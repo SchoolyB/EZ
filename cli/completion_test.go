@@ -175,3 +175,18 @@ func TestCompleteManNames(t *testing.T) {
 		t.Errorf("man completion after the first argument = %v, want none", completions)
 	}
 }
+
+func TestCompleteRootListsSymlinkedDirectories(t *testing.T) {
+	directory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(directory, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(directory, "sub"), filepath.Join(directory, "linkdir")); err != nil {
+		t.Skip("symlinks unavailable:", err)
+	}
+
+	completions, _ := completeRoot(rootCmd, nil, filepath.Join(directory, "link"))
+	if !reflect.DeepEqual(completions, []string{directory + "/linkdir/"}) {
+		t.Errorf("completeRoot = %v, want the symlinked directory with a trailing separator", completions)
+	}
+}
