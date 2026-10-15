@@ -20,9 +20,14 @@
 #  if defined(__TINYC__) || (defined(__GNUC__) && defined(__APPLE__))
 /* include_next re-finds this header when a quoted include from its own .c
  * file reached it (TinyCC, and GCC or Clang on macOS when the runtime is built from source);
- * <sys/..> steps past this directory instead. */
-#    if __has_include(<sys/../time.h>)
-#      include <sys/../time.h>
+ * <arpa/..> steps past this directory instead (<sys/..> on Windows,
+ * which has no arpa/; Debian keeps no /usr/include/sys). */
+#    if defined(_WIN32)
+#      if __has_include(<sys/../time.h>)
+#        include <sys/../time.h>
+#      endif
+#    else
+#      include <arpa/../time.h>
 #    endif
 #  elif defined(__has_include_next)
 #    if __has_include_next(<time.h>)

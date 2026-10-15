@@ -22,9 +22,14 @@
 #ifdef GRAY_GENERATED_C
 #  if defined(__TINYC__)
 /* TinyCC's include_next re-finds this header when a quoted include from its
- * own .c file reached it; <sys/..> steps past this directory instead. */
-#    if __has_include(<sys/../threads.h>)
-#      include <sys/../threads.h>
+ * own .c file reached it; <arpa/..> steps past this directory instead (<sys/..> on Windows,
+ * which has no arpa/; Debian keeps no /usr/include/sys). */
+#    if defined(_WIN32)
+#      if __has_include(<sys/../threads.h>)
+#        include <sys/../threads.h>
+#      endif
+#    elif __has_include(<arpa/../threads.h>)
+#      include <arpa/../threads.h>
 #    endif
 #  elif defined(__has_include_next)
 #    if __has_include_next(<threads.h>)
