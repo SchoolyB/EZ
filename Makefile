@@ -62,6 +62,14 @@ help:
 	@echo "  make test-go          - Run Go unit tests"
 	@echo "  make test-ubsan       - Run UBSan sanitizer tests"
 	@echo "  make test-asan        - Run ASan+UBSan sanitizer tests (Linux recommended)"
+	@echo ""
+	@echo "C compiler selection:"
+	@echo "  CC=<compiler>      - Builds grayc and the runtime (build, install, test-*, leaks, benchmark)"
+	@echo "  GRAY_CC=<compiler> - Compiles .gray programs; read before CC (test-integration, benchmark, gray)"
+	@echo "                       gray --cc <compiler> overrides both for one command"
+	@echo ""
+	@echo "  Example: CC=clang GRAY_CC=gcc make benchmark"
+	@echo "    clang builds grayc and the runtime; gcc builds the benchmark programs and stopwatch"
 
 # ===== Test targets =====
 # Delegate compiler tests to grayc/Makefile; Go tests run from the root.

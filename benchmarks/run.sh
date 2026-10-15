@@ -9,7 +9,8 @@
 #   BENCH_RUNS=N            run-phase iterations   (default 5)
 #   BENCH_COMPILE_RUNS=N    compile-phase iters    (default 3)
 #   GRAY=/path/to/gray      compiler to benchmark  (default ../gray)
-#   GRAY_CC=<compiler>      C compiler gray builds with (default: gray's pick)
+#   GRAY_CC=<compiler>      C compiler gray and the stopwatch build with
+#                           (default: $CC, then cc)
 #
 set -euo pipefail
 
@@ -76,7 +77,7 @@ rm -rf "$gen"
 mkdir -p "$bin"
 
 echo "==> building stopwatch"
-cc -O2 -o "$runner" "$here/runner.c"
+"${GRAY_CC:-${CC:-cc}}" -O2 -o "$runner" "$here/runner.c"
 
 echo "==> generating fixtures"
 bash "$here/gen.sh"
