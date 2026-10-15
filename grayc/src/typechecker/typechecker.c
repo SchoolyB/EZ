@@ -11635,6 +11635,11 @@ static GrayType *resolve_struct_value(TypeChecker *checker, AstNode *node) {
             }
         }
     }
+    /* SourceLocation is compiler-provided and only here() makes one. */
+    if (strcmp(unqualified_display_name(struct_name), "SourceLocation") == 0) {
+        typechecker_error_undefined_type(checker, node, "SourceLocation");
+        return &TYPE_UNKNOWN;
+    }
     {
         DeclarationEntry *entry = checker_cache_resolution(checker, node, struct_name);
         if (entry)

@@ -1,0 +1,4 @@
+do main() {
+    mut forged SourceLocation = SourceLocation{file: "fake.gray", line: 999, column: 7}
+    println("${forged.file}")
+}
