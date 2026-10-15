@@ -177,6 +177,7 @@ else
 		sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME); \
 	fi
 endif
+	@"$(INSTALL_PATH)/$(BINARY_NAME)" completion install || true
 	@echo ""
 	@echo '  ____                               _'
 	@echo ' / ___|_ __ __ _ _   _ ___  ___ __ _| | ___'

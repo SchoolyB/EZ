@@ -156,6 +156,11 @@ make build
 make install
 ```
 
+`make install`, `gray update`, and `gray install` also install tab completion
+for your shell (bash, zsh, fish, or PowerShell) when its completion directory
+is writable, and never edit an rc file. See `gray completion` in `STANDARD.md`
+for where each shell's script goes.
+
 ### Windows
 
 Grayscale builds on Windows with [MinGW-w64](https://www.mingw-w64.org/).

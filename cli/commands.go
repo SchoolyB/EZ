@@ -865,6 +865,11 @@ func init() {
 	rootCmd.SilenceErrors = true
 	crossCmd.AddCommand(crossBuildCmd, crossTargetsCmd)
 	rootCmd.AddCommand(updateCmd, installCmd, checkCmd, buildCmd, reportCmd, versionCmd, docCmd, fmtCmd, newCmd, watchCmd, manCmd, verifyCmd, crossCmd, testCmd)
+	// Cobra adds its completion command only once other commands exist.
+	rootCmd.InitDefaultCompletionCmd()
+	if completion, _, err := rootCmd.Find([]string{"completion"}); err == nil {
+		completion.AddCommand(completionInstallCmd)
+	}
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		// A completion script reads stdout, and a Tab press must not wait on the network.
 		if isCompletionCommand(cmd) {

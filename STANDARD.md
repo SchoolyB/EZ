@@ -5567,7 +5567,16 @@ Generate a tab-completion script for `bash`, `zsh`, `fish`, or `powershell`.
 gray completion <shell>
 ```
 
-Load the script once for your shell:
+`make install`, `gray update`, and `gray install` install the script for the shell named by `$SHELL` (PowerShell on Windows), and `gray completion install` does the same on demand. No rc file is modified; when the script cannot be written, one line names the command to run instead.
+
+| Shell | Installed to |
+|-------|--------------|
+| zsh | `_gray` in the first writable directory on zsh's `fpath` |
+| bash | `$XDG_DATA_HOME/bash-completion/completions/gray` (default `~/.local/share/...`) |
+| fish | `$XDG_CONFIG_HOME/fish/completions/gray.fish` (default `~/.config/...`) |
+| powershell | `~/.gray/completions/gray.ps1` |
+
+To load the script by hand instead:
 
 | Shell | Setup |
 |-------|-------|

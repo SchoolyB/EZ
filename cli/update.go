@@ -1000,6 +1000,7 @@ func downloadAndInstall(downloadURL string) error {
 
 	err = doInstall(downloadURL, execPath)
 	if err == nil {
+		installCompletionScript(execPath)
 		return nil
 	}
 
@@ -1021,6 +1022,7 @@ func downloadAndInstall(downloadURL string) error {
 		return fmt.Errorf("failed to run with sudo: %w", err)
 	}
 
+	installCompletionScript(execPath)
 	os.Exit(0)
 	return nil // unreachable
 }
