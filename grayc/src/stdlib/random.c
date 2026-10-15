@@ -139,7 +139,7 @@ int64_t gray_random_roll_dice(int64_t count, int64_t sides) {
     int64_t total = 0;
     for (int64_t i = 0; i < count; i++) {
         int64_t roll = 1 + (int64_t)(rand64() % (uint64_t)sides);
-        if (__builtin_add_overflow(total, roll, &total))
+        if (gray_add_overflows_i64(total, roll, &total))
             gray_panic_code("P0156", "random.roll_dice: total of %lld dice with %lld sides overflows i64", (long long)count, (long long)sides);
     }
     return total;

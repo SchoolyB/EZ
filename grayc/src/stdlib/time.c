@@ -178,21 +178,21 @@ GrayResult_i64 gray_time_from_parts_result(int64_t year, int64_t month, int64_t 
  * time function whose result left the range. */
 static int64_t time_checked_add(const char *function_name, int64_t left, int64_t right) {
     int64_t result;
-    if (__builtin_add_overflow(left, right, &result))
+    if (gray_add_overflows_i64(left, right, &result))
         gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
     return result;
 }
 
 static int64_t time_checked_sub(const char *function_name, int64_t left, int64_t right) {
     int64_t result;
-    if (__builtin_sub_overflow(left, right, &result))
+    if (gray_sub_overflows_i64(left, right, &result))
         gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
     return result;
 }
 
 static int64_t time_checked_mul(const char *function_name, int64_t left, int64_t right) {
     int64_t result;
-    if (__builtin_mul_overflow(left, right, &result))
+    if (gray_mul_overflows_i64(left, right, &result))
         gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
     return result;
 }
