@@ -1705,6 +1705,7 @@ typedef struct {
     size_t arena_limit;           /* 0 = let codegen use its 1 GB default */
     bool should_emit_c_only;
     bool is_check_only;
+    bool is_directory_input;         /* check: input_file names a directory, checked as one module */
     bool is_run_mode;
     bool is_format_mode;
     bool is_test_mode;               /* --test: emit a test runner instead of calling main() */
@@ -1827,6 +1828,30 @@ static ArgumentsStatus parse_arguments(int argc, char **argv, CompilerOptions *o
     return ARGUMENTS_OK;
 }
 
+/* gray check <directory>: the directory is checked as the module
+ * `import "./dir/"` merges. The entry program is that one import, written as
+ * a file beside the directory, so options->input_file becomes the directory's
+ * own resolved path. Returns the entry source, or NULL after reporting. */
+static char *directory_entry_source(CompilerOptions *options) {
+    char resolved[PATH_BUFFER_SIZE];
+    if (!gray_realpath_into(options->input_file, resolved, sizeof(resolved))) {
+        fprintf(stderr, "gray: cannot read '%s'\n", options->input_file);
+        return NULL;
+    }
+    char *last_separator = gray_path_last_separator(resolved);
+    if (!last_separator || last_separator[1] == '\0') {
+        fprintf(stderr, "gray: cannot check directory '%s'\n", options->input_file);
+        return NULL;
+    }
+    size_t source_size = strlen(last_separator + 1) + sizeof("import \"./\"\n/");
+    char *source = malloc(source_size);
+    if (!source) return NULL;
+    snprintf(source, source_size, "import \"./%s/\"\n", last_separator + 1);
+    options->input_file = strdup(resolved);
+    options->is_directory_input = true;
+    return source;
+}
+
 int main(int argc, char **argv) {
     /* Windows consoles need to be opted into ANSI escape handling before any
      * colored diagnostic is written. No-op everywhere else. */
@@ -1840,7 +1865,9 @@ int main(int argc, char **argv) {
     }
 
     /* Read source file */
-    char *source = gray_read_file(options.input_file, true);
+    char *source = (options.is_check_only && gray_is_directory(options.input_file))
+        ? directory_entry_source(&options)
+        : gray_read_file(options.input_file, true);
     if (!source) return 1;
 
     /* fmt mode: reformat and write back, then exit */
@@ -1990,6 +2017,8 @@ int main(int argc, char **argv) {
     /* Type check */
     TypeChecker *checker = typechecker_create(diagnostics, options.input_file);
     typechecker_set_test_mode(checker, options.is_test_mode);
+    typechecker_set_main_optional(checker, options.is_check_only);
+    typechecker_set_directory_entry(checker, options.is_directory_input);
     typechecker_add_file_module(checker, options.input_file, NULL, true);
     for (int i = 0; i < imports.count; i++)
         typechecker_add_file_module(checker, imports.files[i], imports.modules[i], false);

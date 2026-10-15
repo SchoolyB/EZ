@@ -89,29 +89,80 @@ func argsWithUsage(atLeast bool, requires, usage, example string) cobra.Position
 }
 
 var checkCmd = &cobra.Command{
-	Use:   "check [file.gray | file.grayscale | directory]",
+	Use:   "check [file.gray | file.grayscale | directory | directory/...]",
 	Short: "Type-check a file or project without compiling",
 	Args:  argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Allow directories for project-wide check
-		info, statErr := os.Stat(args[0])
-		isDir := statErr == nil && info.IsDir()
-		if !isDir && !hasSourceExtension(args[0]) {
-			return fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file", args[0])
+		targets, err := checkTargets(args[0])
+		if err != nil {
+			return err
 		}
 		compilerArgs, err := compilerFlagArgs(cmd)
 		if err != nil {
 			return err
 		}
-		code, err := driver.Check(args[0], compilerArgs)
-		if err != nil {
-			return fmt.Errorf("error: %v", err)
+		exitCode := 0
+		for _, target := range targets {
+			code, err := driver.Check(target, compilerArgs)
+			if err != nil {
+				return fmt.Errorf("error: %v", err)
+			}
+			if code != 0 && exitCode == 0 {
+				exitCode = code
+			}
 		}
-		if code != 0 {
-			return &ExitError{code}
+		if exitCode != 0 {
+			return &ExitError{exitCode}
 		}
 		return nil
 	},
+}
+
+// checkTargets turns the argument of gray check into the paths handed to the
+// compiler, one invocation each. "dir/..." names every directory under dir
+// that directly holds source files, each checked as its own module; any other
+// argument is a source file or one directory, checked as given.
+func checkTargets(arg string) ([]string, error) {
+	slashed := filepath.ToSlash(arg)
+	if !strings.HasSuffix(slashed, "/...") && arg != "..." {
+		info, statErr := os.Stat(arg)
+		if !(statErr == nil && info.IsDir()) && !hasSourceExtension(arg) {
+			return nil, fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file", arg)
+		}
+		return []string{arg}, nil
+	}
+	baseDir := filepath.FromSlash(strings.TrimSuffix(slashed, "/..."))
+	if baseDir == "" || baseDir == "..." {
+		baseDir = "."
+	}
+	info, err := os.Stat(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("error: %v", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("error: '%s' is not a directory", baseDir)
+	}
+	var directories []string
+	filepath.WalkDir(baseDir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || !entry.IsDir() {
+			return nil
+		}
+		entries, readErr := os.ReadDir(path)
+		if readErr != nil {
+			return nil
+		}
+		for _, child := range entries {
+			if !child.IsDir() && hasSourceExtension(child.Name()) {
+				directories = append(directories, path)
+				break
+			}
+		}
+		return nil
+	})
+	if len(directories) == 0 {
+		return nil, fmt.Errorf("error: no source files under '%s'", baseDir)
+	}
+	return directories, nil
 }
 
 // quietArgs turns the --quiet flag into compiler arguments: "all" suppresses

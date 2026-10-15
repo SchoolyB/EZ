@@ -1,0 +1,6 @@
+// expect-error: E4004
+// expect-error-count: 1
+
+do main() {
+    println("first")
+}

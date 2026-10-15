@@ -96,7 +96,13 @@ run_fail_test() {
     forbidden=$(forbidden_marker "$marker_file")
     required=$(required_marker "$marker_file")
     if [ -n "$expected_error" ]; then
-        output=$(run_timeout $TIMEOUT "$GRAY_BIN" check "$entry" 2>&1) || true
+        # expect-build runs the file as a build, for a diagnostic that only a
+        # build reports (check requires no main(), for one).
+        if grep -qE '^[[:space:]]*//[[:space:]]*expect-build' "$marker_file"; then
+            output=$(run_timeout $TIMEOUT "$GRAY_BIN" build "$entry" 2>&1) || true
+        else
+            output=$(run_timeout $TIMEOUT "$GRAY_BIN" check "$entry" 2>&1) || true
+        fi
         actual_count=$(echo "$output" | grep -cE '^error\[' || true)
         if [ -n "$expected_count" ] && [ "$actual_count" != "$expected_count" ]; then
             fail "$label" "(expected $expected_count error(s), got $actual_count)"
@@ -283,6 +289,20 @@ if [ -d "$TEST_DIR/pass/warnings" ]; then
     done
 fi
 
+# Directory check tests: gray check on a directory, and on dir/... for the
+# directory and each subdirectory as their own modules, must both pass.
+for dir in "$TEST_DIR"/pass/check-directory/*/; do
+    if [ -d "$dir" ]; then
+        test_name=$(basename "$dir")
+        if run_timeout $TIMEOUT "$GRAY_BIN" check "$dir" >/dev/null 2>&1 \
+            && run_timeout $TIMEOUT "$GRAY_BIN" check "${dir%/}/..." >/dev/null 2>&1; then
+            pass "check-directory/$test_name"
+        else
+            fail "check-directory/$test_name" "(expected no errors)"
+        fi
+    fi
+done
+
 echo ""
 printf "${BOLD}FAIL tests (expecting errors):${NC}\n"
 
@@ -314,6 +334,15 @@ for dir in "$TEST_DIR"/fail/multi-file/*/; do
         if [ -n "$main_file" ]; then
             run_fail_test "multi-file/$dir_name" "$main_file" "$main_file"
         fi
+    fi
+done
+
+# Directory check error tests (marker in any file of the directory)
+for dir in "$TEST_DIR"/fail/check-directory/*/; do
+    if [ -d "$dir" ]; then
+        test_name=$(basename "$dir")
+        marker_file=$(grep -rl "expect-error:" "$dir" | head -1)
+        run_fail_test "check-directory/$test_name" "$dir" "$marker_file"
     fi
 done
 

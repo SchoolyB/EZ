@@ -1,0 +1,3 @@
+do area(width i64, height i64) -> i64 {
+    return scale(width * height)
+}

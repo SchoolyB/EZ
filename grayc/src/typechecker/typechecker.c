@@ -19321,6 +19321,14 @@ void typechecker_set_test_mode(TypeChecker *checker, bool enabled) {
     checker->is_test_mode = enabled;
 }
 
+void typechecker_set_main_optional(TypeChecker *checker, bool optional) {
+    checker->is_main_optional = optional;
+}
+
+void typechecker_set_directory_entry(TypeChecker *checker, bool enabled) {
+    checker->is_directory_entry = enabled;
+}
+
 void typechecker_add_module_alias(TypeChecker *checker, const char *alias,
                                   const char *module_name) {
     module_table_add_alias(checker->modules, alias, module_name);
@@ -19670,7 +19678,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
     bool main_is_test = main_signature && main_signature->declaration &&
                         main_signature->declaration->kind == NODE_FUNCTION_DECLARATION &&
                         main_signature->declaration->data.function_declaration.is_test;
-    if (!checker->is_test_mode && !checker->was_main_name_misused && (!main_signature || main_is_test)) {
+    if (!checker->is_main_optional && !checker->is_test_mode && !checker->was_main_name_misused && (!main_signature || main_is_test)) {
         /* Point at the last statement or line 1 if empty */
         int error_line = 1;
         if (program->data.program.statement_count > 0) {
@@ -19683,7 +19691,7 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
 
     /* Warn about unused imports (only for the main file; imports from
      * sub-files are the sub-file author's responsibility). */
-    for (int i = 0; i < checker->import_count; i++) {
+    for (int i = 0; i < checker->import_count && !checker->is_directory_entry; i++) {
         if (checker->import_files[i] && checker->file &&
             strcmp(checker->import_files[i], checker->file) != 0) continue; /* skip sub-file imports */
         if (!checker->is_import_used[i]) {

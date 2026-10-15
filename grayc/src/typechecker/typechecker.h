@@ -468,6 +468,14 @@ typedef struct {
      * #test functions are not flagged as unused. */
     bool is_test_mode;
 
+    /* Set by gray check, which builds no executable, so a program with no
+     * main() is not an error there. */
+    bool is_main_optional;
+
+    /* The entry program is the one-line import gray check synthesizes for a
+     * directory, so its import is never reported unused. */
+    bool is_directory_entry;
+
     /* Set when a non-function declaration tried to claim the name `main`
      * (E4026). Suppresses the follow-on "program has no main() function"
      * (E4035), which would otherwise fire because the bad declaration
@@ -502,6 +510,8 @@ TypeChecker *typechecker_create(DiagnosticList *diagnostics, const char *file);
 /* Enable --test mode: main() is not required and #test functions are exempt
  * from the unused-function warning. */
 void typechecker_set_test_mode(TypeChecker *checker, bool enabled);
+void typechecker_set_main_optional(TypeChecker *checker, bool optional);
+void typechecker_set_directory_entry(TypeChecker *checker, bool enabled);
 
 /* Record which module a source file belongs to. The import driver calls this
  * for the entry file and every file it pulls in, before typechecker_check. */

@@ -5281,8 +5281,10 @@ gray build main.gray --arena-limit=256MB
 Type-check a file or project without compiling. Returns a non-zero exit code if errors are found.
 
 ```
-gray check <file.gray | directory> [flags]
+gray check <file.gray | directory | directory/...> [flags]
 ```
+
+A directory is checked as one merged module (§8.2); files directly in it form a module, and `dir/...` additionally checks each subdirectory as its own module. Unlike `fmt`, `doc` and `test`, which handle each file independently, `check` merges the files in a directory, so a directory of standalone programs fails with a duplicate definition. `check` does not require `main`.
 
 | Flag | Description |
 |------|-------------|
@@ -5291,6 +5293,7 @@ gray check <file.gray | directory> [flags]
 ```bash
 gray check main.gray
 gray check src/
+gray check src/...
 ```
 
 ### 13.4 `gray test`
