@@ -8,6 +8,14 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
+/* Under TinyCC, io.c and os.c define _DEFAULT_SOURCE, so glibc's <string.h>
+ * includes <strings.h> while runtime.h is still being read. This directory is
+ * ahead of the system one there, so that include lands here before GrayArena
+ * exists: step past to the real header and declare nothing. */
+#if defined(__TINYC__) && defined(GRAY_RUNTIME_H) && !defined(GRAY_ARENA_DECLARED)
+#  include <arpa/../strings.h>
+#else
+
 #ifndef GRAY_STRINGS_H
 #define GRAY_STRINGS_H
 
@@ -686,5 +694,7 @@ void gray_strings_builder_clear(GrayStringsBuilder *builder);
  *@end
  */
 GrayString gray_strings_build(GrayArena *arena, GrayStringsBuilder *builder);
+
+#endif
 
 #endif
