@@ -24,6 +24,7 @@
 #include "util/buf.h"
 #include "util/colors.h"
 #include "util/error.h"
+#include "util/error_codes.h"
 #include "util/platform.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
@@ -1954,7 +1955,7 @@ int main(int argc, char **argv) {
                 free(codes_buffer);
                 return 1;
             }
-            if (code_token[0] != 'W') {
+            if (code_token[0] != 'W' || !gray_error_message(code_token)) {
                 fprintf(stderr, "gray: unknown warning code '%s'\n", code_token);
                 free(codes_buffer);
                 return 1;
