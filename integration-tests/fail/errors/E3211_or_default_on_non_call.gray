@@ -1,4 +1,4 @@
-/* Error Test: E3045 - or_default on a non-call expression */
+/* Error Test: E3211 - or_default on a non-call expression */
 do main() {
     mut x i64 = 3
     mut n = x or_default 1

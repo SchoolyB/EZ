@@ -8941,20 +8941,15 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             if (first_argument_type && first_argument_type->kind != TYPE_KIND_UNKNOWN && first_argument_type->kind != TYPE_KIND_VOID &&
                 !length_rule) {
                 char accepted[MESSAGE_BUFFER_SIZE];
-                char message[MESSAGE_BUFFER_SIZE];
+                char help[MESSAGE_BUFFER_SIZE];
                 type_length_accepted_list(accepted, sizeof(accepted));
-                if (first_argument_type->kind == TYPE_KIND_STRUCT) {
-                    /* A user struct can share a listed stdlib type's name. */
-                    snprintf(message, sizeof(message),
-                        "'len()' is not supported for struct '%s'; 'len()' works on %s types, where a listed struct is the stdlib type of that name, not a user struct",
-                        type_display_name(checker, first_argument_type), accepted);
-                } else {
-                    snprintf(message, sizeof(message), "'len()' is not supported for type '%s'; 'len()' works on %s types",
-                        type_name(first_argument_type), accepted);
-                }
-                diagnostic_error_message(checker->diagnostics, "E7015", arena_copy_string(checker->arena, message),
+                snprintf(help, sizeof(help), "'len()' works on %s types", accepted);
+                diagnostic_error_code_formatted_help(checker->diagnostics, "E7015",
                     NODE_FILE(checker, node->data.call.arguments[0]),
-                    node->data.call.arguments[0]->token.line, node->data.call.arguments[0]->token.column, 0);
+                    node->data.call.arguments[0]->token.line, node->data.call.arguments[0]->token.column, 0,
+                    arena_copy_string(checker->arena, help),
+                    first_argument_type->kind == TYPE_KIND_STRUCT ? type_display_name(checker, first_argument_type)
+                                                                  : type_name(first_argument_type));
             }
         }
         result = &TYPE_I64;
@@ -13889,20 +13884,17 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
     /* E4026: 'main' is reserved for the entry-point function */
     check_reserved_main(checker, node->data.variable_declaration.name,
         NODE_FILE(checker, node), node->token.line, node->token.column);
-    /* E3045: or_return / or_panic / or_default on non-error-returning function */
+    /* E3211: or_return / or_panic / or_default on a non-call operand */
     if (strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR, sizeof(GRAY_SYNTHETIC_OR) - 1) == 0 &&
         node->data.variable_declaration.value && node->data.variable_declaration.value->kind != NODE_CALL_EXPRESSION) {
         const char *temporary_name = node->data.variable_declaration.name;
         const char *keyword = strncmp(temporary_name, GRAY_SYNTHETIC_OR_PANIC, sizeof(GRAY_SYNTHETIC_OR_PANIC) - 1) == 0 ? "or_panic"
             : strncmp(temporary_name, GRAY_SYNTHETIC_OR_DEFAULT, sizeof(GRAY_SYNTHETIC_OR_DEFAULT) - 1) == 0 ? "or_default"
             : "or_return";
-        char message[MESSAGE_BUFFER_SIZE];
-        snprintf(message, sizeof(message),
-            "'%s' requires a function that returns (T, Error); the operand is not a function call", keyword);
-        diagnostic_error_message(checker->diagnostics, "E3045", arena_copy_string(checker->arena, message),
+        diagnostic_error_code_formatted(checker->diagnostics, "E3211",
             NODE_FILE(checker, node->data.variable_declaration.value),
             node->data.variable_declaration.value->token.line,
-            node->data.variable_declaration.value->token.column, 0);
+            node->data.variable_declaration.value->token.column, 0, keyword);
     }
     if (strncmp(node->data.variable_declaration.name, GRAY_SYNTHETIC_OR, sizeof(GRAY_SYNTHETIC_OR) - 1) == 0 &&
         node->data.variable_declaration.value && node->data.variable_declaration.value->kind == NODE_CALL_EXPRESSION) {

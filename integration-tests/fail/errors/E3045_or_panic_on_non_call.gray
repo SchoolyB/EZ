@@ -1,5 +1,0 @@
-/* Error Test: E3045 - or_panic on a non-call expression */
-do main() {
-    mut n = 5 or_panic
-    println(n)
-}

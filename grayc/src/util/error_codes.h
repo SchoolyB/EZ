@@ -298,7 +298,8 @@
     GRAY_ERROR("E3207", "types", "'or_default' has %d fallback value(s) but the call returns %d value(s) besides the Error; give one fallback per value") \
     GRAY_ERROR("E3208", "types", "'or_default' fallback of type '%s' does not match the call's '%s' value") \
     GRAY_ERROR("E3209", "types", "'%s.%s()' is not available on a %s enum; it is only generated for plain enums") \
-    GRAY_ERROR("E3210", "types", "json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value")
+    GRAY_ERROR("E3210", "types", "json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value") \
+    GRAY_ERROR("E3211", "types", "'%s' requires a function that returns (T, Error); the operand is not a function call")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define GRAY_REFERENCE_ERRORS \
