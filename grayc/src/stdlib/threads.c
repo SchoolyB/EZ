@@ -12,18 +12,18 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdlib.h>
-#include <stdatomic.h>
+#include "../runtime/atomic.h"
 #include <string.h>
 #include <time.h>
 #include <errno.h>
 
 typedef struct {
     pthread_t posix_thread;
-    _Atomic int alive;       /* 1 between entry and exit, 0 otherwise */
-    _Atomic int detached;    /* 1 once detach() has been called */
+    int alive;       /* 1 between entry and exit, 0 otherwise */
+    int detached;    /* 1 once detach() has been called */
 } GrayThreadInternal;
 
-static _Atomic int64_t gray_threads_live_count = 0;
+static int64_t gray_threads_live_count = 0;
 
 /* Unified thread wrapper: entry_without_argument is set for no-arg spawns, entry_with_argument for one-arg. */
 typedef struct {
@@ -55,13 +55,13 @@ static void *thread_entry(void *raw_argument) {
         free(gray_heap_arena);
     }
     gray_heap_arena = NULL;
-    atomic_fetch_sub(&gray_threads_live_count, 1);
-    atomic_store(&state->alive, 0);
+    __atomic_fetch_sub(&gray_threads_live_count, 1, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&state->alive, 0, __ATOMIC_SEQ_CST);
     /* Rendezvous with detach(): both sides increment detached, and
      * whichever sees the old value as 1 is the last to arrive and
      * owns the free.  If join() is used instead, the increment is
      * harmless — join() frees after pthread_join returns. */
-    if (atomic_fetch_add(&state->detached, 1) == 1) free(state);
+    if (__atomic_fetch_add(&state->detached, 1, __ATOMIC_SEQ_CST) == 1) free(state);
     free(thread_argument);
     return NULL;
 }
@@ -71,15 +71,15 @@ static GrayThread spawn_thread(ThreadArg *thread_argument) {
     /* alive=1 set before pthread_create so is_alive() is true immediately
      * after spawn() returns; otherwise callers race the scheduler. The
      * thread wrapper clears it on exit. */
-    atomic_store(&state->alive, 1);
-    atomic_store(&state->detached, 0);
-    atomic_fetch_add(&gray_threads_live_count, 1);
+    __atomic_store_n(&state->alive, 1, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&state->detached, 0, __ATOMIC_SEQ_CST);
+    __atomic_fetch_add(&gray_threads_live_count, 1, __ATOMIC_SEQ_CST);
     int result_code = pthread_create(&state->posix_thread, NULL, thread_entry, thread_argument);
     if (result_code != 0) {
         /* thread_entry never runs, so unwind everything it would have owned:
          * the live count, the alive flag, and both allocations. */
-        atomic_fetch_sub(&gray_threads_live_count, 1);
-        atomic_store(&state->alive, 0);
+        __atomic_fetch_sub(&gray_threads_live_count, 1, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&state->alive, 0, __ATOMIC_SEQ_CST);
         free(state);
         free(thread_argument);
         gray_panic_code("P0108",
@@ -130,13 +130,13 @@ void gray_threads_detach(GrayThread thread) {
     pthread_detach(state->posix_thread);
     /* Rendezvous with thread exit: both sides increment detached, and
      * whichever sees the old value as 1 is last to arrive and frees. */
-    if (atomic_fetch_add(&state->detached, 1) == 1) free(state);
+    if (__atomic_fetch_add(&state->detached, 1, __ATOMIC_SEQ_CST) == 1) free(state);
 }
 
 bool gray_threads_is_alive(GrayThread thread) {
     if (!thread._internal) return false;
     GrayThreadInternal *state = (GrayThreadInternal *)thread._internal;
-    return atomic_load(&state->alive) != 0;
+    return __atomic_load_n(&state->alive, __ATOMIC_SEQ_CST) != 0;
 }
 
 int64_t gray_threads_id(void) {
@@ -148,5 +148,5 @@ void gray_threads_yield(void) {
 }
 
 int64_t gray_threads_thread_count(void) {
-    return atomic_load(&gray_threads_live_count);
+    return __atomic_load_n(&gray_threads_live_count, __ATOMIC_SEQ_CST);
 }

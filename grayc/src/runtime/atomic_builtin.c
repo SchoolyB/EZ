@@ -24,6 +24,17 @@
 
 #define SEQUENTIALLY_CONSISTENT __ATOMIC_SEQ_CST
 
+#if defined(__TINYC__)
+#if !__has_include(<stdatomic.h>)
+#include <pthread.h>
+
+static pthread_mutex_t gray_fallback_atomic_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void gray_fallback_atomic_lock(void) { pthread_mutex_lock(&gray_fallback_atomic_mutex); }
+void gray_fallback_atomic_unlock(void) { pthread_mutex_unlock(&gray_fallback_atomic_mutex); }
+#endif
+#endif
+
 /* ── 64-bit ─────────────────────────────────────────────────────── */
 
 int64_t gray_atomic_load(int64_t *target) {
