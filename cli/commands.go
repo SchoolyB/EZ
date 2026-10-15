@@ -1052,6 +1052,10 @@ Flags:
       --no-color           Disable colored output
       --arena-limit size   Max arena memory per program (e.g. 512MB, 1GB; default: 1GB)
       --cc compiler        C compiler to use (a name on PATH or a path)
+                           Accepted by: gray <file.gray>, gray build, gray check, gray watch
+                           Order: --cc, then GRAY_CC, then CC, then the first of cc, gcc, clang on PATH
+                           gray main.gray --cc clang
+                           gray build main.gray --cc /opt/homebrew/bin/gcc-14
 
 Use "gray [command] --help" for more information about a command.
 See the full language standard: https://github.com/grayscale-lang/grayscale/blob/main/STANDARD.md
