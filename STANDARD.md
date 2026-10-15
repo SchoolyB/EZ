@@ -5235,6 +5235,12 @@ gray main.gray --cc tcc
 gray build main.gray -o app --cc /usr/local/bin/clang
 ```
 
+`GRAY_CC` and `CC` are different settings. `GRAY_CC` chooses the compiler `gray` uses to compile `.gray` programs. When building Grayscale from source, `CC` chooses the compiler `make` uses to build `grayc` and the runtime, and `gray` falls back to `$CC` only when `$GRAY_CC` is unset.
+
+```bash
+CC=clang GRAY_CC=gcc make build   # grayc and the runtime built with clang
+```
+
 ### 13.1 `gray <file.gray>`
 
 Compile and run a source file in one step.
