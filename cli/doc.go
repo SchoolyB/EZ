@@ -148,7 +148,8 @@ func collectDocsFromFile(filename string) []DocEntry {
 	braceDepth := 0
 	lineNo := 0
 
-	for index, sourceLine := range sourceLines {
+	for index := 0; index < len(sourceLines); index++ {
+		sourceLine := sourceLines[index]
 		lineNo++
 		line := strings.TrimSuffix(sourceLine, "\r")
 		trimmed := strings.TrimSpace(line)
@@ -195,10 +196,22 @@ func collectDocsFromFile(filename string) []DocEntry {
 			if strings.HasPrefix(trimmed, "do ") || strings.HasPrefix(trimmed, "private do ") {
 				// Function declaration — capture the signature line
 				sig := trimmed
+				declarationLine := lineNo
+				// A wrapped parameter list continues on the following lines
+				// until its parentheses close.
+				depth := strings.Count(sig, "(") - strings.Count(sig, ")")
+				for depth > 0 && index+1 < len(sourceLines) {
+					index++
+					lineNo++
+					continuation := strings.TrimSpace(strings.TrimSuffix(sourceLines[index], "\r"))
+					sig += " " + continuation
+					depth += strings.Count(continuation, "(") - strings.Count(continuation, ")")
+				}
 				// Strip the body (everything after {)
 				if idx := strings.Index(sig, "{"); idx >= 0 {
 					sig = strings.TrimSpace(sig[:idx])
 				}
+				sig = strings.NewReplacer("( ", "(", ", )", ")", " )", ")").Replace(sig)
 				name := extractFuncName(trimmed)
 				entries = append(entries, DocEntry{
 					Name:        name,
@@ -206,7 +219,7 @@ func collectDocsFromFile(filename string) []DocEntry {
 					Signature:   sig,
 					Description: pendingDoc,
 					File:        absPath,
-					Line:        lineNo,
+					Line:        declarationLine,
 				})
 				pendingDoc = ""
 			} else if strings.Contains(trimmed, " struct ") && strings.HasPrefix(trimmed, "const ") {

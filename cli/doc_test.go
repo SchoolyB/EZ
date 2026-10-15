@@ -21,3 +21,15 @@ func TestCollectDocsIgnoresRawStringsAndBlockComments(t *testing.T) {
 		t.Errorf("got %+v, want only the function real", entries)
 	}
 }
+
+func TestCollectDocsJoinsWrappedFunctionSignature(t *testing.T) {
+	src := "#doc(\"wide\")\nprivate do wide(\n    a i64,\n    b i64\n) -> i64 {\n    return a + b\n}\n"
+	path := filepath.Join(t.TempDir(), "f.gray")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries := collectDocsFromFile(path)
+	if len(entries) != 1 || entries[0].Signature != "private do wide(a i64, b i64) -> i64" || entries[0].Line != 2 {
+		t.Errorf("got %+v", entries)
+	}
+}
