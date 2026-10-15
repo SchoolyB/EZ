@@ -99,7 +99,8 @@ func completeManNames(cmd *cobra.Command, args []string, toComplete string) ([]s
 	}
 	seen := make(map[string]bool)
 	add := func(name string) {
-		if strings.HasPrefix(name, toComplete) {
+		// A name starting with '-' is read as a flag when typed, so it is not offered.
+		if strings.HasPrefix(name, toComplete) && !strings.HasPrefix(name, "-") {
 			seen[name] = true
 		}
 	}
