@@ -167,6 +167,9 @@ func buildArgs(file string, opts BuildOpts) []string {
 
 // Build compiles a Grayscale source file to a native binary via grayc build.
 func Build(file string, opts BuildOpts) (int, error) {
+	if opts.Output != "" && sameExistingFile(file, opts.Output) {
+		return 1, fmt.Errorf("output path '%s' is the input file; choose a different -o path", opts.Output)
+	}
 	graycPath, err := Find()
 	if err != nil {
 		return 1, err
@@ -245,4 +248,18 @@ func execute(graycPath string, args []string) (int, error) {
 		return 1, err
 	}
 	return 0, nil
+}
+
+// sameExistingFile reports whether both paths name the same file on disk,
+// following symlinks and relative spellings.
+func sameExistingFile(first, second string) bool {
+	firstInfo, err := os.Stat(first)
+	if err != nil {
+		return false
+	}
+	secondInfo, err := os.Stat(second)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(firstInfo, secondInfo)
 }
