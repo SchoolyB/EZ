@@ -1845,6 +1845,28 @@ int main(int argc, char **argv) {
 
     /* fmt mode: reformat and write back, then exit */
     if (options.is_format_mode) {
+        /* A file that does not lex and parse has no reliable structure to
+         * indent by; refuse it rather than rewrite it. */
+        {
+            Arena *format_arena = arena_create(COMPILER_ARENA_SIZE);
+            DiagnosticList *format_diagnostics = diagnostic_create();
+            diagnostic_set_source(format_diagnostics, options.input_file, source);
+            if (options.is_color_disabled) format_diagnostics->should_use_color = false;
+            Lexer *format_lexer = lexer_create(format_arena, source, options.input_file);
+            Parser *format_parser = parser_create(format_arena, format_lexer, options.input_file, format_diagnostics);
+            parser_parse_program(format_parser);
+            bool has_syntax_errors = diagnostic_has_errors(format_diagnostics);
+            if (has_syntax_errors) {
+                diagnostic_print_all(format_diagnostics);
+                diagnostic_print_summary(format_diagnostics);
+            }
+            diagnostic_destroy(format_diagnostics);
+            arena_destroy(format_arena);
+            if (has_syntax_errors) {
+                free(source);
+                return 1;
+            }
+        }
         FILE *temporary_file = gray_tmpfile();
         if (!temporary_file) {
             fprintf(stderr, "gray: fmt: could not create temp file\n");

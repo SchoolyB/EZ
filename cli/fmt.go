@@ -214,7 +214,13 @@ func runFmt(args []string, checkMode bool) int {
 			tmp.Write(orig)
 			tmp.Close()
 
-			driver.Fmt(tmpName)
+			code, fmtErr := driver.Fmt(tmpName)
+			if fmtErr != nil || code != 0 {
+				os.Remove(tmpName)
+				fmt.Fprintf(os.Stderr, "gray fmt: failed to format '%s'\n", path)
+				exit = 1
+				continue
+			}
 
 			formatted, err := os.ReadFile(tmpName)
 			os.Remove(tmpName)
@@ -258,7 +264,7 @@ func runFmt(args []string, checkMode bool) int {
 		}
 	}
 
-	if !checkMode && changed == 0 {
+	if !checkMode && changed == 0 && exit == 0 {
 		fmt.Printf("gray fmt: %d file(s) checked, already formatted\n", len(files))
 	}
 	return exit
