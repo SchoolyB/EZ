@@ -1700,6 +1700,8 @@ typedef struct {
     const char *optimization_level;
     const char *c_compiler_override;
     const char *quiet_codes_argument;  /* comma-separated W-codes from -q, or NULL */
+    char **program_arguments;     /* run mode: everything after "--", passed to the program */
+    int program_argument_count;
     size_t arena_limit;           /* 0 = let codegen use its 1 GB default */
     bool should_emit_c_only;
     bool is_check_only;
@@ -1735,6 +1737,12 @@ static ArgumentsStatus parse_arguments(int argc, char **argv, CompilerOptions *o
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage();
             return ARGUMENTS_DONE;
+        }
+        if (strcmp(argv[i], "--") == 0) {
+            /* Everything after "--" belongs to the program being run. */
+            options->program_arguments = argv + i + 1;
+            options->program_argument_count = argc - i - 1;
+            break;
         }
         if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             options->output_file = argv[++i];
@@ -2459,9 +2467,19 @@ int main(int argc, char **argv) {
      * input, and a bare name must not resolve to some unrelated binary. */
     bool ran_program = false;
     if (compiler_status == 0 && options.is_run_mode) {
-        const char *run_argument_vector[] = {options.output_file, NULL};
+        const char **run_argument_vector =
+            malloc(sizeof(char *) * ((size_t)options.program_argument_count + 2));
+        if (!run_argument_vector) {
+            fprintf(stderr, "gray: out of memory\n");
+            return 1;
+        }
+        run_argument_vector[0] = options.output_file;
+        for (int i = 0; i < options.program_argument_count; i++)
+            run_argument_vector[i + 1] = options.program_arguments[i];
+        run_argument_vector[options.program_argument_count + 1] = NULL;
         int term_signal = 0;
         compiler_status = gray_spawn_exact(run_argument_vector, &term_signal);
+        free(run_argument_vector);
         if (compiler_status < 0) {
             fprintf(stderr, "gray: cannot execute '%s'\n", options.output_file);
             compiler_status = 1;

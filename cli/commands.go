@@ -781,7 +781,11 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		compilerArgs = append(compilerArgs, extraArgs...)
+		if len(extraArgs) > 0 {
+			// "--" ends the compiler's own options; the rest is the program's.
+			compilerArgs = append(compilerArgs, "--")
+			compilerArgs = append(compilerArgs, extraArgs...)
+		}
 
 		code, err := driver.Run(args[0], compilerArgs)
 		if err != nil {
