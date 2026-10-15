@@ -11,6 +11,12 @@
 #ifndef GRAY_REGEX_H
 #define GRAY_REGEX_H
 
+/* glibc sizes regexec's regmatch_t array parameter by an earlier parameter,
+ * which TinyCC cannot parse. glibc leaves the size out when this is defined. */
+#if defined(__TINYC__) && !defined(_REGEX_NELTS)
+#  define _REGEX_NELTS(n)
+#endif
+
 #include "../runtime/runtime.h"
 #include "../runtime/array.h"
 #include "io.h" /* GrayResult_string, GrayResult_array */
