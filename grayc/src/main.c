@@ -515,9 +515,21 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
                                    char *archive_path, size_t archive_path_size) {
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
+    /* A host ar cannot index another platform's object format (Apple ar writes
+     * an empty table of contents for COFF), so a zig compiler archives with
+     * its own `zig ar`. */
+    size_t command_word_length = strcspn(c_compiler, " \t");
+    const char *command_word_end = c_compiler + command_word_length;
+    const char *command_word_start = command_word_end;
+    while (command_word_start > c_compiler && command_word_start[-1] != '/' && command_word_start[-1] != '\\')
+        command_word_start--;
+    const bool uses_zig_archiver = is_command && strncmp(command_word_start, "zig", 3) == 0 &&
+        (command_word_end - command_word_start == 3 || strncmp(command_word_start, "zig.exe", 7) == 0);
     uint64_t key = 14695981039346656037ULL;
-    const char *const key_parts[] = {c_compiler, banner, runtime_directory};
-    for (size_t part = 0; part < 3; part++)
+    /* The archiver is part of the key so an archive an earlier grayc built
+     * with a host ar (and left without a symbol table) is not reused. */
+    const char *const key_parts[] = {c_compiler, banner, runtime_directory, uses_zig_archiver ? "zig-ar" : ""};
+    for (size_t part = 0; part < 4; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
     snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", gray_temporary_directory(),
@@ -540,7 +552,12 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     ArgumentVector archiver = {0};
     char temporary_archive[PATH_BUFFER_SIZE];
     gray_temporary_path(temporary_archive, sizeof(temporary_archive), "gray_rt_", ".a");
-    argument_vector_push(&archiver, "ar");
+    if (uses_zig_archiver) {
+        argument_vector_push_formatted(&archiver, arena, "%.*s", (int)command_word_length, c_compiler);
+        argument_vector_push(&archiver, "ar");
+    } else {
+        argument_vector_push(&archiver, "ar");
+    }
     argument_vector_push(&archiver, "rcs");
     argument_vector_push(&archiver, temporary_archive);
 
