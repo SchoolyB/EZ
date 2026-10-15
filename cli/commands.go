@@ -15,6 +15,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,6 +66,9 @@ func parseArenaLimit(s string) (uint64, error) {
 	}
 	if n == 0 {
 		return 0, fmt.Errorf("invalid arena limit '%s': value must be greater than zero", s)
+	}
+	if n > math.MaxInt64/multiplier {
+		return 0, fmt.Errorf("invalid arena limit '%s': value is too large", s)
 	}
 	return n * multiplier, nil
 }

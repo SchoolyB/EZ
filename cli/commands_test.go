@@ -45,6 +45,11 @@ func TestParseArenaLimit(t *testing.T) {
 		{"1gb", 1024 * 1024 * 1024, false},
 		{"256", 0, true},
 		{"abcMB", 0, true},
+		{"17179869184GB", 0, true},
+		{"18014398509481985KB", 0, true},
+		{"8589934592GB", 0, true},
+		{"18446744073709551615KB", 0, true},
+		{"8589934591GB", 8589934591 * 1024 * 1024 * 1024, false},
 	}
 	for _, c := range cases {
 		t.Run(c.in, func(t *testing.T) {
