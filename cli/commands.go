@@ -95,7 +95,14 @@ func argsWithUsage(atLeast bool, requires, usage, example string) cobra.Position
 var checkCmd = &cobra.Command{
 	Use:   "check [file.gray | file.grayscale | directory | directory/...]",
 	Short: "Type-check a file or project without compiling",
-	Args:  argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
+	Long: "Type-check a file or directory and report errors and warnings without " +
+		"compiling or running it. A trailing /... checks every directory under the " +
+		"given path that directly holds source files, each as its own module.\n\n" +
+		"Examples:\n" +
+		"  gray check main.gray       Check a single file\n" +
+		"  gray check src             Check one directory\n" +
+		"  gray check ./...           Check every directory under the current one",
+	Args: argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targets, err := checkTargets(args[0])
 		if err != nil {
@@ -276,7 +283,14 @@ func commonBuildOpts(cmd *cobra.Command) (driver.BuildOpts, error) {
 var buildCmd = &cobra.Command{
 	Use:   "build [file.gray]",
 	Short: "Compile a Grayscale source file to a native binary",
-	Args:  argsWithUsage(false, "a <file.gray>", "<file.gray>", "main.gray"),
+	Long: "Compile a Grayscale source file to a native binary. The binary is named after " +
+		"the source file and written to the current directory unless -o is given.\n\n" +
+		"Examples:\n" +
+		"  gray build main.gray                Build ./main\n" +
+		"  gray build main.gray -o app         Build ./app\n" +
+		"  gray build main.gray --emit-c       Write the generated C to main.c, no binary\n" +
+		"  gray build main.gray --cc clang     Build with a chosen C compiler",
+	Args: argsWithUsage(false, "a <file.gray>", "<file.gray>", "main.gray"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !hasSourceExtension(args[0]) {
 			return fmt.Errorf("error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file", args[0])
@@ -339,7 +353,10 @@ var updateCmd = &cobra.Command{
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
-	Args:  cobra.NoArgs,
+	Long: "Print the installed Grayscale version, commit, and build time, and the latest stable release.\n\n" +
+		"Example:\n" +
+		"  gray version",
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		rootCmd.Printf("%s\n", getVersionString())
 	},
@@ -398,7 +415,11 @@ By default files are rewritten in place. Use --check for a non-mutating CI gate.
 var reportCmd = &cobra.Command{
 	Use:   "report",
 	Short: "Print system info for bug reports",
-	Args:  cobra.NoArgs,
+	Long: "Print the Grayscale version, commit, install path, OS, CPU, RAM, and C compiler " +
+		"details to paste into a bug report.\n\n" +
+		"Example:\n" +
+		"  gray report",
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Grayscale Bug Report Info")
 		fmt.Println("======================")
@@ -768,7 +789,15 @@ func printLangEntry(displayName string, entry LangManEntry) {
 var manCmd = &cobra.Command{
 	Use:   "man [name]",
 	Short: "Show documentation for a builtin or stdlib function",
-	Args:  cobra.MaximumNArgs(1),
+	Long: "Show documentation for a builtin, a stdlib module, or a language keyword, " +
+		"type, or symbol. With no name, prints the index.\n\n" +
+		"Examples:\n" +
+		"  gray man                    Show the index\n" +
+		"  gray man println            Docs for a builtin\n" +
+		"  gray man math               List a stdlib module\n" +
+		"  gray man strings.contains   Qualified lookup\n" +
+		"  gray man keywords           List language keywords",
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			printManUsage()
@@ -930,7 +959,10 @@ var crossCmd = &cobra.Command{
 var crossTargetsCmd = &cobra.Command{
 	Use:   "targets",
 	Short: "List supported cross-compilation targets",
-	Args:  cobra.NoArgs,
+	Long: "List the targets accepted by 'gray cross build --target', with the zig triple each maps to.\n\n" +
+		"Example:\n" +
+		"  gray cross targets",
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		targets := make([]string, 0, len(crossTargets))
 		for t := range crossTargets {
@@ -953,7 +985,13 @@ var crossTargetsCmd = &cobra.Command{
 var crossBuildCmd = &cobra.Command{
 	Use:   "build [file.gray]",
 	Short: "Cross-compile a Grayscale source file for another platform",
-	Args:  argsWithUsage(false, "a <file.gray>", "<file.gray> --target <target>", "main.gray --target linux-amd64"),
+	Long: "Cross-compile a Grayscale source file for another platform using zig cc. " +
+		"The binary is named <file>-<target> (with .exe for Windows targets) unless -o is given. " +
+		"Run 'gray cross targets' to list the targets.\n\n" +
+		"Examples:\n" +
+		"  gray cross build main.gray --target linux-amd64\n" +
+		"  gray cross build main.gray --target windows-amd64 -o app.exe",
+	Args: argsWithUsage(false, "a <file.gray>", "<file.gray> --target <target>", "main.gray --target linux-amd64"),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !hasSourceExtension(args[0]) {
 			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid Grayscale source file — expected a .gray or .grayscale file\n", args[0])
@@ -1071,21 +1109,21 @@ See the full language standard: https://github.com/grayscale-lang/grayscale/blob
 	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source to a file (no binary). Uses -o for output path, or defaults to <input>.c")
 	buildCmd.Flags().Bool("time", false, "Show compilation timing")
 	buildCmd.Flags().Bool("no-color", false, "Disable colored output")
-	buildCmd.Flags().String("cc", "", "C compiler to use (a name on PATH or a path); overrides GRAY_CC and CC")
-	rootCmd.Flags().String("cc", "", "C compiler to use (a name on PATH or a path); overrides GRAY_CC and CC")
+	buildCmd.Flags().String("cc", "", "C `compiler` to use (a name on PATH or a path); overrides GRAY_CC and CC")
+	rootCmd.Flags().String("cc", "", "C `compiler` to use (a name on PATH or a path); overrides GRAY_CC and CC")
 	rootCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	rootCmd.Flags().Bool("no-color", false, "Disable colored output")
-	rootCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	rootCmd.Flags().String("arena-limit", "", "Maximum `size` of arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
-	buildCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	buildCmd.Flags().String("arena-limit", "", "Maximum `size` of arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().Bool("no-color", false, "Disable colored output")
-	checkCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
-	checkCmd.Flags().String("cc", "", "C compiler to use (a name on PATH or a path); overrides GRAY_CC and CC")
+	checkCmd.Flags().String("arena-limit", "", "Maximum `size` of arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	checkCmd.Flags().String("cc", "", "C `compiler` to use (a name on PATH or a path); overrides GRAY_CC and CC")
 	watchCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	watchCmd.Flags().Bool("no-color", false, "Disable colored output")
-	watchCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
-	watchCmd.Flags().String("cc", "", "C compiler to use (a name on PATH or a path); overrides GRAY_CC and CC")
+	watchCmd.Flags().String("arena-limit", "", "Maximum `size` of arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	watchCmd.Flags().String("cc", "", "C `compiler` to use (a name on PATH or a path); overrides GRAY_CC and CC")
 	testCmd.Flags().Bool("no-color", false, "Disable colored output")
 
 	docCmd.Flags().StringP("output", "o", defaultDocOutputPath, "Path to write generated markdown")
@@ -1109,7 +1147,7 @@ See the full language standard: https://github.com/grayscale-lang/grayscale/blob
 	crossBuildCmd.Flags().Bool("time", false, "Show compilation timing")
 	crossBuildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	crossBuildCmd.Flags().Bool("no-color", false, "Disable colored output")
-	crossBuildCmd.Flags().String("arena-limit", "", "Maximum arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
+	crossBuildCmd.Flags().String("arena-limit", "", "Maximum `size` of arena memory per program (e.g. 512KB, 256MB, 1GB; default: 1GB)")
 
 	_ = newCmd.RegisterFlagCompletionFunc("template", completeFixedValues("basic", "cli", "lib", "multi", "server", "client"))
 	_ = newCmd.RegisterFlagCompletionFunc("server-type", completeFixedValues("minimal", "normal"))

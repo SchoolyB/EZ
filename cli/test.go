@@ -47,7 +47,7 @@ var testCmd = &cobra.Command{
 	Long: `Compile and run every function marked with the #test attribute.
 
 #test functions take no parameters, return nothing, and are stripped from
-'gray build' / 'gray run' output — they exist only for 'gray test'.
+'gray build' output — they exist only for 'gray test'.
 
 Examples:
   gray test                Run tests in every source file under the current directory

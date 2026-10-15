@@ -28,9 +28,16 @@ import (
 var watchCmd = &cobra.Command{
 	Use:   "watch [file.gray | file.grayscale | directory]",
 	Short: "Watch files and re-run on changes",
-	Long:  `Watch a file or directory for changes and automatically re-run.`,
-	Args:  argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
-	RunE:  runWatch,
+	Long: `Watch a file or directory for changes and automatically re-run it.
+
+A file is watched together with the files it imports. A directory must hold
+exactly one file with a main() function; that file is run on each change.
+
+Examples:
+  gray watch main.gray     Re-run main.gray whenever it or its imports change
+  gray watch src           Watch a directory`,
+	Args: argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
+	RunE: runWatch,
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
