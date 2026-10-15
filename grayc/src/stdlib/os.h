@@ -224,22 +224,45 @@ bool gray_os_is_tty(void);
 /* Store argc/argv from main for os.args() */
 void gray_os_init(int argc, char **argv);
 
+/*@man ExecResult
+ *@module os
+ *@group Types
+ *@kind type
+ *@field exit_code i64
+ *@field stdout string
+ *@field stderr string
+ *@desc The result returned by exec: the process's exit code and the standard output and standard error it produced. ExecResult is reserved as a type name while os is imported.
+ *@example
+ *   import @os
+ *   mut result, err = os.exec("ls", {"-l"})
+ *   println(result.exit_code)
+ *   println(result.stdout)
+ *@end
+ */
+/* os.exec result: exit code, captured stdout, captured stderr. The C member
+ * names for stdout/stderr carry the codegen sanitize_name prefix, because
+ * those identifiers are libc macros. */
+typedef struct { int64_t exit_code; GrayString _gray_stdout; GrayString _gray_stderr; } GrayOsExecResult;
+typedef struct { GrayOsExecResult v0; GrayError *v1; } GrayResult_os_exec;
+
 /*@man exec
  *@module os
  *@group System
- *@sig exec(cmd string, args [string]) -> (i64, string, string, bool)
- *@desc Executes the command cmd with the given args. Returns (exit_code, stdout, stderr, ok). ok is false if the process could not be launched.
+ *@sig exec(cmd string, args [string]) -> (ExecResult, Error)
+ *@desc Executes the command cmd with the given args and captures its output. The Error is non-nil only when the process could not be launched; a process that runs and exits non-zero returns a nil Error and its exit_code.
  *@example
  *   import @os
- *   mut code, stdout, stderr, ok = os.exec("ls", {"-l"})
- *   if ok && code == 0 {
- *       println(stdout)
+ *   mut result, err = os.exec("ls", {"-l"})
+ *   if err != nil {
+ *       println("failed to launch: ${err.message}")
+ *       return
+ *   }
+ *   if result.exit_code != 0 {
+ *       println("exited with error: ${result.stderr}")
  *   }
  *@end
  */
-/* os.exec(cmd, args) — run a process, capture stdout and stderr, return (exit_code, stdout, stderr, ok) */
-typedef struct { int64_t v0; GrayString v1; GrayString v2; bool v3; } GrayOsExecResult;
-GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray args);
+GrayResult_os_exec gray_os_exec_result(GrayArena *arena, GrayString command, GrayArray args);
 
 /*@man cpu_usage
  *@module os

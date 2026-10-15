@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3089 - fallible os.exec assigned to a single variable
+ */
+
+// expect-error: E3089
+
+import @os
+
+do main() {
+    mut result = os.exec("echo", {"hi"})
+    println(result.exit_code)
+}

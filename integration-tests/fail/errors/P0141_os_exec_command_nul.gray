@@ -4,5 +4,5 @@ import @os
 
 do main() {
     mut nul string = "\x00"
-    mut _, _, _, _ = os.exec("/bin/echo" + nul + "junk", {"hello"})
+    mut _, _ = os.exec("/bin/echo" + nul + "junk", {"hello"})
 }

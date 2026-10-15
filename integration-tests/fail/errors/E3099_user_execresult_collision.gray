@@ -1,0 +1,10 @@
+// expect-error: E3099
+// A user struct named ExecResult collides with os's ExecResult while @os is imported.
+
+import @os
+
+const ExecResult struct {
+    code i64
+}
+
+do main() {}

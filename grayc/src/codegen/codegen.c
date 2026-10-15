@@ -800,6 +800,7 @@ static const char *gray_type_to_c_codegen(CodeGen *codegen, const char *type_nam
     }
     if (strcmp(type_name, "HttpRequest") == 0) return "GrayRequest";
     if (strcmp(type_name, "HttpResponse") == 0) return "GrayHttpResponse";
+    if (strcmp(type_name, "ExecResult") == 0) return "GrayOsExecResult";
     /* Stdlib opaque types: scalar path uses __auto_type and never reaches
      * this resolver, but [T] / map[_:T] / struct fields write the type
      * name explicitly and need it mapped here. Without this, the fallback
@@ -8398,7 +8399,7 @@ static bool emit_os_call(CodeGen *codegen, AstNode *node, const char *function_n
         return true;
     }
     if (strcmp(function_name, "exec") == 0) {
-        emit(codegen, "gray_os_exec(gray_default_arena, ");
+        emit(codegen, "gray_os_exec_result(gray_default_arena, ");
         emit_expression(codegen, node->data.call.arguments[0]);
         emit(codegen, ", ");
         emit_expression(codegen, node->data.call.arguments[1]);

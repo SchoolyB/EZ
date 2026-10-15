@@ -46,12 +46,12 @@ do main() {
 
     println("=== IO Write Failed Flush Test ===")
     mut script string = "trap '' XFSZ; ulimit -f 1; ${CHILD_ENV}=1 exec \"$0\""
-    mut code, _, _, ran = os.exec("sh", {"-c", script, os.args()[0]})
-    if ran && code == 0 {
+    mut result, err = os.exec("sh", {"-c", script, os.args()[0]})
+    if err == nil && result.exit_code == 0 {
         println("  [PASS] write_file, append_file, write_bytes, append_bytes report failed flush")
         println("ALL TESTS PASSED")
     } otherwise {
-        println("  [FAIL] a write reported success after a failed flush (exit ${code})")
+        println("  [FAIL] a write reported success after a failed flush (exit ${result.exit_code})")
         println("SOME TESTS FAILED")
         exit(1)
     }

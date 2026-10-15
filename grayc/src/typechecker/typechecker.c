@@ -3003,7 +3003,7 @@ typedef enum {
     FALLIBLE_TYPE_BOOL, FALLIBLE_TYPE_I64, FALLIBLE_TYPE_U64, FALLIBLE_TYPE_F64, FALLIBLE_TYPE_STRING,
     FALLIBLE_TYPE_ARRAY_STRING, FALLIBLE_TYPE_NESTED_ARRAY_STRING, FALLIBLE_TYPE_ARRAY_U8, FALLIBLE_TYPE_ARRAY_MAP,
     FALLIBLE_TYPE_STRUCT_DATABASE, FALLIBLE_TYPE_STRUCT_SOCKET, FALLIBLE_TYPE_STRUCT_LISTENER,
-    FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, FALLIBLE_TYPE_STRUCT_MAP,
+    FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE, FALLIBLE_TYPE_STRUCT_EXEC_RESULT, FALLIBLE_TYPE_STRUCT_MAP,
     FALLIBLE_TYPE_ARRAY_F64, FALLIBLE_TYPE_I64_PAIR,
 } FallibleType;
 
@@ -3369,7 +3369,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"os", "current_dir", 0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"string"},
     {"os", "current_os",  0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"Platform"},
     {"os", "environ",     0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"[string]"},
-    {"os", "exec",        2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_ARRAY}}, "bool"},
+    {"os", "exec",        2, 2, true,  FALLIBLE_TYPE_STRUCT_EXEC_RESULT, 2, {{0, EXPECTED_ARGUMENT_STRING}, {1, EXPECTED_ARGUMENT_ARRAY}}, "ExecResult"},
     {"os", "get_env",     1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_STRING}}, "string"},
     {"os", "home_dir",    0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"string"},
     {"os", "hostname",    0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}},"string"},
@@ -3717,6 +3717,7 @@ static GrayType *typechecker_get_fallible_stdlib_type(const char *module_name, c
     case FALLIBLE_TYPE_STRUCT_SOCKET:       return type_struct("Socket");
     case FALLIBLE_TYPE_STRUCT_LISTENER:     return type_struct("Listener");
     case FALLIBLE_TYPE_STRUCT_HTTP_RESPONSE:return type_struct("HttpResponse");
+    case FALLIBLE_TYPE_STRUCT_EXEC_RESULT:  return type_struct("ExecResult");
     case FALLIBLE_TYPE_STRUCT_MAP:          return type_from_name("map[string:string]");
     }
     return NULL;
@@ -4112,6 +4113,7 @@ static const struct { const char *type; const char *module_name; } stdlib_opaque
         {"HttpRequest",  "server"},
         {"HttpResponse", "http"},
         {"HttpResponse", "server"},
+        {"ExecResult",   "os"},
         {"UUID",         "uuid"},
         {NULL, NULL}
 };
@@ -4401,7 +4403,6 @@ static const StdlibMultiReturn _stdlib_multi_returns[] = {
     {"channels", "try_receive", 2, {&TYPE_I64, &TYPE_BOOL}},
     {"math",     "modf",        2, {&TYPE_F64, &TYPE_F64}},
     {"uuid",     "timestamp",   2, {&TYPE_I64, &TYPE_BOOL}},
-    {"os",       "exec",        4, {&TYPE_I64, &TYPE_STRING, &TYPE_STRING, &TYPE_BOOL}},
     {"os",       "lookup_env",  2, {&TYPE_STRING, &TYPE_BOOL}},
     {NULL, NULL, 0, {NULL}}
 };
@@ -19345,6 +19346,14 @@ void typechecker_check(TypeChecker *checker, AstNode *program) {
         field_names[0] = "status"; field_names[1] = "body"; field_names[2] = "headers";
         field_types[0] = &TYPE_I64; field_types[1] = &TYPE_STRING; field_types[2] = type_from_name("map[string:string]");
         register_struct(checker, "HttpResponse", "HttpResponse", field_names, field_types, 3);
+    }
+
+    if (program_imports_module(checker, "os")) {
+        const char **field_names = arena_allocate(checker->arena, sizeof(const char *) * 3);
+        GrayType **field_types = arena_allocate(checker->arena, sizeof(GrayType *) * 3);
+        field_names[0] = "exit_code"; field_names[1] = "stdout"; field_names[2] = "stderr";
+        field_types[0] = &TYPE_I64; field_types[1] = &TYPE_STRING; field_types[2] = &TYPE_STRING;
+        register_struct(checker, "ExecResult", "ExecResult", field_names, field_types, 3);
     }
 
     if (program_imports_module(checker, "server")) {

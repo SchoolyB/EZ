@@ -39,6 +39,7 @@
 #else
 #include <unistd.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #endif
@@ -100,6 +101,13 @@ static void os_validate_exec_strings(GrayString command, GrayArray args) {
     }
     if (has_nul)
         gray_panic_code("P0141", "os.exec: the command or an argument contains an embedded null byte");
+}
+
+/* A failed launch: a zeroed result and a fixed-message error. */
+static GrayResult_os_exec os_exec_failure(GrayArena *arena, int64_t code, const char *message) {
+    GrayResult_os_exec result = {{0, gray_string_lit(""), gray_string_lit("")}, NULL};
+    result.v1 = gray_error_new(arena, code, gray_string_lit(message));
+    return result;
 }
 
 GrayString gray_os_get_env(GrayArena *arena, GrayString name) {
@@ -454,9 +462,8 @@ static DWORD WINAPI drain_pipe(LPVOID param) {
     return 0;
 }
 
-GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray args) {
+GrayResult_os_exec gray_os_exec_result(GrayArena *arena, GrayString command, GrayArray args) {
     os_validate_exec_strings(command, args);
-    GrayOsExecResult fail = {0, gray_string_lit(""), gray_string_lit(""), false};
 
     /* Flush buffered stdout/stderr so it is not interleaved after the child's. */
     fflush(stdout);
@@ -480,11 +487,13 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     security_attributes.bInheritHandle = TRUE;
 
     HANDLE stdout_read = NULL, stdout_write = NULL, stderr_read = NULL, stderr_write = NULL;
-    if (!CreatePipe(&stdout_read, &stdout_write, &security_attributes, 0)) return fail;
+    if (!CreatePipe(&stdout_read, &stdout_write, &security_attributes, 0)) {
+        return os_exec_failure(arena, GRAY_ERR_IoFailure, "os.exec: could not create the output pipes");
+    }
     if (!CreatePipe(&stderr_read, &stderr_write, &security_attributes, 0)) {
         CloseHandle(stdout_read);
         CloseHandle(stdout_write);
-        return fail;
+        return os_exec_failure(arena, GRAY_ERR_IoFailure, "os.exec: could not create the output pipes");
     }
     /* Our read ends must not reach the child, or the pipes never report EOF. */
     SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0);
@@ -502,11 +511,15 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     memset(&process_information, 0, sizeof(process_information));
 
     if (!CreateProcessA(NULL, cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &startup_info, &process_information)) {
+        DWORD launch_error = GetLastError();
         CloseHandle(stdout_read);
         CloseHandle(stdout_write);
         CloseHandle(stderr_read);
         CloseHandle(stderr_write);
-        return fail;
+        int64_t launch_code = GRAY_ERR_IoFailure;
+        if (launch_error == ERROR_FILE_NOT_FOUND || launch_error == ERROR_PATH_NOT_FOUND) launch_code = GRAY_ERR_NotFound;
+        else if (launch_error == ERROR_ACCESS_DENIED) launch_code = GRAY_ERR_PermissionDenied;
+        return os_exec_failure(arena, launch_code, "os.exec: could not launch the process");
     }
 
     /* Close the child's ends here so ReadFile sees EOF when it exits. */
@@ -536,15 +549,14 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
 
     GrayString stdout_text = gray_string_new(arena, stdout_reader.buffer, (int32_t)stdout_reader.total);
     GrayString stderr_text = gray_string_new(arena, stderr_reader.buffer, (int32_t)stderr_reader.total);
-    GrayOsExecResult reader = {(int64_t)exit_code, stdout_text, stderr_text, true};
-    return reader;
+    GrayResult_os_exec result = {{(int64_t)exit_code, stdout_text, stderr_text}, NULL};
+    return result;
 }
 
 #else
 
-GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray args) {
+GrayResult_os_exec gray_os_exec_result(GrayArena *arena, GrayString command, GrayArray args) {
     os_validate_exec_strings(command, args);
-    GrayOsExecResult fail = {0, gray_string_lit(""), gray_string_lit(""), false};
 
     /* Flush buffered stdout/stderr so it is not interleaved after the child's. */
     fflush(stdout);
@@ -560,18 +572,30 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     }
     argv[argc] = NULL;
 
-    int stdout_pipe[2], stderr_pipe[2];
-    if (pipe(stdout_pipe) < 0) return fail;
+    int stdout_pipe[2], stderr_pipe[2], launch_pipe[2];
+    if (pipe(stdout_pipe) < 0) {
+        return os_exec_failure(arena, gray_errno_code(errno), "os.exec: could not create the output pipes");
+    }
     if (pipe(stderr_pipe) < 0) {
         close(stdout_pipe[0]); close(stdout_pipe[1]);
-        return fail;
+        return os_exec_failure(arena, gray_errno_code(errno), "os.exec: could not create the output pipes");
     }
+    /* The child reports a failed execvp through this pipe. It closes on a
+     * successful exec, so the parent reads end-of-file when the launch worked. */
+    if (pipe(launch_pipe) < 0) {
+        close(stdout_pipe[0]); close(stdout_pipe[1]);
+        close(stderr_pipe[0]); close(stderr_pipe[1]);
+        return os_exec_failure(arena, gray_errno_code(errno), "os.exec: could not create the output pipes");
+    }
+    fcntl(launch_pipe[1], F_SETFD, FD_CLOEXEC);
 
     pid_t pid = fork();
     if (pid < 0) {
+        int fork_errno = errno;
         close(stdout_pipe[0]); close(stdout_pipe[1]);
         close(stderr_pipe[0]); close(stderr_pipe[1]);
-        return fail;
+        close(launch_pipe[0]); close(launch_pipe[1]);
+        return os_exec_failure(arena, gray_errno_code(fork_errno), "os.exec: could not start the process");
     }
 
     if (pid == 0) {
@@ -582,8 +606,12 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
         dup2(stderr_pipe[1], STDERR_FILENO);
         close(stdout_pipe[1]);
         close(stderr_pipe[1]);
+        close(launch_pipe[0]);
         execvp(command.data, argv);
-        /* execvp failed */
+        /* execvp failed: report errno to the parent. */
+        int exec_errno = errno;
+        ssize_t reported = write(launch_pipe[1], &exec_errno, sizeof(exec_errno));
+        (void)reported;
         _exit(127);
     }
 
@@ -591,6 +619,7 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
      * using select() to avoid deadlock when one pipe's buffer fills. */
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
+    close(launch_pipe[1]);
 
     char buffer[4096];
     size_t stdout_total = 0, stderr_total = 0;
@@ -649,6 +678,13 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     int status = 0;
     waitpid(pid, &status, 0);
 
+    int exec_errno = 0;
+    ssize_t launch_bytes = read(launch_pipe[0], &exec_errno, sizeof(exec_errno));
+    close(launch_pipe[0]);
+    if (launch_bytes == (ssize_t)sizeof(exec_errno)) {
+        return os_exec_failure(arena, gray_errno_code(exec_errno), "os.exec: could not launch the process");
+    }
+
     int exit_code = 0;
     if (WIFEXITED(status)) {
         exit_code = WEXITSTATUS(status);
@@ -656,13 +692,14 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
         exit_code = 128 + WTERMSIG(status);
     }
 
-    /* exit_code 127 means execvp failed (command not found / bad path) */
-    if (exit_code == 127 || truncated) return fail;
+    if (truncated) {
+        return os_exec_failure(arena, GRAY_ERR_OutOfRange, "os.exec: the process output exceeded the capture limit");
+    }
 
     GrayString stdout_text = gray_string_new(arena, stdout_buffer, (int32_t)stdout_total);
     GrayString stderr_text = gray_string_new(arena, stderr_buffer, (int32_t)stderr_total);
-    GrayOsExecResult reader = {(int64_t)exit_code, stdout_text, stderr_text, true};
-    return reader;
+    GrayResult_os_exec result = {{(int64_t)exit_code, stdout_text, stderr_text}, NULL};
+    return result;
 }
 
 

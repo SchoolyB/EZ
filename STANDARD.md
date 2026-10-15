@@ -134,7 +134,7 @@ bool         char        Error       func        map
 nil          SourceLocation          string
 ```
 
-`Error`, `ErrorCode`, and `SourceLocation` are compiler-provided types (returned by `error()` / fallible calls and by `here()`), so they are always reserved. A stdlib module's opaque type — `Database`, `Router`, `Thread`, `Mutex`, `Channel`, `Socket`, `Listener`, `SpinLock`, `Arena`, `UUID`, `HttpRequest`, `HttpResponse` — or provided enum — `OpenFlag` (`@io`), `Platform` (`@os`) — is reserved only while that module is imported; otherwise the name is free for a user struct or enum.
+`Error`, `ErrorCode`, and `SourceLocation` are compiler-provided types (returned by `error()` / fallible calls and by `here()`), so they are always reserved. A stdlib module's opaque type — `Database`, `Router`, `Thread`, `Mutex`, `Channel`, `Socket`, `Listener`, `SpinLock`, `Arena`, `UUID`, `HttpRequest`, `HttpResponse`, `ExecResult` — or provided enum — `OpenFlag` (`@io`), `Platform` (`@os`) — is reserved only while that module is imported; otherwise the name is free for a user struct or enum.
 
 **Sized types (reserved names):**
 ```
@@ -4049,15 +4049,18 @@ The four live metrics are fallible. macOS and Linux are supported; on any other 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `exec` | `(cmd string, args [string]) -> (i64, string, string, bool)` | Run a subprocess. Returns `(exit_code, stdout, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout and stderr are captured. POSIX only. |
+| `exec` | `(cmd string, args [string]) -> (ExecResult, Error)` | Run a subprocess and capture its output. `err` is non-nil only when the process could not be launched; a non-zero exit code is not an error. |
+
+`ExecResult` has the fields `exit_code` (`i64`), `stdout` (`string`) and `stderr` (`string`). It is reserved as a type name only while `@os` is imported.
 
 ```gray
-mut code, stdout, stderr, ok = os.exec("ls", {"-l", "/tmp"})
-if !ok {
-    println("failed to launch")
+mut result, err = os.exec("ls", {"-l", "/tmp"})
+if err != nil {
+    println("failed to launch: ${err.message}")
+    return
 }
-if ok && code != 0 {
-    println("exited with error: ${stderr}")
+if result.exit_code != 0 {
+    println("exited with error: ${result.stderr}")
 }
 ```
 
