@@ -169,6 +169,24 @@ func checkTargets(arg string) ([]string, error) {
 	return directories, nil
 }
 
+// validateQuiet rejects a --quiet value that is neither "all" nor a
+// comma-separated list of W-prefixed warning codes.
+func validateQuiet(cmd *cobra.Command) error {
+	quiet, _ := cmd.Flags().GetString("quiet")
+	if quiet == "" || quiet == "all" {
+		return nil
+	}
+	for _, code := range strings.Split(quiet, ",") {
+		if strings.HasPrefix(code, "E") {
+			return fmt.Errorf("'-q' only accepts warning codes (W-prefixed), not error code '%s'", code)
+		}
+		if !strings.HasPrefix(code, "W") {
+			return fmt.Errorf("unknown warning code '%s'", code)
+		}
+	}
+	return nil
+}
+
 // quietArgs turns the --quiet flag into compiler arguments: "all" suppresses
 // every warning, anything else is a comma-separated list of codes.
 func quietArgs(cmd *cobra.Command) []string {
@@ -185,6 +203,9 @@ func quietArgs(cmd *cobra.Command) []string {
 // flags into compiler arguments and applies --cc to the environment. It is
 // shared by the commands that run or check a source file.
 func compilerFlagArgs(cmd *cobra.Command) ([]string, error) {
+	if err := validateQuiet(cmd); err != nil {
+		return nil, err
+	}
 	compilerArgs := quietArgs(cmd)
 	if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
 		compilerArgs = append(compilerArgs, "--no-color")
@@ -226,6 +247,9 @@ func commonBuildOpts(cmd *cobra.Command) (driver.BuildOpts, error) {
 	noColor, _ := cmd.Flags().GetBool("no-color")
 	arenaLimitStr, _ := cmd.Flags().GetString("arena-limit")
 
+	if err := validateQuiet(cmd); err != nil {
+		return driver.BuildOpts{}, err
+	}
 	arenaLimit, err := parseArenaLimit(arenaLimitStr)
 	if err != nil {
 		return driver.BuildOpts{}, err

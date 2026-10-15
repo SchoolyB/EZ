@@ -303,3 +303,29 @@ func TestCompilerFlagMissingCompiler(t *testing.T) {
 		t.Errorf("error = %v, want one naming no-such-compiler-xyz", err)
 	}
 }
+
+func TestValidateQuiet(t *testing.T) {
+	cases := []struct {
+		in      string
+		wantErr bool
+	}{
+		{"", false},
+		{"all", false},
+		{"W1001", false},
+		{"W1001,W1002", false},
+		{"w1001", true},
+		{"1001", true},
+		{"nonsense", true},
+		{"E3001", true},
+		{"W1001,x", true},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cmd.Flags().String("quiet", c.in, "")
+			if err := validateQuiet(cmd); (err != nil) != c.wantErr {
+				t.Errorf("validateQuiet(%q) error = %v, wantErr %v", c.in, err, c.wantErr)
+			}
+		})
+	}
+}
