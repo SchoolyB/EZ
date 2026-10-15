@@ -5254,6 +5254,12 @@ gray build main.gray -o app --cc /usr/local/bin/clang
 CC=clang GRAY_CC=gcc make build   # grayc and the runtime built with clang
 ```
 
+`make help` lists every make target. `make help TARGET=<name>` prints what one target does, the variables it reads and an example. `TARGET` is a variable because make rejects `--` options before the Makefile is read and accepts only one goal. An unknown name fails with an `Unknown target` error, and `TARGET=` on any target other than `help` is ignored.
+
+```bash
+make help TARGET=build
+```
+
 ### 13.1 `gray <file.gray>`
 
 Compile and run a source file in one step.

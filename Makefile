@@ -42,7 +42,219 @@ LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
 
 EMBED_DIR=internal/driver/runtime
 
+# ===== Per-target help (make help TARGET=<name>) =====
+# One HELP_<target> block per name in KNOWN_TARGETS. TARGET only selects a
+# block when help is the goal; on any other target it is ignored.
+define HELP_build
+make build - Build the gray binary (compiler embedded)
+
+  Builds grayc and the runtime, embeds them into the gray CLI, and writes
+  ./gray (./gray.exe on Windows).
+
+  Variables:
+    CC=<compiler>   C compiler for grayc and the runtime
+    VERSION=<tag>   Version string baked into the binary (default: git describe)
+
+  Example: CC=clang VERSION=v0.12.0 make build
+endef
+
+define HELP_embed-tag
+make embed-tag - Print the content hash that names the extracted runtime directory
+
+  Hashes the staged grayc, libgrayrt.a and runtime sources under
+  internal/driver/runtime. Run make build first so the staged assets exist.
+
+  Variables: none
+
+  Example: make embed-tag
+endef
+
+define HELP_stubs
+make stubs - Create empty embed stubs (for dev go build)
+
+  Creates the zero-length files go:embed needs under internal/driver/runtime
+  so go build works without a full make build.
+
+  Variables: none
+
+  Example: make stubs
+endef
+
+define HELP_install
+make install - Install gray to the install path
+
+  Runs make build, copies ./gray to the install path (using sudo when the
+  path is not writable) and installs shell completion.
+
+  Variables:
+    CC=<compiler>        C compiler for grayc and the runtime
+    VERSION=<tag>        Version string baked into the binary (default: git describe)
+    INSTALL_PATH=<dir>   Install directory (default: /usr/local/bin, ~/.gray/bin on Windows)
+
+  Example: INSTALL_PATH=$$HOME/bin make install
+endef
+
+define HELP_uninstall
+make uninstall - Remove gray from the install path
+
+  Deletes gray, and any standalone grayc left by older install layouts,
+  from the install path.
+
+  Variables:
+    INSTALL_PATH=<dir>   Install directory (default: /usr/local/bin, ~/.gray/bin on Windows)
+
+  Example: make uninstall
+endef
+
+define HELP_clean
+make clean - Remove built binaries
+
+  Deletes ./gray, dist/, the staged embed assets and the grayc build output.
+
+  Variables: none
+
+  Example: make clean
+endef
+
+define HELP_help
+make help - List the targets, or describe one
+
+  With no TARGET, lists every target and the compiler variables. With
+  TARGET=<name>, prints what that target does, the variables it reads and
+  an example.
+
+  Variables:
+    TARGET=<name>   Target to describe
+
+  Example: make help TARGET=build
+endef
+
+define HELP_leaks
+make leaks - Check the compiler for memory leaks (macOS: leaks, Linux: valgrind)
+
+  Builds grayc and runs it under the platform leak checker.
+
+  Variables:
+    CC=<compiler>   C compiler for grayc and the runtime
+
+  Example: CC=clang make leaks
+endef
+
+define HELP_benchmark
+make benchmark - Run the real-workload benchmark suite (POSIX only)
+
+  Runs make build, then the benchmark programs, prints a table and writes
+  benchmarks/results.json. Does nothing on Windows.
+
+  Variables:
+    CC=<compiler>        C compiler for grayc and the runtime
+    GRAY_CC=<compiler>   C compiler for the benchmark programs and stopwatch (read before CC)
+    VERSION=<tag>        Version string baked into the binary (default: git describe)
+
+  Example: CC=clang GRAY_CC=gcc make benchmark
+endef
+
+define HELP_test
+make test - Run the full test suite (unit + e2e + integration + Go)
+
+  Runs make build, then the Go, C unit, end-to-end, integration and UBSan
+  suites, plus ASan on Linux.
+
+  Variables:
+    CC=<compiler>        C compiler for grayc and the runtime
+    GRAY_CC=<compiler>   C compiler for the integration test programs (read before CC)
+    VERSION=<tag>        Version string baked into the binary (default: git describe)
+
+  Example: CC=clang make test
+endef
+
+define HELP_test-unit
+make test-unit - Run C unit tests (lexer, parser, typechecker)
+
+  Builds and runs the compiler unit tests in grayc/.
+
+  Variables:
+    CC=<compiler>   C compiler for the unit tests
+
+  Example: CC=clang make test-unit
+endef
+
+define HELP_test-e2e
+make test-e2e - Run end-to-end codegen tests
+
+  Runs make build, then compiles and runs the codegen test programs.
+
+  Variables:
+    CC=<compiler>   C compiler for grayc and the runtime
+    VERSION=<tag>   Version string baked into the binary (default: git describe)
+
+  Example: CC=clang make test-e2e
+endef
+
+define HELP_test-integration
+make test-integration - Run integration tests (pass + fail)
+
+  Runs make build, then compiles every integration test program and checks
+  its output or diagnostics.
+
+  Variables:
+    CC=<compiler>        C compiler for grayc and the runtime
+    GRAY_CC=<compiler>   C compiler for the test programs (read before CC)
+    VERSION=<tag>        Version string baked into the binary (default: git describe)
+
+  Example: GRAY_CC=gcc make test-integration
+endef
+
+define HELP_test-go
+make test-go - Run Go unit tests
+
+  Creates the embed stubs, then runs go test over cli/ and internal/driver/.
+
+  Variables: none
+
+  Example: make test-go
+endef
+
+define HELP_test-ubsan
+make test-ubsan - Run UBSan sanitizer tests
+
+  Builds the compiler with UndefinedBehaviorSanitizer and runs the tests.
+
+  Variables:
+    CC=<compiler>   C compiler for the sanitizer build
+
+  Example: CC=clang make test-ubsan
+endef
+
+define HELP_test-asan
+make test-asan - Run ASan+UBSan sanitizer tests (Linux recommended)
+
+  Builds the compiler with AddressSanitizer and UBSan and runs the tests.
+  Leak detection is off.
+
+  Variables:
+    CC=<compiler>   C compiler for the sanitizer build
+
+  Example: CC=clang make test-asan
+endef
+
+# Exported so the recipe prints the block verbatim, newlines intact.
+export HELP_BLOCK = $(HELP_$(TARGET))
+
+# TARGET only applies to help (the goal, or the default goal when none given).
+ifneq ($(filter-out help,$(MAKECMDGOALS)),)
+  override TARGET :=
+endif
+ifneq ($(TARGET),)
+  ifeq ($(filter $(TARGET),$(KNOWN_TARGETS)),)
+    $(error Unknown target '$(TARGET)'. Run 'make help' for valid targets)
+  endif
+endif
+
 help:
+ifneq ($(TARGET),)
+	@printf '%s\n' "$$HELP_BLOCK"
+else
 	@echo "Grayscale Language Build System"
 	@echo ""
 	@echo "Available targets:"
@@ -70,6 +282,10 @@ help:
 	@echo ""
 	@echo "  Example: CC=clang GRAY_CC=gcc make benchmark"
 	@echo "    clang builds grayc and the runtime; gcc builds the benchmark programs and stopwatch"
+	@echo ""
+	@echo "Per-target help:"
+	@echo "  make help TARGET=<name> - What a target does, the variables it reads, and an example"
+endif
 
 # ===== Test targets =====
 # Delegate compiler tests to grayc/Makefile; Go tests run from the root.
