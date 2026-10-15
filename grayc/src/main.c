@@ -2451,7 +2451,10 @@ int main(int argc, char **argv) {
      * (kernel32, msvcrt, ws2_32) stay dynamic — those DLLs ship with the OS. */
     argument_vector_push(&c_compiler_arguments, "-static");
 #endif
+#if defined(__APPLE__)
+    /* GNU ld only gained -w in binutils 2.40 and rejects it before that. */
     if (!is_tinycc) argument_vector_push(&c_compiler_arguments, "-Wl,-w");
+#endif
     argument_vector_end(&c_compiler_arguments);
 
     if (c_compiler_arguments.has_overflowed) {
