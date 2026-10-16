@@ -1,0 +1,11 @@
+// ExecResult is reserved only while @os is imported, so without the import it
+// is free for a user struct.
+
+const ExecResult struct {
+    code i64
+}
+
+do main() {
+    mut result ExecResult = ExecResult{code: 3}
+    println("code=${result.code}")
+}

@@ -37,6 +37,28 @@
  *@end
  */
 
+/*@man rand_bytes
+ *@module random
+ *@group Generation
+ *@sig rand_bytes(n i64) -> [u8]
+ *@desc Returns n random bytes drawn from the module's non-cryptographic RNG, so random.seed makes it reproducible. An n of 0 returns an empty array; panics if n is negative. Not suitable for secrets; use crypto.random_hex instead.
+ *@example
+ *   import @random
+ *   mut nonce [u8] = random.rand_bytes(16)
+ *@end
+ */
+
+/*@man roll_dice
+ *@module random
+ *@group Generation
+ *@sig roll_dice(count i64, sides i64) -> i64
+ *@desc Returns the sum of count rolls of a sides-sided die, each roll uniform in 1 through sides. roll_dice(2, 6) is 2d6 and returns 2 to 12. Panics if count or sides is less than 1.
+ *@example
+ *   import @random
+ *   mut damage i64 = random.roll_dice(2, 6)
+ *@end
+ */
+
 /*@man rand_bool
  *@module random
  *@group Generation
@@ -139,6 +161,8 @@ int64_t gray_random_i64_range(int64_t minimum, int64_t maximum);
 int64_t gray_random_i64_max(int64_t maximum);
 int32_t gray_random_choice_index(int32_t length, const char *file, int line);
 bool gray_random_bool(void);
+GrayArray gray_random_bytes(GrayArena *arena, int64_t count);
+int64_t gray_random_roll_dice(int64_t count, int64_t sides);
 uint8_t gray_random_u8(void);
 int32_t gray_random_char(void);
 int32_t gray_random_char_range(int32_t minimum, int32_t maximum);

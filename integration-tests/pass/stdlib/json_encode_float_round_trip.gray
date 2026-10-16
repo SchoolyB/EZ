@@ -1,0 +1,83 @@
+/*
+ * Test: json.encode writes f32 and f64 values with enough digits that
+ * json.parse reads back the same value
+ */
+
+import @json
+
+#json
+const Sample struct {
+    single f32
+    double f64
+    singles [f32]
+    doubles [f64]
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut sample Sample = Sample{
+        single: 16777216.0,
+        double: 0.30000000000000004,
+        singles: {0.1, 3.14159274},
+        doubles: {123456789.123456789, 1e100, 0.1}
+    }
+    mut text string = json.encode(sample)
+    mut back Sample = json.parse(text)
+
+    if back.single == sample.single && back.double == sample.double {
+        println("  [PASS] scalar f32 and f64 fields round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] scalar fields: ${text}")
+        failed += 1
+    }
+
+    if back.singles[0] == sample.singles[0] && back.singles[1] == sample.singles[1] &&
+        back.doubles[0] == sample.doubles[0] && back.doubles[1] == sample.doubles[1] &&
+        back.doubles[2] == sample.doubles[2] {
+        println("  [PASS] f32 and f64 array elements round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array elements: ${text}")
+        failed += 1
+    }
+
+    mut table map[string:f64] = {"pi": 3.141592653589793, "big": 123456789.12345679}
+    mut table_text string = json.encode(table)
+    if table_text == "{\"pi\":3.141592653589793,\"big\":123456789.12345679}" {
+        println("  [PASS] f64 map values keep every digit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map values: ${table_text}")
+        failed += 1
+    }
+
+    mut scalar64 f64 = 0.30000000000000004
+    mut scalar32 f32 = 16777216.0
+    if json.encode(scalar64) == "0.30000000000000004" && json.encode(scalar32) == "16777216" &&
+        json.encode(123456789.123) == "123456789.123" {
+        println("  [PASS] bare f32 and f64 arguments keep every digit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] scalar arguments: ${json.encode(scalar64)} ${json.encode(scalar32)}")
+        failed += 1
+    }
+
+    if json.encode(0.1) == "0.1" {
+        println("  [PASS] a short value keeps its short form")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] short form: ${json.encode(0.1)}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

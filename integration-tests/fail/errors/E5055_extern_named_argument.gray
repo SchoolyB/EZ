@@ -9,7 +9,7 @@
 
 extern import "string.h"
 
-do main() {
+unsafe do main() {
     mut n i64 = extern.strlen(s: "hello")
     println("${n}")
 }

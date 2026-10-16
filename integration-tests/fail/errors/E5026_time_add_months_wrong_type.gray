@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5026 - wrong argument type to time.add_months
+ */
+
+// expect-error: E5026
+
+import @time
+
+do main() {
+    println(time.add_months(1, "5"))
+}

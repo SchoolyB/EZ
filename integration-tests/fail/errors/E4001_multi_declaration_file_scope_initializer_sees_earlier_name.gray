@@ -1,0 +1,6 @@
+// expect-error: E4001
+mut first, second i64 = 1, first + 1
+
+do main() {
+    println(second)
+}

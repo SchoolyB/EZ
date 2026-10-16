@@ -102,7 +102,10 @@
     GRAY_ERROR("E2096", "syntax", "'generic' declares a type parameter and is only valid as the type of a function parameter; it cannot be used in variable declarations, struct fields, enum variants, return types, container element types, tuple positions, or global variables") \
     GRAY_ERROR("E2097", "syntax", "a 'generic' parameter cannot have a default value; its argument is the type the caller passes") \
     GRAY_ERROR("E2098", "syntax", "imports must come before all other declarations in the file") \
-    GRAY_ERROR("E2099", "syntax", "a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify")
+    GRAY_ERROR("E2099", "syntax", "a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify") \
+    GRAY_ERROR("E2100", "syntax", "%d names but %d values in declaration; give one value per name, or a single value for all of them") \
+    GRAY_ERROR("E2101", "syntax", "a declaration with a list of values takes one shared type after the last name; per-name types are not supported") \
+    GRAY_ERROR("E2102", "syntax", "'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback'")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define GRAY_TYPE_ERRORS \
@@ -138,7 +141,7 @@
     GRAY_ERROR("E3041", "types", "cannot interpolate %s of tagged enum '%s'") \
     GRAY_ERROR("E3043", "types", "cannot convert %s to %s") \
     GRAY_ERROR("E3044", "types", "cannot access field '%s' on type '%s'; use an instance variable instead") \
-    GRAY_ERROR("E3045", "types", "'or_return' requires a function that returns (T, Error); '%s()' does not return an error") \
+    GRAY_ERROR("E3045", "types", "'%s' requires a function that returns (T, Error); '%s()' does not return an error") \
     GRAY_ERROR("E3046", "types", "integer literal %s does not fit any integer type; integers range from -2^255 (i256) to 2^256 - 1 (u256)") \
     GRAY_ERROR("E3047", "types", "enum '%s' has no member '%s'") \
     GRAY_ERROR("E3048", "types", "operator '+' on strings requires both operands to be strings; got '%s' and '%s'") \
@@ -176,7 +179,7 @@
     GRAY_ERROR("E3086", "types", "'fmt.%s' format string must be a string literal; use string interpolation for dynamic values") \
     GRAY_ERROR("E3087", "types", "'%%n' is not permitted in fmt format strings") \
     GRAY_ERROR("E3088", "types", "'fmt.%s' format directive '%%%s' expects %s but element %d has type '%s'") \
-    GRAY_ERROR("E3089", "usage", "'%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it") \
+    GRAY_ERROR("E3089", "usage", "'%s()' can fail; use '%s' to handle the error, '%s' to discard it, or add %s") \
     GRAY_ERROR("E3090", "types", "'!' only works on bool; got '%s'") \
     GRAY_ERROR("E3091", "types", "'%s' cannot be used as a condition") \
     GRAY_ERROR("E3092", "types", "cannot compare '%s' to nil; only Error types and pointers can be nil") \
@@ -291,7 +294,12 @@
     GRAY_ERROR("E3203", "types", "%s index cannot be negative") \
     GRAY_ERROR("E3204", "types", "'for %s in ...' only supports a range; use 'for_each %s in ...' to iterate over a collection") \
     GRAY_ERROR("E3205", "types", "a range can only be iterated with 'for', checked with 'in' or 'not_in', matched with 'is', or stored in a variable") \
-    GRAY_ERROR("E3206", "types", "range step cannot be zero")
+    GRAY_ERROR("E3206", "types", "range step cannot be zero") \
+    GRAY_ERROR("E3207", "types", "'or_default' has %d fallback value(s) but the call returns %d value(s) besides the Error; give one fallback per value") \
+    GRAY_ERROR("E3208", "types", "'or_default' fallback of type '%s' does not match the call's '%s' value") \
+    GRAY_ERROR("E3209", "types", "'%s.%s()' is not available on a %s enum; it is only generated for plain enums") \
+    GRAY_ERROR("E3210", "types", "json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value") \
+    GRAY_ERROR("E3211", "types", "'%s' requires a function that returns (T, Error); the operand is not a function call")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define GRAY_REFERENCE_ERRORS \
@@ -381,7 +389,8 @@
     GRAY_ERROR("E5061", "arguments", "'csv.filter_rows()' callback must be func([string]) -> bool") \
     GRAY_ERROR("E5062", "arguments", "default value for parameter '%s' has wrong type; expected %s, got %s") \
     GRAY_ERROR("E5063", "arguments", "'to_char()' index %lld is out of bounds") \
-    GRAY_ERROR("E5064", "arguments", "cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead")
+    GRAY_ERROR("E5064", "arguments", "cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead") \
+    GRAY_ERROR("E5065", "usage", "'%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function")
 
 /* --- E6xxx: Import Problems --- */
 #define GRAY_IMPORT_ERRORS \
@@ -407,7 +416,7 @@
 #define GRAY_STDLIB_ERRORS \
     GRAY_ERROR("E7006", "stdlib", "'threads.spawn()' requires a function reference; use '()func_name' or 'ref(func_name)'") \
     GRAY_ERROR("E7014", "stdlib", "cannot convert %lld to char; value must be a valid Unicode code point (0 to 1114111)") \
-    GRAY_ERROR("E7015", "stdlib", "'len()' is not supported for type '%s'; 'len()' works on string, array, and map types") \
+    GRAY_ERROR("E7015", "stdlib", "'len()' is not supported for type '%s'") \
     GRAY_ERROR("E9002", "stdlib", "'arrays.%s()' requires a numeric array, got array of '%s'") \
     GRAY_ERROR("E9003", "stdlib", "'arrays.%s()' requires a function reference; use '()func_name' to pass a function") \
     GRAY_ERROR("E9004", "stdlib", "'arrays.%s()' callback signature mismatch; %s") \
@@ -416,7 +425,8 @@
     GRAY_ERROR("E9007", "stdlib", "'arrays.%s()' requires a comparable array (numeric, string, bool, or enum), got array of '%s'") \
     GRAY_ERROR("E12001", "stdlib", "'maps.%s()' requires a map argument, got an array") \
     GRAY_ERROR("E12006", "stdlib", "duplicate key in map literal") \
-    GRAY_ERROR("E12007", "stdlib", "'maps.contains_value()' does not support maps with '%s' values; only primitive and string value types are supported")
+    GRAY_ERROR("E12007", "stdlib", "'maps.%s()' does not support maps with '%s' values; only primitive and string value types are supported") \
+    GRAY_ERROR("E12008", "stdlib", "'maps.sorted_keys()' requires string, integer, or char keys, got '%s'")
 
 /* --- E8xxx: Bitwise Operators --- */
 #define GRAY_BITWISE_ERRORS \
@@ -558,7 +568,14 @@
     GRAY_PANIC("P0148", "csv",        "csv: malformed quoting in row %d") \
     GRAY_PANIC("P0149", "json",       "json.parse: input is not valid JSON") \
     GRAY_PANIC("P0150", "json",       "json.parse: the JSON value is not %s") \
-    GRAY_PANIC("P0151", "json",       "json.parse: duplicate key '%.*s'")
+    GRAY_PANIC("P0151", "json",       "json.parse: duplicate key '%.*s'") \
+    GRAY_PANIC("P0152", "random",     "random.rand_bytes called with a negative length") \
+    GRAY_PANIC("P0153", "random",     "random.roll_dice called with a count or sides less than 1") \
+    GRAY_PANIC("P0154", "os",         "os.cpu_usage called with an interval_ms less than 1") \
+    GRAY_PANIC("P0155", "runtime",    "len() of a range exceeds the largest i64") \
+    GRAY_PANIC("P0156", "random",     "random.roll_dice total exceeds the largest i64") \
+    GRAY_PANIC("P0157", "time",       "time function result exceeds the range of i64") \
+    GRAY_PANIC("P0158", "random",     "random.rand_char range holds only surrogate codepoints")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

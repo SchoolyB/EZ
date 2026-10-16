@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5026 - wrong argument type to random.roll_dice
+ */
+
+// expect-error: E5026
+
+import @random
+
+do main() {
+    println(random.roll_dice(2, "6"))
+}

@@ -22,9 +22,14 @@
 #ifdef GRAY_GENERATED_C
 #  if defined(__TINYC__)
 /* TinyCC's include_next re-finds this header when a quoted include from its
- * own .c file reached it; <sys/..> steps past this directory instead. */
-#    if __has_include(<sys/../threads.h>)
-#      include <sys/../threads.h>
+ * own .c file reached it; <arpa/..> steps past this directory instead (<sys/..> on Windows,
+ * which has no arpa/; Debian keeps no /usr/include/sys). */
+#    if defined(_WIN32)
+#      if __has_include(<sys/../threads.h>)
+#        include <sys/../threads.h>
+#      endif
+#    elif __has_include(<arpa/../threads.h>)
+#      include <arpa/../threads.h>
 #    endif
 #  elif defined(__has_include_next)
 #    if __has_include_next(<threads.h>)
@@ -41,11 +46,13 @@ typedef struct {
  *@module threads
  *@group Lifecycle
  *@sig spawn(fn func()) -> Thread
- *@desc Spawn a new thread running fn. To pass an i64 argument to fn, use spawn_arg.
+ *@desc Spawn a new thread running fn. To pass an i64 argument to fn, use spawn_arg. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut t Thread = threads.spawn(()my_func)
- *   threads.join(t)
+ *   unsafe {
+ *       mut t Thread = threads.spawn(()my_func)
+ *       threads.join(t)
+ *   }
  *@end
  */
 
@@ -53,11 +60,13 @@ typedef struct {
  *@module threads
  *@group Lifecycle
  *@sig spawn_arg(fn func(i64), arg i64) -> Thread
- *@desc Spawn a new thread running fn, passing arg to it as its single i64 parameter.
+ *@desc Spawn a new thread running fn, passing arg to it as its single i64 parameter. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut t Thread = threads.spawn_arg(()worker, 7)
- *   threads.join(t)
+ *   unsafe {
+ *       mut t Thread = threads.spawn_arg(()worker, 7)
+ *       threads.join(t)
+ *   }
  *@end
  */
 /* Spawn a new thread running the given function.
@@ -70,11 +79,13 @@ GrayThread gray_threads_spawn_arg(void (*fn)(int64_t), int64_t argument);
  *@module threads
  *@group Lifecycle
  *@sig join(t Thread)
- *@desc Wait for a thread to finish. Frees the underlying handle.
+ *@desc Wait for a thread to finish. Frees the underlying handle. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut t Thread = threads.spawn(()work)
- *   threads.join(t)
+ *   unsafe {
+ *       mut t Thread = threads.spawn(()work)
+ *       threads.join(t)
+ *   }
  *@end
  */
 /* Wait for a thread to finish. Frees the underlying handle. */
@@ -84,11 +95,13 @@ void gray_threads_join(GrayThread thread);
  *@module threads
  *@group Lifecycle
  *@sig detach(t Thread)
- *@desc Release ownership; the thread runs independently. After detach the handle must not be joined or queried.
+ *@desc Release ownership; the thread runs independently. After detach the handle must not be joined or queried. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut t Thread = threads.spawn(()background_work)
- *   threads.detach(t)
+ *   unsafe {
+ *       mut t Thread = threads.spawn(()background_work)
+ *       threads.detach(t)
+ *   }
  *@end
  */
 /* Release ownership; the thread runs to completion independently and its
@@ -100,11 +113,13 @@ void gray_threads_detach(GrayThread thread);
  *@module threads
  *@group Query
  *@sig is_alive(t Thread) -> bool
- *@desc True while the thread's body has not returned. Not valid after detach or join.
+ *@desc True while the thread's body has not returned. Not valid after detach or join. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut t Thread = threads.spawn(()work)
- *   if threads.is_alive(t) { println("still running") }
+ *   unsafe {
+ *       mut t Thread = threads.spawn(()work)
+ *       if threads.is_alive(t) { println("still running") }
+ *   }
  *@end
  */
 /* True while the thread's entry function has not returned. Safe to call
@@ -115,11 +130,13 @@ bool gray_threads_is_alive(GrayThread thread);
  *@module threads
  *@group Query
  *@sig get_id() -> i64
- *@desc Get the current thread's ID.
+ *@desc Get the current thread's ID. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut id i64 = threads.get_id()
- *   println("thread ${id}")
+ *   unsafe {
+ *       mut id i64 = threads.get_id()
+ *       println("thread ${id}")
+ *   }
  *@end
  */
 /* Get current thread id (for debugging). */
@@ -129,10 +146,12 @@ int64_t gray_threads_id(void);
  *@module threads
  *@group Control
  *@sig yield()
- *@desc Hint the scheduler to run another runnable thread.
+ *@desc Hint the scheduler to run another runnable thread. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   threads.yield()
+ *   unsafe {
+ *       threads.yield()
+ *   }
  *@end
  */
 /* Hint the scheduler to run another runnable thread. */
@@ -142,11 +161,13 @@ void gray_threads_yield(void);
  *@module threads
  *@group Query
  *@sig thread_count() -> i64
- *@desc Number of live threads spawned through this module. Excludes the main thread and non-Grayscale threads.
+ *@desc Number of live threads spawned through this module. Excludes the main thread and non-Grayscale threads. Unsafe: requires an unsafe block or an unsafe function.
  *@example
  *   import @threads
- *   mut n i64 = threads.thread_count()
- *   println("${n} threads running")
+ *   unsafe {
+ *       mut n i64 = threads.thread_count()
+ *       println("${n} threads running")
+ *   }
  *@end
  */
 /* Number of live threads currently spawned through this module. Excludes

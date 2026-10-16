@@ -12,7 +12,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -132,14 +131,14 @@ func collectDocsFromFile(filename string) []DocEntry {
 		return entries
 	}
 
-	f, err := os.Open(absPath)
+	data, err := os.ReadFile(absPath)
 	if err != nil {
 		fmt.Printf("Error reading file %s: %v\n", filename, err)
 		return entries
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	sourceLines := strings.Split(string(data), "\n")
+	inRawString, inBlockComment := multiLineLiteralLineStarts(string(data), len(sourceLines))
 	var pendingDoc string
 	var inBlock bool
 	var blockLines []string
@@ -149,10 +148,16 @@ func collectDocsFromFile(filename string) []DocEntry {
 	braceDepth := 0
 	lineNo := 0
 
-	for scanner.Scan() {
+	for index := 0; index < len(sourceLines); index++ {
+		sourceLine := sourceLines[index]
 		lineNo++
-		line := scanner.Text()
+		line := strings.TrimSuffix(sourceLine, "\r")
 		trimmed := strings.TrimSpace(line)
+
+		// Text inside a raw string or block comment is not a declaration.
+		if inRawString[index] || inBlockComment[index] {
+			continue
+		}
 
 		// Collecting a block (struct/enum body)
 		if inBlock {
@@ -191,10 +196,22 @@ func collectDocsFromFile(filename string) []DocEntry {
 			if strings.HasPrefix(trimmed, "do ") || strings.HasPrefix(trimmed, "private do ") {
 				// Function declaration — capture the signature line
 				sig := trimmed
+				declarationLine := lineNo
+				// A wrapped parameter list continues on the following lines
+				// until its parentheses close.
+				depth := strings.Count(sig, "(") - strings.Count(sig, ")")
+				for depth > 0 && index+1 < len(sourceLines) {
+					index++
+					lineNo++
+					continuation := strings.TrimSpace(strings.TrimSuffix(sourceLines[index], "\r"))
+					sig += " " + continuation
+					depth += strings.Count(continuation, "(") - strings.Count(continuation, ")")
+				}
 				// Strip the body (everything after {)
 				if idx := strings.Index(sig, "{"); idx >= 0 {
 					sig = strings.TrimSpace(sig[:idx])
 				}
+				sig = strings.NewReplacer("( ", "(", ", )", ")", " )", ")").Replace(sig)
 				name := extractFuncName(trimmed)
 				entries = append(entries, DocEntry{
 					Name:        name,
@@ -202,7 +219,7 @@ func collectDocsFromFile(filename string) []DocEntry {
 					Signature:   sig,
 					Description: pendingDoc,
 					File:        absPath,
-					Line:        lineNo,
+					Line:        declarationLine,
 				})
 				pendingDoc = ""
 			} else if strings.Contains(trimmed, " struct ") && strings.HasPrefix(trimmed, "const ") {
@@ -245,8 +262,20 @@ func collectDocsFromFile(filename string) []DocEntry {
 					pendingDoc = ""
 				}
 			} else if isVarDecl(trimmed) {
-				// File-scope variable (const or mut)
+				// File-scope variable (const or mut). An initializer that
+				// opens a bracket continues until it closes.
+				declarationLine := lineNo
 				sig := trimmed
+				depth := strings.Count(line, "{") + strings.Count(line, "[") + strings.Count(line, "(") -
+					strings.Count(line, "}") - strings.Count(line, "]") - strings.Count(line, ")")
+				for depth > 0 && index+1 < len(sourceLines) {
+					index++
+					lineNo++
+					continuation := strings.TrimSuffix(sourceLines[index], "\r")
+					sig += "\n" + continuation
+					depth += strings.Count(continuation, "{") + strings.Count(continuation, "[") + strings.Count(continuation, "(") -
+						strings.Count(continuation, "}") - strings.Count(continuation, "]") - strings.Count(continuation, ")")
+				}
 				name := extractVarName(trimmed)
 				entries = append(entries, DocEntry{
 					Name:        name,
@@ -254,7 +283,7 @@ func collectDocsFromFile(filename string) []DocEntry {
 					Signature:   sig,
 					Description: pendingDoc,
 					File:        absPath,
-					Line:        lineNo,
+					Line:        declarationLine,
 				})
 				pendingDoc = ""
 			} else {
@@ -280,11 +309,26 @@ func extractDocString(line string) string {
 		return ""
 	}
 	quote := rest[start]
-	end := strings.IndexByte(rest[start+1:], quote)
-	if end < 0 {
-		return ""
+	var description strings.Builder
+	for i := start + 1; i < len(rest); i++ {
+		switch c := rest[i]; {
+		case c == quote:
+			return description.String()
+		case c == '\\' && i+1 < len(rest):
+			i++
+			switch rest[i] {
+			case 'n':
+				description.WriteByte('\n')
+			case 't':
+				description.WriteByte('\t')
+			default:
+				description.WriteByte(rest[i])
+			}
+		default:
+			description.WriteByte(c)
+		}
 	}
-	return rest[start+1 : start+1+end]
+	return ""
 }
 
 // extractFuncName extracts function name from "do funcname(" or "private do funcname("

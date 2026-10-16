@@ -7,7 +7,7 @@ do f(n i64) {
     println(n)
 }
 
-do main() {
+unsafe do main() {
     mut t = threads.spawn(()f, 1)
     threads.join(t)
 }

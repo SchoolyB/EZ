@@ -1,0 +1,40 @@
+/*
+ * Test: new() inside a spawned thread allocates from that thread's own heap arena
+ */
+
+import @threads
+
+const Counter struct {
+    n i64
+}
+
+mut result i64 = 0
+
+do worker() {
+    mut counter ^Counter = new(Counter)
+    counter^.n = 41
+    result = counter^.n + 1
+}
+
+unsafe do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut handle = threads.spawn(()worker)
+    threads.join(handle)
+
+    if result == 42 {
+        println("  [PASS] new() in a spawned thread returned a usable pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new() in a spawned thread: result=${result}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

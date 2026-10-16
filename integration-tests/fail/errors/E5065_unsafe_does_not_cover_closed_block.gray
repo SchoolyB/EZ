@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5065 - the unsafe block ends where its braces end; a raw()
+ * call after the block is outside it.
+ */
+// expect-error: E5065
+// expect-error-count: 1
+
+do main() {
+    mut value i64 = 1
+    unsafe {
+        mut inside = raw(value)
+        inside^ = 2
+    }
+    mut outside = raw(value)
+    println(outside^)
+}

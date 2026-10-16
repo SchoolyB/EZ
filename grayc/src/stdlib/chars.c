@@ -23,6 +23,31 @@ int32_t gray_chars_to_lower(int32_t codepoint) {
     return (codepoint >= 'A' && codepoint <= 'Z') ? codepoint + ('a' - 'A') : codepoint;
 }
 
+bool gray_chars_is_vowel(int32_t codepoint) {
+    switch (gray_chars_to_lower(codepoint)) {
+    case 'a': case 'e': case 'i': case 'o': case 'u': return true;
+    default: return false;
+    }
+}
+
+bool gray_chars_is_consonant(int32_t codepoint) {
+    return gray_chars_is_alpha(codepoint) && !gray_chars_is_vowel(codepoint);
+}
+
+int32_t gray_chars_mirror(int32_t codepoint) {
+    switch (codepoint) {
+    case '(': return ')';
+    case ')': return '(';
+    case '[': return ']';
+    case ']': return '[';
+    case '{': return '}';
+    case '}': return '{';
+    case '<': return '>';
+    case '>': return '<';
+    default: return codepoint;
+    }
+}
+
 bool gray_chars_is_alpha(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_alpha((unsigned char)codepoint); }
 bool gray_chars_is_digit(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_digit((unsigned char)codepoint); }
 bool gray_chars_is_alnum(int32_t codepoint)      { return codepoint >= 0 && codepoint <= 0x7F && gray_ascii_is_alnum((unsigned char)codepoint); }

@@ -1,0 +1,14 @@
+import @arrays
+
+do wrap(&arr [i64], less func(string, string) -> bool) {
+    arrays.sort_by(arr, less)
+}
+
+do main() {
+    mut xs [i64] = {3, 1, 2}
+    wrap(xs, ()lt)
+}
+
+do lt(a string, b string) -> bool {
+    return len(a) < len(b)
+}

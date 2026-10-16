@@ -280,6 +280,8 @@ func TestIsTrustedUpdateURL(t *testing.T) {
 		{"http://github.com/grayscale-lang/grayscale/releases/download/v1.0.0/gray-linux", false},
 		{"https://evil.com/grayscale-lang/grayscale/releases/download/v1.0.0/gray-linux", false},
 		{"https://github.com/some-other-org/repo/releases/download/v1.0.0/gray-linux", false},
+		{"https://github.com/grayscale-lang/grayscale/releases/download/../../../someone/else/releases/download/v1/gray.tar.gz", false},
+		{"https://github.com/grayscale-lang/grayscale/releases/download/%2e%2e/%2e%2e/%2e%2e/someone/else/releases/download/v1/gray.tar.gz", false},
 		{"not a url at all\x7f", false},
 	}
 	for _, c := range cases {

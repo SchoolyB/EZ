@@ -1,0 +1,26 @@
+/*
+ * Warning Test: W1001 - a variable that is only written, never read
+ * Expected: warnings for 'assigned', 'compounded', 'stepped' and 'self_updated';
+ * none for 'element_written' or 'read_back'
+ */
+
+do main() {
+    mut assigned i64 = 0
+    assigned = 1
+
+    mut compounded i64 = 0
+    compounded += 1
+
+    mut stepped i64 = 0
+    stepped++
+
+    mut self_updated i64 = 0
+    self_updated = self_updated + 1
+
+    mut element_written [i64] = {1}
+    element_written[0] = 2
+
+    mut read_back i64 = 0
+    read_back = 5
+    println(read_back)
+}

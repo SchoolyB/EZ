@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3045 - or_default on a call that is not fallible
+ */
+// expect-error: E3045
+
+do plain() -> i64 { return 1 }
+
+do main() {
+    mut x = plain() or_default 1
+    println(x)
+}

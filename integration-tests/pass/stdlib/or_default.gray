@@ -1,0 +1,84 @@
+/*
+ * or_default.gray - or_default substitutes fallback values when a call fails
+ */
+
+import @strconv
+
+do lookup(key string) -> (i64, Error) {
+    if key == "port" { return 8080, nil }
+    return 0, error(.NotFound, "no such key: ${key}")
+}
+
+do bounds(text string) -> (i64, i64, Error) {
+    if text == "ok" { return 5, 9, nil }
+    return 0, 0, error(.InvalidInput, "bad bounds")
+}
+
+do word(text string) -> (string, Error) {
+    if text == "ok" { return "fine", nil }
+    return "", error(.InvalidInput, "bad word")
+}
+
+mut fallback_calls i64 = 0
+
+do counted(value i64) -> i64 {
+    fallback_calls += 1
+    return value
+}
+
+do helper_without_error_return() -> i64 {
+    mut value = lookup("missing") or_default 11
+    return value
+}
+
+do check(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut found = lookup("port") or_default 1
+    check("success keeps the call's value", found == 8080, passed, failed)
+
+    mut missing = lookup("host") or_default 8000
+    check("failure uses the fallback", missing == 8000, passed, failed)
+
+    mut low, high = bounds("ok") or_default 0, 100
+    check("multi-value success", low == 5 && high == 9, passed, failed)
+
+    mut low_default, high_default = bounds("bad") or_default 0, 100
+    check("multi-value failure", low_default == 0 && high_default == 100, passed, failed)
+
+    mut text = word("bad") or_default "none"
+    check("string fallback", text == "none", passed, failed)
+
+    mut parsed = strconv.to_i64("abc") or_default 7
+    check("stdlib fallible function", parsed == 7, passed, failed)
+
+    const fixed = lookup("zzz") or_default 3
+    check("const declaration", fixed == 3, passed, failed)
+
+    mut untouched = lookup("port") or_default counted(1)
+    check("fallback not evaluated on success", fallback_calls == 0 && untouched == 8080, passed, failed)
+
+    mut used = lookup("zzz") or_default counted(2)
+    check("fallback evaluated on failure", fallback_calls == 1 && used == 2, passed, failed)
+
+    check("function with no Error in its return type", helper_without_error_return() == 11, passed, failed)
+
+    println("")
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("FAILED")
+    } otherwise {
+        println("ALL PASSED")
+    }
+}

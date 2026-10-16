@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3210 - an untyped declaration has no target type for
+ * json.parse(); the first use used to leak a C error.
+ */
+
+import @json
+
+#json
+const Point struct {
+    x i64
+}
+
+do main() {
+    mut point = json.parse("{\"x\": 1}")
+    println(point.x)
+}

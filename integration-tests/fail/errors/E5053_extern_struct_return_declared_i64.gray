@@ -8,7 +8,7 @@
 
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     mut d i64 = extern.div(7, 2)
     println("${d}")
 }

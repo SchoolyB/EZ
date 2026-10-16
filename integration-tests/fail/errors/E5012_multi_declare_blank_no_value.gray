@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5012 - '_' cannot be declared with no value
+ */
+// expect-error: E5012
+
+do main() {
+    mut x, _ i64
+}

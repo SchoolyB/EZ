@@ -11,6 +11,12 @@
 #ifndef GRAY_REGEX_H
 #define GRAY_REGEX_H
 
+/* glibc sizes regexec's regmatch_t array parameter by an earlier parameter,
+ * which TinyCC cannot parse. glibc leaves the size out when this is defined. */
+#if defined(__TINYC__) && !defined(_REGEX_NELTS)
+#  define _REGEX_NELTS(n)
+#endif
+
 #include "../runtime/runtime.h"
 #include "../runtime/array.h"
 #include "io.h" /* GrayResult_string, GrayResult_array */
@@ -22,9 +28,14 @@
 #  if defined(__TINYC__) || (defined(__GNUC__) && !defined(_WIN32))
 /* include_next re-finds this header when a quoted include from its own .c
  * file reached it (TinyCC, and GCC or Clang when the runtime is built from source);
- * <sys/..> steps past this directory instead. */
-#    if __has_include(<sys/../regex.h>)
-#      include <sys/../regex.h>
+ * <arpa/..> steps past this directory instead (<sys/..> on Windows,
+ * which has no arpa/; Debian keeps no /usr/include/sys). */
+#    if defined(_WIN32)
+#      if __has_include(<sys/../regex.h>)
+#        include <sys/../regex.h>
+#      endif
+#    else
+#      include <arpa/../regex.h>
 #    endif
 #  elif defined(__has_include_next)
 #    if __has_include_next(<regex.h>)

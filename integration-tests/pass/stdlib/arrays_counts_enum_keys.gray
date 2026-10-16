@@ -1,0 +1,45 @@
+import @arrays
+
+const Plan enum {
+    FREE
+    PRO
+    TEAM
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut plans [Plan] = {}
+    arrays.append(plans, Plan.TEAM)
+    arrays.append(plans, Plan.PRO)
+    arrays.append(plans, Plan.TEAM)
+    tally = arrays.counts(plans)
+
+    mut team_count i64 = 0
+    mut pro_count i64 = 0
+    for_each plan, count in tally {
+        if plan == Plan.TEAM {
+            team_count = count
+        } or plan == Plan.PRO {
+            pro_count = count
+        }
+    }
+    if team_count == 2 && pro_count == 1 && len(tally) == 2 {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if tally[Plan.TEAM] == 2 {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if failed == 0 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

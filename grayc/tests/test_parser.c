@@ -266,6 +266,28 @@ static void test_parse_or_return(void) {
     ASSERT_EQ(statement->kind, NODE_FUNCTION_DECLARATION);
 }
 
+static void test_parse_or_panic(void) {
+    AstNode *program = parse_test_input(
+        "do main() {\n"
+        "  mut val = fallible() or_panic\n"
+        "  mut other = fallible() or_panic \"must work\"\n"
+        "}");
+    AstNode *statement = first_statement(program);
+    ASSERT_NOT_NULL(statement);
+    ASSERT_EQ(statement->kind, NODE_FUNCTION_DECLARATION);
+}
+
+static void test_parse_or_default(void) {
+    AstNode *program = parse_test_input(
+        "do main() {\n"
+        "  mut val = fallible() or_default 8080\n"
+        "  mut low, high = bounds() or_default 0, 100\n"
+        "}");
+    AstNode *statement = first_statement(program);
+    ASSERT_NOT_NULL(statement);
+    ASSERT_EQ(statement->kind, NODE_FUNCTION_DECLARATION);
+}
+
 static void test_parse_flags_enum(void) {
     AstNode *program = parse_test_input(
         "#flags\n"
@@ -1130,6 +1152,8 @@ int main(void) {
     RUN_TEST(test_parse_function_reference);
     RUN_TEST(test_parse_struct_function);
     RUN_TEST(test_parse_or_return);
+    RUN_TEST(test_parse_or_panic);
+    RUN_TEST(test_parse_or_default);
     RUN_TEST(test_parse_flags_enum);
     RUN_TEST(test_parse_string_enum);
     RUN_TEST(test_parse_map_type);

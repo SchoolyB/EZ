@@ -142,7 +142,7 @@ func TestE2E_Run_NativeCrashIsReported(t *testing.T) {
 	}
 	dir := t.TempDir()
 	src := filepath.Join(dir, "crash.gray")
-	os.WriteFile(src, []byte("extern import \"signal.h\"\n\ndo main() {\n    extern.raise(11)\n}\n"), 0644)
+	os.WriteFile(src, []byte("extern import \"signal.h\"\n\ndo main() {\n    unsafe {\n        extern.raise(11)\n    }\n}\n"), 0644)
 
 	_, stderr, code := runGray(t, src)
 	if code != 128+11 {
@@ -658,5 +658,76 @@ func TestE2E_Help(t *testing.T) {
 				t.Errorf("gray %s --help missing usage text:\n%s", cmd, out)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// source filenames are escaped in generated C
+// ---------------------------------------------------------------------------
+
+func TestE2E_Build_SourceFilenameIsEscapedInGeneratedC(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a quote or newline cannot appear in a Windows filename")
+	}
+	dir := t.TempDir()
+	name := "a\"b\nint injected_symbol;\n.gray"
+	src := filepath.Join(dir, name)
+	program := "do main() {\n    mut divisor i64 = 0\n    println(10 / divisor)\n}\n"
+	if err := os.WriteFile(src, []byte(program), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	generated := filepath.Join(dir, "out.c")
+	_, stderr, code := runGray(t, "build", "--emit-c", "-o", generated, src)
+	if code != 0 {
+		t.Fatalf("gray build --emit-c exited %d; stderr: %s", code, stderr)
+	}
+	text, err := os.ReadFile(generated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(text), "\n") {
+		if strings.HasPrefix(line, "int injected_symbol;") {
+			t.Fatalf("filename injected a line of C into the output: %q", line)
+		}
+	}
+
+	binary := filepath.Join(dir, "prog")
+	if _, stderr, code := runGray(t, "build", "-o", binary, src); code != 0 {
+		t.Fatalf("gray build exited %d; stderr: %s", code, stderr)
+	}
+	var combined bytes.Buffer
+	run := exec.Command(binary)
+	run.Stdout, run.Stderr = &combined, &combined
+	_ = run.Run()
+	if !strings.Contains(combined.String(), "at "+src+":3:") {
+		t.Errorf("panic location does not name the original file, got:\n%s", combined.String())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// diagnostics do not echo an entire long source line
+// ---------------------------------------------------------------------------
+
+func TestE2E_Check_DiagnosticsWindowALongSourceLine(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "long_line.gray")
+	program := "do main() {\n    mut x bool = " + strings.Repeat("not ", 4000) + "true\n}\n"
+	if err := os.WriteFile(src, []byte(program), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := runGray(t, "check", src)
+	if code == 0 {
+		t.Fatalf("expected gray check to fail, got exit 0")
+	}
+	output := combinedOutput(stdout, stderr)
+	if !strings.Contains(output, "undefined variable 'not'") {
+		t.Fatalf("expected the undefined-variable diagnostic, got:\n%.400s", output)
+	}
+	for _, line := range strings.Split(output, "\n") {
+		if len(line) > 400 {
+			t.Fatalf("a diagnostic line is %d bytes; a long source line must be windowed:\n%.200s...", len(line), line)
+		}
 	}
 }

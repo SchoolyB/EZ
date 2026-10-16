@@ -1,0 +1,53 @@
+/*
+ * Test: time.add_minutes, add_months, start_of_month, end_of_month
+ * Verifies month-end clamping (31->30, 31->28, 31->29 leap), year carry in
+ * both directions beyond +-12, time of day kept, and month boundaries for
+ * leap and non-leap February and December.
+ */
+
+import and use @time
+
+do check(label string, got string, want string) -> i64 {
+    if got == want {
+        println("  [PASS] ${label}")
+        return 1
+    }
+    println("  [FAIL] ${label}: got '${got}' want '${want}'")
+    return 0
+}
+
+do main() {
+    mut passed i64 = 0
+
+    mut jan31, _ = time.from_parts(2026, 1, 31, 9, 30, 0)
+    passed += check("add_minutes 90", time.format("%H:%M", time.add_minutes(jan31, 90)), "11:00")
+    passed += check("add_minutes negative", time.format("%H:%M", time.add_minutes(jan31, -30)), "09:00")
+    passed += check("diff of add_minutes", "${time.diff(jan31, time.add_minutes(jan31, 90))}", "5400")
+
+    passed += check("31 -> 28", time.date(time.add_months(jan31, 1)), "2026-02-28")
+    passed += check("-2 months", time.date(time.add_months(jan31, -2)), "2025-11-30")
+    passed += check("time of day kept", time.format("%H:%M:%S", time.add_months(jan31, 1)), "09:30:00")
+
+    mut jan31_leap, _ = time.from_parts(2028, 1, 31, 0, 0, 0)
+    passed += check("31 -> 29 leap", time.date(time.add_months(jan31_leap, 1)), "2028-02-29")
+
+    mut mar31, _ = time.from_parts(2026, 3, 31, 0, 0, 0)
+    passed += check("31 -> 30", time.date(time.add_months(mar31, 1)), "2026-04-30")
+
+    mut dec15, _ = time.from_parts(2026, 12, 15, 0, 0, 0)
+    passed += check("year carry forward", time.date(time.add_months(dec15, 1)), "2027-01-15")
+    passed += check("year carry back", time.date(time.add_months(dec15, -12)), "2025-12-15")
+    passed += check("beyond +12", time.date(time.add_months(dec15, 30)), "2029-06-15")
+    passed += check("beyond -12", time.date(time.add_months(dec15, -30)), "2024-06-15")
+    passed += check("zero months", time.date(time.add_months(dec15, 0)), "2026-12-15")
+
+    mut feb, _ = time.from_parts(2026, 2, 10, 13, 0, 0)
+    passed += check("start Feb", time.format("%Y-%m-%d %H:%M:%S", time.start_of_month(feb)), "2026-02-01 00:00:00")
+    passed += check("end Feb non-leap", time.format("%Y-%m-%d %H:%M:%S", time.end_of_month(feb)), "2026-02-28 23:59:59")
+    mut feb_leap, _ = time.from_parts(2028, 2, 10, 13, 0, 0)
+    passed += check("end Feb leap", time.format("%Y-%m-%d %H:%M:%S", time.end_of_month(feb_leap)), "2028-02-29 23:59:59")
+    passed += check("start Dec", time.date(time.start_of_month(dec15)), "2026-12-01")
+    passed += check("end Dec", time.format("%Y-%m-%d %H:%M:%S", time.end_of_month(dec15)), "2026-12-31 23:59:59")
+    passed += check("end == start of next - 1",
+        "${time.start_of_month(time.add_months(jan31, 1)) - 1 == time.end_of_month(jan31)}", "true")
+}

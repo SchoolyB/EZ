@@ -1,0 +1,21 @@
+import @http
+
+do main() {
+    mut headers map[string:string] = {:}
+    mut rejected i64 = 0
+
+    mut _, space_err = http.get("http://127.0.0.1:18765/a b", headers)
+    if space_err != nil { rejected += 1 }
+
+    mut _, tab_err = http.get("http://127.0.0.1:18765/a\tb", headers)
+    if tab_err != nil { rejected += 1 }
+
+    mut _, newline_err = http.get("http://127.0.0.1:18765/a\r\nX: 1", headers)
+    if newline_err != nil { rejected += 1 }
+
+    if rejected != 3 {
+        panic("expected 3 malformed URLs to be rejected, got ${rejected}")
+    }
+
+    println("ALL TESTS PASSED")
+}

@@ -446,8 +446,16 @@ static const char *parse_complex_type(Parser *parser) {
         return built_type_name;
     } else if (current_token_is(parser, TOKEN_CARET)) {
         /* Pointer type: ^T; recurse to support ^^T, ^^^T, etc. */
+        if (++parser->type_nesting > 64) {
+            diagnostic_error_message(parser->diagnostics, "E2001",
+                arena_copy_string(parser->arena,"type nesting is too deep; maximum depth is 64"),
+                parser->file, parser->current_token.line, parser->current_token.column, 0);
+            parser->type_nesting--;
+            return NULL;
+        }
         next_token(parser);
         const char *pointee = parse_complex_type(parser);
+        parser->type_nesting--;
         if (!pointee) return NULL;
         size_t type_name_length = strlen(pointee) + 2;
         char *built_type_name = arena_allocate(parser->arena, type_name_length);
@@ -1441,7 +1449,15 @@ static AstNode *parse_expression(Parser *parser, Precedence precedence) {
     AstNode *left = parse_prefix(parser);
     if (!left) { parser->depth--; return NULL; }
 
+    int chain_length = 0;
     while (!peek_token_is(parser, TOKEN_END_OF_FILE) && precedence < get_token_precedence(parser->peek_token.type)) {
+        if (++chain_length > MAX_PARSE_DEPTH) {
+            diagnostic_error_message(parser->diagnostics, "E2001",
+                arena_copy_string(parser->arena,"expression is nested too deeply; maximum depth is 256"),
+                parser->file, parser->peek_token.line, parser->peek_token.column, 0);
+            parser->depth--;
+            return NULL;
+        }
         next_token(parser);
         left = parse_infix(parser, left);
         if (!left) { parser->depth--; return NULL; }
@@ -1460,6 +1476,12 @@ static int gray_or_return_temporary_id = 0;
 static char *make_or_return_temporary_name(Arena *arena) {
     char *name = arena_allocate(arena, TEMPORARY_NAME_BUFFER_SIZE);
     snprintf(name, TEMPORARY_NAME_BUFFER_SIZE, GRAY_SYNTHETIC_OR "%d", gray_or_return_temporary_id++);
+    return name;
+}
+
+static char *make_or_panic_temporary_name(Arena *arena) {
+    char *name = arena_allocate(arena, TEMPORARY_NAME_BUFFER_SIZE);
+    snprintf(name, TEMPORARY_NAME_BUFFER_SIZE, GRAY_SYNTHETIC_OR_PANIC "%d", gray_or_return_temporary_id++);
     return name;
 }
 
@@ -1555,6 +1577,106 @@ static AstNode *build_or_return_guard(Parser *parser, const char *temporary_name
     return if_statement;
 }
 
+/* Build the abort guard for or_panic:
+ *
+ *     if (_tmp.verr != nil) { panic(<message>) }
+ *
+ * The message is the one the user wrote after `or_panic`, else the error's
+ * own. `verr` is rewritten by the typechecker exactly as for or_return. */
+static AstNode *make_error_check_if(Parser *parser, const char *temporary_name) {
+    Token token = parser->current_token;
+    AstNode *if_statement = ast_allocate(parser->arena, NODE_IF_STATEMENT, token);
+    AstNode *error_access = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+    AstNode *temporary_label = ast_allocate(parser->arena, NODE_LABEL, token);
+    temporary_label->data.label.value = temporary_name;
+    error_access->data.member.object = temporary_label;
+    error_access->data.member.member = OR_RETURN_ERROR_SLOT;
+    AstNode *nil_value = ast_allocate(parser->arena, NODE_NIL_VALUE, token);
+    AstNode *condition = ast_allocate(parser->arena, NODE_INFIX_EXPRESSION, token);
+    condition->data.infix.left = error_access;
+    condition->data.infix.operator = TOKEN_NOT_EQUAL;
+    condition->data.infix.right = nil_value;
+    if_statement->data.if_statement.condition = condition;
+    if_statement->data.if_statement.alternative = NULL;
+    return if_statement;
+}
+
+static AstNode *build_or_panic_guard(Parser *parser, const char *temporary_name, AstNode *message) {
+    Token token = parser->current_token;
+    AstNode *if_statement = make_error_check_if(parser, temporary_name);
+
+    if (!message) {
+        AstNode *message_access = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+        AstNode *error_again = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+        AstNode *label_again = ast_allocate(parser->arena, NODE_LABEL, token);
+        label_again->data.label.value = temporary_name;
+        error_again->data.member.object = label_again;
+        error_again->data.member.member = OR_RETURN_ERROR_SLOT;
+        message_access->data.member.object = error_again;
+        message_access->data.member.member = "msg";
+        message = message_access;
+    }
+
+    AstNode *panic_label = ast_allocate(parser->arena, NODE_LABEL, token);
+    panic_label->data.label.value = "panic";
+    AstNode *panic_call = ast_allocate(parser->arena, NODE_CALL_EXPRESSION, token);
+    panic_call->data.call.function = panic_label;
+    panic_call->data.call.arguments = arena_allocate(parser->arena, sizeof(AstNode *));
+    panic_call->data.call.arguments[0] = message;
+    panic_call->data.call.argument_count = 1;
+    panic_call->data.call.argument_names = NULL;
+    AstNode *panic_statement = ast_allocate(parser->arena, NODE_EXPRESSION_STATEMENT, token);
+    panic_statement->data.expression_statement.expression = panic_call;
+
+    AstNode *panic_block = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, token);
+    panic_block->data.block.capacity = 1;
+    panic_block->data.block.count = 0;
+    panic_block->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *));
+    panic_block->data.block.statements[panic_block->data.block.count++] = panic_statement;
+    if_statement->data.if_statement.consequence = panic_block;
+    return if_statement;
+}
+
+/* Build the substitution guard for or_default:
+ *
+ *     if (_tmp.verr != nil) { _tmp.v0 = <fallback0>; _tmp.v1 = <fallback1> ... }
+ *
+ * The bindings that follow read `_tmp.vN`, so on failure they see the
+ * fallbacks and on success the call's values; the fallbacks are only
+ * evaluated on the failure path. */
+static AstNode *build_or_default_guard(Parser *parser, const char *temporary_name,
+                                       AstNode **fallbacks, int fallback_count) {
+    Token token = parser->current_token;
+    AstNode *if_statement = make_error_check_if(parser, temporary_name);
+
+    AstNode *assignments = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, token);
+    assignments->data.block.capacity = fallback_count > 0 ? fallback_count : 1;
+    assignments->data.block.count = 0;
+    assignments->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * assignments->data.block.capacity);
+    for (int i = 0; i < fallback_count; i++) {
+        AstNode *target = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, token);
+        AstNode *label = ast_allocate(parser->arena, NODE_LABEL, token);
+        label->data.label.value = temporary_name;
+        target->data.member.object = label;
+        char *field = arena_allocate(parser->arena, FIELD_NAME_BUFFER_SIZE);
+        snprintf(field, FIELD_NAME_BUFFER_SIZE, "v%d", i);
+        target->data.member.member = field;
+        AstNode *assignment = ast_allocate(parser->arena, NODE_ASSIGN_STATEMENT, fallbacks[i]->token);
+        assignment->data.assign.target = target;
+        assignment->data.assign.operator = TOKEN_ASSIGN;
+        assignment->data.assign.value = fallbacks[i];
+        assignments->data.block.statements[assignments->data.block.count++] = assignment;
+    }
+    if_statement->data.if_statement.consequence = assignments;
+    return if_statement;
+}
+
+static char *make_or_default_temporary_name(Arena *arena) {
+    char *name = arena_allocate(arena, TEMPORARY_NAME_BUFFER_SIZE);
+    snprintf(name, TEMPORARY_NAME_BUFFER_SIZE, GRAY_SYNTHETIC_OR_DEFAULT "%d", gray_or_return_temporary_id++);
+    return name;
+}
+
 /* If peek is or_return, consume it and desugar
  *
  *     <declaration with value = expr> or_return
@@ -1568,13 +1690,31 @@ static AstNode *build_or_return_guard(Parser *parser, const char *temporary_name
  * Returns the desugared block, or NULL if no or_return was present
  * (caller keeps the original declaration untouched). */
 static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declaration) {
-    if (!peek_token_is(parser, TOKEN_OR_RETURN)) return NULL;
-    next_token(parser); /* consume or_return */
+    bool is_panic = peek_token_is(parser, TOKEN_OR_PANIC);
+    bool is_default = peek_token_is(parser, TOKEN_OR_DEFAULT);
+    if (!is_panic && !is_default && !peek_token_is(parser, TOKEN_OR_RETURN)) return NULL;
+    next_token(parser); /* consume or_return / or_panic / or_default */
 
     AstNode *fallback_values[MAX_MULTI_VARIABLES];
-    int fallback_count = parse_or_return_fallbacks(parser, fallback_values);
+    int fallback_count = 0;
+    AstNode *panic_message = NULL;
+    if (is_panic) {
+        /* an optional message on the same line: `or_panic "config is bad"` */
+        int or_panic_line = parser->current_token.line;
+        if (parser->peek_token.line == or_panic_line &&
+            !peek_token_is(parser, TOKEN_END_OF_FILE) && !peek_token_is(parser, TOKEN_SEMICOLON) &&
+            !peek_token_is(parser, TOKEN_RIGHT_BRACE)) {
+            next_token(parser);
+            panic_message = parse_expression(parser, PRECEDENCE_LOWEST);
+            if (!panic_message) return NULL;
+        }
+    } else {
+        fallback_count = parse_or_return_fallbacks(parser, fallback_values);
+    }
 
-    char *temporary_name = make_or_return_temporary_name(parser->arena);
+    char *temporary_name = is_panic ? make_or_panic_temporary_name(parser->arena)
+                         : is_default ? make_or_default_temporary_name(parser->arena)
+                                      : make_or_return_temporary_name(parser->arena);
 
     AstNode *block = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
     block->data.block.capacity = 3;
@@ -1585,8 +1725,10 @@ static AstNode *maybe_apply_or_return(Parser *parser, AstNode *original_declarat
     block->data.block.statements[block->data.block.count++] =
         make_synthetic_temporary_declaration(parser, temporary_name, original_declaration->data.variable_declaration.value);
 
-    block->data.block.statements[block->data.block.count++] =
-        build_or_return_guard(parser, temporary_name, fallback_values, fallback_count);
+    block->data.block.statements[block->data.block.count++] = is_panic
+        ? build_or_panic_guard(parser, temporary_name, panic_message)
+        : is_default ? build_or_default_guard(parser, temporary_name, fallback_values, fallback_count)
+                     : build_or_return_guard(parser, temporary_name, fallback_values, fallback_count);
 
     /* x = _tmp.v0 */
     AstNode *unwrapped_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
@@ -1639,6 +1781,9 @@ static AstNode *parse_discard_statement(Parser *parser) {
     return node;
 }
 
+/* Numbers the temporaries that hold a multi-name declaration's values. */
+static int multi_variable_counter = 0;
+
 static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) {
     AstNode *node = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
 
@@ -1658,6 +1803,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
         }
     }
     node->data.variable_declaration.name = parser->current_token.literal;
+    Token first_name_token = parser->current_token;
 
     /* Optional type annotation. TOKEN_GENERIC is included so `generic` in a
      * declaration flows through parse_complex_type and lands on its E2096
@@ -1707,7 +1853,9 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
             /* Collect all variable names and types */
             const char *names[MAX_MULTI_VARIABLES];
             const char *types[MAX_MULTI_VARIABLES];
+            Token name_tokens[MAX_MULTI_VARIABLES]; /* each name's own position */
             int variable_count = 0;
+            name_tokens[variable_count] = first_name_token;
             names[variable_count] = node->data.variable_declaration.name;
             types[variable_count] = node->data.variable_declaration.type_name;
             variable_count++;
@@ -1727,6 +1875,7 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                     diagnostic_error_code_formatted(parser->diagnostics, "E2062", parser->file, parser->current_token.line, parser->current_token.column, 0, MAX_MULTI_VARIABLES);
                     return NULL;
                 }
+                name_tokens[variable_count] = parser->current_token;
                 names[variable_count] = parser->current_token.literal;
                 if (current_token_is(parser, TOKEN_BLANK)) names[variable_count] = "_";
                 if (peek_token_is(parser, TOKEN_IDENTIFIER) || peek_token_is(parser, TOKEN_CARET) ||
@@ -1741,10 +1890,169 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
                 variable_count++;
             }
 
-            /* Expect = expr */
+            /* A type written once, after the last name, applies to every name
+             * (`x, y, z i64`). A type on any earlier name means each name
+             * carries its own (`a i64, b f64 = f()`); names without one are
+             * inferred. */
+            bool has_per_name_types = false;
+            for (int i = 0; i < variable_count - 1; i++) {
+                if (types[i]) has_per_name_types = true;
+            }
+            const char *shared_type = NULL;
+            if (!has_per_name_types && types[variable_count - 1]) {
+                shared_type = types[variable_count - 1];
+                for (int i = 0; i < variable_count; i++) {
+                    if (strcmp(names[i], "_") != 0) types[i] = shared_type;
+                }
+            }
+
+            /* No value: every name is declared zero-initialized, so each
+             * needs a type. (A constant is rejected for it by the typechecker.) */
+            if (!peek_token_is(parser, TOKEN_ASSIGN)) {
+                bool all_typed = true;
+                for (int i = 0; i < variable_count; i++) {
+                    if (!types[i]) all_typed = false;
+                }
+                /* '_' discards a call's result; with no value there is none. */
+                for (int i = 0; i < variable_count; i++) {
+                    if (strcmp(names[i], "_") == 0) {
+                        diagnostic_error_code(parser->diagnostics, "E5012", parser->file,
+                            node->token.line, node->token.column, 0);
+                        return NULL;
+                    }
+                }
+                if (!all_typed) {
+                    expect_peek_token(parser, TOKEN_ASSIGN); /* will error */
+                    return NULL;
+                }
+                AstNode *declarations = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
+                declarations->data.block.capacity = variable_count;
+                declarations->data.block.count = 0;
+                declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * variable_count);
+                for (int i = 0; i < variable_count; i++) {
+                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
+                    declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
+                    declaration->data.variable_declaration.name = names[i];
+                    declaration->data.variable_declaration.type_name = types[i];
+                    declarations->data.block.statements[declarations->data.block.count++] = declaration;
+                }
+                return declarations;
+            }
+
+            /* Expect = expr [, expr ...] */
             if (!expect_peek_token(parser, TOKEN_ASSIGN)) return NULL;
             next_token(parser);
             AstNode *value = parse_expression(parser, PRECEDENCE_LOWEST);
+            if (!value) return NULL;
+
+            /* A list of values pairs up with the names, one each. */
+            if (peek_token_is(parser, TOKEN_COMMA)) {
+                AstNode *values[MAX_MULTI_VARIABLES];
+                int value_count = 0;
+                values[value_count++] = value;
+                while (peek_token_is(parser, TOKEN_COMMA)) {
+                    next_token(parser); /* skip comma */
+                    next_token(parser);
+                    if (value_count >= MAX_MULTI_VARIABLES) {
+                        diagnostic_error_code_formatted(parser->diagnostics, "E2062", parser->file, parser->current_token.line, parser->current_token.column, 0, MAX_MULTI_VARIABLES);
+                        return NULL;
+                    }
+                    values[value_count] = parse_expression(parser, PRECEDENCE_LOWEST);
+                    if (!values[value_count]) return NULL;
+                    value_count++;
+                }
+                if (has_per_name_types) {
+                    diagnostic_error_code(parser->diagnostics, "E2101", parser->file,
+                        node->token.line, node->token.column, 0);
+                    return NULL;
+                }
+                if (value_count != variable_count) {
+                    diagnostic_error_code_formatted(parser->diagnostics, "E2100", parser->file,
+                        node->token.line, node->token.column, 0, variable_count, value_count);
+                    return NULL;
+                }
+                for (int i = 0; i < variable_count; i++) {
+                    if (strcmp(names[i], "_") == 0) check_discard_target(parser, values[i]);
+                }
+                /* Every initializer is evaluated before any name is bound, so
+                 * an initializer never sees a name declared on the same line.
+                 * At file scope there is no statement to hold a temporary. */
+                bool uses_temporaries = parser->current_function != NULL;
+                int statement_capacity = uses_temporaries ? variable_count * 2 : variable_count;
+                AstNode *declarations = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
+                declarations->data.block.capacity = statement_capacity;
+                declarations->data.block.count = 0;
+                declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * statement_capacity);
+                char *temporary_names[MAX_MULTI_VARIABLES];
+                if (uses_temporaries) {
+                    for (int i = 0; i < variable_count; i++) {
+                        temporary_names[i] = arena_allocate(parser->arena, TEMPORARY_NAME_BUFFER_SIZE);
+                        snprintf(temporary_names[i], TEMPORARY_NAME_BUFFER_SIZE,
+                                 GRAY_SYNTHETIC_TEMPORARY "%d", multi_variable_counter++);
+                        AstNode *temporary_declaration =
+                            make_synthetic_temporary_declaration(parser, temporary_names[i], values[i]);
+                        temporary_declaration->data.variable_declaration.type_name = types[i];
+                        declarations->data.block.statements[declarations->data.block.count++] = temporary_declaration;
+                    }
+                }
+                for (int i = 0; i < variable_count; i++) {
+                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
+                    declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
+                    declaration->data.variable_declaration.name = names[i];
+                    declaration->data.variable_declaration.type_name = types[i];
+                    if (uses_temporaries) {
+                        AstNode *label = ast_allocate(parser->arena, NODE_LABEL, parser->current_token);
+                        label->data.label.value = temporary_names[i];
+                        declaration->data.variable_declaration.value = label;
+                    } else {
+                        declaration->data.variable_declaration.value = values[i];
+                        const char **earlier_names = arena_allocate(parser->arena, sizeof(char *) * (size_t)(i + 1));
+                        for (int earlier = 0; earlier < i; earlier++) earlier_names[earlier] = names[earlier];
+                        declaration->data.variable_declaration.earlier_group_names = earlier_names;
+                        declaration->data.variable_declaration.earlier_group_count = i;
+                    }
+                    declarations->data.block.statements[declarations->data.block.count++] = declaration;
+                }
+                return declarations;
+            }
+
+            /* A single value that is not a call can only be given to every
+             * name. Typing the temporary with the shared type lets a literal
+             * take it (`a, b f32 = 1.5`). */
+            bool value_is_call = value->kind == NODE_CALL_EXPRESSION;
+            if (!value_is_call && has_per_name_types) {
+                diagnostic_error_code(parser->diagnostics, "E2101", parser->file,
+                    node->token.line, node->token.column, 0);
+                return NULL;
+            }
+
+            if (!value_is_call) {
+                for (int i = 0; i < variable_count; i++) {
+                    if (strcmp(names[i], "_") == 0) {
+                        check_discard_target(parser, value);
+                        break;
+                    }
+                }
+            }
+
+            /* At file scope there is no statement to hold a temporary, and a
+             * global's value is a constant expression, so each name takes the
+             * value directly. */
+            if (!value_is_call && !parser->current_function) {
+                AstNode *declarations = ast_allocate(parser->arena, NODE_BLOCK_STATEMENT, parser->current_token);
+                declarations->data.block.capacity = variable_count;
+                declarations->data.block.count = 0;
+                declarations->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * variable_count);
+                for (int i = 0; i < variable_count; i++) {
+                    AstNode *declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
+                    declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
+                    declaration->data.variable_declaration.name = names[i];
+                    declaration->data.variable_declaration.type_name = types[i];
+                    declaration->data.variable_declaration.value = value;
+                    declarations->data.block.statements[declarations->data.block.count++] = declaration;
+                }
+                return declarations;
+            }
 
             /* or_return on a destructuring bind: `mut a, b = two() or_return`.
              * The N binding names are the non-error slots; the trailing Error
@@ -1752,9 +2060,10 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
              * binds v0..v{N-1} as normal. */
             AstNode *or_return_fallback_values[MAX_MULTI_VARIABLES];
             int or_return_fallback_count = 0;
-            bool has_or_return = peek_token_is(parser, TOKEN_OR_RETURN);
+            bool has_or_default = peek_token_is(parser, TOKEN_OR_DEFAULT);
+            bool has_or_return = has_or_default || peek_token_is(parser, TOKEN_OR_RETURN);
             if (has_or_return) {
-                next_token(parser); /* consume or_return */
+                next_token(parser); /* consume or_return / or_default */
                 or_return_fallback_count = parse_or_return_fallbacks(parser, or_return_fallback_values);
             }
 
@@ -1762,9 +2071,10 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
              * or_return prefix so the typechecker validates the (..., Error)
              * tail (E3045) and skips the "fewer variables than return values"
              * check — the trailing Error slot is consumed by the guard. */
-            static int multi_variable_counter = 0;
             char *temporary_name;
-            if (has_or_return) {
+            if (has_or_default) {
+                temporary_name = make_or_default_temporary_name(parser->arena);
+            } else if (has_or_return) {
                 temporary_name = make_or_return_temporary_name(parser->arena);
             } else {
                 temporary_name = arena_allocate(parser->arena, TEMPORARY_NAME_BUFFER_SIZE);
@@ -1778,25 +2088,34 @@ static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) 
             block->data.block.statements = arena_allocate(parser->arena, sizeof(AstNode *) * block->data.block.capacity);
 
             /* temp _tmp = value */
-            block->data.block.statements[block->data.block.count++] =
-                make_synthetic_temporary_declaration(parser, temporary_name, value);
+            AstNode *temporary_declaration = make_synthetic_temporary_declaration(parser, temporary_name, value);
+            if (!value_is_call) temporary_declaration->data.variable_declaration.type_name = shared_type;
+            block->data.block.statements[block->data.block.count++] = temporary_declaration;
 
             if (has_or_return) {
-                block->data.block.statements[block->data.block.count++] =
-                    build_or_return_guard(parser, temporary_name,
-                                          or_return_fallback_values, or_return_fallback_count);
+                block->data.block.statements[block->data.block.count++] = has_or_default
+                    ? build_or_default_guard(parser, temporary_name,
+                                             or_return_fallback_values, or_return_fallback_count)
+                    : build_or_return_guard(parser, temporary_name,
+                                            or_return_fallback_values, or_return_fallback_count);
             }
 
             /* Individual declarations: type x = _tmp.v0 */
             for (int i = 0; i < variable_count; i++) {
-                AstNode *binding_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
+                AstNode *binding_declaration = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, name_tokens[i]);
                 binding_declaration->data.variable_declaration.is_mutable = node->data.variable_declaration.is_mutable;
                 binding_declaration->data.variable_declaration.name = names[i];
                 binding_declaration->data.variable_declaration.type_name = types[i];
-                /* Value: _gray_tmp.vN */
-                AstNode *member = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, parser->current_token);
+                /* Value: _gray_tmp.vN, or the temporary itself when a single
+                 * non-call value is given to every name */
                 AstNode *label = ast_allocate(parser->arena, NODE_LABEL, parser->current_token);
                 label->data.label.value = temporary_name;
+                if (!value_is_call) {
+                    binding_declaration->data.variable_declaration.value = label;
+                    block->data.block.statements[block->data.block.count++] = binding_declaration;
+                    continue;
+                }
+                AstNode *member = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, parser->current_token);
                 member->data.member.object = label;
                 char *field = arena_allocate(parser->arena, FIELD_NAME_BUFFER_SIZE);
                 snprintf(field, FIELD_NAME_BUFFER_SIZE, "v%d", i);
@@ -2517,6 +2836,22 @@ static void reject_nested_declaration(Parser *parser, const char *kind, const ch
     }
 }
 
+/* `unsafe do`: consumes the `unsafe` modifier when it directly precedes `do`
+ * and returns true. Anything else is left for the caller to reject. */
+static bool consume_unsafe_modifier(Parser *parser) {
+    if (!current_token_is(parser, TOKEN_UNSAFE) || !peek_token_is(parser, TOKEN_DO)) return false;
+    next_token(parser);
+    return true;
+}
+
+/* The function body's block carries the flag: the typechecker opens the
+ * unsafe context when it checks that body. */
+static void mark_function_unsafe(AstNode *function_declaration) {
+    if (function_declaration && function_declaration->data.function_declaration.body) {
+        function_declaration->data.function_declaration.body->data.block.is_unsafe = true;
+    }
+}
+
 static AstNode *parse_struct_declaration(Parser *parser) {
     /* current_token is the struct name (IDENT), already consumed by caller */
     AstNode *node = ast_allocate(parser->arena, NODE_STRUCT_DECLARATION, parser->current_token);
@@ -2599,8 +2934,10 @@ static AstNode *parse_struct_declaration(Parser *parser) {
             continue;
         }
         /* Check for struct-namespaced function: do func() or private do func() */
+        bool is_unsafe_function = consume_unsafe_modifier(parser);
         if (current_token_is(parser, TOKEN_DO)) {
             AstNode *function_declaration = parse_function_declaration(parser);
+            if (is_unsafe_function) mark_function_unsafe(function_declaration);
             if (function_declaration) {
                 if (has_pending_discard) {
                     function_declaration->data.function_declaration.is_discard = true;
@@ -2619,9 +2956,12 @@ static AstNode *parse_struct_declaration(Parser *parser) {
             next_token(parser);
             continue;
         }
-        if (current_token_is(parser, TOKEN_PRIVATE) && peek_token_is(parser, TOKEN_DO)) {
+        if (current_token_is(parser, TOKEN_PRIVATE) &&
+            (peek_token_is(parser, TOKEN_DO) || peek_token_is(parser, TOKEN_UNSAFE))) {
             next_token(parser); /* consume 'private' */
+            bool is_unsafe_private_function = consume_unsafe_modifier(parser);
             AstNode *function_declaration = parse_function_declaration(parser);
+            if (is_unsafe_private_function) mark_function_unsafe(function_declaration);
             if (function_declaration) {
                 function_declaration->data.function_declaration.is_private = true;
                 if (has_pending_discard) {
@@ -3357,6 +3697,24 @@ static AstNode *parse_statement(Parser *parser) {
         }
         return statement;
     }
+    case TOKEN_UNSAFE: {
+        /* `unsafe { ... }` block or unsafe function */
+        if (peek_token_is(parser, TOKEN_LEFT_BRACE)) {
+            next_token(parser); /* now on '{' */
+            AstNode *block = parse_block_statement(parser);
+            if (block) block->data.block.is_unsafe = true;
+            return block;
+        }
+        if (consume_unsafe_modifier(parser)) {
+            AstNode *function_declaration = parse_function_declaration(parser);
+            mark_function_unsafe(function_declaration);
+            return function_declaration;
+        }
+        diagnostic_error_message(parser->diagnostics, "E2001",
+            arena_copy_string(parser->arena, "expected '{' or 'do' after 'unsafe'"),
+            parser->file, parser->current_token.line, parser->current_token.column, 0);
+        return NULL;
+    }
     case TOKEN_MUT:
     case TOKEN_CONST:
         /* Check for keyword used as name: const for struct / mut for i64 */
@@ -3726,6 +4084,15 @@ static AstNode *parse_statement(Parser *parser) {
             return node;
         }
 
+        /* A bare `call() or_default x` has no binding to substitute into. */
+        if (peek_token_is(parser, TOKEN_OR_DEFAULT)) {
+            next_token(parser);
+            diagnostic_error_code(parser->diagnostics, "E2102", parser->file,
+                parser->current_token.line, parser->current_token.column, 0);
+            synchronize_parser(parser);
+            return NULL;
+        }
+
         /* Bare `call() or_return`: no bindings, just propagate the trailing
          * error from the call's return tuple. */
         if (peek_token_is(parser, TOKEN_OR_RETURN)) {
@@ -3794,7 +4161,14 @@ AstNode *parser_parse_program(Parser *parser) {
         }
         parser->seen_attribute_mask = 0;
         AstNode *statement = parse_statement(parser);
-        if (statement) {
+        if (statement && statement->kind == NODE_BLOCK_STATEMENT && !statement->data.block.is_unsafe) {
+            /* `A, B i64 = 1, 2` at file scope: one global per name. */
+            for (int i = 0; i < statement->data.block.count; i++) {
+                ARENA_GROW(parser->arena, program->data.program.statements,
+                    program->data.program.statement_count, program->data.program.statement_capacity);
+                program->data.program.statements[program->data.program.statement_count++] = statement->data.block.statements[i];
+            }
+        } else if (statement) {
             ARENA_GROW(parser->arena, program->data.program.statements,
                 program->data.program.statement_count, program->data.program.statement_capacity);
             program->data.program.statements[program->data.program.statement_count++] = statement;

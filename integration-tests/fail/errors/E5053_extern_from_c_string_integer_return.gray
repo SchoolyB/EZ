@@ -7,6 +7,6 @@
 
 extern import "string.h"
 
-do main() {
+unsafe do main() {
     println(from_c_string(extern.strlen("abc")))
 }

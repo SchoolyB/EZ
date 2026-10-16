@@ -231,6 +231,41 @@ GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *array) {
     return result;
 }
 
+GrayMap gray_arrays_counts(GrayArena *arena, GrayArray *array) {
+    GrayMap result = gray_map_new_kind(arena, array->elem_size, (int32_t)sizeof(int64_t),
+                                       array->len, (int8_t)array->elem_kind, GRAY_ELEM_I64);
+    for (int32_t i = 0; i < array->len; i++) {
+        const void *element = (const char *)array->data + (size_t)i * (size_t)array->elem_size;
+        int64_t *existing = gray_map_get(&result, element);
+        if (existing) {
+            (*existing)++;
+        } else {
+            int64_t one = 1;
+            GRAY_MAP_SET(arena, &result, element, &one);
+        }
+    }
+    return result;
+}
+
+/* counts() of an enum array: enum map keys are 8 bytes wide, enum array
+ * elements 4. */
+GrayMap gray_arrays_counts_enum(GrayArena *arena, GrayArray *array) {
+    GrayMap result = gray_map_new_kind(arena, (int32_t)sizeof(int64_t), (int32_t)sizeof(int64_t),
+                                       array->len, GRAY_ELEM_I64, GRAY_ELEM_I64);
+    for (int32_t i = 0; i < array->len; i++) {
+        int64_t key = array->elem_size == (int32_t)sizeof(int32_t)
+            ? (int64_t)((const int32_t *)array->data)[i] : ((const int64_t *)array->data)[i];
+        int64_t *existing = gray_map_get(&result, &key);
+        if (existing) {
+            (*existing)++;
+        } else {
+            int64_t one = 1;
+            GRAY_MAP_SET(arena, &result, &key, &one);
+        }
+    }
+    return result;
+}
+
 GrayArray gray_arrays_flatten(GrayArena *arena, GrayArray *array) {
     /* Flatten one level: [[T]] -> [T]. Each element of `array` is a GrayArray,
      * and the result holds elements as wide as the inner arrays' own. */

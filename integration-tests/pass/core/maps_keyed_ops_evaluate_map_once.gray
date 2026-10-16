@@ -1,0 +1,51 @@
+/*
+ * maps_keyed_ops_evaluate_map_once.gray - maps.get_or_insert() and
+ * maps.get_and_remove() evaluate their map argument exactly once.
+ */
+
+import @maps
+
+mut calls i64 = 0
+
+const Box struct {
+    m map[string:i64]
+}
+
+do next() -> i64 {
+    calls = calls + 1
+    return calls - 1
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut ms [Box] = {Box{m: {:}}, Box{m: {:}}, Box{m: {:}}}
+    mut v i64 = maps.get_or_insert(ms[next()].m, "a", 5)
+    if v == 5 && calls == 1 && len(ms[0].m) == 1 && len(ms[1].m) == 0 {
+        println("  [PASS] get_or_insert evaluates the map once and inserts into it")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or_insert: v=${v} calls=${calls}")
+        failed += 1
+    }
+
+    calls = 0
+    mut rs [Box] = {Box{m: {"a": 1}}, Box{m: {"a": 2}}, Box{m: {"a": 3}}}
+    mut removed, found =maps.get_and_remove(rs[next()].m, "a")
+    if removed == 1 && found && calls == 1 && len(rs[0].m) == 0 && len(rs[1].m) == 1 {
+        println("  [PASS] get_and_remove evaluates the map once and removes from it")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_and_remove: removed=${removed} calls=${calls}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

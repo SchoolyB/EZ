@@ -1,0 +1,76 @@
+/*
+ * enum_names_variants.gray - names() and variants() on plain enums
+ */
+
+const Color enum { RED; GREEN; BLUE }
+
+const Status enum {
+    TODO = "todo"
+    DONE = "done"
+}
+
+const Sparse enum {
+    LOW = 10
+    HIGH = 50
+}
+
+alias Hue = Color
+
+do color_name(color Color) -> string {
+    return Color.names()[cast(color, i64)]
+}
+
+do check(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    names = Color.names()
+    check("names in declaration order", len(names) == 3 && names[0] == "RED" && names[1] == "GREEN" && names[2] == "BLUE", passed, failed)
+
+    variants = Color.variants()
+    check("variants in declaration order", len(variants) == 3 && variants[0] == Color.RED && variants[1] == Color.GREEN && variants[2] == Color.BLUE, passed, failed)
+
+    check("name of a value", color_name(Color.GREEN) == "GREEN", passed, failed)
+
+    mut round_trip = true
+    mut index i64 = 0
+    for_each variant in Color.variants() {
+        if color_name(variant) != Color.names()[index] { round_trip = false }
+        index += 1
+    }
+    check("parallel arrays line up", round_trip && index == 3, passed, failed)
+
+    status_names = Status.names()
+    check("string enum names are identifiers", status_names[0] == "TODO" && status_names[1] == "DONE", passed, failed)
+    check("string enum variants keep their value", Status.variants()[1] == Status.DONE, passed, failed)
+
+    check("explicit values do not change order", Sparse.names()[0] == "LOW" && Sparse.variants()[1] == Sparse.HIGH, passed, failed)
+
+    check("through an alias", Hue.names()[2] == "BLUE", passed, failed)
+
+    mut total i64 = 0
+    mut repeat i64 = 0
+    for repeat < 3 {
+        total += len(Color.names())
+        repeat += 1
+    }
+    check("repeated in a loop", total == 9, passed, failed)
+
+    println("")
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("FAILED")
+    } otherwise {
+        println("ALL PASSED")
+    }
+}

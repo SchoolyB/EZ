@@ -11,14 +11,14 @@
 
 import @mem
 
-do explicit_destroy() -> ^i64 {
+unsafe do explicit_destroy() -> ^i64 {
     mut a = mem.arena(1024)
     mut p ^i64 = mem.alloc(a, 42)
     mem.destroy(a)
     return p
 }
 
-do deferred_destroy() -> ^i64 {
+unsafe do deferred_destroy() -> ^i64 {
     mut a = mem.arena(1024)
     defer mem.destroy(a)
     mut p ^i64 = mem.alloc(a, 42)

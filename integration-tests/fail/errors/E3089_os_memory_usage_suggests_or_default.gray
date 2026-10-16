@@ -1,0 +1,7 @@
+// expect-contains: 'or_default' to substitute fallback values
+import @os
+
+do main() {
+    mut result = os.memory_usage()
+    println(result)
+}

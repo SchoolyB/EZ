@@ -1,0 +1,43 @@
+/*
+ * Test: chars.is_vowel, chars.is_consonant and chars.mirror
+ * Verifies case-insensitive vowels, y as a consonant, non-ASCII returning
+ * false from both predicates, and bracket swapping in both directions.
+ */
+
+import and use @chars
+
+do check(label string, got bool, want bool) -> i64 {
+    if got == want {
+        println("  [PASS] ${label}")
+        return 1
+    }
+    println("  [FAIL] ${label}: got ${got} want ${want}")
+    return 0
+}
+
+do main() {
+    mut passed i64 = 0
+    passed += check("is_vowel('a')", chars.is_vowel('a'), true)
+    passed += check("is_vowel('E')", chars.is_vowel('E'), true)
+    passed += check("is_vowel('y')", chars.is_vowel('y'), false)
+    passed += check("is_vowel('b')", chars.is_vowel('b'), false)
+    passed += check("is_vowel('1')", chars.is_vowel('1'), false)
+    passed += check("is_vowel('é')", chars.is_vowel('é'), false)
+
+    passed += check("is_consonant('b')", chars.is_consonant('b'), true)
+    passed += check("is_consonant('Z')", chars.is_consonant('Z'), true)
+    passed += check("is_consonant('y')", chars.is_consonant('y'), true)
+    passed += check("is_consonant('a')", chars.is_consonant('a'), false)
+    passed += check("is_consonant('1')", chars.is_consonant('1'), false)
+    passed += check("is_consonant('é')", chars.is_consonant('é'), false)
+
+    passed += check("mirror('(')", chars.mirror('(') == ')', true)
+    passed += check("mirror(')')", chars.mirror(')') == '(', true)
+    passed += check("mirror('[')", chars.mirror('[') == ']', true)
+    passed += check("mirror(']')", chars.mirror(']') == '[', true)
+    passed += check("mirror('{')", chars.mirror('{') == '}', true)
+    passed += check("mirror('}')", chars.mirror('}') == '{', true)
+    passed += check("mirror('<')", chars.mirror('<') == '>', true)
+    passed += check("mirror('>')", chars.mirror('>') == '<', true)
+    passed += check("mirror('a')", chars.mirror('a') == 'a', true)
+}

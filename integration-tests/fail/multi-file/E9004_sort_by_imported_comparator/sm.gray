@@ -1,0 +1,3 @@
+do by_str(a string, b string) -> bool {
+    return len(a) < len(b)
+}

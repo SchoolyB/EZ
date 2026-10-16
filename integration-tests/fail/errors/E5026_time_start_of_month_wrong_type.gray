@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5026 - wrong argument type to time.start_of_month
+ */
+
+// expect-error: E5026
+
+import @time
+
+do main() {
+    println(time.start_of_month("x"))
+}

@@ -45,6 +45,11 @@ func TestParseArenaLimit(t *testing.T) {
 		{"1gb", 1024 * 1024 * 1024, false},
 		{"256", 0, true},
 		{"abcMB", 0, true},
+		{"17179869184GB", 0, true},
+		{"18014398509481985KB", 0, true},
+		{"8589934592GB", 0, true},
+		{"18446744073709551615KB", 0, true},
+		{"8589934591GB", 8589934591 * 1024 * 1024 * 1024, false},
 	}
 	for _, c := range cases {
 		t.Run(c.in, func(t *testing.T) {
@@ -296,5 +301,47 @@ func TestCompilerFlagMissingCompiler(t *testing.T) {
 	_, err := commonBuildOpts(newCompilerFlagCommand(t, "no-such-compiler-xyz"))
 	if err == nil || !strings.Contains(err.Error(), "no-such-compiler-xyz") {
 		t.Errorf("error = %v, want one naming no-such-compiler-xyz", err)
+	}
+}
+
+func TestValidateQuiet(t *testing.T) {
+	cases := []struct {
+		in      string
+		wantErr bool
+	}{
+		{"", false},
+		{"all", false},
+		{"W1001", false},
+		{"W1001,W1002", false},
+		{"w1001", true},
+		{"1001", true},
+		{"nonsense", true},
+		{"E3001", true},
+		{"W1001,x", true},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cmd.Flags().String("quiet", c.in, "")
+			if err := validateQuiet(cmd); (err != nil) != c.wantErr {
+				t.Errorf("validateQuiet(%q) error = %v, wantErr %v", c.in, err, c.wantErr)
+			}
+		})
+	}
+}
+
+func TestRedactHome(t *testing.T) {
+	cases := []struct{ path, home, want string }{
+		{"/Users/marshall/code/gray", "/Users/marshall", "~/code/gray"},
+		{"/Users/marshallburns/code/gray", "/Users/marshall", "/Users/marshallburns/code/gray"},
+		{"/opt/gray", "/Users/marshall", "/opt/gray"},
+		{"/Users/marshall", "/Users/marshall", "~"},
+	}
+	for _, c := range cases {
+		t.Run(c.path, func(t *testing.T) {
+			if got := redactHome(c.path, c.home); got != c.want {
+				t.Errorf("redactHome(%q, %q) = %q, want %q", c.path, c.home, got, c.want)
+			}
+		})
 	}
 }

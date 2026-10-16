@@ -1,0 +1,40 @@
+/*
+ * map_contains_value_string.gray - maps.contains_value compares string
+ * values by content, not by data pointer.
+ */
+
+import @maps
+
+do main() {
+    mut passed i64 = 0
+    mut total i64 = 3
+
+    mut m map[string:string] = {"a": "hello", "b": "world"}
+    mut probe string = "hel"
+    probe = probe + "lo"
+
+    if maps.contains_value(m, "hello") {
+        passed += 1
+    } otherwise {
+        println("[FAIL] literal match")
+    }
+
+    if maps.contains_value(m, probe) {
+        passed += 1
+    } otherwise {
+        println("[FAIL] runtime-built string with equal content")
+    }
+
+    if !maps.contains_value(m, "nope") {
+        passed += 1
+    } otherwise {
+        println("[FAIL] missing value reported present")
+    }
+
+    println("Results: ${passed}/${total} passed")
+    if passed == total {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

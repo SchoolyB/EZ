@@ -528,7 +528,7 @@ static void test_e2e_blank_identifier(void) {
 static void test_e2e_mem_arena_create_destroy(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(4096)\n"
         "    println(\"created\")\n"
         "    mem.destroy(a)\n"
@@ -541,7 +541,7 @@ static void test_e2e_mem_arena_create_destroy(void) {
 static void test_e2e_mem_usage(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(1024)\n"
         "    println(mem.usage(a))\n"
         "    mut s ^string = mem.alloc(a, \"hello\")\n"
@@ -556,7 +556,7 @@ static void test_e2e_mem_usage(void) {
 static void test_e2e_mem_reset(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(1024)\n"
         "    mut s ^string = mem.alloc(a, \"hello\")\n"
         "    if mem.usage(a) > 0 { println(\"used\") }\n"
@@ -571,7 +571,7 @@ static void test_e2e_mem_reset(void) {
 static void test_e2e_mem_alloc_string(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
         "    mut s ^string = mem.alloc(a, \"arena string\")\n"
@@ -584,7 +584,7 @@ static void test_e2e_mem_alloc_string(void) {
 static void test_e2e_mem_alloc_array(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
         "    mut nums ^[i64] = mem.alloc(a, {10, 20, 30})\n"
@@ -600,7 +600,7 @@ static void test_e2e_mem_alloc_array(void) {
 static void test_e2e_mem_ensure_cleanup(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do work() {\n"
+        "unsafe do work() {\n"
         "    mut a = mem.arena(1024)\n"
         "    ensure mem.destroy(a)\n"
         "    mut s ^string = mem.alloc(a, \"working\")\n"
@@ -619,7 +619,7 @@ static void test_e2e_mem_ensure_cleanup(void) {
 static void test_e2e_ptr_new_deref(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
         "    mut p ^i64 = mem.init(a, i64)\n"
@@ -637,7 +637,7 @@ static void test_e2e_ptr_struct(void) {
         "    x i64\n"
         "    y i64\n"
         "}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
         "    mut p ^Point = mem.init(a, Point)\n"
@@ -684,7 +684,7 @@ static void test_e2e_ptr_write_through(void) {
         "do set_value(p ^i64, val i64) {\n"
         "    p^ = val\n"
         "}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
         "    mut p ^i64 = mem.init(a, i64)\n"
@@ -866,7 +866,7 @@ static void test_e2e_threads_spawn_join(void) {
         "import @threads\n"
         "do worker1() { println(\"w1\") }\n"
         "do worker2() { println(\"w2\") }\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut t1 = threads.spawn(()worker1)\n"
         "  mut t2 = threads.spawn(()worker2)\n"
         "  threads.join(t1)\n"
@@ -973,6 +973,34 @@ static void test_e2e_or_return(void) {
         "}");
     ASSERT_NOT_NULL(output);
     ASSERT_STR_EQ(output, "success");
+}
+
+static void test_e2e_enum_names_variants(void) {
+    char *output = compile_and_run(
+        ""
+        "const Color enum { RED; GREEN; BLUE }\n"
+        "do main() {\n"
+        "  println(Color.names()[1])\n"
+        "  println(len(Color.variants()))\n"
+        "}");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "GREEN\n3");
+}
+
+static void test_e2e_or_default(void) {
+    char *output = compile_and_run(
+        ""
+        "do fallible(ok bool) -> (i64, Error) {\n"
+        "  if ok { return 5, nil }\n"
+        "  return 0, error(.Unknown, \"failed\")\n"
+        "}\n"
+        "do main() {\n"
+        "  mut good = fallible(true) or_default 1\n"
+        "  mut bad = fallible(false) or_default 9\n"
+        "  println(good + bad)\n"
+        "}");
+    ASSERT_NOT_NULL(output);
+    ASSERT_STR_EQ(output, "14");
 }
 
 /* ===== Enum Attributes ===== */
@@ -1990,7 +2018,7 @@ static void test_e2e_ensure_early_return(void) {
 static void test_e2e_ptr_to_ptr(void) {
     char *output = compile_and_run(
         "import @mem\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut a = mem.arena(4096)\n"
         "  ensure mem.destroy(a)\n"
         "  mut p ^i64 = mem.init(a, i64)\n"
@@ -3095,6 +3123,8 @@ int main(void) {
 
     /* or_return */
     RUN_TEST(test_e2e_or_return);
+    RUN_TEST(test_e2e_or_default);
+    RUN_TEST(test_e2e_enum_names_variants);
 
     /* Enum attributes */
     RUN_TEST(test_e2e_flags_enum);

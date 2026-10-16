@@ -1,0 +1,8 @@
+/* Panic Test: P0152 - random.rand_bytes with a negative length */
+// expect-contains: P0152
+
+import @random
+
+do main() {
+    println(random.rand_bytes(-1))
+}

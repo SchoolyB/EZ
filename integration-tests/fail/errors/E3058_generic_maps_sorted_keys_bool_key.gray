@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3058 - a generic function that calls maps.sorted_keys() is
+ * instantiated with a key type that cannot be ordered.
+ */
+
+import @maps
+
+do keys_sorted(kind generic, m map[kind:i64]) -> [kind] {
+    return maps.sorted_keys(m)
+}
+
+do main() {
+    mut flags map[bool:i64] = {true: 1}
+    println(keys_sorted(bool, flags))
+}

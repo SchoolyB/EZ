@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3209 - names() on a flags enum
+ */
+// expect-error: E3209
+
+#flags
+const Perms enum { READ; WRITE; EXEC }
+
+do main() {
+    println(Perms.names())
+}

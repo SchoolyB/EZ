@@ -7,11 +7,11 @@
 
 import @mem
 
-do kill(a mem.Arena) { mem.destroy(a) }
+unsafe do kill(a mem.Arena) { mem.destroy(a) }
 
 do run(f func(mem.Arena), a mem.Arena) { f(a) }
 
-do main() {
+unsafe do main() {
     mut a = mem.arena(1024)
     mut p ^i64 = mem.alloc(a, 5)
     const g func(mem.Arena) = ()kill

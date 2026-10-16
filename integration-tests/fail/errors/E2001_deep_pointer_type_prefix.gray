@@ -1,0 +1,7 @@
+/*
+ * Error Test: E2001 - deep pointer type prefix
+ * Expected: "type nesting is too deep; maximum depth is 64"
+ */
+
+mut x ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^i64
+do main() {}

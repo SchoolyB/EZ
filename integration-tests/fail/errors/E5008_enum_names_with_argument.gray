@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5008 - names() takes no arguments
+ */
+// expect-error: E5008
+
+const Color enum { RED; GREEN }
+
+do main() {
+    println(Color.names(1))
+}

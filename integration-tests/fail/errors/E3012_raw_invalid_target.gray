@@ -3,6 +3,6 @@
  * Expected: "raw() requires a variable"
  */
 
-do main() {
+unsafe do main() {
     mut p ^i64 = raw(42)
 }

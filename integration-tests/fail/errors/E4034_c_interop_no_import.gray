@@ -3,6 +3,6 @@
  * Expected: error requiring extern import "header.h"
  */
 
-do main() {
+unsafe do main() {
     extern.puts("no import")
 }

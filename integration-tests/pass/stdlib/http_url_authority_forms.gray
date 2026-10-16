@@ -1,0 +1,48 @@
+import @http
+import @strings
+do main() {
+    mut headers map[string:string] = {:}
+    mut failures i64 = 0
+
+    // Well-formed URLs are accepted: the request is attempted, so the failure
+    // is a connection error, never InvalidInput.
+    mut urls [string] = {
+        "http://127.0.0.1:1?x=1",
+        "http://127.0.0.1?x=1",
+        "HTTP://127.0.0.1:1/",
+        "http://127.0.0.1:1#frag",
+        "http://127.0.0.1:1/ok#frag"
+    }
+    for_each url in urls {
+        mut _, err = http.get(url, headers)
+        if err == nil || err.code == ErrorCode.InvalidInput || err.code == ErrorCode.Unsupported {
+            println("unexpected result for ${url}")
+            failures += 1
+        }
+    }
+
+    // An over-long path or host is rejected, not truncated.
+    mut _, long_path_err = http.get("http://127.0.0.1:1/${strings.repeat("a", 3000)}", headers)
+    if long_path_err == nil || long_path_err.code != ErrorCode.InvalidInput {
+        println("long path not rejected")
+        failures += 1
+    }
+
+    mut _, long_host_err = http.get("http://${strings.repeat("h", 300)}:1/", headers)
+    if long_host_err == nil || long_host_err.code != ErrorCode.InvalidInput {
+        println("long host not rejected")
+        failures += 1
+    }
+
+    mut _, ipv6_err = http.get("http://[::1]:1/", headers)
+    if ipv6_err == nil || ipv6_err.code != ErrorCode.Unsupported {
+        println("ipv6 literal not Unsupported")
+        failures += 1
+    }
+
+    if failures > 0 {
+        panic("${failures} URL checks failed")
+    }
+
+    println("ALL TESTS PASSED")
+}

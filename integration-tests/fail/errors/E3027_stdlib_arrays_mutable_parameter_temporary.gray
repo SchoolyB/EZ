@@ -1,0 +1,9 @@
+import @arrays
+
+do make() -> [i64] {
+    return {3, 1, 2}
+}
+
+do main() {
+    arrays.append(make(), 4)
+}

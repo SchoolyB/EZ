@@ -115,15 +115,15 @@ The following words are reserved and may not be used as identifiers:
 as_long_as   break       case        continue    default
 defer        elif        else        ensure      for
 for_each     if          is          loop        or
-or_return    otherwise   return      switch      when
-while
+or_default   or_panic    or_return   otherwise   return
+switch       when        while
 ```
 
 **Declarations:**
 ```
 alias        const       do          enum        extern      fn
 generic      import      mut         new         private     struct
-use*         using
+unsafe       use*        using
 ```
 
 > 💡 **Tip:** `use*` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
@@ -134,7 +134,7 @@ bool         char        Error       func        map
 nil          SourceLocation          string
 ```
 
-`Error`, `ErrorCode`, and `SourceLocation` are compiler-provided types (returned by `error()` / fallible calls and by `here()`), so they are always reserved. A stdlib module's opaque type — `Database`, `Router`, `Thread`, `Mutex`, `Channel`, `Socket`, `Listener`, `SpinLock`, `Arena`, `UUID`, `HttpRequest`, `HttpResponse` — or provided enum — `OpenFlag` (`@io`), `Platform` (`@os`) — is reserved only while that module is imported; otherwise the name is free for a user struct or enum.
+`Error`, `ErrorCode`, and `SourceLocation` are compiler-provided types (returned by `error()` / fallible calls and by `here()`), so they are always reserved. A stdlib module's opaque type — `Database`, `Router`, `Thread`, `Mutex`, `Channel`, `Socket`, `Listener`, `SpinLock`, `Arena`, `UUID`, `HttpRequest`, `HttpResponse`, `ExecResult` — or provided enum — `OpenFlag` (`@io`), `Platform` (`@os`) — is reserved only while that module is imported; otherwise the name is free for a user struct or enum.
 
 **Sized types (reserved names):**
 ```
@@ -519,7 +519,7 @@ mut q ^i64 = raw(x)
 // q^ dereference has no nil-check — if q were nil, behavior is undefined
 ```
 
-`raw()` is considered unsafe and is intended for performance-critical code where nil checks are a measurable overhead and the programmer guarantees pointer validity. Prefer `addr()` in all other cases.
+`raw()` is considered unsafe and is intended for performance-critical code where nil checks are a measurable overhead and the programmer guarantees pointer validity. Prefer `addr()` in all other cases. `raw()` may only appear inside an `unsafe` block or an unsafe function (see 11.7).
 
 > 💡 **Tip:** You can dereference directly on a call result without storing the pointer first. `new(Foo)^` allocates a `Foo` and immediately gives you the value, handy when a function returns `^Type` and you want the value right at the call site: `return new(Foo)^` or `mut val = make_thing()^`.
 
@@ -835,7 +835,7 @@ const PaymentErrors enum { PAYMENT_DECLINED PAYMENT_CANCELED }
 println(PaymentErrors.PAYMENT_DECLINED)  // "PAYMENT_DECLINED" — error-code enums print their name
 ```
 
-A plain enum has no name table generated for it, so printing one falls back to its widened integer value — consistent with the earlier tip that a plain enum's underlying value is a real integer under the hood. String-backed and `#error_code`-tagged enums each carry an obvious human-readable form already (the string literal, or the compiler-owned error-code name table), so those print that instead.
+Printing a plain enum falls back to its widened integer value — consistent with the earlier tip that a plain enum's underlying value is a real integer under the hood. To get a variant's name, use `names()` (below). String-backed and `#error_code`-tagged enums each carry an obvious human-readable form already (the string literal, or the compiler-owned error-code name table), so those print that instead.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
@@ -856,6 +856,39 @@ Enum values are accessed using dot notation:
 ```gray
 mut dir = Direction.NORTH
 mut status = Status.TODO
+```
+
+**Variant names and values:**
+
+Every plain enum (not `#flags`, not tagged) has two generated functions, both in declaration order:
+
+```gray
+const TokenKind enum { INT; FLOAT; PLUS }
+
+TokenKind.names()      // {"INT", "FLOAT", "PLUS"}  ([string])
+TokenKind.variants()   // {TokenKind.INT, TokenKind.FLOAT, TokenKind.PLUS}  ([TokenKind])
+
+do kind_name(kind TokenKind) -> string {
+    return TokenKind.names()[cast(kind, i64)]
+}
+```
+
+`names()` returns each variant's identifier as written, also for a string-backed enum (`Status.names()` is `{"TODO", "DONE"}`, not the string values). The two arrays line up index for index. Calling either on a `#flags` or tagged enum is a compile error.
+
+`names()` is indexed by declaration position, not by value. `names()[cast(kind, i64)]` is correct only when each variant's value equals its position, as in `TokenKind` above. An enum with explicit values that differ from their positions needs the lookup to go through `variants()`, which lines up with `names()`:
+
+```gray
+const Level enum { LOW = 10; MID = 5; HIGH = 1 }
+
+do level_name(level Level) -> string {
+    mut found string = ""
+    for index in range(0, len(Level.variants())) {
+        if Level.variants()[index] == level {
+            found = Level.names()[index]
+        }
+    }
+    return found
+}
 ```
 
 **Implicit enum selector (`.VARIANT`):**
@@ -1157,6 +1190,18 @@ Variables declared this way:
 - Can be reassigned after declaration
 - Are scoped to their containing block
 
+Several names can be declared on one line. A type written after the last name applies to every name:
+
+```gray
+x, y, z i64 = 1, 2, 3      // one value per name
+mut a, b = "hi", 4         // types inferred separately
+x, y, z i64                // zero-initialized (warns for each name)
+ok, done, ready = false    // one value for every name
+lo, hi i64 = pair()        // a call returning two values
+```
+
+N names take N values, no value (a type is required), one value for every name, or one call returning N values. A different number of values is an error, and per-name types (`x i64, y f64 = 1, 2.0`) are not allowed with a list of values.
+
 A declaration with a type annotation but no value is allowed and zero-initializes the variable (`0`, `0.0`, `""`, `false`, and so on). Because a dropped `= value` is easy to miss, the compiler emits a warning in that case:
 
 ```gray
@@ -1174,6 +1219,7 @@ Constants are declared using the `const` keyword:
 const PI f64 = 3.14159
 const MAX_SIZE i64 = 100
 const origin = Point{x: 0, y: 0}
+const LOW, HIGH i64 = 1, 99     // several constants on one line
 ```
 
 > ⚠️ At file scope, `const` declarations of primitive types (integer and float types, `string`, `bool`, `char`) and arrays require explicit type annotations. Struct literals and enum values can still be inferred. Inside function bodies, type inference works for all `const` declarations.
@@ -1837,6 +1883,24 @@ do run() -> Error {
 ```
 
 When the call returns a non-nil error, `or_return` immediately returns from the enclosing function. Without explicit fallback values it returns zero values for the enclosing function's non-error slots plus the original error. A destructuring `or_return` binds every non-error slot the call returns; a statement with no binding discards them. Both the call and the enclosing function must have `Error` as their last return type.
+
+The `or_panic` keyword aborts instead of propagating. It follows a single-variable declaration whose call returns `(T, Error)`:
+
+```gray
+mut port = lookup("port") or_panic
+mut n = strconv.to_i64(text) or_panic "config must hold a port number"
+```
+
+When the call returns a non-nil error, the program panics with the error's message, or with the string written after `or_panic`. Otherwise the value is bound. Unlike `or_return`, it is legal in `main()` and in functions that return no `Error`. Both `mut` and `const` declarations are accepted.
+
+The `or_default` keyword substitutes fallback values when the call fails:
+
+```gray
+mut port = strconv.to_i64(text) or_default 8080
+mut low, high = bounds(text) or_default 0, 100
+```
+
+On success the call's values are used and the fallbacks are not evaluated. On failure the error is discarded and the fallbacks are used, one per non-error value the call returns, in return order and each of that slot's type. It is legal in `main()` and in functions that return no `Error`, needs a binding (a bare `call() or_default x` is an error), and is rejected on a call that is not fallible. To inspect the error, destructure it instead (`mut x, err = f()`).
 
 ---
 
@@ -2624,7 +2688,7 @@ if f != h { println("different") }  // different
 
 #### 7.6.6 Restrictions
 
-> 💡 **Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own `do` function if you need to pass them as a callback.
+> 💡 **Tip:** `()` and `ref()` only work with functions you declared with `do`. Built-in functions (`println`, `panic`, `copy`, etc.) and stdlib functions (`arrays.append`, `strings.contains`, etc.) cannot be turned into func references. Wrap them in your own function if you need to pass them as a callback.
 
 | Operation | Result |
 |-----------|--------|
@@ -3243,7 +3307,7 @@ running the child so output is not reordered.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `len` | `(collection T) -> i64` | Length of array, map, or string (byte length for strings, not character count) |
+| `len` | `(collection T) -> i64` | Length of a string (byte length, not character count), array, map, Channel (values buffered), Builder (bytes written), or range (iteration count) |
 | `type_of` | `(value T) -> string` | Returns the Grayscale type name as a string (e.g. `"i64"`, `"u64"`, `"f64"`, `"string"`, `"i128"`, `"u256"`). Accepts any type. |
 | `size_of` | `(Type) -> i64` | Size of type in bytes |
 | `fields` | `(instance T) -> [string]` | Returns the field names of a struct as an array of strings in declaration order. Accepts struct instances and pointers to structs. |
@@ -3385,6 +3449,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `fill` | `(&arr [T], value T, count i64)` | Fill array with N copies of value |
 | `sort_asc` | `(&arr [T])` | Sort ascending in-place |
 | `sort_desc` | `(&arr [T])` | Sort descending in-place |
+| `sort_by` | `(&arr [T], less func(T, T) -> bool)` | Sort in-place with a caller-supplied `less`; stable, works on any element type including structs |
 | `swap` | `(&arr [T], i i64, j i64)` | Swap the elements at `i` and `j` in place; panics if either index is out of bounds |
 
 #### Transformation Functions
@@ -3396,6 +3461,7 @@ The `==` and `!=` operators on arrays are not allowed; use `arrays.is_equal(a, b
 | `slice` | `(arr [T], start i64, end i64) -> [T]` | Return slice |
 | `concat` | `(a [T], b [T]) -> [T]` | Concatenate two arrays |
 | `deduplicate` | `(arr [T]) -> [T]` | Remove duplicate values |
+| `counts` | `(arr [T]) -> map[T:i64]` | Frequency table of each distinct element, keys in order of first occurrence; `T` must be a primitive, `string`, or enum |
 | `flatten` | `(arr [[T]]) -> [T]` | Flatten one level of nesting |
 | `split_every` | `(arr [T], size i64) -> [[T]]` | Split into sub-arrays of given size |
 | `pair` | `(a [T], b [T]) -> [[T]]` | Pair elements from two arrays |
@@ -3527,7 +3593,6 @@ plain (immutable) parameter is a compile error.
 | `builder_append_bytes` | `(&b Builder, data [u8]) -> void` | Append every byte of `data` |
 | `builder_append_i64` | `(&b Builder, n i64) -> void` | Append the decimal text of `n` |
 | `builder_append_line` | `(&b Builder, s string) -> void` | Append `s` followed by a newline |
-| `builder_len` | `(b Builder) -> i64` | Bytes accumulated so far |
 | `builder_clear` | `(&b Builder) -> void` | Reset length to zero, keeping capacity |
 | `build` | `(b Builder) -> string` | Copy the accumulated bytes into a new string; the builder stays usable |
 
@@ -3557,6 +3622,10 @@ do rows_to_csv(rows [[string]]) -> string {
 | `get_keys` | `(m map[K:V]) -> [K]` | Get all keys as an array |
 | `get_values` | `(m map[K:V]) -> [V]` | Get all values as an array |
 | `get_or_default` | `(m map[K:V], key K, default V) -> V` | Get value or return default if key missing |
+| `get_or_insert` | `(&m map[K:V], key K, default V) -> V` | Get the value, or store `default` under `key` and return it if the key is missing |
+| `sorted_keys` | `(m map[K:V]) -> [K]` | New array of the keys in ascending order; `K` must be `string`, an integer type, or `char`; strings order byte-wise, matching `strings.compare` |
+| `get_and_remove` | `(&m map[K:V], key K) -> (V, bool)` | Remove `key` and return `(value, true)`; if absent the map is unchanged and the result is the zero value of `V` with `false` |
+| `find_key` | `(m map[K:V], value V) -> (K, bool)` | Key of the first entry in insertion order whose value equals `value`, with `true`; otherwise the zero value of `K` with `false`; `V` must be a primitive or `string` |
 | `remove_key` | `(&m map[K:V], key K)` | Remove key-value pair; does nothing if key absent |
 | `clear` | `(&m map[K:V])` | Remove all entries |
 | `merge` | `(m1 map[K:V], m2 map[K:V]) -> map[K:V]` | Combine two maps (m2 overwrites on conflict) |
@@ -3726,10 +3795,11 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `parse` | `(s string, layout string) -> (i64, Error)` | Parse a time string into a Unix timestamp using strftime-style layout directives |
+| `from_parts` | `(year i64, month i64, day i64, hour i64, minute i64, second i64) -> (i64, Error)` | Build a UTC Unix timestamp from calendar parts, the inverse of `year`..`second`; an impossible date or time yields a non-nil error and `0` |
 | `parse_duration` | `(s string) -> (i64, Error)` | Parse `"1h30m"`, `"90s"`, `"2d"`, `"1h30m15s"` (units `s m h d`) into total seconds; bad input yields a non-nil error and `0` |
 
 **Behavior:**
-- `parse` and `parse_duration` are fallible functions. Destructure the result (`mut ts, err = time.parse(...)`).
+- `parse`, `parse_duration` and `from_parts` are fallible functions. Destructure the result (`mut ts, err = time.parse(...)`).
 - `mut ts, err = time.parse(...)` — inspect `err` (non-nil on invalid input).
 - `mut ts, _ = time.parse(...)` — discard the error; on invalid input `ts` is `0`.
 
@@ -3741,9 +3811,13 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `since` | `(t i64) -> i64` | Seconds elapsed from t to now; equivalent to `diff(t, now())` |
 | `add_days` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` days (`n` may be negative); pure Unix arithmetic, no calendar/DST logic |
 | `add_hours` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` hours |
+| `add_minutes` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` minutes |
+| `add_months` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` calendar months (UTC); day and time of day are kept, and the day clamps to the target month's last day (Jan 31 + 1 month is Feb 28, or Feb 29 in a leap year); panics on overflow |
 | `add_seconds` | `(timestamp i64, n i64) -> i64` | `timestamp` shifted by `n` seconds |
 | `start_of_day` | `(timestamp i64) -> i64` | Unix timestamp of `00:00:00` UTC on the same day |
 | `end_of_day` | `(timestamp i64) -> i64` | Unix timestamp of `23:59:59` UTC on the same day (`start_of_day + 86399`) |
+| `start_of_month` | `(timestamp i64) -> i64` | Unix timestamp of `00:00:00` UTC on the first day of the same month |
+| `end_of_month` | `(timestamp i64) -> i64` | Unix timestamp of `23:59:59` UTC on the last day of the same month; leap-year aware |
 
 #### Performance Timing
 
@@ -3762,8 +3836,10 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `rand_bool` | `() -> bool` | Random boolean |
 | `rand_u8` | `() -> u8` | Random u8 [0, 255] |
 | `rand_char` | `() -> char` | Random printable char |
-| `rand_char` | `(min char, max char) -> char` | Random char [min, max); panics if `min` is not less than `max` |
+| `rand_char` | `(min char, max char) -> char` | Random char [min, max), never a surrogate (U+D800–U+DFFF); panics if `min` is not less than `max` or the range holds only surrogates |
 | `rand_string` | `(length i64, alphabet string) -> string` | String of `length` characters drawn uniformly from `alphabet`; `length` 0 returns `""`; panics if `alphabet` is empty and `length > 0` |
+| `rand_bytes` | `(n i64) -> [u8]` | `n` random bytes from the module's RNG (reproducible with `seed`, not cryptographically secure); `n` 0 returns an empty array; panics if `n` is negative |
+| `roll_dice` | `(count i64, sides i64) -> i64` | Sum of `count` rolls of a `sides`-sided die, each uniform in `1..sides`; panics if `count` or `sides` is less than 1 |
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n i64) -> [T]` | Return n unique random elements |
@@ -3962,20 +4038,29 @@ io.read_file("/etc/hosts")            // absolute path, unaffected by cwd
 | `arch` | `() -> string` | Get CPU architecture |
 | `cpu_count` | `() -> i64` | Number of logical CPUs available to the process; falls back to 1 |
 | `is_tty` | `() -> bool` | True if standard output is a terminal (not a file or pipe) |
+| `cpu_usage` | `(interval_ms i64) -> (f64, Error)` | Busy percentage (0.0–100.0) of all logical CPUs over a window of `interval_ms`; blocks for the window; panics if `interval_ms` is less than 1 |
+| `memory_usage` | `() -> (i64, i64, Error)` | `(used, total)` bytes of physical memory; `used` excludes memory available to new allocations |
+| `disk_usage` | `(path string) -> (i64, i64, Error)` | `(used, total)` bytes of the filesystem containing `path`; a missing path returns `(0, 0)` and a `NotFound` Error |
+| `load_average` | `() -> ([f64], Error)` | 1, 5 and 15 minute load averages |
+
+The four live metrics are fallible. macOS and Linux are supported; on any other platform (Windows) each returns an Error with code `Unsupported`.
 
 #### Process Execution
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `exec` | `(cmd string, args [string]) -> (i64, string, string, bool)` | Run a subprocess. Returns `(exit_code, stdout, stderr, ok)`. `ok` is `false` if the process could not be launched. stdout and stderr are captured. POSIX only. |
+| `exec` | `(cmd string, args [string]) -> (ExecResult, Error)` | Run a subprocess and capture its output. `err` is non-nil only when the process could not be launched; a non-zero exit code is not an error. |
+
+`ExecResult` has the fields `exit_code` (`i64`), `stdout` (`string`) and `stderr` (`string`). It is reserved as a type name only while `@os` is imported.
 
 ```gray
-mut code, stdout, stderr, ok = os.exec("ls", {"-l", "/tmp"})
-if !ok {
-    println("failed to launch")
+mut result, err = os.exec("ls", {"-l", "/tmp"})
+if err != nil {
+    println("failed to launch: ${err.message}")
+    return
 }
-if ok && code != 0 {
-    println("exited with error: ${stderr}")
+if result.exit_code != 0 {
+    println("exited with error: ${result.stderr}")
 }
 ```
 
@@ -4005,12 +4090,12 @@ HTTP client for making requests. Currently supports HTTP only.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string, headers map[string:string]) -> (HttpResponse, Error)` | GET request — always use destructuring |
-| `post` | `(url string, body string, headers map[string:string]) -> (HttpResponse, Error)` | POST request — always use destructuring |
-| `put` | `(url string, body string, headers map[string:string]) -> (HttpResponse, Error)` | PUT request — always use destructuring |
-| `patch` | `(url string, body string, headers map[string:string]) -> (HttpResponse, Error)` | PATCH request — always use destructuring |
-| `delete` | `(url string, headers map[string:string]) -> (HttpResponse, Error)` | DELETE request — always use destructuring |
-| `head` | `(url string, headers map[string:string]) -> (HttpResponse, Error)` | HEAD request — always use destructuring |
+| `get` | `(url string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | GET request — always use destructuring |
+| `post` | `(url string, body string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | POST request — always use destructuring |
+| `put` | `(url string, body string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | PUT request — always use destructuring |
+| `patch` | `(url string, body string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | PATCH request — always use destructuring |
+| `delete` | `(url string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | DELETE request — always use destructuring |
+| `head` | `(url string, headers map[string:string] = {:}) -> (HttpResponse, Error)` | HEAD request — always use destructuring |
 
 `get`, `post`, `put`, `patch`, `delete`, and `head` are fallible: destructure the result (`mut resp, err = ...` or `mut resp, _ = ...`).
 
@@ -4018,7 +4103,7 @@ A response larger than 1 MB (1,048,576 bytes, headers included) returns an Error
 
 A request with a body sends `Content-Type: application/x-www-form-urlencoded` only when the caller's headers name no `Content-Type` (names are compared case-insensitively). `Host`, `Content-Length`, and `Connection` are always set by the client; a caller entry for any of them is not sent.
 
-A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
+A failed request returns an Error with a fixed message and a specific code: `Unsupported` for an `https://` URL or an IPv6 address literal, `InvalidInput` for a malformed URL, the system's code for a failed connection (for example `ConnectionRefused`), `ParseFailure` for a response that is not HTTP, and `Timeout` when the 10 second read timeout elapses.
 
 #### HttpResponse Type
 
@@ -4298,11 +4383,12 @@ TCP sockets and DNS resolution.
 | `accept` | `(listener Listener) -> (Socket, Error)` | Accept an incoming connection — always use destructuring |
 | `send` | `(sock Socket, data string) -> (i64, Error)` | Send all of `data` over a socket, looping over short writes; returns `len(data)` on success, or the bytes written so far with an Error — always use destructuring |
 | `receive` | `(sock Socket, max_bytes i64) -> (string, Error)` | Receive up to `max_bytes` bytes from a socket — always use destructuring |
+| `receive_line` | `(sock Socket, max_bytes i64) -> (string, Error)` | Receive one line, without its trailing `\n` or `\r\n`; bytes read past the newline stay on the socket for the next receive. A line over `max_bytes` is `OutOfRange`; a close before any byte is `Closed`, a close after a partial line returns that partial line — always use destructuring |
 | `close` | `(sock Socket)` | Close a socket or listener |
 | `set_timeout` | `(sock Socket, ms i64)` | Set read/write timeout in milliseconds |
 | `resolve` | `(hostname string) -> (string, Error)` | Resolve a hostname to an IP address — always use destructuring |
 
-`connect`, `listen`, `accept`, `send`, `receive`, and `resolve` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
+`connect`, `listen`, `accept`, `send`, `receive`, `receive_line`, and `resolve` are fallible: destructure the result (`mut v, err = ...` or `mut v, _ = ...`).
 
 ### 9.21 Threads Module (`@threads`)
 
@@ -4632,6 +4718,8 @@ non-ASCII codepoints (`char` is a full Unicode codepoint) are returned unchanged
 | `is_punct` | `(c char) -> bool` | Printable ASCII that is not a letter, digit, or space |
 | `is_hex_digit` | `(c char) -> bool` | `0`–`9`, `a`–`f`, or `A`–`F` |
 | `is_word_char` | `(c char) -> bool` | Identifier char: `[A-Za-z0-9_]` |
+| `is_vowel` | `(c char) -> bool` | `a e i o u` in either case; `y` is not a vowel |
+| `is_consonant` | `(c char) -> bool` | ASCII letter that is not a vowel |
 
 Every predicate is ASCII-only: a non-ASCII codepoint always returns `false`.
 
@@ -4640,6 +4728,7 @@ Every predicate is ASCII-only: a non-ASCII codepoint always returns `false`.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `escape` | `(c char) -> string` | Printable rendering for debugging or codegen |
+| `mirror` | `(c char) -> char` | Swaps `(` `)`, `[` `]`, `{` `}`, `<` `>` with their partner; every other codepoint is unchanged |
 
 `escape` renders backslash and the common control characters (`\n`, `\t`, `\r`, `\0`) as
 two-character escapes, other control characters and DEL as `\xNN`, non-ASCII codepoints as
@@ -4975,6 +5064,34 @@ Grayscale is **memory safe by default**. ASBAM prevents common memory errors aut
 
 For programs that stay in the safe subset — no `@mem`, no `raw()`, no threading, no C interop — the pointer checker makes use-after-free a compile error, not a runtime hazard. `@mem`, `raw()`, threading, and `extern import` are Grayscale's explicit unsafe opt-outs; reaching for one of them is what puts memory safety back in the programmer's hands.
 
+**The `unsafe` marker.** The four opt-outs are lexically marked. `raw()`, every function of the `@mem` and `@threads` modules, and every `extern.` call is a compile error (E5065) unless it sits inside an `unsafe { ... }` block or an unsafe function:
+
+```gray
+import @mem
+
+do read_fresh() -> i64 {
+    unsafe {
+        mut arena = mem.arena(4096)
+        mut slot = mem.init(arena, i64)
+        slot^ = 42
+        mut result i64 = slot^
+        mem.destroy(arena)
+        return result
+    }
+}
+
+private unsafe do bump(counter ^i64) {
+    mut shared = raw(counter^)
+    shared^ += 1
+}
+```
+
+- An `unsafe { ... }` block is an ordinary scope: names declared inside it end with it, and `return`, `break`, and `continue` behave as in any other block.
+- `unsafe do` marks the whole function body. With `private`, the order is `private unsafe do`.
+- The marker sits where the unsafe surface is touched. A function that uses an unsafe primitive inside its own `unsafe` block or `unsafe do` body does not force its callers to open one.
+- `import @mem`, `import @threads`, and `extern import` stay legal at file scope; the error is raised at the call.
+- An `unsafe` block nested inside another `unsafe` block or unsafe function is legal and redundant.
+
 ### 11.8 Under the Hood
 
 ASBAM is implemented using arena allocators. An arena is a block of memory that grows as needed and is freed all at once. There is no per-object deallocation — when a scope ends, its entire arena is discarded in a single O(1) operation.
@@ -5090,6 +5207,7 @@ The `gray` command-line tool provides the following commands:
 | `gray version` | Show version information |
 | `gray cross build <file.gray>` | Cross-compile for another platform via Zig |
 | `gray cross targets` | List supported cross-compilation targets |
+| `gray completion <shell>` | Generate a shell tab-completion script |
 
 ### Global Flags
 
@@ -5101,6 +5219,19 @@ These flags are available on `gray <file>`, `build`, `check`, and `watch`:
 | `--no-color` | Disable colored diagnostic output. |
 | `--arena-limit=<size>` | Maximum arena memory per program. Accepts a size with unit suffix: `KB`, `MB`, or `GB` (e.g. `512MB`, `1GB`). Defaults to `1GB`. When exceeded at runtime, the program panics. |
 | `--cc <compiler>` | C compiler for this invocation (see [C Compiler](#c-compiler)). |
+
+### Command Help
+
+Every command prints its own help. `gray [command] --help` and `gray help [command]` are equivalent.
+
+```bash
+gray build --help
+gray help build
+```
+
+The output has the command's description and examples, then its usage line and its flags. For a subcommand, name the parent first: `gray cross build --help` or `gray help cross build`.
+
+`gray help` with no command, like `gray --help`, prints the root help: the command list and the global flags.
 
 ### C Compiler
 
@@ -5115,6 +5246,18 @@ GRAY_CC=tcc gray main.gray
 ```bash
 gray main.gray --cc tcc
 gray build main.gray -o app --cc /usr/local/bin/clang
+```
+
+`GRAY_CC` and `CC` are different settings. `GRAY_CC` chooses the compiler `gray` uses to compile `.gray` programs. When building Grayscale from source, `CC` chooses the compiler `make` uses to build `grayc` and the runtime, and `gray` falls back to `$CC` only when `$GRAY_CC` is unset.
+
+```bash
+CC=clang GRAY_CC=gcc make build   # grayc and the runtime built with clang
+```
+
+`make help` lists every make target. `make help TARGET=<name>` prints what one target does, the variables it reads and an example. `TARGET` is a variable because make rejects `--` options before the Makefile is read and accepts only one goal. An unknown name fails with an `Unknown target` error, and `TARGET=` on any target other than `help` is ignored.
+
+```bash
+make help TARGET=build
 ```
 
 ### 13.1 `gray <file.gray>`
@@ -5163,8 +5306,10 @@ gray build main.gray --arena-limit=256MB
 Type-check a file or project without compiling. Returns a non-zero exit code if errors are found.
 
 ```
-gray check <file.gray | directory> [flags]
+gray check <file.gray | directory | directory/...> [flags]
 ```
+
+A directory is checked as one merged module (§8.2); files directly in it form a module, and `dir/...` additionally checks each subdirectory as its own module. Unlike `fmt`, `doc` and `test`, which handle each file independently, `check` merges the files in a directory, so a directory of standalone programs fails with a duplicate definition. `check` does not require `main`.
 
 | Flag | Description |
 |------|-------------|
@@ -5173,6 +5318,7 @@ gray check <file.gray | directory> [flags]
 ```bash
 gray check main.gray
 gray check src/
+gray check src/...
 ```
 
 ### 13.4 `gray test`
@@ -5374,8 +5520,8 @@ gray install <version>
 ```
 
 ```bash
-gray install 3.0.0
-gray install 3.1.0-beta.2
+gray install v0.11.5
+gray install "grayscale: v0.11.5"
 ```
 
 ### 13.13 `gray version`
@@ -5407,7 +5553,7 @@ gray cross build <file.gray> --target <target> [flags]
 | Flag | Description |
 |------|-------------|
 | `--target <target>` | Target platform (required) |
-| `-o, --output <name>` | Output binary name |
+| `-o, --output <name>` | Output binary name (default: the source file name without its extension, followed by `-` and the target, with `.exe` appended for Windows targets, e.g. `main-linux-arm64`) |
 | `--emit-c` | Emit generated C source to a file (no binary) |
 | `--time` | Show compilation timing |
 | `-q, --quiet <codes>` | Suppress warnings (`all` or comma-separated codes) |
@@ -5440,6 +5586,39 @@ List all supported cross-compilation targets and their corresponding Zig triples
 ```
 gray cross targets
 ```
+
+### 13.17 `gray completion`
+
+Generate a tab-completion script for `bash`, `zsh`, `fish`, or `powershell`.
+
+```
+gray completion <shell>
+```
+
+`make install`, `gray update`, and `gray install` install the script for the shell named by `$SHELL` (PowerShell on Windows), and `gray completion install` does the same on demand. No rc file is modified; when the script cannot be written, one line names the command to run instead.
+
+| Shell | Installed to |
+|-------|--------------|
+| zsh | `_gray` in the first writable directory on zsh's `fpath` |
+| bash | `$XDG_DATA_HOME/bash-completion/completions/gray` (default `~/.local/share/...`) |
+| fish | `$XDG_CONFIG_HOME/fish/completions/gray.fish` (default `~/.config/...`) |
+| powershell | `~/.gray/completions/gray.ps1` |
+
+To load the script by hand instead:
+
+| Shell | Setup |
+|-------|-------|
+| zsh | add `source <(gray completion zsh)` to `~/.zshrc`, after `compinit` has run |
+| bash | add `source <(gray completion bash)` to `~/.bashrc` |
+| fish | `gray completion fish > ~/.config/fish/completions/gray.fish` |
+| powershell | add `gray completion powershell \| Out-String \| Invoke-Expression` to your profile |
+
+Once loaded, Tab completes:
+
+- subcommand names
+- `.gray` and `.grayscale` files and directories, for `gray <file>` and the commands that take source paths (`build`, `check`, `watch`, `fmt`, `doc`, `test`, `cross build`)
+- flag values for `gray new --template`, `gray new --server-type`, and `gray cross build --target`
+- names for `gray man`, such as `gray man os.exec`
 
 ---
 

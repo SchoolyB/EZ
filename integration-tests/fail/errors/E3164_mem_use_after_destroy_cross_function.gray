@@ -7,11 +7,11 @@
 
 import @mem
 
-do cleanup(a Arena) {
+unsafe do cleanup(a Arena) {
     mem.destroy(a)
 }
 
-do main() {
+unsafe do main() {
     mut a = mem.arena(1024)
     mut p ^i64 = mem.alloc(a, 42)
     cleanup(a)

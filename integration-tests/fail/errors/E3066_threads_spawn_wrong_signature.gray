@@ -10,7 +10,7 @@ do worker(n i64) {
     println(n)
 }
 
-do main() {
+unsafe do main() {
     mut t Thread = threads.spawn(()worker)
     threads.join(t)
 }

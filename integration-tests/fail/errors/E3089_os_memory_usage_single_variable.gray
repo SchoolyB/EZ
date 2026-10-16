@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3089 - fallible os.memory_usage assigned to a single variable
+ */
+
+// expect-error: E3089
+
+import @os
+
+do main() {
+    mut result = os.memory_usage()
+    println(result)
+}

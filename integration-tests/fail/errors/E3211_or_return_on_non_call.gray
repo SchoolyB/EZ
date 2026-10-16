@@ -1,0 +1,11 @@
+/* Error Test: E3211 - or_return on a non-call expression */
+do first() -> (i64, Error) {
+    mut n = 5 or_return
+    return n, nil
+}
+
+do main() {
+    mut value, failure = first()
+    println(value)
+    println(failure)
+}

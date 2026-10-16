@@ -1,0 +1,5 @@
+import @random
+
+do main() {
+    println(random.rand_char(cast(55296, char), cast(57344, char)))
+}

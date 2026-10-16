@@ -17,6 +17,7 @@
 #include "../util/constants.h"
 #include <time.h>
 #include <string.h>
+#include <limits.h>
 
 #define SECONDS_PER_DAY 86400
 #define SECONDS_PER_HOUR 3600
@@ -147,7 +148,56 @@ GrayResult_i64 gray_time_parse_result(GrayString text, GrayString layout) {
     return (GrayResult_i64){timestamp, NULL};
 }
 
-int64_t gray_time_diff(int64_t start, int64_t end_index) { return gray_sub_check(end_index, start, __FILE__, __LINE__); }
+static GrayResult_i64 time_from_parts_failure(const char *message) {
+    GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_OutOfRange, gray_string_lit(message));
+    return (GrayResult_i64){0, error};
+}
+
+GrayResult_i64 gray_time_from_parts_result(int64_t year, int64_t month, int64_t day,
+                                           int64_t hour, int64_t minute, int64_t second) {
+    /* struct tm holds the year as an int offset from 1900, so that is the range
+     * year() can read back. */
+    if (year < (int64_t)INT_MIN + 1900 || year > (int64_t)INT_MAX + 1900)
+        return time_from_parts_failure("time.from_parts: year is out of range");
+    if (month < 1 || month > 12)
+        return time_from_parts_failure("time.from_parts: month must be 1-12");
+    if (day < 1 || day > gray_time_days_in_month(year, month))
+        return time_from_parts_failure("time.from_parts: day does not exist in that month");
+    if (hour < 0 || hour > 23)
+        return time_from_parts_failure("time.from_parts: hour must be 0-23");
+    if (minute < 0 || minute > 59)
+        return time_from_parts_failure("time.from_parts: minute must be 0-59");
+    if (second < 0 || second > 59)
+        return time_from_parts_failure("time.from_parts: second must be 0-59");
+
+    return (GrayResult_i64){gray_days_from_civil(year, (int)month, (int)day) * SECONDS_PER_DAY +
+                            hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second, NULL};
+}
+
+/* Checked i64 arithmetic that panics at the .gray call site, naming the
+ * time function whose result left the range. */
+static int64_t time_checked_add(const char *function_name, int64_t left, int64_t right) {
+    int64_t result;
+    if (gray_add_overflows_i64(left, right, &result))
+        gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
+    return result;
+}
+
+static int64_t time_checked_sub(const char *function_name, int64_t left, int64_t right) {
+    int64_t result;
+    if (gray_sub_overflows_i64(left, right, &result))
+        gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
+    return result;
+}
+
+static int64_t time_checked_mul(const char *function_name, int64_t left, int64_t right) {
+    int64_t result;
+    if (gray_mul_overflows_i64(left, right, &result))
+        gray_panic_code("P0157", "time.%s: result exceeds the range of i64", function_name);
+    return result;
+}
+
+int64_t gray_time_diff(int64_t start, int64_t end_index) { return time_checked_sub("diff", end_index, start); }
 
 int64_t gray_time_since(int64_t start) { return gray_time_diff(start, gray_time_now()); }
 
@@ -255,12 +305,59 @@ GrayString gray_time_format_duration(GrayArena *arena, int64_t seconds) {
     return gray_string_new(arena, buffer, position);
 }
 
-int64_t gray_time_add_days(int64_t timestamp, int64_t days)       { return gray_add_check(timestamp, gray_mul_check(days, SECONDS_PER_DAY, __FILE__, __LINE__), __FILE__, __LINE__); }
-int64_t gray_time_add_hours(int64_t timestamp, int64_t hours)     { return gray_add_check(timestamp, gray_mul_check(hours, SECONDS_PER_HOUR, __FILE__, __LINE__), __FILE__, __LINE__); }
-int64_t gray_time_add_seconds(int64_t timestamp, int64_t seconds) { return gray_add_check(timestamp, seconds, __FILE__, __LINE__); }
+int64_t gray_time_add_days(int64_t timestamp, int64_t days)       { return time_checked_add("add_days", timestamp, time_checked_mul("add_days", days, SECONDS_PER_DAY)); }
+int64_t gray_time_add_hours(int64_t timestamp, int64_t hours)     { return time_checked_add("add_hours", timestamp, time_checked_mul("add_hours", hours, SECONDS_PER_HOUR)); }
+int64_t gray_time_add_minutes(int64_t timestamp, int64_t minutes) { return time_checked_add("add_minutes", timestamp, time_checked_mul("add_minutes", minutes, SECONDS_PER_MINUTE)); }
+int64_t gray_time_add_seconds(int64_t timestamp, int64_t seconds) { return time_checked_add("add_seconds", timestamp, seconds); }
 
-int64_t gray_time_start_of_day(int64_t timestamp) { return gray_mul_check(time_floor_divide(timestamp, SECONDS_PER_DAY), SECONDS_PER_DAY, __FILE__, __LINE__); }
-int64_t gray_time_end_of_day(int64_t timestamp)   { return gray_add_check(gray_time_start_of_day(timestamp), SECONDS_PER_DAY - 1, __FILE__, __LINE__); }
+static int64_t time_start_of_day(const char *function_name, int64_t timestamp) {
+    return time_checked_mul(function_name, time_floor_divide(timestamp, SECONDS_PER_DAY), SECONDS_PER_DAY);
+}
+
+int64_t gray_time_start_of_day(int64_t timestamp) { return time_start_of_day("start_of_day", timestamp); }
+int64_t gray_time_end_of_day(int64_t timestamp)   { return time_checked_add("end_of_day", time_start_of_day("end_of_day", timestamp), SECONDS_PER_DAY - 1); }
+
+/* Seconds into the day of `timestamp`, 0..86399. */
+static int64_t time_seconds_into_day(int64_t timestamp) {
+    return timestamp - time_floor_divide(timestamp, SECONDS_PER_DAY) * SECONDS_PER_DAY;
+}
+
+/* Seconds at 00:00:00 UTC on the first day of the month `month_index` counts
+ * from year 0 (year * 12 + month - 1). The year-length product is the range
+ * guard: it overflows, and panics, exactly when the date is past i64 seconds. */
+static int64_t time_start_of_month_index(const char *function_name, int64_t month_index) {
+    int64_t year = time_floor_divide(month_index, 12);
+    int month = (int)(month_index - year * 12) + 1;
+    time_checked_mul(function_name, year, 31556952);
+    return time_checked_mul(function_name, gray_days_from_civil(year, month, 1), SECONDS_PER_DAY);
+}
+
+static int64_t time_month_index(int64_t timestamp) {
+    struct tm *parts = get_time_parts(timestamp);
+    return (int64_t)(parts->tm_year + 1900) * 12 + parts->tm_mon;
+}
+
+int64_t gray_time_start_of_month(int64_t timestamp) {
+    return time_start_of_month_index("start_of_month", time_month_index(timestamp));
+}
+
+int64_t gray_time_end_of_month(int64_t timestamp) {
+    return time_checked_add("end_of_month", time_start_of_month_index("end_of_month", time_month_index(timestamp) + 1), -1);
+}
+
+int64_t gray_time_add_months(int64_t timestamp, int64_t months) {
+    struct tm *parts = get_time_parts(timestamp);
+    int64_t month_index = time_checked_add("add_months", (int64_t)(parts->tm_year + 1900) * 12 + parts->tm_mon, months);
+    int64_t year = time_floor_divide(month_index, 12);
+    int month = (int)(month_index - year * 12) + 1;
+    int day = parts->tm_mday;
+    int last_day = (int)gray_time_days_in_month(year, month);
+    if (day > last_day) day = last_day;
+    time_checked_mul("add_months", year, 31556952);
+    int64_t days = gray_days_from_civil(year, month, day);
+    return time_checked_add("add_months", time_checked_mul("add_months", days, SECONDS_PER_DAY),
+                            time_seconds_into_day(timestamp));
+}
 
 int64_t gray_time_days_in_month(int64_t year, int64_t month) {
     if (month < 1 || month > 12) {

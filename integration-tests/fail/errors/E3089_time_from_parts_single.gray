@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3089 - time.from_parts can fail; the Error must be handled or discarded
+ */
+// expect-error: E3089
+
+import @time
+
+do main() {
+    mut ts i64 = time.from_parts(2026, 10, 12, 9, 30, 0)
+    println(ts)
+}

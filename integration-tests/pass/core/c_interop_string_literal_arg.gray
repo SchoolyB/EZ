@@ -10,7 +10,7 @@ extern import "string.h"
 extern import "stdlib.h"
 extern import "stdio.h"
 
-do main() {
+unsafe do main() {
     println("=== C interop: string literal argument ===")
     mut passed i64 = 0
     mut failed i64 = 0

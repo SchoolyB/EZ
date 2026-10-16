@@ -32,7 +32,7 @@ do w1() { worker(1) }
 do w2() { worker(2) }
 do w3() { worker(3) }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

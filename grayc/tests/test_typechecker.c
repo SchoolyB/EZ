@@ -902,6 +902,39 @@ static void test_error_E3045_or_return_no_error(void) {
     diagnostic_destroy(diagnostics);
 }
 
+static void test_error_E3045_or_default_no_error(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "do get() -> i64 { return 42 }\n"
+        "do main() { mut x = get() or_default 1 }");
+    ASSERT(has_error_code(diagnostics, "E3045"));
+    diagnostic_destroy(diagnostics);
+}
+
+static void test_error_E3207_or_default_count(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "do get() -> (i64, Error) { return 1, nil }\n"
+        "do main() { mut x = get() or_default 1, 2 }");
+    ASSERT(has_error_code(diagnostics, "E3207"));
+    diagnostic_destroy(diagnostics);
+}
+
+static void test_error_E3208_or_default_type(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "do get() -> (i64, Error) { return 1, nil }\n"
+        "do main() { mut x = get() or_default \"text\" }");
+    ASSERT(has_error_code(diagnostics, "E3208"));
+    diagnostic_destroy(diagnostics);
+}
+
+static void test_error_E3209_enum_names_on_flags_enum(void) {
+    DiagnosticList *diagnostics = typecheck_diagnostics(
+        "#flags\n"
+        "const Perms enum { READ; WRITE }\n"
+        "do main() { println(Perms.names()) }");
+    ASSERT(has_error_code(diagnostics, "E3209"));
+    diagnostic_destroy(diagnostics);
+}
+
 /* --- E4xxx: Additional name errors --- */
 
 static void test_error_E4014_shadow_module(void) {
@@ -2084,7 +2117,7 @@ static void test_no_false_positive_mem_struct_field_read_before_destroy(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "import @mem\n"
         "const Box struct {\n p ^i64\n}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut a = mem.arena(1024)\n"
         "  mut b Box = Box{p: mem.alloc(a, 42)}\n"
         "  println(b.p^)\n"
@@ -2118,10 +2151,10 @@ static void test_error_E3164_mem_use_after_destroy_return_forwarded(void) {
 static void test_no_false_positive_mem_return_forwarded_read_before_destroy(void) {
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "import @mem\n"
-        "do make(a Arena) -> ^i64 {\n"
+        "unsafe do make(a Arena) -> ^i64 {\n"
         "  return mem.alloc(a, 42)\n"
         "}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut a = mem.arena(1024)\n"
         "  mut p ^i64 = make(a)\n"
         "  println(p^)\n"
@@ -2168,7 +2201,7 @@ static void test_no_false_positive_mem_arena_in_struct_field_read_before_destroy
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "import @mem\n"
         "const Holder struct {\n a Arena\n}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut h Holder = Holder{a: mem.arena(1024)}\n"
         "  mut p ^i64 = mem.alloc(h.a, 42)\n"
         "  println(p^)\n"
@@ -2205,10 +2238,10 @@ static void test_no_false_positive_mem_cross_function_field_destroy_read_before(
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "import @mem\n"
         "const Holder struct {\n a Arena\n}\n"
-        "do cleanup(h Holder) {\n"
+        "unsafe do cleanup(h Holder) {\n"
         "  mem.destroy(h.a)\n"
         "}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut h Holder = Holder{a: mem.arena(1024)}\n"
         "  mut p ^i64 = mem.alloc(h.a, 42)\n"
         "  println(p^)\n"
@@ -2243,10 +2276,10 @@ static void test_no_false_positive_mem_return_forwarded_in_literal_read_before(v
     DiagnosticList *diagnostics = typecheck_diagnostics(
         "import @mem\n"
         "const Box struct {\n p ^i64\n}\n"
-        "do make(a Arena) -> Box {\n"
+        "unsafe do make(a Arena) -> Box {\n"
         "  return Box{p: mem.alloc(a, 42)}\n"
         "}\n"
-        "do main() {\n"
+        "unsafe do main() {\n"
         "  mut a = mem.arena(1024)\n"
         "  mut b Box = make(a)\n"
         "  println(b.p^)\n"
@@ -2923,6 +2956,10 @@ int main(void) {
     RUN_TEST(test_error_E3043_invalid_cast);
     RUN_TEST(test_error_E3167_cast_pointer_reinterpret);
     RUN_TEST(test_error_E3045_or_return_no_error);
+    RUN_TEST(test_error_E3209_enum_names_on_flags_enum);
+    RUN_TEST(test_error_E3045_or_default_no_error);
+    RUN_TEST(test_error_E3207_or_default_count);
+    RUN_TEST(test_error_E3208_or_default_type);
 
     /* E4xxx: Additional name errors */
     RUN_TEST(test_error_E4014_shadow_module);

@@ -195,6 +195,32 @@ bool gray_chars_is_hex_digit(int32_t codepoint);
  */
 bool gray_chars_is_word_char(int32_t codepoint);
 
+/*@man is_vowel
+ *@module chars
+ *@group Classification
+ *@sig is_vowel(c char) -> bool
+ *@desc True when c is one of a, e, i, o, u in either case. y is not a vowel. Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_vowel('E'))   // true
+ *   println(chars.is_vowel('y'))   // false
+ *@end
+ */
+bool gray_chars_is_vowel(int32_t codepoint);
+
+/*@man is_consonant
+ *@module chars
+ *@group Classification
+ *@sig is_consonant(c char) -> bool
+ *@desc True when c is an ASCII letter that is not a vowel, so y is a consonant. Non-ASCII codepoints always return false. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.is_consonant('y'))   // true
+ *   println(chars.is_consonant('a'))   // false
+ *@end
+ */
+bool gray_chars_is_consonant(int32_t codepoint);
+
 /*@man escape
  *@module chars
  *@group Transform
@@ -207,6 +233,19 @@ bool gray_chars_is_word_char(int32_t codepoint);
  *@end
  */
 GrayString gray_chars_escape(GrayArena *arena, int32_t codepoint);
+
+/*@man mirror
+ *@module chars
+ *@group Transform
+ *@sig mirror(c char) -> char
+ *@desc Swaps a bracket with its partner in both directions: ( and ), [ and ], { and }, < and >. Every other codepoint is returned unchanged. Never fails.
+ *@example
+ *   import @chars
+ *   println(chars.mirror('['))   // ]
+ *   println(chars.mirror('a'))   // a
+ *@end
+ */
+int32_t gray_chars_mirror(int32_t codepoint);
 
 /*@man width
  *@module chars

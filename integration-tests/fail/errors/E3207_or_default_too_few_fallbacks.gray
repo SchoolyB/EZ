@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3207 - one fallback for a call returning two values
+ */
+// expect-error: E3207
+
+do pair() -> (i64, string, Error) {
+    return 1, "a", nil
+}
+
+do main() {
+    mut a, b = pair() or_default 1
+    println(a)
+    println(b)
+}

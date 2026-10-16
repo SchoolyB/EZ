@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5007 - get_and_remove on an immutable map parameter
+ */
+
+// expect-error: E5007
+
+import @maps
+
+do touch(owner map[string:i64]) -> i64 {
+    mut age, ok = maps.get_and_remove(owner, "al")
+    return age
+}
+
+do main() {
+    mut owner map[string:i64] = {"al": 27}
+    println(touch(owner))
+}

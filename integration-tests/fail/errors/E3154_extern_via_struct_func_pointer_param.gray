@@ -12,7 +12,7 @@ extern import "stdlib.h"
 const Wrapper struct {
     tag i64
 
-    do do_free(self Wrapper, p ^i64) {
+    unsafe do do_free(self Wrapper, p ^i64) {
         extern.free(p)
     }
 }

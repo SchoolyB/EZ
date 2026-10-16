@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5065 - an @mem call outside an unsafe block or unsafe do
+ * function. Only the bare mem.arena() is reported; the mem.destroy() inside
+ * the block is permitted.
+ */
+// expect-error: E5065
+// expect-error-count: 1
+
+import @mem
+
+do main() {
+    mut arena = mem.arena(4096)
+    unsafe {
+        mem.destroy(arena)
+    }
+}

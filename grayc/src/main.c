@@ -24,6 +24,7 @@
 #include "util/buf.h"
 #include "util/colors.h"
 #include "util/error.h"
+#include "util/error_codes.h"
 #include "util/platform.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
@@ -514,9 +515,21 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
                                    char *archive_path, size_t archive_path_size) {
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
+    /* A host ar cannot index another platform's object format (Apple ar writes
+     * an empty table of contents for COFF), so a zig compiler archives with
+     * its own `zig ar`. */
+    size_t command_word_length = strcspn(c_compiler, " \t");
+    const char *command_word_end = c_compiler + command_word_length;
+    const char *command_word_start = command_word_end;
+    while (command_word_start > c_compiler && command_word_start[-1] != '/' && command_word_start[-1] != '\\')
+        command_word_start--;
+    const bool uses_zig_archiver = is_command && strncmp(command_word_start, "zig", 3) == 0 &&
+        (command_word_end - command_word_start == 3 || strncmp(command_word_start, "zig.exe", 7) == 0);
     uint64_t key = 14695981039346656037ULL;
-    const char *const key_parts[] = {c_compiler, banner, runtime_directory};
-    for (size_t part = 0; part < 3; part++)
+    /* The archiver is part of the key so an archive an earlier grayc built
+     * with a host ar (and left without a symbol table) is not reused. */
+    const char *const key_parts[] = {c_compiler, banner, runtime_directory, uses_zig_archiver ? "zig-ar" : ""};
+    for (size_t part = 0; part < 4; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
     snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", gray_temporary_directory(),
@@ -539,7 +552,12 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     ArgumentVector archiver = {0};
     char temporary_archive[PATH_BUFFER_SIZE];
     gray_temporary_path(temporary_archive, sizeof(temporary_archive), "gray_rt_", ".a");
-    argument_vector_push(&archiver, "ar");
+    if (uses_zig_archiver) {
+        argument_vector_push_formatted(&archiver, arena, "%.*s", (int)command_word_length, c_compiler);
+        argument_vector_push(&archiver, "ar");
+    } else {
+        argument_vector_push(&archiver, "ar");
+    }
     argument_vector_push(&archiver, "rcs");
     argument_vector_push(&archiver, temporary_archive);
 
@@ -1700,9 +1718,12 @@ typedef struct {
     const char *optimization_level;
     const char *c_compiler_override;
     const char *quiet_codes_argument;  /* comma-separated W-codes from -q, or NULL */
+    char **program_arguments;     /* run mode: everything after "--", passed to the program */
+    int program_argument_count;
     size_t arena_limit;           /* 0 = let codegen use its 1 GB default */
     bool should_emit_c_only;
     bool is_check_only;
+    bool is_directory_input;         /* check: input_file names a directory, checked as one module */
     bool is_run_mode;
     bool is_format_mode;
     bool is_test_mode;               /* --test: emit a test runner instead of calling main() */
@@ -1735,6 +1756,12 @@ static ArgumentsStatus parse_arguments(int argc, char **argv, CompilerOptions *o
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage();
             return ARGUMENTS_DONE;
+        }
+        if (strcmp(argv[i], "--") == 0) {
+            /* Everything after "--" belongs to the program being run. */
+            options->program_arguments = argv + i + 1;
+            options->program_argument_count = argc - i - 1;
+            break;
         }
         if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             options->output_file = argv[++i];
@@ -1819,6 +1846,30 @@ static ArgumentsStatus parse_arguments(int argc, char **argv, CompilerOptions *o
     return ARGUMENTS_OK;
 }
 
+/* gray check <directory>: the directory is checked as the module
+ * `import "./dir/"` merges. The entry program is that one import, written as
+ * a file beside the directory, so options->input_file becomes the directory's
+ * own resolved path. Returns the entry source, or NULL after reporting. */
+static char *directory_entry_source(CompilerOptions *options) {
+    char resolved[PATH_BUFFER_SIZE];
+    if (!gray_realpath_into(options->input_file, resolved, sizeof(resolved))) {
+        fprintf(stderr, "gray: cannot read '%s'\n", options->input_file);
+        return NULL;
+    }
+    char *last_separator = gray_path_last_separator(resolved);
+    if (!last_separator || last_separator[1] == '\0') {
+        fprintf(stderr, "gray: cannot check directory '%s'\n", options->input_file);
+        return NULL;
+    }
+    size_t source_size = strlen(last_separator + 1) + sizeof("import \"./\"\n/");
+    char *source = malloc(source_size);
+    if (!source) return NULL;
+    snprintf(source, source_size, "import \"./%s/\"\n", last_separator + 1);
+    options->input_file = strdup(resolved);
+    options->is_directory_input = true;
+    return source;
+}
+
 int main(int argc, char **argv) {
     /* Windows consoles need to be opted into ANSI escape handling before any
      * colored diagnostic is written. No-op everywhere else. */
@@ -1832,11 +1883,35 @@ int main(int argc, char **argv) {
     }
 
     /* Read source file */
-    char *source = gray_read_file(options.input_file, true);
+    char *source = (options.is_check_only && gray_is_directory(options.input_file))
+        ? directory_entry_source(&options)
+        : gray_read_file(options.input_file, true);
     if (!source) return 1;
 
     /* fmt mode: reformat and write back, then exit */
     if (options.is_format_mode) {
+        /* A file that does not lex and parse has no reliable structure to
+         * indent by; refuse it rather than rewrite it. */
+        {
+            Arena *format_arena = arena_create(COMPILER_ARENA_SIZE);
+            DiagnosticList *format_diagnostics = diagnostic_create();
+            diagnostic_set_source(format_diagnostics, options.input_file, source);
+            if (options.is_color_disabled) format_diagnostics->should_use_color = false;
+            Lexer *format_lexer = lexer_create(format_arena, source, options.input_file);
+            Parser *format_parser = parser_create(format_arena, format_lexer, options.input_file, format_diagnostics);
+            parser_parse_program(format_parser);
+            bool has_syntax_errors = diagnostic_has_errors(format_diagnostics);
+            if (has_syntax_errors) {
+                diagnostic_print_all(format_diagnostics);
+                diagnostic_print_summary(format_diagnostics);
+            }
+            diagnostic_destroy(format_diagnostics);
+            arena_destroy(format_arena);
+            if (has_syntax_errors) {
+                free(source);
+                return 1;
+            }
+        }
         FILE *temporary_file = gray_tmpfile();
         if (!temporary_file) {
             fprintf(stderr, "gray: fmt: could not create temp file\n");
@@ -1897,7 +1972,7 @@ int main(int argc, char **argv) {
                 free(codes_buffer);
                 return 1;
             }
-            if (code_token[0] != 'W') {
+            if (code_token[0] != 'W' || !gray_error_message(code_token)) {
                 fprintf(stderr, "gray: unknown warning code '%s'\n", code_token);
                 free(codes_buffer);
                 return 1;
@@ -1960,6 +2035,8 @@ int main(int argc, char **argv) {
     /* Type check */
     TypeChecker *checker = typechecker_create(diagnostics, options.input_file);
     typechecker_set_test_mode(checker, options.is_test_mode);
+    typechecker_set_main_optional(checker, options.is_check_only);
+    typechecker_set_directory_entry(checker, options.is_directory_input);
     typechecker_add_file_module(checker, options.input_file, NULL, true);
     for (int i = 0; i < imports.count; i++)
         typechecker_add_file_module(checker, imports.files[i], imports.modules[i], false);
@@ -2260,6 +2337,13 @@ int main(int argc, char **argv) {
      * declarations in the shared runtime headers against the archive. */
     argument_vector_push(&c_compiler_arguments, "-std=c11");
     argument_vector_push(&c_compiler_arguments, "-D_POSIX_C_SOURCE=200809L");
+    /* An explicit _POSIX_C_SOURCE also turns off glibc's default feature set,
+     * which hides realpath (declared under XSI only). _XOPEN_SOURCE adds
+     * declarations and changes no layout, so the archive still matches. It is
+     * used instead of _DEFAULT_SOURCE because that sets __USE_MISC, making
+     * glibc's <string.h> include <strings.h>, which resolves to the stdlib
+     * strings.h before GrayArena is declared. */
+    argument_vector_push(&c_compiler_arguments, "-D_XOPEN_SOURCE=700");
     /* Darwin's -D_POSIX_C_SOURCE strict mode hides BSD names (u_int, ...) that
      * its own system headers use; vendored sqlite3.c, built from source for a
      * mac target, includes those headers. Inert on glibc. */
@@ -2367,7 +2451,10 @@ int main(int argc, char **argv) {
      * (kernel32, msvcrt, ws2_32) stay dynamic — those DLLs ship with the OS. */
     argument_vector_push(&c_compiler_arguments, "-static");
 #endif
+#if defined(__APPLE__)
+    /* GNU ld only gained -w in binutils 2.40 and rejects it before that. */
     if (!is_tinycc) argument_vector_push(&c_compiler_arguments, "-Wl,-w");
+#endif
     argument_vector_end(&c_compiler_arguments);
 
     if (c_compiler_arguments.has_overflowed) {
@@ -2459,9 +2546,19 @@ int main(int argc, char **argv) {
      * input, and a bare name must not resolve to some unrelated binary. */
     bool ran_program = false;
     if (compiler_status == 0 && options.is_run_mode) {
-        const char *run_argument_vector[] = {options.output_file, NULL};
+        const char **run_argument_vector =
+            malloc(sizeof(char *) * ((size_t)options.program_argument_count + 2));
+        if (!run_argument_vector) {
+            fprintf(stderr, "gray: out of memory\n");
+            return 1;
+        }
+        run_argument_vector[0] = options.output_file;
+        for (int i = 0; i < options.program_argument_count; i++)
+            run_argument_vector[i + 1] = options.program_arguments[i];
+        run_argument_vector[options.program_argument_count + 1] = NULL;
         int term_signal = 0;
         compiler_status = gray_spawn_exact(run_argument_vector, &term_signal);
+        free(run_argument_vector);
         if (compiler_status < 0) {
             fprintf(stderr, "gray: cannot execute '%s'\n", options.output_file);
             compiler_status = 1;

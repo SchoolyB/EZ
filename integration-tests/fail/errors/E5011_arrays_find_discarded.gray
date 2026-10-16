@@ -1,0 +1,10 @@
+import @arrays
+
+do positive(x i64) -> bool {
+    return x > 0
+}
+
+do main() {
+    mut xs [i64] = {1, 2}
+    arrays.find(xs, ()positive)
+}

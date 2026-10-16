@@ -8,10 +8,13 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-/* Must precede every system header: exposes sysconf(_SC_NPROCESSORS_ONLN),
- * which <unistd.h> hides under a strict _POSIX_C_SOURCE. */
+/* Must precede every system header: exposes sysconf(_SC_NPROCESSORS_ONLN)
+ * and getloadavg(), which <unistd.h> and <stdlib.h> hide under a strict
+ * _POSIX_C_SOURCE (glibc needs _DEFAULT_SOURCE for the latter). */
 #if defined(__APPLE__)
 #define _DARWIN_C_SOURCE 1
+#elif defined(__linux__)
+#define _DEFAULT_SOURCE 1
 #endif
 
 #include "os.h"
@@ -20,6 +23,14 @@
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <time.h>
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#endif
+#if !GRAY_RUNTIME_WINDOWS
+#include <sys/statvfs.h>
+#endif
 #if GRAY_RUNTIME_WINDOWS
 #include "../runtime/win32.h"
 #include <direct.h>
@@ -28,6 +39,7 @@
 #else
 #include <unistd.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #endif
@@ -89,6 +101,13 @@ static void os_validate_exec_strings(GrayString command, GrayArray args) {
     }
     if (has_nul)
         gray_panic_code("P0141", "os.exec: the command or an argument contains an embedded null byte");
+}
+
+/* A failed launch: a zeroed result and a fixed-message error. */
+static GrayResult_os_exec os_exec_failure(GrayArena *arena, int64_t code, const char *message) {
+    GrayResult_os_exec result = {{0, gray_string_lit(""), gray_string_lit("")}, NULL};
+    result.v1 = gray_error_new(arena, code, gray_string_lit(message));
+    return result;
 }
 
 GrayString gray_os_get_env(GrayArena *arena, GrayString name) {
@@ -232,6 +251,145 @@ int64_t gray_os_cpu_count(void) {
     return n > 0 ? (int64_t)n : 1;
 }
 
+/* ---- Live system metrics ---- */
+
+#if defined(__APPLE__) || defined(__linux__)
+#define GRAY_OS_METRICS_SUPPORTED 1
+#else
+#define GRAY_OS_METRICS_SUPPORTED 0
+#endif
+
+#if !GRAY_OS_METRICS_SUPPORTED
+static GrayError *os_metrics_unsupported(GrayArena *arena, const char *function_name) {
+    return gray_error_new(arena, GRAY_ERR_Unsupported,
+        gray_string_format(arena, "os.%s is not supported on this platform", function_name));
+}
+#endif
+
+#if GRAY_OS_METRICS_SUPPORTED
+/* Reads the cumulative CPU time counters: `busy` and `total` are in
+ * scheduler ticks, summed over every logical CPU. */
+static bool os_read_cpu_times(uint64_t *busy, uint64_t *total) {
+#if defined(__APPLE__)
+    host_cpu_load_info_data_t load;
+    mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t)&load, &count) != KERN_SUCCESS)
+        return false;
+    uint64_t idle = load.cpu_ticks[CPU_STATE_IDLE];
+    *total = (uint64_t)load.cpu_ticks[CPU_STATE_USER] + load.cpu_ticks[CPU_STATE_SYSTEM] +
+             load.cpu_ticks[CPU_STATE_NICE] + idle;
+    *busy = *total - idle;
+    return true;
+#else
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) return false;
+    unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0;
+    int fields = fscanf(file, "cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal);
+    fclose(file);
+    if (fields < 4) return false;
+    uint64_t idle_total = idle + iowait;
+    *total = user + nice + system + idle_total + irq + softirq + steal;
+    *busy = *total - idle_total;
+    return true;
+#endif
+}
+#endif
+
+GrayOsCpuUsageResult gray_os_cpu_usage(GrayArena *arena, int64_t interval_ms) {
+    if (interval_ms < 1)
+        gray_panic_code("P0154", "os.cpu_usage: interval_ms %lld must be at least 1", (long long)interval_ms);
+#if GRAY_OS_METRICS_SUPPORTED
+    uint64_t busy_before, total_before, busy_after, total_after;
+    if (!os_read_cpu_times(&busy_before, &total_before))
+        return (GrayOsCpuUsageResult){0.0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read CPU time counters"))};
+    struct timespec remaining = { (time_t)(interval_ms / 1000), (long)(interval_ms % 1000) * 1000000L };
+    while (nanosleep(&remaining, &remaining) != 0 && errno == EINTR) {}
+    if (!os_read_cpu_times(&busy_after, &total_after))
+        return (GrayOsCpuUsageResult){0.0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read CPU time counters"))};
+    uint64_t total_delta = total_after - total_before;
+    if (total_delta == 0) return (GrayOsCpuUsageResult){0.0, NULL};
+    double usage = 100.0 * (double)(busy_after - busy_before) / (double)total_delta;
+    if (usage < 0.0) usage = 0.0;
+    if (usage > 100.0) usage = 100.0;
+    return (GrayOsCpuUsageResult){usage, NULL};
+#else
+    return (GrayOsCpuUsageResult){0.0, os_metrics_unsupported(arena, "cpu_usage")};
+#endif
+}
+
+GrayOsUsageResult gray_os_memory_usage(GrayArena *arena) {
+#if GRAY_OS_METRICS_SUPPORTED
+    int64_t total = 0, available = 0;
+#if defined(__APPLE__)
+    uint64_t memory_size = 0;
+    size_t memory_size_length = sizeof(memory_size);
+    vm_size_t page_size = 0;
+    vm_statistics64_data_t statistics;
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    if (sysctlbyname("hw.memsize", &memory_size, &memory_size_length, NULL, 0) != 0 ||
+        host_page_size(mach_host_self(), &page_size) != KERN_SUCCESS ||
+        host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info64_t)&statistics, &count) != KERN_SUCCESS)
+        return (GrayOsUsageResult){0, 0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read memory counters"))};
+    total = (int64_t)memory_size;
+    available = (int64_t)(((uint64_t)statistics.free_count + statistics.inactive_count +
+                           statistics.speculative_count) * page_size);
+#else
+    FILE *file = fopen("/proc/meminfo", "r");
+    if (!file) return (GrayOsUsageResult){0, 0, gray_error_new(arena, GRAY_ERR_IoFailure,
+        gray_string_lit("cannot read memory counters"))};
+    char line[256];
+    bool found_total = false, found_available = false;
+    while (fgets(line, sizeof(line), file) && !(found_total && found_available)) {
+        long long kilobytes;
+        if (sscanf(line, "MemTotal: %lld kB", &kilobytes) == 1) { total = kilobytes * 1024; found_total = true; }
+        else if (sscanf(line, "MemAvailable: %lld kB", &kilobytes) == 1) { available = kilobytes * 1024; found_available = true; }
+    }
+    fclose(file);
+    if (!found_total || !found_available)
+        return (GrayOsUsageResult){0, 0, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read memory counters"))};
+#endif
+    if (available > total) available = total;
+    return (GrayOsUsageResult){total - available, total, NULL};
+#else
+    return (GrayOsUsageResult){0, 0, os_metrics_unsupported(arena, "memory_usage")};
+#endif
+}
+
+GrayOsUsageResult gray_os_disk_usage(GrayArena *arena, GrayString path) {
+    if (strlen(path.data) != (size_t)path.len)
+        gray_panic_code("P0103", "file path contains an embedded null byte");
+#if GRAY_OS_METRICS_SUPPORTED
+    struct statvfs filesystem;
+    if (statvfs(path.data, &filesystem) != 0)
+        return (GrayOsUsageResult){0, 0, gray_error_new(arena, gray_errno_code(errno),
+            gray_string_format(arena, "cannot read disk usage of '%s'", path.data))};
+    int64_t total = (int64_t)filesystem.f_blocks * (int64_t)filesystem.f_frsize;
+    int64_t free_bytes = (int64_t)filesystem.f_bfree * (int64_t)filesystem.f_frsize;
+    return (GrayOsUsageResult){total - free_bytes, total, NULL};
+#else
+    return (GrayOsUsageResult){0, 0, os_metrics_unsupported(arena, "disk_usage")};
+#endif
+}
+
+GrayOsLoadAverageResult gray_os_load_average(GrayArena *arena) {
+    GrayArray load = gray_array_new(arena, sizeof(double), 3, GRAY_ELEM_F64);
+#if GRAY_OS_METRICS_SUPPORTED
+    double samples[3];
+    if (getloadavg(samples, 3) != 3)
+        return (GrayOsLoadAverageResult){load, gray_error_new(arena, GRAY_ERR_IoFailure,
+            gray_string_lit("cannot read load averages"))};
+    for (int i = 0; i < 3; i++) GRAY_ARRAY_PUSH(arena, &load, &samples[i]);
+    return (GrayOsLoadAverageResult){load, NULL};
+#else
+    return (GrayOsLoadAverageResult){load, os_metrics_unsupported(arena, "load_average")};
+#endif
+}
+
 bool gray_os_is_tty(void) {
 #if GRAY_RUNTIME_WINDOWS
     return _isatty(_fileno(stdout)) != 0;
@@ -304,9 +462,8 @@ static DWORD WINAPI drain_pipe(LPVOID param) {
     return 0;
 }
 
-GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray args) {
+GrayResult_os_exec gray_os_exec_result(GrayArena *arena, GrayString command, GrayArray args) {
     os_validate_exec_strings(command, args);
-    GrayOsExecResult fail = {0, gray_string_lit(""), gray_string_lit(""), false};
 
     /* Flush buffered stdout/stderr so it is not interleaved after the child's. */
     fflush(stdout);
@@ -330,11 +487,13 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     security_attributes.bInheritHandle = TRUE;
 
     HANDLE stdout_read = NULL, stdout_write = NULL, stderr_read = NULL, stderr_write = NULL;
-    if (!CreatePipe(&stdout_read, &stdout_write, &security_attributes, 0)) return fail;
+    if (!CreatePipe(&stdout_read, &stdout_write, &security_attributes, 0)) {
+        return os_exec_failure(arena, GRAY_ERR_IoFailure, "os.exec: could not create the output pipes");
+    }
     if (!CreatePipe(&stderr_read, &stderr_write, &security_attributes, 0)) {
         CloseHandle(stdout_read);
         CloseHandle(stdout_write);
-        return fail;
+        return os_exec_failure(arena, GRAY_ERR_IoFailure, "os.exec: could not create the output pipes");
     }
     /* Our read ends must not reach the child, or the pipes never report EOF. */
     SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0);
@@ -352,11 +511,15 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     memset(&process_information, 0, sizeof(process_information));
 
     if (!CreateProcessA(NULL, cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &startup_info, &process_information)) {
+        DWORD launch_error = GetLastError();
         CloseHandle(stdout_read);
         CloseHandle(stdout_write);
         CloseHandle(stderr_read);
         CloseHandle(stderr_write);
-        return fail;
+        int64_t launch_code = GRAY_ERR_IoFailure;
+        if (launch_error == ERROR_FILE_NOT_FOUND || launch_error == ERROR_PATH_NOT_FOUND) launch_code = GRAY_ERR_NotFound;
+        else if (launch_error == ERROR_ACCESS_DENIED) launch_code = GRAY_ERR_PermissionDenied;
+        return os_exec_failure(arena, launch_code, "os.exec: could not launch the process");
     }
 
     /* Close the child's ends here so ReadFile sees EOF when it exits. */
@@ -386,15 +549,14 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
 
     GrayString stdout_text = gray_string_new(arena, stdout_reader.buffer, (int32_t)stdout_reader.total);
     GrayString stderr_text = gray_string_new(arena, stderr_reader.buffer, (int32_t)stderr_reader.total);
-    GrayOsExecResult reader = {(int64_t)exit_code, stdout_text, stderr_text, true};
-    return reader;
+    GrayResult_os_exec result = {{(int64_t)exit_code, stdout_text, stderr_text}, NULL};
+    return result;
 }
 
 #else
 
-GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray args) {
+GrayResult_os_exec gray_os_exec_result(GrayArena *arena, GrayString command, GrayArray args) {
     os_validate_exec_strings(command, args);
-    GrayOsExecResult fail = {0, gray_string_lit(""), gray_string_lit(""), false};
 
     /* Flush buffered stdout/stderr so it is not interleaved after the child's. */
     fflush(stdout);
@@ -410,18 +572,30 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     }
     argv[argc] = NULL;
 
-    int stdout_pipe[2], stderr_pipe[2];
-    if (pipe(stdout_pipe) < 0) return fail;
+    int stdout_pipe[2], stderr_pipe[2], launch_pipe[2];
+    if (pipe(stdout_pipe) < 0) {
+        return os_exec_failure(arena, gray_errno_code(errno), "os.exec: could not create the output pipes");
+    }
     if (pipe(stderr_pipe) < 0) {
         close(stdout_pipe[0]); close(stdout_pipe[1]);
-        return fail;
+        return os_exec_failure(arena, gray_errno_code(errno), "os.exec: could not create the output pipes");
     }
+    /* The child reports a failed execvp through this pipe. It closes on a
+     * successful exec, so the parent reads end-of-file when the launch worked. */
+    if (pipe(launch_pipe) < 0) {
+        close(stdout_pipe[0]); close(stdout_pipe[1]);
+        close(stderr_pipe[0]); close(stderr_pipe[1]);
+        return os_exec_failure(arena, gray_errno_code(errno), "os.exec: could not create the output pipes");
+    }
+    fcntl(launch_pipe[1], F_SETFD, FD_CLOEXEC);
 
     pid_t pid = fork();
     if (pid < 0) {
+        int fork_errno = errno;
         close(stdout_pipe[0]); close(stdout_pipe[1]);
         close(stderr_pipe[0]); close(stderr_pipe[1]);
-        return fail;
+        close(launch_pipe[0]); close(launch_pipe[1]);
+        return os_exec_failure(arena, gray_errno_code(fork_errno), "os.exec: could not start the process");
     }
 
     if (pid == 0) {
@@ -432,8 +606,12 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
         dup2(stderr_pipe[1], STDERR_FILENO);
         close(stdout_pipe[1]);
         close(stderr_pipe[1]);
+        close(launch_pipe[0]);
         execvp(command.data, argv);
-        /* execvp failed */
+        /* execvp failed: report errno to the parent. */
+        int exec_errno = errno;
+        ssize_t reported = write(launch_pipe[1], &exec_errno, sizeof(exec_errno));
+        (void)reported;
         _exit(127);
     }
 
@@ -441,6 +619,7 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
      * using select() to avoid deadlock when one pipe's buffer fills. */
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
+    close(launch_pipe[1]);
 
     char buffer[4096];
     size_t stdout_total = 0, stderr_total = 0;
@@ -499,6 +678,13 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
     int status = 0;
     waitpid(pid, &status, 0);
 
+    int exec_errno = 0;
+    ssize_t launch_bytes = read(launch_pipe[0], &exec_errno, sizeof(exec_errno));
+    close(launch_pipe[0]);
+    if (launch_bytes == (ssize_t)sizeof(exec_errno)) {
+        return os_exec_failure(arena, gray_errno_code(exec_errno), "os.exec: could not launch the process");
+    }
+
     int exit_code = 0;
     if (WIFEXITED(status)) {
         exit_code = WEXITSTATUS(status);
@@ -506,13 +692,14 @@ GrayOsExecResult gray_os_exec(GrayArena *arena, GrayString command, GrayArray ar
         exit_code = 128 + WTERMSIG(status);
     }
 
-    /* exit_code 127 means execvp failed (command not found / bad path) */
-    if (exit_code == 127 || truncated) return fail;
+    if (truncated) {
+        return os_exec_failure(arena, GRAY_ERR_OutOfRange, "os.exec: the process output exceeded the capture limit");
+    }
 
     GrayString stdout_text = gray_string_new(arena, stdout_buffer, (int32_t)stdout_total);
     GrayString stderr_text = gray_string_new(arena, stderr_buffer, (int32_t)stderr_total);
-    GrayOsExecResult reader = {(int64_t)exit_code, stdout_text, stderr_text, true};
-    return reader;
+    GrayResult_os_exec result = {{(int64_t)exit_code, stdout_text, stderr_text}, NULL};
+    return result;
 }
 
 

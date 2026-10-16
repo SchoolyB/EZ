@@ -20,9 +20,14 @@
 #  if defined(__TINYC__) || (defined(__GNUC__) && defined(__APPLE__))
 /* include_next re-finds this header when a quoted include from its own .c
  * file reached it (TinyCC, and GCC or Clang on macOS when the runtime is built from source);
- * <sys/..> steps past this directory instead. */
-#    if __has_include(<sys/../time.h>)
-#      include <sys/../time.h>
+ * <arpa/..> steps past this directory instead (<sys/..> on Windows,
+ * which has no arpa/; Debian keeps no /usr/include/sys). */
+#    if defined(_WIN32)
+#      if __has_include(<sys/../time.h>)
+#        include <sys/../time.h>
+#      endif
+#    else
+#      include <arpa/../time.h>
 #    endif
 #  elif defined(__has_include_next)
 #    if __has_include_next(<time.h>)
@@ -232,6 +237,20 @@ GrayString gray_time_to_clock(GrayArena *arena, int64_t timestamp);
  */
 GrayResult_i64 gray_time_parse_result(GrayString text, GrayString layout);
 
+/*@man from_parts
+ *@module time
+ *@group Parsing
+ *@sig from_parts(year i64, month i64, day i64, hour i64, minute i64, second i64) -> (i64, Error)
+ *@desc Builds a Unix timestamp (seconds, UTC) from calendar parts, the inverse of year, month, day, hour, minute and second. Always use destructuring (`mut ts, err = ...` or `mut ts, _ = ...`) — single-variable assignment is a compile error. An impossible date or time (month outside 1-12, a day the month does not have, hour outside 0-23, minute or second outside 0-59) makes err non-nil and, with `_`, ts is 0.
+ *@example
+ *   import @time
+ *   mut ts, _ = time.from_parts(2026, 10, 12, 9, 30, 0)
+ *   mut bad, err = time.from_parts(2026, 2, 30, 0, 0, 0)
+ *@end
+ */
+GrayResult_i64 gray_time_from_parts_result(int64_t year, int64_t month, int64_t day,
+                                           int64_t hour, int64_t minute, int64_t second);
+
 /* Arithmetic */
 
 /*@man diff
@@ -354,6 +373,31 @@ int64_t gray_time_add_days(int64_t timestamp, int64_t days);
  */
 int64_t gray_time_add_hours(int64_t timestamp, int64_t hours);
 
+/*@man add_minutes
+ *@module time
+ *@group Arithmetic
+ *@sig add_minutes(timestamp i64, n i64) -> i64
+ *@desc Returns timestamp shifted by n minutes (n may be negative).
+ *@example
+ *   import @time
+ *   mut later i64 = time.add_minutes(time.now(), 90)
+ *@end
+ */
+int64_t gray_time_add_minutes(int64_t timestamp, int64_t minutes);
+
+/*@man add_months
+ *@module time
+ *@group Arithmetic
+ *@sig add_months(timestamp i64, n i64) -> i64
+ *@desc Returns timestamp shifted by n calendar months in UTC (n may be negative), carrying across year boundaries. The day of month and the time of day are kept; if the target month is shorter the day clamps to its last day, so Jan 31 plus 1 month is Feb 28 (Feb 29 in a leap year). Panics on arithmetic overflow.
+ *@example
+ *   import @time
+ *   mut t, _ = time.from_parts(2026, 1, 31, 9, 30, 0)
+ *   println(time.date(time.add_months(t, 1)))   // 2026-02-28
+ *@end
+ */
+int64_t gray_time_add_months(int64_t timestamp, int64_t months);
+
 /*@man add_seconds
  *@module time
  *@group Arithmetic
@@ -389,6 +433,30 @@ int64_t gray_time_start_of_day(int64_t timestamp);
  *@end
  */
 int64_t gray_time_end_of_day(int64_t timestamp);
+
+/*@man start_of_month
+ *@module time
+ *@group Arithmetic
+ *@sig start_of_month(timestamp i64) -> i64
+ *@desc Returns the Unix timestamp of 00:00:00 UTC on the first day of the month containing timestamp.
+ *@example
+ *   import @time
+ *   mut first i64 = time.start_of_month(time.now())
+ *@end
+ */
+int64_t gray_time_start_of_month(int64_t timestamp);
+
+/*@man end_of_month
+ *@module time
+ *@group Arithmetic
+ *@sig end_of_month(timestamp i64) -> i64
+ *@desc Returns the Unix timestamp of 23:59:59 UTC on the last day of the month containing timestamp, leap-year aware (the last whole second, like end_of_day).
+ *@example
+ *   import @time
+ *   mut last i64 = time.end_of_month(time.now())
+ *@end
+ */
+int64_t gray_time_end_of_month(int64_t timestamp);
 
 /*@man days_in_month
  *@module time

@@ -13,7 +13,7 @@
 
 extern import "stdio.h"
 
-do leak(param ^i64) {
+unsafe do leak(param ^i64) {
     mut local i64 = 1337
     extern.printf("%p\n", addr(local))
     extern.printf("%p\n", ref(local))

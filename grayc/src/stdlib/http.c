@@ -10,6 +10,7 @@
 
 #include "http.h"
 #include "net.h"
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -25,60 +26,72 @@
 #define GRAY_HTTP_MINIMUM_RESPONSE_LENGTH    12
 
 
-/* Parse a URL into host, port, and path components */
-static bool parse_url(const char *url_text, char *host, size_t host_size,
-                      int *port, char *path, size_t path_size) {
-    /* Require http:// or https:// scheme */
-    const char *cursor = url_text;
-    if (strncmp(cursor, "http://", 7) == 0) {
-        cursor += 7;
-    } else if (strncmp(cursor, "https://", 8) == 0) {
-        return false;
-    } else {
-        return false;
+/* True when `text` starts with `prefix`, ignoring ASCII case. */
+static bool starts_with_ignore_case(const char *text, const char *prefix) {
+    for (; *prefix; text++, prefix++) {
+        char text_char = *text, prefix_char = *prefix;
+        if (text_char >= 'A' && text_char <= 'Z') text_char = (char)(text_char - 'A' + 'a');
+        if (text_char != prefix_char) return false;
+    }
+    return true;
+}
+
+/* Parse a URL into host, port, and path components. Returns NULL on success,
+ * otherwise the failure message, with the matching code in *failure_code. The
+ * fragment is dropped; a query directly after the authority gets a "/" path. */
+static const char *parse_url(const char *url_text, char *host, size_t host_size,
+                             int *port, char *path, size_t path_size, int64_t *failure_code) {
+    *failure_code = GRAY_ERR_InvalidInput;
+    if (!starts_with_ignore_case(url_text, "http://"))
+        return "invalid URL: expected http:// scheme";
+    const char *cursor = url_text + 7;
+
+    if (*cursor == '[') {
+        *failure_code = GRAY_ERR_Unsupported;
+        return "IPv6 address literals are not supported";
     }
 
-    /* Reject empty host or host containing characters that would break HTTP headers */
-    if (*cursor == '\0' || *cursor == '/' || *cursor == ':') return false;
-    for (const char *scan_cursor = cursor; *scan_cursor && *scan_cursor != '/' && *scan_cursor != ':'; scan_cursor++) {
-        if (*scan_cursor == ' ' || *scan_cursor == '\t' || *scan_cursor == '\r' || *scan_cursor == '\n') return false;
+    /* The authority ends at the first '/', '?' or '#'. */
+    const char *authority_end = cursor + strcspn(cursor, "/?#");
+
+    for (const char *scan_cursor = cursor; scan_cursor < authority_end; scan_cursor++) {
+        if (*scan_cursor == '@') return "invalid URL: userinfo is not supported";
     }
 
-    /* Extract host[:port] */
-    const char *slash = strchr(cursor, '/');
-    const char *colon = strchr(cursor, ':');
+    const char *colon = memchr(cursor, ':', (size_t)(authority_end - cursor));
+    const char *host_end = colon ? colon : authority_end;
+    size_t host_length = (size_t)(host_end - cursor);
+    if (host_length == 0) return "invalid URL: empty host";
+    if (host_length >= host_size) return "invalid URL: host is too long";
+    memcpy(host, cursor, host_length);
+    host[host_length] = '\0';
 
-    if (colon && (!slash || colon < slash)) {
-        /* host:port */
-        size_t host_length = (size_t)(colon - cursor);
-        if (host_length >= host_size) host_length = host_size - 1;
-        memcpy(host, cursor, host_length);
-        host[host_length] = '\0';
-        *port = atoi(colon + 1);
-    } else {
-        /* host only */
-        size_t host_length = slash ? (size_t)(slash - cursor) : strlen(cursor);
-        if (host_length >= host_size) host_length = host_size - 1;
-        memcpy(host, cursor, host_length);
-        host[host_length] = '\0';
-        *port = GRAY_HTTP_DEFAULT_PORT;
-    }
-
-    /* Path — reject CR/LF to prevent header injection via request line */
-    if (slash) {
-        size_t path_length = strlen(slash);
-        if (path_length >= path_size) path_length = path_size - 1;
-        memcpy(path, slash, path_length);
-        path[path_length] = '\0';
-        for (size_t i = 0; i < path_length; i++) {
-            if (path[i] == '\r' || path[i] == '\n') return false;
+    *port = GRAY_HTTP_DEFAULT_PORT;
+    if (colon) {
+        if (colon + 1 == authority_end) return "invalid URL: empty port";
+        long port_value = 0;
+        for (const char *digit = colon + 1; digit < authority_end; digit++) {
+            if (*digit < '0' || *digit > '9') return "invalid URL: port must be a number from 1 to 65535";
+            port_value = port_value * 10 + (*digit - '0');
+            if (port_value > 65535) return "invalid URL: port must be a number from 1 to 65535";
         }
-    } else {
+        if (port_value < 1) return "invalid URL: port must be a number from 1 to 65535";
+        *port = (int)port_value;
+    }
+
+    const char *target = authority_end;
+    size_t target_length = strcspn(target, "#");
+    size_t prefix_length = (*target == '/' || target_length == 0) ? 0 : 1;
+    if (target_length == 0) {
         path[0] = '/';
         path[1] = '\0';
+        return NULL;
     }
-
-    return host[0] != '\0';
+    if (prefix_length + target_length >= path_size) return "invalid URL: path is too long";
+    if (prefix_length) path[0] = '/';
+    memcpy(path + prefix_length, target, target_length);
+    path[prefix_length + target_length] = '\0';
+    return NULL;
 }
 
 static bool http_ascii_equal_ignore_case(const char *left, int32_t left_length, const char *right) {
@@ -241,6 +254,20 @@ static bool header_is_client_managed(GrayString name) {
            http_ascii_equal_ignore_case(name.data, name.len, "connection");
 }
 
+/* A header name is an RFC 9110 token; a value carries no CR, LF or NUL. Either
+ * violation would let the caller's text start a new header line. */
+static bool header_is_valid(GrayString name, GrayString value) {
+    if (name.len == 0) return false;
+    for (int32_t i = 0; i < name.len; i++) {
+        unsigned char character = (unsigned char)name.data[i];
+        if (!isalnum(character) && !strchr("!#$%&'*+-.^_`|~", character)) return false;
+    }
+    for (int32_t i = 0; i < value.len; i++) {
+        if (value.data[i] == '\r' || value.data[i] == '\n' || value.data[i] == '\0') return false;
+    }
+    return true;
+}
+
 /* A failed request: status 0, the fixed `detail` as the body, and the error
  * code the result variants report. */
 static GrayHttpResponse request_failure(GrayArena *arena, GrayHttpResponse failure, int64_t *error_code,
@@ -261,16 +288,40 @@ static GrayHttpResponse do_request(GrayArena *arena, const char *method,
     char url_buffer[GRAY_HTTP_URL_BUFFER_SIZE];
     gray_cstr(url, url_buffer, sizeof(url_buffer));
 
-    if (strncmp(url_buffer, "https://", 8) == 0) {
+    if (starts_with_ignore_case(url_buffer, "https://")) {
         return request_failure(arena, error_response, error_code, GRAY_ERR_Unsupported,
             "https:// is not supported; use http://");
     }
 
+    /* A space or control byte would break the request line or inject headers. */
+    for (const char *scan_cursor = url_buffer; *scan_cursor; scan_cursor++) {
+        unsigned char byte = (unsigned char)*scan_cursor;
+        if (byte <= ' ' || byte == 0x7f)
+            return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
+                "invalid URL: contains a space or control character");
+    }
+
     char host[GRAY_HTTP_HOST_BUFFER_SIZE], path[GRAY_HTTP_PATH_BUFFER_SIZE];
     int port;
-    if (!parse_url(url_buffer, host, sizeof(host), &port, path, sizeof(path))) {
-        return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
-            "invalid URL: expected http:// scheme");
+    int64_t parse_failure_code;
+    const char *parse_failure = parse_url(url_buffer, host, sizeof(host), &port, path, sizeof(path),
+                                          &parse_failure_code);
+    if (parse_failure) {
+        return request_failure(arena, error_response, error_code, parse_failure_code, parse_failure);
+    }
+
+    if (custom_headers) {
+        for (int32_t i = 0; i < custom_headers->order_len; i++) {
+            int32_t slot = custom_headers->order[i];
+            if (slot < 0) continue;
+            GrayString *header_key = (GrayString *)gray_map_key_at(custom_headers, slot);
+            GrayString *header_value = (GrayString *)gray_map_value_at(custom_headers, slot);
+            if (!header_key || !header_value) continue;
+            if (!header_is_valid(*header_key, *header_value)) {
+                return request_failure(arena, error_response, error_code, GRAY_ERR_InvalidInput,
+                    "invalid header: name must be a token and value must not contain CR, LF or NUL");
+            }
+        }
     }
 
     /* Connect */

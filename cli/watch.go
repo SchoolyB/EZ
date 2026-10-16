@@ -28,18 +28,24 @@ import (
 var watchCmd = &cobra.Command{
 	Use:   "watch [file.gray | file.grayscale | directory]",
 	Short: "Watch files and re-run on changes",
-	Long:  `Watch a file or directory for changes and automatically re-run.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runWatch,
+	Long: `Watch a file or directory for changes and automatically re-run it.
+
+A file is watched together with the files it imports. A directory must hold
+exactly one file with a main() function; that file is run on each change.
+
+Examples:
+  gray watch main.gray     Re-run main.gray whenever it or its imports change
+  gray watch src           Watch a directory`,
+	Args: argsWithUsage(false, "a <file.gray | directory>", "<file.gray | directory>", "main.gray"),
+	RunE: runWatch,
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
 	target := args[0]
 
-	var compilerArgs []string
-	compilerArgs = append(compilerArgs, quietArgs(cmd)...)
-	if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
-		compilerArgs = append(compilerArgs, "--no-color")
+	compilerArgs, err := compilerFlagArgs(cmd)
+	if err != nil {
+		return err
 	}
 
 	// Resolve to absolute path
@@ -120,7 +126,7 @@ func watchFile(file string, compilerArgs []string) error {
 	}
 
 	if importCount := len(filesToWatch) - 1; importCount > 0 {
-		fmt.Printf("Watching %s (+ %d imports)\n", shortPath(file), importCount)
+		fmt.Printf("Watching %s (+%d imports)\n", shortPath(file), importCount)
 	} else {
 		fmt.Printf("Watching %s\n", shortPath(file))
 	}
@@ -163,52 +169,64 @@ func watchDirectory(dirPath string, compilerArgs []string) error {
 	return nil
 }
 
-// collectFilesToWatch returns the main file plus imported file paths via text scan.
-// No parser needed — just scans for import lines.
+// collectFilesToWatch returns the main file plus every source file it imports,
+// directly or transitively, found by a text scan. No parser needed — just
+// scans for import lines. Each import is resolved against the directory of
+// the file that wrote it.
 func collectFilesToWatch(mainFile string) []string {
 	files := []string{mainFile}
-	dir := filepath.Dir(mainFile)
 	seen := map[string]struct{}{mainFile: {}}
 
-	imports := scanImports(mainFile)
-	for _, imp := range imports {
-		// Skip stdlib imports (@std, @math, etc.)
-		if strings.HasPrefix(imp, "@") {
-			continue
-		}
-		// Resolve relative to the main file's directory
-		resolved := filepath.Join(dir, imp)
-		if !hasSourceExtension(resolved) {
-			// Could be a directory module
-			if info, err := os.Stat(resolved); err == nil && info.IsDir() {
-				dirFiles := collectGrayFilesInDir(resolved)
-				for _, f := range dirFiles {
-					if _, ok := seen[f]; !ok {
-						files = append(files, f)
-						seen[f] = struct{}{}
-					}
-				}
+	for next := 0; next < len(files); next++ {
+		importer := files[next]
+		for _, imp := range scanImports(importer) {
+			// Skip stdlib imports (@std, @math, etc.)
+			if strings.HasPrefix(imp, "@") {
 				continue
 			}
-			for _, extension := range sourceExtensions {
-				if _, err := os.Stat(resolved + extension); err == nil {
-					resolved += extension
-					break
+			for _, resolved := range resolveLocalImport(filepath.Dir(importer), imp) {
+				if _, ok := seen[resolved]; !ok {
+					seen[resolved] = struct{}{}
+					files = append(files, resolved)
 				}
-			}
-		}
-		if _, ok := seen[resolved]; !ok {
-			if _, err := os.Stat(resolved); err == nil {
-				files = append(files, resolved)
-				seen[resolved] = struct{}{}
 			}
 		}
 	}
 	return files
 }
 
+// resolveLocalImport maps a local import path to the source files it names,
+// in the compiler's order: an explicit source file, then the path with a
+// source extension appended, then a directory module's top-level files.
+func resolveLocalImport(importerDir, importPath string) []string {
+	resolved := filepath.Join(importerDir, importPath)
+	if hasSourceExtension(resolved) {
+		if info, err := os.Stat(resolved); err == nil && !info.IsDir() {
+			return []string{resolved}
+		}
+		return nil
+	}
+	for _, extension := range sourceExtensions {
+		if info, err := os.Stat(resolved + extension); err == nil && !info.IsDir() {
+			return []string{resolved + extension}
+		}
+	}
+	entries, err := os.ReadDir(resolved)
+	if err != nil {
+		return nil
+	}
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && hasSourceExtension(entry.Name()) {
+			files = append(files, filepath.Join(resolved, entry.Name()))
+		}
+	}
+	return files
+}
+
 // scanImports does a simple text scan for import statements in a Grayscale file.
-// Returns the import paths (e.g., "@std", "./mymodule", "utils").
+// Returns the import paths with quotes and aliases removed (e.g., "@math",
+// "./mymodule").
 func scanImports(filePath string) []string {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -230,10 +248,12 @@ func scanImports(filePath string) []string {
 			rest = rest[:idx]
 		}
 		for _, part := range strings.Split(rest, ",") {
-			part = strings.TrimSpace(part)
-			if part != "" {
-				imports = append(imports, part)
+			fields := strings.Fields(part)
+			if len(fields) == 0 {
+				continue
 			}
+			// The path is the last field; an alias, if any, comes before it.
+			imports = append(imports, strings.Trim(fields[len(fields)-1], `"`))
 		}
 	}
 	return imports

@@ -1,0 +1,74 @@
+/*
+ * Test: maps.get_or_insert, sorted_keys, get_and_remove, find_key
+ * Verifies read-or-create, deterministic key order for string, i64, char and
+ * u8 keys, remove-and-use with a present and an absent key, first-match
+ * reverse lookup in insertion order, and empty maps.
+ */
+
+import and use @maps
+
+do check(label string, got bool) -> i64 {
+    if got {
+        println("  [PASS] ${label}")
+        return 1
+    }
+    println("  [FAIL] ${label}")
+    return 0
+}
+
+do main() {
+    mut passed i64 = 0
+
+    mut owner map[string:i64] = {"zoe": 31, "al": 27, "bo": 44}
+
+    mut hits i64 = maps.get_or_insert(owner, "cy", 0)
+    passed += check("get_or_insert absent returns default", hits == 0)
+    passed += check("get_or_insert absent stores", len(owner) == 4 && owner["cy"] == 0)
+    mut existing i64 = maps.get_or_insert(owner, "zoe", 99)
+    passed += check("get_or_insert present returns value", existing == 31)
+    passed += check("get_or_insert present leaves map", owner["zoe"] == 31 && len(owner) == 4)
+
+    mut names [string] = maps.sorted_keys(owner)
+    passed += check("sorted_keys string", names[0] == "al" && names[1] == "bo" && names[2] == "cy" && names[3] == "zoe")
+    passed += check("sorted_keys leaves map", len(owner) == 4)
+
+    mut who, found = maps.find_key(owner, 44)
+    passed += check("find_key present", found && who == "bo")
+    mut nobody, missing = maps.find_key(owner, 1000)
+    passed += check("find_key absent", !missing && nobody == "")
+
+    mut ties map[string:i64] = {"first": 7, "second": 7}
+    mut tied, tied_found = maps.find_key(ties, 7)
+    passed += check("find_key first in insertion order", tied_found && tied == "first")
+
+    mut age, removed = maps.get_and_remove(owner, "zoe")
+    passed += check("get_and_remove present", removed && age == 31)
+    passed += check("get_and_remove removes", len(owner) == 3 && !maps.contains_key(owner, "zoe"))
+    mut gone, removed_again = maps.get_and_remove(owner, "zoe")
+    passed += check("get_and_remove absent", !removed_again && gone == 0 && len(owner) == 3)
+
+    mut letters map[char:i64] = {'z': 1, 'a': 2, 'm': 3}
+    mut letter_keys [char] = maps.sorted_keys(letters)
+    passed += check("sorted_keys char", letter_keys[0] == 'a' && letter_keys[1] == 'm' && letter_keys[2] == 'z')
+    mut letter, letter_found = maps.find_key(letters, 3)
+    passed += check("find_key char key", letter_found && letter == 'm')
+
+    mut bytes map[u8:string] = {9: "nine", 3: "three", 200: "many"}
+    mut byte_keys [u8] = maps.sorted_keys(bytes)
+    passed += check("sorted_keys u8", byte_keys[0] == 3 && byte_keys[1] == 9 && byte_keys[2] == 200)
+    mut five string = maps.get_or_insert(bytes, 5, "five")
+    passed += check("get_or_insert u8 key", five == "five" && len(bytes) == 4)
+    mut removed_text, text_removed = maps.get_and_remove(bytes, 9)
+    passed += check("get_and_remove string value", text_removed && removed_text == "nine")
+    mut byte_key, byte_found = maps.find_key(bytes, "three")
+    passed += check("find_key string value", byte_found && byte_key == 3)
+
+    mut empty map[string:i64] = {:}
+    passed += check("sorted_keys empty", len(maps.sorted_keys(empty)) == 0)
+    mut empty_key, empty_found = maps.find_key(empty, 1)
+    passed += check("find_key empty", !empty_found && empty_key == "")
+    mut empty_value, empty_removed = maps.get_and_remove(empty, "x")
+    passed += check("get_and_remove empty", !empty_removed && empty_value == 0)
+    mut inserted i64 = maps.get_or_insert(empty, "x", 5)
+    passed += check("get_or_insert empty", inserted == 5 && len(empty) == 1)
+}

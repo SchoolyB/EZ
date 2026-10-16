@@ -1,0 +1,13 @@
+const Level enum {
+    LOW
+    HIGH
+}
+
+do name_of(level Level) -> string {
+    return Level.names()[cast(level, i64)]
+}
+
+do value_of(index i64) -> Level {
+    mut all = Level.variants()
+    return all[index]
+}

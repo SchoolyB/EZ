@@ -11,12 +11,12 @@
 
 import @mem
 
-do process(a Arena) {
+unsafe do process(a Arena) {
     ensure mem.destroy(a)
     mem.destroy(a)
 }
 
-do main() {
+unsafe do main() {
     mut a = mem.arena(1024)
     process(a)
 }

@@ -1,0 +1,9 @@
+/* Panic Test: P0154 - os.cpu_usage with an interval_ms less than 1 */
+// expect-contains: P0154
+
+import @os
+
+do main() {
+    mut cpu, _ = os.cpu_usage(0)
+    println(cpu)
+}

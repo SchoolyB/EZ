@@ -251,11 +251,12 @@ void gray_builtin_sleep_ns(int64_t nanoseconds);
 
 /*@man len
  *@sig len(collection T) -> i64
- *@desc Returns the length of an array, map, or string. For strings returns byte length, not character count (use char_count for that).
+ *@desc Returns the length of a string, array, map, Channel, Builder, or range. For strings returns byte length, not character count (use char_count for that). For a Channel returns the values currently buffered, a snapshot. For a Builder returns the bytes written. For a range returns the iteration count; an empty range is 0.
  *@example
  *   println(len("hello"))
  *   println(len(my_array))
  *   println(len(my_map))
+ *   println(len(range(0, 10, 2)))
  *@end
  */
 
@@ -324,11 +325,13 @@ void gray_builtin_sleep_ns(int64_t nanoseconds);
 
 /*@man raw
  *@sig raw(variable T) -> ^T
- *@desc Returns a raw pointer to a variable. Unlike addr(), raw pointers are unsafe: dereferences skip nil-check panics and the compiler does not enforce const-source write protection. Use only in performance-critical code where pointer validity is guaranteed.
+ *@desc Returns a raw pointer to a variable. Unlike addr(), raw pointers are unsafe: dereferences skip nil-check panics and the compiler does not enforce const-source write protection. Use only in performance-critical code where pointer validity is guaranteed. Unsafe: requires an unsafe block or an unsafe function.
  *@example
- *   mut x i64 = 10
- *   mut p = raw(x)
- *   println(p^)
+ *   unsafe {
+ *       mut x i64 = 10
+ *       mut p = raw(x)
+ *       println(p^)
+ *   }
  *@end
  */
 

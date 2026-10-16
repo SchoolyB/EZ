@@ -9,6 +9,7 @@
  */
 
 #include "maps.h"
+#include "arrays.h"
 #include <string.h>
 
 /* get_keys / get_values allocate exactly map->count slots (the live entry
@@ -80,12 +81,31 @@ GrayMap gray_maps_merge(GrayArena *arena, GrayMap *left, GrayMap *right) {
     return result;
 }
 
+GrayArray gray_maps_sorted_keys(GrayArena *arena, GrayMap *map) {
+    GrayArray keys = gray_maps_get_keys(arena, map);
+    gray_arrays_sort(&keys, false);
+    return keys;
+}
+
+bool gray_maps_find_key(GrayMap *map, const void *value, void *key_out) {
+    for (int32_t order_index = 0; order_index < map->order_len; order_index++) {
+        int32_t slot = map->order[order_index];
+        if (slot < 0 || map->states[slot] != 1) continue;
+        const void *stored_value = (char *)map->values + (size_t)slot * (size_t)map->value_size;
+        if (gray_elem_equal(map->value_kind, map->value_size, stored_value, value)) {
+            memcpy(key_out, (char *)map->keys + (size_t)slot * (size_t)map->key_size, (size_t)map->key_size);
+            return true;
+        }
+    }
+    return false;
+}
+
 bool gray_maps_contains_value(GrayMap *map, const void *value) {
     for (int32_t order_index = 0; order_index < map->order_len; order_index++) {
         int32_t slot = map->order[order_index];
         if (slot >= 0 && map->states[slot] == 1) {
-            void *searched_value = (char *)map->values + (size_t)slot * (size_t)map->value_size;
-            if (memcmp(searched_value, value, (size_t)map->value_size) == 0) return true;
+            const void *searched_value = (char *)map->values + (size_t)slot * (size_t)map->value_size;
+            if (gray_elem_equal(map->value_kind, map->value_size, searched_value, value)) return true;
         }
     }
     return false;

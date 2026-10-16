@@ -139,7 +139,9 @@ Download the latest release for your platform from the [Releases page](https://g
 
 ### Build from source
 
-Requires Go 1.23+ and a C11 compiler with GNU extensions: GCC 11+, Clang 14+, or TinyCC 0.9.27+. Grayscale uses the first of `cc`, `gcc`, or `clang` it finds. Pass `--cc <compiler>` to `gray` or `gray build` to choose another for one run (`gray main.gray --cc tcc`), or set `GRAY_CC` or `CC`. `--cc` takes precedence over both.
+Requires Go 1.23+ and a C11 compiler with GNU extensions: GCC 11+, Clang 14+, or TinyCC 0.9.27+. Grayscale uses the first of `cc`, `gcc`, or `clang` it finds. Pass `--cc <compiler>` to `gray` or `gray build` to choose another for one run (`gray main.gray --cc tcc`), or set `GRAY_CC` or `CC`. `--cc` takes precedence over both. `GRAY_CC` is the compiler `gray` uses for `.gray` programs; `CC` is the compiler `make` uses to build `grayc` and the runtime, and `gray` falls back to it only when `GRAY_CC` is unset (`CC=clang GRAY_CC=gcc make build`).
+
+Run `make help` to list the make targets, or `make help TARGET=build` to see what one target does and which variables it reads.
 
 | Compiler | macOS | Linux | Windows |
 |---|---|---|---|
@@ -155,6 +157,11 @@ cd grayscale
 make build
 make install
 ```
+
+`make install`, `gray update`, and `gray install` also install tab completion
+for your shell (bash, zsh, fish, or PowerShell) when its completion directory
+is writable, and never edit an rc file. See `gray completion` in `STANDARD.md`
+for where each shell's script goes.
 
 ### Windows
 
@@ -196,14 +203,20 @@ Source files end in `.gray` or `.grayscale`; both work everywhere and can be mix
 | `gray verify` | Run the built-in language verification test suite | `gray verify` |
 | `gray update` | Update to the latest stable version | `gray update` |
 | `gray update --pre` | Update to the latest pre-release (alpha/beta) | `gray update --pre` |
-| `gray install <version>` | Install a specific version by semver | `gray install x.y.z` |
+| `gray install <version>` | Install a specific version by exact semver | `gray install v0.11.5` |
 | `gray version` | Show version info | `gray version` |
 | `gray man` | Show help for the man command | `gray man` |
 | `gray man <module>` | Show info about a stdlib module | `gray man strings` |
-| `gray man <function>` | Show info about a stdlib function | `gray man to_upper` |
+| `gray man <function>` | Show info about a stdlib function | `gray man strings.to_upper` |
 | `gray man <struct>` | Show info about a stdlib struct type | `gray man HttpRequest` |
 | `gray cross build <file> --target <target>` | Cross-compile for another platform via Zig | `gray cross build main.gray --target linux-amd64` |
 | `gray cross targets` | List supported cross-compilation targets | `gray cross targets` |
+
+Every command prints its own usage and flags with `gray [command] --help`, or equivalently `gray help [command]`:
+
+```bash
+gray build --help
+```
 
 > **Note:** Zig is only required for cross-compilation (`gray cross`). Native builds use the system C compiler.
 
@@ -214,7 +227,7 @@ Source files end in `.gray` or `.grayscale`; both work everywhere and can be mix
 ```bash
 gray update              # latest stable
 gray update --pre        # latest pre-release Note: The latest pre-release may be very out of date
-gray install x.y.z       # pin to an exact version
+gray install v0.11.5     # pin to an exact version
 ```
 
 `gray update` checks for new versions, shows the changelog, and upgrades both the `gray` CLI and the compiler. Pass `--pre` to pick up the latest alpha, beta, or rc. Use `gray install <version>` to install an exact version by semver — downgrades and pre-release tags (e.g. `0.2.0-beta.1`) are supported.

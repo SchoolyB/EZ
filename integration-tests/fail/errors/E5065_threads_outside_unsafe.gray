@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5065 - an @threads call outside an unsafe block or unsafe do
+ * function.
+ */
+// expect-error: E5065
+// expect-error-count: 1
+
+import @threads
+
+do work() {}
+
+do main() {
+    mut worker = threads.spawn(()work)
+    unsafe {
+        threads.join(worker)
+    }
+}

@@ -11,7 +11,7 @@ extern import "stdlib.h"
 
 do wrap(kind generic, x kind) -> kind { return x }
 
-do main() {
+unsafe do main() {
     mut v = wrap(i64, extern.abs(-3))
     println("${v}")
 }

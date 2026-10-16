@@ -8,7 +8,7 @@
 
 extern import "stdlib.h"
 
-do main() {
+unsafe do main() {
     mut home string = extern.getenv("HOME")
     println(home)
 }

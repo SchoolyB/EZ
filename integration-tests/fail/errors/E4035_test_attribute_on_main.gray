@@ -5,6 +5,7 @@
  */
 // expect-error: E4035
 // expect-error-count: 1
+// expect-build
 
 #test
 do main() {

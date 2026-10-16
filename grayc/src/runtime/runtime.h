@@ -46,6 +46,7 @@ typedef struct {
     bool is_destroyed;
     bool counts_toward_total; /* allocations feed gray_total_alloc_count; false for mem.arena() arenas */
 } GrayArena;
+#define GRAY_ARENA_DECLARED
 
 GrayArena *gray_arena_create(size_t initial_size);
 void *gray_arena_alloc(GrayArena *arena, size_t size);

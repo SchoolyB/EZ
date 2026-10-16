@@ -1,0 +1,30 @@
+import @arrays
+
+const Rec struct {
+    key i64
+    tag string
+}
+
+mut shared [Rec] = {}
+
+do touch(a Rec, b Rec) -> bool {
+    arrays.append(shared, Rec{key: 99, tag: "added"})
+    return a.key < b.key
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    shared = {Rec{key: 5, tag: "e"}, Rec{key: 3, tag: "c"}, Rec{key: 4, tag: "d"},
+              Rec{key: 1, tag: "a"}, Rec{key: 2, tag: "b"}}
+    arrays.sort_by(shared, ()touch)
+
+    mut ordered bool = true
+    for i in range(0, 5) {
+        if shared[i].key != i + 1 { ordered = false }
+    }
+    if ordered && shared[5].tag == "added" { passed += 1 } otherwise { failed += 1 }
+
+    println("arrays_sort_by_comparator_grows_array: ${passed} passed, ${failed} failed")
+}

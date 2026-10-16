@@ -13,6 +13,7 @@
 
 #include "../runtime/runtime.h"
 #include "../runtime/array.h"
+#include "../runtime/map.h"
 
 /* Modification */
 
@@ -321,6 +322,20 @@ GrayArray gray_arrays_concat(GrayArena *arena, GrayArray *left, GrayArray *right
  */
 GrayArray gray_arrays_deduplicate(GrayArena *arena, GrayArray *array);
 
+/*@man counts
+ *@module arrays
+ *@group Query
+ *@sig counts(arr [T]) -> map[T:i64]
+ *@desc Returns a frequency table mapping each distinct element of arr to the number of times it occurs. Keys appear in order of first occurrence; an empty array returns an empty map. T must be a primitive type, string, or enum.
+ *@example
+ *   import @arrays
+ *   mut votes [string] = {"a", "b", "a", "c", "a"}
+ *   mut tally map[string:i64] = arrays.counts(votes)   // {"a": 3, "b": 1, "c": 1}
+ *@end
+ */
+GrayMap gray_arrays_counts(GrayArena *arena, GrayArray *array);
+GrayMap gray_arrays_counts_enum(GrayArena *arena, GrayArray *array);
+
 /*@man flatten
  *@module arrays
  *@group Transformation
@@ -467,6 +482,24 @@ void gray_arrays_sort(GrayArray *array, bool descending);
  *   mut nums [i64] = {3, 1, 4, 1, 5}
  *   arrays.sort_desc(nums)
  *   println(nums)
+ *@end
+ */
+
+/*@man sort_by
+ *@module arrays
+ *@group Modification
+ *@sig sort_by(&arr [T], less func(T, T) -> bool)
+ *@desc Sorts arr in place using a caller-supplied comparison. less(a, b) returns true when a must come before b. Elements for which neither less(a, b) nor less(b, a) is true keep their relative order. Works on any element type, including structs.
+ *@example
+ *   import @arrays
+ *   const Person struct {
+ *       name string
+ *       age i64
+ *   }
+ *   do younger(a Person, b Person) -> bool { return a.age < b.age }
+ *   mut people [Person] = {Person{name: "Bo", age: 30}, Person{name: "Al", age: 25}}
+ *   arrays.sort_by(people, ()younger)
+ *   println(people[0].name)
  *@end
  */
 

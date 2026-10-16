@@ -1,0 +1,12 @@
+do pick(x i64) -> i64 {
+    loop {
+        when x {
+            is 1 { break }
+            default { return 3 }
+        }
+    }
+}
+
+do main() {
+    println(pick(1))
+}

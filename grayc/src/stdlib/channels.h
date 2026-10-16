@@ -99,4 +99,7 @@ bool gray_channels_try_send(GrayChannel handle, int64_t value);
 typedef struct { int64_t v0; bool v1; } GrayChannelTryRecv;
 GrayChannelTryRecv gray_channels_try_receive(GrayChannel handle);
 
+/* The values currently buffered, taken under the lock; what len() emits. */
+int64_t gray_channels_len(GrayChannel handle);
+
 #endif

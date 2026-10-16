@@ -1,0 +1,57 @@
+/*
+ * Test: a string assigned to a global through a variable survives the arena
+ * of the function that held it
+ */
+
+import @strings
+
+const Holder struct {
+    text string
+}
+
+mut kept string = ""
+mut kept_holder Holder = Holder{text: ""}
+mut kept_array [string] = {"", ""}
+mut kept_map map[string:string] = {:}
+
+do capture(text string) {
+    mut local string = strings.to_upper(text)
+    kept = local
+    kept_holder.text = local
+    kept_array[1] = local
+    kept_map["key"] = local
+}
+
+do capture_parameter(text string) {
+    kept = text
+}
+
+do churn() {
+    mut noise string = ""
+    for i in range(0, 200) {
+        noise = "overwrite-overwrite-overwrite-${i}"
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    capture("hello world")
+    churn()
+    if kept == "HELLO WORLD" { passed += 1 } otherwise { println("  [FAIL] global = local: ${kept}"); failed += 1 }
+    if kept_holder.text == "HELLO WORLD" { passed += 1 } otherwise { println("  [FAIL] global.field = local: ${kept_holder.text}"); failed += 1 }
+    if kept_array[1] == "HELLO WORLD" { passed += 1 } otherwise { println("  [FAIL] global_array[i] = local: ${kept_array[1]}"); failed += 1 }
+    if kept_map["key"] == "HELLO WORLD" { passed += 1 } otherwise { println("  [FAIL] global_map[key] = local: ${kept_map["key"]}"); failed += 1 }
+
+    capture_parameter(strings.to_lower("PARAMETER VALUE"))
+    churn()
+    if kept == "parameter value" { passed += 1 } otherwise { println("  [FAIL] global = parameter: ${kept}"); failed += 1 }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

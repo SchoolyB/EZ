@@ -1,0 +1,76 @@
+/*
+ * arrays_sort_by.gray - Integration test for arrays.sort_by
+ */
+
+import @arrays
+
+const Person struct {
+    name string
+    age i64
+}
+
+do younger(a Person, b Person) -> bool { return a.age < b.age }
+do bigger(a i64, b i64) -> bool { return a > b }
+do by_length(a string, b string) -> bool { return len(a) < len(b) }
+
+do sort_in_place(&people [Person]) {
+    arrays.sort_by(people, ()younger)
+}
+
+do check(label string, condition bool, &passed i64, &failed i64) {
+    if condition {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    println("=== arrays.sort_by Test ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut people [Person] = {Person{name: "Bo", age: 30}, Person{name: "Al", age: 25}, Person{name: "Cy", age: 41}}
+    arrays.sort_by(people, ()younger)
+    check("struct array", people[0].name == "Al" && people[1].name == "Bo" && people[2].name == "Cy", passed, failed)
+
+    mut numbers [i64] = {5, 3, 9, 1, 7}
+    arrays.sort_by(numbers, ()bigger)
+    check("i64 array descending", numbers[0] == 9 && numbers[1] == 7 && numbers[2] == 5 && numbers[3] == 3 && numbers[4] == 1, passed, failed)
+
+    mut words [string] = {"ccc", "a", "bb"}
+    arrays.sort_by(words, ()by_length)
+    check("string array", words[0] == "a" && words[1] == "bb" && words[2] == "ccc", passed, failed)
+
+    mut empty [i64] = {}
+    arrays.sort_by(empty, ()bigger)
+    check("empty array", len(empty) == 0, passed, failed)
+
+    mut single [i64] = {4}
+    arrays.sort_by(single, ()bigger)
+    check("one element", len(single) == 1 && single[0] == 4, passed, failed)
+
+    mut ties [Person] = {
+        Person{name: "a", age: 2}, Person{name: "b", age: 1}, Person{name: "c", age: 2},
+        Person{name: "d", age: 1}, Person{name: "e", age: 2}, Person{name: "f", age: 1},
+        Person{name: "g", age: 2}
+    }
+    arrays.sort_by(ties, ()younger)
+    check("equal keys keep their order",
+        ties[0].name == "b" && ties[1].name == "d" && ties[2].name == "f" &&
+        ties[3].name == "a" && ties[4].name == "c" && ties[5].name == "e" && ties[6].name == "g", passed, failed)
+
+    mut through_parameter [Person] = {Person{name: "Bo", age: 30}, Person{name: "Al", age: 25}}
+    sort_in_place(through_parameter)
+    check("through a & parameter", through_parameter[0].name == "Al" && through_parameter[1].name == "Bo", passed, failed)
+
+    println("")
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("FAILED")
+    } otherwise {
+        println("ALL PASSED")
+    }
+}

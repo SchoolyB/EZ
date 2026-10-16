@@ -14,7 +14,7 @@
 
 extern import "stdio.h"
 
-do main() {
+unsafe do main() {
     mut x string = "hello"
     extern.putc(x[1])
 }

@@ -1,0 +1,52 @@
+/*
+ * len() on Channel, Builder, and range
+ *
+ * Channel: values currently buffered. Builder: bytes written.
+ * range: iteration count in closed form, 0 when empty.
+ */
+
+import @channels
+import @strings
+
+do check(label string, actual i64, expected i64, &passed i64, &failed i64) {
+    if actual == expected {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}: expected ${expected}, got ${actual}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut ch Channel = channels.open(4)
+    check("empty channel", len(ch), 0, passed, failed)
+    channels.send(ch, 1)
+    channels.send(ch, 2)
+    check("two buffered", len(ch), 2, passed, failed)
+    mut _ = channels.receive(ch)
+    check("one after receive", len(ch), 1, passed, failed)
+    channels.close(ch)
+    check("closed still reports buffered", len(ch), 1, passed, failed)
+
+    mut b Builder = strings.builder()
+    check("empty builder", len(b), 0, passed, failed)
+    strings.builder_append(b, "abc")
+    check("builder bytes", len(b), 3, passed, failed)
+
+    check("range step 2", len(range(0, 10, 2)), 5, passed, failed)
+    check("range default step", len(range(0, 7)), 7, passed, failed)
+    check("range end only", len(range(4)), 4, passed, failed)
+    check("range uneven", len(range(0, 10, 3)), 4, passed, failed)
+    check("range negative step", len(range(10, 0, -3)), 4, passed, failed)
+    check("range empty", len(range(5, 5)), 0, passed, failed)
+    check("range wrong direction", len(range(5, 0)), 0, passed, failed)
+    mut stored = range(2, 12, 5)
+    check("stored range", len(stored), 2, passed, failed)
+
+    if failed > 0 { panic("len test failures: ${failed}") }
+    println("${passed} passed")
+}

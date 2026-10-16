@@ -12,7 +12,7 @@ const Shape enum {
     SQUARE(f64)
 }
 
-do main() {
+unsafe do main() {
     mut s Shape = Shape.CIRCLE(2.0)
     extern.printf("%f\n", s)
 }

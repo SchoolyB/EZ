@@ -65,7 +65,11 @@ func runVerify() int {
 var verifyCmd = &cobra.Command{
 	Use:   "verify",
 	Short: "Run the built-in language verification test suite",
-	Args:  cobra.NoArgs,
+	Long: "Compile and run the built-in language verification program to confirm the " +
+		"installed compiler and runtime work. Exits non-zero on failure. Not available on Windows.\n\n" +
+		"Example:\n" +
+		"  gray verify",
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		code := runVerify()
 		if code != 0 {

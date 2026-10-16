@@ -41,6 +41,8 @@ typedef struct {
     bool needs_strings_header;
     const char *file;
     char *file_owned; /* normalized copy backing `file`; freed by codegen_destroy */
+    char *file_literal_source;  /* raw `file` the cached literal below was built from */
+    char *file_literal_text;    /* `file` escaped for a C string literal; see codegen_file_literal */
 
     /* Track declared type names for codegen */
     const char **enum_names;
@@ -61,6 +63,12 @@ typedef struct {
     /* loop scoping depth — when > 0, codegen is inside a
      * scoped loop and container mutations need escape-copy logic. */
     int loop_scope_depth;
+
+    /* The string value of an assignment into module-level storage that
+     * reads an existing string. It is copied into the arena the store runs
+     * in, so the global does not keep pointing into the assigning scope's
+     * arena. Consumed by the first emit_expression that reaches it. */
+    AstNode *module_store_value;
 
     /* True while emitting the store that puts a `&`-parameter element
      * temporary back; that store skips the for_each mutation check. */

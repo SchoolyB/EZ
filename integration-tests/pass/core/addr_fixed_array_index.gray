@@ -5,7 +5,7 @@
  * with E3013).
  */
 
-do main() {
+unsafe do main() {
     const fixed [i64, 4] = {10, 20, 30, 40}
 
     mut p ^i64 = addr(fixed[1])

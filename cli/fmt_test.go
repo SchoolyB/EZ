@@ -128,3 +128,27 @@ func TestFormatGraySourceMixedTabsAndSpaces(t *testing.T) {
 		t.Fatalf("mixed tab+space indent not normalized\ngot:  %q\nwant: %q", got, want)
 	}
 }
+
+func TestFormatGraySourceKeepsRawStringContents(t *testing.T) {
+	in := "do main() {\n\tconst s string = `a  \n\tb\t\n\n\n\n\nc`  \n\tprintln(s)\n}\n"
+	want := "do main() {\n    const s string = `a  \n\tb\t\n\n\n\n\nc`\n    println(s)\n}\n"
+	if got := string(formatGraySource([]byte(in))); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestFormatGraySourceBacktickInCommentOrStringIsNotRaw(t *testing.T) {
+	in := "// a ` b\nconst s string = \"`\"  \nconst c char = '`'  \n"
+	want := "// a ` b\nconst s string = \"`\"\nconst c char = '`'\n"
+	if got := string(formatGraySource([]byte(in))); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestFormatGraySourceCRLF(t *testing.T) {
+	in := "do main() {  \r\n\tprintln(\"a\")   \r\n\r\n\r\n\r\n\r\n\r\n\tprintln(\"b\")\r\n}\r\n"
+	want := "do main() {\r\n    println(\"a\")\r\n\r\n\r\n    println(\"b\")\r\n}\r\n"
+	if got := string(formatGraySource([]byte(in))); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

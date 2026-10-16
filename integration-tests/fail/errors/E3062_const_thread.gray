@@ -9,6 +9,6 @@ import @threads
 
 do worker() {}
 
-do main() {
+unsafe do main() {
     const t = threads.spawn(()worker)
 }

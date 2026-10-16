@@ -117,11 +117,14 @@ typedef enum {
     TOKEN_BLANK,
     TOKEN_ENSURE,
     TOKEN_OR_RETURN,
+    TOKEN_OR_DEFAULT,
+    TOKEN_OR_PANIC,
     TOKEN_EXTERN,
     TOKEN_GENERIC,
 
     /* Module system keywords */
     TOKEN_PRIVATE,
+    TOKEN_UNSAFE,
     TOKEN_USE,
 
     /* When/Is keywords */

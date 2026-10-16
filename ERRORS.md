@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.gray` to regenerate.
 
-**Total: 531 codes** (380 errors, 17 warnings, 134 panics)
+**Total: 548 codes** (390 errors, 17 warnings, 141 panics)
 
 ---
 
@@ -90,6 +90,9 @@
 | `E2097` | syntax | a 'generic' parameter cannot have a default value; its argument is the type the caller passes |
 | `E2098` | syntax | imports must come before all other declarations in the file |
 | `E2099` | syntax | a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify |
+| `E2100` | syntax | %d names but %d values in declaration; give one value per name, or a single value for all of them |
+| `E2101` | syntax | a declaration with a list of values takes one shared type after the last name; per-name types are not supported |
+| `E2102` | syntax | 'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback' |
 | `E3001` | types | type mismatch: cannot assign %s to %s |
 | `E3002` | types | invalid operands: cannot use '%s' with %s and %s |
 | `E3003` | types | %s index must be an integer, got %s |
@@ -122,7 +125,7 @@
 | `E3041` | types | cannot interpolate %s of tagged enum '%s' |
 | `E3043` | types | cannot convert %s to %s |
 | `E3044` | types | cannot access field '%s' on type '%s'; use an instance variable instead |
-| `E3045` | types | 'or_return' requires a function that returns (T, Error); '%s()' does not return an error |
+| `E3045` | types | '%s' requires a function that returns (T, Error); '%s()' does not return an error |
 | `E3046` | types | integer literal %s does not fit any integer type; integers range from -2^255 (i256) to 2^256 - 1 (u256) |
 | `E3047` | types | enum '%s' has no member '%s' |
 | `E3048` | types | operator '+' on strings requires both operands to be strings; got '%s' and '%s' |
@@ -160,7 +163,7 @@
 | `E3086` | types | 'fmt.%s' format string must be a string literal; use string interpolation for dynamic values |
 | `E3087` | types | '%%n' is not permitted in fmt format strings |
 | `E3088` | types | 'fmt.%s' format directive '%%%s' expects %s but element %d has type '%s' |
-| `E3089` | usage | '%s()' can fail; use 'mut val, err = %s()' to handle the error, or 'mut val, _ = %s()' to discard it |
+| `E3089` | usage | '%s()' can fail; use '%s' to handle the error, '%s' to discard it, or add %s |
 | `E3090` | types | '!' only works on bool; got '%s' |
 | `E3091` | types | '%s' cannot be used as a condition |
 | `E3092` | types | cannot compare '%s' to nil; only Error types and pointers can be nil |
@@ -276,6 +279,11 @@
 | `E3204` | types | 'for %s in ...' only supports a range; use 'for_each %s in ...' to iterate over a collection |
 | `E3205` | types | a range can only be iterated with 'for', checked with 'in' or 'not_in', matched with 'is', or stored in a variable |
 | `E3206` | types | range step cannot be zero |
+| `E3207` | types | 'or_default' has %d fallback value(s) but the call returns %d value(s) besides the Error; give one fallback per value |
+| `E3208` | types | 'or_default' fallback of type '%s' does not match the call's '%s' value |
+| `E3209` | types | '%s.%s()' is not available on a %s enum; it is only generated for plain enums |
+| `E3210` | types | json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value |
+| `E3211` | types | '%s' requires a function that returns (T, Error); the operand is not a function call |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -360,6 +368,7 @@
 | `E5062` | arguments | default value for parameter '%s' has wrong type; expected %s, got %s |
 | `E5063` | arguments | 'to_char()' index %lld is out of bounds |
 | `E5064` | arguments | cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead |
+| `E5065` | usage | '%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no source files |
@@ -379,7 +388,7 @@
 | `E6017` | imports | import '%s' matches both a .gray and a .grayscale file; import one by its full file name |
 | `E7006` | stdlib | 'threads.spawn()' requires a function reference; use '()func_name' or 'ref(func_name)' |
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 to 1114111) |
-| `E7015` | stdlib | 'len()' is not supported for type '%s'; 'len()' works on string, array, and map types |
+| `E7015` | stdlib | 'len()' is not supported for type '%s' |
 | `E9002` | stdlib | 'arrays.%s()' requires a numeric array, got array of '%s' |
 | `E9003` | stdlib | 'arrays.%s()' requires a function reference; use '()func_name' to pass a function |
 | `E9004` | stdlib | 'arrays.%s()' callback signature mismatch; %s |
@@ -388,7 +397,8 @@
 | `E9007` | stdlib | 'arrays.%s()' requires a comparable array (numeric, string, bool, or enum), got array of '%s' |
 | `E12001` | stdlib | 'maps.%s()' requires a map argument, got an array |
 | `E12006` | stdlib | duplicate key in map literal |
-| `E12007` | stdlib | 'maps.contains_value()' does not support maps with '%s' values; only primitive and string value types are supported |
+| `E12007` | stdlib | 'maps.%s()' does not support maps with '%s' values; only primitive and string value types are supported |
+| `E12008` | stdlib | 'maps.sorted_keys()' requires string, integer, or char keys, got '%s' |
 | `E8001` | bitwise | '%s' can only be used with integers or #flags enums; got '%s' and '%s' |
 | `E8002` | bitwise | 'bit_not' can only be used with integers; got '%s' |
 
@@ -558,6 +568,13 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0149` | json | json.parse: input is not valid JSON |
 | `P0150` | json | json.parse: the JSON value is not %s |
 | `P0151` | json | json.parse: duplicate key '%.*s' |
+| `P0152` | random | random.rand_bytes called with a negative length |
+| `P0153` | random | random.roll_dice called with a count or sides less than 1 |
+| `P0154` | os | os.cpu_usage called with an interval_ms less than 1 |
+| `P0155` | runtime | len() of a range exceeds the largest i64 |
+| `P0156` | random | random.roll_dice total exceeds the largest i64 |
+| `P0157` | time | time function result exceeds the range of i64 |
+| `P0158` | random | random.rand_char range holds only surrogate codepoints |
 
 ---
 
@@ -582,4 +599,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-12 21:07:31 UTC*
+*Generated on 2026-10-15 23:50:39 UTC*

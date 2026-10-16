@@ -1,0 +1,68 @@
+/*
+ * Test: http request headers with CR, LF or NUL, or a name that is not a token,
+ * are rejected as InvalidInput before any connection is attempted
+ */
+
+import @http
+
+do rejected(headers map[string:string]) -> bool {
+    // Nothing listens on this port: an unchecked header would reach
+    // ConnectionRefused instead of InvalidInput.
+    mut _, err = http.get("http://127.0.0.1:47299/", headers)
+    return err != nil && err.code == .InvalidInput &&
+        err.msg == "invalid header: name must be a token and value must not contain CR, LF or NUL"
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if rejected({"X-Inject": "a\r\nX-Evil: 1"}) {
+        println("  [PASS] CR LF in a value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] CR LF in a value")
+        failed += 1
+    }
+
+    if rejected({"X-N\r\nY": "z"}) {
+        println("  [PASS] CR LF in a name")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] CR LF in a name")
+        failed += 1
+    }
+
+    if rejected({"X-Nul": "a\0b"}) {
+        println("  [PASS] NUL in a value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] NUL in a value")
+        failed += 1
+    }
+
+    if rejected({"Bad Name": "v"}) {
+        println("  [PASS] space in a name")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] space in a name")
+        failed += 1
+    }
+
+    mut _, ok_err = http.get("http://127.0.0.1:47299/", {"X-Token": "abc 123"})
+    if ok_err != nil && ok_err.code == .ConnectionRefused {
+        println("  [PASS] a valid header still reaches the connection")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] valid header")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

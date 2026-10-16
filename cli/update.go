@@ -837,11 +837,12 @@ func normalizeTag(v string) string {
 // the requested version is older than the currently running binary, a
 // one-line downgrade warning is emitted and installation continues.
 func runInstall(version string) error {
+	version = strings.TrimSpace(strings.TrimPrefix(version, "grayscale:"))
 	if version == "" {
-		return fmt.Errorf("error: missing version argument\nusage: gray install <version>    (e.g. gray install 3.0.0-beta.2)")
+		return fmt.Errorf("error: gray install requires a <version>\n  usage:   gray install <version>\n  example: gray install \"grayscale: v0.11.5\"")
 	}
 	if !exactSemverRE.MatchString(version) {
-		return fmt.Errorf("error: '%s' is not a fully-qualified semver\ngray install requires an exact version like '2.5.0' or '3.0.0-beta.2'\npartial versions, ranges, and shorthand are not accepted", version)
+		return fmt.Errorf("error: '%s' is not a fully-qualified semver\ngray install requires an exact version like \"grayscale: v0.11.5\" or \"grayscale: v0.12.0-beta.1\"\npartial versions, ranges, and shorthand are not accepted", version)
 	}
 
 	fmt.Printf("Current version: %s\n", Version)
@@ -1000,6 +1001,7 @@ func downloadAndInstall(downloadURL string) error {
 
 	err = doInstall(downloadURL, execPath)
 	if err == nil {
+		installCompletionScript(execPath)
 		return nil
 	}
 
@@ -1021,6 +1023,7 @@ func downloadAndInstall(downloadURL string) error {
 		return fmt.Errorf("failed to run with sudo: %w", err)
 	}
 
+	installCompletionScript(execPath)
 	os.Exit(0)
 	return nil // unreachable
 }
@@ -1038,6 +1041,11 @@ func isTrustedUpdateURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return false
+	}
+	for _, segment := range strings.Split(u.Path, "/") {
+		if segment == ".." || segment == "." {
+			return false
+		}
 	}
 	return u.Scheme == "https" &&
 		u.Host == trustedUpdateHost &&

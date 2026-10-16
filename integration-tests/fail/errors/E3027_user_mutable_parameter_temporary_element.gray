@@ -1,0 +1,14 @@
+// expect-contains: E3027
+import @arrays
+
+do grid() -> [[i64]] {
+    return {{1}}
+}
+
+do bump(&xs [i64]) {
+    arrays.append(xs, 1)
+}
+
+do main() {
+    bump(grid()[0])
+}

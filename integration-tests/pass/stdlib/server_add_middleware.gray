@@ -32,7 +32,7 @@ do serve() {
     server.listen(router, 18743, "127.0.0.1")
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

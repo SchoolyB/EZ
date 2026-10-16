@@ -1,0 +1,84 @@
+/*
+ * Test: a global assigned inside a spawned thread holds a valid value after
+ * the thread has exited
+ */
+
+import @threads
+import @arrays
+
+const Item struct {
+    name string
+    tags [string]
+}
+
+mut text string = ""
+mut numbers [i64] = {}
+mut lookup map[string:i64] = {:}
+mut item Item = Item{name: "", tags: {}}
+
+do assign() {
+    text = "assigned in a thread: ${len("abcdef")}"
+    mut local_numbers [i64] = {10, 20, 30}
+    numbers = local_numbers
+    mut local_lookup map[string:i64] = {"a": 1, "b": 2}
+    lookup = local_lookup
+    mut local_item Item = Item{name: "thread-item", tags: {"x", "y"}}
+    item = local_item
+}
+
+do churn() {
+    mut scratch [string] = {}
+    for i in range(0, 2000) {
+        arrays.append(scratch, "overwrite-${i}-overwrite-${i}-overwrite-${i}")
+    }
+}
+
+unsafe do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut handle = threads.spawn(()assign)
+    threads.join(handle)
+
+    mut other = threads.spawn(()churn)
+    threads.join(other)
+
+    if text == "assigned in a thread: 6" {
+        println("  [PASS] string global survives the thread")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string global: ${text}")
+        failed += 1
+    }
+
+    if len(numbers) == 3 && numbers[0] == 10 && numbers[2] == 30 {
+        println("  [PASS] array global survives the thread")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array global")
+        failed += 1
+    }
+
+    if lookup["a"] == 1 && lookup["b"] == 2 {
+        println("  [PASS] map global survives the thread")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map global")
+        failed += 1
+    }
+
+    if item.name == "thread-item" && len(item.tags) == 2 && item.tags[1] == "y" {
+        println("  [PASS] struct global survives the thread")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct global")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

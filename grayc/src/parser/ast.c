@@ -22,6 +22,12 @@ AstNode *ast_allocate(Arena *arena, NodeKind kind, Token token) {
     return node;
 }
 
+void ast_convert_to_label(AstNode *node, const char *value) {
+    node->kind = NODE_LABEL;
+    memset(&node->data.label, 0, sizeof(node->data.label));
+    node->data.label.value = value;
+}
+
 const char *ast_member_qualifier(const AstNode *node) {
     if (!node || node->kind != NODE_MEMBER_EXPRESSION) return NULL;
     const AstNode *object = node->data.member.object;

@@ -22,7 +22,7 @@ do serve() {
     net.close(conn)
 }
 
-do fetch(response string) -> (HttpResponse, Error) {
+unsafe do fetch(response string) -> (HttpResponse, Error) {
     canned = response
     mut server_thread = threads.spawn(()serve)
     mut no_headers map[string:string] = {:}

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3209 - variants() on a tagged enum
+ */
+// expect-error: E3209
+
+const Shape enum { Circle(f64); Square(f64) }
+
+do main() {
+    n = len(Shape.variants())
+    println(n)
+}

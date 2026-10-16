@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2011 - const names declared with no value
+ */
+// expect-error: E2011
+
+do main() {
+    const A, B i64
+}

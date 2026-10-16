@@ -117,6 +117,23 @@ static double json_finite_double(double value) {
     return value;
 }
 
+/* Writes the shortest %g text that reads back as the same value at its own
+ * width: f32 needs at most 9 significant digits, f64 at most 17. Returns the
+ * snprintf result for the final attempt. */
+static int json_format_float(char *buffer, size_t size, int32_t kind, double value) {
+    value = json_finite_double(value);
+    bool is_f32 = kind == GRAY_ELEM_F32;
+    int precision = is_f32 ? 6 : 15;
+    int maximum = is_f32 ? 9 : 17;
+    int written = 0;
+    for (; precision <= maximum; precision++) {
+        written = snprintf(buffer, size, "%.*g", precision, value);
+        if (written < 0 || (size_t)written >= size) return written;
+        if (is_f32 ? strtof(buffer, NULL) == (float)value : strtod(buffer, NULL) == value) break;
+    }
+    return written;
+}
+
 /* Two-pass encoder shared by every gray_json_encode_map* entry point. The only
  * per-type variation is the value's byte budget (pass 1) and how it is written
  * (pass 2); everything else — order walk, tombstone skip, key escaping, comma
@@ -126,7 +143,7 @@ static double json_finite_double(double value) {
  * the final entry, so pass 1 and pass 2 must stay in step for each kind:
  *   STRING  json_escaped_len(*val)   quoted + escaped
  *   INT     21   "-9223372036854775808" + NUL
- *   FLOAT   24   %g
+ *   FLOAT   24   %.17g
  *   BOOL    4 or 5   "true" / "false"
  * The INT/FLOAT snprintf never truncates given those budgets; the else branch
  * is defensive, and clamps pos so the closing brace and NUL stay in bounds. */
@@ -182,8 +199,8 @@ static GrayString json_encode_map_typed(GrayArena *arena, GrayMap *map, JsonMapV
                 break;
             }
             case JSON_MAP_VAL_FLOAT: {
-                int written = snprintf(buffer + position, need + 1 - (size_t)position, "%g",
-                    json_finite_double(gray_elem_to_double(map->value_kind, value)));
+                int written = json_format_float(buffer + position, need + 1 - (size_t)position, map->value_kind,
+                    gray_elem_to_double(map->value_kind, value));
                 if (written > 0 && (size_t)written < need + 1 - (size_t)position) position += written;
                 else truncated = true;
                 break;
@@ -239,7 +256,7 @@ static int json_format_unsigned_integer(char *buffer, size_t size, const GrayArr
 }
 
 static int json_format_floating_point(char *buffer, size_t size, const GrayArray *array, const void *element) {
-    return snprintf(buffer, size, "%g", json_finite_double(gray_elem_to_double(array->elem_kind, element)));
+    return json_format_float(buffer, size, array->elem_kind, gray_elem_to_double(array->elem_kind, element));
 }
 
 /* 21 chars max per int64 or uint64, 24 per %g double, plus the comma. */
@@ -530,6 +547,25 @@ void gray_json_check_field_quoting(GrayMap *quoted, GrayString key, bool expects
     if (is_string == expects_string) return;
     gray_panic_code_at(file, line, "P0135", "json.parse: field '%.*s' expects %s, but the JSON value is %s",
         (int)key.len, key.data, expected, is_string ? "a string" : "not a string");
+}
+
+/* An array field's value must be a JSON array; a quoted string, object,
+ * number or literal would otherwise split into an empty array. */
+void gray_json_require_array_field(GrayMap *quoted, GrayString key, GrayString value, const char *file, int line) {
+    const char *cursor = value.data;
+    skip_whitespace(&cursor, value.data + value.len);
+    bool is_quoted = gray_map_get(quoted, &key) != NULL;
+    if (!is_quoted && cursor < value.data + value.len && *cursor == '[') return;
+    gray_panic_code_at(file, line, "P0135", "json.parse: field '%.*s' expects %s, but the JSON value is %s",
+        (int)key.len, key.data, "an array", is_quoted ? "a string" : "not an array");
+}
+
+/* One element of a [string] field: the raw element text must be a JSON string. */
+GrayString gray_json_element_as_string(GrayArena *arena, GrayString element, GrayString key, const char *file, int line) {
+    if (element.len < 2 || element.data[0] != '"')
+        gray_panic_code_at(file, line, "P0135", "json.parse: field '%.*s' expects %s, but the JSON value is %s",
+            (int)key.len, key.data, "a string", "not a string");
+    return gray_json_unquote(arena, element);
 }
 
 bool gray_json_field_as_bool(GrayString value, GrayString key, const char *file, int line) {
@@ -880,7 +916,7 @@ GrayString gray_json_number_text(GrayArena *arena, int32_t kind, const void *val
     case GRAY_ELEM_U256: return gray_u256_to_string(arena, *(const gray_u256 *)value);
     case GRAY_ELEM_F32:
     case GRAY_ELEM_F64:
-        length = snprintf(buffer, sizeof(buffer), "%g", json_finite_double(gray_elem_to_double(kind, value)));
+        length = json_format_float(buffer, sizeof(buffer), kind, gray_elem_to_double(kind, value));
         break;
     case GRAY_ELEM_U8: case GRAY_ELEM_U16: case GRAY_ELEM_U32: case GRAY_ELEM_U64:
         length = snprintf(buffer, sizeof(buffer), "%" PRIu64, gray_elem_to_u64(kind, value));

@@ -1,0 +1,11 @@
+import @json
+import and use "./models"
+
+do main() {
+    mut parsed Point = json.parse("{\"x\":3,\"y\":4}")
+    if json.encode(parsed) == "{\"x\": 3, \"y\": 4}" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

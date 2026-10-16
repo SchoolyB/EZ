@@ -1,0 +1,13 @@
+/*
+ * Error Test: E7015 - len() on a handle with no item count
+ *
+ * Mutex is not in the len() table, so len() on it reports E7015 naming
+ * the accepted types.
+ */
+
+import @sync
+
+do main() {
+    mut lock Mutex = sync.mutex()
+    println(len(lock))
+}

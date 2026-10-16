@@ -1,0 +1,15 @@
+/*
+ * Warning Test: W1001 - unused-variable in nested blocks
+ * Expected: warnings for 'unused_in_branch' and 'unused_in_loop'
+ */
+
+do main() {
+    mut used i64 = 1
+    if true {
+        mut unused_in_branch i64 = 2
+        println(used)
+    }
+    for i in range(0, 2) {
+        mut unused_in_loop i64 = i
+    }
+}

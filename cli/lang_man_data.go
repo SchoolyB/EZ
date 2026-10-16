@@ -135,6 +135,18 @@ var langManDocs = map[string]LangManEntry{
 		Desc:    "Alias for 'ensure'. Registers a function to be called when the enclosing function exits, whether via normal return or early return.",
 		Example: "do process() {\n    defer cleanup()\n    // ... do work ...\n}",
 	},
+	"or_default": {
+		Kind:    "keyword",
+		Syntax:  "<expr> or_default <fallback>[, <fallback>...]",
+		Desc:    "Fallback shorthand: if the expression returns a non-nil Error, discards it and uses the fallback values instead, one per non-error value. The fallbacks are evaluated only on failure. Needs a binding.",
+		Example: "do main() {\n    mut port = strconv.to_i64(text) or_default 8080\n    mut low, high = bounds(text) or_default 0, 100\n}",
+	},
+	"or_panic": {
+		Kind:    "keyword",
+		Syntax:  "<expr> or_panic [\"message\"]",
+		Desc:    "Abort shorthand: if the expression returns a non-nil Error, panics with the error's message (or the given message). Legal in main() and in functions that return no Error.",
+		Example: "do main() {\n    mut port = strconv.to_i64(\"8080\") or_panic\n    mut n = strconv.to_i64(text) or_panic \"text must be a number\"\n}",
+	},
 	"or_return": {
 		Kind:    "keyword",
 		Syntax:  "<expr> or_return [fallback_values]",
@@ -176,7 +188,7 @@ var langManDocs = map[string]LangManEntry{
 	"enum": {
 		Kind:    "keyword",
 		Syntax:  "const <Name> enum { VARIANT ... }",
-		Desc:    "Defines a type with a fixed set of named values. Variants auto-increment from 0 by default.",
+		Desc:    "Defines a type with a fixed set of named values. Variants auto-increment from 0 by default. A plain enum also has Name.names() -> [string] and Name.variants() -> [Name], both in declaration order.",
 		Example: "const Direction enum {\n    NORTH\n    EAST\n    SOUTH\n    WEST\n}",
 	},
 	"import": {

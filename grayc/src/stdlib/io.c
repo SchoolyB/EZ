@@ -420,6 +420,34 @@ GrayArray gray_io_read_stdin_bytes(GrayArena *arena) {
     return array;
 }
 
+#if GRAY_RUNTIME_WINDOWS
+/* Windows has no getline(). Same contract as POSIX getline: grow *line to hold
+ * the next line including its newline, NUL-terminate it, and return its length,
+ * or -1 at end of file with nothing read. */
+static int64_t io_read_line(char **line, size_t *capacity, FILE *file) {
+    size_t length = 0;
+    int next;
+    while ((next = fgetc(file)) != EOF) {
+        if (length + 2 > *capacity) {
+            size_t grown = *capacity ? *capacity * 2 : 128;
+            char *resized = realloc(*line, grown);
+            if (!resized) return -1;
+            *line = resized;
+            *capacity = grown;
+        }
+        (*line)[length++] = (char)next;
+        if (next == '\n') break;
+    }
+    if (length == 0) return -1;
+    (*line)[length] = '\0';
+    return (int64_t)length;
+}
+#else
+static int64_t io_read_line(char **line, size_t *capacity, FILE *file) {
+    return (int64_t)getline(line, capacity, file);
+}
+#endif
+
 /* Stream lines from f into arr, stripping a trailing LF and (for CRLF) CR.
  * limit > 0 stops after that many lines; limit <= 0 reads to end of file.
  * Streaming keeps `limit` cheap on large files and avoids the read_file
@@ -427,9 +455,9 @@ GrayArray gray_io_read_stdin_bytes(GrayArena *arena) {
 static void io_stream_lines(GrayArena *arena, FILE *file, int64_t limit, GrayArray *array) {
     char *line = NULL;
     size_t capacity = 0;
-    ssize_t bytes_read;
+    int64_t bytes_read;
     int64_t count = 0;
-    while ((limit <= 0 || count < limit) && (bytes_read = getline(&line, &capacity, file)) != -1) {
+    while ((limit <= 0 || count < limit) && (bytes_read = io_read_line(&line, &capacity, file)) != -1) {
         size_t length = (size_t)bytes_read;
         if (length > 0 && line[length - 1] == '\n') length--;
         if (length > 0 && line[length - 1] == '\r') length--;

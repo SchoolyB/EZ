@@ -1,0 +1,6 @@
+/* Panic Test: P0004 - random.roll_dice() total overflows i64 */
+import @random
+
+do main() {
+    println(random.roll_dice(100, 9223372036854775807))
+}

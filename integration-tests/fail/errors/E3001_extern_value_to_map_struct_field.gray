@@ -11,7 +11,7 @@ const Counter struct {
     n i64
 }
 
-do main() {
+unsafe do main() {
     mut m map[string:Counter] = {"a": Counter{n: 1}}
     m["a"].n = extern.abs(-3)
     println(m["a"].n)

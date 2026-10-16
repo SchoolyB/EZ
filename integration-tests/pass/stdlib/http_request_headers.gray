@@ -21,7 +21,7 @@ do echo() {
     net.close(conn)
 }
 
-do post(headers map[string:string]) -> string {
+unsafe do post(headers map[string:string]) -> string {
     mut server_thread = threads.spawn(()echo)
     mut _, _ = http.post("http://127.0.0.1:47217/", "{\"a\": 1}", headers)
     threads.join(server_thread)

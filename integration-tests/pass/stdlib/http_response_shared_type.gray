@@ -39,7 +39,7 @@ do build(name string) -> server.HttpResponse {
     return resp
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
 

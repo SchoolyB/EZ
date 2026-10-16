@@ -1,0 +1,13 @@
+/*
+ * Error Test: E9004 - sort_by callback parameters do not match the array element type
+ */
+// expect-error: E9004
+
+import @arrays
+
+do same(a string, b string) -> bool { return a == b }
+
+do main() {
+    mut numbers [i64] = {3, 1, 2}
+    arrays.sort_by(numbers, ()same)
+}

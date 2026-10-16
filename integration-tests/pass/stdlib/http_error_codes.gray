@@ -24,7 +24,7 @@ do serve() {
     net.close(conn)
 }
 
-do main() {
+unsafe do main() {
     mut passed i64 = 0
     mut failed i64 = 0
     mut no_headers map[string:string] = {:}

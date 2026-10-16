@@ -31,7 +31,7 @@ do accept_and_send_twice() {
     }
 }
 
-do main() {
+unsafe do main() {
     println("=== net.recv Buffer Bounds Test ===")
     mut passed i64 = 0
     mut failed i64 = 0

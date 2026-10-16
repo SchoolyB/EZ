@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3089 - net.receive_line can fail; the Error must be handled or discarded
+ */
+// expect-error: E3089
+
+import @net
+
+do main() {
+    mut sock, _ = net.connect("127.0.0.1", 9)
+    mut line string = net.receive_line(sock, 100)
+    println(line)
+}

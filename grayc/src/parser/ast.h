@@ -21,6 +21,10 @@
 #define GRAY_SYNTHETIC_PREFIX  "_gray_"
 #define GRAY_SYNTHETIC_TEMPORARY     "_gray_tmp"
 #define GRAY_SYNTHETIC_OR      "_gray_or"
+/* An or_panic temporary: GRAY_SYNTHETIC_OR is its prefix, so every or_return
+ * check also covers it. */
+#define GRAY_SYNTHETIC_OR_PANIC "_gray_or_panic"
+#define GRAY_SYNTHETIC_OR_DEFAULT "_gray_or_default"
 
 /* Sentinel member name for the or_return propagation guard's error access.
  * The parser emits `_gray_orN.verr`; the typechecker rewrites it to the
@@ -312,6 +316,10 @@ struct AstNode {
             bool is_mutable;
             bool is_private;
             bool is_synthetic;         /* parser-generated temporary, not user-written */
+            /* File-scope multi-name declaration: the names declared before
+             * this one on the same line. The initializer cannot see them. */
+            const char **earlier_group_names;
+            int earlier_group_count;
             /* Set by the type checker on `mut xs = place` when `xs` is stored
              * back to `place` before anything else can observe either: codegen
              * shares the array instead of copying it. */
@@ -341,7 +349,12 @@ struct AstNode {
         struct { AstNode *expression; } expression_statement;
 
         /* NODE_BLOCK_STATEMENT */
-        struct { AstNode **statements; int count; int capacity; } block;
+        struct {
+            AstNode **statements;
+            int count;
+            int capacity;
+            bool is_unsafe; /* `unsafe { ... }` block: opens a scope that permits unsafe primitives */
+        } block;
 
         /* NODE_IF_STATEMENT */
         struct {
@@ -523,6 +536,10 @@ char *generic_bindings_substitute(const GenericBindings *bindings, const char *t
  * needs the written qualifier before it can decide which; these are the one
  * place the shape is tested, so a phase asks for the qualifier instead of
  * open-coding the node-kind check. */
+
+/* Turns a node into a label spelled `value`. The label's reference flags are
+ * cleared: its union storage still holds the previous kind's bytes. */
+void ast_convert_to_label(AstNode *node, const char *value);
 
 /* The bare name a member expression is written against — "mod" in mod.f(),
  * "Type" in Type.VARIANT, "v" in v.field — or NULL when the object is not a

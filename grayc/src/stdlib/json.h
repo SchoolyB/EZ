@@ -89,6 +89,8 @@ void gray_json_require_document(GrayString text, char opening, const char *file,
 GrayMap gray_json_decode_fields(GrayArena *arena, GrayString text, GrayMap *quoted, const char *file, int line);
 void gray_json_check_field_quoting(GrayMap *quoted, GrayString key, bool expects_string, const char *expected, const char *file, int line);
 bool gray_json_field_as_bool(GrayString value, GrayString key, const char *file, int line);
+void gray_json_require_array_field(GrayMap *quoted, GrayString key, GrayString value, const char *file, int line);
+GrayString gray_json_element_as_string(GrayArena *arena, GrayString element, GrayString key, const char *file, int line);
 
 /*@man parse
  *@module json

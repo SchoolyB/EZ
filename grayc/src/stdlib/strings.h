@@ -8,6 +8,14 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
+/* Under TinyCC, io.c and os.c define _DEFAULT_SOURCE, so glibc's <string.h>
+ * includes <strings.h> while runtime.h is still being read. This directory is
+ * ahead of the system one there, so that include lands here before GrayArena
+ * exists: step past to the real header and declare nothing. */
+#if defined(__TINYC__) && defined(GRAY_RUNTIME_H) && !defined(GRAY_ARENA_DECLARED)
+#  include <arpa/../strings.h>
+#else
+
 #ifndef GRAY_STRINGS_H
 #define GRAY_STRINGS_H
 
@@ -21,9 +29,14 @@
 #ifdef GRAY_GENERATED_C
 #  if defined(__TINYC__)
 /* TinyCC's include_next re-finds this header when a quoted include from its
- * own .c file reached it; <sys/..> steps past this directory instead. */
-#    if __has_include(<sys/../strings.h>)
-#      include <sys/../strings.h>
+ * own .c file reached it; <arpa/..> steps past this directory instead (<sys/..> on Windows,
+ * which has no arpa/; Debian keeps no /usr/include/sys). */
+#    if defined(_WIN32)
+#      if __has_include(<sys/../strings.h>)
+#        include <sys/../strings.h>
+#      endif
+#    else
+#      include <arpa/../strings.h>
 #    endif
 #  elif defined(__has_include_next)
 #    if __has_include_next(<strings.h>)
@@ -651,18 +664,7 @@ void gray_strings_builder_append_i64(GrayStringsBuilder *builder, int64_t value)
  */
 void gray_strings_builder_append_line(GrayStringsBuilder *builder, GrayString string);
 
-/*@man builder_len
- *@module strings
- *@group Builder
- *@sig builder_len(b Builder) -> i64
- *@desc Returns the number of bytes accumulated in the builder so far.
- *@example
- *   import @strings
- *   mut b Builder = strings.builder()
- *   strings.builder_append(b, "abc")
- *   println(strings.builder_len(b))
- *@end
- */
+/* The bytes written so far; what len() emits. */
 int64_t gray_strings_builder_len(GrayStringsBuilder *builder);
 
 /*@man builder_clear
@@ -692,5 +694,7 @@ void gray_strings_builder_clear(GrayStringsBuilder *builder);
  *@end
  */
 GrayString gray_strings_build(GrayArena *arena, GrayStringsBuilder *builder);
+
+#endif
 
 #endif

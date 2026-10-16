@@ -1,0 +1,38 @@
+import @random
+
+do main() {
+    mut failures i64 = 0
+
+    mut s string = random.rand_string(4, "é")
+    if len(s) != 8 || s != "éééé" {
+        println("rand_string(4, \"é\") was not four whole characters")
+        failures += 1
+    }
+
+    mut t string = random.rand_string(50, "日本")
+    mut only_alphabet bool = true
+    mut character_count i64 = 0
+    for_each c in t {
+        character_count += 1
+        if c != '日' && c != '本' { only_alphabet = false }
+    }
+    if len(t) != 150 || character_count != 50 || !only_alphabet {
+        println("rand_string(50, \"日本\") drew something outside the alphabet")
+        failures += 1
+    }
+
+    for i in range(0, 200) {
+        mut c char = random.rand_char(cast(55290, char), cast(57350, char))
+        mut code i64 = cast(c, i64)
+        if code >= 55296 && code <= 57343 {
+            println("rand_char returned a surrogate")
+            failures += 1
+            break
+        }
+    }
+
+    if failures > 0 {
+        panic("${failures} checks failed")
+    }
+    println("ALL TESTS PASSED")
+}

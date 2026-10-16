@@ -10,6 +10,6 @@ do worker() {
     println("working")
 }
 
-do main() {
+unsafe do main() {
     mut t Thread = threads.spawn(worker)
 }

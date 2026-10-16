@@ -1,0 +1,7 @@
+do take(counts map[string:i64]) -> i64 {
+    return len(counts)
+}
+
+do main() {
+    println("${take({})}")
+}

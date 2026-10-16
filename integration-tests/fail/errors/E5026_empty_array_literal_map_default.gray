@@ -1,0 +1,7 @@
+import @maps
+
+do main() {
+    mut nested map[string:map[string:i64]] = {:}
+    inner = maps.get_or_insert(nested, "a", {})
+    println("${len(inner)}")
+}
