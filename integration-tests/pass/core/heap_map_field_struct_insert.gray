@@ -1,0 +1,37 @@
+const Entry struct { code string }
+const Holder struct { table map[string:Entry] }
+
+do create() -> ^Holder {
+    h = new(Holder)
+    entry = Entry{code: "gray_${len("abc")}"}
+    h^.table["alpha"] = entry
+    return h
+}
+
+do churn() -> string {
+    mut junk string = ""
+    for i in range(0, 200) { junk = "${junk}ZZZZZZZZ${i}" }
+    return junk
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    h = create()
+    junk = churn()
+    if h^.table["alpha"].code == "gray_3" && len(junk) > 0 {
+        passed = passed + 1
+    } otherwise {
+        println("[FAIL] expected gray_3, got ${h^.table["alpha"].code}")
+        failed = failed + 1
+    }
+
+    println("passed: ${passed}")
+    println("failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

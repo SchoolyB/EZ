@@ -10974,7 +10974,6 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
     if (left_type->value_type) c_value_type = gray_map_element_c_type(codegen, left_type->value_type);
     const char *c_key_type = "GrayString";
     if (left_type->key_type) c_key_type = gray_map_element_c_type(codegen, left_type->key_type);
-    const char *ms_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
     bool has_string_key = left_type->key_type && strcmp(left_type->key_type, "string") == 0;
     bool has_string_value = left_type->value_type && strcmp(left_type->value_type, "string") == 0;
 
@@ -11012,13 +11011,21 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
             is_raw_variable(codegen, left->data.postfix.left->data.label.value));
     }
 
+    /* The map field of a new() object lives in gray_heap_arena, so the key,
+     * the value, and any growth of the map must be allocated there too. */
+    bool map_in_heap = map_pointer_object && map_pointer_object->kind == NODE_LABEL &&
+        is_heap_variable(codegen, map_pointer_object->data.label.value);
+    const char *ms_arena = map_in_heap ? "gray_heap_arena"
+                         : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+    bool ms_escapes = map_in_heap || codegen->loop_scope_depth > 0;
+
     /* A number entry's compound assignment is emitted by
      * emit_compound_arithmetic; a string entry's += reaches here. */
     bool ms_compound = node->data.assign.operator == TOKEN_PLUS_ASSIGN;
     emit_formatted(codegen, "{ %s _mk = ", c_key_type);
     emit_map_slot_value(codegen, left_type->key_type, node->data.assign.target->data.index_expression.index);
     emit(codegen, "; ");
-    if (codegen->loop_scope_depth > 0) {
+    if (ms_escapes) {
         if (has_string_key) {
             emit_formatted(codegen, "_mk = gray_string_new(%s, _mk.data, _mk.len); ", ms_arena);
         } else if (left_type->key_type && type_needs_deep_copy(codegen, left_type->key_type)) {
@@ -11073,7 +11080,7 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
         emit(codegen, "gray_string_concat(gray_default_arena, *(GrayString*)_cur, ");
         emit_expression(codegen, node->data.assign.value);
         emit(codegen, ")");
-    } else if (codegen->loop_scope_depth == 0 &&
+    } else if (!ms_escapes &&
                composite_value_aliases(codegen, left_type->value_type, node->data.assign.value)) {
         /* Inside a loop the escape copy below already covers this. */
         emit_composite_operand(codegen, left_type->value_type, node->data.assign.value);
@@ -11081,7 +11088,7 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
         emit_map_slot_value(codegen, left_type->value_type, node->data.assign.value);
     }
     emit(codegen, "; ");
-    if (codegen->loop_scope_depth > 0) {
+    if (ms_escapes) {
         if (has_string_value) {
             emit_formatted(codegen, "_mv = gray_string_new(%s, _mv.data, _mv.len); ", ms_arena);
         } else if (left_type->value_type && type_needs_deep_copy(codegen, left_type->value_type)) {
