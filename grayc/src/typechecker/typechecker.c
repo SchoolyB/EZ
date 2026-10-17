@@ -14428,12 +14428,16 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
             }
         }
         /* E4013: shadows a function — only when the variable name
-         * matches a function callable by that same name. find_function
-         * keys on the flattened (module-prefixed) name, so a legitimate
-         * local like `mod_size` collides with the internal name of
-         * `mod.size`. Compare display names so that artifact never fires. */
+         * matches a function callable by that same name from this file's
+         * scope. A function in another module is not callable by its bare
+         * name, so the flattened-key fallback of find_function stays out of
+         * it. A legitimate local like `mod_size` still resolves nothing. */
         {
-            FunctionSignature *shadowed = find_function(checker, node->data.variable_declaration.name);
+            DeclarationEntry *shadowed_entry = checker_resolve_entry(checker, node->data.variable_declaration.name);
+            FunctionSignature *shadowed = (shadowed_entry && shadowed_entry->kind == DECLARATION_FUNCTION &&
+                                           shadowed_entry->registry_index >= 0 &&
+                                           shadowed_entry->registry_index < checker->function_count)
+                ? &checker->functions[shadowed_entry->registry_index] : NULL;
             if (shadowed && strcmp(function_display_name(shadowed),
                                    VARIABLE_DISPLAY_NAME(node)) == 0) {
                 NODE_ERROR_FORMATTED(checker, node, "E4013", VARIABLE_DISPLAY_NAME(node));

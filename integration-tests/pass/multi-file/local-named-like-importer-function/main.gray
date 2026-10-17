@@ -1,0 +1,33 @@
+/*
+ * main.gray - A local in an imported module may share its name with a
+ * function declared in the importing file.
+ */
+
+import "./lib"
+
+do value() -> i64 {
+    return 1
+}
+
+do main() {
+    println("=== local named like an importing file's function ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if lib.double(2) == 4 && value() == 1 {
+        println("  [PASS] imported local keeps its own name")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] imported local keeps its own name")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
