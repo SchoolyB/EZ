@@ -7561,17 +7561,8 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
     } else if (strcmp(module_name, "threads") == 0) {
         if ((strcmp(member_function_name, "spawn") == 0 || strcmp(member_function_name, "spawn_arg") == 0) &&
             node->data.call.argument_count >= 1) {
-            AstNode *first_argument_node = node->data.call.arguments[0];
-            if (first_argument_node->kind != NODE_FUNCTION_REFERENCE &&
-                !(first_argument_node->kind == NODE_CALL_EXPRESSION &&
-                  first_argument_node->data.call.function->kind == NODE_LABEL &&
-                  strcmp(first_argument_node->data.call.function->data.label.value, "ref") == 0)) {
-                NODE_ERROR(checker, node, "E7006");
-            }
-            else {
-                check_function_argument_signature(checker, first_argument_node, "threads", member_function_name, 1,
-                    strcmp(member_function_name, "spawn") == 0 ? "func()" : "func(i64)");
-            }
+            check_function_argument_signature(checker, node->data.call.arguments[0], "threads", member_function_name, 1,
+                strcmp(member_function_name, "spawn") == 0 ? "func()" : "func(i64)");
         }
     } else if (strcmp(module_name, "server") == 0) {
         if (strcmp(member_function_name, "add_route") == 0 && node->data.call.argument_count == 4) {

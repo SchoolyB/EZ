@@ -4406,8 +4406,8 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `spawn` | `(fn func()) -> Thread` | Spawn a new thread running `fn` |
-| `spawn_arg` | `(fn func(i64), arg i64) -> Thread` | Spawn a new thread running `fn`, passing `arg` as its i64 parameter |
+| `spawn` | `(fn func()) -> Thread` | Spawn a new thread running `fn`, any `func()` value |
+| `spawn_arg` | `(fn func(i64), arg i64) -> Thread` | Spawn a new thread running `fn`, any `func(i64)` value, passing `arg` as its i64 parameter |
 | `join` | `(t Thread)` | Wait for a thread to finish |
 | `detach` | `(t Thread)` | Release ownership; the thread runs independently. After detach the handle must not be joined or queried |
 | `is_alive` | `(t Thread) -> bool` | True while the thread's body has not returned. Not valid after `detach` or `join` |

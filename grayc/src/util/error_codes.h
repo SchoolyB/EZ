@@ -414,7 +414,6 @@
 
 /* --- E7xxx+: Standard Library --- */
 #define GRAY_STDLIB_ERRORS \
-    GRAY_ERROR("E7006", "stdlib", "'threads.spawn()' requires a function reference; use '()func_name' or 'ref(func_name)'") \
     GRAY_ERROR("E7014", "stdlib", "cannot convert %lld to char; value must be a valid Unicode code point (0 to 1114111)") \
     GRAY_ERROR("E7015", "stdlib", "'len()' is not supported for type '%s'") \
     GRAY_ERROR("E9002", "stdlib", "'arrays.%s()' requires a numeric array, got array of '%s'") \

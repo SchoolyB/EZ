@@ -1,9 +1,9 @@
 # Grayscale Error Code Reference
 
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
-> Run `./scripts/generate_errors.gray` to regenerate.
+> Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 548 codes** (390 errors, 17 warnings, 141 panics)
+**Total: 547 codes** (389 errors, 17 warnings, 141 panics)
 
 ---
 
@@ -386,7 +386,6 @@
 | `E6015` | imports | C header '%s' could not be found for the current target |
 | `E6016` | imports | C header '%s' conflicts with C header '%s': both declare '%s' with incompatible types |
 | `E6017` | imports | import '%s' matches both a .gray and a .grayscale file; import one by its full file name |
-| `E7006` | stdlib | 'threads.spawn()' requires a function reference; use '()func_name' or 'ref(func_name)' |
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 to 1114111) |
 | `E7015` | stdlib | 'len()' is not supported for type '%s' |
 | `E9002` | stdlib | 'arrays.%s()' requires a numeric array, got array of '%s' |
@@ -599,4 +598,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-15 23:50:39 UTC*
+*Generated on 2026-10-17 16:12:13 UTC*
