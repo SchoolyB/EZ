@@ -1,0 +1,69 @@
+/*
+ * generic_wide_integer_literal_local.gray - A generic function bound to a wide
+ * integer type can declare a local initialized with an integer literal.
+ */
+
+do one_of(kind generic) -> kind {
+    mut one kind = 1
+    return one
+}
+
+do zero_of(kind generic) -> kind {
+    mut zero kind = 0
+    return zero
+}
+
+do main() {
+    println("=== generic wide integer literal local ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if one_of(u128) == 1 {
+        println("  [PASS] u128 local initialized with 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 local initialized with 1")
+        failed += 1
+    }
+
+    if one_of(u256) == 1 {
+        println("  [PASS] u256 local initialized with 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 local initialized with 1")
+        failed += 1
+    }
+
+    if zero_of(i128) == 0 {
+        println("  [PASS] i128 local initialized with 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 local initialized with 0")
+        failed += 1
+    }
+
+    if zero_of(i256) == 0 {
+        println("  [PASS] i256 local initialized with 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 local initialized with 0")
+        failed += 1
+    }
+
+    if one_of(i64) == 1 {
+        println("  [PASS] i64 local initialized with 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 local initialized with 1")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

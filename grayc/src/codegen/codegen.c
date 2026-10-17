@@ -1687,6 +1687,12 @@ static const char *resolve_wide_integer_type(CodeGen *codegen, AstNode *node) {
     if (!node) return NULL;
     /* A value widened into a wide type is that type once emitted. */
     if (node->widen_to) return wide_integer_type_name(node->widen_to);
+    /* A local declared with a type parameter's name is recorded by the type
+     * checker as its initializer's type; the registry holds its binding. */
+    if (node->kind == NODE_LABEL && codegen->generics.count > 0) {
+        const char *bound_wide_integer = lookup_wide_integer_variable(codegen, node->data.label.value);
+        if (bound_wide_integer) return bound_wide_integer;
+    }
     /* The type checker's resolved type decides. The walk below is for a node
      * it could not type: one inside a generic body, typed by the binding. */
     GrayType *resolved = codegen_type_of(codegen, node);
@@ -10549,7 +10555,7 @@ static void emit_variable_declaration(CodeGen *codegen, AstNode *node,
     emit_indent(codegen);
 
     char inferred_type_name[TYPE_NAME_MAX];
-    const char *type_name = node->data.variable_declaration.type_name;
+    const char *type_name = codegen_effective_type_string(codegen, node->data.variable_declaration.type_name);
     if (!type_name && inferred_composite_type(codegen, node->data.variable_declaration.value,
                                               inferred_type_name, sizeof(inferred_type_name))) {
         type_name = inferred_type_name;
