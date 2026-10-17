@@ -14326,6 +14326,35 @@ static GrayType *check_variable_declaration_initializer(TypeChecker *checker, As
     return declared;
 }
 
+/* Give a destructuring temp the return slots of the function a call names.
+ * For a generic function, read the type arguments off the call and substitute
+ * them into each slot, so destructured slots get concrete types instead of
+ * TYPE_KIND_UNKNOWN; without this, `mut a, b = pair(i64, 42)` where pair
+ * returns (kind, kind) leaves the temp's slot types unknown, the unannotated
+ * LHS vars never declare, and subsequent uses error as undefined. */
+static void apply_call_return_slots(TypeChecker *checker, Symbol *symbol, FunctionSignature *signature, AstNode *call) {
+    GrayType **slots = signature->return_types;
+    int slot_count = signature->return_count;
+    if (signature->is_generic && signature->declaration &&
+        signature->declaration->kind == NODE_FUNCTION_DECLARATION) {
+        AstNode *declaration = signature->declaration;
+        GenericBindings call_bindings;
+        call_type_arguments(checker, call, declaration, &call_bindings);
+        int return_count = declaration->data.function_declaration.return_type_count;
+        GrayType **substituted_return_types = xmalloc(sizeof(GrayType *) * (size_t)return_count);
+        for (int return_index = 0; return_index < return_count; return_index++) {
+            substituted_return_types[return_index] = typechecker_type_with_generics(checker,
+                &call_bindings, declaration->data.function_declaration.return_types[return_index]);
+        }
+        generic_bindings_clear(&call_bindings);
+        slots = substituted_return_types;
+        slot_count = return_count;
+    }
+    symbol->return_types = slots;
+    symbol->return_count = slot_count;
+    symbol->are_return_types_owned = (slots != signature->return_types);
+}
+
 /* Name-conflict checks for a named (non-`_`) var decl, then bind its symbol
  * and record the origin/reference tracking later checks read. */
 static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayType *declared) {
@@ -14576,28 +14605,7 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
                     Symbol *symbol = scope_lookup_local(checker->current_scope,
                         node->data.variable_declaration.name);
                     if (symbol) {
-                        GrayType **slots = signature->return_types;
-                        int slot_count = signature->return_count;
-                        if (signature->is_generic && signature->declaration &&
-                            signature->declaration->kind == NODE_FUNCTION_DECLARATION) {
-                            /* Read the type arguments off the call, then
-                             * substitute them into each return slot. */
-                            AstNode *declaration = signature->declaration;
-                            GenericBindings call_bindings;
-                            call_type_arguments(checker, node->data.variable_declaration.value, declaration, &call_bindings);
-                            int return_count = declaration->data.function_declaration.return_type_count;
-                            GrayType **substituted_return_types = xmalloc(sizeof(GrayType *) * (size_t)return_count);
-                            for (int return_index = 0; return_index < return_count; return_index++) {
-                                substituted_return_types[return_index] = typechecker_type_with_generics(checker,
-                                    &call_bindings, declaration->data.function_declaration.return_types[return_index]);
-                            }
-                            generic_bindings_clear(&call_bindings);
-                            slots = substituted_return_types;
-                            slot_count = return_count;
-                        }
-                        symbol->return_types = slots;
-                        symbol->return_count = slot_count;
-                        symbol->are_return_types_owned = (slots != signature->return_types);
+                        apply_call_return_slots(checker, symbol, signature, node->data.variable_declaration.value);
                     }
                 }
             }
@@ -14619,10 +14627,7 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
                 if (signature && signature->return_count > 1) {
                     Symbol *symbol = scope_lookup_local(checker->current_scope,
                         node->data.variable_declaration.name);
-                    if (symbol) {
-                        symbol->return_types = signature->return_types;
-                        symbol->return_count = signature->return_count;
-                    }
+                    if (symbol) apply_call_return_slots(checker, symbol, signature, node->data.variable_declaration.value);
                 }
             }
             /* Triple-chain calls (mod.Type.func); look up mod_Type_func

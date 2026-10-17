@@ -1,0 +1,3 @@
+do pass(kind generic, v kind) -> (kind, Error) {
+    return v, nil
+}
