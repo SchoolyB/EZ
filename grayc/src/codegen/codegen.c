@@ -3345,7 +3345,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
             emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
             return;
         }
-        GrayType *shift_type = codegen_type_of(codegen, node->data.infix.left);
+        GrayType *shift_type = codegen_effective_type(codegen, codegen_type_of(codegen, node->data.infix.left));
         const char *shift_name = (shift_type && shift_type->kind == TYPE_KIND_CHAR) ? "i32"
             : (shift_type && (shift_type->kind == TYPE_KIND_SIGNED_INTEGER || shift_type->kind == TYPE_KIND_UNSIGNED_INTEGER)) ? shift_type->name : NULL;
         int bits = 64;

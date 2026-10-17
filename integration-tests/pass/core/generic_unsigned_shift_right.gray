@@ -1,0 +1,60 @@
+/*
+ * generic_unsigned_shift_right.gray - bit_shift_right in a generic function is
+ * a logical shift for an unsigned type argument and an arithmetic shift for a
+ * signed one.
+ */
+
+do shift_right(kind generic, value kind, amount i64) -> kind {
+    return value bit_shift_right amount
+}
+
+do main() {
+    println("=== generic bit_shift_right ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut big u64 = 18446744073709551615
+    if shift_right(u64, big, 60) == 15 {
+        println("  [PASS] u64 above 2^63 shifts logically")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64 above 2^63 shifts logically")
+        failed += 1
+    }
+
+    mut byte u8 = 255
+    if shift_right(u8, byte, 4) == 15 {
+        println("  [PASS] u8 shifts logically")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 shifts logically")
+        failed += 1
+    }
+
+    mut word u32 = 4294967295
+    if shift_right(u32, word, 28) == 15 {
+        println("  [PASS] u32 shifts logically")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u32 shifts logically")
+        failed += 1
+    }
+
+    mut negative i64 = -16
+    if shift_right(i64, negative, 2) == -4 {
+        println("  [PASS] i64 shifts arithmetically")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 shifts arithmetically")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
