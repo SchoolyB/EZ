@@ -1,0 +1,84 @@
+/*
+ * generic_wide_integer_literal_local_use.gray - In a generic function bound to
+ * a wide integer type, expressions that use a literal-initialized local keep
+ * the wide type.
+ */
+
+do invert_zero(kind generic) -> kind {
+    mut zero kind = 0
+    mut ones kind = bit_not zero
+    return ones
+}
+
+do or_shifted(kind generic, value kind) -> kind {
+    mut one kind = 1
+    return value bit_or (one bit_shift_left 3)
+}
+
+do push_bit(kind generic, value kind) -> kind {
+    mut result kind = 0
+    mut remaining kind = value
+    result = (result bit_shift_left 1) bit_or (remaining bit_and 1)
+    return result
+}
+
+do negate_sum(kind generic, value kind) -> kind {
+    mut base kind = 10
+    mut total kind = base + value
+    return -total
+}
+
+do main() {
+    println("=== generic wide integer literal local use ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if invert_zero(u128) == 340282366920938463463374607431768211455 {
+        println("  [PASS] bit_not of a literal local, u128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not of a literal local, u128")
+        failed += 1
+    }
+
+    if or_shifted(u128, 1) == 9 {
+        println("  [PASS] shift and or of a literal local, u128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] shift and or of a literal local, u128")
+        failed += 1
+    }
+
+    if or_shifted(u256, 1) == 9 {
+        println("  [PASS] shift and or of a literal local, u256")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] shift and or of a literal local, u256")
+        failed += 1
+    }
+
+    if push_bit(u128, 3) == 1 {
+        println("  [PASS] assignment from bit expressions, u128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] assignment from bit expressions, u128")
+        failed += 1
+    }
+
+    if negate_sum(i128, 5) == cast(-15, i128) {
+        println("  [PASS] arithmetic and negation of a literal local, i128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arithmetic and negation of a literal local, i128")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

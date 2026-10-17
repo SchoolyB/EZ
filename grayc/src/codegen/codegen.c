@@ -692,8 +692,42 @@ static void register_resolved_loop_variable(CodeGen *codegen, const char *name, 
  * it out from the bound struct: the field's declared type, or the element of
  * the container it is indexed into; or, for a for_each variable, the element
  * of what it iterates. Every other node keeps its table type. */
+static const char *lookup_wide_integer_variable(CodeGen *codegen, const char *name);
+
 static GrayType *codegen_type_of(CodeGen *codegen, AstNode *node) {
     GrayType *recorded = type_table_get(codegen->type_table, node);
+    /* A local declared with a type parameter's name is recorded by the type
+     * checker as its initializer's type; the registry holds the wide type it
+     * is bound to. */
+    if (codegen->generics.count > 0 && node && node->kind == NODE_LABEL) {
+        const char *bound_wide_integer = lookup_wide_integer_variable(codegen, node->data.label.value);
+        if (bound_wide_integer) return type_from_name(bound_wide_integer);
+    }
+    /* An operation on a local the checker typed by its literal initializer is
+     * recorded as that literal's type; when its operand is a wide integer
+     * bound by the instantiation, the operation is that wide integer. */
+    if (codegen->generics.count > 0 && node && recorded && recorded->kind != TYPE_KIND_UNKNOWN) {
+        AstNode *operand = NULL;
+        if (node->kind == NODE_INFIX_EXPRESSION) {
+            switch (node->data.infix.operator) {
+            case TOKEN_PLUS: case TOKEN_MINUS: case TOKEN_ASTERISK: case TOKEN_SLASH: case TOKEN_PERCENT:
+            case TOKEN_BIT_AND: case TOKEN_BIT_OR: case TOKEN_BIT_XOR:
+            case TOKEN_BIT_SHIFT_LEFT: case TOKEN_BIT_SHIFT_RIGHT:
+                operand = node->data.infix.left;
+                break;
+            default: break;
+            }
+        } else if (node->kind == NODE_PREFIX_EXPRESSION &&
+                   (node->data.prefix.operator == TOKEN_MINUS || node->data.prefix.operator == TOKEN_BIT_NOT)) {
+            operand = node->data.prefix.right;
+        }
+        if (operand) {
+            GrayType *operand_type = codegen_effective_type(codegen, codegen_type_of(codegen, operand));
+            if (operand_type && (operand_type->kind == TYPE_KIND_SIGNED_INTEGER || operand_type->kind == TYPE_KIND_UNSIGNED_INTEGER) &&
+                operand_type->name && is_wide_integer_type_name(operand_type->name))
+                return operand_type;
+        }
+    }
     if (codegen->generics.count == 0 || !node || (recorded && recorded->kind != TYPE_KIND_UNKNOWN)) return recorded;
     if (node->kind == NODE_MEMBER_EXPRESSION) {
         GrayType *object_type = codegen_effective_type(codegen, codegen_type_of(codegen, node->data.member.object));
@@ -1687,20 +1721,19 @@ static const char *resolve_wide_integer_type(CodeGen *codegen, AstNode *node) {
     if (!node) return NULL;
     /* A value widened into a wide type is that type once emitted. */
     if (node->widen_to) return wide_integer_type_name(node->widen_to);
-    /* A local declared with a type parameter's name is recorded by the type
-     * checker as its initializer's type; the registry holds its binding. */
-    if (node->kind == NODE_LABEL && codegen->generics.count > 0) {
-        const char *bound_wide_integer = lookup_wide_integer_variable(codegen, node->data.label.value);
-        if (bound_wide_integer) return bound_wide_integer;
-    }
     /* The type checker's resolved type decides. The walk below is for a node
      * it could not type: one inside a generic body, typed by the binding. */
     GrayType *resolved = codegen_type_of(codegen, node);
     if (resolved && resolved->kind == TYPE_KIND_UNKNOWN && resolved->name && resolved->name[0] == '?')
         resolved = codegen_effective_type(codegen, resolved);
-    if (resolved && resolved->kind != TYPE_KIND_UNKNOWN)
-        return resolved->kind == TYPE_KIND_SIGNED_INTEGER || resolved->kind == TYPE_KIND_UNSIGNED_INTEGER
+    if (resolved && resolved->kind != TYPE_KIND_UNKNOWN) {
+        const char *resolved_wide_integer = resolved->kind == TYPE_KIND_SIGNED_INTEGER || resolved->kind == TYPE_KIND_UNSIGNED_INTEGER
             ? wide_integer_type_name(resolved->name) : NULL;
+        /* In a generic body an expression built from a local the checker typed
+         * by its literal initializer is recorded as that literal's type, so a
+         * non-wide answer is settled by the walk below. */
+        if (resolved_wide_integer || codegen->generics.count == 0) return resolved_wide_integer;
+    }
     if (node->kind == NODE_LABEL) {
         const char *local_wide_integer = lookup_wide_integer_variable(codegen, node->data.label.value);
         if (local_wide_integer) return local_wide_integer;
@@ -3620,12 +3653,6 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
 static bool emit_compound_arithmetic(CodeGen *codegen, AstNode *target, TokenType operator,
                                      AstNode *value, AstNode *location_node) {
     GrayType *target_type = codegen_type_of(codegen, target);
-    /* A local declared with a type parameter's name is typed by the checker as
-     * its initializer; the registry holds the wide type it is bound to. */
-    if (codegen->generics.count > 0 && target->kind == NODE_LABEL) {
-        const char *bound_wide_integer = lookup_wide_integer_variable(codegen, target->data.label.value);
-        if (bound_wide_integer) target_type = type_from_name(bound_wide_integer);
-    }
     if (!target_type || (!type_kind_is_number(target_type->kind) && target_type->kind != TYPE_KIND_CHAR))
         return false;
     char c_type[TYPE_NAME_MAX];
