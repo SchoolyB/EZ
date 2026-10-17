@@ -3620,6 +3620,12 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
 static bool emit_compound_arithmetic(CodeGen *codegen, AstNode *target, TokenType operator,
                                      AstNode *value, AstNode *location_node) {
     GrayType *target_type = codegen_type_of(codegen, target);
+    /* A local declared with a type parameter's name is typed by the checker as
+     * its initializer; the registry holds the wide type it is bound to. */
+    if (codegen->generics.count > 0 && target->kind == NODE_LABEL) {
+        const char *bound_wide_integer = lookup_wide_integer_variable(codegen, target->data.label.value);
+        if (bound_wide_integer) target_type = type_from_name(bound_wide_integer);
+    }
     if (!target_type || (!type_kind_is_number(target_type->kind) && target_type->kind != TYPE_KIND_CHAR))
         return false;
     char c_type[TYPE_NAME_MAX];

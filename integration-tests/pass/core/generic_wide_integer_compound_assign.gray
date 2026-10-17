@@ -1,0 +1,61 @@
+/*
+ * generic_wide_integer_compound_assign.gray - Compound assignment and
+ * increment on a local typed by a type parameter work when the type argument
+ * is a wide integer.
+ */
+
+do accumulate(kind generic, v kind) -> kind {
+    mut total kind = v
+    total += v
+    total *= v
+    total -= v
+    total++
+    return total
+}
+
+do main() {
+    println("=== generic wide integer compound assign ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if accumulate(u128, 3) == 16 {
+        println("  [PASS] u128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128")
+        failed += 1
+    }
+
+    if accumulate(i128, 3) == 16 {
+        println("  [PASS] i128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128")
+        failed += 1
+    }
+
+    if accumulate(u256, 3) == 16 {
+        println("  [PASS] u256")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256")
+        failed += 1
+    }
+
+    if accumulate(i64, 3) == 16 {
+        println("  [PASS] i64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
