@@ -7561,17 +7561,8 @@ static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const 
     } else if (strcmp(module_name, "threads") == 0) {
         if ((strcmp(member_function_name, "spawn") == 0 || strcmp(member_function_name, "spawn_arg") == 0) &&
             node->data.call.argument_count >= 1) {
-            AstNode *first_argument_node = node->data.call.arguments[0];
-            if (first_argument_node->kind != NODE_FUNCTION_REFERENCE &&
-                !(first_argument_node->kind == NODE_CALL_EXPRESSION &&
-                  first_argument_node->data.call.function->kind == NODE_LABEL &&
-                  strcmp(first_argument_node->data.call.function->data.label.value, "ref") == 0)) {
-                NODE_ERROR(checker, node, "E7006");
-            }
-            else {
-                check_function_argument_signature(checker, first_argument_node, "threads", member_function_name, 1,
-                    strcmp(member_function_name, "spawn") == 0 ? "func()" : "func(i64)");
-            }
+            check_function_argument_signature(checker, node->data.call.arguments[0], "threads", member_function_name, 1,
+                strcmp(member_function_name, "spawn") == 0 ? "func()" : "func(i64)");
         }
     } else if (strcmp(module_name, "server") == 0) {
         if (strcmp(member_function_name, "add_route") == 0 && node->data.call.argument_count == 4) {
@@ -9954,8 +9945,8 @@ static bool argument_is_type_position(TypeChecker *checker, AstNode *node,
     return false;
 }
 
-/* `recv.f(args)` where `recv` is an index or nested-field expression whose
- * type is a struct (or pointer to one) and `f` is one of that struct's
+/* `recv.f(args)` where `recv` is an index, nested-field, or struct literal
+ * expression whose type is a struct (or pointer to one) and `f` is one of that struct's
  * functions: rewrite to the static form `Struct.f(recv, args)` so the
  * ordinary struct-function dispatch handles it, exactly as it does for a
  * plain-variable receiver. Without this the call falls through to the
@@ -9964,7 +9955,8 @@ static void normalize_instance_call_on_expression(TypeChecker *checker, AstNode 
     AstNode *function_node = node->data.call.function;
     if (!function_node || function_node->kind != NODE_MEMBER_EXPRESSION) return;
     AstNode *object = function_node->data.member.object;
-    if (!object || (object->kind != NODE_INDEX_EXPRESSION && object->kind != NODE_MEMBER_EXPRESSION))
+    if (!object || (object->kind != NODE_INDEX_EXPRESSION && object->kind != NODE_MEMBER_EXPRESSION &&
+                    object->kind != NODE_STRUCT_VALUE))
         return;
     /* A plain-variable or `p^` receiver is handled downstream already. So is
      * the `mod.Struct.func()` triple chain — but only when the leading name
@@ -12671,7 +12663,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 break;
             }
         }
-        GrayType *destination_type = type_from_name(target);
+        GrayType *destination_type = typechecker_type_from_name(checker, target);
         /* Resolve user-defined enum types that type_from_name() can't find */
         if (!destination_type && is_enum_name(checker, target))
             destination_type = type_enum(target);
@@ -14334,6 +14326,35 @@ static GrayType *check_variable_declaration_initializer(TypeChecker *checker, As
     return declared;
 }
 
+/* Give a destructuring temp the return slots of the function a call names.
+ * For a generic function, read the type arguments off the call and substitute
+ * them into each slot, so destructured slots get concrete types instead of
+ * TYPE_KIND_UNKNOWN; without this, `mut a, b = pair(i64, 42)` where pair
+ * returns (kind, kind) leaves the temp's slot types unknown, the unannotated
+ * LHS vars never declare, and subsequent uses error as undefined. */
+static void apply_call_return_slots(TypeChecker *checker, Symbol *symbol, FunctionSignature *signature, AstNode *call) {
+    GrayType **slots = signature->return_types;
+    int slot_count = signature->return_count;
+    if (signature->is_generic && signature->declaration &&
+        signature->declaration->kind == NODE_FUNCTION_DECLARATION) {
+        AstNode *declaration = signature->declaration;
+        GenericBindings call_bindings;
+        call_type_arguments(checker, call, declaration, &call_bindings);
+        int return_count = declaration->data.function_declaration.return_type_count;
+        GrayType **substituted_return_types = xmalloc(sizeof(GrayType *) * (size_t)return_count);
+        for (int return_index = 0; return_index < return_count; return_index++) {
+            substituted_return_types[return_index] = typechecker_type_with_generics(checker,
+                &call_bindings, declaration->data.function_declaration.return_types[return_index]);
+        }
+        generic_bindings_clear(&call_bindings);
+        slots = substituted_return_types;
+        slot_count = return_count;
+    }
+    symbol->return_types = slots;
+    symbol->return_count = slot_count;
+    symbol->are_return_types_owned = (slots != signature->return_types);
+}
+
 /* Name-conflict checks for a named (non-`_`) var decl, then bind its symbol
  * and record the origin/reference tracking later checks read. */
 static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayType *declared) {
@@ -14407,12 +14428,24 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
             }
         }
         /* E4013: shadows a function — only when the variable name
-         * matches a function callable by that same name. find_function
-         * keys on the flattened (module-prefixed) name, so a legitimate
-         * local like `mod_size` collides with the internal name of
-         * `mod.size`. Compare display names so that artifact never fires. */
+         * matches a function callable by that same name from this file's
+         * scope. A function of another module is not callable by its bare
+         * name, so the flattened-key fallback only counts a function of the
+         * local's own module. Compare display names so that a local like
+         * `mod_size`, the internal name of `mod.size`, never fires. */
         {
-            FunctionSignature *shadowed = find_function(checker, node->data.variable_declaration.name);
+            DeclarationEntry *shadowed_entry = checker_resolve_entry(checker, node->data.variable_declaration.name);
+            if (!shadowed_entry) {
+                DeclarationEntry *mangled_entry = module_table_find_mangled(checker->modules, node->data.variable_declaration.name);
+                const char *scope_module = checker_scope(checker).module;
+                if (mangled_entry && strcmp(mangled_entry->module_name ? mangled_entry->module_name : "",
+                                            scope_module ? scope_module : "") == 0)
+                    shadowed_entry = mangled_entry;
+            }
+            FunctionSignature *shadowed = (shadowed_entry && shadowed_entry->kind == DECLARATION_FUNCTION &&
+                                           shadowed_entry->registry_index >= 0 &&
+                                           shadowed_entry->registry_index < checker->function_count)
+                ? &checker->functions[shadowed_entry->registry_index] : NULL;
             if (shadowed && strcmp(function_display_name(shadowed),
                                    VARIABLE_DISPLAY_NAME(node)) == 0) {
                 NODE_ERROR_FORMATTED(checker, node, "E4013", VARIABLE_DISPLAY_NAME(node));
@@ -14584,28 +14617,7 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
                     Symbol *symbol = scope_lookup_local(checker->current_scope,
                         node->data.variable_declaration.name);
                     if (symbol) {
-                        GrayType **slots = signature->return_types;
-                        int slot_count = signature->return_count;
-                        if (signature->is_generic && signature->declaration &&
-                            signature->declaration->kind == NODE_FUNCTION_DECLARATION) {
-                            /* Read the type arguments off the call, then
-                             * substitute them into each return slot. */
-                            AstNode *declaration = signature->declaration;
-                            GenericBindings call_bindings;
-                            call_type_arguments(checker, node->data.variable_declaration.value, declaration, &call_bindings);
-                            int return_count = declaration->data.function_declaration.return_type_count;
-                            GrayType **substituted_return_types = xmalloc(sizeof(GrayType *) * (size_t)return_count);
-                            for (int return_index = 0; return_index < return_count; return_index++) {
-                                substituted_return_types[return_index] = typechecker_type_with_generics(checker,
-                                    &call_bindings, declaration->data.function_declaration.return_types[return_index]);
-                            }
-                            generic_bindings_clear(&call_bindings);
-                            slots = substituted_return_types;
-                            slot_count = return_count;
-                        }
-                        symbol->return_types = slots;
-                        symbol->return_count = slot_count;
-                        symbol->are_return_types_owned = (slots != signature->return_types);
+                        apply_call_return_slots(checker, symbol, signature, node->data.variable_declaration.value);
                     }
                 }
             }
@@ -14627,10 +14639,7 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
                 if (signature && signature->return_count > 1) {
                     Symbol *symbol = scope_lookup_local(checker->current_scope,
                         node->data.variable_declaration.name);
-                    if (symbol) {
-                        symbol->return_types = signature->return_types;
-                        symbol->return_count = signature->return_count;
-                    }
+                    if (symbol) apply_call_return_slots(checker, symbol, signature, node->data.variable_declaration.value);
                 }
             }
             /* Triple-chain calls (mod.Type.func); look up mod_Type_func

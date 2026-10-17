@@ -1,0 +1,62 @@
+/*
+ * generic_unsigned_local_initializer.gray - In a generic function bound to an
+ * unsigned type, a local initialized from a bit expression, a shift, or a copy
+ * of a parameter keeps its unsigned value.
+ */
+
+do inverted(kind generic, value kind) -> kind {
+    mut ones kind = bit_not value
+    return ones
+}
+
+do top_bit(kind generic, value kind) -> kind {
+    mut zero kind = value bit_xor value
+    mut one kind = zero bit_or 1
+    mut shifted kind = one bit_shift_left (size_of(kind) * 8 - 1)
+    return shifted
+}
+
+do copy_of(kind generic, value kind) -> kind {
+    mut copied kind = value
+    return copied
+}
+
+do main() {
+    println("=== generic unsigned local initializer ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if inverted(u8, 5) == 250 {
+        println("  [PASS] bit_not, u8")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bit_not, u8")
+        failed += 1
+    }
+
+    if top_bit(u64, 5) == 9223372036854775808 {
+        println("  [PASS] shift into the top bit, u64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] shift into the top bit, u64")
+        failed += 1
+    }
+
+    mut big u64 = 18446744073709551615
+    if copy_of(u64, big) == 18446744073709551615 {
+        println("  [PASS] copy of a parameter, u64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy of a parameter, u64")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

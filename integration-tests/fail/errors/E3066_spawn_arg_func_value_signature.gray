@@ -1,0 +1,23 @@
+/*
+ * Error Test: E3066 - a func value passed to threads.spawn_arg must match func(i64)
+ */
+
+// expect-error: E3066
+// expect-error-count: 1
+
+import @threads
+
+do run(worker func(string)) {
+    unsafe {
+        mut t = threads.spawn_arg(worker, 1)
+        threads.join(t)
+    }
+}
+
+do show(text string) {
+    println(text)
+}
+
+do main() {
+    run(()show)
+}

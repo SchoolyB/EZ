@@ -692,8 +692,42 @@ static void register_resolved_loop_variable(CodeGen *codegen, const char *name, 
  * it out from the bound struct: the field's declared type, or the element of
  * the container it is indexed into; or, for a for_each variable, the element
  * of what it iterates. Every other node keeps its table type. */
+static const char *lookup_wide_integer_variable(CodeGen *codegen, const char *name);
+
 static GrayType *codegen_type_of(CodeGen *codegen, AstNode *node) {
     GrayType *recorded = type_table_get(codegen->type_table, node);
+    /* A local declared with a type parameter's name is recorded by the type
+     * checker as its initializer's type; the registry holds the wide type it
+     * is bound to. */
+    if (codegen->generics.count > 0 && node && node->kind == NODE_LABEL) {
+        const char *bound_wide_integer = lookup_wide_integer_variable(codegen, node->data.label.value);
+        if (bound_wide_integer) return type_from_name(bound_wide_integer);
+    }
+    /* An operation on a local the checker typed by its literal initializer is
+     * recorded as that literal's type; when its operand is a wide integer
+     * bound by the instantiation, the operation is that wide integer. */
+    if (codegen->generics.count > 0 && node && recorded && recorded->kind != TYPE_KIND_UNKNOWN) {
+        AstNode *operand = NULL;
+        if (node->kind == NODE_INFIX_EXPRESSION) {
+            switch (node->data.infix.operator) {
+            case TOKEN_PLUS: case TOKEN_MINUS: case TOKEN_ASTERISK: case TOKEN_SLASH: case TOKEN_PERCENT:
+            case TOKEN_BIT_AND: case TOKEN_BIT_OR: case TOKEN_BIT_XOR:
+            case TOKEN_BIT_SHIFT_LEFT: case TOKEN_BIT_SHIFT_RIGHT:
+                operand = node->data.infix.left;
+                break;
+            default: break;
+            }
+        } else if (node->kind == NODE_PREFIX_EXPRESSION &&
+                   (node->data.prefix.operator == TOKEN_MINUS || node->data.prefix.operator == TOKEN_BIT_NOT)) {
+            operand = node->data.prefix.right;
+        }
+        if (operand) {
+            GrayType *operand_type = codegen_effective_type(codegen, codegen_type_of(codegen, operand));
+            if (operand_type && (operand_type->kind == TYPE_KIND_SIGNED_INTEGER || operand_type->kind == TYPE_KIND_UNSIGNED_INTEGER) &&
+                operand_type->name && is_wide_integer_type_name(operand_type->name))
+                return operand_type;
+        }
+    }
     if (codegen->generics.count == 0 || !node || (recorded && recorded->kind != TYPE_KIND_UNKNOWN)) return recorded;
     if (node->kind == NODE_MEMBER_EXPRESSION) {
         GrayType *object_type = codegen_effective_type(codegen, codegen_type_of(codegen, node->data.member.object));
@@ -1692,9 +1726,14 @@ static const char *resolve_wide_integer_type(CodeGen *codegen, AstNode *node) {
     GrayType *resolved = codegen_type_of(codegen, node);
     if (resolved && resolved->kind == TYPE_KIND_UNKNOWN && resolved->name && resolved->name[0] == '?')
         resolved = codegen_effective_type(codegen, resolved);
-    if (resolved && resolved->kind != TYPE_KIND_UNKNOWN)
-        return resolved->kind == TYPE_KIND_SIGNED_INTEGER || resolved->kind == TYPE_KIND_UNSIGNED_INTEGER
+    if (resolved && resolved->kind != TYPE_KIND_UNKNOWN) {
+        const char *resolved_wide_integer = resolved->kind == TYPE_KIND_SIGNED_INTEGER || resolved->kind == TYPE_KIND_UNSIGNED_INTEGER
             ? wide_integer_type_name(resolved->name) : NULL;
+        /* In a generic body an expression built from a local the checker typed
+         * by its literal initializer is recorded as that literal's type, so a
+         * non-wide answer is settled by the walk below. */
+        if (resolved_wide_integer || codegen->generics.count == 0) return resolved_wide_integer;
+    }
     if (node->kind == NODE_LABEL) {
         const char *local_wide_integer = lookup_wide_integer_variable(codegen, node->data.label.value);
         if (local_wide_integer) return local_wide_integer;
@@ -1710,8 +1749,10 @@ static const char *resolve_wide_integer_type(CodeGen *codegen, AstNode *node) {
         if (is_wide_integer_type_name(function_name)) return function_name;
     }
     /* cast(expr, i128/u128/i256/u256) — the result is already the target wide integer */
-    if (node->kind == NODE_CAST_EXPRESSION && is_wide_integer_type_name(node->data.cast.target_type))
-        return node->data.cast.target_type;
+    if (node->kind == NODE_CAST_EXPRESSION) {
+        const char *cast_target = codegen_effective_type_string(codegen, node->data.cast.target_type);
+        if (is_wide_integer_type_name(cast_target)) return cast_target;
+    }
     /* -wide_integer_variable / bit_not wide_integer_variable — the result is still the same wide integer type */
     if (node->kind == NODE_PREFIX_EXPRESSION &&
         (node->data.prefix.operator == TOKEN_MINUS || node->data.prefix.operator == TOKEN_BIT_NOT))
@@ -3304,7 +3345,7 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
             emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
             return;
         }
-        GrayType *shift_type = codegen_type_of(codegen, node->data.infix.left);
+        GrayType *shift_type = codegen_effective_type(codegen, codegen_type_of(codegen, node->data.infix.left));
         const char *shift_name = (shift_type && shift_type->kind == TYPE_KIND_CHAR) ? "i32"
             : (shift_type && (shift_type->kind == TYPE_KIND_SIGNED_INTEGER || shift_type->kind == TYPE_KIND_UNSIGNED_INTEGER)) ? shift_type->name : NULL;
         int bits = 64;
@@ -4231,7 +4272,7 @@ static void emit_wide_integer_target_conversion(CodeGen *codegen, const char *ta
 
 static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
     /* cast(value, type); dispatch to conversion functions for non-trivial casts */
-    const char *target = node->data.cast.target_type;
+    const char *target = codegen_effective_type_string(codegen, node->data.cast.target_type);
     AstNode *value = node->data.cast.value;
     GrayType *value_type = codegen_effective_type(codegen, codegen_type_of(codegen, value));
     TypeKind value_kind = value_type ? value_type->kind : TYPE_KIND_UNKNOWN;
@@ -10119,8 +10160,9 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
     if (!target) return false;
     /* A value with a Grayscale type already fits: the type checker allows
      * only a same-type or widening store. Only a value whose type it cannot
-     * see — a C interop result, or an unbound generic value — is checked. */
-    GrayType *value_type = codegen_type_of(codegen, value);
+     * see — a C interop result, or an unbound generic value — is checked. A
+     * value typed by a type parameter has the type the instantiation binds. */
+    GrayType *value_type = codegen_effective_type(codegen, codegen_type_of(codegen, value));
     if (value_type && value_type->kind != TYPE_KIND_UNKNOWN && value_type->kind != TYPE_KIND_C_FUNCTION) return false;
     const char *source_minimum = NULL, *source_maximum = NULL;
     bool is_unsigned = false;
@@ -10549,7 +10591,7 @@ static void emit_variable_declaration(CodeGen *codegen, AstNode *node,
     emit_indent(codegen);
 
     char inferred_type_name[TYPE_NAME_MAX];
-    const char *type_name = node->data.variable_declaration.type_name;
+    const char *type_name = codegen_effective_type_string(codegen, node->data.variable_declaration.type_name);
     if (!type_name && inferred_composite_type(codegen, node->data.variable_declaration.value,
                                               inferred_type_name, sizeof(inferred_type_name))) {
         type_name = inferred_type_name;
@@ -10974,7 +11016,6 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
     if (left_type->value_type) c_value_type = gray_map_element_c_type(codegen, left_type->value_type);
     const char *c_key_type = "GrayString";
     if (left_type->key_type) c_key_type = gray_map_element_c_type(codegen, left_type->key_type);
-    const char *ms_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
     bool has_string_key = left_type->key_type && strcmp(left_type->key_type, "string") == 0;
     bool has_string_value = left_type->value_type && strcmp(left_type->value_type, "string") == 0;
 
@@ -11012,13 +11053,21 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
             is_raw_variable(codegen, left->data.postfix.left->data.label.value));
     }
 
+    /* The map field of a new() object lives in gray_heap_arena, so the key,
+     * the value, and any growth of the map must be allocated there too. */
+    bool map_in_heap = map_pointer_object && map_pointer_object->kind == NODE_LABEL &&
+        is_heap_variable(codegen, map_pointer_object->data.label.value);
+    const char *ms_arena = map_in_heap ? "gray_heap_arena"
+                         : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+    bool ms_escapes = map_in_heap || codegen->loop_scope_depth > 0;
+
     /* A number entry's compound assignment is emitted by
      * emit_compound_arithmetic; a string entry's += reaches here. */
     bool ms_compound = node->data.assign.operator == TOKEN_PLUS_ASSIGN;
     emit_formatted(codegen, "{ %s _mk = ", c_key_type);
     emit_map_slot_value(codegen, left_type->key_type, node->data.assign.target->data.index_expression.index);
     emit(codegen, "; ");
-    if (codegen->loop_scope_depth > 0) {
+    if (ms_escapes) {
         if (has_string_key) {
             emit_formatted(codegen, "_mk = gray_string_new(%s, _mk.data, _mk.len); ", ms_arena);
         } else if (left_type->key_type && type_needs_deep_copy(codegen, left_type->key_type)) {
@@ -11073,7 +11122,7 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
         emit(codegen, "gray_string_concat(gray_default_arena, *(GrayString*)_cur, ");
         emit_expression(codegen, node->data.assign.value);
         emit(codegen, ")");
-    } else if (codegen->loop_scope_depth == 0 &&
+    } else if (!ms_escapes &&
                composite_value_aliases(codegen, left_type->value_type, node->data.assign.value)) {
         /* Inside a loop the escape copy below already covers this. */
         emit_composite_operand(codegen, left_type->value_type, node->data.assign.value);
@@ -11081,7 +11130,7 @@ static void emit_map_index_assign(CodeGen *codegen, AstNode *node, AstNode *left
         emit_map_slot_value(codegen, left_type->value_type, node->data.assign.value);
     }
     emit(codegen, "; ");
-    if (codegen->loop_scope_depth > 0) {
+    if (ms_escapes) {
         if (has_string_value) {
             emit_formatted(codegen, "_mv = gray_string_new(%s, _mv.data, _mv.len); ", ms_arena);
         } else if (left_type->value_type && type_needs_deep_copy(codegen, left_type->value_type)) {

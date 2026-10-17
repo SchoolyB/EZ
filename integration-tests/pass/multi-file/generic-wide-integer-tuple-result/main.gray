@@ -1,0 +1,63 @@
+/*
+ * main.gray - A module-qualified call to a generic function returning a tuple
+ * types its destructured variables by the type argument, including wide
+ * integer types.
+ */
+
+import "./helper.gray"
+
+do main() {
+    println("=== module-qualified generic tuple result ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a, ea = helper.pass(u128, 5)
+    if a == 5 && "value ${a}" == "value 5" {
+        println("  [PASS] u128 type argument")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 type argument")
+        failed += 1
+    }
+
+    mut b, eb = helper.pass(i128, 6)
+    if b == 6 {
+        println("  [PASS] i128 type argument")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 type argument")
+        failed += 1
+    }
+
+    mut c, ec = helper.pass(u256, 7)
+    if c == 7 {
+        println("  [PASS] u256 type argument")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 type argument")
+        failed += 1
+    }
+
+    mut d, ed = helper.pass(u8, 8)
+    if d == 8 {
+        println("  [PASS] u8 type argument")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 type argument")
+        failed += 1
+    }
+
+    if ea != nil || eb != nil || ec != nil || ed != nil {
+        println("  [FAIL] no error returned")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

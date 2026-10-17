@@ -1,0 +1,21 @@
+import "./consts.gray"
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if consts.get_d() == 5 && consts.get_e() == 6 {
+        passed += 1
+    } otherwise {
+        println("[FAIL] expected 5 and 6, got ${consts.get_d()} and ${consts.get_e()}")
+        failed += 1
+    }
+
+    println("passed: ${passed}")
+    println("failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

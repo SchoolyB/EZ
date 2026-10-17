@@ -1,0 +1,3 @@
+do triple(n i64) -> i64 {
+    return n * 3
+}

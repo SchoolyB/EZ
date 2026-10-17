@@ -1,0 +1,31 @@
+/*
+ * grayscale_extension.grayscale - A source file with the .grayscale
+ * extension compiles and runs like a .gray file.
+ */
+
+do main() {
+    println("=== .grayscale extension ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut total i64 = 0
+    for i in range(0, 5) {
+        total += i
+    }
+    if total == 10 {
+        println("  [PASS] program runs from a .grayscale file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] program runs from a .grayscale file")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

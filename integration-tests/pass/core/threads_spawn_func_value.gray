@@ -1,0 +1,80 @@
+/*
+ * threads_spawn_func_value.gray - threads.spawn and threads.spawn_arg accept
+ * any func value: a parameter or a struct field, not only a function reference.
+ */
+
+import @threads
+
+const Job struct {
+    f func(i64)
+}
+
+mut total i64 = 0
+
+do add(amount i64) {
+    total += amount
+}
+
+do bump() {
+    total += 100
+}
+
+do run_arg(worker func(i64)) {
+    unsafe {
+        mut t = threads.spawn_arg(worker, 1)
+        threads.join(t)
+    }
+}
+
+do run(worker func()) {
+    unsafe {
+        mut t = threads.spawn(worker)
+        threads.join(t)
+    }
+}
+
+do main() {
+    println("=== threads spawn with func values ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    run_arg(()add)
+    if total == 1 {
+        println("  [PASS] spawn_arg with a func parameter")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] spawn_arg with a func parameter")
+        failed += 1
+    }
+
+    const job = Job{f: ()add}
+    unsafe {
+        mut t = threads.spawn_arg(job.f, 2)
+        threads.join(t)
+    }
+    if total == 3 {
+        println("  [PASS] spawn_arg with a func struct field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] spawn_arg with a func struct field")
+        failed += 1
+    }
+
+    run(()bump)
+    if total == 103 {
+        println("  [PASS] spawn with a func parameter")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] spawn with a func parameter")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

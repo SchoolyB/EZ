@@ -799,20 +799,22 @@ void imports_resolve(Arena *arena, DiagnosticList *diagnostics, AstNode *program
                  * declaration belongs to is recorded by file, and every
                  * reference to it is resolved against the symbol table. */
 
-                /* Pass 1: variable declarations */
+                /* Pass 1: variable declarations, kept in source order so a
+                 * const initializer can name an earlier const. */
+                int variable_insert_index = 0;
+                for (int position = 0; position < program->data.program.statement_count; position++) {
+                    if (program->data.program.statements[position]->kind == NODE_IMPORT_STATEMENT ||
+                        program->data.program.statements[position]->kind == NODE_USING_STATEMENT) {
+                        variable_insert_index = position + 1;
+                    } else break;
+                }
                 for (int merge_index = 0; merge_index < imported_program->data.program.statement_count; merge_index++) {
                     AstNode *imported_statement = imported_program->data.program.statements[merge_index];
                     if (imported_statement->kind != NODE_VARIABLE_DECLARATION) continue;
 
                     ARENA_GROW(arena, program->data.program.statements,
                         program->data.program.statement_count, program->data.program.statement_capacity);
-                    int insert_index = 0;
-                    for (int position = 0; position < program->data.program.statement_count; position++) {
-                        if (program->data.program.statements[position]->kind == NODE_IMPORT_STATEMENT ||
-                            program->data.program.statements[position]->kind == NODE_USING_STATEMENT) {
-                            insert_index = position + 1;
-                        } else break;
-                    }
+                    int insert_index = variable_insert_index++;
                     memmove(&program->data.program.statements[insert_index + 1],
                             &program->data.program.statements[insert_index],
                             sizeof(AstNode *) * (program->data.program.statement_count - insert_index));
