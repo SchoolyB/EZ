@@ -1,0 +1,6 @@
+const C i64 = 5
+const D i64 = C
+const E i64 = C + 1
+
+do get_d() -> i64 { return D }
+do get_e() -> i64 { return E }
