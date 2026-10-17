@@ -10133,8 +10133,9 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
     if (!target) return false;
     /* A value with a Grayscale type already fits: the type checker allows
      * only a same-type or widening store. Only a value whose type it cannot
-     * see — a C interop result, or an unbound generic value — is checked. */
-    GrayType *value_type = codegen_type_of(codegen, value);
+     * see — a C interop result, or an unbound generic value — is checked. A
+     * value typed by a type parameter has the type the instantiation binds. */
+    GrayType *value_type = codegen_effective_type(codegen, codegen_type_of(codegen, value));
     if (value_type && value_type->kind != TYPE_KIND_UNKNOWN && value_type->kind != TYPE_KIND_C_FUNCTION) return false;
     const char *source_minimum = NULL, *source_maximum = NULL;
     bool is_unsigned = false;
