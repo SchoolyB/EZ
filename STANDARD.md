@@ -511,12 +511,14 @@ println(p2^)    // 99 — p1 and p2 point to the same variable
 
 ```gray
 const x i64 = 42
-mut p = raw(x)
-p^ = 99           // allowed — raw() bypasses const-source protection
-println(p^)        // 99
+unsafe {
+    mut p = raw(x)
+    p^ = 99           // allowed — raw() bypasses const-source protection
+    println(p^)        // 99
 
-mut q ^i64 = raw(x)
-// q^ dereference has no nil-check — if q were nil, behavior is undefined
+    mut q ^i64 = raw(x)
+    // q^ dereference has no nil-check — if q were nil, behavior is undefined
+}
 ```
 
 `raw()` is considered unsafe and is intended for performance-critical code where nil checks are a measurable overhead and the programmer guarantees pointer validity. Prefer `addr()` in all other cases. `raw()` may only appear inside an `unsafe` block or an unsafe function (see 11.7).
@@ -1516,7 +1518,7 @@ mut p Point = Point{x: 10, y: 20}
 mut x i64 = p.x  // 10
 p.y = 30  // Modification
 
-mut status i64 = Direction.NORTH  // Enum access
+mut status Direction = Direction.NORTH  // Enum access
 ```
 
 ### 5.6 Call Expressions
@@ -1530,10 +1532,10 @@ println("Hello!")
 ### 5.7 Range Expressions
 
 ```gray
-range(0, 10)       // 0, 1, 2, ..., 9  (increment)
-range(0, 10, 2)    // 0, 2, 4, 6, 8    (increment)
-range(10, 0, -1)   // 10, 9, 8, ..., 1 (decrement)
-range(10, 0, -2)   // 10, 8, 6, 4, 2   (decrement)
+for i in range(0, 10) { }       // 0, 1, 2, ..., 9  (increment)
+for i in range(0, 10, 2) { }    // 0, 2, 4, 6, 8    (increment)
+for i in range(10, 0, -1) { }   // 10, 9, 8, ..., 1 (decrement)
+for i in range(10, 0, -2) { }   // 10, 8, 6, 4, 2   (decrement)
 ```
 
 Ranges are inclusive of the start value and exclusive of the end value.
@@ -3144,8 +3146,10 @@ All C functions are accessed via the `extern.` prefix:
 extern import "stdio.h"
 
 do main() {
-    extern.puts("hello from C")
-    extern.printf("value: %d\n", 42)
+    unsafe {
+        extern.puts("hello from C")
+        extern.printf("value: %d\n", 42)
+    }
 }
 ```
 
@@ -3190,8 +3194,10 @@ do main() {
 extern import "stdlib.h"
 
 do main() {
-    mut home string = from_c_string(extern.getenv("HOME"))
-    println(home)
+    unsafe {
+        mut home string = from_c_string(extern.getenv("HOME"))
+        println(home)
+    }
 }
 ```
 
@@ -3202,8 +3208,10 @@ extern import "string.h"
 
 do main() {
     mut name ^u8 = to_c_string("grayscale")
-    mut length i64 = extern.strlen(name)
-    println(length)   // 9
+    unsafe {
+        mut length i64 = extern.strlen(name)
+        println(length)   // 9
+    }
 }
 ```
 
@@ -3223,11 +3231,13 @@ extern import "math.h"
 extern import "stdlib.h"
 
 do main() {
-    mut x f64 = extern.sqrt(2.0)             // annotated declaration
-    println(x)                                 // prints 1.4142135623730951
+    unsafe {
+        mut x f64 = extern.sqrt(2.0)             // annotated declaration
+        println(x)                                 // prints 1.4142135623730951
 
-    mut home string = from_c_string(extern.getenv("HOME"))   // text: via from_c_string()
-    println(home)
+        mut home string = from_c_string(extern.getenv("HOME"))   // text: via from_c_string()
+        println(home)
+    }
 }
 ```
 
@@ -4998,11 +5008,13 @@ The `@mem` module provides explicit arena control for users who need it:
 ```gray
 import @mem
 
-mut scratch = mem.arena(4096)
-mut node = mem.init(scratch, Node)
-// ... use node ...
-mem.reset(scratch)
-mem.destroy(scratch)
+unsafe {
+    mut scratch = mem.arena(4096)
+    mut node = mem.init(scratch, Node)
+    // ... use node ...
+    mem.reset(scratch)
+    mem.destroy(scratch)
+}
 ```
 
 ### 11.7 Memory Safety
