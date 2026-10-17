@@ -261,7 +261,7 @@ The fastest way to iterate on a change:
 # 2. Rebuild
 make build
 
-# 3. Test with a quick .gray file
+# 3. Test with a quick .gray file (.grayscale works too)
 touch main.gray
 # Inside the main.gray file:
 # do main(){
