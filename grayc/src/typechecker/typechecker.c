@@ -14429,11 +14429,19 @@ static void declare_variable_symbol(TypeChecker *checker, AstNode *node, GrayTyp
         }
         /* E4013: shadows a function — only when the variable name
          * matches a function callable by that same name from this file's
-         * scope. A function in another module is not callable by its bare
-         * name, so the flattened-key fallback of find_function stays out of
-         * it. A legitimate local like `mod_size` still resolves nothing. */
+         * scope. A function of another module is not callable by its bare
+         * name, so the flattened-key fallback only counts a function of the
+         * local's own module. Compare display names so that a local like
+         * `mod_size`, the internal name of `mod.size`, never fires. */
         {
             DeclarationEntry *shadowed_entry = checker_resolve_entry(checker, node->data.variable_declaration.name);
+            if (!shadowed_entry) {
+                DeclarationEntry *mangled_entry = module_table_find_mangled(checker->modules, node->data.variable_declaration.name);
+                const char *scope_module = checker_scope(checker).module;
+                if (mangled_entry && strcmp(mangled_entry->module_name ? mangled_entry->module_name : "",
+                                            scope_module ? scope_module : "") == 0)
+                    shadowed_entry = mangled_entry;
+            }
             FunctionSignature *shadowed = (shadowed_entry && shadowed_entry->kind == DECLARATION_FUNCTION &&
                                            shadowed_entry->registry_index >= 0 &&
                                            shadowed_entry->registry_index < checker->function_count)
