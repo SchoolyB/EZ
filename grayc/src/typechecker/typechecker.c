@@ -9954,8 +9954,8 @@ static bool argument_is_type_position(TypeChecker *checker, AstNode *node,
     return false;
 }
 
-/* `recv.f(args)` where `recv` is an index or nested-field expression whose
- * type is a struct (or pointer to one) and `f` is one of that struct's
+/* `recv.f(args)` where `recv` is an index, nested-field, or struct literal
+ * expression whose type is a struct (or pointer to one) and `f` is one of that struct's
  * functions: rewrite to the static form `Struct.f(recv, args)` so the
  * ordinary struct-function dispatch handles it, exactly as it does for a
  * plain-variable receiver. Without this the call falls through to the
@@ -9964,7 +9964,8 @@ static void normalize_instance_call_on_expression(TypeChecker *checker, AstNode 
     AstNode *function_node = node->data.call.function;
     if (!function_node || function_node->kind != NODE_MEMBER_EXPRESSION) return;
     AstNode *object = function_node->data.member.object;
-    if (!object || (object->kind != NODE_INDEX_EXPRESSION && object->kind != NODE_MEMBER_EXPRESSION))
+    if (!object || (object->kind != NODE_INDEX_EXPRESSION && object->kind != NODE_MEMBER_EXPRESSION &&
+                    object->kind != NODE_STRUCT_VALUE))
         return;
     /* A plain-variable or `p^` receiver is handled downstream already. So is
      * the `mod.Struct.func()` triple chain — but only when the leading name

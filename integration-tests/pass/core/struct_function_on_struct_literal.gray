@@ -1,0 +1,28 @@
+const Box struct {
+    size i64
+
+    do doubled(box Box) -> i64 {
+        return box.size * 2
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    result = Box{size: 3}.doubled()
+    if result == 6 {
+        passed = passed + 1
+    } otherwise {
+        println("[FAIL] expected 6, got ${result}")
+        failed = failed + 1
+    }
+
+    println("passed: ${passed}")
+    println("failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
