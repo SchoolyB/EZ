@@ -1,0 +1,38 @@
+/*
+ * main.grayscale - Entry point with the .grayscale extension, importing
+ * one .gray module and one .grayscale module.
+ */
+
+import "./from_gray.gray"
+import "./from_grayscale.grayscale"
+
+do main() {
+    println("=== .grayscale entry with mixed imports ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if from_gray.double(4) == 8 {
+        println("  [PASS] import of a .gray module")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] import of a .gray module")
+        failed += 1
+    }
+
+    if from_grayscale.triple(4) == 12 {
+        println("  [PASS] import of a .grayscale module")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] import of a .grayscale module")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
