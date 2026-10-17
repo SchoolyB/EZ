@@ -12663,7 +12663,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 break;
             }
         }
-        GrayType *destination_type = type_from_name(target);
+        GrayType *destination_type = typechecker_type_from_name(checker, target);
         /* Resolve user-defined enum types that type_from_name() can't find */
         if (!destination_type && is_enum_name(checker, target))
             destination_type = type_enum(target);

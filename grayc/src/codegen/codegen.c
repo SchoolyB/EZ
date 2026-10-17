@@ -1716,8 +1716,10 @@ static const char *resolve_wide_integer_type(CodeGen *codegen, AstNode *node) {
         if (is_wide_integer_type_name(function_name)) return function_name;
     }
     /* cast(expr, i128/u128/i256/u256) — the result is already the target wide integer */
-    if (node->kind == NODE_CAST_EXPRESSION && is_wide_integer_type_name(node->data.cast.target_type))
-        return node->data.cast.target_type;
+    if (node->kind == NODE_CAST_EXPRESSION) {
+        const char *cast_target = codegen_effective_type_string(codegen, node->data.cast.target_type);
+        if (is_wide_integer_type_name(cast_target)) return cast_target;
+    }
     /* -wide_integer_variable / bit_not wide_integer_variable — the result is still the same wide integer type */
     if (node->kind == NODE_PREFIX_EXPRESSION &&
         (node->data.prefix.operator == TOKEN_MINUS || node->data.prefix.operator == TOKEN_BIT_NOT))
@@ -4237,7 +4239,7 @@ static void emit_wide_integer_target_conversion(CodeGen *codegen, const char *ta
 
 static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
     /* cast(value, type); dispatch to conversion functions for non-trivial casts */
-    const char *target = node->data.cast.target_type;
+    const char *target = codegen_effective_type_string(codegen, node->data.cast.target_type);
     AstNode *value = node->data.cast.value;
     GrayType *value_type = codegen_effective_type(codegen, codegen_type_of(codegen, value));
     TypeKind value_kind = value_type ? value_type->kind : TYPE_KIND_UNKNOWN;

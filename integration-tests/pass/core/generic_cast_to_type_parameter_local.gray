@@ -1,0 +1,78 @@
+/*
+ * generic_cast_to_type_parameter_local.gray - A local declared with
+ * cast(value, kind) in a generic function is declared, annotated or inferred,
+ * for sized and wide integer type arguments.
+ */
+
+do annotated(kind generic) -> kind {
+    mut one kind = cast(1, kind)
+    return one
+}
+
+do inferred(kind generic) -> kind {
+    mut one = cast(1, kind)
+    return one
+}
+
+do main() {
+    println("=== generic cast to type parameter local ===")
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if annotated(u8) == 1 {
+        println("  [PASS] annotated local, u8")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] annotated local, u8")
+        failed += 1
+    }
+
+    if annotated(i64) == 1 {
+        println("  [PASS] annotated local, i64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] annotated local, i64")
+        failed += 1
+    }
+
+    if annotated(u128) == 1 {
+        println("  [PASS] annotated local, u128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] annotated local, u128")
+        failed += 1
+    }
+
+    if annotated(i256) == 1 {
+        println("  [PASS] annotated local, i256")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] annotated local, i256")
+        failed += 1
+    }
+
+    if inferred(u8) == 1 {
+        println("  [PASS] inferred local, u8")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] inferred local, u8")
+        failed += 1
+    }
+
+    if inferred(u128) == 1 {
+        println("  [PASS] inferred local, u128")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] inferred local, u128")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
