@@ -8082,6 +8082,8 @@ static bool array_argument_in_heap(CodeGen *codegen, AstNode *array_argument) {
     } else if (array_argument->kind == NODE_POSTFIX_EXPRESSION && array_argument->data.postfix.operator == TOKEN_CARET) {
         pointer = array_argument->data.postfix.left;
     }
+    if (array_argument->kind == NODE_LABEL)
+        return codegen->elided_heap_array && strcmp(codegen->elided_heap_array, array_argument->data.label.value) == 0;
     if (!pointer || (pointer->kind == NODE_LABEL && is_reference_variable(codegen, pointer->data.label.value)))
         return false;
     GrayType *pointer_type = codegen_type_of(codegen, pointer);
@@ -10452,6 +10454,8 @@ static void emit_vardecl_array(CodeGen *codegen, AstNode *node,
         emit_formatted(codegen, "GRAY_ARRAY_NEW_OF(gray_default_arena, %s, 4)", c_element_type);
     }
     emit(codegen, ";\n");
+    if (node->data.variable_declaration.elides_copy && array_argument_in_heap(codegen, node->data.variable_declaration.value))
+        codegen->elided_heap_array = node->data.variable_declaration.name;
     } /* end else (indent > 0) */
 }
 
@@ -10922,6 +10926,11 @@ static void emit_pointer_store_value(CodeGen *codegen, GrayType *value_type, Ast
     else
         snprintf(spelling, sizeof(spelling), "%s", value_type ? type_name(value_type) : "");
     if (!value_type || !type_needs_deep_copy(codegen, spelling)) {
+        emit_expression(codegen, value);
+        return;
+    }
+    if (value->kind == NODE_LABEL && array_argument_in_heap(codegen, value)) {
+        codegen->elided_heap_array = NULL;
         emit_expression(codegen, value);
         return;
     }

@@ -143,6 +143,10 @@ typedef struct {
     int heap_variable_count;
     int heap_variable_capacity;
 
+    /* The `mut xs = p^.items` local whose copy was elided: it is the pointee's
+     * own array, so it grows in gray_heap_arena and the store back needs no copy. */
+    const char *elided_heap_array;
+
     /* @mem-arena-tracked pointer variables (from mem.init()/mem.alloc()) —
      * dereference emits a live check against the arena expression that
      * produced them, so a use after that arena was destroyed/reset panics
