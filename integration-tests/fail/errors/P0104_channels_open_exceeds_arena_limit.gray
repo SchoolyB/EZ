@@ -1,0 +1,8 @@
+// expect-contains: P0104
+/* Panic Test: P0104 - channels.open with a buffer larger than the arena limit */
+import @channels
+
+do main() {
+    mut channel = channels.open(1000000000)
+    channels.send(channel, 1)
+}
