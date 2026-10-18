@@ -26,6 +26,8 @@ typedef struct {
 
 GrayChannel gray_channels_open(int64_t capacity) {
     if (capacity < 1) capacity = 1;
+    if ((uint64_t)capacity > SIZE_MAX / sizeof(int64_t))
+        gray_panic_code("P0159", "channels.open capacity is too large to allocate a buffer");
     GrayChannelInternal *channel = malloc(sizeof(GrayChannelInternal));
     channel->buffer = malloc(sizeof(int64_t) * (size_t)capacity);
     channel->capacity = capacity;
