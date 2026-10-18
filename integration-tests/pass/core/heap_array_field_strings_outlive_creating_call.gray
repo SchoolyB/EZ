@@ -1,0 +1,69 @@
+/*
+ * heap_array_field_strings_outlive_creating_call.gray - strings && buffer growth
+ * for an array field of a new() object stay valid after the function that
+ * appended them returns
+ */
+
+import @arrays
+import @strings
+
+const Sig struct {
+    names [string]
+}
+
+do fill_append(text string) -> ^Sig {
+    mut sig = new(Sig)
+    for_each part in strings.split(text, ",") {
+        arrays.append(sig^.names, strings.trim(part))
+    }
+    return sig
+}
+
+do fill_straight(text string) -> ^Sig {
+    mut sig = new(Sig)
+    arrays.append(sig^.names, strings.trim(text))
+    arrays.prepend(sig^.names, strings.to_upper(text))
+    arrays.insert_at(sig^.names, 1, strings.to_lower(text))
+    return sig
+}
+
+do churn() -> i64 {
+    mut total i64 = 0
+    for i in range(0, 50) {
+        total += len(strings.repeat("zzzzzzzz", 100 + i))
+    }
+    return total
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut first = fill_append("string, i64, bool, f64, char, u8, u16, u32")
+    mut other = fill_append("bool, f64, char, u8, u16, u32, i8, i16")
+    mut second = fill_straight("Mixed")
+    mut ignored = churn()
+
+    if first^.names[0] == "string" && first^.names[7] == "u32" && len(first^.names) == 8 {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if other^.names[0] == "bool" && other^.names[7] == "i16" {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if second^.names[0] == "MIXED" && second^.names[1] == "mixed" && second^.names[2] == "Mixed" {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    println("passed: ${passed}, failed: ${failed}, ${ignored}")
+    if failed > 0 {
+        exit(1)
+    }
+}

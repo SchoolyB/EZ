@@ -7992,8 +7992,10 @@ static const char *array_value_c_type(CodeGen *codegen, GrayType *value_type) {
  * (a composite passed by name). Copy it into `arena` — a string by a plain
  * copy, an array/map/struct with embedded pointers by a deep copy. */
 static void emit_escape_staged_value(CodeGen *codegen, AstNode *value_argument, const char *element_type_name,
-                                     bool is_string, const char *temporary_name, const char *arena) {
-    if (codegen->loop_scope_depth == 0 && !composite_value_aliases(codegen, element_type_name, value_argument))
+                                     bool is_string, const char *temporary_name, const char *arena,
+                                     bool target_in_heap) {
+    if (!target_in_heap && codegen->loop_scope_depth == 0 &&
+        !composite_value_aliases(codegen, element_type_name, value_argument))
         return;
     if (is_string) {
         emit_formatted(codegen, "%s = gray_string_new(%s, %s.data, %s.len); ",
@@ -8006,6 +8008,22 @@ static void emit_escape_staged_value(CodeGen *codegen, AstNode *value_argument, 
     }
 }
 
+
+/* Is the array argument a container reached through a pointer that came from
+ * new() (`p^.items`, `p^`)? Its buffer and elements live in gray_heap_arena, so
+ * growth and copied values must be allocated there, not in the function's own
+ * arena, which is destroyed on return. */
+static bool array_argument_in_heap(CodeGen *codegen, AstNode *array_argument) {
+    AstNode *pointer = NULL;
+    if (array_argument->kind == NODE_MEMBER_EXPRESSION) {
+        pointer = array_argument->data.member.object;
+        if (pointer->kind == NODE_POSTFIX_EXPRESSION && pointer->data.postfix.operator == TOKEN_CARET)
+            pointer = pointer->data.postfix.left;
+    } else if (array_argument->kind == NODE_POSTFIX_EXPRESSION && array_argument->data.postfix.operator == TOKEN_CARET) {
+        pointer = array_argument->data.postfix.left;
+    }
+    return pointer && pointer->kind == NODE_LABEL && is_heap_variable(codegen, pointer->data.label.value);
+}
 
 /* Emit `fn(&array, &value)`, the value staged as the array's element C type
  * so the runtime reads it as the array's elem_kind says. */
@@ -8065,11 +8083,13 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         /* [f32] elements are stored packed as 4-byte float; a floating-point
          * value would otherwise be staged and appended as an 8-byte double. */
         if (element_type_name && strcmp(element_type_name, "f32") == 0) c_element_type = "float";
-        const char *allocation_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool target_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *allocation_arena = target_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
         emit_formatted(codegen, "{ %s _av = ", c_element_type);
         emit_expression(codegen, node->data.call.arguments[1]);
         emit(codegen, "; ");
-        emit_escape_staged_value(codegen, node->data.call.arguments[1], element_type_name, is_element_string, "_av", allocation_arena);
+        emit_escape_staged_value(codegen, node->data.call.arguments[1], element_type_name, is_element_string, "_av", allocation_arena, target_in_heap);
         /* Ensure elem_size and elem_kind are set on the target array before
          * appending; struct fields may be zero-initialized with neither. */
         emit(codegen, "{ GrayArray *_tgt = ");
@@ -8088,7 +8108,9 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         const char *insert_element_type_name = codegen_array_element_type(codegen, node->data.call.arguments[0]);
         /* [f32] elements are stored packed as 4-byte float. */
         if (insert_element_type_name && strcmp(insert_element_type_name, "f32") == 0) c_element_type = "float";
-        const char *insert_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool insert_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *insert_arena = insert_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
         emit(codegen, "{ __auto_type _ii = ");
         emit_expression(codegen, node->data.call.arguments[1]);
         emit_formatted(codegen, "; %s _iv = ", c_element_type);
@@ -8096,7 +8118,7 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         emit(codegen, "; ");
         bool is_insert_string = (value_type && value_type->kind == TYPE_KIND_STRING) ||
             (insert_element_type_name && strcmp(insert_element_type_name, "string") == 0);
-        emit_escape_staged_value(codegen, node->data.call.arguments[2], insert_element_type_name, is_insert_string, "_iv", insert_arena);
+        emit_escape_staged_value(codegen, node->data.call.arguments[2], insert_element_type_name, is_insert_string, "_iv", insert_arena, insert_in_heap);
         emit_formatted(codegen, "gray_arrays_insert_at(%s, ", insert_arena);
         emit_array_argument_address(codegen, node->data.call.arguments[0]);
         emit(codegen, ", _ii, &_iv); }");
@@ -8159,7 +8181,9 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
     }
     /* prepend/fill need special value wrapping */
     if (strcmp(function_name, "prepend") == 0 && node->data.call.argument_count == 2) {
-        const char *prepend_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool prepend_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *prepend_arena = prepend_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
         const char *prepend_element_type_name = codegen_array_element_type(codegen, node->data.call.arguments[0]);
         bool is_prepend_string = prepend_element_type_name && strcmp(prepend_element_type_name, "string") == 0;
         const char *prepend_c_element_type = "int64_t";
@@ -8181,7 +8205,7 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_formatted(codegen, "{ %s _pv = ", prepend_c_element_type);
         emit_expression(codegen, node->data.call.arguments[1]);
         emit(codegen, "; ");
-        emit_escape_staged_value(codegen, node->data.call.arguments[1], prepend_element_type_name, is_prepend_string, "_pv", prepend_arena);
+        emit_escape_staged_value(codegen, node->data.call.arguments[1], prepend_element_type_name, is_prepend_string, "_pv", prepend_arena, prepend_in_heap);
         emit_formatted(codegen, "gray_arrays_prepend(%s, ", prepend_arena);
         emit_array_argument_address(codegen, node->data.call.arguments[0]);
         emit(codegen, ", &_pv); }");
