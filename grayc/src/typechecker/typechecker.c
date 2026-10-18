@@ -14978,6 +14978,14 @@ static void check_assign_statement(TypeChecker *checker, AstNode *node) {
                 if (new_symbol) {
                     new_symbol->definition_line = node->token.line;
                     new_symbol->definition_column = node->token.column;
+                    /* Same lifetime origin a `mut` declaration records, so a
+                     * later return or store of this name is still an escape. */
+                    const char *origin_name = NULL;
+                    new_symbol->origin_depth = pointer_origin_of(checker, initializer, &origin_name);
+                    new_symbol->origin_name = origin_name;
+                    const char *field_origin_name = NULL;
+                    new_symbol->field_origin_depth = container_literal_origin(checker, initializer, &field_origin_name);
+                    new_symbol->field_origin_name = field_origin_name;
                 }
                 node->data.assign.is_declaration = true;
                 return; /* done — skip normal assignment validation */
