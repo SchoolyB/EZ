@@ -1,31 +1,25 @@
 name: Sync ERRORS.md
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'grayc/src/util/error_codes.h'
   push:
     branches:
       - main
     paths:
+      - 'grayc/src/util/error_codes.h'
       - 'ERRORS.md'
 
 jobs:
   sync:
     name: Regenerate ERRORS.md
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(main): release') }}
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build grayc
@@ -45,20 +39,20 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit changes to PR
+      - name: Commit changes to main
         if: steps.check.outputs.changed == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add ERRORS.md
           git commit -m "docs: regenerate ERRORS.md from error_codes.h"
-          git pull --rebase origin ${{ github.head_ref }}
-          git push origin HEAD:${{ github.head_ref }}
+          git pull --rebase origin main
+          git push origin HEAD:main
 
   trigger-docs:
     name: Trigger docs sync
+    needs: sync
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - name: Trigger docs sync
         run: |
