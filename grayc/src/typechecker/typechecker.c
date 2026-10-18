@@ -17030,8 +17030,8 @@ static void check_function_declaration(TypeChecker *checker, AstNode *node) {
     /* Warn about unused variables in this function scope */
     report_unused_variables(checker, function_scope, node);
 
-    if (checker->current_return_types) free(checker->current_return_types);
-    if (checker->current_return_type_names) free(checker->current_return_type_names);
+    free(checker->current_return_types);
+    free(checker->current_return_type_names);
     checker->current_return_types = previous_return_types;
     checker->current_return_type_names = previous_return_names;
     checker->current_return_count = previous_return_count;

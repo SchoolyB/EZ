@@ -14632,7 +14632,7 @@ static void codegen_emit_type_definitions(CodeGen *codegen, const TopLevelStatem
         }
 
         free(emitted);
-        if (tagged_enums) free(tagged_enums);
+        free(tagged_enums);
     }
 }
 
