@@ -5167,8 +5167,12 @@ A Grayscale program consists of one or more source files that are compiled to a 
 Every Grayscale program must define a `main` function with no parameters and no return value:
 
 ```gray
+do greet(name string) -> string {
+    return "Hello, ${name}!"
+}
+
 do main() {
-    // Program starts here
+    println(greet("Grayscale"))
 }
 ```
 
