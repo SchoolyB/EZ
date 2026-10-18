@@ -465,11 +465,15 @@ static void c_compiler_banner(const char *c_compiler, bool is_command, char *ban
 /* GCC runs array-heavy loops about 25% faster at -O3 than at -O2 and Clang does
  * not, so GCC gets -O3 by default. Asks the compiler itself, since on macOS
  * /usr/bin/gcc is Clang. */
+static bool c_compiler_banner_is_gcc(const char *banner) {
+    return banner[0] && strstr(banner, "clang") == NULL &&
+           (strstr(banner, "gcc") != NULL || strstr(banner, "GCC") != NULL || strncmp(banner, "cc (", 4) == 0);
+}
+
 static bool c_compiler_is_gcc(const char *c_compiler, bool is_command) {
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
-    return banner[0] && strstr(banner, "clang") == NULL &&
-           (strstr(banner, "gcc") != NULL || strstr(banner, "GCC") != NULL || strncmp(banner, "cc (", 4) == 0);
+    return c_compiler_banner_is_gcc(banner);
 }
 
 /* libgrayrt.a is built by the system Clang. On macOS a different compiler
@@ -528,10 +532,13 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     const bool uses_tinycc_archiver = c_compiler_is_tinycc(c_compiler);
     uint64_t key = 14695981039346656037ULL;
     /* The archiver is part of the key so an archive an earlier grayc built
-     * with a host ar (and left without a symbol table) is not reused. */
+     * with a host ar (and left without a symbol table) is not reused, and
+     * neither is one an earlier grayc built at -O2 for GCC. */
+    const bool is_gcc = c_compiler_banner_is_gcc(banner);
     const char *const key_parts[] = {c_compiler, banner, runtime_directory,
-                                     uses_zig_archiver ? "zig-ar" : uses_tinycc_archiver ? "tcc-ar" : ""};
-    for (size_t part = 0; part < 4; part++)
+                                     uses_zig_archiver ? "zig-ar" : uses_tinycc_archiver ? "tcc-ar" : "",
+                                     is_gcc ? "-O3" : ""};
+    for (size_t part = 0; part < 5; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
     snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", gray_temporary_directory(),
@@ -583,7 +590,7 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
         argument_vector_push(&compile, "-std=c11");
         argument_vector_push(&compile, "-D_POSIX_C_SOURCE=200809L");
         argument_vector_push(&compile, "-D_DARWIN_C_SOURCE");
-        argument_vector_push(&compile, "-O2");
+        argument_vector_push(&compile, is_gcc ? "-O3" : "-O2");
         argument_vector_push(&compile, "-w");
         argument_vector_push(&compile, "-ffunction-sections");
         argument_vector_push(&compile, "-fdata-sections");
