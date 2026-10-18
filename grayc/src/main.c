@@ -510,8 +510,8 @@ static bool note_newer_runtime_file(const char *name, void *context) {
 
 /* A compiler that cannot link the prebuilt libgrayrt.a (a --cc compiler, or
  * Homebrew GCC on macOS) would otherwise rebuild the whole runtime on every
- * compile (tens of seconds). Build it once with that compiler into the temp
- * directory, keyed by the full compiler command (a cross target's flags
+ * compile (tens of seconds). Build it once with that compiler into a private
+ * per-user cache directory, keyed by the full compiler command (a cross target's flags
  * select a different archive), its version banner and the runtime directory, and rebuild when any runtime or stdlib file is newer.
  * SQLite stays out of the archive (a program that uses it builds from source).
  * Returns false, leaving the from-source build to run, if anything fails. */
@@ -541,7 +541,9 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     for (size_t part = 0; part < 5; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
-    snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", gray_temporary_directory(),
+    char cache_directory[PATH_BUFFER_SIZE];
+    if (!gray_private_cache_directory(cache_directory, sizeof(cache_directory))) return false;
+    snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", cache_directory,
              (unsigned long long)key);
 
     struct stat archive_status;

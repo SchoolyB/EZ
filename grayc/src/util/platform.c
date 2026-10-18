@@ -413,6 +413,21 @@ const char *gray_temporary_directory(void) {
     return directory_buffer;
 }
 
+bool gray_private_cache_directory(char *destination, size_t destination_size) {
+#if GRAY_OS_WINDOWS
+    /* The Windows temp directory is already per-user. */
+    return snprintf(destination, destination_size, "%s", gray_temporary_directory()) < (int)destination_size;
+#else
+    int length = snprintf(destination, destination_size, "%s/gray-%lu", gray_temporary_directory(),
+                          (unsigned long)geteuid());
+    if (length < 0 || (size_t)length >= destination_size) return false;
+    if (mkdir(destination, 0700) != 0 && errno != EEXIST) return false;
+    struct stat status;
+    return lstat(destination, &status) == 0 && S_ISDIR(status.st_mode) &&
+           status.st_uid == geteuid() && (status.st_mode & (S_IRWXG | S_IRWXO)) == 0;
+#endif
+}
+
 int gray_temporary_path(char *destination, size_t destination_size, const char *prefix, const char *suffix) {
     static unsigned counter = 0;
     char name[256];
