@@ -8876,16 +8876,22 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             warn_if_function_deprecated(checker, node, reference_function_signature);
             reject_test_function_reference(checker, node, reference_function_signature);
             /* Build typed function reference: "func(i64,string)->i64" */
-            char signature_text[MESSAGE_BUFFER_SIZE];
-            int position = 0;
-            position += snprintf(signature_text + position, sizeof(signature_text) - position, "func(");
-            for (int i = 0; i < reference_function_signature->parameter_count; i++) {
-                if (i > 0) position += snprintf(signature_text + position, sizeof(signature_text) - position, ",");
-                position += snprintf(signature_text + position, sizeof(signature_text) - position, "%s", type_name(reference_function_signature->parameter_types[i]));
-            }
-            position += snprintf(signature_text + position, sizeof(signature_text) - position, ")");
+            size_t signature_length = strlen("func()") + 1;
             if (reference_function_signature->return_count > 0) {
-                position += snprintf(signature_text + position, sizeof(signature_text) - position, "->%s", type_name(reference_function_signature->return_types[0]));
+                signature_length += strlen("->") + strlen(type_name(reference_function_signature->return_types[0]));
+            }
+            for (int i = 0; i < reference_function_signature->parameter_count; i++) {
+                signature_length += (i > 0 ? 1 : 0) + strlen(type_name(reference_function_signature->parameter_types[i]));
+            }
+            char *signature_text = arena_allocate(checker->arena, signature_length);
+            size_t position = (size_t)snprintf(signature_text, signature_length, "func(");
+            for (int i = 0; i < reference_function_signature->parameter_count; i++) {
+                if (i > 0) position += (size_t)snprintf(signature_text + position, signature_length - position, ",");
+                position += (size_t)snprintf(signature_text + position, signature_length - position, "%s", type_name(reference_function_signature->parameter_types[i]));
+            }
+            position += (size_t)snprintf(signature_text + position, signature_length - position, ")");
+            if (reference_function_signature->return_count > 0) {
+                snprintf(signature_text + position, signature_length - position, "->%s", type_name(reference_function_signature->return_types[0]));
             }
             result = type_from_name(signature_text);
         } else {
