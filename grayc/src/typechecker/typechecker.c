@@ -9675,14 +9675,14 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                 /* No source FunctionSignature; validate against the typed-
                  * func signature from the variable's annotated type
                  * (e.g. callback parameters: do f(g func(i64)->i64)). */
-                GrayFunctionSignature *signature = function_symbol->type->function_signature;
+                GrayFunctionSignature *typed_signature = function_symbol->type->function_signature;
                 int argument_count = node->data.call.argument_count;
-                if (argument_count != signature->parameter_count) {
-                    typechecker_error_arity(checker, node, function_name, typechecker_format(checker, "%d", signature->parameter_count), argument_count);
+                if (argument_count != typed_signature->parameter_count) {
+                    typechecker_error_arity(checker, node, function_name, typechecker_format(checker, "%d", typed_signature->parameter_count), argument_count);
                 } else {
-                    for (int argument_index = 0; argument_index < signature->parameter_count; argument_index++) {
+                    for (int argument_index = 0; argument_index < typed_signature->parameter_count; argument_index++) {
                         AstNode *argument = node->data.call.arguments[argument_index];
-                        GrayType *callee_parameter_type = signature->parameter_types[argument_index] ? typechecker_type_from_name(checker, signature->parameter_types[argument_index]) : NULL;
+                        GrayType *callee_parameter_type = typed_signature->parameter_types[argument_index] ? typechecker_type_from_name(checker, typed_signature->parameter_types[argument_index]) : NULL;
                         GrayType *checked_argument_type = check_expression_as(checker, argument, callee_parameter_type);
                         if (checked_argument_type && callee_parameter_type && checked_argument_type->kind != TYPE_KIND_UNKNOWN && callee_parameter_type->kind != TYPE_KIND_UNKNOWN &&
                             !types_assignable(checker, callee_parameter_type, checked_argument_type) &&
@@ -9691,15 +9691,15 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                             typechecker_error_argument_type(checker, argument, argument_index + 1, function_name, type_display_name(checker, callee_parameter_type), type_display_name(checker, checked_argument_type));
                         }
                         /* E3027: `&` param requires an assignment target */
-                        if (signature->is_parameter_mutable[argument_index]) {
+                        if (typed_signature->is_parameter_mutable[argument_index]) {
                             char parameter_description[MESSAGE_BUFFER_SIZE];
                             snprintf(parameter_description, sizeof(parameter_description), "'&' parameter %d", argument_index + 1);
                             check_mutable_argument(checker, argument, parameter_description, function_name);
                         }
                     }
                 }
-                if (signature->return_count > 0 && signature->return_types[0]) {
-                    result = type_from_name(signature->return_types[0]);
+                if (typed_signature->return_count > 0 && typed_signature->return_types[0]) {
+                    result = type_from_name(typed_signature->return_types[0]);
                 } else {
                     result = &TYPE_VOID;
                 }
@@ -9751,19 +9751,19 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                 }
                 /* 2) Try user-defined module */
                 if (!found_in_using) {
-                    FunctionSignature *signature = find_module_function(checker, real_module, function_name);
-                    if (signature) {
+                    FunctionSignature *module_signature = find_module_function(checker, real_module, function_name);
+                    if (module_signature) {
                         if (reject_if_private(checker, node, real_module, function_name)) {
                             found_in_using = true;
                         } else {
                             found_in_using = true;
-                            if (signature->return_count > 0) {
-                                result = signature->return_types[0];
+                            if (module_signature->return_count > 0) {
+                                result = module_signature->return_types[0];
                             } else {
                                 result = &TYPE_VOID;
                             }
-                            signature->was_used = true;
-                            warn_if_function_deprecated(checker, node, signature);
+                            module_signature->was_used = true;
+                            warn_if_function_deprecated(checker, node, module_signature);
                         }
                     }
                 }
@@ -9783,7 +9783,6 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                 }
             } else {
                 /* Check if it's a variable holding a function reference */
-                Symbol *function_symbol = scope_lookup(checker->current_scope, function_name);
                 if (function_symbol && function_symbol->type && strcmp(type_name(function_symbol->type), "func") == 0) {
                     function_symbol->was_used = true;
                     result = &TYPE_UNKNOWN;
