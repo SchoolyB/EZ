@@ -1,0 +1,10 @@
+// expect-contains: P0104
+/* Panic Test: P0104 - an allocation past the arena limit inside a loop body */
+import @strings
+
+do main() {
+    for i in range(0, 1) {
+        mut s string = strings.repeat("x", 2000000000)
+        println(len(s))
+    }
+}

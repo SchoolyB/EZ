@@ -1,0 +1,12 @@
+// expect-contains: P0104
+/* Panic Test: P0104 - an allocation past the arena limit inside a function body */
+import @strings
+
+do build() -> i64 {
+    mut s string = strings.repeat("x", 2000000000)
+    return len(s)
+}
+
+do main() {
+    println(build())
+}
