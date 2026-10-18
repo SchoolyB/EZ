@@ -345,12 +345,12 @@ _Noreturn void gray_arith_panic_umul(const char *file, int line);
 #else
 static inline bool gray_add_overflows_i64(int64_t left, int64_t right, int64_t *result) {
     *result = (int64_t)((uint64_t)left + (uint64_t)right);
-    return (right > 0 && left > INT64_MAX - right) || (right < 0 && left < INT64_MIN - right);
+    return ((left ^ *result) & (right ^ *result)) < 0;
 }
 
 static inline bool gray_sub_overflows_i64(int64_t left, int64_t right, int64_t *result) {
     *result = (int64_t)((uint64_t)left - (uint64_t)right);
-    return (right < 0 && left > INT64_MAX + right) || (right > 0 && left < INT64_MIN + right);
+    return ((left ^ right) & (left ^ *result)) < 0;
 }
 
 static inline bool gray_mul_overflows_i64(int64_t left, int64_t right, int64_t *result) {
@@ -373,16 +373,28 @@ static inline bool gray_mul_overflows_u64(uint64_t left, uint64_t right, uint64_
 }
 #endif
 
+/* TinyCC does not inline the helpers above, so add and sub test the sign
+ * directly instead of paying a call for each layer. */
 static inline int64_t gray_add_check(int64_t left, int64_t right, const char *file, int line) {
     int64_t result;
+#if defined(__TINYC__)
+    result = (int64_t)((uint64_t)left + (uint64_t)right);
+    if (((left ^ result) & (right ^ result)) < 0)
+#else
     if (gray_add_overflows_i64(left, right, &result))
+#endif
         gray_arith_panic_add(file, line);
     return result;
 }
 
 static inline int64_t gray_sub_check(int64_t left, int64_t right, const char *file, int line) {
     int64_t result;
+#if defined(__TINYC__)
+    result = (int64_t)((uint64_t)left - (uint64_t)right);
+    if (((left ^ right) & (left ^ result)) < 0)
+#else
     if (gray_sub_overflows_i64(left, right, &result))
+#endif
         gray_arith_panic_sub(file, line);
     return result;
 }
