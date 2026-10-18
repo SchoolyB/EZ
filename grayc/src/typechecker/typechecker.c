@@ -17117,7 +17117,6 @@ static void check_struct_declaration(TypeChecker *checker, AstNode *node) {
                     if (raw_tag_length > prefix_length + 1 && strncmp(raw_tag, prefix, prefix_length) == 0 && raw_tag[raw_tag_length - 1] == '"') {
                         field_key = raw_tag + prefix_length;
                         key_length = raw_tag_length - prefix_length - 1;
-                        if (key_length == 0) field_key = NULL;
                         /* The key is spliced verbatim into a generated C string
                          * literal (codegen has no escaping pass for it) — a
                          * quote, backslash, or control character would either
