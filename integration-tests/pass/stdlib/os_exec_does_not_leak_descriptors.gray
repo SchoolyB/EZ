@@ -1,0 +1,26 @@
+/*
+ * Test: a process started by os.exec does not inherit the parent's open sockets
+ */
+
+import @net
+import @os
+import @strings
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut listener, _ = net.listen(18098, "127.0.0.1")
+    mut result, _ = os.exec("sh", {"-c", "lsof -a -p $$ -i 2>/dev/null | grep -i listen"})
+    if strings.contains(result.stdout, "18098") == false {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+    net.close(listener)
+
+    println("passed: ${passed}, failed: ${failed}")
+    if failed > 0 {
+        exit(1)
+    }
+}

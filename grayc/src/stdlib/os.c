@@ -46,6 +46,7 @@
 
 #define GRAY_HOSTNAME_BUFFER_SIZE 256
 #define GRAY_EXEC_OUTPUT_MAX (64 * 1024 * 1024) /* 64 MiB per stream */
+#define GRAY_OS_EXEC_MAX_CLOSED_DESCRIPTORS 65536 /* upper bound on the close loop before exec */
 
 /* Grow an arena-backed byte buffer so it can take `add` more bytes on top of
  * `total`. The arena has no realloc, so growth is allocate-and-copy; the
@@ -607,6 +608,13 @@ GrayResult_os_exec gray_os_exec_result(GrayArena *arena, GrayString command, Gra
         close(stdout_pipe[1]);
         close(stderr_pipe[1]);
         close(launch_pipe[0]);
+        /* The child sees only stdin, stdout and stderr (and the launch pipe,
+         * which closes on exec): sockets and files the parent holds stay out. */
+        long descriptor_limit = sysconf(_SC_OPEN_MAX);
+        if (descriptor_limit < 0 || descriptor_limit > GRAY_OS_EXEC_MAX_CLOSED_DESCRIPTORS)
+            descriptor_limit = GRAY_OS_EXEC_MAX_CLOSED_DESCRIPTORS;
+        for (int descriptor = STDERR_FILENO + 1; descriptor < descriptor_limit; descriptor++)
+            if (descriptor != launch_pipe[1]) close(descriptor);
         execvp(command.data, argv);
         /* execvp failed: report errno to the parent. */
         int exec_errno = errno;
