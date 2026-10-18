@@ -516,8 +516,8 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
     /* A host ar cannot index another platform's object format (Apple ar writes
-     * an empty table of contents for COFF), so a zig compiler archives with
-     * its own `zig ar`. */
+     * an empty table of contents for COFF or tcc's ELF objects), so a zig
+     * compiler archives with its own `zig ar` and tcc with `tcc -ar`. */
     size_t command_word_length = strcspn(c_compiler, " \t");
     const char *command_word_end = c_compiler + command_word_length;
     const char *command_word_start = command_word_end;
@@ -525,10 +525,12 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
         command_word_start--;
     const bool uses_zig_archiver = is_command && strncmp(command_word_start, "zig", 3) == 0 &&
         (command_word_end - command_word_start == 3 || strncmp(command_word_start, "zig.exe", 7) == 0);
+    const bool uses_tinycc_archiver = c_compiler_is_tinycc(c_compiler);
     uint64_t key = 14695981039346656037ULL;
     /* The archiver is part of the key so an archive an earlier grayc built
      * with a host ar (and left without a symbol table) is not reused. */
-    const char *const key_parts[] = {c_compiler, banner, runtime_directory, uses_zig_archiver ? "zig-ar" : ""};
+    const char *const key_parts[] = {c_compiler, banner, runtime_directory,
+                                     uses_zig_archiver ? "zig-ar" : uses_tinycc_archiver ? "tcc-ar" : ""};
     for (size_t part = 0; part < 4; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
@@ -555,6 +557,9 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     if (uses_zig_archiver) {
         argument_vector_push_formatted(&archiver, arena, "%.*s", (int)command_word_length, c_compiler);
         argument_vector_push(&archiver, "ar");
+    } else if (uses_tinycc_archiver) {
+        argument_vector_push(&archiver, c_compiler);
+        argument_vector_push(&archiver, "-ar");
     } else {
         argument_vector_push(&archiver, "ar");
     }
@@ -2292,11 +2297,11 @@ int main(int argc, char **argv) {
      * The archive is built for the host; a --cc compiler (a cross target) needs
      * the runtime compiled from source for its own target instead. */
     gray_path_join(lib_path, sizeof(lib_path), runtime_directory, "../libgrayrt.a");
-    if (c_compiler_is_tinycc(c_compiler_command)) {
-        /* fall through to the from-source build below; TinyCC cannot
-         * link objects another compiler built, or share its thread-local
-         * layout (see gray_thread_state in runtime.h) */
-    } else if (options.c_compiler_override || c_compiler_cannot_link_archive(c_compiler_command, false)) {
+    /* TinyCC cannot link objects another compiler built, or share its
+     * thread-local layout (see gray_thread_state in runtime.h), so it builds
+     * its own archive like any other --cc compiler. */
+    if (c_compiler_is_tinycc(c_compiler_command) || options.c_compiler_override ||
+        c_compiler_cannot_link_archive(c_compiler_command, false)) {
         has_archive = !strstr(c_source, "#include \"sqlite.h\"") &&
                       ensure_runtime_archive(c_compiler_command, options.c_compiler_override != NULL, runtime_directory,
                                              lib_path, sizeof(lib_path));
