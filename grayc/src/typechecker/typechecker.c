@@ -12096,12 +12096,12 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             scope_lookup(checker->current_scope, name))
             checker->is_initializer_reading_own_name = true;
 
-        /* A type parameter's name used as a value (new(T), size_of(T)) is the
-         * type it is bound to, or unknown during the main pass. */
+        /* A type parameter's name stands for a type, never a value. Type
+         * positions are validated by name and never reach this point. */
         int generic_index = generic_bindings_find(&checker->generics, name);
         if (generic_index >= 0 && !scope_lookup(checker->current_scope, name)) {
-            const char *bound = checker->generics.types[generic_index];
-            result = bound ? type_from_name(bound) : typechecker_type_from_name(checker, name);
+            NODE_ERROR_FORMATTED(checker, node, "E3100", name);
+            result = &TYPE_UNKNOWN;
             break;
         }
 
