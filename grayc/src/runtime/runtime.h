@@ -49,7 +49,7 @@ typedef struct {
 #define GRAY_ARENA_DECLARED
 
 GrayArena *gray_arena_create(size_t initial_size);
-GrayArena *gray_scope_arena_create(size_t initial_size);
+GrayArena *gray_capped_arena_create(size_t initial_size);
 void *gray_arena_alloc(GrayArena *arena, size_t size);
 void *gray_arena_alloc_uninitialized(GrayArena *arena, size_t size);
 void gray_arena_reset(GrayArena *arena);

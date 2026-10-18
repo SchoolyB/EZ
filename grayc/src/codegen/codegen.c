@@ -12116,7 +12116,7 @@ static void emit_if_statement(CodeGen *codegen, AstNode *node) {
         if (watermark) {
             emit_formatted(codegen, "GrayScopeMark _if_mark_%d = gray_scope_save(gray_default_arena);\n", if_scope_id);
         } else {
-            emit_formatted(codegen, "GrayArena *_if_arena_%d = gray_scope_arena_create(%d); ", if_scope_id, IF_ARENA_SIZE);
+            emit_formatted(codegen, "GrayArena *_if_arena_%d = gray_capped_arena_create(%d); ", if_scope_id, IF_ARENA_SIZE);
             emit_formatted(codegen, "GrayArena *_if_saved_%d = gray_default_arena; ", if_scope_id);
             emit_formatted(codegen, "gray_default_arena = _if_arena_%d;\n", if_scope_id);
         }
@@ -12453,7 +12453,7 @@ static void emit_loop_arena_prologue(CodeGen *codegen, bool no_arena) {
         emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
     }
     emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_scope_arena_create(%d);\n", depth, LOOP_ARENA_SIZE);
+    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_capped_arena_create(%d);\n", depth, LOOP_ARENA_SIZE);
     emit_indent(codegen);
     emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", depth);
 }
@@ -12875,7 +12875,7 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
             }
         } else {
             emit_indent(codegen);
-            emit_formatted(codegen, "GrayArena *_func_arena = gray_scope_arena_create(%d);\n", FUNCTION_ARENA_SIZE);
+            emit_formatted(codegen, "GrayArena *_func_arena = gray_capped_arena_create(%d);\n", FUNCTION_ARENA_SIZE);
             emit_indent(codegen);
             emit(codegen, "GrayArena *_func_saved = gray_default_arena;\n");
             emit_indent(codegen);

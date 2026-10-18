@@ -299,14 +299,14 @@ static void format_response_headers(GrayMap *headers, char *buffer, size_t buffe
 
 static void *handle_connection(void *argument) {
     ConnCtx *connection_context = (ConnCtx *)argument;
-    GrayArena *arena = gray_arena_create(GRAY_SERVER_REQUEST_ARENA); /* 64KB per request */
+    GrayArena *arena = gray_capped_arena_create(GRAY_SERVER_REQUEST_ARENA); /* 64KB per request */
     /* The handler and middleware allocate in this thread's default arena, and
      * a handler's returned response is copied into it; it lives until the
      * response has been sent. */
     gray_default_arena = arena;
     /* new() allocates from the thread's heap arena, which this thread does not
      * inherit from main; it lives until the connection is cleaned up. */
-    gray_heap_arena = gray_arena_create(GRAY_SERVER_REQUEST_ARENA);
+    gray_heap_arena = gray_capped_arena_create(GRAY_SERVER_REQUEST_ARENA);
 
     /* Apply read timeout so slow or idle connections don't hold threads indefinitely */
     GRAY_SOCK_TIMEOUT_TYPE timeout_value;

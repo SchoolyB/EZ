@@ -100,12 +100,13 @@ GrayArena *gray_arena_create(size_t initial_size) {
 }
 
 /* The --arena-limit cap, remembered so the arenas that function bodies,
- * blocks and loop iterations create are held to it like the root arenas. */
-static size_t gray_scope_arena_limit = 0;
+ * blocks, loop iterations, threads and server connections create are held to
+ * it like the root arenas. */
+static size_t gray_arena_cap = 0;
 
-GrayArena *gray_scope_arena_create(size_t initial_size) {
+GrayArena *gray_capped_arena_create(size_t initial_size) {
     GrayArena *arena = gray_arena_create(initial_size);
-    arena->maximum_bytes = gray_scope_arena_limit;
+    arena->maximum_bytes = gray_arena_cap;
     return arena;
 }
 
@@ -381,7 +382,7 @@ void gray_runtime_init(size_t arena_limit) {
     gray_map_init_seed();
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_heap_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
-    gray_scope_arena_limit = arena_limit;
+    gray_arena_cap = arena_limit;
     if (arena_limit > 0) {
         gray_default_arena->maximum_bytes = arena_limit;
         gray_heap_arena->maximum_bytes = arena_limit;
