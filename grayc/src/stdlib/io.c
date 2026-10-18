@@ -626,6 +626,17 @@ static bool is_real_directory(const char *path) {
 #endif
 }
 
+/* True for a symlink (or Windows junction) at `path`, whatever it points to. */
+static bool is_link(const char *path) {
+#if GRAY_RUNTIME_WINDOWS
+    DWORD attributes = GetFileAttributesA(path);
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+#else
+    struct stat file_info;
+    return lstat(path, &file_info) == 0 && S_ISLNK(file_info.st_mode);
+#endif
+}
+
 static bool remove_directory_recursive(const char *path) {
     DIR *directory = opendir(path);
     if (!directory) return false;
@@ -648,6 +659,8 @@ static bool remove_directory_recursive(const char *path) {
 
 bool gray_io_remove_dir_all(GrayString path) {
     validate_path(path);
+    if (is_link(path.data))
+        return unlink(path.data) == 0 || (GRAY_RUNTIME_WINDOWS && rmdir(path.data) == 0);
     return remove_directory_recursive(path.data);
 }
 
