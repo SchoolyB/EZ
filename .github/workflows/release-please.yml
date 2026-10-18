@@ -108,9 +108,9 @@ jobs:
             goos: darwin
             goarch: arm64
             grayc_arch: darwin-arm64
-          # macos-latest is arm64; macos-13 is the Intel image, needed here
-          # for the same reason as the linux-arm64 entry above.
-          - os: macos-13
+          # macos-latest is arm64; macos-15-intel is the Intel image, needed
+          # here for the same reason as the linux-arm64 entry above.
+          - os: macos-15-intel
             goos: darwin
             goarch: amd64
             grayc_arch: darwin-amd64
