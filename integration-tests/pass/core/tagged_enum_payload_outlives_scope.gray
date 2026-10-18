@@ -1,0 +1,90 @@
+/*
+ * tagged_enum_payload_outlives_scope.gray - string and array payloads of a tagged
+ * enum are copied with the value when it leaves the scope that built it
+ */
+
+import @strings
+import @arrays
+
+const Tok enum {
+    Word(string)
+    Pair(string, [string])
+    Num(i64)
+    End
+}
+
+const Holder struct {
+    t Tok
+}
+
+do churn() -> string {
+    mut s = ""
+    for i in range(0, 300) { s = s + "garbagegarbage" }
+    return s
+}
+
+do describe(t Tok) -> string {
+    when t {
+        is Tok.Word(w) { return "Word ${w}" }
+        is Tok.Pair(a, b) { return "Pair ${a} ${b}" }
+        is Tok.Num(n) { return "Num ${n}" }
+        is Tok.End { return "End" }
+    }
+    return ""
+}
+
+do mk() -> Tok {
+    mut s = "w-" + strings.repeat("w", 12)
+    return Tok.Word(s)
+}
+
+do mk_pair() -> Tok {
+    mut s = "p-" + strings.repeat("p", 12)
+    return Tok.Pair(s, {s, s})
+}
+
+do mk_ptr() -> ^Tok {
+    mut p ^Tok = new(Tok)
+    mut s = "n-" + strings.repeat("n", 12)
+    p^ = Tok.Word(s)
+    return p
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut t = mk()
+    mut q = mk_pair()
+    mut ts [Tok] = {}
+    mut m map[string:Tok] = {"seed": Tok.End}
+    mut outer Tok = Tok.End
+    mut h Holder = Holder{t: Tok.End}
+    for i in range(0, 2) {
+        mut s = "w${i}-" + strings.repeat("w", 12)
+        arrays.append(ts, Tok.Word(s))
+        m[s] = Tok.Word(s)
+        outer = Tok.Pair(s, {s})
+    }
+    if true {
+        mut s = "h-" + strings.repeat("h", 12)
+        h.t = Tok.Word(s)
+    }
+    mut np ^Tok = mk_ptr()
+    mut z = churn()
+
+    mut actual [string] = {describe(t), describe(q), describe(ts[0]), describe(ts[1]), describe(m["w0-wwwwwwwwwwww"]), describe(m["w1-wwwwwwwwwwww"]), describe(outer), describe(h.t), describe(np^)}
+    mut expected [string] = {"Word w-wwwwwwwwwwww", "Pair p-pppppppppppp {\"p-pppppppppppp\", \"p-pppppppppppp\"}", "Word w0-wwwwwwwwwwww", "Word w1-wwwwwwwwwwww", "Word w0-wwwwwwwwwwww", "Word w1-wwwwwwwwwwww", "Pair w1-wwwwwwwwwwww {\"w1-wwwwwwwwwwww\"}", "Word h-hhhhhhhhhhhh", "Word n-nnnnnnnnnnnn"}
+    for i in range(0, len(expected)) {
+        if actual[i] == expected[i] {
+            passed += 1
+        } otherwise {
+            failed += 1
+        }
+    }
+
+    println("passed: ${passed}, failed: ${failed}, ${len(z)}")
+    if failed > 0 {
+        exit(1)
+    }
+}

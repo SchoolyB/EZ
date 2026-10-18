@@ -1089,6 +1089,13 @@ static bool is_stdlib_http_response(CodeGen *codegen, const char *type_name) {
 static const char *type_name_deep_copy_visiting[CYCLE_GUARD_DEPTH];
 static int type_name_deep_copy_depth = 0;
 
+/* The declaration of a tagged enum, or NULL for any other type name. */
+static AstNode *tagged_enum_declaration(CodeGen *codegen, const char *name) {
+    if (!name || !codegen_enum_is_tagged(codegen, name)) return NULL;
+    int enum_index = codegen_enum_index(codegen, name);
+    return enum_index >= 0 ? codegen->enum_declarations[enum_index] : NULL;
+}
+
 /* Walk a type for storage that a plain C copy would share with the source.
  * Arrays and maps always qualify; strings only when `count_strings`. */
 static bool type_needs_copy_walk(CodeGen *codegen, const char *gray_type_name, bool count_strings) {
@@ -1098,7 +1105,26 @@ static bool type_needs_copy_walk(CodeGen *codegen, const char *gray_type_name, b
     if (strcmp(gray_type_name, "string") == 0) return count_strings;
     if (gray_type_name[0] == '^') return false; /* pointers alias; see header comment */
     AstNode *struct_declaration = find_struct_declaration(codegen, gray_type_name);
-    if (!struct_declaration) return is_stdlib_http_response(codegen, gray_type_name); /* headers map */
+    if (!struct_declaration) {
+        AstNode *enum_declaration = tagged_enum_declaration(codegen, gray_type_name);
+        if (!enum_declaration) return is_stdlib_http_response(codegen, gray_type_name); /* headers map */
+        /* A tagged enum holds whatever its variants' payloads hold. */
+        for (int j = 0; j < type_name_deep_copy_depth; j++) {
+            if (strcmp(type_name_deep_copy_visiting[j], gray_type_name) == 0) return false;
+        }
+        if (type_name_deep_copy_depth < CYCLE_GUARD_DEPTH) type_name_deep_copy_visiting[type_name_deep_copy_depth++] = gray_type_name;
+        for (int i = 0; i < enum_declaration->data.enum_declaration.value_count; i++) {
+            EnumValue *variant = &enum_declaration->data.enum_declaration.values[i];
+            for (int k = 0; k < variant->payload_count; k++) {
+                if (type_needs_copy_walk(codegen, variant->payload_types[k], count_strings)) {
+                    type_name_deep_copy_depth--;
+                    return true;
+                }
+            }
+        }
+        type_name_deep_copy_depth--;
+        return false;
+    }
     /* Cycle detection: if we're already visiting this struct, stop. */
     for (int j = 0; j < type_name_deep_copy_depth; j++) {
         if (strcmp(type_name_deep_copy_visiting[j], gray_type_name) == 0) return false;
@@ -1319,6 +1345,35 @@ static void emit_struct_deep_copy(CodeGen *codegen, const char *struct_type_name
     emit_struct_deep_copy_depth--;
 }
 
+/* Deep copy of a tagged enum: switch on the tag and copy the payloads of the
+ * live variant that hold arena-backed data. */
+static void emit_enum_deep_copy(CodeGen *codegen, AstNode *enum_declaration, const char *enum_type_name,
+                                const char *source_variable) {
+    char c_enum[MESSAGE_BUFFER_SIZE];
+    snprintf(c_enum, sizeof(c_enum), "%s", gray_type_to_c_codegen(codegen, enum_type_name));
+    int unique_id = codegen_next_id(codegen);
+    emit_formatted(codegen, "({ %s _es%d = %s; %s _ed%d = _es%d; switch (_es%d.tag) { ",
+                   c_enum, unique_id, source_variable, c_enum, unique_id, unique_id, unique_id);
+    for (int i = 0; i < enum_declaration->data.enum_declaration.value_count; i++) {
+        EnumValue *variant = &enum_declaration->data.enum_declaration.values[i];
+        bool needs_copy = false;
+        for (int k = 0; k < variant->payload_count; k++)
+            if (type_needs_deep_copy(codegen, variant->payload_types[k])) needs_copy = true;
+        if (!needs_copy) continue;
+        emit_formatted(codegen, "case %s_TAG_%s: ", c_enum, variant->name);
+        for (int k = 0; k < variant->payload_count; k++) {
+            if (!type_needs_deep_copy(codegen, variant->payload_types[k])) continue;
+            char source_payload[MESSAGE_BUFFER_SIZE];
+            snprintf(source_payload, sizeof(source_payload), "_es%d.data.%s._%d", unique_id, variant->name, k);
+            emit_formatted(codegen, "_ed%d.data.%s._%d = ", unique_id, variant->name, k);
+            emit_value_deep_copy(codegen, variant->payload_types[k], source_payload);
+            emit(codegen, "; ");
+        }
+        emit(codegen, "break; ");
+    }
+    emit_formatted(codegen, "default: break; } _ed%d; })", unique_id);
+}
+
 static void emit_value_deep_copy(CodeGen *codegen, const char *gray_type_name, const char *source_variable) {
     if (!type_needs_deep_copy(codegen, gray_type_name)) {
         /* Primitive / pointer / scalar struct; C value copy is correct. */
@@ -1335,6 +1390,11 @@ static void emit_value_deep_copy(CodeGen *codegen, const char *gray_type_name, c
     }
     if (strncmp(gray_type_name, "map[", 4) == 0) {
         emit_map_deep_copy(codegen, gray_type_name, source_variable);
+        return;
+    }
+    AstNode *enum_declaration = tagged_enum_declaration(codegen, gray_type_name);
+    if (enum_declaration && !find_struct_declaration(codegen, gray_type_name)) {
+        emit_enum_deep_copy(codegen, enum_declaration, gray_type_name, source_variable);
         return;
     }
     /* Must be a struct that needs recursion. */
@@ -11653,6 +11713,18 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             emit(codegen, "; *_tgt = gray_string_new(_gray_outer_arena, _esc_v.data, _esc_v.len); }\n");
             return;
         }
+        if (target_type && (target_type->kind == TYPE_KIND_STRUCT || target_type->kind == TYPE_KIND_ENUM) &&
+            target_type->name && type_needs_deep_copy(codegen, target_type->name)) {
+            const char *c_type = gray_type_to_c_codegen(codegen, target_type->name);
+            emit_formatted(codegen, "{ %s _esc_v = ", c_type);
+            emit_expression(codegen, node->data.assign.value);
+            emit(codegen, "; GrayArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
+            emit_expression(codegen, node->data.assign.target);
+            emit(codegen, " = ");
+            emit_value_deep_copy(codegen, target_type->name, "_esc_v");
+            emit(codegen, "; gray_default_arena = _esc_a; }\n");
+            return;
+        }
     }
 
     /* when inside a loop scope and assigning a string/container
@@ -11669,8 +11741,8 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             emit(codegen, " = gray_string_new(_gray_outer_arena, _esc_v.data, _esc_v.len); }\n");
             return;
         }
-        if (target_type && target_type->kind == TYPE_KIND_STRUCT && target_type->name &&
-            type_needs_deep_copy(codegen, target_type->name)) {
+        if (target_type && (target_type->kind == TYPE_KIND_STRUCT || target_type->kind == TYPE_KIND_ENUM) &&
+            target_type->name && type_needs_deep_copy(codegen, target_type->name)) {
             const char *c_type = gray_type_to_c_codegen(codegen, target_type->name);
             emit_formatted(codegen, "{ %s _esc_v = ", c_type);
             emit_expression(codegen, node->data.assign.value);
