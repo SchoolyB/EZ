@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.12.1](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.12.0...grayscale-v0.12.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **codegen:** allocate map-field inserts on a new() object in the heap arena ([#3134](https://github.com/grayscale-lang/grayscale/issues/3134)) ([add8f22](https://github.com/grayscale-lang/grayscale/commit/add8f22ea72fd9828b83f6948d4a4577e7b44587))
+* **codegen:** emit compound assignment on a wide integer local typed by a type parameter ([fad6db1](https://github.com/grayscale-lang/grayscale/commit/fad6db1621d14cc9ef0003941a0e7d8033c13e0e))
+* **codegen:** emit wide-integer literal locals in a generic function bound to u128 or u256 ([#3140](https://github.com/grayscale-lang/grayscale/issues/3140)) ([085b3b4](https://github.com/grayscale-lang/grayscale/commit/085b3b477e0c3be46cfd96f10f34b614a7d84486))
+* **codegen:** shift a generic unsigned operand at its bound type ([#3145](https://github.com/grayscale-lang/grayscale/issues/3145)) ([0c1a3cd](https://github.com/grayscale-lang/grayscale/commit/0c1a3cdea347b038dc1e47acfa7b542988e7554d))
+* **codegen:** skip the narrowing cast for a generic local whose value is typed by its type parameter ([#3143](https://github.com/grayscale-lang/grayscale/issues/3143)) ([9918bfd](https://github.com/grayscale-lang/grayscale/commit/9918bfd81f2f88826e2af0934313640643259fec))
+* **codegen:** type expressions on a literal-initialized generic local by its wide binding ([#3144](https://github.com/grayscale-lang/grayscale/issues/3144)) ([1583f8e](https://github.com/grayscale-lang/grayscale/commit/1583f8e3b4992694bae5c9ed0be23172738725d8))
+* **imports:** keep an imported module's variable declarations in source order ([#3136](https://github.com/grayscale-lang/grayscale/issues/3136)) ([2474eb8](https://github.com/grayscale-lang/grayscale/commit/2474eb87ec5503a5d7285a59ccfb34889beecbb1))
+* **typechecker:** declare a local initialized with cast to a type parameter ([#3142](https://github.com/grayscale-lang/grayscale/issues/3142)) ([f01a441](https://github.com/grayscale-lang/grayscale/commit/f01a441d2acd62f43ccc66e94371ef951d8b30c6))
+* **typechecker:** dispatch instance struct function calls on a struct literal receiver ([#3137](https://github.com/grayscale-lang/grayscale/issues/3137)) ([3a04630](https://github.com/grayscale-lang/grayscale/commit/3a04630e24ba6c8fc950a30811f82d13da7d3dfe))
+* **typechecker:** keep the flattened-key shadow check for a function of the local's own module ([#3146](https://github.com/grayscale-lang/grayscale/issues/3146)) ([641ee03](https://github.com/grayscale-lang/grayscale/commit/641ee036ec3a30a08fddf4f7859ac5f765b4699e))
+* **typechecker:** resolve the function a local shadows from the declaring file's scope ([#3146](https://github.com/grayscale-lang/grayscale/issues/3146)) ([dc188e5](https://github.com/grayscale-lang/grayscale/commit/dc188e5daf63616139a7ed2407d3ce4d60a3a21b))
+* **typechecker:** type the tuple result of a module-qualified generic call by its type argument ([#3141](https://github.com/grayscale-lang/grayscale/issues/3141)) ([2ab934c](https://github.com/grayscale-lang/grayscale/commit/2ab934c6a23817515ee92a61cf922c2cfd5c899c))
+
 ## [0.12.0](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.11.5...grayscale-v0.12.0) (2026-10-16)
 
 
