@@ -331,8 +331,11 @@ static void *handle_connection(void *argument) {
     GrayHttpResponse resp = gray_server_text(arena, 404, gray_string_lit("Not Found"));
 
     if (parse_request(arena, buffer, (int)bytes_received, &request)) {
-        /* Reject oversized method or path before copying into fixed stack buffers */
-        if (request.method.len >= GRAY_HTTP_METHOD_BUFFER_SIZE || request.path.len >= GRAY_HTTP_PATH_BUFFER_SIZE_SERVER) {
+        /* Reject oversized method or path before copying into fixed stack buffers,
+         * and a NUL in either: routing compares C strings, which stop there, while
+         * middleware and handlers see the full length. */
+        if (request.method.len >= GRAY_HTTP_METHOD_BUFFER_SIZE || request.path.len >= GRAY_HTTP_PATH_BUFFER_SIZE_SERVER ||
+            memchr(request.method.data, '\0', request.method.len) || memchr(request.path.data, '\0', request.path.len)) {
             const char *error_text = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
             send(connection_context->client_descriptor, error_text, strlen(error_text), 0);
             return cleanup_connection(connection_context, arena);
