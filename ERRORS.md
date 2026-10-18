@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 548 codes** (389 errors, 17 warnings, 142 panics)
+**Total: 549 codes** (389 errors, 17 warnings, 143 panics)
 
 ---
 
@@ -575,6 +575,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0157` | time | time function result exceeds the range of i64 |
 | `P0158` | random | random.rand_char range holds only surrogate codepoints |
 | `P0159` | channels | channels.open capacity is too large to allocate a buffer |
+| `P0160` | channels | channels.open: out of memory allocating the channel |
 
 ---
 
@@ -599,4 +600,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-18 18:25:33 UTC*
+*Generated on 2026-10-18 18:26:51 UTC*

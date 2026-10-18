@@ -29,7 +29,12 @@ GrayChannel gray_channels_open(int64_t capacity) {
     if ((uint64_t)capacity > SIZE_MAX / sizeof(int64_t))
         gray_panic_code("P0159", "channels.open capacity is too large to allocate a buffer");
     GrayChannelInternal *channel = malloc(sizeof(GrayChannelInternal));
+    if (!channel) gray_panic_code("P0160", "channels.open: out of memory allocating the channel");
     channel->buffer = malloc(sizeof(int64_t) * (size_t)capacity);
+    if (!channel->buffer) {
+        free(channel);
+        gray_panic_code("P0160", "channels.open: out of memory allocating the channel");
+    }
     channel->capacity = capacity;
     channel->count = 0;
     channel->head = 0;
