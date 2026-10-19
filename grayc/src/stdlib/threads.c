@@ -36,10 +36,10 @@ typedef struct {
 static void *thread_entry(void *raw_argument) {
     ThreadArg *thread_argument = (ThreadArg *)raw_argument;
     GrayThreadInternal *state = thread_argument->state;
-    gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
+    gray_default_arena = gray_capped_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     /* new() allocates from the thread's heap arena, which a spawned thread does
      * not inherit from main; it lives until the thread exits. */
-    gray_heap_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
+    gray_heap_arena = gray_capped_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     if (thread_argument->entry_with_argument)
         thread_argument->entry_with_argument(thread_argument->argument);
     else

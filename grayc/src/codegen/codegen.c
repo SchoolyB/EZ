@@ -469,7 +469,7 @@ static bool emit_string_append_through(CodeGen *codegen, AstNode *node, const ch
     if (node->data.assign.operator != TOKEN_PLUS_ASSIGN) return false;
     GrayType *target_type = type_table_get(codegen->type_table, node->data.assign.target);
     if (!target_type || target_type->kind != TYPE_KIND_STRING) return false;
-    emit_formatted(codegen, "%s = gray_string_concat(gray_default_arena, %s, ", reference_text, reference_text);
+    emit_formatted(codegen, "%s = gray_string_concat(gray_heap_arena, %s, ", reference_text, reference_text);
     emit_expression(codegen, node->data.assign.value);
     emit(codegen, ")");
     return true;
@@ -1089,6 +1089,13 @@ static bool is_stdlib_http_response(CodeGen *codegen, const char *type_name) {
 static const char *type_name_deep_copy_visiting[CYCLE_GUARD_DEPTH];
 static int type_name_deep_copy_depth = 0;
 
+/* The declaration of a tagged enum, or NULL for any other type name. */
+static AstNode *tagged_enum_declaration(CodeGen *codegen, const char *name) {
+    if (!name || !codegen_enum_is_tagged(codegen, name)) return NULL;
+    int enum_index = codegen_enum_index(codegen, name);
+    return enum_index >= 0 ? codegen->enum_declarations[enum_index] : NULL;
+}
+
 /* Walk a type for storage that a plain C copy would share with the source.
  * Arrays and maps always qualify; strings only when `count_strings`. */
 static bool type_needs_copy_walk(CodeGen *codegen, const char *gray_type_name, bool count_strings) {
@@ -1098,7 +1105,26 @@ static bool type_needs_copy_walk(CodeGen *codegen, const char *gray_type_name, b
     if (strcmp(gray_type_name, "string") == 0) return count_strings;
     if (gray_type_name[0] == '^') return false; /* pointers alias; see header comment */
     AstNode *struct_declaration = find_struct_declaration(codegen, gray_type_name);
-    if (!struct_declaration) return is_stdlib_http_response(codegen, gray_type_name); /* headers map */
+    if (!struct_declaration) {
+        AstNode *enum_declaration = tagged_enum_declaration(codegen, gray_type_name);
+        if (!enum_declaration) return is_stdlib_http_response(codegen, gray_type_name); /* headers map */
+        /* A tagged enum holds whatever its variants' payloads hold. */
+        for (int j = 0; j < type_name_deep_copy_depth; j++) {
+            if (strcmp(type_name_deep_copy_visiting[j], gray_type_name) == 0) return false;
+        }
+        if (type_name_deep_copy_depth < CYCLE_GUARD_DEPTH) type_name_deep_copy_visiting[type_name_deep_copy_depth++] = gray_type_name;
+        for (int i = 0; i < enum_declaration->data.enum_declaration.value_count; i++) {
+            EnumValue *variant = &enum_declaration->data.enum_declaration.values[i];
+            for (int k = 0; k < variant->payload_count; k++) {
+                if (type_needs_copy_walk(codegen, variant->payload_types[k], count_strings)) {
+                    type_name_deep_copy_depth--;
+                    return true;
+                }
+            }
+        }
+        type_name_deep_copy_depth--;
+        return false;
+    }
     /* Cycle detection: if we're already visiting this struct, stop. */
     for (int j = 0; j < type_name_deep_copy_depth; j++) {
         if (strcmp(type_name_deep_copy_visiting[j], gray_type_name) == 0) return false;
@@ -1319,6 +1345,35 @@ static void emit_struct_deep_copy(CodeGen *codegen, const char *struct_type_name
     emit_struct_deep_copy_depth--;
 }
 
+/* Deep copy of a tagged enum: switch on the tag and copy the payloads of the
+ * live variant that hold arena-backed data. */
+static void emit_enum_deep_copy(CodeGen *codegen, AstNode *enum_declaration, const char *enum_type_name,
+                                const char *source_variable) {
+    char c_enum[MESSAGE_BUFFER_SIZE];
+    snprintf(c_enum, sizeof(c_enum), "%s", gray_type_to_c_codegen(codegen, enum_type_name));
+    int unique_id = codegen_next_id(codegen);
+    emit_formatted(codegen, "({ %s _es%d = %s; %s _ed%d = _es%d; switch (_es%d.tag) { ",
+                   c_enum, unique_id, source_variable, c_enum, unique_id, unique_id, unique_id);
+    for (int i = 0; i < enum_declaration->data.enum_declaration.value_count; i++) {
+        EnumValue *variant = &enum_declaration->data.enum_declaration.values[i];
+        bool needs_copy = false;
+        for (int k = 0; k < variant->payload_count; k++)
+            if (type_needs_deep_copy(codegen, variant->payload_types[k])) needs_copy = true;
+        if (!needs_copy) continue;
+        emit_formatted(codegen, "case %s_TAG_%s: ", c_enum, variant->name);
+        for (int k = 0; k < variant->payload_count; k++) {
+            if (!type_needs_deep_copy(codegen, variant->payload_types[k])) continue;
+            char source_payload[MESSAGE_BUFFER_SIZE];
+            snprintf(source_payload, sizeof(source_payload), "_es%d.data.%s._%d", unique_id, variant->name, k);
+            emit_formatted(codegen, "_ed%d.data.%s._%d = ", unique_id, variant->name, k);
+            emit_value_deep_copy(codegen, variant->payload_types[k], source_payload);
+            emit(codegen, "; ");
+        }
+        emit(codegen, "break; ");
+    }
+    emit_formatted(codegen, "default: break; } _ed%d; })", unique_id);
+}
+
 static void emit_value_deep_copy(CodeGen *codegen, const char *gray_type_name, const char *source_variable) {
     if (!type_needs_deep_copy(codegen, gray_type_name)) {
         /* Primitive / pointer / scalar struct; C value copy is correct. */
@@ -1335,6 +1390,11 @@ static void emit_value_deep_copy(CodeGen *codegen, const char *gray_type_name, c
     }
     if (strncmp(gray_type_name, "map[", 4) == 0) {
         emit_map_deep_copy(codegen, gray_type_name, source_variable);
+        return;
+    }
+    AstNode *enum_declaration = tagged_enum_declaration(codegen, gray_type_name);
+    if (enum_declaration && !find_struct_declaration(codegen, gray_type_name)) {
+        emit_enum_deep_copy(codegen, enum_declaration, gray_type_name, source_variable);
         return;
     }
     /* Must be a struct that needs recursion. */
@@ -7992,8 +8052,10 @@ static const char *array_value_c_type(CodeGen *codegen, GrayType *value_type) {
  * (a composite passed by name). Copy it into `arena` — a string by a plain
  * copy, an array/map/struct with embedded pointers by a deep copy. */
 static void emit_escape_staged_value(CodeGen *codegen, AstNode *value_argument, const char *element_type_name,
-                                     bool is_string, const char *temporary_name, const char *arena) {
-    if (codegen->loop_scope_depth == 0 && !composite_value_aliases(codegen, element_type_name, value_argument))
+                                     bool is_string, const char *temporary_name, const char *arena,
+                                     bool target_in_heap) {
+    if (!target_in_heap && codegen->loop_scope_depth == 0 &&
+        !composite_value_aliases(codegen, element_type_name, value_argument))
         return;
     if (is_string) {
         emit_formatted(codegen, "%s = gray_string_new(%s, %s.data, %s.len); ",
@@ -8006,6 +8068,27 @@ static void emit_escape_staged_value(CodeGen *codegen, AstNode *value_argument, 
     }
 }
 
+
+/* Is the array argument a container reached through a pointer (`p^.items`,
+ * `p^`)? The pointee may be a new() object in gray_heap_arena, so growth and
+ * copied values must be allocated there, not in the function's own arena,
+ * which is destroyed on return. */
+static bool array_argument_in_heap(CodeGen *codegen, AstNode *array_argument) {
+    AstNode *pointer = NULL;
+    if (array_argument->kind == NODE_MEMBER_EXPRESSION) {
+        pointer = array_argument->data.member.object;
+        if (pointer->kind == NODE_POSTFIX_EXPRESSION && pointer->data.postfix.operator == TOKEN_CARET)
+            pointer = pointer->data.postfix.left;
+    } else if (array_argument->kind == NODE_POSTFIX_EXPRESSION && array_argument->data.postfix.operator == TOKEN_CARET) {
+        pointer = array_argument->data.postfix.left;
+    }
+    if (array_argument->kind == NODE_LABEL)
+        return codegen->elided_heap_array && strcmp(codegen->elided_heap_array, array_argument->data.label.value) == 0;
+    if (!pointer || (pointer->kind == NODE_LABEL && is_reference_variable(codegen, pointer->data.label.value)))
+        return false;
+    GrayType *pointer_type = codegen_type_of(codegen, pointer);
+    return pointer_type && pointer_type->kind == TYPE_KIND_POINTER;
+}
 
 /* Emit `fn(&array, &value)`, the value staged as the array's element C type
  * so the runtime reads it as the array's elem_kind says. */
@@ -8065,11 +8148,13 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         /* [f32] elements are stored packed as 4-byte float; a floating-point
          * value would otherwise be staged and appended as an 8-byte double. */
         if (element_type_name && strcmp(element_type_name, "f32") == 0) c_element_type = "float";
-        const char *allocation_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool target_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *allocation_arena = target_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
         emit_formatted(codegen, "{ %s _av = ", c_element_type);
         emit_expression(codegen, node->data.call.arguments[1]);
         emit(codegen, "; ");
-        emit_escape_staged_value(codegen, node->data.call.arguments[1], element_type_name, is_element_string, "_av", allocation_arena);
+        emit_escape_staged_value(codegen, node->data.call.arguments[1], element_type_name, is_element_string, "_av", allocation_arena, target_in_heap);
         /* Ensure elem_size and elem_kind are set on the target array before
          * appending; struct fields may be zero-initialized with neither. */
         emit(codegen, "{ GrayArray *_tgt = ");
@@ -8088,7 +8173,9 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         const char *insert_element_type_name = codegen_array_element_type(codegen, node->data.call.arguments[0]);
         /* [f32] elements are stored packed as 4-byte float. */
         if (insert_element_type_name && strcmp(insert_element_type_name, "f32") == 0) c_element_type = "float";
-        const char *insert_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool insert_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *insert_arena = insert_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
         emit(codegen, "{ __auto_type _ii = ");
         emit_expression(codegen, node->data.call.arguments[1]);
         emit_formatted(codegen, "; %s _iv = ", c_element_type);
@@ -8096,7 +8183,7 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         emit(codegen, "; ");
         bool is_insert_string = (value_type && value_type->kind == TYPE_KIND_STRING) ||
             (insert_element_type_name && strcmp(insert_element_type_name, "string") == 0);
-        emit_escape_staged_value(codegen, node->data.call.arguments[2], insert_element_type_name, is_insert_string, "_iv", insert_arena);
+        emit_escape_staged_value(codegen, node->data.call.arguments[2], insert_element_type_name, is_insert_string, "_iv", insert_arena, insert_in_heap);
         emit_formatted(codegen, "gray_arrays_insert_at(%s, ", insert_arena);
         emit_array_argument_address(codegen, node->data.call.arguments[0]);
         emit(codegen, ", _ii, &_iv); }");
@@ -8159,7 +8246,9 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
     }
     /* prepend/fill need special value wrapping */
     if (strcmp(function_name, "prepend") == 0 && node->data.call.argument_count == 2) {
-        const char *prepend_arena = codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool prepend_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *prepend_arena = prepend_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
         const char *prepend_element_type_name = codegen_array_element_type(codegen, node->data.call.arguments[0]);
         bool is_prepend_string = prepend_element_type_name && strcmp(prepend_element_type_name, "string") == 0;
         const char *prepend_c_element_type = "int64_t";
@@ -8181,7 +8270,7 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         emit_formatted(codegen, "{ %s _pv = ", prepend_c_element_type);
         emit_expression(codegen, node->data.call.arguments[1]);
         emit(codegen, "; ");
-        emit_escape_staged_value(codegen, node->data.call.arguments[1], prepend_element_type_name, is_prepend_string, "_pv", prepend_arena);
+        emit_escape_staged_value(codegen, node->data.call.arguments[1], prepend_element_type_name, is_prepend_string, "_pv", prepend_arena, prepend_in_heap);
         emit_formatted(codegen, "gray_arrays_prepend(%s, ", prepend_arena);
         emit_array_argument_address(codegen, node->data.call.arguments[0]);
         emit(codegen, ", &_pv); }");
@@ -10365,6 +10454,8 @@ static void emit_vardecl_array(CodeGen *codegen, AstNode *node,
         emit_formatted(codegen, "GRAY_ARRAY_NEW_OF(gray_default_arena, %s, 4)", c_element_type);
     }
     emit(codegen, ";\n");
+    if (node->data.variable_declaration.elides_copy && array_argument_in_heap(codegen, node->data.variable_declaration.value))
+        codegen->elided_heap_array = node->data.variable_declaration.name;
     } /* end else (indent > 0) */
 }
 
@@ -10823,40 +10914,39 @@ static void emit_variable_declaration(CodeGen *codegen, AstNode *node,
     emit_variable_declaration_initializer(codegen, node, c_type, type_name);
 }
 
-/* True when field_t owns arena-backed memory that must be re-homed to
- * gray_heap_arena rather than the enclosing function's own scoped arena
- * when reassigned through a pointer known to point into gray_heap_arena. */
-static bool field_type_needs_arena_escape(GrayType *field_type) {
-    return field_type && (field_type->kind == TYPE_KIND_MAP || field_type->kind == TYPE_KIND_ARRAY ||
-                        field_type->kind == TYPE_KIND_STRING || field_type->kind == TYPE_KIND_STRUCT);
-}
-
-/* Emit `ref = value;` with gray_default_arena swapped to gray_heap_arena for
- * the duration of evaluating value, so any container the value allocates
- * (map/array/string/struct literal) lives as long as the heap-allocated
- * struct it's being attached to, rather than the current function's own
- * scoped arena that gets destroyed when the function returns. */
-static void emit_heap_escaped_field_assign(CodeGen *codegen, AstNode *node, GrayType *field_type, const char *reference_text) {
-    emit_formatted(codegen, "{ GrayArena *_esc_h = gray_default_arena; gray_default_arena = gray_heap_arena; %s = ", reference_text);
-    const char *field_type_name = field_type ? type_name(field_type) : NULL;
-    if (field_type_name && composite_value_aliases(codegen, field_type_name, node->data.assign.value)) {
-        /* A named array/map/struct still lives in the function's own arena;
-         * copy it into the heap arena the swap just selected. */
-        int unique_id = codegen_next_id(codegen);
-        char source_variable[SHORT_VARIABLE_BUFFER_SIZE];
-        snprintf(source_variable, sizeof(source_variable), "_hv%d", unique_id);
-        const char *c_type = field_type_name[0] == '[' ? "GrayArray"
-                           : strncmp(field_type_name, "map[", 4) == 0 ? "GrayMap"
-                           : gray_type_to_c_codegen(codegen, field_type_name);
-        emit_formatted(codegen, "({ %s %s = ", c_type, source_variable);
-        emit_expression(codegen, node->data.assign.value);
-        emit(codegen, "; ");
-        emit_value_deep_copy(codegen, field_type_name, source_variable);
-        emit(codegen, "; })");
-    } else {
-        emit_expression(codegen, node->data.assign.value);
+/* Emit `value` as an operand stored through a pointer. The pointee may be a
+ * new() object in gray_heap_arena that outlives every scope, so a string,
+ * array, map or struct with embedded storage is deep-copied into
+ * gray_heap_arena instead of staying in the scope arena that is freed or
+ * reused when the scope ends. */
+static void emit_pointer_store_value(CodeGen *codegen, GrayType *value_type, AstNode *value) {
+    char spelling[MESSAGE_BUFFER_SIZE];
+    if (value_type && value_type->kind == TYPE_KIND_ARRAY)
+        snprintf(spelling, sizeof(spelling), "[%s]", value_type->element_type ? value_type->element_type : "");
+    else
+        snprintf(spelling, sizeof(spelling), "%s", value_type ? type_name(value_type) : "");
+    if (!value_type || !type_needs_deep_copy(codegen, spelling)) {
+        emit_expression(codegen, value);
+        return;
     }
-    emit(codegen, "; gray_default_arena = _esc_h; }");
+    if (value->kind == NODE_LABEL && array_argument_in_heap(codegen, value)) {
+        codegen->elided_heap_array = NULL;
+        emit_expression(codegen, value);
+        return;
+    }
+    int unique_id = codegen_next_id(codegen);
+    const char *c_type = spelling[0] == '[' ? "GrayArray"
+                       : strncmp(spelling, "map[", 4) == 0 ? "GrayMap"
+                       : strcmp(spelling, "string") == 0 ? "GrayString"
+                       : gray_type_to_c_codegen(codegen, spelling);
+    char source_variable[SHORT_VARIABLE_BUFFER_SIZE];
+    snprintf(source_variable, sizeof(source_variable), "_hv%d", unique_id);
+    emit_formatted(codegen, "({ %s %s = ", c_type, source_variable);
+    emit_expression(codegen, value);
+    emit_formatted(codegen, "; GrayArena *_hs%d = gray_default_arena; gray_default_arena = gray_heap_arena; "
+                   "%s _hd%d = ", unique_id, c_type, unique_id);
+    emit_value_deep_copy(codegen, spelling, source_variable);
+    emit_formatted(codegen, "; gray_default_arena = _hs%d; _hd%d; })", unique_id, unique_id);
 }
 
 static const char *array_store_macro(CodeGen *codegen) {
@@ -11362,7 +11452,9 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
         }
         emit(codegen, "*_dp");
         emit_formatted(codegen, " %s ", operator_to_c_string(node->data.assign.operator));
-        if (wide_integer_element) {
+        if (node->data.assign.operator == TOKEN_ASSIGN && !wide_integer_element) {
+            emit_pointer_store_value(codegen, codegen_type_of(codegen, node->data.assign.target), node->data.assign.value);
+        } else if (wide_integer_element) {
             emit_wide_integer_operand(codegen, node->data.assign.value,
                                 wide_integer_prefix(wide_integer_element), wide_integer_element, NULL);
         } else {
@@ -11384,14 +11476,12 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             emit(codegen, "; }\n");
             return;
         }
-        if (node->data.assign.operator == TOKEN_ASSIGN && pointer_target->kind == NODE_LABEL &&
-            is_heap_variable(codegen, pointer_target->data.label.value)) {
-            GrayType *field_type = codegen_type_of(codegen, node->data.assign.target);
-            if (field_type_needs_arena_escape(field_type)) {
-                emit_heap_escaped_field_assign(codegen, node, field_type, field_reference);
-                emit(codegen, "; }\n");
-                return;
-            }
+        if (node->data.assign.operator == TOKEN_ASSIGN) {
+            emit(codegen, field_reference);
+            emit(codegen, " = ");
+            emit_pointer_store_value(codegen, codegen_type_of(codegen, node->data.assign.target), node->data.assign.value);
+            emit(codegen, "; }\n");
+            return;
         }
         emit(codegen, field_reference);
         emit_formatted(codegen, " %s ", operator_to_c_string(node->data.assign.operator));
@@ -11432,7 +11522,10 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             }
             emit(codegen, index_reference);
             emit_formatted(codegen, " %s ", operator_to_c_string(node->data.assign.operator));
-            emit_expression(codegen, node->data.assign.value);
+            if (node->data.assign.operator == TOKEN_ASSIGN)
+                emit_pointer_store_value(codegen, codegen_type_of(codegen, node->data.assign.target), node->data.assign.value);
+            else
+                emit_expression(codegen, node->data.assign.value);
             emit(codegen, "; }\n");
             return;
         }
@@ -11444,20 +11537,14 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
         bool is_reference = (object->kind == NODE_LABEL && is_reference_variable(codegen, object->data.label.value));
         if (!is_reference && object_type && object_type->kind == TYPE_KIND_POINTER) {
             const char *field = node->data.assign.target->data.member.member;
-            /* p was assigned from new(): its pointee lives in gray_heap_arena,
-             * so a container field written through it must be allocated there
-             * too, not in the current function's own scoped arena. */
-            if (node->data.assign.operator == TOKEN_ASSIGN && object->kind == NODE_LABEL &&
-                is_heap_variable(codegen, object->data.label.value)) {
-                GrayType *field_type = codegen_type_of(codegen, node->data.assign.target);
-                if (field_type_needs_arena_escape(field_type)) {
-                    emit_pointer_capture(codegen, node, object);
-                    char reference_holder[MESSAGE_BUFFER_SIZE];
-                    snprintf(reference_holder, sizeof(reference_holder), "_dp->%s", sanitize_name(field));
-                    emit_heap_escaped_field_assign(codegen, node, field_type, reference_holder);
-                    emit(codegen, "; }\n");
-                    return;
-                }
+            /* The pointee may live in gray_heap_arena, which outlives every
+             * scope, so a value stored through the pointer is copied there. */
+            if (node->data.assign.operator == TOKEN_ASSIGN) {
+                emit_pointer_capture(codegen, node, object);
+                emit_formatted(codegen, "_dp->%s = ", sanitize_name(field));
+                emit_pointer_store_value(codegen, codegen_type_of(codegen, node->data.assign.target), node->data.assign.value);
+                emit(codegen, "; }\n");
+                return;
             }
             /* When assigning an array/string to a struct field inside a
              * scoped block (if/loop), deep-copy to the outer arena so the
@@ -11635,6 +11722,18 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             emit(codegen, "; *_tgt = gray_string_new(_gray_outer_arena, _esc_v.data, _esc_v.len); }\n");
             return;
         }
+        if (target_type && (target_type->kind == TYPE_KIND_STRUCT || target_type->kind == TYPE_KIND_ENUM) &&
+            target_type->name && type_needs_deep_copy(codegen, target_type->name)) {
+            const char *c_type = gray_type_to_c_codegen(codegen, target_type->name);
+            emit_formatted(codegen, "{ %s _esc_v = ", c_type);
+            emit_expression(codegen, node->data.assign.value);
+            emit(codegen, "; GrayArena *_esc_a = gray_default_arena; gray_default_arena = _gray_outer_arena; ");
+            emit_expression(codegen, node->data.assign.target);
+            emit(codegen, " = ");
+            emit_value_deep_copy(codegen, target_type->name, "_esc_v");
+            emit(codegen, "; gray_default_arena = _esc_a; }\n");
+            return;
+        }
     }
 
     /* when inside a loop scope and assigning a string/container
@@ -11651,8 +11750,8 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             emit(codegen, " = gray_string_new(_gray_outer_arena, _esc_v.data, _esc_v.len); }\n");
             return;
         }
-        if (target_type && target_type->kind == TYPE_KIND_STRUCT && target_type->name &&
-            type_needs_deep_copy(codegen, target_type->name)) {
+        if (target_type && (target_type->kind == TYPE_KIND_STRUCT || target_type->kind == TYPE_KIND_ENUM) &&
+            target_type->name && type_needs_deep_copy(codegen, target_type->name)) {
             const char *c_type = gray_type_to_c_codegen(codegen, target_type->name);
             emit_formatted(codegen, "{ %s _esc_v = ", c_type);
             emit_expression(codegen, node->data.assign.value);
@@ -12116,7 +12215,7 @@ static void emit_if_statement(CodeGen *codegen, AstNode *node) {
         if (watermark) {
             emit_formatted(codegen, "GrayScopeMark _if_mark_%d = gray_scope_save(gray_default_arena);\n", if_scope_id);
         } else {
-            emit_formatted(codegen, "GrayArena *_if_arena_%d = gray_arena_create(%d); ", if_scope_id, IF_ARENA_SIZE);
+            emit_formatted(codegen, "GrayArena *_if_arena_%d = gray_capped_arena_create(%d); ", if_scope_id, IF_ARENA_SIZE);
             emit_formatted(codegen, "GrayArena *_if_saved_%d = gray_default_arena; ", if_scope_id);
             emit_formatted(codegen, "gray_default_arena = _if_arena_%d;\n", if_scope_id);
         }
@@ -12453,7 +12552,7 @@ static void emit_loop_arena_prologue(CodeGen *codegen, bool no_arena) {
         emit(codegen, "GrayArena *_gray_outer_arena = gray_default_arena;\n");
     }
     emit_indent(codegen);
-    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_arena_create(%d);\n", depth, LOOP_ARENA_SIZE);
+    emit_formatted(codegen, "GrayArena *_iter_arena_%d = gray_capped_arena_create(%d);\n", depth, LOOP_ARENA_SIZE);
     emit_indent(codegen);
     emit_formatted(codegen, "GrayArena *_saved_arena_%d = gray_default_arena;\n", depth);
 }
@@ -12875,7 +12974,7 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
             }
         } else {
             emit_indent(codegen);
-            emit_formatted(codegen, "GrayArena *_func_arena = gray_arena_create(%d);\n", FUNCTION_ARENA_SIZE);
+            emit_formatted(codegen, "GrayArena *_func_arena = gray_capped_arena_create(%d);\n", FUNCTION_ARENA_SIZE);
             emit_indent(codegen);
             emit(codegen, "GrayArena *_func_saved = gray_default_arena;\n");
             emit_indent(codegen);
@@ -14542,7 +14641,7 @@ static void codegen_emit_type_definitions(CodeGen *codegen, const TopLevelStatem
         }
 
         free(emitted);
-        if (tagged_enums) free(tagged_enums);
+        free(tagged_enums);
     }
 }
 

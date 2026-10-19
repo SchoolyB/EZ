@@ -133,6 +133,11 @@ const char *gray_self_directory(const char *argv0);
 /* System temp directory, without a trailing separator. Never NULL. */
 const char *gray_temporary_directory(void);
 
+/* Writes into `destination` a directory only the current user can write, for
+ * files later builds trust. False if it cannot be created or is not private to
+ * this user (another user owns it, it is a symlink, or others can write it). */
+bool gray_private_cache_directory(char *destination, size_t destination_size);
+
 /* Build a collision-resistant path in the temp directory of the form
  * <tmp>/<prefix><pid>-<n><suffix>. Does not create the file. snprintf
  * semantics: >= n means truncation. */

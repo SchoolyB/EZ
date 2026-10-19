@@ -1,0 +1,12 @@
+const Box struct { p ^i64 }
+
+do mk() -> Box {
+  x i64 = 5
+  b = Box{p: addr(x)}
+  return b
+}
+
+do main() {
+  b = mk()
+  println(b.p^)
+}

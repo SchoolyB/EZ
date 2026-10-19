@@ -1,0 +1,5 @@
+do f(k generic) -> i64 { return k }
+
+do main() {
+    println(f(i64))
+}

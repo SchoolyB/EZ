@@ -1,0 +1,41 @@
+/*
+ * Test: io.remove_dir_all removes a symlink as a link and leaves its target alone
+ */
+
+import @io
+import @os
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut _, _ = io.make_dir_all("/tmp/gray_rmall_link/target")
+    mut _, _ = io.make_dir_all("/tmp/gray_rmall_link/victim")
+    mut _, _ = io.write_file("/tmp/gray_rmall_link/victim/keep.txt", "keep")
+    mut _, _ = os.exec("ln", {"-s", "/tmp/gray_rmall_link/victim", "/tmp/gray_rmall_link/target/link"})
+
+    mut removed, _ = io.remove_dir_all("/tmp/gray_rmall_link/target")
+    if removed == true {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if io.is_directory("/tmp/gray_rmall_link/target") == false {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    if io.file_exists("/tmp/gray_rmall_link/victim/keep.txt") == true {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    mut _, _ = io.remove_dir_all("/tmp/gray_rmall_link")
+    println("passed: ${passed}, failed: ${failed}")
+    if failed > 0 {
+        exit(1)
+    }
+}

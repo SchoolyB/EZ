@@ -536,10 +536,11 @@ bool gray_io_copy_file(GrayString source, GrayString destination) {
         gray_panic_code("P0089", "io.copy_file() cannot copy a directory; use io.walk() to enumerate files and copy them individually");
     FILE *input_file = fopen(source.data, "rb");
     if (!input_file) return false;
-    int output_descriptor = open(destination.data, O_WRONLY | O_CREAT, GRAY_IO_FILE_MODE);
-    if (output_descriptor < 0) { fclose(input_file); return false; }
     struct stat input_info, output_info;
-    if (fstat(fileno(input_file), &input_info) != 0 || fstat(output_descriptor, &output_info) != 0) {
+    if (fstat(fileno(input_file), &input_info) != 0) { fclose(input_file); return false; }
+    int output_descriptor = open(destination.data, O_WRONLY | O_CREAT, input_info.st_mode & 0777);
+    if (output_descriptor < 0) { fclose(input_file); return false; }
+    if (fstat(output_descriptor, &output_info) != 0) {
         close(output_descriptor); fclose(input_file); return false;
     }
     if (input_info.st_dev == output_info.st_dev && input_info.st_ino == output_info.st_ino) {
@@ -613,6 +614,30 @@ bool gray_io_remove_dir(GrayString path) {
     return rmdir(path.data) == 0;
 }
 
+/* True only for a real directory: a symlink (or Windows junction) to one is
+ * not, so the recursive removal unlinks the link instead of following it. */
+static bool is_real_directory(const char *path) {
+#if GRAY_RUNTIME_WINDOWS
+    DWORD attributes = GetFileAttributesA(path);
+    if (attributes == INVALID_FILE_ATTRIBUTES) return false;
+    return (attributes & FILE_ATTRIBUTE_DIRECTORY) && !(attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+#else
+    struct stat file_info;
+    return lstat(path, &file_info) == 0 && S_ISDIR(file_info.st_mode);
+#endif
+}
+
+/* True for a symlink (or Windows junction) at `path`, whatever it points to. */
+static bool is_link(const char *path) {
+#if GRAY_RUNTIME_WINDOWS
+    DWORD attributes = GetFileAttributesA(path);
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+#else
+    struct stat file_info;
+    return lstat(path, &file_info) == 0 && S_ISLNK(file_info.st_mode);
+#endif
+}
+
 static bool remove_directory_recursive(const char *path) {
     DIR *directory = opendir(path);
     if (!directory) return false;
@@ -622,12 +647,10 @@ static bool remove_directory_recursive(const char *path) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
         char child[GRAY_IO_PATH_BUFFER_SIZE];
         snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
-        struct stat file_info;
-        if (stat(child, &file_info) != 0) { is_valid = false; continue; }
-        if (S_ISDIR(file_info.st_mode)) {
+        if (is_real_directory(child)) {
             if (!remove_directory_recursive(child)) is_valid = false;
         } else {
-            if (unlink(child) != 0) is_valid = false;
+            if (unlink(child) != 0 && !(GRAY_RUNTIME_WINDOWS && rmdir(child) == 0)) is_valid = false;
         }
     }
     closedir(directory);
@@ -637,6 +660,8 @@ static bool remove_directory_recursive(const char *path) {
 
 bool gray_io_remove_dir_all(GrayString path) {
     validate_path(path);
+    if (is_link(path.data))
+        return unlink(path.data) == 0 || (GRAY_RUNTIME_WINDOWS && rmdir(path.data) == 0);
     return remove_directory_recursive(path.data);
 }
 

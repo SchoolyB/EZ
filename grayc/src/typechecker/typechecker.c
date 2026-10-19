@@ -3807,6 +3807,17 @@ static void check_function_argument_signature(TypeChecker *checker, AstNode *arg
 }
 
 
+static bool argument_mismatches_first_argument_slot(TypeChecker *checker, ExpectedArgumentKind kind,
+                                                    GrayType *slot, GrayType *argument_type) {
+    bool is_slot_derived_from_first = kind == EXPECTED_ARGUMENT_ELEMENT_OF_FIRST || kind == EXPECTED_ARGUMENT_SAME_AS_FIRST ||
+                                      kind == EXPECTED_ARGUMENT_KEY_OF_FIRST || kind == EXPECTED_ARGUMENT_VALUE_OF_FIRST;
+    return is_slot_derived_from_first && slot &&
+        (literal_entry_mismatches(checker, slot, argument_type) ||
+         (slot->kind == TYPE_KIND_MAP && argument_type &&
+          ((argument_type->kind == TYPE_KIND_MAP && !map_types_match(slot, argument_type)) ||
+           argument_type->kind == TYPE_KIND_ARRAY)));
+}
+
 static void typechecker_check_stdlib_argument_types(TypeChecker *checker, const char *module_name,
     const char *function_name, AstNode *node)
 {
@@ -3859,12 +3870,7 @@ static void typechecker_check_stdlib_argument_types(TypeChecker *checker, const 
             }
             AstNode *argument = node->data.call.arguments[argument_index];
             GrayType *argument_type = slot ? check_expression_as(checker, argument, slot) : resolve_expression(checker, argument);
-            if ((kind == EXPECTED_ARGUMENT_ELEMENT_OF_FIRST || kind == EXPECTED_ARGUMENT_SAME_AS_FIRST ||
-                 kind == EXPECTED_ARGUMENT_KEY_OF_FIRST || kind == EXPECTED_ARGUMENT_VALUE_OF_FIRST) && slot &&
-                (literal_entry_mismatches(checker, slot, argument_type) ||
-                 (slot->kind == TYPE_KIND_MAP && argument_type &&
-                  ((argument_type->kind == TYPE_KIND_MAP && !map_types_match(slot, argument_type)) ||
-                   argument_type->kind == TYPE_KIND_ARRAY)))) {
+            if (argument_mismatches_first_argument_slot(checker, kind, slot, argument_type)) {
                 typechecker_error_argument_type(checker, argument, argument_index + 1, typechecker_format(checker, "%s.%s", module_name, function_name), type_display_name(checker, slot), type_display_name(checker, argument_type));
                 continue;
             }
@@ -6367,6 +6373,16 @@ static void typechecker_check_const_domain(TypeChecker *checker, const char *mod
     }
 }
 
+static bool call_returns_multiple_values(FunctionSignature *signature, const char *module_name, const char *name) {
+    if (signature && signature->return_count > 1) return true;
+    if (!name || signature) return false;
+    return typechecker_is_fallible_stdlib(module_name, name) ||
+        (module_name && strcmp(module_name, "arrays") == 0 && strcmp(name, "find") == 0) ||
+        (module_name && strcmp(module_name, "maps") == 0 &&
+            (strcmp(name, "get_and_remove") == 0 || strcmp(name, "find_key") == 0)) ||
+        find_stdlib_multi_return(module_name, name);
+}
+
 /* binary.encode_<T>[_le|_be](val T): the argument is checked as a value of
  * type T. The 128/256-bit encoders take their wide type through their own
  * path. */
@@ -6436,12 +6452,7 @@ static void reject_multi_value_call(TypeChecker *checker, AstNode *call_expressi
     int line = report_node->token.line;
     int column = report_node->token.column;
     if (is_discarded) {
-        bool is_multi_value = (signature && signature->return_count > 1) ||
-            (name && !signature && (typechecker_is_fallible_stdlib(module_name, name) ||
-                (module_name && strcmp(module_name, "arrays") == 0 && strcmp(name, "find") == 0) ||
-                (module_name && strcmp(module_name, "maps") == 0 &&
-                    (strcmp(name, "get_and_remove") == 0 || strcmp(name, "find_key") == 0)) ||
-                find_stdlib_multi_return(module_name, name)));
+        bool is_multi_value = call_returns_multiple_values(signature, module_name, name);
         if (is_multi_value) {
             char *message = module_name
                 ? typechecker_format(checker, "return value of '%s.%s()' is not used", module_name, name)
@@ -8876,16 +8887,22 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             warn_if_function_deprecated(checker, node, reference_function_signature);
             reject_test_function_reference(checker, node, reference_function_signature);
             /* Build typed function reference: "func(i64,string)->i64" */
-            char signature_text[MESSAGE_BUFFER_SIZE];
-            int position = 0;
-            position += snprintf(signature_text + position, sizeof(signature_text) - position, "func(");
-            for (int i = 0; i < reference_function_signature->parameter_count; i++) {
-                if (i > 0) position += snprintf(signature_text + position, sizeof(signature_text) - position, ",");
-                position += snprintf(signature_text + position, sizeof(signature_text) - position, "%s", type_name(reference_function_signature->parameter_types[i]));
-            }
-            position += snprintf(signature_text + position, sizeof(signature_text) - position, ")");
+            size_t signature_length = strlen("func()") + 1;
             if (reference_function_signature->return_count > 0) {
-                position += snprintf(signature_text + position, sizeof(signature_text) - position, "->%s", type_name(reference_function_signature->return_types[0]));
+                signature_length += strlen("->") + strlen(type_name(reference_function_signature->return_types[0]));
+            }
+            for (int i = 0; i < reference_function_signature->parameter_count; i++) {
+                signature_length += (i > 0 ? 1 : 0) + strlen(type_name(reference_function_signature->parameter_types[i]));
+            }
+            char *signature_text = arena_allocate(checker->arena, signature_length);
+            size_t position = (size_t)snprintf(signature_text, signature_length, "func(");
+            for (int i = 0; i < reference_function_signature->parameter_count; i++) {
+                if (i > 0) position += (size_t)snprintf(signature_text + position, signature_length - position, ",");
+                position += (size_t)snprintf(signature_text + position, signature_length - position, "%s", type_name(reference_function_signature->parameter_types[i]));
+            }
+            position += (size_t)snprintf(signature_text + position, signature_length - position, ")");
+            if (reference_function_signature->return_count > 0) {
+                snprintf(signature_text + position, signature_length - position, "->%s", type_name(reference_function_signature->return_types[0]));
             }
             result = type_from_name(signature_text);
         } else {
@@ -9669,14 +9686,14 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                 /* No source FunctionSignature; validate against the typed-
                  * func signature from the variable's annotated type
                  * (e.g. callback parameters: do f(g func(i64)->i64)). */
-                GrayFunctionSignature *signature = function_symbol->type->function_signature;
+                GrayFunctionSignature *typed_signature = function_symbol->type->function_signature;
                 int argument_count = node->data.call.argument_count;
-                if (argument_count != signature->parameter_count) {
-                    typechecker_error_arity(checker, node, function_name, typechecker_format(checker, "%d", signature->parameter_count), argument_count);
+                if (argument_count != typed_signature->parameter_count) {
+                    typechecker_error_arity(checker, node, function_name, typechecker_format(checker, "%d", typed_signature->parameter_count), argument_count);
                 } else {
-                    for (int argument_index = 0; argument_index < signature->parameter_count; argument_index++) {
+                    for (int argument_index = 0; argument_index < typed_signature->parameter_count; argument_index++) {
                         AstNode *argument = node->data.call.arguments[argument_index];
-                        GrayType *callee_parameter_type = signature->parameter_types[argument_index] ? typechecker_type_from_name(checker, signature->parameter_types[argument_index]) : NULL;
+                        GrayType *callee_parameter_type = typed_signature->parameter_types[argument_index] ? typechecker_type_from_name(checker, typed_signature->parameter_types[argument_index]) : NULL;
                         GrayType *checked_argument_type = check_expression_as(checker, argument, callee_parameter_type);
                         if (checked_argument_type && callee_parameter_type && checked_argument_type->kind != TYPE_KIND_UNKNOWN && callee_parameter_type->kind != TYPE_KIND_UNKNOWN &&
                             !types_assignable(checker, callee_parameter_type, checked_argument_type) &&
@@ -9685,15 +9702,15 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                             typechecker_error_argument_type(checker, argument, argument_index + 1, function_name, type_display_name(checker, callee_parameter_type), type_display_name(checker, checked_argument_type));
                         }
                         /* E3027: `&` param requires an assignment target */
-                        if (signature->is_parameter_mutable[argument_index]) {
+                        if (typed_signature->is_parameter_mutable[argument_index]) {
                             char parameter_description[MESSAGE_BUFFER_SIZE];
                             snprintf(parameter_description, sizeof(parameter_description), "'&' parameter %d", argument_index + 1);
                             check_mutable_argument(checker, argument, parameter_description, function_name);
                         }
                     }
                 }
-                if (signature->return_count > 0 && signature->return_types[0]) {
-                    result = type_from_name(signature->return_types[0]);
+                if (typed_signature->return_count > 0 && typed_signature->return_types[0]) {
+                    result = type_from_name(typed_signature->return_types[0]);
                 } else {
                     result = &TYPE_VOID;
                 }
@@ -9745,19 +9762,19 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                 }
                 /* 2) Try user-defined module */
                 if (!found_in_using) {
-                    FunctionSignature *signature = find_module_function(checker, real_module, function_name);
-                    if (signature) {
+                    FunctionSignature *module_signature = find_module_function(checker, real_module, function_name);
+                    if (module_signature) {
                         if (reject_if_private(checker, node, real_module, function_name)) {
                             found_in_using = true;
                         } else {
                             found_in_using = true;
-                            if (signature->return_count > 0) {
-                                result = signature->return_types[0];
+                            if (module_signature->return_count > 0) {
+                                result = module_signature->return_types[0];
                             } else {
                                 result = &TYPE_VOID;
                             }
-                            signature->was_used = true;
-                            warn_if_function_deprecated(checker, node, signature);
+                            module_signature->was_used = true;
+                            warn_if_function_deprecated(checker, node, module_signature);
                         }
                     }
                 }
@@ -9777,7 +9794,6 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                 }
             } else {
                 /* Check if it's a variable holding a function reference */
-                Symbol *function_symbol = scope_lookup(checker->current_scope, function_name);
                 if (function_symbol && function_symbol->type && strcmp(type_name(function_symbol->type), "func") == 0) {
                     function_symbol->was_used = true;
                     result = &TYPE_UNKNOWN;
@@ -10721,6 +10737,16 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
     return result;
 }
 
+static bool equality_operand_kinds_mismatch(GrayType *left, GrayType *right) {
+    return left->kind != TYPE_KIND_UNKNOWN && right->kind != TYPE_KIND_UNKNOWN &&
+        left->kind != right->kind && left->kind != TYPE_KIND_NIL && right->kind != TYPE_KIND_NIL &&
+        !(is_integer_kind(left->kind) && is_integer_kind(right->kind)) &&
+        !(left->kind == TYPE_KIND_STRUCT && is_integer_kind(right->kind)) &&
+        !(is_integer_kind(left->kind) && right->kind == TYPE_KIND_STRUCT) &&
+        !(left->kind == TYPE_KIND_ENUM && is_integer_kind(right->kind)) &&
+        !(is_integer_kind(left->kind) && right->kind == TYPE_KIND_ENUM);
+}
+
 static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
     GrayType *result = &TYPE_UNKNOWN;
     TokenType operator = node->data.infix.operator;
@@ -11055,13 +11081,7 @@ static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
     }
     /* Comparison of incompatible types (e.g., i64 == string) */
     if ((operator == TOKEN_EQUAL || operator == TOKEN_NOT_EQUAL) && !numeric_pair &&
-        left->kind != TYPE_KIND_UNKNOWN && right->kind != TYPE_KIND_UNKNOWN &&
-        left->kind != right->kind && left->kind != TYPE_KIND_NIL && right->kind != TYPE_KIND_NIL &&
-        !(is_integer_kind(left->kind) && is_integer_kind(right->kind)) &&
-        !(left->kind == TYPE_KIND_STRUCT && is_integer_kind(right->kind)) &&
-        !(is_integer_kind(left->kind) && right->kind == TYPE_KIND_STRUCT) &&
-        !(left->kind == TYPE_KIND_ENUM && is_integer_kind(right->kind)) &&
-        !(is_integer_kind(left->kind) && right->kind == TYPE_KIND_ENUM)) {
+        equality_operand_kinds_mismatch(left, right)) {
         NODE_ERROR_FORMATTED(checker, node, "E3156", type_name(left), type_name(right));
     }
 
@@ -11575,6 +11595,29 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
     return result;
 }
 
+/* A struct literal field value that does not fit its field: the kinds differ,
+ * or both are pointers to different types, structs with different names, or
+ * enums with different names. An enum field takes an integer, an integer field
+ * takes a struct, and nil is a valid value for pointer and Error fields. */
+static bool struct_literal_value_mismatches_field(TypeChecker *checker, GrayType *expected_type, GrayType *value_type) {
+    return value_type->kind != TYPE_KIND_UNKNOWN &&
+        expected_type->kind != TYPE_KIND_UNKNOWN &&
+        (!types_assignable(checker, expected_type, value_type) ||
+         (expected_type->kind == TYPE_KIND_POINTER &&
+          expected_type->name && value_type->name &&
+          strcmp(expected_type->name, value_type->name) != 0) ||
+         (expected_type->kind == TYPE_KIND_STRUCT && value_type->kind == TYPE_KIND_STRUCT &&
+          expected_type->name && value_type->name &&
+          !typechecker_same_struct_type(checker, expected_type->name, value_type->name)) ||
+         (expected_type->kind == TYPE_KIND_ENUM && value_type->kind == TYPE_KIND_ENUM &&
+          expected_type->name && value_type->name &&
+          !typechecker_same_enum_type(checker, expected_type->name, value_type->name))) &&
+        !(expected_type->kind == TYPE_KIND_ENUM && is_integer_kind(value_type->kind)) &&
+        !(is_integer_kind(expected_type->kind) && value_type->kind == TYPE_KIND_STRUCT) &&
+        !(value_type->kind == TYPE_KIND_NIL &&
+          (expected_type->kind == TYPE_KIND_POINTER || expected_type->kind == TYPE_KIND_ERROR));
+}
+
 static GrayType *resolve_struct_value(TypeChecker *checker, AstNode *node) {
     GrayType *result = &TYPE_UNKNOWN;
     const char *struct_name = node->data.struct_value.name;
@@ -11704,26 +11747,7 @@ static GrayType *resolve_struct_value(TypeChecker *checker, AstNode *node) {
                 NODE_ERROR_FORMATTED_HELP(checker, map_initializer, "E3053",
                     map_initializer->data.array_value.count == 0 ? "use '{:}' for an empty map" : "map literals use '{key: value, ...}' syntax",
                     "a struct field", type_display_name(checker, expected_type), "an array literal");
-            } else if (expected_type && value_type->kind != TYPE_KIND_UNKNOWN &&
-                       expected_type->kind != TYPE_KIND_UNKNOWN &&
-                       /* kinds differ, OR both are pointers to different types,
-                        * OR both are structs with different names,
-                        * OR both are enums with different names */
-                       (!types_assignable(checker, expected_type, value_type) ||
-                        (expected_type->kind == TYPE_KIND_POINTER &&
-                         expected_type->name && value_type->name &&
-                         strcmp(expected_type->name, value_type->name) != 0) ||
-                        (expected_type->kind == TYPE_KIND_STRUCT && value_type->kind == TYPE_KIND_STRUCT &&
-                         expected_type->name && value_type->name &&
-                         !typechecker_same_struct_type(checker, expected_type->name, value_type->name)) ||
-                        (expected_type->kind == TYPE_KIND_ENUM && value_type->kind == TYPE_KIND_ENUM &&
-                         expected_type->name && value_type->name &&
-                         !typechecker_same_enum_type(checker, expected_type->name, value_type->name))) &&
-                       !(expected_type->kind == TYPE_KIND_ENUM && is_integer_kind(value_type->kind)) &&
-                       !(is_integer_kind(expected_type->kind) && value_type->kind == TYPE_KIND_STRUCT) &&
-                       /* nil is a valid value for pointer and Error fields */
-                       !(value_type->kind == TYPE_KIND_NIL &&
-                         (expected_type->kind == TYPE_KIND_POINTER || expected_type->kind == TYPE_KIND_ERROR))) {
+            } else if (expected_type && struct_literal_value_mismatches_field(checker, expected_type, value_type)) {
                 NODE_ERROR_FORMATTED(checker, node, "E3053",
                     "a struct field", type_display_name(checker, expected_type), type_display_name(checker, value_type));
             }
@@ -12090,12 +12114,12 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             scope_lookup(checker->current_scope, name))
             checker->is_initializer_reading_own_name = true;
 
-        /* A type parameter's name used as a value (new(T), size_of(T)) is the
-         * type it is bound to, or unknown during the main pass. */
+        /* A type parameter's name stands for a type, never a value. Type
+         * positions are validated by name and never reach this point. */
         int generic_index = generic_bindings_find(&checker->generics, name);
         if (generic_index >= 0 && !scope_lookup(checker->current_scope, name)) {
-            const char *bound = checker->generics.types[generic_index];
-            result = bound ? type_from_name(bound) : typechecker_type_from_name(checker, name);
+            NODE_ERROR_FORMATTED(checker, node, "E3100", name);
+            result = &TYPE_UNKNOWN;
             break;
         }
 
@@ -14896,6 +14920,22 @@ static bool assign_target_outlives_locals(TypeChecker *checker, AstNode *target)
     return false;
 }
 
+/* A value assigned to a struct field that does not fit it: the kinds differ,
+ * or both are pointers or structs of different types. nil is a valid value for
+ * pointer and Error fields. */
+static bool assigned_value_mismatches_field(TypeChecker *checker, GrayType *field_type, GrayType *assigned_value_type) {
+    return field_type->kind != TYPE_KIND_UNKNOWN && assigned_value_type->kind != TYPE_KIND_UNKNOWN &&
+        (!types_assignable(checker, field_type, assigned_value_type) ||
+         (field_type->kind == TYPE_KIND_POINTER &&
+          field_type->name && assigned_value_type->name &&
+          strcmp(field_type->name, assigned_value_type->name) != 0) ||
+         (field_type->kind == TYPE_KIND_STRUCT && assigned_value_type->kind == TYPE_KIND_STRUCT &&
+          field_type->name && assigned_value_type->name &&
+          strcmp(field_type->name, assigned_value_type->name) != 0)) &&
+        !(assigned_value_type->kind == TYPE_KIND_NIL &&
+          (field_type->kind == TYPE_KIND_POINTER || field_type->kind == TYPE_KIND_ERROR));
+}
+
 static void check_assign_statement(TypeChecker *checker, AstNode *node) {
     /* The right-hand side is a single-value position: a fallible (T, Error)
      * call drops the Error, a user multi-return call fails the C compile. */
@@ -14938,6 +14978,14 @@ static void check_assign_statement(TypeChecker *checker, AstNode *node) {
                 if (new_symbol) {
                     new_symbol->definition_line = node->token.line;
                     new_symbol->definition_column = node->token.column;
+                    /* Same lifetime origin a `mut` declaration records, so a
+                     * later return or store of this name is still an escape. */
+                    const char *origin_name = NULL;
+                    new_symbol->origin_depth = pointer_origin_of(checker, initializer, &origin_name);
+                    new_symbol->origin_name = origin_name;
+                    const char *field_origin_name = NULL;
+                    new_symbol->field_origin_depth = container_literal_origin(checker, initializer, &field_origin_name);
+                    new_symbol->field_origin_name = field_origin_name;
                 }
                 node->data.assign.is_declaration = true;
                 return; /* done — skip normal assignment validation */
@@ -15256,18 +15304,7 @@ static void check_assign_statement(TypeChecker *checker, AstNode *node) {
         Symbol *symbol = scope_lookup(checker->current_scope, target->data.member.object->data.label.value);
         if (symbol && (symbol->type->kind == TYPE_KIND_STRUCT || symbol->type->kind == TYPE_KIND_POINTER)) {
             GrayType *field_type = struct_field_type(checker, symbol->type->name, target->data.member.member);
-            if (field_type->kind != TYPE_KIND_UNKNOWN && assigned_value_type->kind != TYPE_KIND_UNKNOWN &&
-                /* kinds differ, OR both are pointers/structs to different types */
-                (!types_assignable(checker, field_type, assigned_value_type) ||
-                 (field_type->kind == TYPE_KIND_POINTER &&
-                  field_type->name && assigned_value_type->name &&
-                  strcmp(field_type->name, assigned_value_type->name) != 0) ||
-                 (field_type->kind == TYPE_KIND_STRUCT && assigned_value_type->kind == TYPE_KIND_STRUCT &&
-                  field_type->name && assigned_value_type->name &&
-                  strcmp(field_type->name, assigned_value_type->name) != 0)) &&
-                /* nil is a valid value for pointer and Error fields */
-                !(assigned_value_type->kind == TYPE_KIND_NIL &&
-                  (field_type->kind == TYPE_KIND_POINTER || field_type->kind == TYPE_KIND_ERROR))) {
+            if (assigned_value_mismatches_field(checker, field_type, assigned_value_type)) {
                 typechecker_error_assign_type(checker, node, type_display_name(checker, assigned_value_type), type_display_name(checker, field_type));
             }
             /* E3066: func signature mismatch on struct field assignment */
@@ -17025,8 +17062,8 @@ static void check_function_declaration(TypeChecker *checker, AstNode *node) {
     /* Warn about unused variables in this function scope */
     report_unused_variables(checker, function_scope, node);
 
-    if (checker->current_return_types) free(checker->current_return_types);
-    if (checker->current_return_type_names) free(checker->current_return_type_names);
+    free(checker->current_return_types);
+    free(checker->current_return_type_names);
     checker->current_return_types = previous_return_types;
     checker->current_return_type_names = previous_return_names;
     checker->current_return_count = previous_return_count;
@@ -17112,7 +17149,6 @@ static void check_struct_declaration(TypeChecker *checker, AstNode *node) {
                     if (raw_tag_length > prefix_length + 1 && strncmp(raw_tag, prefix, prefix_length) == 0 && raw_tag[raw_tag_length - 1] == '"') {
                         field_key = raw_tag + prefix_length;
                         key_length = raw_tag_length - prefix_length - 1;
-                        if (key_length == 0) field_key = NULL;
                         /* The key is spliced verbatim into a generated C string
                          * literal (codegen has no escaping pass for it) — a
                          * quote, backslash, or control character would either

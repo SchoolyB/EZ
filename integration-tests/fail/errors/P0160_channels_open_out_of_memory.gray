@@ -1,0 +1,8 @@
+// expect-contains: .gray:
+/* Panic Test: P0160 - channels.open when the buffer allocation fails */
+import @channels
+
+do main() {
+    mut channel = channels.open(4000000000000000)
+    channels.send(channel, 1)
+}

@@ -99,6 +99,17 @@ GrayArena *gray_arena_create(size_t initial_size) {
     return arena;
 }
 
+/* The --arena-limit cap, remembered so the arenas that function bodies,
+ * blocks, loop iterations, threads and server connections create are held to
+ * it like the root arenas. */
+static size_t gray_arena_cap = 0;
+
+GrayArena *gray_capped_arena_create(size_t initial_size) {
+    GrayArena *arena = gray_arena_create(initial_size);
+    arena->maximum_bytes = gray_arena_cap;
+    return arena;
+}
+
 void *gray_arena_alloc_uninitialized(GrayArena *arena, size_t size) {
     if (arena->is_destroyed)
         gray_panic_code("P0001", "cannot allocate from a destroyed arena; mem.destroy() was already called on this arena");
@@ -371,6 +382,7 @@ void gray_runtime_init(size_t arena_limit) {
     gray_map_init_seed();
     gray_default_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_heap_arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
+    gray_arena_cap = arena_limit;
     if (arena_limit > 0) {
         gray_default_arena->maximum_bytes = arena_limit;
         gray_heap_arena->maximum_bytes = arena_limit;

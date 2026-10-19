@@ -1,0 +1,115 @@
+/*
+ * pointer_store_outlives_scope.gray - strings, arrays and structs stored through
+ * a new() pointer stay valid after the scope that built them is gone
+ */
+
+import @strings
+import @arrays
+
+const User struct {
+    name string
+    tags [string]
+}
+
+const Wrap struct {
+    u ^User
+}
+
+mut g_u ^User = new(User)
+
+do churn() -> string {
+    mut s = ""
+    for i in range(0, 300) { s = s + "garbagegarbage" }
+    return s
+}
+
+do mk() -> string {
+    return "user-" + strings.repeat("n", 12)
+}
+
+do set_name(u ^User) {
+    mut nm = mk()
+    u^.name = nm
+}
+
+do fill_g() {
+    mut nm = mk()
+    g_u^.name = nm
+    arrays.append(g_u^.tags, nm)
+}
+
+do make() -> ^User {
+    mut u ^User = new(User)
+    mut nm = mk()
+    u^.name = nm
+    arrays.append(u^.tags, nm)
+    return u
+}
+
+do make_str() -> ^string {
+    mut p ^string = new(string)
+    mut nm = mk()
+    p^ = nm
+    return p
+}
+
+do make_arr() -> ^[string] {
+    mut p ^[string] = new([string])
+    mut nm = mk()
+    arrays.append(p^, nm)
+    return p
+}
+
+do make_whole() -> ^User {
+    mut u ^User = new(User)
+    mut nm = mk()
+    u^ = User{name: nm, tags: {nm}}
+    return u
+}
+
+do make_wrap() -> Wrap {
+    mut u ^User = new(User)
+    mut nm = mk()
+    u^.name = nm
+    return Wrap{u: u}
+}
+
+do make_via_callee() -> ^User {
+    mut u ^User = new(User)
+    set_name(u)
+    return u
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+    mut expected string = "user-nnnnnnnnnnnn"
+
+    mut a ^User = make()
+    mut b ^string = make_str()
+    mut c ^User = make_whole()
+    mut d ^[string] = make_arr()
+    mut w Wrap = make_wrap()
+    mut e ^User = make_via_callee()
+    mut p ^User = new(User)
+    for i in range(0, 2) {
+        mut nm = mk()
+        p^.name = nm
+        fill_g()
+    }
+    mut z = churn()
+
+    mut actual [string] = {a^.name, a^.tags[0], b^, c^.name, c^.tags[0], d^[0], w.u^.name, e^.name, p^.name, g_u^.name, g_u^.tags[0]}
+    for_each value in actual {
+        if value == expected {
+            passed += 1
+        } otherwise {
+            failed += 1
+        }
+    }
+
+    println("passed: ${passed}, failed: ${failed}, ${len(z)}")
+    if failed > 0 {
+        exit(1)
+    }
+}

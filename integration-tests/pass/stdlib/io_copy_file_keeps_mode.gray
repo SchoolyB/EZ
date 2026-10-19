@@ -1,0 +1,36 @@
+/*
+ * Test: io.copy_file gives the copy the source file's permission bits
+ */
+
+import @io
+import @os
+import @strings
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut _, _ = io.make_dir_all("/tmp/gray_copy_mode")
+    mut _, _ = io.write_file("/tmp/gray_copy_mode/key", "secret")
+    mut _, _ = os.exec("chmod", {"600", "/tmp/gray_copy_mode/key"})
+
+    mut copied, _ = io.copy_file("/tmp/gray_copy_mode/key", "/tmp/gray_copy_mode/copy")
+    if copied == true {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    mut result, _ = os.exec("ls", {"-l", "/tmp/gray_copy_mode/copy"})
+    if strings.starts_with(result.stdout, "-rw-------") {
+        passed += 1
+    } otherwise {
+        failed += 1
+    }
+
+    mut _, _ = io.remove_dir_all("/tmp/gray_copy_mode")
+    println("passed: ${passed}, failed: ${failed}")
+    if failed > 0 {
+        exit(1)
+    }
+}

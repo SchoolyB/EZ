@@ -465,11 +465,15 @@ static void c_compiler_banner(const char *c_compiler, bool is_command, char *ban
 /* GCC runs array-heavy loops about 25% faster at -O3 than at -O2 and Clang does
  * not, so GCC gets -O3 by default. Asks the compiler itself, since on macOS
  * /usr/bin/gcc is Clang. */
+static bool c_compiler_banner_is_gcc(const char *banner) {
+    return banner[0] && strstr(banner, "clang") == NULL &&
+           (strstr(banner, "gcc") != NULL || strstr(banner, "GCC") != NULL || strncmp(banner, "cc (", 4) == 0);
+}
+
 static bool c_compiler_is_gcc(const char *c_compiler, bool is_command) {
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
-    return banner[0] && strstr(banner, "clang") == NULL &&
-           (strstr(banner, "gcc") != NULL || strstr(banner, "GCC") != NULL || strncmp(banner, "cc (", 4) == 0);
+    return c_compiler_banner_is_gcc(banner);
 }
 
 /* libgrayrt.a is built by the system Clang. On macOS a different compiler
@@ -506,8 +510,8 @@ static bool note_newer_runtime_file(const char *name, void *context) {
 
 /* A compiler that cannot link the prebuilt libgrayrt.a (a --cc compiler, or
  * Homebrew GCC on macOS) would otherwise rebuild the whole runtime on every
- * compile (tens of seconds). Build it once with that compiler into the temp
- * directory, keyed by the full compiler command (a cross target's flags
+ * compile (tens of seconds). Build it once with that compiler into a private
+ * per-user cache directory, keyed by the full compiler command (a cross target's flags
  * select a different archive), its version banner and the runtime directory, and rebuild when any runtime or stdlib file is newer.
  * SQLite stays out of the archive (a program that uses it builds from source).
  * Returns false, leaving the from-source build to run, if anything fails. */
@@ -516,8 +520,8 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     char banner[256];
     c_compiler_banner(c_compiler, is_command, banner, sizeof(banner));
     /* A host ar cannot index another platform's object format (Apple ar writes
-     * an empty table of contents for COFF), so a zig compiler archives with
-     * its own `zig ar`. */
+     * an empty table of contents for COFF or tcc's ELF objects), so a zig
+     * compiler archives with its own `zig ar` and tcc with `tcc -ar`. */
     size_t command_word_length = strcspn(c_compiler, " \t");
     const char *command_word_end = c_compiler + command_word_length;
     const char *command_word_start = command_word_end;
@@ -525,14 +529,21 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
         command_word_start--;
     const bool uses_zig_archiver = is_command && strncmp(command_word_start, "zig", 3) == 0 &&
         (command_word_end - command_word_start == 3 || strncmp(command_word_start, "zig.exe", 7) == 0);
+    const bool uses_tinycc_archiver = c_compiler_is_tinycc(c_compiler);
     uint64_t key = 14695981039346656037ULL;
     /* The archiver is part of the key so an archive an earlier grayc built
-     * with a host ar (and left without a symbol table) is not reused. */
-    const char *const key_parts[] = {c_compiler, banner, runtime_directory, uses_zig_archiver ? "zig-ar" : ""};
-    for (size_t part = 0; part < 4; part++)
+     * with a host ar (and left without a symbol table) is not reused, and
+     * neither is one an earlier grayc built at -O2 for GCC. */
+    const bool is_gcc = c_compiler_banner_is_gcc(banner);
+    const char *const key_parts[] = {c_compiler, banner, runtime_directory,
+                                     uses_zig_archiver ? "zig-ar" : uses_tinycc_archiver ? "tcc-ar" : "",
+                                     is_gcc ? "-O3" : ""};
+    for (size_t part = 0; part < 5; part++)
         for (const char *cursor = key_parts[part]; *cursor; cursor++)
             key = (key ^ (unsigned char)*cursor) * 1099511628211ULL;
-    snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", gray_temporary_directory(),
+    char cache_directory[PATH_BUFFER_SIZE];
+    if (!gray_private_cache_directory(cache_directory, sizeof(cache_directory))) return false;
+    snprintf(archive_path, archive_path_size, "%s/gray-runtime-%016llx.a", cache_directory,
              (unsigned long long)key);
 
     struct stat archive_status;
@@ -555,6 +566,9 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
     if (uses_zig_archiver) {
         argument_vector_push_formatted(&archiver, arena, "%.*s", (int)command_word_length, c_compiler);
         argument_vector_push(&archiver, "ar");
+    } else if (uses_tinycc_archiver) {
+        argument_vector_push(&archiver, c_compiler);
+        argument_vector_push(&archiver, "-ar");
     } else {
         argument_vector_push(&archiver, "ar");
     }
@@ -578,7 +592,7 @@ static bool ensure_runtime_archive(const char *c_compiler, bool is_command, cons
         argument_vector_push(&compile, "-std=c11");
         argument_vector_push(&compile, "-D_POSIX_C_SOURCE=200809L");
         argument_vector_push(&compile, "-D_DARWIN_C_SOURCE");
-        argument_vector_push(&compile, "-O2");
+        argument_vector_push(&compile, is_gcc ? "-O3" : "-O2");
         argument_vector_push(&compile, "-w");
         argument_vector_push(&compile, "-ffunction-sections");
         argument_vector_push(&compile, "-fdata-sections");
@@ -2292,11 +2306,11 @@ int main(int argc, char **argv) {
      * The archive is built for the host; a --cc compiler (a cross target) needs
      * the runtime compiled from source for its own target instead. */
     gray_path_join(lib_path, sizeof(lib_path), runtime_directory, "../libgrayrt.a");
-    if (c_compiler_is_tinycc(c_compiler_command)) {
-        /* fall through to the from-source build below; TinyCC cannot
-         * link objects another compiler built, or share its thread-local
-         * layout (see gray_thread_state in runtime.h) */
-    } else if (options.c_compiler_override || c_compiler_cannot_link_archive(c_compiler_command, false)) {
+    /* TinyCC cannot link objects another compiler built, or share its
+     * thread-local layout (see gray_thread_state in runtime.h), so it builds
+     * its own archive like any other --cc compiler. */
+    if (c_compiler_is_tinycc(c_compiler_command) || options.c_compiler_override ||
+        c_compiler_cannot_link_archive(c_compiler_command, false)) {
         has_archive = !strstr(c_source, "#include \"sqlite.h\"") &&
                       ensure_runtime_archive(c_compiler_command, options.c_compiler_override != NULL, runtime_directory,
                                              lib_path, sizeof(lib_path));

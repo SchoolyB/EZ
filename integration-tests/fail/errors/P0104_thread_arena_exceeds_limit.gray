@@ -1,0 +1,13 @@
+// expect-contains: P0104
+/* Panic Test: P0104 - an allocation past the arena limit inside a spawned thread */
+import @strings
+import @threads
+
+do worker() {
+    mut s string = strings.repeat("x", 2000000000)
+    println(len(s))
+}
+
+unsafe do main() {
+    threads.join(threads.spawn(()worker))
+}

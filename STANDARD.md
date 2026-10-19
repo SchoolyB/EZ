@@ -4440,6 +4440,8 @@ Message passing between threads. Compiler-only feature; requires POSIX threads.
 | `try_send` | `(ch Channel, value i64) -> bool` | Non-blocking send; returns false if full |
 | `try_receive` | `(ch Channel) -> (i64, bool)` | Non-blocking receive; returns value and success |
 
+A capacity below 1 opens a channel with capacity 1. A capacity whose buffer cannot be allocated, or exceeds `--arena-limit`, is a runtime panic.
+
 Channels are **i64-only**. Sending non-i64 types (`string`, `f64`, `bool`, etc.) is a compile-time error.
 
 ### 9.24 Memory Module (`@mem`)
@@ -5165,8 +5167,12 @@ A Grayscale program consists of one or more source files that are compiled to a 
 Every Grayscale program must define a `main` function with no parameters and no return value:
 
 ```gray
+do greet(name string) -> string {
+    return "Hello, ${name}!"
+}
+
 do main() {
-    // Program starts here
+    println(greet("Grayscale"))
 }
 ```
 

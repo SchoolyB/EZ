@@ -108,9 +108,9 @@ jobs:
             goos: darwin
             goarch: arm64
             grayc_arch: darwin-arm64
-          # macos-latest is arm64; macos-13 is the Intel image, needed here
-          # for the same reason as the linux-arm64 entry above.
-          - os: macos-13
+          # macos-latest is arm64; macos-15-intel is the Intel image, needed
+          # here for the same reason as the linux-arm64 entry above.
+          - os: macos-15-intel
             goos: darwin
             goarch: amd64
             grayc_arch: darwin-amd64
@@ -214,13 +214,18 @@ jobs:
             cp gray staging/
             tar czf "dist/gray-${ARCH}.tar.gz" -C staging .
           fi
+          # gray update refuses an archive without a matching .sha256 asset.
+          for f in dist/*.tar.gz dist/*.zip; do
+            [ -f "$f" ] || continue
+            (cd dist && if command -v sha256sum >/dev/null; then sha256sum "$(basename "$f")"; else shasum -a 256 "$(basename "$f")"; fi) > "$f.sha256"
+          done
 
       - name: Upload release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          for f in dist/*.tar.gz dist/*.zip; do
+          for f in dist/*.tar.gz dist/*.zip dist/*.sha256; do
             [ -f "$f" ] || continue
             gh release upload "$RELEASE_TAG" "$f" --clobber
           done

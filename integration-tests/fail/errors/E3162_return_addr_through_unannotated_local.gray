@@ -1,0 +1,9 @@
+do mk() -> ^i64 {
+  x i64 = 5
+  p = addr(x)
+  return p
+}
+
+do main() {
+  println(mk()^)
+}

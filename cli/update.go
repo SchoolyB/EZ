@@ -18,6 +18,8 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1090,13 +1092,23 @@ func doInstall(downloadURL, execPath string) error {
 		return fmt.Errorf("failed to create archive file: %w", err)
 	}
 
-	n, err := io.Copy(archiveFile, io.LimitReader(resp.Body, maxDownloadBytes+1))
+	archiveHash := sha256.New()
+	n, err := io.Copy(io.MultiWriter(archiveFile, archiveHash), io.LimitReader(resp.Body, maxDownloadBytes+1))
 	archiveFile.Close()
 	if err != nil {
 		return fmt.Errorf("failed to download archive: %w", err)
 	}
 	if n > maxDownloadBytes {
 		return fmt.Errorf("download aborted: response body exceeded the %d-byte limit", maxDownloadBytes)
+	}
+
+	// Refuse an archive that does not match the checksum published with it.
+	expectedChecksum, err := fetchExpectedChecksum(client, url+".sha256")
+	if err != nil {
+		return err
+	}
+	if actualChecksum := hex.EncodeToString(archiveHash.Sum(nil)); actualChecksum != expectedChecksum {
+		return fmt.Errorf("checksum mismatch: expected %s, downloaded archive is %s", expectedChecksum, actualChecksum)
 	}
 
 	// Extract binary from archive
@@ -1145,6 +1157,31 @@ func doInstall(downloadURL, execPath string) error {
 	// archives stay installable, but they're ignored on the output side.
 
 	return nil
+}
+
+// fetchExpectedChecksum downloads a release's `<asset>.sha256` file and
+// returns the lowercase hex SHA-256 it names. The file holds `<hash>  <name>`.
+func fetchExpectedChecksum(client *http.Client, checksumURL string) (string, error) {
+	resp, err := client.Get(checksumURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to download checksum: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("release has no published checksum (status %d); refusing to install", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err != nil {
+		return "", fmt.Errorf("failed to read checksum: %w", err)
+	}
+	fields := strings.Fields(string(body))
+	if len(fields) == 0 || len(fields[0]) != sha256.Size*2 {
+		return "", fmt.Errorf("checksum file is not a SHA-256 hash")
+	}
+	if _, err := hex.DecodeString(fields[0]); err != nil {
+		return "", fmt.Errorf("checksum file is not a SHA-256 hash")
+	}
+	return strings.ToLower(fields[0]), nil
 }
 
 // sanitizeArchivePath validates that the extracted file path is within the destination directory.

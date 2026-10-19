@@ -1,0 +1,10 @@
+do main() {
+  mut outer ^i64 = nil
+  if true {
+    x i64 = 5
+    p = addr(x)
+    outer = p
+  }
+  y i64 = 9
+  println(outer^)
+}

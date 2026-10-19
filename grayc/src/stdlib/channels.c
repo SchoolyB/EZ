@@ -26,8 +26,20 @@ typedef struct {
 
 GrayChannel gray_channels_open(int64_t capacity) {
     if (capacity < 1) capacity = 1;
+    if ((uint64_t)capacity > SIZE_MAX / sizeof(int64_t))
+        gray_panic_code("P0159", "channels.open capacity is too large to allocate a buffer");
+    size_t arena_limit = gray_default_arena->maximum_bytes;
+    if (arena_limit > 0 && (size_t)capacity * sizeof(int64_t) > arena_limit)
+        gray_panic_code("P0104",
+            "arena memory limit exceeded: attempted to grow beyond the maximum of %zu bytes",
+            arena_limit);
     GrayChannelInternal *channel = malloc(sizeof(GrayChannelInternal));
+    if (!channel) gray_panic_code("P0160", "channels.open: out of memory allocating the channel");
     channel->buffer = malloc(sizeof(int64_t) * (size_t)capacity);
+    if (!channel->buffer) {
+        free(channel);
+        gray_panic_code("P0160", "channels.open: out of memory allocating the channel");
+    }
     channel->capacity = capacity;
     channel->count = 0;
     channel->head = 0;

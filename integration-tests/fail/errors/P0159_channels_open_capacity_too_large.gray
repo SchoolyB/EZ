@@ -1,0 +1,8 @@
+// expect-contains: .gray:
+/* Panic Test: P0159 - channels.open with a capacity whose buffer size overflows */
+import @channels
+
+do main() {
+    mut channel = channels.open(2305843009213693952)
+    channels.send(channel, 1)
+}

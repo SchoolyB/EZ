@@ -13,6 +13,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -454,4 +456,35 @@ func contains(s, sub string) bool {
 			}
 			return false
 		}())
+}
+
+func TestFetchExpectedChecksum(t *testing.T) {
+	valid := strings.Repeat("ab", 32)
+	cases := []struct {
+		name    string
+		status  int
+		body    string
+		want    string
+		wantErr bool
+	}{
+		{"hash and name", http.StatusOK, valid + "  gray-linux-amd64.tar.gz\n", valid, false},
+		{"uppercase hash", http.StatusOK, strings.ToUpper(valid) + "\n", valid, false},
+		{"missing file", http.StatusNotFound, "", "", true},
+		{"wrong length", http.StatusOK, "abcd  gray.tar.gz\n", "", true},
+		{"not hex", http.StatusOK, strings.Repeat("zz", 32) + "\n", "", true},
+		{"empty", http.StatusOK, "", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+			got, err := fetchExpectedChecksum(server.Client(), server.URL)
+			if (err != nil) != tc.wantErr || got != tc.want {
+				t.Errorf("got (%q, %v), want (%q, error=%v)", got, err, tc.want, tc.wantErr)
+			}
+		})
+	}
 }

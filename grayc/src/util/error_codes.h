@@ -574,7 +574,10 @@
     GRAY_PANIC("P0155", "runtime",    "len() of a range exceeds the largest i64") \
     GRAY_PANIC("P0156", "random",     "random.roll_dice total exceeds the largest i64") \
     GRAY_PANIC("P0157", "time",       "time function result exceeds the range of i64") \
-    GRAY_PANIC("P0158", "random",     "random.rand_char range holds only surrogate codepoints")
+    GRAY_PANIC("P0158", "random",     "random.rand_char range holds only surrogate codepoints") \
+    GRAY_PANIC("P0159", "channels",   "channels.open capacity is too large to allocate a buffer") \
+    GRAY_PANIC("P0160", "channels",   "channels.open: out of memory allocating the channel") \
+    GRAY_PANIC("P0161", "atomic",     "atomic.spinlock: out of memory allocating the lock")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

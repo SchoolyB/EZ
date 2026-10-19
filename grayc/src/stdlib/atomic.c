@@ -10,6 +10,7 @@
  */
 
 #include "atomic_mod.h"
+#include "../runtime/runtime.h"
 #include <stdlib.h>
 
 /* 64-bit atomics */
@@ -28,6 +29,7 @@ int64_t gray_atomic_mod_xor(int64_t *target, int64_t value) { return gray_atomic
 
 GraySpinLock gray_atomic_mod_spinlock(void) {
     int32_t *lock = malloc(sizeof(int32_t));
+    if (!lock) gray_panic_code("P0161", "atomic.spinlock: out of memory allocating the lock");
     *lock = 0;
     GraySpinLock result;
     result._internal = lock;
