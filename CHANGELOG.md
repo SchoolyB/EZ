@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.12.2](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.12.1...grayscale-v0.12.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **atomic:** panic when the spinlock allocation fails ([#3165](https://github.com/grayscale-lang/grayscale/issues/3165)) ([0f9b9de](https://github.com/grayscale-lang/grayscale/commit/0f9b9de88c93ef55d2fe52b29c3ebafbd4c79b35))
+* **channels:** enforce --arena-limit in channels.open ([#3152](https://github.com/grayscale-lang/grayscale/issues/3152)) ([4012399](https://github.com/grayscale-lang/grayscale/commit/4012399002deb05a7a61751295b2135b15c4fb9a))
+* **channels:** panic when channels.open cannot allocate ([#3164](https://github.com/grayscale-lang/grayscale/issues/3164)) ([d9b1e6e](https://github.com/grayscale-lang/grayscale/commit/d9b1e6ee1ef7117175aa627052c442da65d4b1ef))
+* **channels:** panic when channels.open capacity overflows the buffer size ([#3163](https://github.com/grayscale-lang/grayscale/issues/3163)) ([b9b19d2](https://github.com/grayscale-lang/grayscale/commit/b9b19d29370536f71f7de97292b8b0e23570ea76))
+* **cli:** gray update verifies the archive's SHA-256 before installing ([#3172](https://github.com/grayscale-lang/grayscale/issues/3172)) ([b2208af](https://github.com/grayscale-lang/grayscale/commit/b2208afa1e27075c848c389158e7b7c0c2d503d8))
+* **codegen:** append, prepend and insert_at on a new() object's array field allocate in the heap arena ([#3149](https://github.com/grayscale-lang/grayscale/issues/3149)) ([4de14a2](https://github.com/grayscale-lang/grayscale/commit/4de14a22c5462e214a49a30a660a81eeb107f150))
+* **codegen:** copy values stored through a pointer into the heap arena ([#3153](https://github.com/grayscale-lang/grayscale/issues/3153)) ([1ffab22](https://github.com/grayscale-lang/grayscale/commit/1ffab22ecd3c8be3c8e1c162bc1abc4e96a108c8))
+* **codegen:** deep-copy tagged enum payloads when the value leaves its scope ([#3155](https://github.com/grayscale-lang/grayscale/issues/3155)) ([3f364e6](https://github.com/grayscale-lang/grayscale/commit/3f364e6b6333962e5ae61f090a1f027f568b31a0))
+* **codegen:** skip the heap copy when storing back an elided array field copy ([33557b3](https://github.com/grayscale-lang/grayscale/commit/33557b32b9d7dc6a1da0312a13fed7aff198330e))
+* **grayc:** keep the runtime archive cache in a private per-user directory ([#3171](https://github.com/grayscale-lang/grayscale/issues/3171)) ([e72826d](https://github.com/grayscale-lang/grayscale/commit/e72826d5f0691ae7437f951ad69562d932da0df0))
+* **io:** copy_file gives the copy the source file's permission bits ([#3174](https://github.com/grayscale-lang/grayscale/issues/3174)) ([ef65e53](https://github.com/grayscale-lang/grayscale/commit/ef65e532c6884d7f8a72b8a43af6dc68cf625aa0))
+* **io:** remove_dir_all unlinks a symlink root instead of deleting its target's contents ([#3170](https://github.com/grayscale-lang/grayscale/issues/3170)) ([fe7fe71](https://github.com/grayscale-lang/grayscale/commit/fe7fe719c4f184ba6d89943cbd2be520cbe42541))
+* **io:** remove_dir_all unlinks symlinks instead of following them ([#3161](https://github.com/grayscale-lang/grayscale/issues/3161)) ([d2e76e7](https://github.com/grayscale-lang/grayscale/commit/d2e76e794cc7af506f361bdd26ee95e8d19c63ab))
+* **os:** exec closes inherited file descriptors in the child ([#3175](https://github.com/grayscale-lang/grayscale/issues/3175)) ([8ccd393](https://github.com/grayscale-lang/grayscale/commit/8ccd39367437e2f96c1b34f33d134610a16954f9))
+* **runtime:** apply --arena-limit to thread and server connection arenas ([#3151](https://github.com/grayscale-lang/grayscale/issues/3151)) ([45cdeb6](https://github.com/grayscale-lang/grayscale/commit/45cdeb661c028401a9bcd126ed37ed0956e7c02f))
+* **runtime:** enforce --arena-limit in function, block and loop arenas ([#3150](https://github.com/grayscale-lang/grayscale/issues/3150)) ([d2587bf](https://github.com/grayscale-lang/grayscale/commit/d2587bfbfdd97f1ba3806e50220fa1f543cd4b52))
+* **server:** reject a request whose method or path contains a NUL byte ([#3173](https://github.com/grayscale-lang/grayscale/issues/3173)) ([f69d6c0](https://github.com/grayscale-lang/grayscale/commit/f69d6c0543e2df8dd4be3f995c4cec901f5fe5b2))
+* **typechecker:** record pointer origin for a variable declared without mut ([#3176](https://github.com/grayscale-lang/grayscale/issues/3176)) ([20ed9ac](https://github.com/grayscale-lang/grayscale/commit/20ed9acbc5e461857463b787e10c3f5371209257))
+* **typechecker:** reject a generic parameter name used as a value ([#3154](https://github.com/grayscale-lang/grayscale/issues/3154)) ([751bd02](https://github.com/grayscale-lang/grayscale/commit/751bd0250facb772233874afc6cd094af48509e0))
+* **typechecker:** size the function-reference signature buffer to its text ([#3162](https://github.com/grayscale-lang/grayscale/issues/3162)) ([ebf1ad8](https://github.com/grayscale-lang/grayscale/commit/ebf1ad8cbfd1a329c50fa9cbf3a05d9d676fe409))
+
+
+### Performance Improvements
+
+* **grayc:** build the gcc runtime archive at -O3 ([#3159](https://github.com/grayscale-lang/grayscale/issues/3159)) ([a493e83](https://github.com/grayscale-lang/grayscale/commit/a493e8351370aead23ba5a112205363c64a5fbe8))
+* **grayc:** cache a runtime archive for tcc builds ([#3156](https://github.com/grayscale-lang/grayscale/issues/3156)) ([42800ce](https://github.com/grayscale-lang/grayscale/commit/42800cef837c5692051980d66a04cb899a8a4e84))
+* **runtime:** use a sign test for tcc overflow-checked add and sub ([#3157](https://github.com/grayscale-lang/grayscale/issues/3157)) ([5d4241e](https://github.com/grayscale-lang/grayscale/commit/5d4241e6f40f719168c5505339e49699c0e3fb86))
+
 ## [0.12.1](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.12.0...grayscale-v0.12.1) (2026-10-17)
 
 
