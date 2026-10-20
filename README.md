@@ -232,10 +232,6 @@ gray install v0.11.5     # pin to an exact version
 
 `gray update` checks for new versions, shows the changelog, and upgrades both the `gray` CLI and the compiler. Pass `--pre` to pick up the latest alpha, beta, or rc. Use `gray install <version>` to install an exact version by semver — downgrades and pre-release tags (e.g. `0.2.0-beta.1`) are supported.
 
-### Migrating from EZ
-
-Grayscale was previously known as **EZ**. The `ez update` command from older EZ versions cannot upgrade to Grayscale automatically. To migrate, uninstall EZ and do a fresh install of Grayscale using the instructions in the [Install](#install) section above.
-
 ---
 
 ## Learn More
