@@ -1,0 +1,28 @@
+const S struct {
+    rows [[i64]]
+    names [string]
+    adj map[i64:[i64]]
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut s = S{rows: {{1, 2}, {3}}, names: {"ab", "cd"}, adj: {1: {7, 8}}}
+
+    mut total i64 = 0
+    for_each x in s.rows[0] { total += x }
+    if total == 3 { passed += 1 } otherwise { failed += 1 }
+
+    mut seen i64 = 0
+    for_each x in s.adj[1] { seen += x }
+    if seen == 15 { passed += 1 } otherwise { failed += 1 }
+
+    mut letters i64 = 0
+    for_each ch in s.names[1] { letters += 1 }
+    if letters == 2 { passed += 1 } otherwise { failed += 1 }
+
+    println("for_each member index: ${passed} passed, ${failed} failed")
+    if failed > 0 { exit(1) }
+    println("ALL TESTS PASSED")
+}
