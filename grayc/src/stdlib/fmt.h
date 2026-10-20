@@ -145,7 +145,7 @@ GrayString gray_fmt_i64_to_binary(GrayArena *arena, int64_t value);
  *@module fmt
  *@group Number Formatting
  *@sig f64_to_fixed(f f64, decimals i64) -> string
- *@desc Returns f formatted with exactly decimals digits after the decimal point.
+ *@desc Returns f formatted with exactly decimals digits after the decimal point. Panics if decimals is negative or the result would exceed the maximum string length.
  *@example
  *   import @fmt
  *   println(fmt.f64_to_fixed(3.14159, 2))

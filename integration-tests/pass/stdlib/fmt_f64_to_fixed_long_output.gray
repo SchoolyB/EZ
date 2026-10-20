@@ -1,0 +1,52 @@
+/*
+ * fmt_f64_to_fixed_long_output.gray
+ * f64_to_fixed returns the whole formatted text when it is longer than 63
+ * characters: every character of 1e300 and of 100 decimals is a digit.
+ */
+
+import @fmt
+import @strings
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut big string = fmt.f64_to_fixed(1e300, 2)
+    mut digits_only bool = true
+    for_each ch in big {
+        if ch != '.' && (ch < '0' || ch > '9') {
+            digits_only = false
+        }
+    }
+    if len(big) == 304 && digits_only && strings.ends_with(big, ".00") && strings.starts_with(big, "1000000000000000052") {
+        println("  [PASS] 1e300 with 2 decimals")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 1e300 with 2 decimals: ${len(big)}")
+        failed += 1
+    }
+
+    mut many string = fmt.f64_to_fixed(1.0, 100)
+    if len(many) == 102 && strings.starts_with(many, "1.") && strings.ends_with(many, "00") && strings.count(many, "0") == 100 {
+        println("  [PASS] 100 decimals")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 100 decimals: ${len(many)}")
+        failed += 1
+    }
+
+    if fmt.f64_to_fixed(1.5, 2) == "1.50" && fmt.f64_to_fixed(2.0, 0) == "2" {
+        println("  [PASS] short output")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] short output")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

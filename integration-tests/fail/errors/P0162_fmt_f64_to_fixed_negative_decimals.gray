@@ -1,0 +1,7 @@
+/* Panic Test: P0162 - fmt.f64_to_fixed with a negative decimals count */
+import @fmt
+
+do main() {
+    mut text string = fmt.f64_to_fixed(2.567, -1)
+    println(text)
+}

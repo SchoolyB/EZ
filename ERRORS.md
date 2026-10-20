@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 551 codes** (390 errors, 17 warnings, 144 panics)
+**Total: 553 codes** (390 errors, 17 warnings, 146 panics)
 
 ---
 
@@ -578,6 +578,8 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0159` | channels | channels.open capacity is too large to allocate a buffer |
 | `P0160` | channels | channels.open: out of memory allocating the channel |
 | `P0161` | atomic | atomic.spinlock: out of memory allocating the lock |
+| `P0162` | fmt | fmt.f64_to_fixed called with a negative decimals count |
+| `P0163` | fmt | fmt.f64_to_fixed result exceeds maximum string length |
 
 ---
 
@@ -602,4 +604,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-20 18:36:15 UTC*
+*Generated on 2026-10-20 18:57:39 UTC*
