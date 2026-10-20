@@ -8397,26 +8397,32 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
                 flatten_c_element_type = gray_type_to_c_codegen(codegen, flatten_array_type->element_type);
         }
         const char *flatten_element_type_name = (flatten_array_type && flatten_array_type->kind == TYPE_KIND_ARRAY) ? flatten_array_type->element_type : NULL;
+        /* The destination outlives a loop body, so its growth and the filled
+         * values are allocated on the outer arena, as append does. */
+        bool fill_target_in_heap = array_argument_in_heap(codegen, node->data.call.arguments[0]);
+        const char *fill_arena = fill_target_in_heap ? "gray_heap_arena"
+            : codegen->loop_scope_depth > 0 ? "_gray_outer_arena" : "gray_default_arena";
+        bool is_fill_string = flatten_element_type_name && strcmp(flatten_element_type_name, "string") == 0;
         emit_formatted(codegen, "{ %s _fv = ", flatten_c_element_type);
         if (!emit_wide_integer_coerced(codegen, flatten_element_type_name, node->data.call.arguments[1]))
             emit_expression(codegen, node->data.call.arguments[1]);
+        emit(codegen, "; ");
+        emit_escape_staged_value(codegen, node->data.call.arguments[1], flatten_element_type_name, is_fill_string,
+            "_fv", fill_arena, fill_target_in_heap);
+        emit(codegen, "GrayArray *_fa = ");
+        emit_array_argument_address(codegen, node->data.call.arguments[0]);
+        emit_formatted(codegen, "; gray_arrays_fill(%s, _fa, &_fv, ", fill_arena);
+        emit_expression(codegen, node->data.call.arguments[2]);
+        emit(codegen, ")");
         if (flatten_element_type_name && type_shares_storage(codegen, flatten_element_type_name)) {
             /* Every filled slot needs its own copy of the value, or the slots
              * and the source would all share one backing store. */
-            emit(codegen, "; GrayArray *_fa = ");
-            emit_array_argument_address(codegen, node->data.call.arguments[0]);
-            emit(codegen, "; gray_arrays_fill(gray_default_arena, _fa, &_fv, ");
-            emit_expression(codegen, node->data.call.arguments[2]);
-            emit_formatted(codegen, "); for (int32_t _fi = 0; _fi < _fa->len; _fi++) { ((%s *)_fa->data)[_fi] = ", flatten_c_element_type);
+            emit_formatted(codegen, "; { GrayArena *_fs = gray_default_arena; gray_default_arena = %s; "
+                "for (int32_t _fi = 0; _fi < _fa->len; _fi++) { ((%s *)_fa->data)[_fi] = ", fill_arena, flatten_c_element_type);
             emit_value_deep_copy(codegen, flatten_element_type_name, "_fv");
-            emit(codegen, "; } }");
-            return true;
+            emit(codegen, "; } gray_default_arena = _fs; }");
         }
-        emit(codegen, "; gray_arrays_fill(gray_default_arena, ");
-        emit_array_argument_address(codegen, node->data.call.arguments[0]);
-        emit(codegen, ", &_fv, ");
-        emit_expression(codegen, node->data.call.arguments[2]);
-        emit(codegen, "); }");
+        emit(codegen, "; }");
         return true;
     }
     if ((strcmp(function_name, "get_first") == 0 || strcmp(function_name, "get_last") == 0 ||

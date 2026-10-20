@@ -1,0 +1,34 @@
+/*
+ * arrays_fill_composite_outlives_loop.gray - arrays.fill inside a loop body
+ * fills an outer array with values that survive the loop's arena.
+ */
+
+import @arrays
+
+const Box struct {
+    name string
+    items [i64]
+}
+
+do churn() -> i64 {
+    mut s string = ""
+    for i in range(0, 300) { s = s + "garbage${i}" }
+    return len(s)
+}
+
+do main() {
+    mut ss [string] = {"x"}
+    mut aa [[i64]] = {}
+    mut bb [Box] = {}
+    for i in range(0, 1) {
+        const t string = "v${i}${i}"
+        arrays.fill(ss, t, 2)
+        arrays.fill(aa, {i, 5}, 2)
+        arrays.fill(bb, Box{name: t, items: {i, 7}}, 2)
+    }
+    mut _ = churn()
+    if ss[0] != "v00" || ss[1] != "v00" { panic("filled strings were corrupted") }
+    if aa[1][0] != 0 || aa[1][1] != 5 { panic("filled arrays were corrupted") }
+    if bb[1].name != "v00" || bb[1].items[1] != 7 { panic("filled structs were corrupted") }
+    println("[PASS] arrays.fill in a loop")
+}
