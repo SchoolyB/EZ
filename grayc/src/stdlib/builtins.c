@@ -296,15 +296,32 @@ GrayString gray_builtin_to_string_bool(GrayArena *arena, bool value) {
 
 /* --- from_string --- */
 
+/* Copy a GrayString and null-terminate it: into the caller's stack buffer when
+ * the whole string fits, else into the default arena. The copy is never cut
+ * short, so the parse below sees every byte. */
+static char *string_cast_buffer(GrayString string, char *stack_buffer, size_t stack_buffer_size) {
+    char *buffer = (size_t)string.len < stack_buffer_size
+        ? stack_buffer
+        : (char *)gray_arena_alloc_uninitialized(gray_default_arena, (size_t)string.len + 1);
+    memcpy(buffer, string.data, (size_t)string.len);
+    buffer[string.len] = '\0';
+    return buffer;
+}
+
+/* True when only spaces remain from `cursor` on: a number may be followed by
+ * trailing spaces, never by anything else. */
+static bool only_spaces_remain(const char *cursor) {
+    while (*cursor == ' ') cursor++;
+    return *cursor == '\0';
+}
+
 int64_t gray_builtin_string_to_i64(GrayString string) {
-    char buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
-    int length = string.len < (int32_t)sizeof(buffer) - 1 ? string.len : (int32_t)sizeof(buffer) - 1;
-    memcpy(buffer, string.data, (size_t)length);
-    buffer[length] = '\0';
+    char stack_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
     char *end_cursor = NULL;
     errno = 0;
     int64_t result = strtoll(buffer, &end_cursor, 10);
-    if (end_cursor == buffer || (*end_cursor != '\0' && *end_cursor != ' ')) {
+    if (end_cursor == buffer || !only_spaces_remain(end_cursor)) {
         gray_panic_code("P0084", "cannot convert '%s' to i64", buffer);
     }
     if (errno == ERANGE) {
@@ -314,10 +331,8 @@ int64_t gray_builtin_string_to_i64(GrayString string) {
 }
 
 uint64_t gray_builtin_string_to_u64(GrayString string) {
-    char buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
-    int length = string.len < (int32_t)sizeof(buffer) - 1 ? string.len : (int32_t)sizeof(buffer) - 1;
-    memcpy(buffer, string.data, (size_t)length);
-    buffer[length] = '\0';
+    char stack_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
     const char *cursor = buffer;
     while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n') cursor++;
     bool is_negative = *cursor == '-';
@@ -328,7 +343,7 @@ uint64_t gray_builtin_string_to_u64(GrayString string) {
     char *end_cursor = NULL;
     errno = 0;
     uint64_t result = strtoull(digits, &end_cursor, 10);
-    if (end_cursor == digits || (*end_cursor != '\0' && *end_cursor != ' ')) {
+    if (end_cursor == digits || !only_spaces_remain(end_cursor)) {
         gray_panic_code("P0084", "cannot convert '%s' to u64", buffer);
     }
     if (errno == ERANGE || (is_negative && result != 0)) {
@@ -341,10 +356,8 @@ uint64_t gray_builtin_string_to_u64(GrayString string) {
  * two's-complement value as 64-bit words, least significant first. */
 static void string_to_wide_integer(GrayString string, const char *type_name, int bits, bool is_signed,
                                    const char *file, int line, uint64_t out[4]) {
-    char buffer[128];
-    int length = string.len < (int32_t)sizeof(buffer) - 1 ? string.len : (int32_t)sizeof(buffer) - 1;
-    memcpy(buffer, string.data, (size_t)length);
-    buffer[length] = '\0';
+    char stack_buffer[128];
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
     const char *cursor = buffer;
     while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n') cursor++;
     bool is_negative = false;
@@ -361,8 +374,7 @@ static void string_to_wide_integer(GrayString string, const char *type_name, int
         }
         if (carry) overflow = true;
     }
-    while (*cursor == ' ') cursor++;
-    if (*cursor != '\0') gray_panic_code("P0084", "cannot convert '%s' to %s", buffer, type_name);
+    if (!only_spaces_remain(cursor)) gray_panic_code("P0084", "cannot convert '%s' to %s", buffer, type_name);
 
     bool is_zero = true;
     for (int i = 0; i < 8; i++) if (limbs[i]) is_zero = false;
@@ -416,13 +428,11 @@ gray_u256 gray_builtin_string_to_u256(GrayString string, const char *file, int l
 }
 
 double gray_builtin_string_to_f64(GrayString string) {
-    char buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
-    int length = string.len < (int32_t)sizeof(buffer) - 1 ? string.len : (int32_t)sizeof(buffer) - 1;
-    memcpy(buffer, string.data, (size_t)length);
-    buffer[length] = '\0';
+    char stack_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
     char *end_cursor = NULL;
     double result = strtod(buffer, &end_cursor);
-    if (end_cursor == buffer || (*end_cursor != '\0' && *end_cursor != ' ')) {
+    if (end_cursor == buffer || !only_spaces_remain(end_cursor)) {
         gray_panic_code("P0085", "cannot convert '%s' to f64", buffer);
     }
     return result;

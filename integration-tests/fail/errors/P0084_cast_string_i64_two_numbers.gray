@@ -1,0 +1,5 @@
+/* Panic Test: P0084 - cast of a string holding two numbers to i64 */
+do main() {
+    mut s string = "5 6"
+    println(cast(s, i64))
+}
