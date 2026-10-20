@@ -1,0 +1,12 @@
+/* Error Test: E3033 - a #flags variant takes the bit an earlier variant set explicitly */
+#flags
+const E enum {
+    A = 4
+    B
+    C
+    D
+}
+
+do main() {
+    println("${E.A}")
+}

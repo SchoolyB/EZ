@@ -1,0 +1,63 @@
+/*
+ * enum_distinct_values_accepted.gray
+ * Enums whose variants end up with distinct values compile, however the
+ * values are produced: explicit, auto-incremented after a negative value,
+ * #flags bits, and string values that differ.
+ */
+
+const Mixed enum {
+    A = 1
+    B = 0
+    C = 2
+    D
+}
+
+const Negative enum {
+    LOW = -2
+    MID
+    HIGH
+}
+
+#flags
+const Bits enum {
+    ONE
+    TWO
+    FOUR = 4
+    EIGHT
+}
+
+const Names enum {
+    X = "x"
+    Y = "y"
+    Z
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if cast(Mixed.D, i64) == 3 && cast(Negative.HIGH, i64) == 0 && cast(Negative.MID, i64) == -1 {
+        println("  [PASS] auto-incremented values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] auto-incremented values")
+        failed += 1
+    }
+
+    if cast(Bits.ONE, i64) == 1 && cast(Bits.TWO, i64) == 2 && cast(Bits.FOUR, i64) == 4 && cast(Bits.EIGHT, i64) == 8 {
+        println("  [PASS] #flags bits")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] #flags bits")
+        failed += 1
+    }
+
+    println("${Names.X} ${Names.Y} ${Names.Z}")
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,9 @@
+/* Error Test: E3033 - two string-backed variants share a value */
+const E enum {
+    A = "x"
+    B = "x"
+}
+
+do main() {
+    println("${E.A}")
+}

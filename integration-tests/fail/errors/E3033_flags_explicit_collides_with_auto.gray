@@ -1,0 +1,10 @@
+/* Error Test: E3033 - a #flags variant with an explicit value equals an auto-assigned bit */
+#flags
+const E enum {
+    A
+    B = 1
+}
+
+do main() {
+    println("${E.A}")
+}

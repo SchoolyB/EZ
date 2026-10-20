@@ -18336,49 +18336,68 @@ static void register_declaration_enums(TypeChecker *checker, AstNode *program) {
         if (statement->data.enum_declaration.value_count == 0) {
             NODE_ERROR_FORMATTED(checker, statement, "E2016", enum_name);
         }
-        /* E3033: check for duplicate enum values */
-        for (int j = 0; j < statement->data.enum_declaration.value_count; j++) {
-            if (!statement->data.enum_declaration.values[j].value) continue;
-            for (int index = 0; index < j; index++) {
-                if (!statement->data.enum_declaration.values[index].value) continue;
-                if (statement->data.enum_declaration.values[j].value->kind == NODE_INTEGER_LITERAL &&
-                    statement->data.enum_declaration.values[index].value->kind == NODE_INTEGER_LITERAL &&
-                    statement->data.enum_declaration.values[j].value->data.integer_literal.value ==
-                    statement->data.enum_declaration.values[index].value->data.integer_literal.value) {
-                    NODE_ERROR_FORMATTED(checker, statement, "E3033",
-                        enum_name, statement->data.enum_declaration.values[index].name, statement->data.enum_declaration.values[j].name);
-                    break;
-                }
-            }
-        }
-        /* An integer enum's values are i64: an explicit value must fit it
-         * (E3036), and a variant without one takes the previous value plus
-         * one, which must fit too (E3213). */
-        if (!statement->data.enum_declaration.is_flags && !statement->data.enum_declaration.is_error_code &&
-            !statement->data.enum_declaration.is_tagged) {
+        /* The value each variant ends up with: an explicit value, or what its
+         * position gives it. An integer enum's values are i64: an explicit
+         * value must fit it (E3036), and a variant without one takes the
+         * previous value plus one, which must fit too (E3213). Two variants
+         * with the same value are E3033. */
+        if (!statement->data.enum_declaration.is_error_code && !statement->data.enum_declaration.is_tagged &&
+            statement->data.enum_declaration.value_count > 0) {
+            int variant_count = statement->data.enum_declaration.value_count;
+            EnumValue *variants = statement->data.enum_declaration.values;
+            bool is_flags = statement->data.enum_declaration.is_flags;
+            bool is_string_enum = false;
+            for (int j = 0; j < variant_count; j++)
+                if (variants[j].value && variants[j].value->kind == NODE_STRING_VALUE) is_string_enum = true;
+            bool *value_is_known = arena_allocate(checker->arena, sizeof(bool) * variant_count);
+            int64_t *numbers = arena_allocate(checker->arena, sizeof(int64_t) * variant_count);
+            const char **texts = arena_allocate(checker->arena, sizeof(const char *) * variant_count);
             bool next_is_known = true, next_overflows = false;
             int64_t next_value = 0;
-            for (int j = 0; j < statement->data.enum_declaration.value_count; j++) {
-                AstNode *variant_value = statement->data.enum_declaration.values[j].value;
-                int64_t value = 0;
-                bool value_is_known = false;
+            for (int j = 0; j < variant_count; j++) {
+                AstNode *variant_value = variants[j].value;
+                value_is_known[j] = false;
+                numbers[j] = 0;
+                texts[j] = NULL;
+                if (is_string_enum) {
+                    if (!variant_value) {
+                        texts[j] = variants[j].name;
+                    } else if (variant_value->kind == NODE_STRING_VALUE) {
+                        char *decoded = arena_allocate(checker->arena, strlen(variant_value->data.string_value.value) + 1);
+                        int decoded_length = ast_string_decode(variant_value, decoded);
+                        decoded[decoded_length] = '\0';
+                        texts[j] = decoded;
+                    }
+                    value_is_known[j] = texts[j] != NULL;
+                    continue;
+                }
                 if (variant_value) {
                     LiteralValue folded;
-                    if (variant_value->kind == NODE_STRING_VALUE) break;
                     if (literal_integer_value(variant_value, &folded)) {
-                        if (literal_value_as_i64(&folded, &value)) value_is_known = true;
+                        if (literal_value_as_i64(&folded, &numbers[j])) value_is_known[j] = true;
                         else check_expression_as(checker, variant_value, &TYPE_I64);
                     }
+                } else if (is_flags) {
+                    if (j < 63) { numbers[j] = (int64_t)1 << j; value_is_known[j] = true; }
                 } else if (next_overflows) {
-                    NODE_ERROR_FORMATTED(checker, statement, "E3213",
-                        enum_name, statement->data.enum_declaration.values[j].name);
+                    NODE_ERROR_FORMATTED(checker, statement, "E3213", enum_name, variants[j].name);
                 } else if (next_is_known) {
-                    value = next_value;
-                    value_is_known = true;
+                    numbers[j] = next_value;
+                    value_is_known[j] = true;
                 }
-                next_is_known = value_is_known && value != INT64_MAX;
-                next_overflows = value_is_known && value == INT64_MAX;
-                if (next_is_known) next_value = value + 1;
+                next_is_known = value_is_known[j] && numbers[j] != INT64_MAX;
+                next_overflows = value_is_known[j] && numbers[j] == INT64_MAX;
+                if (next_is_known) next_value = numbers[j] + 1;
+            }
+            for (int j = 0; j < variant_count; j++) {
+                if (!value_is_known[j]) continue;
+                for (int index = 0; index < j; index++) {
+                    if (!value_is_known[index]) continue;
+                    bool is_same = is_string_enum ? strcmp(texts[index], texts[j]) == 0 : numbers[index] == numbers[j];
+                    if (!is_same) continue;
+                    NODE_ERROR_FORMATTED(checker, statement, "E3033", enum_name, variants[index].name, variants[j].name);
+                    break;
+                }
             }
         }
         /* E3176: a #flags variant with an explicit value must occupy exactly
