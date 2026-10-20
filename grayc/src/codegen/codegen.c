@@ -2586,6 +2586,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
             else if (element_type->kind == TYPE_KIND_POINTER) element_c_type = gray_type_to_c_codegen(codegen, element_type_spelling_text);
             else if (element_type->kind == TYPE_KIND_CHAR) element_c_type = "int32_t";
             else if (element_type->kind == TYPE_KIND_SIGNED_INTEGER || element_type->kind == TYPE_KIND_UNSIGNED_INTEGER) element_c_type = gray_type_to_c_codegen(codegen, element_type_spelling_text);
+            else element_c_type = array_slot_c_type(codegen, element_type_spelling_text);
         }
         emit_formatted(codegen, "GRAY_ARRAY_NEW_OF(gray_default_arena, %s, 4)", element_c_type);
         return;

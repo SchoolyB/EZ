@@ -1,0 +1,33 @@
+import @arrays
+
+const Shape enum {
+    Circle(f64)
+    Rect(f64, f64)
+    Empty
+}
+
+const Holder struct {
+    shapes [Shape]
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut h = Holder{shapes: {}}
+    arrays.append(h.shapes, Shape.Rect(2.0, 3.0))
+    arrays.append(h.shapes, Shape.Circle(9.0))
+
+    when h.shapes[0] {
+        is Shape.Rect(w, hh) { if w == 2.0 && hh == 3.0 { passed += 1 } otherwise { failed += 1 } }
+        default { failed += 1 }
+    }
+    when h.shapes[1] {
+        is Shape.Circle(r) { if r == 9.0 { passed += 1 } otherwise { failed += 1 } }
+        default { failed += 1 }
+    }
+
+    println("struct field empty tagged enum array: ${passed} passed, ${failed} failed")
+    if failed > 0 { exit(1) }
+    println("ALL TESTS PASSED")
+}
