@@ -1,0 +1,5 @@
+/* Panic Test: P0084 - cast of a string with bytes after an embedded NUL to i64 */
+do main() {
+    mut s string = "12\0abc"
+    println(cast(s, i64))
+}

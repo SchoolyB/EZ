@@ -298,8 +298,13 @@ GrayString gray_builtin_to_string_bool(GrayArena *arena, bool value) {
 
 /* Copy a GrayString and null-terminate it: into the caller's stack buffer when
  * the whole string fits, else into the default arena. The copy is never cut
- * short, so the parse below sees every byte. */
-static char *string_cast_buffer(GrayString string, char *stack_buffer, size_t stack_buffer_size) {
+ * short, so the parse below sees every byte. A string with an embedded NUL
+ * would hide everything after it from the parse, so it panics instead. */
+static char *string_cast_buffer(GrayString string, char *stack_buffer, size_t stack_buffer_size,
+                                const char *panic_code, const char *type_name) {
+    if (string.len > 0 && memchr(string.data, '\0', (size_t)string.len)) {
+        gray_panic_code(panic_code, "cannot convert string with an embedded NUL byte to %s", type_name);
+    }
     char *buffer = (size_t)string.len < stack_buffer_size
         ? stack_buffer
         : (char *)gray_arena_alloc_uninitialized(gray_default_arena, (size_t)string.len + 1);
@@ -317,7 +322,7 @@ static bool only_spaces_remain(const char *cursor) {
 
 int64_t gray_builtin_string_to_i64(GrayString string) {
     char stack_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
-    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer), "P0084", "i64");
     char *end_cursor = NULL;
     errno = 0;
     int64_t result = strtoll(buffer, &end_cursor, 10);
@@ -332,7 +337,7 @@ int64_t gray_builtin_string_to_i64(GrayString string) {
 
 uint64_t gray_builtin_string_to_u64(GrayString string) {
     char stack_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
-    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer), "P0084", "u64");
     const char *cursor = buffer;
     while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n') cursor++;
     bool is_negative = *cursor == '-';
@@ -357,7 +362,7 @@ uint64_t gray_builtin_string_to_u64(GrayString string) {
 static void string_to_wide_integer(GrayString string, const char *type_name, int bits, bool is_signed,
                                    const char *file, int line, uint64_t out[4]) {
     char stack_buffer[128];
-    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer), "P0084", type_name);
     const char *cursor = buffer;
     while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n') cursor++;
     bool is_negative = false;
@@ -429,7 +434,7 @@ gray_u256 gray_builtin_string_to_u256(GrayString string, const char *file, int l
 
 double gray_builtin_string_to_f64(GrayString string) {
     char stack_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
-    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer));
+    char *buffer = string_cast_buffer(string, stack_buffer, sizeof(stack_buffer), "P0085", "f64");
     char *end_cursor = NULL;
     double result = strtod(buffer, &end_cursor);
     if (end_cursor == buffer || !only_spaces_remain(end_cursor)) {
