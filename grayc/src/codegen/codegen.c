@@ -14895,6 +14895,7 @@ static void codegen_emit_json_helpers(CodeGen *codegen) {
     for (int i = 0; i < codegen->struct_declaration_count; i++) {
         AstNode *statement = codegen->struct_declarations[i];
         if (!statement->data.struct_declaration.is_json) continue;
+        codegen_enter_node(codegen, statement);
         const char *struct_name = statement->data.struct_declaration.name;
         int field_count = statement->data.struct_declaration.field_count;
 

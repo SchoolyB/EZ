@@ -1,0 +1,12 @@
+import @json
+import "./other.gray"
+
+#json
+const Summary struct {
+    level Severity
+}
+
+const Severity enum {
+    CALM = "calm"
+    WARN = "warn"
+}
