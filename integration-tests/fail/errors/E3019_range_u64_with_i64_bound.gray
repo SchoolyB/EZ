@@ -1,0 +1,8 @@
+/* Error Test: E3019 - an i64 bound in a u64 range needs a cast */
+do main() {
+    mut a u64 = 1
+    mut n i64 = 4
+    for i in range(a, n) {
+        println(i)
+    }
+}

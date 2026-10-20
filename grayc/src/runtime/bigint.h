@@ -1409,6 +1409,41 @@ static inline int64_t GrayRange_##WIDE##_len(GrayRange_##WIDE range, const char 
     return gray_##WIDE##_to_i64(quotient, file, line) + 1; \
 }
 
+/* u64 is native in C, but its range runs through the same helpers as the wide
+ * types: there is no i64 range that holds every u64. */
+typedef uint64_t gray_u64;
+static inline gray_u64 gray_u64_from_u64(uint64_t value) { return value; }
+static inline bool gray_u64_eq(gray_u64 left, gray_u64 right) { return left == right; }
+static inline bool gray_u64_lt(gray_u64 left, gray_u64 right) { return left < right; }
+static inline bool gray_u64_le(gray_u64 left, gray_u64 right) { return left <= right; }
+static inline bool gray_u64_gt(gray_u64 left, gray_u64 right) { return left > right; }
+static inline bool gray_u64_ge(gray_u64 left, gray_u64 right) { return left >= right; }
+static inline gray_u64 gray_u64_add(gray_u64 left, gray_u64 right) { return left + right; }
+static inline gray_u64 gray_u64_sub(gray_u64 left, gray_u64 right) { return left - right; }
+/* The range helpers subtract only the smaller bound from the larger. */
+static inline gray_u64 gray_u64_sub_checked(gray_u64 left, gray_u64 right, const char *file, int line) {
+    (void)file; (void)line;
+    return left - right;
+}
+static inline gray_u64 gray_u64_div(gray_u64 left, gray_u64 right, const char *file, int line) {
+    if (right == 0) gray_panic_code_at(file, line, "P0090", "range step cannot be zero");
+    return left / right;
+}
+static inline gray_u64 gray_u64_mod(gray_u64 left, gray_u64 right, const char *file, int line) {
+    if (right == 0) gray_panic_code_at(file, line, "P0090", "range step cannot be zero");
+    return left % right;
+}
+static inline int64_t gray_u64_to_i64(gray_u64 value, const char *file, int line) {
+    if (value > (uint64_t)INT64_MAX) gray_panic_code_at(file, line, "P0155", "len() of a range exceeds the largest i64");
+    return (int64_t)value;
+}
+/* The next value of a stepped range loop; a sum that wraps is past the stop. */
+static inline gray_u64 gray_u64_range_advance(gray_u64 value, gray_u64 step, gray_u64 stop) {
+    gray_u64 result = value + step;
+    return result < value ? stop : result;
+}
+
+GRAY_DEFINE_WIDE_RANGE(u64)
 GRAY_DEFINE_WIDE_RANGE(i128)
 GRAY_DEFINE_WIDE_RANGE(u128)
 GRAY_DEFINE_WIDE_RANGE(i256)

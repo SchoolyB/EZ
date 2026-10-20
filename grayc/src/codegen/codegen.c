@@ -831,6 +831,7 @@ static const char *gray_type_to_c_codegen(CodeGen *codegen, const char *type_nam
         if (strcmp(type_name, "Range<u128>") == 0) return "GrayRange_u128";
         if (strcmp(type_name, "Range<i256>") == 0) return "GrayRange_i256";
         if (strcmp(type_name, "Range<u256>") == 0) return "GrayRange_u256";
+        if (strcmp(type_name, "Range<u64>") == 0) return "GrayRange_u64";
         return "GrayRange_i64";
     }
     if (strcmp(type_name, "i8") == 0)     return "int8_t";
@@ -1761,6 +1762,7 @@ static const char *wide_integer_prefix(const char *type_spelling) {
     if (strcmp(type_spelling, "u128") == 0) return "gray_u128";
     if (strcmp(type_spelling, "i256") == 0) return "gray_i256";
     if (strcmp(type_spelling, "u256") == 0) return "gray_u256";
+    if (strcmp(type_spelling, "u64") == 0) return "gray_u64";
     return NULL;
 }
 
@@ -1958,9 +1960,15 @@ static void emit_wide_integer_operand(CodeGen *codegen, AstNode *operand,
     }
 }
 
-/* The integer type a Range<T> value runs in: "i64" or a wide integer type. */
+/* True for the integer types a range is held in through the wide-integer
+ * helpers: the wide integer types, and u64, whose range has no i64 form. */
+static bool is_range_helper_integer(const char *type_name) {
+    return is_wide_integer_type_name(type_name) || strcmp(type_name, "u64") == 0;
+}
+
+/* The integer type a Range<T> value runs in: "i64", "u64" or a wide integer type. */
 static const char *stored_range_element(GrayType *range_type) {
-    static const char *const wide_elements[] = { "i128", "u128", "i256", "u256" };
+    static const char *const wide_elements[] = { "i128", "u128", "i256", "u256", "u64" };
     for (size_t index = 0; index < sizeof(wide_elements) / sizeof(wide_elements[0]); index++) {
         size_t length = strlen(wide_elements[index]);
         if (strncmp(range_type->name + strlen("Range<"), wide_elements[index], length) == 0)
@@ -1974,7 +1982,7 @@ static const char *stored_range_element(GrayType *range_type) {
 static void emit_range_value(CodeGen *codegen, AstNode *node) {
     GrayType *range_type = codegen_type_of(codegen, node);
     const char *element = stored_range_element(range_type);
-    bool is_wide = is_wide_integer_type_name(element);
+    bool is_wide = is_range_helper_integer(element);
     const char *prefix = is_wide ? wide_integer_prefix(element) : NULL;
     int range_id = codegen_next_id(codegen);
     AstNode *parts[] = { node->data.range_expression.start, node->data.range_expression.end,
@@ -2008,7 +2016,7 @@ static void emit_stored_range_membership(CodeGen *codegen, AstNode *location_nod
     const char *range_c_type = gray_type_to_c_codegen(codegen, range_type->name);
     int range_id = codegen_next_id(codegen);
     emit_formatted(codegen, "({ %s _gray_subject_%d = ",
-        is_wide_integer_type_name(element) ? wide_integer_prefix(element) : "int64_t", range_id);
+        is_range_helper_integer(element) ? wide_integer_prefix(element) : "int64_t", range_id);
     if (subject_c) emit(codegen, subject_c);
     else emit_expression(codegen, subject_node);
     emit_formatted(codegen, "; %s _gray_range_%d = ", range_c_type, range_id);
@@ -3453,6 +3461,12 @@ static void emit_infix_expression(CodeGen *codegen, AstNode *node) {
             if (!wide) wide = resolve_wide_integer_type(codegen, range->data.range_expression.end);
             if (!wide && range->data.range_expression.step)
                 wide = resolve_wide_integer_type(codegen, range->data.range_expression.step);
+            if (!wide) {
+                GrayType *u64_range_type = codegen_type_of(codegen, range);
+                if (u64_range_type && u64_range_type->kind == TYPE_KIND_RANGE &&
+                    strcmp(stored_range_element(u64_range_type), "u64") == 0)
+                    wide = "u64";
+            }
             /* A step can run the range downward, so the bounds are compared
              * the way a held range compares them. */
             if (!wide && range->data.range_expression.step) {
@@ -12675,6 +12689,9 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
                                   iterable_node->data.range_expression.step };
             for (int bound_index = 0; bound_index < 3 && !wide; bound_index++)
                 wide = bounds[bound_index] ? resolve_wide_integer_type(codegen, bounds[bound_index]) : NULL;
+            if (!wide && iterable_type && iterable_type->kind == TYPE_KIND_RANGE &&
+                strcmp(stored_range_element(iterable_type), "u64") == 0)
+                wide = "u64";
         }
 
         if (wide) {
@@ -12814,7 +12831,7 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
         const char *element = stored_range_element(iterable_type);
         const char *range_c_type = gray_type_to_c_codegen(codegen, iterable_type->name);
         int range_id = codegen_next_id(codegen);
-        if (is_wide_integer_type_name(element)) wide = element;
+        if (is_range_helper_integer(element)) wide = element;
         emit_formatted(codegen, "%s _gray_range_%d = ", range_c_type, range_id);
         emit_expression(codegen, iterable_node);
         emit(codegen, ";\n");

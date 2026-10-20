@@ -14,8 +14,8 @@
 #   - a compound assignment at the type's maximum value (overflow panic)
 #   - a shift by a count at and beyond the type's width  (P0092)
 #
-# A range() bound or step is a slot whose target is i64, or the widest wide
-# integer type among the range's bounds: each type is stored into the start,
+# A range() bound or step is a slot whose target is i64, u64 when a bound is
+# u64, or the widest wide integer type among the range's bounds: each type is stored into the start,
 # the end and the step, and into a bound of a range whose other bound is i128.
 # A runtime panic file pins its panic code with an expect-contains marker.
 #
@@ -214,13 +214,12 @@ i64_slot_outcome() {
 }
 
 # The code a value of type $2 stored into range slot $1 gets, or "ok". An
-# integer widens into i64 or makes the range wide; a u64 crosses signedness
-# against i64, and a u128 or u256 against an i128 bound.
+# integer widens into i64, or makes the range u64 or wide; a u128 or u256
+# crosses signedness against an i128 bound.
 range_slot_outcome() {
     local slot="$1" s="$2"
     case "$s" in
         f32|f64) echo E5026 ;;
-        u64) [ "$slot" = range_bound_with_i128 ] && echo ok || echo E3019 ;;
         u128|u256) [ "$slot" = range_bound_with_i128 ] && echo E3019 || echo ok ;;
         *) echo ok ;;
     esac

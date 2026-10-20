@@ -5249,12 +5249,14 @@ static GrayType *range_element_type(GrayType *range_type) {
 }
 
 /* True when the integer `value_type` is checked against a range held in a
- * variable without conversion: a wide range takes only its own wide type, an
- * i64 range only a value that is not wide. */
+ * variable without conversion: a wide range takes only its own wide type, a
+ * u64 range an unsigned value that is not wide, an i64 range only a value that
+ * is neither wide nor u64. */
 static bool range_holds_integer(GrayType *range_type, GrayType *value_type) {
     GrayType *element_type = range_element_type(range_type);
     bool value_is_wide = is_wide_integer_type_name(value_type->name);
-    if (!is_wide_integer_type_name(element_type->name)) return !value_is_wide;
+    if (strcmp(element_type->name, "u64") == 0) return value_type->kind == TYPE_KIND_UNSIGNED_INTEGER && !value_is_wide;
+    if (!is_wide_integer_type_name(element_type->name)) return !value_is_wide && strcmp(value_type->name, "u64") != 0;
     return value_is_wide && strcmp(value_type->name, element_type->name) == 0;
 }
 
@@ -12628,8 +12630,9 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         AstNode *parts[] = { node->data.range_expression.start,
                              node->data.range_expression.end,
                              node->data.range_expression.step };
-        /* The range runs in i64, or in the widest wide integer type among
-         * its bounds; every bound and the step are checked as that type. */
+        /* The range runs in i64, in u64 when a bound is u64, or in the widest
+         * wide integer type among its bounds; every bound and the step are
+         * checked as that type. */
         GrayType *range_type = &TYPE_I64;
         for (int part_index = 0; part_index < 3; part_index++) {
             if (!parts[part_index]) continue;
@@ -12637,6 +12640,8 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             GrayType *parameter_type = resolve_untyped(checker, parts[part_index]);
             if (parameter_type->name && is_wide_integer_type_name(parameter_type->name) &&
                 integer_type_name_width_rank(parameter_type->name) > integer_type_name_width_rank(range_type->name))
+                range_type = parameter_type;
+            else if (parameter_type->name && strcmp(parameter_type->name, "u64") == 0 && range_type == &TYPE_I64)
                 range_type = parameter_type;
         }
         for (int part_index = 0; part_index < 3; part_index++) {

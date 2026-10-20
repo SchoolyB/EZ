@@ -60,6 +60,12 @@ do case_1635() {
         println(i)
     }
 }
+do case_1636() {
+    mut src u64 = 1
+    for i in range(src, 3) {
+        println(i)
+    }
+}
 do case_1637() {
     mut src u128 = 1
     for i in range(src, 3) {
@@ -84,6 +90,7 @@ do main() {
     case_1633()
     case_1634()
     case_1635()
+    case_1636()
     case_1637()
     case_1638()
 }

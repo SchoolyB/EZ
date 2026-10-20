@@ -1542,11 +1542,11 @@ for i in range(10, 0, -2) { }   // 10, 8, 6, 4, 2   (decrement)
 
 Ranges are inclusive of the start value and exclusive of the end value.
 
-A `for` loop over a range gives its variable the type `i64`. When any bound is a wide
-integer (`i128`, `u128`, `i256`, `u256`), the range runs in the widest of them, every
-bound and the step are checked as that type (see [Sized Types](#318-sized-types)), and
-the loop variable has that type. A `u64` bound of an `i64` range, or a `u128` bound of an
-`i128` range, crosses signedness and needs a `cast`.
+A `for` loop over a range gives its variable the type `i64`. When any bound is a `u64`
+or a wide integer (`i128`, `u128`, `i256`, `u256`), the range runs in the widest of
+them, every bound and the step are checked as that type (see
+[Sized Types](#318-sized-types)), and the loop variable has that type. Mixing signedness
+(an `i64` bound in a `u64` range, or a `u128` bound of an `i128` range) needs a `cast`.
 
 **Step validation rules:**
 - Positive step (or omitted) expects start ≤ end; negative step expects start ≥ end.

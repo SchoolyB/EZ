@@ -1,0 +1,6 @@
+/* Error Test: E3085 - a u64 value checked against a Range<i64> */
+do main() {
+    mut a u64 = 1
+    mut r = range(0, 5)
+    println(a in r)
+}
