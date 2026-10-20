@@ -1,0 +1,9 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - compound element assignment on an indexed inner array during for_each over it */
+do main() {
+    mut g [[i64]] = {{1, 2, 3}, {9}}
+    for_each v in g[0] {
+        g[0][2] += 1
+    }
+    println(g)
+}

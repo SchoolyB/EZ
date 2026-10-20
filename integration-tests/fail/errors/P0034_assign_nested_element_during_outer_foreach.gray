@@ -1,0 +1,9 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - inner element assignment during for_each over the outer array */
+do main() {
+    mut g [[i64]] = {{1, 2, 3}, {9}}
+    for_each row in g {
+        g[0][1] = 100
+    }
+    println(g)
+}

@@ -1,0 +1,11 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - clear on a map-lookup array during for_each over it */
+import @arrays
+
+do main() {
+    mut m map[string:[i64]] = {"k": {1, 2, 3, 4}}
+    for_each v in m["k"] {
+        arrays.clear(m["k"])
+    }
+    println(m)
+}

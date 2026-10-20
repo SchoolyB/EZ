@@ -1,0 +1,111 @@
+/*
+ * foreach_indexed_array_guard_released.gray
+ * Iterating an indexed, map-lookup or indexed-field array guards the real
+ * array for the duration of the loop only: reads, writes to other arrays,
+ * and every mutation after the loop (normal end, break, early return) work.
+ */
+
+import @arrays
+
+const Box struct {
+    items [i64]
+}
+
+do first_over_two(g [[i64]]) -> i64 {
+    for_each v in g[0] {
+        return v
+    }
+    return -1
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut g [[i64]] = {{1, 2, 3}, {9, 9}}
+    mut sum i64 = 0
+    for_each v in g[0] {
+        sum += v
+        g[1][0] = sum
+    }
+    arrays.remove_at(g[0], 0)
+    g[0][0] = 50
+    if sum == 6 && g[1][0] == 6 && g[0][0] == 50 && g[0][1] == 3 {
+        println("  [PASS] indexed array: other writes allowed, mutable after loop")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] indexed array: ${sum} ${g}")
+        failed += 1
+    }
+
+    for_each v in g[0] {
+        break
+    }
+    arrays.clear(g[0])
+    if len(g[0]) == 0 {
+        println("  [PASS] indexed array mutable after break")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] indexed array after break: ${g}")
+        failed += 1
+    }
+
+    mut h [[i64]] = {{4, 5}}
+    mut first i64 = first_over_two(h)
+    arrays.clear(h[0])
+    if first == 4 && len(h[0]) == 0 {
+        println("  [PASS] indexed array mutable after early return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] indexed array after return: ${h}")
+        failed += 1
+    }
+
+    mut m map[string:[i64]] = {"k": {1, 2, 3}}
+    mut total i64 = 0
+    for_each v in m["k"] {
+        total += v
+    }
+    arrays.clear(m["k"])
+    if total == 6 && len(m["k"]) == 0 {
+        println("  [PASS] map-lookup array mutable after loop")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map-lookup array: ${total} ${m}")
+        failed += 1
+    }
+
+    mut ss [Box] = {Box{items: {1, 2, 3}}}
+    total = 0
+    for_each v in ss[0].items {
+        total += v
+    }
+    arrays.clear(ss[0].items)
+    if total == 6 && len(ss[0].items) == 0 {
+        println("  [PASS] indexed struct field array mutable after loop")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] indexed struct field array: ${total}")
+        failed += 1
+    }
+
+    mut outer [[i64]] = {{1, 2}, {3}}
+    for_each row in outer {
+        total += len(row)
+    }
+    outer[0][1] = 100
+    if outer[0][1] == 100 {
+        println("  [PASS] outer array: inner write allowed after loop")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outer array: ${outer}")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

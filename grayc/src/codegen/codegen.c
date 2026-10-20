@@ -10980,6 +10980,35 @@ static void emit_array_element_store(CodeGen *codegen, AstNode *node, GrayType *
     emit_formatted(codegen, ", \"%s\", %d); }\n", codegen_file_literal(codegen), node->token.line);
 }
 
+/* The containers an element write reaches through: `g` in `g[0][1] = v`. Each
+ * is checked the way the store macro checks the array it writes to, so a
+ * for_each over any enclosing array or map blocks the write. A path with a
+ * call or a pointer in it is not re-evaluated, and is left unchecked. */
+static void emit_enclosing_iteration_checks(CodeGen *codegen, AstNode *node, AstNode *array_expression) {
+    if (codegen->is_element_write_back || expression_contains_call(array_expression)) return;
+    AstNode *current = array_expression;
+    while (current) {
+        if (current->kind == NODE_MEMBER_EXPRESSION) {
+            GrayType *object_type = codegen_type_of(codegen, current->data.member.object);
+            if (object_type && object_type->kind == TYPE_KIND_POINTER) return;
+            current = current->data.member.object;
+        } else if (current->kind == NODE_INDEX_EXPRESSION) {
+            AstNode *container = current->data.index_expression.left;
+            GrayType *container_type = codegen_type_of(codegen, container);
+            if (!container_type || (container_type->kind != TYPE_KIND_ARRAY && container_type->kind != TYPE_KIND_MAP)) return;
+            if (container->kind != NODE_LABEL && container->kind != NODE_MEMBER_EXPRESSION &&
+                container->kind != NODE_INDEX_EXPRESSION) return;
+            emit(codegen, "if (gray_atomic_load32(&(");
+            emit_expression(codegen, container);
+            emit_formatted(codegen, ").iterating) > 0) { %s; } ",
+                panic_call(codegen, node, container_type->kind == TYPE_KIND_MAP ? "P0035" : "P0034", ""));
+            current = container;
+        } else {
+            return;
+        }
+    }
+}
+
 /* arr[i] = v and compound forms; `left` is the indexed array expression. */
 static void emit_array_index_assign(CodeGen *codegen, AstNode *node, AstNode *left, GrayType *left_type) {
     const char *c_element_type = "int64_t";
@@ -11428,6 +11457,7 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
         AstNode *left = node->data.assign.target->data.index_expression.left;
         GrayType *left_type = codegen_type_of(codegen, left);
         if (left_type && left_type->kind == TYPE_KIND_ARRAY) {
+            emit_enclosing_iteration_checks(codegen, node, left);
             emit_array_index_assign(codegen, node, left, left_type);
             return;
         }
@@ -11882,12 +11912,14 @@ static void emit_iteration_guard_unwind(CodeGen *codegen) {
     }
 }
 
-/* True for a field path like b.items or a.b.items — an lvalue naming the
- * caller's array, with no calls or indexing to re-evaluate. Iterating one of
- * these can guard the real array instead of the by-value snapshot. */
-static bool is_stable_field_path(AstNode *node) {
-    while (node && node->kind == NODE_MEMBER_EXPRESSION) {
-        node = node->data.member.object;
+/* True for a path like b.items, a.b.items, g[0], m["k"] or ss[0].items — an
+ * lvalue naming the caller's array, rooted at a variable. Iterating one of
+ * these can guard the real array instead of the by-value snapshot; the
+ * path is evaluated once, into a pointer to the array header. */
+static bool is_real_array_path(AstNode *node) {
+    while (node && (node->kind == NODE_MEMBER_EXPRESSION || node->kind == NODE_INDEX_EXPRESSION)) {
+        node = node->kind == NODE_MEMBER_EXPRESSION ? node->data.member.object
+                                                    : node->data.index_expression.left;
     }
     return node && node->kind == NODE_LABEL;
 }
@@ -13214,10 +13246,10 @@ static void emit_foreach_array(CodeGen *codegen, AstNode *node, AstNode *coll,
     char length_name[SHORT_VARIABLE_BUFFER_SIZE];
     snprintf(length_name, sizeof(length_name), "_gray_alen%d", array_length_id);
     *out_collection_needs_temporary = (coll->kind != NODE_LABEL);
-    /* A field path names an array the caller can still reach, so the guard
+    /* A field, index or map-lookup path names an array the caller can still reach, so the guard
      * has to sit on that array — putting it on the snapshot below would let
      * destructive mutations through unnoticed. */
-    bool guard_real = *out_collection_needs_temporary && is_stable_field_path(coll);
+    bool guard_real = *out_collection_needs_temporary && is_real_array_path(coll);
     char guard_pointer[SHORT_VARIABLE_BUFFER_SIZE];
     guard_pointer[0] = '\0';
     if (*out_collection_needs_temporary) {

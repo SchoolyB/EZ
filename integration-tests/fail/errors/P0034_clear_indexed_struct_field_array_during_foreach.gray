@@ -1,0 +1,15 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - clear on a field of an indexed struct during for_each over it */
+import @arrays
+
+const Box struct {
+    items [i64]
+}
+
+do main() {
+    mut ss [Box] = {Box{items: {1, 2, 3}}}
+    for_each v in ss[0].items {
+        arrays.clear(ss[0].items)
+    }
+    println(ss[0].items)
+}
