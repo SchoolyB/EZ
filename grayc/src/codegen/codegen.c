@@ -12057,14 +12057,17 @@ static void emit_iteration_guard_unwind(CodeGen *codegen) {
     }
 }
 
-/* True for a path like b.items, a.b.items, g[0], m["k"] or ss[0].items — an
- * lvalue naming the caller's array, rooted at a variable. Iterating one of
- * these can guard the real array instead of the by-value snapshot; the
- * path is evaluated once, into a pointer to the array header. */
+/* True for a path like b.items, a.b.items, p^.items, g[0], m["k"] or
+ * ss[0].items — an lvalue naming the caller's array, rooted at a variable.
+ * Iterating one of these can guard the real array instead of the by-value
+ * snapshot; the path is evaluated once, into a pointer to the array header. */
 static bool is_real_array_path(AstNode *node) {
-    while (node && (node->kind == NODE_MEMBER_EXPRESSION || node->kind == NODE_INDEX_EXPRESSION)) {
-        node = node->kind == NODE_MEMBER_EXPRESSION ? node->data.member.object
-                                                    : node->data.index_expression.left;
+    while (node) {
+        if (node->kind == NODE_MEMBER_EXPRESSION) node = node->data.member.object;
+        else if (node->kind == NODE_INDEX_EXPRESSION) node = node->data.index_expression.left;
+        else if (node->kind == NODE_POSTFIX_EXPRESSION && node->data.postfix.operator == TOKEN_CARET)
+            node = node->data.postfix.left;
+        else break;
     }
     return node && node->kind == NODE_LABEL;
 }

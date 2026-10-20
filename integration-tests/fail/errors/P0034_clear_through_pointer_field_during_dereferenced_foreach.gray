@@ -1,0 +1,14 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - clear through p.items of an array iterated as p^.items during for_each */
+import @arrays
+
+const S struct { items [i64] }
+
+do main() {
+    mut p ^S = new(S)
+    p^.items = {1, 2, 3}
+    for_each x in p^.items {
+        arrays.clear(p.items)
+        println(x)
+    }
+}
