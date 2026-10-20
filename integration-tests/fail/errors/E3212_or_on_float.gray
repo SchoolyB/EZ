@@ -1,0 +1,6 @@
+/* Error Test: E3212 - '||' used on an f64 operand */
+do main() {
+    mut ratio f64 = 1.5
+    mut r bool = true || ratio
+    println(r)
+}

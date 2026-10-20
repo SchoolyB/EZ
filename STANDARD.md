@@ -1395,6 +1395,8 @@ Comparison operators only work on primitive types (numeric kinds, `bool`, `char`
 
 Logical AND and OR use short-circuit evaluation: the right operand is not evaluated if the result can be determined from the left operand alone.
 
+All three operators require `bool` operands. There is no truthiness: integers, floats, chars, pointers, strings, arrays and structs are rejected (`E3212` for `&&` and `||`, `E3090` for `!`). Write the comparison explicitly, such as `count != 0` or `ptr != nil`.
+
 #### 5.2.4 Membership Operators
 
 | Operator | Description |

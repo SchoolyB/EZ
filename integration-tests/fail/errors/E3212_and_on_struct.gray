@@ -1,0 +1,10 @@
+/* Error Test: E3212 - '&&' used on a struct operand */
+const Point struct {
+    x i64
+}
+
+do main() {
+    mut p Point = Point{x: 1}
+    mut r bool = true && p
+    println(r)
+}

@@ -10965,9 +10965,24 @@ static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
         infix_errored = true;
     }
 
+    /* E3212: '&&' and '||' require bool operands, matching '!' (E3090).
+     * Without this, integers, floats, chars and pointers took C truthiness
+     * and arrays/structs leaked C compiler errors. */
+    if (operator == TOKEN_AND || operator == TOKEN_OR) {
+        AstNode *operand_nodes[2] = { node->data.infix.left, node->data.infix.right };
+        GrayType *operand_types[2] = { left, right };
+        for (int operand_index = 0; operand_index < 2; operand_index++) {
+            GrayType *operand_type = operand_types[operand_index];
+            if (operand_type->kind == TYPE_KIND_BOOL || operand_type->kind == TYPE_KIND_UNKNOWN) continue;
+            NODE_ERROR_FORMATTED(checker, operand_nodes[operand_index], "E3212",
+                operator_display_name(operator), type_display_name(checker, operand_type));
+            infix_errored = true;
+        }
+    }
+
     /* Arithmetic on strings (-, *, /, %, etc.) */
     if ((left->kind == TYPE_KIND_STRING || right->kind == TYPE_KIND_STRING) &&
-        operator != TOKEN_PLUS && operator != TOKEN_EQUAL && operator != TOKEN_NOT_EQUAL &&
+        operator != TOKEN_PLUS && operator != TOKEN_AND && operator != TOKEN_OR && operator != TOKEN_EQUAL && operator != TOKEN_NOT_EQUAL &&
         operator != TOKEN_IN && operator != TOKEN_NOT_IN) {
         NODE_ERROR_FORMATTED(checker, node, "E3180", operator_display_name(operator));
         infix_errored = true;

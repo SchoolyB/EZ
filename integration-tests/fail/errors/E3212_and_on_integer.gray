@@ -1,0 +1,8 @@
+/* Error Test: E3212 - '&&' used on an i64 operand */
+do main() {
+    mut cur i64 = 0
+    mut max i64 = 0
+    if cur && max == 0 {
+        println("zero")
+    }
+}
