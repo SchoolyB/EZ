@@ -8579,8 +8579,30 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         const char *source_element = codegen_array_element_type(codegen, node->data.call.arguments[0]);
         if (source_element && type_shares_storage(codegen, source_element)) copied_element = source_element;
     }
+    char copied_type_name[MESSAGE_BUFFER_SIZE];
+    copied_type_name[0] = '\0';
+    if (copied_element) {
+        snprintf(copied_type_name, sizeof(copied_type_name), "[%s]", copied_element);
+    } else if (strcmp(function_name, "split_every") == 0 || strcmp(function_name, "pair") == 0 ||
+               strcmp(function_name, "flatten") == 0) {
+        /* split_every and pair nest the source's elements one array deeper,
+         * flatten lifts them one out; either way the result must not share
+         * their storage with the source. */
+        const char *source_element = codegen_array_element_type(codegen, node->data.call.arguments[0]);
+        bool is_flatten = strcmp(function_name, "flatten") == 0;
+        const char *inner_element = source_element;
+        if (is_flatten) inner_element = source_element && source_element[0] == '[' ? source_element + 1 : NULL;
+        size_t inner_length = inner_element ? strlen(inner_element) : 0;
+        if (is_flatten && inner_length > 0) inner_length--;
+        char element_name[MESSAGE_BUFFER_SIZE];
+        if (inner_element) snprintf(element_name, sizeof(element_name), "%.*s", (int)inner_length, inner_element);
+        if (inner_element && type_shares_storage(codegen, element_name)) {
+            if (is_flatten) snprintf(copied_type_name, sizeof(copied_type_name), "[%s]", element_name);
+            else snprintf(copied_type_name, sizeof(copied_type_name), "[[%s]]", element_name);
+        }
+    }
     int copied_id = codegen_next_id(codegen);
-    if (copied_element) emit_formatted(codegen, "({ GrayArray _ac%d = ", copied_id);
+    if (copied_type_name[0]) emit_formatted(codegen, "({ GrayArray _ac%d = ", copied_id);
     /* A plain enum is a 4-byte array element but an 8-byte map key. */
     const char *counted_element = strcmp(function_name, "counts") == 0
         ? codegen_array_element_type(codegen, node->data.call.arguments[0]) : NULL;
@@ -8612,12 +8634,11 @@ static bool emit_arrays_call(CodeGen *codegen, AstNode *node, const char *functi
         }
     }
     emit(codegen, ")");
-    if (copied_element) {
-        char source_variable[SHORT_VARIABLE_BUFFER_SIZE], full_type_name[MESSAGE_BUFFER_SIZE];
+    if (copied_type_name[0]) {
+        char source_variable[SHORT_VARIABLE_BUFFER_SIZE];
         snprintf(source_variable, sizeof(source_variable), "_ac%d", copied_id);
-        snprintf(full_type_name, sizeof(full_type_name), "[%s]", copied_element);
         emit(codegen, "; ");
-        emit_value_deep_copy(codegen, full_type_name, source_variable);
+        emit_value_deep_copy(codegen, copied_type_name, source_variable);
         emit(codegen, "; })");
     }
     return true;

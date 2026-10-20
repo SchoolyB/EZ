@@ -1,0 +1,32 @@
+/*
+ * arrays_split_flatten_pair_copy_elements.gray - arrays.split_every,
+ * flatten and pair return elements that do not share storage with the source.
+ */
+
+import @arrays
+
+const In struct { v [i64] }
+
+do main() {
+    mut r [[i64]] = {{5}, {6}}
+    mut split [[[i64]]] = arrays.split_every(r, 1)
+    split[0][0][0] = 1000
+    if r[0][0] != 5 { panic("split_every aliased its source") }
+
+    mut structs [In] = {In{v: {1}}, In{v: {2}}}
+    mut chunks [[In]] = arrays.split_every(structs, 1)
+    chunks[0][0].v[0] = 2000
+    if structs[0].v[0] != 1 { panic("split_every aliased a struct source") }
+
+    mut deep [[[i64]]] = {{{1}}, {{2}}}
+    mut flat [[i64]] = arrays.flatten(deep)
+    flat[0][0] = 3000
+    if deep[0][0][0] != 1 { panic("flatten aliased its source") }
+
+    mut left [[i64]] = {{1}}
+    mut right [[i64]] = {{2}}
+    mut paired = arrays.pair(left, right)
+    paired[0][0][0] = 99
+    if left[0][0] != 1 { panic("pair aliased its source") }
+    println("[PASS] split_every, flatten and pair copy elements")
+}
