@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.12.3](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.12.2...grayscale-v0.12.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **codegen:** check bare func elements against the typed func slot they flow into ([#3192](https://github.com/grayscale-lang/grayscale/issues/3192)) ([2977014](https://github.com/grayscale-lang/grayscale/commit/297701491a281de537937c7c8af4dc14488cb075))
+* **codegen:** copy composite values stored by index to the outer arena ([#3191](https://github.com/grayscale-lang/grayscale/issues/3191)) ([1ddb33e](https://github.com/grayscale-lang/grayscale/commit/1ddb33e5a1a449eb10a380f433495b23049d4d5a))
+* **codegen:** copy composite variables embedded in array, map and struct literals ([#3193](https://github.com/grayscale-lang/grayscale/issues/3193)) ([d75b6e1](https://github.com/grayscale-lang/grayscale/commit/d75b6e128b3890732944edcabb0724e94e341bab))
+* **codegen:** end stepped range loop instead of panicking past the last element ([#3182](https://github.com/grayscale-lang/grayscale/issues/3182)) ([fb23554](https://github.com/grayscale-lang/grayscale/commit/fb235548529c806903e4b6364fc533d4a70ebc30))
+* **codegen:** guard indexed and map-lookup arrays during for_each ([#3183](https://github.com/grayscale-lang/grayscale/issues/3183)) ([d2d1b52](https://github.com/grayscale-lang/grayscale/commit/d2d1b52429f22bc262b948e77947a5dc19ff1eb4))
+* **codegen:** guard plain field assignment on array elements during for_each ([#3184](https://github.com/grayscale-lang/grayscale/issues/3184)) ([86ac56a](https://github.com/grayscale-lang/grayscale/commit/86ac56a060084a92b02c93801a102c3cef44743e))
+* **codegen:** resolve #json struct field types in the struct's own module ([#3202](https://github.com/grayscale-lang/grayscale/issues/3202)) ([758895f](https://github.com/grayscale-lang/grayscale/commit/758895ffe8d21832ab30b8494dbf491a043f4df6))
+* **codegen:** resolve zero-value struct field types in the struct's own module ([#3204](https://github.com/grayscale-lang/grayscale/issues/3204)) ([abd4cfd](https://github.com/grayscale-lang/grayscale/commit/abd4cfd670490ce09abf5328c98021d28ec9e670))
+* **codegen:** size an empty tagged enum array literal by its element type ([#3205](https://github.com/grayscale-lang/grayscale/issues/3205)) ([a46abc5](https://github.com/grayscale-lang/grayscale/commit/a46abc5135bf2fd84c101daa8920672a3aa0b08a))
+* **parser:** parse for_each over an index expression on a member chain ([#3203](https://github.com/grayscale-lang/grayscale/issues/3203)) ([2e6c902](https://github.com/grayscale-lang/grayscale/commit/2e6c902a8cd05c65e7c9a31efed94e378332b0d3))
+* **runtime:** keep the recursion depth counter per thread ([#3201](https://github.com/grayscale-lang/grayscale/issues/3201)) ([341772e](https://github.com/grayscale-lang/grayscale/commit/341772ed10caf46a929d02d047c50ecc3da8e7a6))
+* **runtime:** reject trailing junk and parse whole input in string casts ([#3190](https://github.com/grayscale-lang/grayscale/issues/3190)) ([f112e43](https://github.com/grayscale-lang/grayscale/commit/f112e437a942388d073375949f8c4d9ff0fee0c6))
+* **server:** read the full request body before running the handler ([#3206](https://github.com/grayscale-lang/grayscale/issues/3206)) ([a27fbb7](https://github.com/grayscale-lang/grayscale/commit/a27fbb7710de730850587fd740a47c885a228fa1))
+* **stdlib:** parse the whole string in strconv to_i64, to_u64 and to_f64 ([#3188](https://github.com/grayscale-lang/grayscale/issues/3188)) ([b8940c7](https://github.com/grayscale-lang/grayscale/commit/b8940c7a1242e0b7f468bae775ccc76990ad8634))
+* **stdlib:** size f64_to_fixed output from the formatted length ([#3189](https://github.com/grayscale-lang/grayscale/issues/3189)) ([53fa0e9](https://github.com/grayscale-lang/grayscale/commit/53fa0e9fe766a4cf9955e43152344a1884e3832f))
+* **typechecker:** compare every enum variant's value for duplicates ([#3186](https://github.com/grayscale-lang/grayscale/issues/3186)) ([4c4d4cc](https://github.com/grayscale-lang/grayscale/commit/4c4d4cc5c6d4f0e7ce33c2f4ddae5eec2fcedf80))
+* **typechecker:** reject enum values outside the i64 range ([#3187](https://github.com/grayscale-lang/grayscale/issues/3187)) ([c1c5547](https://github.com/grayscale-lang/grayscale/commit/c1c55470dc7ec2ee9c98de36760f5082f54331cb))
+* **typechecker:** reject when cases made unreachable by an earlier range ([#3194](https://github.com/grayscale-lang/grayscale/issues/3194)) ([899beb5](https://github.com/grayscale-lang/grayscale/commit/899beb557bf00785721c194a58cd748d6fd3f08b))
+* **typechecker:** require bool operands for && and || ([#3181](https://github.com/grayscale-lang/grayscale/issues/3181)) ([f6d1696](https://github.com/grayscale-lang/grayscale/commit/f6d1696805fecaeb579e52d4ed67a26ba411176b))
+* **typechecker:** run range() over u64 bounds in u64 ([#3185](https://github.com/grayscale-lang/grayscale/issues/3185)) ([10428d7](https://github.com/grayscale-lang/grayscale/commit/10428d7b02204e28b8235f60b5dc68cebe64ac4a))
+
 ## [0.12.2](https://github.com/grayscale-lang/grayscale/compare/grayscale-v0.12.1...grayscale-v0.12.2) (2026-10-19)
 
 
