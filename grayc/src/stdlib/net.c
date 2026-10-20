@@ -68,13 +68,24 @@ static void net_pending_store(int file_descriptor, char *data, int32_t length) {
     pthread_mutex_unlock(&net_pending_lock);
 }
 
+/* The resolver and bind address read a host up to its first NUL, and the
+ * buffer cuts anything longer, so either would silently use a different host
+ * than the one the program checked. */
+static void net_host_cstring(GrayString host, char *buffer, size_t buffer_size) {
+    if (host.len > 0 && memchr(host.data, '\0', (size_t)host.len))
+        gray_panic_code("P0165", "net: a host contains an embedded null byte");
+    if ((size_t)host.len >= buffer_size)
+        gray_panic_code("P0166", "net: a host is longer than the maximum hostname length");
+    gray_cstr(host, buffer, buffer_size);
+}
+
 GraySocket gray_net_dial(GrayArena *arena, GrayString host, int64_t port) {
     (void)arena;
     gray_net_startup();
     GraySocket sock = {-1};
 
     char host_buffer[GRAY_NET_HOST_BUFFER_SIZE];
-    gray_cstr(host, host_buffer, sizeof(host_buffer));
+    net_host_cstring(host, host_buffer, sizeof(host_buffer));
 
     /* Resolve hostname */
     struct addrinfo hints, *address_results;
@@ -204,7 +215,7 @@ void gray_net_set_timeout(GraySocket sock, int64_t milliseconds) {
 GrayString gray_net_resolve(GrayArena *arena, GrayString hostname) {
     gray_net_startup();
     char host_buffer[GRAY_NET_HOST_BUFFER_SIZE];
-    gray_cstr(hostname, host_buffer, sizeof(host_buffer));
+    net_host_cstring(hostname, host_buffer, sizeof(host_buffer));
 
     struct addrinfo hints, *address_results;
     memset(&hints, 0, sizeof(hints));
@@ -249,7 +260,7 @@ GraySocket gray_net_listen(GrayArena *arena, int64_t port, GrayString host) {
     setsockopt(file_descriptor, SOL_SOCKET, SO_REUSEADDR, (const char *)&option, sizeof(option));
 
     char host_buffer[GRAY_NET_HOST_BUFFER_SIZE];
-    gray_cstr(host, host_buffer, sizeof(host_buffer));
+    net_host_cstring(host, host_buffer, sizeof(host_buffer));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));

@@ -582,7 +582,9 @@
     GRAY_PANIC("P0161", "atomic",     "atomic.spinlock: out of memory allocating the lock") \
     GRAY_PANIC("P0162", "fmt",        "fmt.f64_to_fixed called with a negative decimals count") \
     GRAY_PANIC("P0163", "fmt",        "fmt.f64_to_fixed result exceeds maximum string length") \
-    GRAY_PANIC("P0164", "functions",  "function reference signature mismatch: expected %s, got %s")
+    GRAY_PANIC("P0164", "functions",  "function reference signature mismatch: expected %s, got %s") \
+    GRAY_PANIC("P0165", "net",        "net: a host contains an embedded null byte") \
+    GRAY_PANIC("P0166", "net",        "net: a host is longer than the maximum hostname length")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

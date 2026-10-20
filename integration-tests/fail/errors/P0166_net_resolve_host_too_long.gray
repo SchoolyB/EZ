@@ -1,0 +1,11 @@
+// expect-contains: .gray:
+/* Panic Test: P0166 - net.resolve of a host longer than the maximum hostname length */
+import @net
+
+do main() {
+    mut host string = "a"
+    for i in range(0, 300) { host = host + "a" }
+    mut a, e = net.resolve(host)
+    println(a)
+    println(e)
+}
