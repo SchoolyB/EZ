@@ -28,8 +28,6 @@
 #include <sys/wait.h>
 #endif
 
-#define GRAY_TO_STRING_BUFFER_SIZE    4096
-#define GRAY_TO_STRING_SAFE_LIMIT  (GRAY_TO_STRING_BUFFER_SIZE - 96)
 #define GRAY_FLOATING_POINT_STRING_BUFFER_SIZE        64
 #define GRAY_INPUT_BUFFER_SIZE       4096
 
@@ -452,9 +450,8 @@ static void format_float_element(char *output, size_t out_size, const void *elem
 }
 
 /* An integer element of any width, read by its element kind, as decimal
- * text at buf[pos]; returns the new pos. */
-static int format_integer_element(GrayArena *arena, char *buffer, size_t buffer_size, int position,
-                                  const void *element, int32_t element_kind) {
+ * text appended to `output`. */
+static void format_integer_element(GrayArena *arena, GrayFmtOut *output, const void *element, int32_t element_kind) {
     GrayString text;
     switch (element_kind) {
     case GRAY_ELEM_I128: text = gray_i128_to_string(arena, *(const gray_i128 *)element); break;
@@ -462,65 +459,61 @@ static int format_integer_element(GrayArena *arena, char *buffer, size_t buffer_
     case GRAY_ELEM_I256: text = gray_i256_to_string(arena, *(const gray_i256 *)element); break;
     case GRAY_ELEM_U256: text = gray_u256_to_string(arena, *(const gray_u256 *)element); break;
     case GRAY_ELEM_U8: case GRAY_ELEM_U16: case GRAY_ELEM_U32: case GRAY_ELEM_U64:
-        return position + snprintf(buffer + position, buffer_size - position, "%" PRIu64, gray_elem_to_u64(element_kind, element));
+        gray_fmt_out_printf(output, "%" PRIu64, gray_elem_to_u64(element_kind, element));
+        return;
     default:
-        return position + snprintf(buffer + position, buffer_size - position, "%" PRId64, gray_elem_to_i64(element_kind, element));
+        gray_fmt_out_printf(output, "%" PRId64, gray_elem_to_i64(element_kind, element));
+        return;
     }
-    return position + snprintf(buffer + position, buffer_size - position, "%.*s", (int)text.len, text.data);
+    gray_fmt_out_printf(output, "%.*s", (int)text.len, text.data);
 }
 
-/* Append one element/value of the given kind (see the to_string callers) at
- * buf[pos]; returns the new pos. An integer is read by its element kind. */
-static int format_value_into(GrayArena *arena, char *buffer, size_t buffer_size, int position, int kind,
-                             const void *value_pointer, int32_t element_kind) {
+/* Append one element/value of the given kind (see the to_string callers) to
+ * `output`, which grows to hold it. An integer is read by its element kind. */
+static void format_value_into(GrayArena *arena, GrayFmtOut *output, int kind,
+                              const void *value_pointer, int32_t element_kind) {
     switch (kind) {
     case 0:
-        position = format_integer_element(arena, buffer, buffer_size, position, value_pointer, element_kind);
+        format_integer_element(arena, output, value_pointer, element_kind);
         break;
     case 1: {
         char floating_point_buffer[GRAY_FLOATING_POINT_STRING_BUFFER_SIZE];
         format_float_element(floating_point_buffer, sizeof(floating_point_buffer), value_pointer, element_kind);
-        position += snprintf(buffer + position, buffer_size - position, "%s", floating_point_buffer);
+        gray_fmt_out_printf(output, "%s", floating_point_buffer);
         break;
     }
     case 2: {
         const GrayString *element = (const GrayString *)value_pointer;
-        position += snprintf(buffer + position, buffer_size - position, "\"%.*s\"",
-            (int)element->len, element->data ? element->data : "");
+        gray_fmt_out_printf(output, "\"%.*s\"", (int)element->len, element->data ? element->data : "");
         break;
     }
     case 3:
-        position += snprintf(buffer + position, buffer_size - position, "%s", *(const bool *)value_pointer ? "true" : "false");
+        gray_fmt_out_printf(output, "%s", *(const bool *)value_pointer ? "true" : "false");
         break;
     case 6: {
         int32_t codepoint = *(const int32_t *)value_pointer;
         char utf8[4]; int utf8_length = codepoint_to_utf8(codepoint, utf8);
-        if (position + 2 + utf8_length < (int)buffer_size) {
-            buffer[position++] = '\'';
-            memcpy(buffer + position, utf8, (size_t)utf8_length); position += utf8_length;
-            buffer[position++] = '\'';
-        }
+        gray_fmt_out_write("'", 1, 1, output);
+        gray_fmt_out_write(utf8, 1, (size_t)utf8_length, output);
+        gray_fmt_out_write("'", 1, 1, output);
         break;
     }
     case 7:
-        position += snprintf(buffer + position, buffer_size - position, "%d", *(const int *)value_pointer);
+        gray_fmt_out_printf(output, "%d", *(const int *)value_pointer);
         break;
     }
-    return position;
 }
 
 GrayString gray_builtin_array_to_string(GrayArena *arena, GrayArray *array, int element_kind) {
-    char buffer[GRAY_TO_STRING_BUFFER_SIZE];
-    int position = 0;
-    buffer[position++] = '{';
-    for (int32_t i = 0; i < array->len && position < GRAY_TO_STRING_SAFE_LIMIT; i++) {
-        if (i > 0) { buffer[position++] = ','; buffer[position++] = ' '; }
-        position = format_value_into(arena, buffer, sizeof(buffer), position, element_kind,
+    GrayFmtOut output = {0};
+    gray_fmt_out_write("{", 1, 1, &output);
+    for (int32_t i = 0; i < array->len; i++) {
+        if (i > 0) gray_fmt_out_write(", ", 1, 2, &output);
+        format_value_into(arena, &output, element_kind,
             (char *)array->data + (size_t)i * (size_t)array->elem_size, array->elem_kind);
     }
-    buffer[position++] = '}';
-    buffer[position] = '\0';
-    return gray_string_new(arena, buffer, (int32_t)position);
+    gray_fmt_out_write("}", 1, 1, &output);
+    return gray_fmt_out_finish(arena, &output);
 }
 
 /* --- GrayFmtOut: the in-memory stream generated print code can target --- */
@@ -616,23 +609,20 @@ GrayString gray_builtin_char_to_utf8(GrayArena *arena, int32_t codepoint) {
 }
 
 GrayString gray_builtin_map_to_string(GrayArena *arena, GrayMap *map, int value_kind) {
-    char buffer[GRAY_TO_STRING_BUFFER_SIZE];
-    int position = 0;
-    buffer[position++] = '{';
+    GrayFmtOut output = {0};
+    gray_fmt_out_write("{", 1, 1, &output);
     bool first_entry = true;
-    for (int32_t order_index = 0; order_index < map->order_len && position < GRAY_TO_STRING_SAFE_LIMIT; order_index++) {
+    for (int32_t order_index = 0; order_index < map->order_len; order_index++) {
         int32_t i = map->order[order_index];
         if (i < 0 || map->states[i] != 1) continue;
-        if (!first_entry) { buffer[position++] = ','; buffer[position++] = ' '; }
+        if (!first_entry) gray_fmt_out_write(", ", 1, 2, &output);
         first_entry = false;
         GrayString *key_pointer = (GrayString *)((char *)map->keys + (size_t)i * map->key_size);
-        position += snprintf(buffer + position, sizeof(buffer) - position, "\"%.*s\": ",
-            (int)key_pointer->len, key_pointer->data ? key_pointer->data : "");
+        gray_fmt_out_printf(&output, "\"%.*s\": ", (int)key_pointer->len, key_pointer->data ? key_pointer->data : "");
         void *value_pointer = (char *)map->values + (size_t)i * map->value_size;
-        position = format_value_into(arena, buffer, sizeof(buffer), position, value_kind, value_pointer, map->value_kind);
+        format_value_into(arena, &output, value_kind, value_pointer, map->value_kind);
     }
-    if (map->count == 0) { buffer[position++] = ':'; }
-    buffer[position++] = '}';
-    buffer[position] = '\0';
-    return gray_string_new(arena, buffer, (int32_t)position);
+    if (map->count == 0) gray_fmt_out_write(":", 1, 1, &output);
+    gray_fmt_out_write("}", 1, 1, &output);
+    return gray_fmt_out_finish(arena, &output);
 }
