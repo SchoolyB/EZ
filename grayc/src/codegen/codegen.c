@@ -1456,15 +1456,10 @@ static bool composite_value_aliases(CodeGen *codegen, const char *gray_type_name
     return names_existing_storage(value) && type_shares_storage(codegen, gray_type_name);
 }
 
-/* Emit `value` as the operand of a composite store or a composite read out of
- * a container: a deep copy when it aliases existing storage, otherwise the
- * expression itself. Inside a scoped arena the copy is allocated on the outer
- * arena, since the destination outlives the block. */
-static void emit_composite_operand(CodeGen *codegen, const char *gray_type_name, AstNode *value) {
-    if (!composite_value_aliases(codegen, gray_type_name, value)) {
-        emit_expression(codegen, value);
-        return;
-    }
+/* Emit a deep copy of `value` (of type `gray_tn`), allocated on the outer
+ * arena when inside a scoped arena: the destination outlives the block, and a
+ * copy made in the block's arena dangles once that arena is destroyed. */
+static void emit_deep_copy_operand(CodeGen *codegen, const char *gray_type_name, AstNode *value) {
     int unique_id = codegen_next_id(codegen);
     char source_variable[SHORT_VARIABLE_BUFFER_SIZE];
     snprintf(source_variable, sizeof(source_variable), "_cv%d", unique_id);
@@ -1483,6 +1478,31 @@ static void emit_composite_operand(CodeGen *codegen, const char *gray_type_name,
     }
     emit_value_deep_copy(codegen, gray_type_name, source_variable);
     emit(codegen, "; })");
+}
+
+/* Emit `value` as the operand of a composite store or a composite read out of
+ * a container: a deep copy when it aliases existing storage, otherwise the
+ * expression itself. */
+static void emit_composite_operand(CodeGen *codegen, const char *gray_type_name, AstNode *value) {
+    if (!composite_value_aliases(codegen, gray_type_name, value)) {
+        emit_expression(codegen, value);
+        return;
+    }
+    emit_deep_copy_operand(codegen, gray_type_name, value);
+}
+
+/* Emit `value` as what an element store puts into a container that outlives
+ * the block. Inside a scoped arena a fresh value is built in the block's
+ * arena, which is destroyed with the block, so a value with arrays, maps or
+ * strings in it is copied to the outer arena whether or not it names existing
+ * storage. A plain string element is escaped by its own store. */
+static void emit_element_store_operand(CodeGen *codegen, const char *gray_type_name, AstNode *value) {
+    if (codegen->loop_scope_depth > 0 && gray_type_name && strcmp(gray_type_name, "string") != 0 &&
+        type_needs_deep_copy(codegen, gray_type_name)) {
+        emit_deep_copy_operand(codegen, gray_type_name, value);
+        return;
+    }
+    emit_composite_operand(codegen, gray_type_name, value);
 }
 
 /* Resolve an import alias to the actual module name, or return the name
@@ -10989,7 +11009,7 @@ static void emit_array_element_store(CodeGen *codegen, AstNode *node, GrayType *
         emit_expression(codegen, node->data.assign.value);
         emit(codegen, ")");
     } else {
-        emit_composite_operand(codegen, left_type->element_type, node->data.assign.value);
+        emit_element_store_operand(codegen, left_type->element_type, node->data.assign.value);
     }
     emit_formatted(codegen, ", \"%s\", %d); }\n", codegen_file_literal(codegen), node->token.line);
 }
@@ -11132,7 +11152,7 @@ static void emit_array_index_assign(CodeGen *codegen, AstNode *node, AstNode *le
         emit_expression(codegen, node->data.assign.value);
         emit(codegen, ")");
     } else {
-        emit_composite_operand(codegen, left_type->element_type, node->data.assign.value);
+        emit_element_store_operand(codegen, left_type->element_type, node->data.assign.value);
     }
     emit_formatted(codegen, ", \"%s\", %d);\n", codegen_file_literal(codegen), node->token.line);
 }

@@ -1,0 +1,206 @@
+/*
+ * indexed_assign_composite_outlives_scope.gray
+ * outer[index] = <array or struct value> inside a loop or if body copies the
+ * value to the outer arena, so the element still holds it once the scope's
+ * arena is reused.
+ */
+
+const Q struct {
+    tags [i64]
+}
+
+const P struct {
+    name string
+    n i64
+}
+
+const W struct {
+    inner Q
+    label string
+}
+
+const H struct {
+    grid [[i64]]
+    names [string]
+}
+
+do churn() -> string {
+    mut s string = ""
+    for i in range(0, 200) { s = s + "zzzzzzzz" }
+    return s
+}
+
+do build() -> [[i64]] {
+    mut rows [[i64]] = {{}, {}}
+    for k in range(0, 2) {
+        rows[k] = {5, k}
+    }
+    return rows
+}
+
+do check(label string, ok bool, &passed i64, &failed i64) {
+    if ok {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut nested [[i64]] = {{}, {}}
+    for i in range(0, 3) {
+        nested[1] = {i, i}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("array literal into [[i64]]", nested[1][0] == 2 && nested[1][1] == 2, passed, failed)
+
+    mut constants [[i64]] = {{}, {}}
+    for i in range(0, 3) {
+        constants[1] = {1, 2}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("constant array literal", constants[1][0] == 1 && constants[1][1] == 2, passed, failed)
+
+    mut strings_nested [[string]] = {{}, {}}
+    for i in range(0, 3) {
+        mut local string = "a" + "b"
+        strings_nested[1] = {local, local}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("locals into [[string]]", strings_nested[1][0] == "ab" && strings_nested[1][1] == "ab", passed, failed)
+
+    mut triple [[[string]]] = {{{}}}
+    for i in range(0, 3) {
+        mut local string = "q" + "r"
+        triple[0][0] = {local}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("three levels deep", triple[0][0][0] == "qr", passed, failed)
+
+    mut concat [[string]] = {{}}
+    for i in range(0, 3) {
+        concat[0] = {"x" + "y"}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("concat in a literal", concat[0][0] == "xy", passed, failed)
+
+    mut qa [Q] = {Q{tags: {}}}
+    for i in range(0, 3) {
+        qa[0] = Q{tags: {i, i}}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("struct with an array field", qa[0].tags[0] == 2 && qa[0].tags[1] == 2, passed, failed)
+
+    mut pa [P] = {P{name: "", n: 0}}
+    for i in range(0, 3) {
+        pa[0] = P{name: "a" + "b", n: i}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("struct with a string field", pa[0].name == "ab" && pa[0].n == 2, passed, failed)
+
+    mut from_variable [P] = {P{name: "", n: 0}}
+    for i in range(0, 3) {
+        mut p P = P{name: "a" + "b", n: i}
+        from_variable[0] = p
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("struct variable", from_variable[0].name == "ab" && from_variable[0].n == 2, passed, failed)
+
+    mut wa [W] = {W{inner: Q{tags: {}}, label: ""}}
+    for i in range(0, 3) {
+        wa[0] = W{inner: Q{tags: {i}}, label: "l" + "x"}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("nested struct", wa[0].inner.tags[0] == 2 && wa[0].label == "lx", passed, failed)
+
+    mut holder H = H{grid: {{}, {}}, names: {}}
+    for i in range(0, 3) {
+        holder.grid[1] = {i, i}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("struct field array element", holder.grid[1][0] == 2, passed, failed)
+
+    mut by_key map[string:[[i64]]] = {"k": {{}, {}}}
+    for i in range(0, 3) {
+        by_key["k"][1] = {i, i}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("map value array element", by_key["k"][1][0] == 2, passed, failed)
+
+    mut holders [H] = {H{grid: {{}, {}}, names: {}}}
+    for i in range(0, 3) {
+        holders[0].grid[1] = {i, i}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("array element's field element", holders[0].grid[1][0] == 2, passed, failed)
+
+    mut behind H = H{grid: {{}, {}}, names: {}}
+    mut pointer ^H = addr(behind)
+    for i in range(0, 3) {
+        pointer^.grid[1] = {i, i}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("field behind a pointer", behind.grid[1][0] == 2, passed, failed)
+
+    mut whole [H] = {H{grid: {}, names: {}}}
+    for i in range(0, 3) {
+        whole[0] = H{grid: {{i}}, names: {"a" + "b"}}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("struct with array fields", whole[0].grid[0][0] == 2 && whole[0].names[0] == "ab", passed, failed)
+
+    mut in_if [[i64]] = {{}, {}}
+    if true {
+        in_if[1] = {1, 2}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("if body", in_if[1][0] == 1 && in_if[1][1] == 2, passed, failed)
+
+    mut in_each [[i64]] = {{}, {}}
+    for_each v in {7, 8, 9} {
+        in_each[1] = {v, v}
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("for_each body", in_each[1][0] == 9, passed, failed)
+
+    mut in_while [[i64]] = {{}, {}}
+    mut counter i64 = 0
+    while counter < 3 {
+        in_while[1] = {counter, counter}
+        counter += 1
+        mut junk string = churn()
+        if len(junk) == 0 { println("x") }
+    }
+    check("while body", in_while[1][0] == 2, passed, failed)
+
+    mut rows [[i64]] = build()
+    check("rows built in a loop stay distinct", rows[0][1] == 0 && rows[1][1] == 1, passed, failed)
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
