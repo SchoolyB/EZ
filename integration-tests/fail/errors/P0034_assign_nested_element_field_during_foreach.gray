@@ -1,0 +1,17 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - plain assignment to a nested field of an array element during for_each over that array */
+const Inner struct {
+    y i64
+}
+
+const Outer struct {
+    inner Inner
+}
+
+do main() {
+    mut a [Outer] = {Outer{inner: Inner{y: 1}}}
+    for_each o in a {
+        a[0].inner.y = 9
+    }
+    println(a[0].inner.y)
+}

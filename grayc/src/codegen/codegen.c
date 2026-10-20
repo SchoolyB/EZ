@@ -11466,6 +11466,11 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
         }
     }
 
+    /* a[i].field = v writes into an element of a, so a for_each over a (or
+     * over a container of a) blocks it like any other element write. */
+    if (node->data.assign.target->kind == NODE_MEMBER_EXPRESSION)
+        emit_enclosing_iteration_checks(codegen, node, node->data.assign.target);
+
     /* Index assignment: arr[i] = v, m[key] = v */
     if (node->data.assign.target->kind == NODE_INDEX_EXPRESSION) {
         AstNode *left = node->data.assign.target->data.index_expression.left;

@@ -1,0 +1,50 @@
+/*
+ * foreach_element_field_assign_allowed.gray
+ * Plain assignment to a struct field is only blocked while a for_each is
+ * iterating the array that holds the element: other arrays, plain structs
+ * and every write after the loop are unaffected.
+ */
+
+const P struct {
+    x i64
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a [P] = {P{x: 1}, P{x: 2}}
+    mut other [P] = {P{x: 10}}
+    mut single P = P{x: 5}
+    for_each p in a {
+        other[0].x = p.x
+        single.x = p.x
+    }
+    a[0].x = 9
+    if other[0].x == 2 && single.x == 2 && a[0].x == 9 {
+        println("  [PASS] writes outside the iterated array and after the loop")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${other[0].x} ${single.x} ${a[0].x}")
+        failed += 1
+    }
+
+    for_each p in a {
+        break
+    }
+    a[1].x = 20
+    if a[1].x == 20 {
+        println("  [PASS] writes after break")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] after break: ${a[1].x}")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
