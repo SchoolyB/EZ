@@ -1,0 +1,9 @@
+// expect-contains: .gray:
+/* Panic Test: P0165 - net.resolve of a host with an embedded NUL byte */
+import @net
+
+do main() {
+    mut a, e = net.resolve("127.0.0.1\0.x.example")
+    println(a)
+    println(e)
+}

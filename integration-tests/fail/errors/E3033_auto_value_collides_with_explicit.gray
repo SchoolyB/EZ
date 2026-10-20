@@ -1,0 +1,10 @@
+/* Error Test: E3033 - an auto-incremented value equals an earlier explicit value */
+const E enum {
+    A = 1
+    B = 0
+    C
+}
+
+do main() {
+    println("${E.A}")
+}

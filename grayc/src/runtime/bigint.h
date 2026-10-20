@@ -910,6 +910,15 @@ static inline gray_i128 gray_i128_add_checked(gray_i128 left, gray_i128 right, c
     return result;
 }
 
+/* The next value of a stepped range loop; a sum that overflows is past the
+ * stop, so the loop ends there instead of panicking. */
+static inline gray_i128 gray_i128_range_advance(gray_i128 value, gray_i128 step, gray_i128 stop) {
+    gray_i128 result = gray_i128_add(value, step);
+    if ((value.high >= 0 && step.high >= 0 && result.high < 0) || (value.high < 0 && step.high < 0 && result.high >= 0))
+        return stop;
+    return result;
+}
+
 static inline gray_i128 gray_i128_sub_checked(gray_i128 left, gray_i128 right, const char *file, int line) {
     gray_i128 result = gray_i128_sub(left, right);
     if ((left.high >= 0 && right.high < 0 && result.high < 0) || (left.high < 0 && right.high >= 0 && result.high >= 0)) {
@@ -952,6 +961,13 @@ static inline gray_u128 gray_u128_add_checked(gray_u128 left, gray_u128 right, c
     return result;
 }
 
+/* The next value of a stepped range loop; a sum that overflows is past the
+ * stop, so the loop ends there instead of panicking. */
+static inline gray_u128 gray_u128_range_advance(gray_u128 value, gray_u128 step, gray_u128 stop) {
+    gray_u128 result = gray_u128_add(value, step);
+    return gray_u128_lt(result, value) ? stop : result;
+}
+
 static inline gray_u128 gray_u128_sub_checked(gray_u128 left, gray_u128 right, const char *file, int line) {
     if (gray_u128_lt(left, right)) {
         gray_panic_code_at(file, line, "P0025", "u128 subtraction result is negative, but u128 cannot hold negative values");
@@ -980,6 +996,18 @@ static inline gray_i256 gray_i256_add_checked(gray_i256 left, gray_i256 right, c
     if ((!left_is_neg && !right_is_neg && result_is_neg) || (left_is_neg && right_is_neg && !result_is_neg)) {
         gray_panic_code_at(file, line, "P0027", "i256 addition result is too large; value exceeds the range of i256");
     }
+    return result;
+}
+
+/* The next value of a stepped range loop; a sum that overflows is past the
+ * stop, so the loop ends there instead of panicking. */
+static inline gray_i256 gray_i256_range_advance(gray_i256 value, gray_i256 step, gray_i256 stop) {
+    gray_i256 result = gray_i256_add(value, step);
+    bool value_is_neg = gray_i256_is_neg(value);
+    bool step_is_neg = gray_i256_is_neg(step);
+    bool result_is_neg = gray_i256_is_neg(result);
+    if ((!value_is_neg && !step_is_neg && result_is_neg) || (value_is_neg && step_is_neg && !result_is_neg))
+        return stop;
     return result;
 }
 
@@ -1025,6 +1053,13 @@ static inline gray_u256 gray_u256_add_checked(gray_u256 left, gray_u256 right, c
         gray_panic_code_at(file, line, "P0030", "u256 addition result is too large; value exceeds the range of u256");
     }
     return result;
+}
+
+/* The next value of a stepped range loop; a sum that overflows is past the
+ * stop, so the loop ends there instead of panicking. */
+static inline gray_u256 gray_u256_range_advance(gray_u256 value, gray_u256 step, gray_u256 stop) {
+    gray_u256 result = gray_u256_add(value, step);
+    return gray_u256_lt(result, value) ? stop : result;
 }
 
 static inline gray_u256 gray_u256_sub_checked(gray_u256 left, gray_u256 right, const char *file, int line) {
@@ -1374,6 +1409,41 @@ static inline int64_t GrayRange_##WIDE##_len(GrayRange_##WIDE range, const char 
     return gray_##WIDE##_to_i64(quotient, file, line) + 1; \
 }
 
+/* u64 is native in C, but its range runs through the same helpers as the wide
+ * types: there is no i64 range that holds every u64. */
+typedef uint64_t gray_u64;
+static inline gray_u64 gray_u64_from_u64(uint64_t value) { return value; }
+static inline bool gray_u64_eq(gray_u64 left, gray_u64 right) { return left == right; }
+static inline bool gray_u64_lt(gray_u64 left, gray_u64 right) { return left < right; }
+static inline bool gray_u64_le(gray_u64 left, gray_u64 right) { return left <= right; }
+static inline bool gray_u64_gt(gray_u64 left, gray_u64 right) { return left > right; }
+static inline bool gray_u64_ge(gray_u64 left, gray_u64 right) { return left >= right; }
+static inline gray_u64 gray_u64_add(gray_u64 left, gray_u64 right) { return left + right; }
+static inline gray_u64 gray_u64_sub(gray_u64 left, gray_u64 right) { return left - right; }
+/* The range helpers subtract only the smaller bound from the larger. */
+static inline gray_u64 gray_u64_sub_checked(gray_u64 left, gray_u64 right, const char *file, int line) {
+    (void)file; (void)line;
+    return left - right;
+}
+static inline gray_u64 gray_u64_div(gray_u64 left, gray_u64 right, const char *file, int line) {
+    if (right == 0) gray_panic_code_at(file, line, "P0090", "range step cannot be zero");
+    return left / right;
+}
+static inline gray_u64 gray_u64_mod(gray_u64 left, gray_u64 right, const char *file, int line) {
+    if (right == 0) gray_panic_code_at(file, line, "P0090", "range step cannot be zero");
+    return left % right;
+}
+static inline int64_t gray_u64_to_i64(gray_u64 value, const char *file, int line) {
+    if (value > (uint64_t)INT64_MAX) gray_panic_code_at(file, line, "P0155", "len() of a range exceeds the largest i64");
+    return (int64_t)value;
+}
+/* The next value of a stepped range loop; a sum that wraps is past the stop. */
+static inline gray_u64 gray_u64_range_advance(gray_u64 value, gray_u64 step, gray_u64 stop) {
+    gray_u64 result = value + step;
+    return result < value ? stop : result;
+}
+
+GRAY_DEFINE_WIDE_RANGE(u64)
 GRAY_DEFINE_WIDE_RANGE(i128)
 GRAY_DEFINE_WIDE_RANGE(u128)
 GRAY_DEFINE_WIDE_RANGE(i256)

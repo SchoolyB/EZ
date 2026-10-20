@@ -123,6 +123,13 @@ typedef struct {
     const char *current_variable_name;
     const char *current_variable_type;
 
+    /* Every function reference emitted: its C symbol and canonical type name,
+     * for the table gray_func_check compares against. */
+    const char **function_signature_symbols;
+    const char **function_signature_types;
+    int function_signature_count;
+    int function_signature_capacity;
+
     /* Ref variables (transparent references from ref()) */
     const char **reference_variables;
     int reference_variable_count;

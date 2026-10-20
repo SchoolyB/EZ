@@ -1,0 +1,101 @@
+/*
+ * range_u64_bounds.gray
+ * range() over u64 bounds runs in u64: the loop variable is a u64, a stored
+ * range is a Range<u64>, and membership checks take u64 values, with no cast.
+ */
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a u64 = 1
+    mut b u64 = 4
+    mut step u64 = 1
+
+    mut sum u64 = 0
+    for i in range(a, b, step) {
+        sum += i
+    }
+    if sum == 6 {
+        println("  [PASS] variable step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] variable step: ${sum}")
+        failed += 1
+    }
+
+    sum = 0
+    for i in range(a, b) {
+        sum += i
+    }
+    mut count u64 = 0
+    for i in range(b) {
+        count += 1
+    }
+    if sum == 6 && count == 4 {
+        println("  [PASS] start/end and end-only forms")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] start/end and end-only forms: ${sum} ${count}")
+        failed += 1
+    }
+
+    sum = 0
+    for i in range(a, b, 2) {
+        sum += i
+    }
+    if sum == 4 {
+        println("  [PASS] literal step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] literal step: ${sum}")
+        failed += 1
+    }
+
+    mut top u64 = 18446744073709551615
+    mut last u64 = 0
+    count = 0
+    for i in range(top - 3, top, 2) {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == top - 1 {
+        println("  [PASS] bounds above the largest i64, loop ends at the type limit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] high bounds: ${count} ${last}")
+        failed += 1
+    }
+
+    mut stored = range(a, b, step)
+    sum = 0
+    for i in stored {
+        sum += i
+    }
+    if sum == 6 && len(stored) == 3 && type_of(stored) == "Range<u64>" {
+        println("  [PASS] stored range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stored range: ${sum} ${len(stored)} ${type_of(stored)}")
+        failed += 1
+    }
+
+    mut x u64 = 3
+    mut inside bool = x in range(a, b)
+    mut stepped bool = x in range(a, b, 2)
+    mut off_step bool = 2 in range(a, b, 2)
+    if inside && stepped && x in stored && !off_step && !(top in stored) {
+        println("  [PASS] membership")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] membership: ${inside} ${stepped} ${off_step}")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

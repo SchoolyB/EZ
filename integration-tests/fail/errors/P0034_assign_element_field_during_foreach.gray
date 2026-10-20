@@ -1,0 +1,13 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - plain assignment to a field of an array element during for_each over that array */
+const P struct {
+    x i64
+}
+
+do main() {
+    mut a [P] = {P{x: 1}, P{x: 2}}
+    for_each p in a {
+        a[0].x = 9
+    }
+    println(a[0].x)
+}

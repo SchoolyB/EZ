@@ -1,0 +1,18 @@
+/*
+ * interpolate_large_collection.gray - Interpolating an array or map larger
+ * than a few kilobytes yields the full text, not a truncated prefix.
+ */
+
+import @arrays
+
+do main() {
+    mut big [i64] = {}
+    for i in range(0, 2000) { arrays.append(big, i) }
+    const array_text string = "${big}"
+    if len(array_text) != 10890 { panic("array interpolation truncated") }
+
+    mut m map[string:i64] = {:}
+    for i in range(0, 1000) { m["key${i}"] = i }
+    if len("${m}") != 14780 { panic("map interpolation truncated") }
+    println("[PASS] large collection interpolation")
+}

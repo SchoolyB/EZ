@@ -1,0 +1,8 @@
+const Kind enum {
+    ROAD
+    RAIL
+}
+
+const G struct {
+    kinds map[Kind:i64]
+}

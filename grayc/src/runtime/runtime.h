@@ -68,6 +68,7 @@ typedef struct {
     size_t total_alloc_count;
     const char *panic_call_file;
     int panic_call_line;
+    int call_depth;
 } GrayThreadState;
 
 GrayThreadState *gray_thread_state(void);
@@ -76,6 +77,7 @@ GrayThreadState *gray_thread_state(void);
 #define gray_total_alloc_count (gray_thread_state()->total_alloc_count)
 #define gray_panic_call_file (gray_thread_state()->panic_call_file)
 #define gray_panic_call_line (gray_thread_state()->panic_call_line)
+#define gray_call_depth (gray_thread_state()->call_depth)
 /* One accessor call for the pair; generated code stamps the location before
  * every statement that can panic. */
 #define gray_set_panic_call(file, line) \
@@ -297,7 +299,9 @@ static inline void *gray_mem_check_live(GrayArena *arena, void *allocation, cons
 /* --- Stack depth guard --- */
 
 #define GRAY_MAX_CALL_DEPTH 10000
-extern int gray_call_depth;
+#if !defined(__TINYC__)
+extern _Thread_local int gray_call_depth;
+#endif
 
 static inline void gray_enter_func(const char *file, int line) {
     if (++gray_call_depth > GRAY_MAX_CALL_DEPTH) {
@@ -318,6 +322,25 @@ static inline void gray_exit_func(void) {
  * of these at every one, and the smaller, uniform expansion keeps the C the
  * backend has to chew through in check. Messages mirror error_codes.h. */
 _Noreturn void gray_arith_panic_add(const char *file, int line);
+
+/* The signature each function reference in the program was typed with, in its
+ * canonical encoded form ("func(i64)->i64"); the generated C defines the table.
+ * A bare func value holds a pointer and no signature, so where it flows into a
+ * typed func slot, gray_func_check compares the signature the slot expects. */
+typedef struct { void *function; const char *signature; } GrayFunctionSignatureEntry;
+extern const GrayFunctionSignatureEntry gray_function_signatures[];
+
+static inline void *gray_func_check(void *function, const char *expected, const char *file, int line) {
+    if (!function) return function;
+    for (const GrayFunctionSignatureEntry *entry = gray_function_signatures; entry->function; entry++) {
+        if (entry->function != function) continue;
+        if (strcmp(entry->signature, expected) != 0)
+            gray_panic_code_at(file, line, "P0164", "function reference signature mismatch: expected %s, got %s",
+                               expected, entry->signature);
+        return function;
+    }
+    return function;
+}
 _Noreturn void gray_arith_panic_sub(const char *file, int line);
 _Noreturn void gray_arith_panic_mul(const char *file, int line);
 _Noreturn void gray_arith_panic_neg(const char *file, int line);
@@ -384,6 +407,21 @@ static inline int64_t gray_add_check(int64_t left, int64_t right, const char *fi
     if (gray_add_overflows_i64(left, right, &result))
 #endif
         gray_arith_panic_add(file, line);
+    return result;
+}
+
+/* The next value of a stepped range loop. A sum that overflows is already past
+ * the stop, so the loop ends there instead of panicking on a value it would
+ * only compare and discard. */
+static inline int64_t gray_range_advance(int64_t value, int64_t step, int64_t stop) {
+    int64_t result;
+#if defined(__TINYC__)
+    result = (int64_t)((uint64_t)value + (uint64_t)step);
+    if (((value ^ result) & (step ^ result)) < 0)
+#else
+    if (gray_add_overflows_i64(value, step, &result))
+#endif
+        return stop;
     return result;
 }
 

@@ -811,6 +811,8 @@ const Foobar enum {
 }
 ```
 
+Enum values are `i64`. An explicit value outside the `i64` range is rejected with `E3036`, and a variant that follows `9223372036854775807` is rejected with `E3213` instead of wrapping.
+
 > 💡 **Tip:** Enum variants go on separate lines or, on one line, are separated by `;`, as in `const Color enum { RED; GREEN; BLUE }`.
 
 > 💡 **Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number. The same holds in the other direction: an enum value does not convert implicitly to an integer or, for a string-backed enum, to a `string` (assignment, arguments, returns, collection elements, `+=`, and `==` against a `string` are all rejected). Use `cast(Direction.NORTH, i64)` to get the underlying integer value.
@@ -1395,6 +1397,8 @@ Comparison operators only work on primitive types (numeric kinds, `bool`, `char`
 
 Logical AND and OR use short-circuit evaluation: the right operand is not evaluated if the result can be determined from the left operand alone.
 
+All three operators require `bool` operands. There is no truthiness: integers, floats, chars, pointers, strings, arrays and structs are rejected (`E3212` for `&&` and `||`, `E3090` for `!`). Write the comparison explicitly, such as `count != 0` or `ptr != nil`.
+
 #### 5.2.4 Membership Operators
 
 | Operator | Description |
@@ -1540,11 +1544,11 @@ for i in range(10, 0, -2) { }   // 10, 8, 6, 4, 2   (decrement)
 
 Ranges are inclusive of the start value and exclusive of the end value.
 
-A `for` loop over a range gives its variable the type `i64`. When any bound is a wide
-integer (`i128`, `u128`, `i256`, `u256`), the range runs in the widest of them, every
-bound and the step are checked as that type (see [Sized Types](#318-sized-types)), and
-the loop variable has that type. A `u64` bound of an `i64` range, or a `u128` bound of an
-`i128` range, crosses signedness and needs a `cast`.
+A `for` loop over a range gives its variable the type `i64`. When any bound is a `u64`
+or a wide integer (`i128`, `u128`, `i256`, `u256`), the range runs in the widest of
+them, every bound and the step are checked as that type (see
+[Sized Types](#318-sized-types)), and the loop variable has that type. Mixing signedness
+(an `i64` bound in a `u64` range, or a `u128` bound of an `i128` range) needs a `cast`.
 
 **Step validation rules:**
 - Positive step (or omitted) expects start ≤ end; negative step expects start ≥ end.
@@ -4935,7 +4939,7 @@ b[0] = 99
 println(a[0])   // 1 - b is an independent copy, not an alias
 ```
 
-The one place a composite gets aliased instead of copied is a **literal that embeds an existing value** — a struct or array/map literal that names an existing variable as one of its fields/elements shares that variable's backing storage rather than copying it:
+A literal that embeds an existing value copies it too — a struct, array or map literal that names an existing variable, element or field as one of its fields/elements/values gets its own independent copy:
 
 ```gray
 const Box struct {
@@ -4943,12 +4947,12 @@ const Box struct {
 }
 
 mut arr [i64] = {1, 2, 3}
-mut box Box = Box{items: arr}   // struct literal embeds arr
+mut box Box = Box{items: arr}   // struct literal embeds a copy of arr
 box.items[0] = 99
-println(arr[0])                  // 99 - box.items aliases arr
+println(arr[0])                  // 1 - box.items is independent of arr
 ```
 
-The same happens for an array or map literal that embeds an existing array/map as one of its elements/values (`{arr}`, `{"key": existing_map}`). A `const` value or a by-value parameter is never aliased this way: a literal that embeds one copies it, so a write through the literal cannot reach the constant or the caller's variable. This aliasing is scope-local: if the literal crosses a scope boundary (returned, or otherwise escaping), ASBAM's escape-copy (11.1) still deep-copies it, so it can't produce a dangling reference — but two literals built from the same source *within* the same scope will unexpectedly share mutable storage. Use `copy()` (11.3) when a literal needs to be independent of the value it was built from.
+The same holds for an array or map literal that embeds an existing array/map as one of its elements/values (`{arr}`, `{"key": existing_map}`).
 
 ### 11.3 Deep Copy
 

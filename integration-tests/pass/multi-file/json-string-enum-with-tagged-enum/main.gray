@@ -1,0 +1,13 @@
+/*
+ * Test: a #json struct with a string-backed enum field builds when another
+ * module declares a tagged enum
+ */
+import @json
+import "./mod.gray"
+
+do main() {
+    mut t mod.Summary = mod.Summary{level: mod.Severity.WARN}
+    assert(json.encode(t) == "{\"level\": \"warn\"}", "string enum field encodes by value")
+
+    println("ALL TESTS PASSED")
+}

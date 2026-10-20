@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 550 codes** (389 errors, 17 warnings, 144 panics)
+**Total: 557 codes** (391 errors, 17 warnings, 149 panics)
 
 ---
 
@@ -284,6 +284,8 @@
 | `E3209` | types | '%s.%s()' is not available on a %s enum; it is only generated for plain enums |
 | `E3210` | types | json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value |
 | `E3211` | types | '%s' requires a function that returns (T, Error); the operand is not a function call |
+| `E3212` | types | '%s' only works on bool; got '%s' |
+| `E3213` | types | enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64 |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -577,6 +579,11 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0159` | channels | channels.open capacity is too large to allocate a buffer |
 | `P0160` | channels | channels.open: out of memory allocating the channel |
 | `P0161` | atomic | atomic.spinlock: out of memory allocating the lock |
+| `P0162` | fmt | fmt.f64_to_fixed called with a negative decimals count |
+| `P0163` | fmt | fmt.f64_to_fixed result exceeds maximum string length |
+| `P0164` | functions | function reference signature mismatch: expected %s, got %s |
+| `P0165` | net | net: a host contains an embedded null byte |
+| `P0166` | net | net: a host is longer than the maximum hostname length |
 
 ---
 
@@ -601,4 +608,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-18 18:28:03 UTC*
+*Generated on 2026-10-20 19:37:17 UTC*

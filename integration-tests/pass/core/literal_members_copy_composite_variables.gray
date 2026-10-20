@@ -1,0 +1,78 @@
+/*
+ * literal_members_copy_composite_variables.gray
+ * An array, map or struct literal that embeds an array, map or struct
+ * variable copies it: mutating the new container leaves the source alone, and
+ * two entries built from one source do not share storage.
+ */
+
+const D struct {
+    items [i64]
+}
+
+const O struct {
+    inner D
+    list [i64]
+}
+
+const Buf struct {
+    data [i64, 2]
+    n i64
+}
+
+do check(label string, ok bool, &passed i64, &failed i64) {
+    if ok {
+        println("  [PASS] ${label}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ${label}")
+        failed += 1
+    }
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut a [i64] = {1, 2}
+    mut nested [[i64]] = {a}
+    nested[0][0] = 9
+    check("array literal element", a[0] == 1 && nested[0][0] == 9, passed, failed)
+
+    mut keyed map[string:[i64]] = {"k": a}
+    keyed["k"][0] = 9
+    check("map literal value", a[0] == 1 && keyed["k"][0] == 9, passed, failed)
+
+    mut d D = D{items: {1, 2}}
+    mut o O = O{inner: d, list: a}
+    o.list[0] = 9
+    o.inner.items[0] = 8
+    check("struct literal fields", a[0] == 1 && d.items[0] == 1 && o.list[0] == 9 && o.inner.items[0] == 8, passed, failed)
+
+    mut ds [D] = {d}
+    ds[0].items[0] = 9
+    check("array of structs", d.items[0] == 1 && ds[0].items[0] == 9, passed, failed)
+
+    mut twice [[i64]] = {a, a}
+    twice[0][0] = 9
+    check("two entries from one source", a[0] == 1 && twice[1][0] == 1 && twice[0][0] == 9, passed, failed)
+
+    mut b Buf = Buf{data: {1, 2}, n: 0}
+    mut w Buf = Buf{data: b.data, n: 1}
+    w.data[0] = 7
+    check("fixed-size array field", b.data[0] == 1 && w.data[0] == 7 && w.n == 1, passed, failed)
+
+    mut bs [Buf] = {b}
+    bs[0].data[1] = 8
+    check("array of structs with a fixed-size array", b.data[1] == 2 && bs[0].data[1] == 8, passed, failed)
+
+    mut mb map[string:Buf] = {"k": b}
+    mb["k"].data[1] = 8
+    check("map of structs with a fixed-size array", b.data[1] == 2 && mb["k"].data[1] == 8, passed, failed)
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

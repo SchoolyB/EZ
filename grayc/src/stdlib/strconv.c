@@ -46,13 +46,16 @@ int gray_fmt_shortest_floating_point(char *buffer, size_t buffer_size, double va
     return written_length;
 }
 
-/* Truncate a GrayString into a stack buffer and null-terminate it.
-   Returns the (possibly clamped) length. */
-static int strconv_prepare(GrayString string, char *buffer, size_t buffer_size) {
-    int length = string.len < (int32_t)buffer_size - 1 ? string.len : (int32_t)buffer_size - 1;
-    memcpy(buffer, string.data, (size_t)length);
-    buffer[length] = '\0';
-    return length;
+/* Copy a GrayString and null-terminate it: into the caller's stack buffer when
+   the whole string fits, else into the default arena. The copy is never cut
+   short, so strtoll/strtoull/strtod see every byte. */
+static char *strconv_prepare(GrayString string, char *stack_buffer, size_t stack_buffer_size) {
+    char *buffer = (size_t)string.len < stack_buffer_size
+        ? stack_buffer
+        : (char *)gray_arena_alloc_uninitialized(gray_default_arena, (size_t)string.len + 1);
+    memcpy(buffer, string.data, (size_t)string.len);
+    buffer[string.len] = '\0';
+    return buffer;
 }
 
 /* strtoll/strtoull/strtod stop at the first NUL, so a string with an embedded
@@ -81,8 +84,9 @@ static bool strconv_has_hex_prefix(const char *buffer, int64_t base) {
 int64_t gray_strconv_to_i64(GrayString string, int64_t base) {
     if (base < 2 || base > 36)
         gray_panic_code("P0054", "strconv.to_i64: invalid base %lld; must be between 2 and 36", (long long)base);
-    char buffer[STRCONV_BUFFER_SIZE];
-    int length = strconv_prepare(string, buffer, sizeof(buffer));
+    char stack_buffer[STRCONV_BUFFER_SIZE];
+    char *buffer = strconv_prepare(string, stack_buffer, sizeof(stack_buffer));
+    int length = string.len;
     if (strconv_has_nul(string) || strconv_has_hex_prefix(buffer, base) || (length > 0 && isspace((unsigned char)buffer[0])))
         gray_panic_code("P0055", "strconv.to_i64: cannot convert '%s' to i64 (base %lld)", buffer, (long long)base);
     char *end_cursor = NULL;
@@ -96,8 +100,9 @@ int64_t gray_strconv_to_i64(GrayString string, int64_t base) {
 uint64_t gray_strconv_to_u64(GrayString string, int64_t base) {
     if (base < 2 || base > 36)
         gray_panic_code("P0056", "strconv.to_u64: invalid base %lld; must be between 2 and 36", (long long)base);
-    char buffer[STRCONV_BUFFER_SIZE];
-    int length = strconv_prepare(string, buffer, sizeof(buffer));
+    char stack_buffer[STRCONV_BUFFER_SIZE];
+    char *buffer = strconv_prepare(string, stack_buffer, sizeof(stack_buffer));
+    int length = string.len;
     if (strconv_has_nul(string) || strconv_has_hex_prefix(buffer, base) || (length > 0 && isspace((unsigned char)buffer[0])))
         gray_panic_code("P0057", "strconv.to_u64: cannot convert '%s' to u64 (base %lld)", buffer, (long long)base);
     /* Reject negative numbers */
@@ -115,8 +120,9 @@ uint64_t gray_strconv_to_u64(GrayString string, int64_t base) {
 }
 
 double gray_strconv_to_f64(GrayString string) {
-    char buffer[STRCONV_BUFFER_SIZE];
-    int length = strconv_prepare(string, buffer, sizeof(buffer));
+    char stack_buffer[STRCONV_BUFFER_SIZE];
+    char *buffer = strconv_prepare(string, stack_buffer, sizeof(stack_buffer));
+    int length = string.len;
     if (strconv_has_nul(string) || strconv_is_hex_float(buffer) || strchr(buffer, '(') || (length > 0 && isspace((unsigned char)buffer[0])))
         gray_panic_code("P0059", "strconv.to_f64: cannot convert '%s' to f64", buffer);
     char *end_cursor = NULL;
@@ -135,8 +141,9 @@ GrayResult_i64 gray_strconv_to_i64_result(GrayString string, int64_t base) {
         GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_InvalidInput, message);
         return (GrayResult_i64){0, error};
     }
-    char buffer[STRCONV_BUFFER_SIZE];
-    int length = strconv_prepare(string, buffer, sizeof(buffer));
+    char stack_buffer[STRCONV_BUFFER_SIZE];
+    char *buffer = strconv_prepare(string, stack_buffer, sizeof(stack_buffer));
+    int length = string.len;
     if (strconv_has_nul(string) || strconv_has_hex_prefix(buffer, base) || (length > 0 && isspace((unsigned char)buffer[0]))) {
         GrayString message = gray_string_lit("cannot convert string to i64");
         GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_ConversionFailure, message);
@@ -159,8 +166,9 @@ GrayResult_u64 gray_strconv_to_u64_result(GrayString string, int64_t base) {
         GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_InvalidInput, message);
         return (GrayResult_u64){0, error};
     }
-    char buffer[STRCONV_BUFFER_SIZE];
-    int length = strconv_prepare(string, buffer, sizeof(buffer));
+    char stack_buffer[STRCONV_BUFFER_SIZE];
+    char *buffer = strconv_prepare(string, stack_buffer, sizeof(stack_buffer));
+    int length = string.len;
     if (strconv_has_nul(string) || strconv_has_hex_prefix(buffer, base) || (length > 0 && isspace((unsigned char)buffer[0]))) {
         GrayString message = gray_string_lit("cannot convert string to u64");
         GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_ConversionFailure, message);
@@ -187,8 +195,9 @@ GrayResult_u64 gray_strconv_to_u64_result(GrayString string, int64_t base) {
 }
 
 GrayResult_f64 gray_strconv_to_f64_result(GrayString string) {
-    char buffer[STRCONV_BUFFER_SIZE];
-    int length = strconv_prepare(string, buffer, sizeof(buffer));
+    char stack_buffer[STRCONV_BUFFER_SIZE];
+    char *buffer = strconv_prepare(string, stack_buffer, sizeof(stack_buffer));
+    int length = string.len;
     if (strconv_has_nul(string) || strconv_is_hex_float(buffer) || strchr(buffer, '(') || (length > 0 && isspace((unsigned char)buffer[0]))) {
         GrayString message = gray_string_lit("cannot convert string to f64");
         GrayError *error = gray_error_new(gray_default_arena, GRAY_ERR_ConversionFailure, message);

@@ -128,10 +128,12 @@ GrayString gray_fmt_i64_to_binary(GrayArena *arena, int64_t value) {
 }
 
 GrayString gray_fmt_f64_to_fixed(GrayArena *arena, double value, int64_t decimals) {
-    char temporary[GRAY_FMT_FLOATING_POINT_BUFFER_SIZE];
-    int length = snprintf(temporary, sizeof(temporary), "%.*f", (int)decimals, value);
-    char *buffer = (char *)gray_arena_alloc_uninitialized(arena, (size_t)length);
-    memcpy(buffer, temporary, (size_t)length);
+    if (decimals < 0) gray_panic_code("P0162", "fmt.f64_to_fixed() decimals cannot be negative (%lld)", (long long)decimals);
+    if (decimals > INT32_MAX) gray_panic_code("P0163", "fmt.f64_to_fixed() result exceeds maximum string length");
+    int length = snprintf(NULL, 0, "%.*f", (int)decimals, value);
+    if (length < 0) gray_panic_code("P0163", "fmt.f64_to_fixed() result exceeds maximum string length");
+    char *buffer = (char *)gray_arena_alloc_uninitialized(arena, (size_t)length + 1);
+    snprintf(buffer, (size_t)length + 1, "%.*f", (int)decimals, value);
     return (GrayString){buffer, length};
 }
 

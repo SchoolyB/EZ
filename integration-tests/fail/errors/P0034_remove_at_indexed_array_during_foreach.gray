@@ -1,0 +1,11 @@
+// expect-contains: .gray:
+/* Panic Test: P0034 - remove_at on an indexed inner array during for_each over it */
+import @arrays
+
+do main() {
+    mut g [[i64]] = {{1, 2, 3, 4, 5}, {9}}
+    for_each v in g[0] {
+        arrays.remove_at(g[0], 0)
+    }
+    println(g)
+}

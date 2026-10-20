@@ -1,0 +1,6 @@
+/* Error Test: E3212 - '&&' used on a string operand */
+do main() {
+    mut name string = "a"
+    mut r bool = name && true
+    println(r)
+}

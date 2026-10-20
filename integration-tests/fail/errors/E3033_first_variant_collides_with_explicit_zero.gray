@@ -1,0 +1,9 @@
+/* Error Test: E3033 - the first variant takes 0 and a later variant is explicitly 0 */
+const E enum {
+    A
+    B = 0
+}
+
+do main() {
+    println("${E.A}")
+}

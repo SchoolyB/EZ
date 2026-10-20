@@ -3378,27 +3378,11 @@ static AstNode *parse_for_each_statement(Parser *parser) {
         /* Bare identifier followed by {; parse as label only */
         node->data.for_each.collection = ast_allocate(parser->arena, NODE_LABEL, parser->current_token);
         node->data.for_each.collection->data.label.value = parser->current_token.literal;
-    } else if (current_token_is(parser, TOKEN_IDENTIFIER) && peek_token_is(parser, TOKEN_DOT)) {
-        /* Chained member access: a.b.c; parse manually to avoid
-         * parse_expression triggering struct literal parsing on { */
-        AstNode *result = ast_allocate(parser->arena, NODE_LABEL, parser->current_token);
-        result->data.label.value = parser->current_token.literal;
-        while (peek_token_is(parser, TOKEN_DOT)) {
-            next_token(parser); /* consume . */
-            next_token(parser); /* move to member */
-            AstNode *member = ast_allocate(parser->arena, NODE_MEMBER_EXPRESSION, parser->current_token);
-            member->data.member.object = result;
-            member->data.member.member = parser->current_token.literal;
-            result = member;
-        }
-        /* If the chain is followed by (, it is a function call (e.g., maps.get_keys(m)) */
-        if (peek_token_is(parser, TOKEN_LEFT_PARENTHESIS)) {
-            next_token(parser); /* move to ( */
-            result = parse_call_expression(parser, result);
-        }
-        node->data.for_each.collection = result;
     } else {
+        bool saved_should_suppress_struct_literal = parser->should_suppress_struct_literal;
+        parser->should_suppress_struct_literal = true;
         node->data.for_each.collection = parse_expression(parser, PRECEDENCE_LOWEST);
+        parser->should_suppress_struct_literal = saved_should_suppress_struct_literal;
     }
 
     if (has_parentheses) {

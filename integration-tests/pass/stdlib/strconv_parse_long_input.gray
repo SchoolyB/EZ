@@ -1,0 +1,79 @@
+/*
+ * strconv_parse_long_input.gray
+ * to_i64, to_u64 and to_f64 read the whole string, however long: leading
+ * zeros past 63 bytes, 64-digit binary values and trailing garbage after a
+ * long prefix are all handled.
+ */
+
+import @strconv
+import @strings
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut garbage, garbage_err = strconv.to_i64("${strings.repeat("0", 63)}5garbage", 10)
+    if garbage == 0 && garbage_err != nil {
+        println("  [PASS] trailing garbage after 63 bytes is an error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] trailing garbage: ${garbage} ${garbage_err != nil}")
+        failed += 1
+    }
+
+    mut padded, padded_err = strconv.to_i64("${strings.repeat("0", 80)}5", 10)
+    mut hex, hex_err = strconv.to_i64("${strings.repeat("0", 80)}ff", 16)
+    if padded == 5 && padded_err == nil && hex == 255 && hex_err == nil {
+        println("  [PASS] long runs of leading zeros")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] leading zeros: ${padded} ${hex}")
+        failed += 1
+    }
+
+    mut too_big, too_big_err = strconv.to_i64(strings.repeat("1", 64), 2)
+    if too_big_err != nil {
+        println("  [PASS] 64 binary digits exceed i64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 64 binary digits: ${too_big}")
+        failed += 1
+    }
+
+    mut unsigned_max, unsigned_max_err = strconv.to_u64(strings.repeat("1", 64), 2)
+    mut two_pow_63, two_pow_63_err = strconv.to_u64("1${strings.repeat("0", 63)}", 2)
+    if unsigned_max == 18446744073709551615 && unsigned_max_err == nil && two_pow_63 == 9223372036854775808 && two_pow_63_err == nil {
+        println("  [PASS] 64-digit binary u64 values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64 binary: ${unsigned_max} ${two_pow_63}")
+        failed += 1
+    }
+
+    mut lowest i64 = -9223372036854775807 - 1
+    mut round_trip, round_trip_err = strconv.to_i64(strconv.format_i64(lowest, 2), 2)
+    if round_trip == lowest && round_trip_err == nil {
+        println("  [PASS] format_i64 round trip at i64 minimum")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] round trip: ${round_trip}")
+        failed += 1
+    }
+
+    mut large, large_err = strconv.to_f64("1${strings.repeat("0", 70)}")
+    mut small, small_err = strconv.to_f64("0.${strings.repeat("0", 70)}1")
+    if large == 1e70 && large_err == nil && small == 1e-71 && small_err == nil {
+        println("  [PASS] long f64 text")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] long f64: ${large} ${small}")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

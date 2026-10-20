@@ -1,0 +1,8 @@
+/* Error Test: E3036 - an explicit enum value far beyond i64 */
+const E enum {
+    A = 99999999999999999999999
+}
+
+do main() {
+    println("${E.A}")
+}

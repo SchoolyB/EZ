@@ -1,0 +1,39 @@
+/*
+ * enum_value_i64_bounds.gray
+ * An enum's values may sit at both ends of the i64 range: the smallest and
+ * largest explicit values, and the variant that follows the smallest.
+ */
+
+const Bounds enum {
+    LOWEST = -9223372036854775808
+    NEXT
+    HIGHEST = 9223372036854775807
+}
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    if cast(Bounds.LOWEST, i64) == -9223372036854775808 && cast(Bounds.NEXT, i64) == -9223372036854775807 {
+        println("  [PASS] smallest value and its successor")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] smallest value and its successor")
+        failed += 1
+    }
+
+    if cast(Bounds.HIGHEST, i64) == 9223372036854775807 {
+        println("  [PASS] largest value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] largest value")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,7 @@
+/* Panic Test: P0163 - fmt.f64_to_fixed with a decimals count beyond the maximum string length */
+import @fmt
+
+do main() {
+    mut text string = fmt.f64_to_fixed(1.5, 4294967297)
+    println(text)
+}

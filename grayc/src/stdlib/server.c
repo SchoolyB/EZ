@@ -297,6 +297,54 @@ static void format_response_headers(GrayMap *headers, char *buffer, size_t buffe
     }
 }
 
+/* Offset of the blank line that ends the header block, or -1 if it has not
+ * arrived yet. */
+static int find_header_end(const char *data, int data_length) {
+    for (int i = 0; i + 3 < data_length; i++) {
+        if (data[i] == '\r' && data[i + 1] == '\n' && data[i + 2] == '\r' && data[i + 3] == '\n') return i;
+    }
+    return -1;
+}
+
+/* The declared Content-Length of the request whose headers fill
+ * data[0..header_end), or 0 when it declares none. */
+static int64_t declared_content_length(const char *data, int header_end) {
+    static const char name[] = "content-length:";
+    const size_t name_length = sizeof(name) - 1;
+    const char *line = memchr(data, '\n', header_end);
+    while (line && line + 1 < data + header_end) {
+        line++;
+        if ((size_t)(data + header_end - line) > name_length && strncasecmp(line, name, name_length) == 0) {
+            return strtoll(line + name_length, NULL, 10);
+        }
+        line = memchr(line, '\n', data + header_end - line);
+    }
+    return 0;
+}
+
+/* Reads one request into `buffer`: until the headers are complete and the
+ * Content-Length bytes of body after them have arrived, the buffer is full,
+ * or the peer stops sending. Returns the bytes read; the buffer is
+ * NUL-terminated. */
+static int64_t receive_request(int client_descriptor, char *buffer, int capacity) {
+    int64_t total = 0;
+    int64_t needed = -1;
+    while (total < capacity - 1) {
+        int64_t received = (int64_t)recv(client_descriptor, buffer + total, (int)(capacity - 1 - total), 0);
+        if (received <= 0) break;
+        total += received;
+        if (needed < 0) {
+            int header_end = find_header_end(buffer, (int)total);
+            if (header_end < 0) continue;
+            int64_t content_length = declared_content_length(buffer, header_end);
+            needed = header_end + 4 + (content_length > 0 ? content_length : 0);
+        }
+        if (total >= needed) break;
+    }
+    buffer[total] = '\0';
+    return total;
+}
+
 static void *handle_connection(void *argument) {
     ConnCtx *connection_context = (ConnCtx *)argument;
     GrayArena *arena = gray_capped_arena_create(GRAY_SERVER_REQUEST_ARENA); /* 64KB per request */
@@ -315,11 +363,10 @@ static void *handle_connection(void *argument) {
 
     /* Receive request data */
     char buffer[GRAY_SERVER_BUFFER_SIZE];
-    int64_t bytes_received = (int64_t)recv(connection_context->client_descriptor, buffer, (int)sizeof(buffer) - 1, 0);
+    int64_t bytes_received = receive_request(connection_context->client_descriptor, buffer, (int)sizeof(buffer));
     if (bytes_received <= 0) {
         return cleanup_connection(connection_context, arena);
     }
-    buffer[bytes_received] = '\0';
 
     /* Parse request */
     GrayRequest request;

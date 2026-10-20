@@ -5249,12 +5249,14 @@ static GrayType *range_element_type(GrayType *range_type) {
 }
 
 /* True when the integer `value_type` is checked against a range held in a
- * variable without conversion: a wide range takes only its own wide type, an
- * i64 range only a value that is not wide. */
+ * variable without conversion: a wide range takes only its own wide type, a
+ * u64 range an unsigned value that is not wide, an i64 range only a value that
+ * is neither wide nor u64. */
 static bool range_holds_integer(GrayType *range_type, GrayType *value_type) {
     GrayType *element_type = range_element_type(range_type);
     bool value_is_wide = is_wide_integer_type_name(value_type->name);
-    if (!is_wide_integer_type_name(element_type->name)) return !value_is_wide;
+    if (strcmp(element_type->name, "u64") == 0) return value_type->kind == TYPE_KIND_UNSIGNED_INTEGER && !value_is_wide;
+    if (!is_wide_integer_type_name(element_type->name)) return !value_is_wide && strcmp(value_type->name, "u64") != 0;
     return value_is_wide && strcmp(value_type->name, element_type->name) == 0;
 }
 
@@ -10965,9 +10967,24 @@ static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
         infix_errored = true;
     }
 
+    /* E3212: '&&' and '||' require bool operands, matching '!' (E3090).
+     * Without this, integers, floats, chars and pointers took C truthiness
+     * and arrays/structs leaked C compiler errors. */
+    if (operator == TOKEN_AND || operator == TOKEN_OR) {
+        AstNode *operand_nodes[2] = { node->data.infix.left, node->data.infix.right };
+        GrayType *operand_types[2] = { left, right };
+        for (int operand_index = 0; operand_index < 2; operand_index++) {
+            GrayType *operand_type = operand_types[operand_index];
+            if (operand_type->kind == TYPE_KIND_BOOL || operand_type->kind == TYPE_KIND_UNKNOWN) continue;
+            NODE_ERROR_FORMATTED(checker, operand_nodes[operand_index], "E3212",
+                operator_display_name(operator), type_display_name(checker, operand_type));
+            infix_errored = true;
+        }
+    }
+
     /* Arithmetic on strings (-, *, /, %, etc.) */
     if ((left->kind == TYPE_KIND_STRING || right->kind == TYPE_KIND_STRING) &&
-        operator != TOKEN_PLUS && operator != TOKEN_EQUAL && operator != TOKEN_NOT_EQUAL &&
+        operator != TOKEN_PLUS && operator != TOKEN_AND && operator != TOKEN_OR && operator != TOKEN_EQUAL && operator != TOKEN_NOT_EQUAL &&
         operator != TOKEN_IN && operator != TOKEN_NOT_IN) {
         NODE_ERROR_FORMATTED(checker, node, "E3180", operator_display_name(operator));
         infix_errored = true;
@@ -12613,8 +12630,9 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         AstNode *parts[] = { node->data.range_expression.start,
                              node->data.range_expression.end,
                              node->data.range_expression.step };
-        /* The range runs in i64, or in the widest wide integer type among
-         * its bounds; every bound and the step are checked as that type. */
+        /* The range runs in i64, in u64 when a bound is u64, or in the widest
+         * wide integer type among its bounds; every bound and the step are
+         * checked as that type. */
         GrayType *range_type = &TYPE_I64;
         for (int part_index = 0; part_index < 3; part_index++) {
             if (!parts[part_index]) continue;
@@ -12622,6 +12640,8 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             GrayType *parameter_type = resolve_untyped(checker, parts[part_index]);
             if (parameter_type->name && is_wide_integer_type_name(parameter_type->name) &&
                 integer_type_name_width_rank(parameter_type->name) > integer_type_name_width_rank(range_type->name))
+                range_type = parameter_type;
+            else if (parameter_type->name && strcmp(parameter_type->name, "u64") == 0 && range_type == &TYPE_I64)
                 range_type = parameter_type;
         }
         for (int part_index = 0; part_index < 3; part_index++) {
@@ -17268,6 +17288,60 @@ static bool when_case_values_equal(TypeChecker *checker, AstNode *left, AstNode 
     return left_value && right_value && strcmp(left_value, right_value) == 0;
 }
 
+static bool when_constant_i64(TypeChecker *checker, AstNode *node, int64_t *result) {
+    LiteralValue value;
+    return node && constant_fold(checker, node, &value) && literal_value_as_i64(&value, result);
+}
+
+/* The start, stop and step of a `range(...)` case whose bounds are constant
+ * i64 values and whose step is not zero. */
+static bool when_constant_range(TypeChecker *checker, AstNode *node, int64_t *start, int64_t *stop, int64_t *step) {
+    if (!node || node->kind != NODE_RANGE_EXPRESSION) return false;
+    AstNode *start_node = node->data.range_expression.start;
+    AstNode *step_node = node->data.range_expression.step;
+    *start = 0;
+    *step = 1;
+    if (start_node && !when_constant_i64(checker, start_node, start)) return false;
+    if (!when_constant_i64(checker, node->data.range_expression.end, stop)) return false;
+    if (step_node && !when_constant_i64(checker, step_node, step)) return false;
+    return *step != 0;
+}
+
+static bool when_range_contains(int64_t start, int64_t stop, int64_t step, int64_t value) {
+    if (step > 0)
+        return value >= start && value < stop && ((uint64_t)value - (uint64_t)start) % (uint64_t)step == 0;
+    return value <= start && value > stop && ((uint64_t)start - (uint64_t)value) % (0 - (uint64_t)step) == 0;
+}
+
+/* True when every value the case `value` matches is already matched by the
+ * earlier range case `earlier`: a constant inside it, a constant range whose
+ * first and last values are inside it and whose step is a multiple of its step,
+ * or the same stored range variable. */
+static bool when_case_covered_by_range(TypeChecker *checker, AstNode *value, AstNode *earlier) {
+    if (!value || !earlier) return false;
+    if (value->kind == NODE_LABEL && earlier->kind == NODE_LABEL) {
+        Symbol *symbol = scope_lookup(checker->current_scope, value->data.label.value);
+        return symbol && symbol->type && symbol->type->kind == TYPE_KIND_RANGE &&
+               strcmp(value->data.label.value, earlier->data.label.value) == 0;
+    }
+    int64_t earlier_start, earlier_stop, earlier_step;
+    if (!when_constant_range(checker, earlier, &earlier_start, &earlier_stop, &earlier_step)) return false;
+    int64_t point;
+    if (when_constant_i64(checker, value, &point))
+        return when_range_contains(earlier_start, earlier_stop, earlier_step, point);
+    int64_t start, stop, step;
+    if (!when_constant_range(checker, value, &start, &stop, &step)) return false;
+    if (step > 0 ? start >= stop : start <= stop) return false;
+    uint64_t distance = step > 0 ? (uint64_t)stop - (uint64_t)start : (uint64_t)start - (uint64_t)stop;
+    uint64_t stride = step > 0 ? (uint64_t)step : 0 - (uint64_t)step;
+    uint64_t steps_to_last = (distance - 1) / stride;
+    int64_t last = (int64_t)((uint64_t)start + (step > 0 ? steps_to_last * stride : 0 - steps_to_last * stride));
+    uint64_t earlier_stride = earlier_step > 0 ? (uint64_t)earlier_step : 0 - (uint64_t)earlier_step;
+    return stride % earlier_stride == 0 &&
+           when_range_contains(earlier_start, earlier_stop, earlier_step, start) &&
+           when_range_contains(earlier_start, earlier_stop, earlier_step, last);
+}
+
 static void check_when_statement(TypeChecker *checker, AstNode *node) {
     /* E3100: a bare struct or enum name is a type, not a value. Without
      * this the subject resolves to the type itself and codegen emits a
@@ -17339,7 +17413,9 @@ static void check_when_statement(TypeChecker *checker, AstNode *node) {
             for (int earlier_case_index = 0; earlier_case_index <= i && !flagged; earlier_case_index++) {
                 int earlier_value_limit = (earlier_case_index == i) ? j : node->data.when_statement.cases[earlier_case_index].value_count;
                 for (int earlier_value_index = 0; earlier_value_index < earlier_value_limit; earlier_value_index++) {
-                    if (when_case_values_equal(checker, value_node, node->data.when_statement.cases[earlier_case_index].values[earlier_value_index])) {
+                    AstNode *earlier_node = node->data.when_statement.cases[earlier_case_index].values[earlier_value_index];
+                    if (when_case_values_equal(checker, value_node, earlier_node) ||
+                        when_case_covered_by_range(checker, value_node, earlier_node)) {
                         NODE_ERROR(checker, value_node, "E2043");
                         flagged = true;
                         break;
@@ -18316,17 +18392,66 @@ static void register_declaration_enums(TypeChecker *checker, AstNode *program) {
         if (statement->data.enum_declaration.value_count == 0) {
             NODE_ERROR_FORMATTED(checker, statement, "E2016", enum_name);
         }
-        /* E3033: check for duplicate enum values */
-        for (int j = 0; j < statement->data.enum_declaration.value_count; j++) {
-            if (!statement->data.enum_declaration.values[j].value) continue;
-            for (int index = 0; index < j; index++) {
-                if (!statement->data.enum_declaration.values[index].value) continue;
-                if (statement->data.enum_declaration.values[j].value->kind == NODE_INTEGER_LITERAL &&
-                    statement->data.enum_declaration.values[index].value->kind == NODE_INTEGER_LITERAL &&
-                    statement->data.enum_declaration.values[j].value->data.integer_literal.value ==
-                    statement->data.enum_declaration.values[index].value->data.integer_literal.value) {
-                    NODE_ERROR_FORMATTED(checker, statement, "E3033",
-                        enum_name, statement->data.enum_declaration.values[index].name, statement->data.enum_declaration.values[j].name);
+        /* The value each variant ends up with: an explicit value, or what its
+         * position gives it. An integer enum's values are i64: an explicit
+         * value must fit it (E3036), and a variant without one takes the
+         * previous value plus one, which must fit too (E3213). Two variants
+         * with the same value are E3033. */
+        if (!statement->data.enum_declaration.is_error_code && !statement->data.enum_declaration.is_tagged &&
+            statement->data.enum_declaration.value_count > 0) {
+            int variant_count = statement->data.enum_declaration.value_count;
+            EnumValue *variants = statement->data.enum_declaration.values;
+            bool is_flags = statement->data.enum_declaration.is_flags;
+            bool is_string_enum = false;
+            for (int j = 0; j < variant_count; j++)
+                if (variants[j].value && variants[j].value->kind == NODE_STRING_VALUE) is_string_enum = true;
+            bool *value_is_known = arena_allocate(checker->arena, sizeof(bool) * variant_count);
+            int64_t *numbers = arena_allocate(checker->arena, sizeof(int64_t) * variant_count);
+            const char **texts = arena_allocate(checker->arena, sizeof(const char *) * variant_count);
+            bool next_is_known = true, next_overflows = false;
+            int64_t next_value = 0;
+            for (int j = 0; j < variant_count; j++) {
+                AstNode *variant_value = variants[j].value;
+                value_is_known[j] = false;
+                numbers[j] = 0;
+                texts[j] = NULL;
+                if (is_string_enum) {
+                    if (!variant_value) {
+                        texts[j] = variants[j].name;
+                    } else if (variant_value->kind == NODE_STRING_VALUE) {
+                        char *decoded = arena_allocate(checker->arena, strlen(variant_value->data.string_value.value) + 1);
+                        int decoded_length = ast_string_decode(variant_value, decoded);
+                        decoded[decoded_length] = '\0';
+                        texts[j] = decoded;
+                    }
+                    value_is_known[j] = texts[j] != NULL;
+                    continue;
+                }
+                if (variant_value) {
+                    LiteralValue folded;
+                    if (literal_integer_value(variant_value, &folded)) {
+                        if (literal_value_as_i64(&folded, &numbers[j])) value_is_known[j] = true;
+                        else check_expression_as(checker, variant_value, &TYPE_I64);
+                    }
+                } else if (is_flags) {
+                    if (j < 63) { numbers[j] = (int64_t)1 << j; value_is_known[j] = true; }
+                } else if (next_overflows) {
+                    NODE_ERROR_FORMATTED(checker, statement, "E3213", enum_name, variants[j].name);
+                } else if (next_is_known) {
+                    numbers[j] = next_value;
+                    value_is_known[j] = true;
+                }
+                next_is_known = value_is_known[j] && numbers[j] != INT64_MAX;
+                next_overflows = value_is_known[j] && numbers[j] == INT64_MAX;
+                if (next_is_known) next_value = numbers[j] + 1;
+            }
+            for (int j = 0; j < variant_count; j++) {
+                if (!value_is_known[j]) continue;
+                for (int index = 0; index < j; index++) {
+                    if (!value_is_known[index]) continue;
+                    bool is_same = is_string_enum ? strcmp(texts[index], texts[j]) == 0 : numbers[index] == numbers[j];
+                    if (!is_same) continue;
+                    NODE_ERROR_FORMATTED(checker, statement, "E3033", enum_name, variants[index].name, variants[j].name);
                     break;
                 }
             }

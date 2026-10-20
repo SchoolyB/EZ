@@ -1,0 +1,6 @@
+/* Error Test: E3212 - '||' used on an array operand */
+do main() {
+    mut arr [i64] = {1, 2, 3}
+    mut r bool = arr || false
+    println(r)
+}

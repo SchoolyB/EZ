@@ -1,0 +1,50 @@
+/*
+ * cast_string_long_input.gray
+ * Casting a string to a number parses every byte: leading zeros past the old
+ * 63-byte limit are read, and trailing spaces are still allowed.
+ */
+
+import @strings
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut signed_value i64 = cast("${strings.repeat("0", 70)}5", i64)
+    mut unsigned_value u64 = cast("${strings.repeat("0", 70)}5", u64)
+    mut float_value f64 = cast("${strings.repeat("0", 70)}5.5", f64)
+    if signed_value == 5 && unsigned_value == 5 && float_value == 5.5 {
+        println("  [PASS] long leading zeros to i64, u64 and f64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] long leading zeros: ${signed_value} ${unsigned_value} ${float_value}")
+        failed += 1
+    }
+
+    mut wide_value i128 = cast("${strings.repeat("0", 130)}5", i128)
+    mut wider_value u256 = cast("${strings.repeat("0", 300)}5", u256)
+    if wide_value == 5 && wider_value == 5 {
+        println("  [PASS] long leading zeros to wide integers")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] wide: ${wide_value} ${wider_value}")
+        failed += 1
+    }
+
+    mut padded i64 = cast("5  ", i64)
+    mut padded_float f64 = cast("5.5  ", f64)
+    if padded == 5 && padded_float == 5.5 {
+        println("  [PASS] trailing spaces")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] trailing spaces: ${padded} ${padded_float}")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

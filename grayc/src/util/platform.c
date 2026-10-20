@@ -433,7 +433,19 @@ int gray_temporary_path(char *destination, size_t destination_size, const char *
     char name[256];
     snprintf(name, sizeof(name), "%s%d-%u%s", prefix, (int)gray_sys_getpid(), counter++,
         suffix ? suffix : "");
-    return gray_path_join(destination, destination_size, gray_temporary_directory(), name);
+#if GRAY_OS_WINDOWS
+    const char *directory = gray_temporary_directory();
+#else
+    /* The shared temp directory lets another local user pre-plant a symlink at
+     * the predictable name; the private 0700 per-user directory does not. */
+    char private_directory[GRAY_PATH_BUFFER_SIZE];
+    if (!gray_private_cache_directory(private_directory, sizeof(private_directory))) {
+        if (destination_size > 0) destination[0] = '\0';
+        return -1;
+    }
+    const char *directory = private_directory;
+#endif
+    return gray_path_join(destination, destination_size, directory, name);
 }
 
 FILE *gray_tmpfile(void) {

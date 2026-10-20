@@ -1,0 +1,5 @@
+/* Panic Test: P0084 - cast of a string with trailing junk after a space to i64 */
+do main() {
+    mut s string = "5 garbage"
+    println(cast(s, i64))
+}

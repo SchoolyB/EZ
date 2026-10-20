@@ -1,0 +1,5 @@
+/* Panic Test: P0085 - cast of a string with trailing junk after a space to f64 */
+do main() {
+    mut s string = "1.5 junk"
+    println(cast(s, f64))
+}

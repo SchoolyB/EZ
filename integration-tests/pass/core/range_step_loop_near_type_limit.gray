@@ -1,0 +1,168 @@
+/*
+ * range_step_loop_near_type_limit.gray
+ * A stepped range() loop whose last valid element lies within `step` of the
+ * loop type's maximum or minimum finishes cleanly; the increment that would
+ * overflow only ends the loop.
+ */
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut maxv i64 = 9223372036854775807
+    mut minv i64 = -9223372036854775807 - 1
+    mut step i64 = 2
+    mut neg_step i64 = -2
+
+    mut count i64 = 0
+    mut last i64 = 0
+    for i in range(maxv - 3, maxv, step) {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == maxv - 1 {
+        println("  [PASS] i64 variable positive step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 variable positive step: ${count} ${last}")
+        failed += 1
+    }
+
+    count = 0
+    for i in range(minv + 3, minv, neg_step) {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == minv + 1 {
+        println("  [PASS] i64 variable negative step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 variable negative step: ${count} ${last}")
+        failed += 1
+    }
+
+    count = 0
+    for i in range(maxv - 3, maxv, 2) {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == maxv - 1 {
+        println("  [PASS] i64 literal positive step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 literal positive step: ${count} ${last}")
+        failed += 1
+    }
+
+    count = 0
+    for i in range(minv + 3, minv, -2) {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == minv + 1 {
+        println("  [PASS] i64 literal negative step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 literal negative step: ${count} ${last}")
+        failed += 1
+    }
+
+    count = 0
+    for i in range(0, maxv, 4611686018427387904) {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == 4611686018427387904 {
+        println("  [PASS] i64 step of half the type")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 step of half the type: ${count} ${last}")
+        failed += 1
+    }
+
+    mut stored = range(maxv - 3, maxv, 2)
+    count = 0
+    for i in stored {
+        count += 1
+        last = i
+    }
+    if count == 2 && last == maxv - 1 {
+        println("  [PASS] stored i64 range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stored i64 range: ${count} ${last}")
+        failed += 1
+    }
+
+    mut wide_max i128 = 170141183460469231731687303715884105727
+    mut wide_count i64 = 0
+    for i in range(wide_max - 3, wide_max, 2) {
+        wide_count += 1
+    }
+    if wide_count == 2 {
+        println("  [PASS] i128 positive step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 positive step: ${wide_count}")
+        failed += 1
+    }
+
+    mut wide_min i128 = -170141183460469231731687303715884105727 - 1
+    wide_count = 0
+    for i in range(wide_min + 3, wide_min, -2) {
+        wide_count += 1
+    }
+    if wide_count == 2 {
+        println("  [PASS] i128 negative step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i128 negative step: ${wide_count}")
+        failed += 1
+    }
+
+    mut unsigned_max u128 = 340282366920938463463374607431768211455
+    wide_count = 0
+    for i in range(unsigned_max - 3, unsigned_max, 2) {
+        wide_count += 1
+    }
+    if wide_count == 2 {
+        println("  [PASS] u128 positive step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u128 positive step: ${wide_count}")
+        failed += 1
+    }
+
+    mut big_max i256 = 57896044618658097711785492504343953926634992332820282019728792003956564819967
+    wide_count = 0
+    for i in range(big_max - 3, big_max, 2) {
+        wide_count += 1
+    }
+    if wide_count == 2 {
+        println("  [PASS] i256 positive step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i256 positive step: ${wide_count}")
+        failed += 1
+    }
+
+    mut big_unsigned_max u256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935
+    wide_count = 0
+    for i in range(big_unsigned_max - 3, big_unsigned_max, 2) {
+        wide_count += 1
+    }
+    if wide_count == 2 {
+        println("  [PASS] u256 positive step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u256 positive step: ${wide_count}")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

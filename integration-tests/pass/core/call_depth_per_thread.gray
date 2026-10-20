@@ -1,0 +1,27 @@
+import @arrays
+import @threads
+import @runtime
+
+do down(n i64) -> i64 {
+    if n == 0 { return 0 }
+    return down(n - 1) + 1
+}
+
+unsafe do worker() {
+    mut acc i64 = 0
+    for _ in range(0, 3000000) { acc += down(10) }
+}
+
+unsafe do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut ts [threads.Thread] = {}
+    for _ in range(0, 8) { arrays.append(ts, threads.spawn(()worker)) }
+    for_each t in ts { threads.join(t) }
+    if runtime.call_depth() == 1 { passed += 1 } otherwise { failed += 1 }
+
+    println("call depth per thread: ${passed} passed, ${failed} failed")
+    if failed > 0 { exit(1) }
+    println("ALL TESTS PASSED")
+}

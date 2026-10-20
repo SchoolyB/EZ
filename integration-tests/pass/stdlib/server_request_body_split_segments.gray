@@ -1,0 +1,65 @@
+/*
+ * Test: the server waits for the Content-Length bytes of a body that arrives
+ * after the headers
+ */
+
+import @http
+import @net
+import @server
+import @strings
+import @threads
+
+const TEST_PORT i64 = 47233
+
+do echo_route(req HttpRequest) -> HttpResponse {
+    return server.text(200, "len=${len(req.body)} body=${req.body}")
+}
+
+do serve() {
+    mut router = server.add_router()
+    server.add_route(router, "POST", "/echo", ()echo_route)
+    server.listen(router, TEST_PORT, "127.0.0.1")
+}
+
+unsafe do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut listener = threads.spawn(()serve)
+    sleep_ms(300)
+
+    mut conn, _ = net.connect("127.0.0.1", TEST_PORT)
+    mut _, _ = net.send(conn, "POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\n\r\n")
+    sleep_ms(300)
+    mut _, _ = net.send(conn, "hello")
+    mut reply, _ = net.receive(conn, 65536)
+    net.close(conn)
+
+    if strings.contains(reply, "len=5 body=hello") {
+        println("  [PASS] body sent after the headers reached the handler")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reply: ${reply}")
+        failed += 1
+    }
+
+    mut all_ok = true
+    for _ in range(0, 40) {
+        mut resp, post_error = http.post("http://127.0.0.1:47233/echo", "hello", {:})
+        if post_error != nil || resp.body != "len=5 body=hello" { all_ok = false }
+    }
+    if all_ok {
+        println("  [PASS] 40 http.post requests all delivered their body")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] an http.post request lost its body")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
