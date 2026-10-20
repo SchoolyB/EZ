@@ -1,0 +1,10 @@
+/* Error Test: E3213 - a variant after the largest i64 value wraps */
+const E enum {
+    A = 9223372036854775807
+    B
+    C
+}
+
+do main() {
+    println("${E.B}")
+}

@@ -811,6 +811,8 @@ const Foobar enum {
 }
 ```
 
+Enum values are `i64`. An explicit value outside the `i64` range is rejected with `E3036`, and a variant that follows `9223372036854775807` is rejected with `E3213` instead of wrapping.
+
 > 💡 **Tip:** Enum variants go on separate lines or, on one line, are separated by `;`, as in `const Color enum { RED; GREEN; BLUE }`.
 
 > 💡 **Tip:** Enums are not integers. Even though integer enums are backed by numeric values under the hood, you cannot compare an enum variable with an integer (`d == 0`), assign an integer to an enum variable (`d = 2`), or perform arithmetic on enum values. Enums can only be compared with values of the same enum type using `==` and `!=`. Use `Direction.NORTH`, `.NORTH`, or another `Direction` variable — never a raw number. The same holds in the other direction: an enum value does not convert implicitly to an integer or, for a string-backed enum, to a `string` (assignment, arguments, returns, collection elements, `+=`, and `==` against a `string` are all rejected). Use `cast(Direction.NORTH, i64)` to get the underlying integer value.

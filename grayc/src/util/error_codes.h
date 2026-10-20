@@ -300,7 +300,8 @@
     GRAY_ERROR("E3209", "types", "'%s.%s()' is not available on a %s enum; it is only generated for plain enums") \
     GRAY_ERROR("E3210", "types", "json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value") \
     GRAY_ERROR("E3211", "types", "'%s' requires a function that returns (T, Error); the operand is not a function call") \
-    GRAY_ERROR("E3212", "types", "'%s' only works on bool; got '%s'")
+    GRAY_ERROR("E3212", "types", "'%s' only works on bool; got '%s'") \
+    GRAY_ERROR("E3213", "types", "enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define GRAY_REFERENCE_ERRORS \

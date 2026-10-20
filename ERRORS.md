@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 553 codes** (390 errors, 17 warnings, 146 panics)
+**Total: 554 codes** (391 errors, 17 warnings, 146 panics)
 
 ---
 
@@ -285,6 +285,7 @@
 | `E3210` | types | json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value |
 | `E3211` | types | '%s' requires a function that returns (T, Error); the operand is not a function call |
 | `E3212` | types | '%s' only works on bool; got '%s' |
+| `E3213` | types | enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64 |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -604,4 +605,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-20 18:57:39 UTC*
+*Generated on 2026-10-20 19:01:31 UTC*

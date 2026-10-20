@@ -1,0 +1,8 @@
+/* Error Test: E3036 - an explicit enum value below the smallest i64 */
+const E enum {
+    A = -9223372036854775809
+}
+
+do main() {
+    println("${E.A}")
+}

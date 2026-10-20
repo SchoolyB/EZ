@@ -18351,6 +18351,36 @@ static void register_declaration_enums(TypeChecker *checker, AstNode *program) {
                 }
             }
         }
+        /* An integer enum's values are i64: an explicit value must fit it
+         * (E3036), and a variant without one takes the previous value plus
+         * one, which must fit too (E3213). */
+        if (!statement->data.enum_declaration.is_flags && !statement->data.enum_declaration.is_error_code &&
+            !statement->data.enum_declaration.is_tagged) {
+            bool next_is_known = true, next_overflows = false;
+            int64_t next_value = 0;
+            for (int j = 0; j < statement->data.enum_declaration.value_count; j++) {
+                AstNode *variant_value = statement->data.enum_declaration.values[j].value;
+                int64_t value = 0;
+                bool value_is_known = false;
+                if (variant_value) {
+                    LiteralValue folded;
+                    if (variant_value->kind == NODE_STRING_VALUE) break;
+                    if (literal_integer_value(variant_value, &folded)) {
+                        if (literal_value_as_i64(&folded, &value)) value_is_known = true;
+                        else check_expression_as(checker, variant_value, &TYPE_I64);
+                    }
+                } else if (next_overflows) {
+                    NODE_ERROR_FORMATTED(checker, statement, "E3213",
+                        enum_name, statement->data.enum_declaration.values[j].name);
+                } else if (next_is_known) {
+                    value = next_value;
+                    value_is_known = true;
+                }
+                next_is_known = value_is_known && value != INT64_MAX;
+                next_overflows = value_is_known && value == INT64_MAX;
+                if (next_is_known) next_value = value + 1;
+            }
+        }
         /* E3176: a #flags variant with an explicit value must occupy exactly
          * one usable bit. 0 is allowed as a "none" sentinel; a literal above
          * INT64_MAX reaches the sign bit or beyond. */
