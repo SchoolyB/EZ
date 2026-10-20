@@ -1505,6 +1505,19 @@ static void emit_element_store_operand(CodeGen *codegen, const char *gray_type_n
     emit_composite_operand(codegen, gray_type_name, value);
 }
 
+/* Emit `value` as an element, map entry or struct field of a new container. A
+ * variable, element or field holding an array, map or struct is copied, as
+ * declaring, assigning or appending it is, so the new container does not share
+ * the source's storage. */
+static void emit_stored_member(CodeGen *codegen, AstNode *value) {
+    GrayType *type = codegen_type_of(codegen, value);
+    if (type && type->kind != TYPE_KIND_UNKNOWN && names_existing_storage(value)) {
+        emit_composite_operand(codegen, type_name(type), value);
+        return;
+    }
+    emit_expression(codegen, value);
+}
+
 /* Resolve an import alias to the actual module name, or return the name
  * itself. The mapping is the type checker's, not a second copy built here. */
 static const char *resolve_alias(CodeGen *codegen, const char *name) {
@@ -2593,7 +2606,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
         emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayArray[%d]){", count);
         for (int i = 0; i < count; i++) {
             if (i > 0) emit(codegen, ", ");
-            emit_expression(codegen, node->data.array_value.elements[i]);
+            emit_stored_member(codegen, node->data.array_value.elements[i]);
         }
         emit_formatted(codegen, "}, sizeof(GrayArray), %d, GRAY_ELEM_ARRAY)", count);
         codegen->current_variable_type = saved_variable_type;
@@ -2605,7 +2618,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
         emit_formatted(codegen, "gray_array_from(gray_default_arena, (GrayMap[%d]){", count);
         for (int i = 0; i < count; i++) {
             if (i > 0) emit(codegen, ", ");
-            emit_expression(codegen, node->data.array_value.elements[i]);
+            emit_stored_member(codegen, node->data.array_value.elements[i]);
         }
         emit_formatted(codegen, "}, sizeof(GrayMap), %d, GRAY_ELEM_MAP)", count);
         return;
@@ -2765,7 +2778,7 @@ static void emit_array_value_as_declared(CodeGen *codegen, AstNode *node) {
         /* A wide integer element array stores gray_i128/gray_i256 values, so every
          * scalar / integer literal element needs the matching constructor. */
         if (!emit_wide_integer_coerced(codegen, wide_integer_element, node->data.array_value.elements[i]))
-            emit_expression(codegen, node->data.array_value.elements[i]);
+            emit_stored_member(codegen, node->data.array_value.elements[i]);
     }
     emit_formatted(codegen, "}, sizeof(%s), %d, GRAY_ELEM_KIND_OF(%s))", c_type, count, c_type);
 }
@@ -2846,7 +2859,12 @@ static void emit_map_value(CodeGen *codegen, AstNode *node) {
         emit_formatted(codegen, "{ %s _mk = ", c_key_type);
         emit_map_slot_value(codegen, gray_key_type_name, node->data.map_value.keys[i]);
         emit_formatted(codegen, "; %s _mv = ", c_value_type);
-        if (inner_variable_type) {
+        GrayType *entry_value_type = codegen_type_of(codegen, node->data.map_value.values[i]);
+        if (entry_value_type && entry_value_type->kind != TYPE_KIND_UNKNOWN &&
+            names_existing_storage(node->data.map_value.values[i]) &&
+            type_shares_storage(codegen, type_name(entry_value_type))) {
+            emit_stored_member(codegen, node->data.map_value.values[i]);
+        } else if (inner_variable_type) {
             const char *saved = codegen->current_variable_type;
             codegen->current_variable_type = inner_variable_type;
             emit_expression(codegen, node->data.map_value.values[i]);
@@ -3114,11 +3132,11 @@ static void emit_struct_value(CodeGen *codegen, AstNode *node) {
             } else if (emit_function_signature_checked(codegen, field_type, field_value)) {
                 /* emitted */
             } else if (!emit_wide_integer_coerced(codegen, field_type, field_value)) {
-                emit_expression(codegen, field_value);
+                emit_stored_member(codegen, field_value);
             }
             codegen->current_variable_type = saved;
         } else {
-            emit_expression(codegen, node->data.struct_value.field_values[i]);
+            emit_stored_member(codegen, node->data.struct_value.field_values[i]);
         }
     }
     /* Track whether an initialiser has been emitted so the separating comma
