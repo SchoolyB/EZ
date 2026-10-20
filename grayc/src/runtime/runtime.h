@@ -68,6 +68,7 @@ typedef struct {
     size_t total_alloc_count;
     const char *panic_call_file;
     int panic_call_line;
+    int call_depth;
 } GrayThreadState;
 
 GrayThreadState *gray_thread_state(void);
@@ -76,6 +77,7 @@ GrayThreadState *gray_thread_state(void);
 #define gray_total_alloc_count (gray_thread_state()->total_alloc_count)
 #define gray_panic_call_file (gray_thread_state()->panic_call_file)
 #define gray_panic_call_line (gray_thread_state()->panic_call_line)
+#define gray_call_depth (gray_thread_state()->call_depth)
 /* One accessor call for the pair; generated code stamps the location before
  * every statement that can panic. */
 #define gray_set_panic_call(file, line) \
@@ -297,7 +299,9 @@ static inline void *gray_mem_check_live(GrayArena *arena, void *allocation, cons
 /* --- Stack depth guard --- */
 
 #define GRAY_MAX_CALL_DEPTH 10000
-extern int gray_call_depth;
+#if !defined(__TINYC__)
+extern _Thread_local int gray_call_depth;
+#endif
 
 static inline void gray_enter_func(const char *file, int line) {
     if (++gray_call_depth > GRAY_MAX_CALL_DEPTH) {
