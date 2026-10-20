@@ -387,6 +387,21 @@ static inline int64_t gray_add_check(int64_t left, int64_t right, const char *fi
     return result;
 }
 
+/* The next value of a stepped range loop. A sum that overflows is already past
+ * the stop, so the loop ends there instead of panicking on a value it would
+ * only compare and discard. */
+static inline int64_t gray_range_advance(int64_t value, int64_t step, int64_t stop) {
+    int64_t result;
+#if defined(__TINYC__)
+    result = (int64_t)((uint64_t)value + (uint64_t)step);
+    if (((value ^ result) & (step ^ result)) < 0)
+#else
+    if (gray_add_overflows_i64(value, step, &result))
+#endif
+        return stop;
+    return result;
+}
+
 static inline int64_t gray_sub_check(int64_t left, int64_t right, const char *file, int line) {
     int64_t result;
 #if defined(__TINYC__)

@@ -12683,13 +12683,13 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
             } else {
                 emit_formatted(codegen, "; %s_lt(%s, _gray_end_%d)", prefix, variable_name, range_end_id);
             }
-            emit_formatted(codegen, "; %s = %s_add_checked(%s, ", variable_name, prefix, variable_name);
+            emit_formatted(codegen, "; %s = %s_range_advance(%s, ", variable_name, prefix, variable_name);
             if (step) {
                 emit_formatted(codegen, "_gray_step_%d", range_end_id);
             } else {
                 emit_formatted(codegen, "%s_from_u64(1)", prefix);
             }
-            emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
+            emit_formatted(codegen, ", _gray_end_%d)", range_end_id);
         } else if (iterable_node->data.range_expression.start) {
             /* range(start, end) or range(start, end, step) */
             /* Determine comparison direction: static for literal step, runtime ternary for variable. */
@@ -12726,7 +12726,7 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
                 if (start_id >= 0) emit_formatted(codegen, "_gray_start_%d", start_id);
                 else emit_expression(codegen, iterable_node->data.range_expression.start);
                 emit_formatted(codegen, "; _gray_step_%d > 0 ? %s < _gray_end_%d : %s > _gray_end_%d", range_step_id, variable_name, range_step_id, variable_name, range_step_id);
-                emit_formatted(codegen, "; %s = gray_add_check(%s, _gray_step_%d, \"%s\", %d)", variable_name, variable_name, range_step_id, codegen_file_literal(codegen), node->token.line);
+                emit_formatted(codegen, "; %s = gray_range_advance(%s, _gray_step_%d, _gray_end_%d)", variable_name, variable_name, range_step_id, range_step_id);
             } else if (zero_step) {
                 /* P0090: literal zero step always panics; emit panic then a dead loop */
                 emit_formatted(codegen, "%s;\n", panic_call(codegen, node, "P0090", ""));
@@ -12754,13 +12754,13 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
                 else emit_expression(codegen, iterable_node->data.range_expression.start);
                 emit_formatted(codegen, "; %s %s _gray_end_%d; %s", variable_name, is_negative_step ? ">" : "<", iterator_end_id, variable_name);
                 if (step) {
-                    emit_formatted(codegen, " = gray_add_check(%s, ", variable_name);
+                    emit_formatted(codegen, " = gray_range_advance(%s, ", variable_name);
                     if (hoist_step) {
                         emit_formatted(codegen, "_gray_step_%d", iterator_end_id);
                     } else {
                         emit_expression(codegen, step);
                     }
-                    emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
+                    emit_formatted(codegen, ", _gray_end_%d)", iterator_end_id);
                 } else {
                     emit(codegen, "++");
                 }
@@ -12793,9 +12793,9 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
         emit_formatted(codegen, "for (%s %s = _gray_range_%d.start; %s_continues(_gray_range_%d, %s); %s = ",
             wide ? wide_integer_prefix(wide) : "int64_t", variable_name, range_id,
             range_c_type, range_id, variable_name, variable_name);
-        if (wide) emit_formatted(codegen, "%s_add_checked", wide_integer_prefix(wide));
-        else emit(codegen, "gray_add_check");
-        emit_formatted(codegen, "(%s, _gray_range_%d.step, \"%s\", %d)", variable_name, range_id, codegen_file_literal(codegen), node->token.line);
+        if (wide) emit_formatted(codegen, "%s_range_advance", wide_integer_prefix(wide));
+        else emit(codegen, "gray_range_advance");
+        emit_formatted(codegen, "(%s, _gray_range_%d.step, _gray_range_%d.stop)", variable_name, range_id, range_id);
         emit(codegen, ") {\n");
     } else {
         codegen_internal_error("non-range for loop reached codegen",
