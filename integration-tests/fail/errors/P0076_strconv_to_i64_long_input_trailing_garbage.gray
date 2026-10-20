@@ -1,0 +1,8 @@
+/* Panic Test: P0076 - or_panic on strconv.to_i64 of a long string with trailing garbage */
+import @strconv
+import @strings
+
+do main() {
+    mut value i64 = strconv.to_i64("${strings.repeat("0", 63)}5garbage", 10) or_panic
+    println(value)
+}
