@@ -1,0 +1,14 @@
+// expect-contains: P0164
+/* Panic Test: P0164 - a map[string:func] value with another signature stored in a typed struct field by a literal */
+const W struct {
+    f func(i64) -> i64
+}
+
+do dbl32(n i32) -> i32 { return n * 2 }
+
+do main() {
+    mut m map[string:func] = {:}
+    m["a"] = ()dbl32
+    mut w W = W{f: m["a"]}
+    println(w.f(5000000001))
+}

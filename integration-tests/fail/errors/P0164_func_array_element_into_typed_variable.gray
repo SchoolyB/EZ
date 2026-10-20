@@ -1,0 +1,9 @@
+// expect-contains: P0164
+/* Panic Test: P0164 - a [func] element with another signature bound to a typed func variable */
+do dbl32(n i32) -> i32 { return n * 2 }
+
+do main() {
+    mut fs [func] = {()dbl32}
+    const f func(i64) -> i64 = fs[0]
+    println(f(5000000001))
+}

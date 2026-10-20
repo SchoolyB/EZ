@@ -1,0 +1,9 @@
+// expect-contains: P0164
+/* Panic Test: P0164 - a [func] element with another parameter type passed to a typed func parameter */
+do dbl32(n i32) -> i32 { return n * 2 }
+do apply(x i64, f func(i64) -> i64) -> i64 { return f(x) }
+
+do main() {
+    mut fs [func] = {()dbl32}
+    println(apply(5000000001, fs[0]))
+}

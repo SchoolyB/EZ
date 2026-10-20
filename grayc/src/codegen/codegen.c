@@ -1932,10 +1932,45 @@ static bool emit_wide_integer_coerced(CodeGen *codegen, const char *wide_integer
     return true;
 }
 
+/* Note that `symbol` is a function whose references have the canonical type
+ * `type_name`, once. */
+static void register_function_signature(CodeGen *codegen, const char *symbol, const char *type_name) {
+    if (!type_name || strncmp(type_name, "func(", 5) != 0) return;
+    for (int index = 0; index < codegen->function_signature_count; index++)
+        if (strcmp(codegen->function_signature_symbols[index], symbol) == 0) return;
+    if (codegen->function_signature_count == codegen->function_signature_capacity) {
+        int capacity = GROW_NEXT_CAPACITY(codegen->function_signature_capacity);
+        codegen->function_signature_symbols = xrealloc(codegen->function_signature_symbols, sizeof(const char *) * (size_t)capacity);
+        codegen->function_signature_types = xrealloc(codegen->function_signature_types, sizeof(const char *) * (size_t)capacity);
+        codegen->function_signature_capacity = capacity;
+    }
+    codegen->function_signature_symbols[codegen->function_signature_count] = strdup(symbol);
+    codegen->function_signature_types[codegen->function_signature_count] = type_name;
+    codegen->function_signature_count++;
+}
+
+/* Emit `value` into a slot of the typed func type `slot_type_name` when the
+ * value is a bare func, which carries no signature: the pointer goes through
+ * gray_func_check, which panics if the function it names has another
+ * signature. Returns false, emitting nothing, for any other value or slot. */
+static bool emit_function_signature_checked(CodeGen *codegen, const char *slot_type_name, AstNode *value) {
+    if (!slot_type_name || strncmp(slot_type_name, "func(", 5) != 0) return false;
+    GrayType *value_type = codegen_type_of(codegen, value);
+    if (!value_type || value_type->kind != TYPE_KIND_FUNCTION || !value_type->name || strcmp(value_type->name, "func") != 0)
+        return false;
+    GrayType *slot_type = type_from_name(slot_type_name);
+    if (!slot_type || slot_type->kind != TYPE_KIND_FUNCTION) return false;
+    emit(codegen, "gray_func_check((void *)(");
+    emit_expression(codegen, value);
+    emit_formatted(codegen, "), \"%s\", \"%s\", %d)", slot_type->name, codegen_file_literal(codegen), value->token.line);
+    return true;
+}
+
 /* Emit `value` where the language gives it the declared type `gray_tn` (a
  * return slot, a parameter). An array or map literal takes its storage from
  * that type, so a [u8] literal is packed wherever it is written. */
 static void emit_declared_value(CodeGen *codegen, const char *gray_type_name, AstNode *value) {
+    if (emit_function_signature_checked(codegen, gray_type_name, value)) return;
     if (gray_type_name && (value->kind == NODE_ARRAY_VALUE || value->kind == NODE_MAP_VALUE)) {
         const char *saved_variable_type = codegen->current_variable_type;
         codegen->current_variable_type = gray_type_name;
@@ -3076,6 +3111,8 @@ static void emit_struct_value(CodeGen *codegen, AstNode *node) {
                  * own element count (mirrors emit_vardecl_array). */
                 const char *field_element_type = extract_array_element_type(field_type);
                 emit_fixed_size_array_initializer(codegen, field_value, field_element_type ? field_element_type : "i64", fixed_size);
+            } else if (emit_function_signature_checked(codegen, field_type, field_value)) {
+                /* emitted */
             } else if (!emit_wide_integer_coerced(codegen, field_type, field_value)) {
                 emit_expression(codegen, field_value);
             }
@@ -3831,6 +3868,7 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
 static void emit_function_reference(CodeGen *codegen, AstNode *node) {
     /* ()func_name or ()Type.func; emit as C function pointer */
     codegen_enter_node(codegen, node);
+    size_t symbol_start = codegen->output.length;
     if (node->data.function_reference.function->kind == NODE_LABEL) {
         /* The referenced function is named as written, so it resolves like
          * any other reference — taking a reference to a function inside its
@@ -3870,6 +3908,12 @@ static void emit_function_reference(CodeGen *codegen, AstNode *node) {
     } else {
         emit(codegen, "gray_fn_");
         emit_expression(codegen, node->data.function_reference.function);
+    }
+    GrayType *reference_type = codegen_type_of(codegen, node);
+    if (reference_type) {
+        char *symbol = strndup(codegen->output.data + symbol_start, codegen->output.length - symbol_start);
+        register_function_signature(codegen, symbol, reference_type->name);
+        free(symbol);
     }
 }
 
@@ -6441,6 +6485,15 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
                  * The declaration carries the mangled name, which is the
                  * symbol the function is defined under. */
                 emit_formatted(codegen, "gray_fn_%s", target->data.function_declaration.name);
+                GrayType *reference_type = codegen_type_of(codegen, node);
+                if (reference_type) {
+                    char *symbol = strdup(target->data.function_declaration.name);
+                    char *prefixed = xmalloc(strlen(symbol) + 9);
+                    sprintf(prefixed, "gray_fn_%s", symbol);
+                    register_function_signature(codegen, prefixed, reference_type->name);
+                    free(prefixed);
+                    free(symbol);
+                }
                 return true;
             }
         }
@@ -10663,6 +10716,9 @@ static void emit_variable_declaration_initializer(CodeGen *codegen, AstNode *nod
              * Wrap with from_i64/from_u64 so the C assignment is valid.
              * Covers: mut big i128 = some_int_var */
             emit_scalar_to_wide_integer(codegen, type_name, node->data.variable_declaration.value, NULL);
+        } else if (!codegen->is_in_const_declaration &&
+                   emit_function_signature_checked(codegen, type_name, node->data.variable_declaration.value)) {
+            /* emitted */
         } else if (!emit_narrowing_cast(codegen, type_name, node->data.variable_declaration.value, node->token.line)) {
             emit_expression(codegen, node->data.variable_declaration.value);
         }
@@ -11848,7 +11904,12 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
         if (target_base_type && target_base_type->name && is_wide_integer_type_name(target_base_type->name))
             assign_wide_integer = target_base_type->name;
     }
+    GrayType *assigned_slot_type = node->data.assign.operator == TOKEN_ASSIGN
+        ? codegen_type_of(codegen, node->data.assign.target) : NULL;
     if (assign_wide_integer && emit_wide_integer_coerced(codegen, assign_wide_integer, node->data.assign.value)) {
+        /* emitted */
+    } else if (assigned_slot_type && assigned_slot_type->kind == TYPE_KIND_FUNCTION &&
+               emit_function_signature_checked(codegen, assigned_slot_type->name, node->data.assign.value)) {
         /* emitted */
     } else if (node->data.assign.value->kind == NODE_LABEL &&
         is_reference_variable(codegen, node->data.assign.value->data.label.value)) {
@@ -14014,6 +14075,10 @@ CodeGen codegen_create(const char *file) {
     codegen.is_functions_by_name_built = false;
     codegen.renamed_function = NULL;
     codegen.type_table = NULL;
+    codegen.function_signature_symbols = NULL;
+    codegen.function_signature_types = NULL;
+    codegen.function_signature_count = 0;
+    codegen.function_signature_capacity = 0;
     codegen.reference_variables = NULL;
     codegen.reference_variable_count = 0;
     codegen.reference_variable_capacity = 0;
@@ -15237,6 +15302,11 @@ void codegen_generate(CodeGen *codegen, AstNode *program) {
     codegen_emit_forward_declarations(codegen, &top_level);
     codegen_emit_bodies(codegen, &top_level);
     codegen_emit_main(codegen, &top_level);
+    emit(codegen, "\nconst GrayFunctionSignatureEntry gray_function_signatures[] = {\n");
+    for (int index = 0; index < codegen->function_signature_count; index++)
+        emit_formatted(codegen, "    { (void *)%s, \"%s\" },\n",
+            codegen->function_signature_symbols[index], codegen->function_signature_types[index]);
+    emit(codegen, "    { NULL, NULL }\n};\n");
 
     /* Splice an #undef for every emitted identifier in after the last include,
      * so a name the headers define as a macro stays an identifier. This sits
@@ -15302,6 +15372,9 @@ void codegen_destroy(CodeGen *codegen) {
     free(codegen->enum_declarations);
     free(codegen->all_functions);
     free(codegen->functions_by_name);
+    for (int index = 0; index < codegen->function_signature_count; index++) free((char *)codegen->function_signature_symbols[index]);
+    free(codegen->function_signature_symbols);
+    free(codegen->function_signature_types);
     free(codegen->reference_variables);
     free(codegen->raw_variables);
     free(codegen->wide_integer_variable_names);

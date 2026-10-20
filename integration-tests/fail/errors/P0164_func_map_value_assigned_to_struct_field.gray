@@ -1,0 +1,16 @@
+// expect-contains: P0164
+/* Panic Test: P0164 - a map[string:func] value with another parameter count assigned to a typed struct field */
+const W struct {
+    f func(i64) -> i64
+}
+
+do dbl(n i64) -> i64 { return n * 2 }
+do two(a i64, b i64) -> i64 { return a + b }
+
+do main() {
+    mut m map[string:func] = {:}
+    m["b"] = ()two
+    mut w W = W{f: ()dbl}
+    w.f = m["b"]
+    println(w.f(5))
+}

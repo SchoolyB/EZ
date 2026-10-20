@@ -318,6 +318,25 @@ static inline void gray_exit_func(void) {
  * of these at every one, and the smaller, uniform expansion keeps the C the
  * backend has to chew through in check. Messages mirror error_codes.h. */
 _Noreturn void gray_arith_panic_add(const char *file, int line);
+
+/* The signature each function reference in the program was typed with, in its
+ * canonical encoded form ("func(i64)->i64"); the generated C defines the table.
+ * A bare func value holds a pointer and no signature, so where it flows into a
+ * typed func slot, gray_func_check compares the signature the slot expects. */
+typedef struct { void *function; const char *signature; } GrayFunctionSignatureEntry;
+extern const GrayFunctionSignatureEntry gray_function_signatures[];
+
+static inline void *gray_func_check(void *function, const char *expected, const char *file, int line) {
+    if (!function) return function;
+    for (const GrayFunctionSignatureEntry *entry = gray_function_signatures; entry->function; entry++) {
+        if (entry->function != function) continue;
+        if (strcmp(entry->signature, expected) != 0)
+            gray_panic_code_at(file, line, "P0164", "function reference signature mismatch: expected %s, got %s",
+                               expected, entry->signature);
+        return function;
+    }
+    return function;
+}
 _Noreturn void gray_arith_panic_sub(const char *file, int line);
 _Noreturn void gray_arith_panic_mul(const char *file, int line);
 _Noreturn void gray_arith_panic_neg(const char *file, int line);

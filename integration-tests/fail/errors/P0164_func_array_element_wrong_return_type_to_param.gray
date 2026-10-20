@@ -1,0 +1,9 @@
+// expect-contains: P0164
+/* Panic Test: P0164 - a [func] element with another return type passed to a typed func parameter */
+do tos(n i64) -> string { return "${n}" }
+do apply(x i64, f func(i64) -> i64) -> i64 { return f(x) }
+
+do main() {
+    mut fs [func] = {()tos}
+    println(apply(7, fs[0]))
+}

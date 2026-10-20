@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 554 codes** (391 errors, 17 warnings, 146 panics)
+**Total: 555 codes** (391 errors, 17 warnings, 147 panics)
 
 ---
 
@@ -581,6 +581,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0161` | atomic | atomic.spinlock: out of memory allocating the lock |
 | `P0162` | fmt | fmt.f64_to_fixed called with a negative decimals count |
 | `P0163` | fmt | fmt.f64_to_fixed result exceeds maximum string length |
+| `P0164` | functions | function reference signature mismatch: expected %s, got %s |
 
 ---
 
@@ -605,4 +606,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-20 19:01:31 UTC*
+*Generated on 2026-10-20 19:16:25 UTC*

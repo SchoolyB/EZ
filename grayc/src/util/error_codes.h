@@ -581,7 +581,8 @@
     GRAY_PANIC("P0160", "channels",   "channels.open: out of memory allocating the channel") \
     GRAY_PANIC("P0161", "atomic",     "atomic.spinlock: out of memory allocating the lock") \
     GRAY_PANIC("P0162", "fmt",        "fmt.f64_to_fixed called with a negative decimals count") \
-    GRAY_PANIC("P0163", "fmt",        "fmt.f64_to_fixed result exceeds maximum string length")
+    GRAY_PANIC("P0163", "fmt",        "fmt.f64_to_fixed result exceeds maximum string length") \
+    GRAY_PANIC("P0164", "functions",  "function reference signature mismatch: expected %s, got %s")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

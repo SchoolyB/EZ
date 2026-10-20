@@ -1,0 +1,45 @@
+/*
+ * func_element_matching_signature.gray
+ * A bare func element whose function has the signature a typed func slot
+ * expects flows into that slot: a parameter, a struct literal field, a field
+ * assignment and a typed variable.
+ */
+
+const W struct {
+    f func(i64) -> i64
+}
+
+do dbl(n i64) -> i64 { return n * 2 }
+do tos(n i64) -> string { return "${n}" }
+do two(a i64, b i64) -> i64 { return a + b }
+do dbl32(n i32) -> i32 { return n * 2 }
+do apply(x i64, f func(i64) -> i64) -> i64 { return f(x) }
+
+do main() {
+    mut passed i64 = 0
+    mut failed i64 = 0
+
+    mut fs [func] = {()dbl, ()tos, ()two, ()dbl32}
+    mut m map[string:func] = {:}
+    m["a"] = ()dbl
+
+    mut w W = W{f: m["a"]}
+    mut other W = W{f: ()dbl}
+    other.f = fs[0]
+    const direct func(i64) -> i64 = fs[0]
+
+    if apply(5, fs[0]) == 10 && apply(6, m["a"]) == 12 && w.f(7) == 14 && other.f(8) == 16 && direct(9) == 18 {
+        println("  [PASS] matching signatures through every slot")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] matching signatures")
+        failed += 1
+    }
+
+    println("Passed: ${passed}, Failed: ${failed}")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
