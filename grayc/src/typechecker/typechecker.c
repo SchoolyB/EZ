@@ -17288,6 +17288,60 @@ static bool when_case_values_equal(TypeChecker *checker, AstNode *left, AstNode 
     return left_value && right_value && strcmp(left_value, right_value) == 0;
 }
 
+static bool when_constant_i64(TypeChecker *checker, AstNode *node, int64_t *result) {
+    LiteralValue value;
+    return node && constant_fold(checker, node, &value) && literal_value_as_i64(&value, result);
+}
+
+/* The start, stop and step of a `range(...)` case whose bounds are constant
+ * i64 values and whose step is not zero. */
+static bool when_constant_range(TypeChecker *checker, AstNode *node, int64_t *start, int64_t *stop, int64_t *step) {
+    if (!node || node->kind != NODE_RANGE_EXPRESSION) return false;
+    AstNode *start_node = node->data.range_expression.start;
+    AstNode *step_node = node->data.range_expression.step;
+    *start = 0;
+    *step = 1;
+    if (start_node && !when_constant_i64(checker, start_node, start)) return false;
+    if (!when_constant_i64(checker, node->data.range_expression.end, stop)) return false;
+    if (step_node && !when_constant_i64(checker, step_node, step)) return false;
+    return *step != 0;
+}
+
+static bool when_range_contains(int64_t start, int64_t stop, int64_t step, int64_t value) {
+    if (step > 0)
+        return value >= start && value < stop && ((uint64_t)value - (uint64_t)start) % (uint64_t)step == 0;
+    return value <= start && value > stop && ((uint64_t)start - (uint64_t)value) % (0 - (uint64_t)step) == 0;
+}
+
+/* True when every value the case `value` matches is already matched by the
+ * earlier range case `earlier`: a constant inside it, a constant range whose
+ * first and last values are inside it and whose step is a multiple of its step,
+ * or the same stored range variable. */
+static bool when_case_covered_by_range(TypeChecker *checker, AstNode *value, AstNode *earlier) {
+    if (!value || !earlier) return false;
+    if (value->kind == NODE_LABEL && earlier->kind == NODE_LABEL) {
+        Symbol *symbol = scope_lookup(checker->current_scope, value->data.label.value);
+        return symbol && symbol->type && symbol->type->kind == TYPE_KIND_RANGE &&
+               strcmp(value->data.label.value, earlier->data.label.value) == 0;
+    }
+    int64_t earlier_start, earlier_stop, earlier_step;
+    if (!when_constant_range(checker, earlier, &earlier_start, &earlier_stop, &earlier_step)) return false;
+    int64_t point;
+    if (when_constant_i64(checker, value, &point))
+        return when_range_contains(earlier_start, earlier_stop, earlier_step, point);
+    int64_t start, stop, step;
+    if (!when_constant_range(checker, value, &start, &stop, &step)) return false;
+    if (step > 0 ? start >= stop : start <= stop) return false;
+    uint64_t distance = step > 0 ? (uint64_t)stop - (uint64_t)start : (uint64_t)start - (uint64_t)stop;
+    uint64_t stride = step > 0 ? (uint64_t)step : 0 - (uint64_t)step;
+    uint64_t steps_to_last = (distance - 1) / stride;
+    int64_t last = (int64_t)((uint64_t)start + (step > 0 ? steps_to_last * stride : 0 - steps_to_last * stride));
+    uint64_t earlier_stride = earlier_step > 0 ? (uint64_t)earlier_step : 0 - (uint64_t)earlier_step;
+    return stride % earlier_stride == 0 &&
+           when_range_contains(earlier_start, earlier_stop, earlier_step, start) &&
+           when_range_contains(earlier_start, earlier_stop, earlier_step, last);
+}
+
 static void check_when_statement(TypeChecker *checker, AstNode *node) {
     /* E3100: a bare struct or enum name is a type, not a value. Without
      * this the subject resolves to the type itself and codegen emits a
@@ -17359,7 +17413,9 @@ static void check_when_statement(TypeChecker *checker, AstNode *node) {
             for (int earlier_case_index = 0; earlier_case_index <= i && !flagged; earlier_case_index++) {
                 int earlier_value_limit = (earlier_case_index == i) ? j : node->data.when_statement.cases[earlier_case_index].value_count;
                 for (int earlier_value_index = 0; earlier_value_index < earlier_value_limit; earlier_value_index++) {
-                    if (when_case_values_equal(checker, value_node, node->data.when_statement.cases[earlier_case_index].values[earlier_value_index])) {
+                    AstNode *earlier_node = node->data.when_statement.cases[earlier_case_index].values[earlier_value_index];
+                    if (when_case_values_equal(checker, value_node, earlier_node) ||
+                        when_case_covered_by_range(checker, value_node, earlier_node)) {
                         NODE_ERROR(checker, value_node, "E2043");
                         flagged = true;
                         break;

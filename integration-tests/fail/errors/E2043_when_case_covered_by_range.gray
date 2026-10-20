@@ -1,0 +1,15 @@
+/*
+ * Error Test: E2043 - when case made unreachable by an earlier range
+ * Expected: compiler should reject this with E2043
+ */
+
+do main() {
+    mut n i64 = 5
+    when n {
+        is range(0, 10) { println("range") }
+        is 5 { println("five") }
+        is range(3, 6) { println("inner") }
+        is range(0, 10, 2) { println("stepped") }
+        default { println("other") }
+    }
+}
