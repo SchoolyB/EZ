@@ -1,0 +1,18 @@
+/*
+ * Test: a value-less declaration of a struct from another module builds when
+ * the struct has a map field keyed by an enum of that module
+ */
+import "./gmod.gray"
+
+mut global_graph gmod.G
+
+do main() {
+    mut g gmod.G
+    assert(len(g.kinds) == 0, "local starts empty")
+    assert(len(global_graph.kinds) == 0, "file-scope global starts empty")
+
+    g.kinds[gmod.Kind.RAIL] = 5
+    assert(g.kinds[gmod.Kind.RAIL] == 5, "map is usable")
+
+    println("ALL TESTS PASSED")
+}

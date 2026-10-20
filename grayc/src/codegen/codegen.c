@@ -2980,9 +2980,15 @@ static void emit_struct_zero_value_literal(CodeGen *codegen, const char *type_na
         return;
     }
     emit_formatted(codegen, "(%s){", c_type);
+    /* Field types are spelled as the struct's own module writes them. */
+    const char *saved_module = codegen->current_module;
+    const char *saved_file = codegen->current_file;
+    codegen_enter_node(codegen, struct_declaration);
     bool emitted = false;
     for (int i = 0; i < struct_declaration->data.struct_declaration.field_count; i++)
         emit_struct_field_zero_default(codegen, &struct_declaration->data.struct_declaration.fields[i], depth, &emitted);
+    codegen->current_module = saved_module;
+    codegen->current_file = saved_file;
     emit(codegen, "}");
 }
 
