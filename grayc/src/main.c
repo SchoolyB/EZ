@@ -2127,7 +2127,15 @@ int main(int argc, char **argv) {
     if (options.is_run_mode && !options.output_file) {
         /* Run mode: use temp file */
         default_output = malloc(PATH_BUFFER_SIZE);
-        gray_temporary_path(default_output, PATH_BUFFER_SIZE, "gray_run_", GRAY_EXECUTABLE_SUFFIX);
+        if (gray_temporary_path(default_output, PATH_BUFFER_SIZE, "gray_run_", GRAY_EXECUTABLE_SUFFIX) < 0) {
+            fprintf(stderr, "gray: cannot create a private temporary directory\n");
+            free(default_output);
+            codegen_destroy(&codegen);
+            typechecker_free(checker);
+            arena_destroy(arena);
+            free(source);
+            return 1;
+        }
         options.output_file = default_output;
     } else if (!options.output_file) {
         default_output = output_name_from_input(options.input_file);
@@ -2140,7 +2148,15 @@ int main(int argc, char **argv) {
     char c_path_prefix[PATH_BUFFER_SIZE];
     snprintf(c_path_prefix, sizeof(c_path_prefix), "gray_%s_", gray_path_basename(options.output_file));
     char c_file_path[PATH_BUFFER_SIZE];
-    gray_temporary_path(c_file_path, sizeof(c_file_path), c_path_prefix, ".c");
+    if (gray_temporary_path(c_file_path, sizeof(c_file_path), c_path_prefix, ".c") < 0) {
+        fprintf(stderr, "gray: cannot create a private temporary directory\n");
+        codegen_destroy(&codegen);
+        typechecker_free(checker);
+        arena_destroy(arena);
+        free(source);
+        free(default_output);
+        return 1;
+    }
 
     if (!write_file(c_file_path, c_source)) {
         codegen_destroy(&codegen);

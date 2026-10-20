@@ -138,9 +138,9 @@ const char *gray_temporary_directory(void);
  * this user (another user owns it, it is a symlink, or others can write it). */
 bool gray_private_cache_directory(char *destination, size_t destination_size);
 
-/* Build a collision-resistant path in the temp directory of the form
- * <tmp>/<prefix><pid>-<n><suffix>. Does not create the file. snprintf
- * semantics: >= n means truncation. */
+/* Build a collision-resistant path in the private per-user temp directory of
+ * the form <dir>/<prefix><pid>-<n><suffix>. Does not create the file. snprintf
+ * semantics: >= n means truncation; -1 means the private directory is unusable. */
 int gray_temporary_path(char *destination, size_t destination_size, const char *prefix, const char *suffix);
 
 /* Open an anonymous read/write temp file that is removed when closed. */
