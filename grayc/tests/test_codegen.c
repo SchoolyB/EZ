@@ -2439,9 +2439,9 @@ static void test_e2e_copy_deep(void) {
     ASSERT_STR_EQ(output, "30\n31");
 }
 
-/* A struct literal that embeds an existing array aliases it (STANDARD 11.2) */
+/* A struct literal that embeds an existing array copies it (STANDARD 11.2) */
 
-static void test_e2e_literal_embed_alias(void) {
+static void test_e2e_literal_embed_copies(void) {
     char *output = compile_and_run(
         ""
         "const Box struct {\n"
@@ -2454,7 +2454,7 @@ static void test_e2e_literal_embed_alias(void) {
         "  println(arr[0])\n"
         "}");
     ASSERT_NOT_NULL(output);
-    ASSERT_STR_EQ(output, "99");
+    ASSERT_STR_EQ(output, "1");
 }
 
 /* new() returns a zero-initialized value (STANDARD 11.4) */
@@ -3290,7 +3290,7 @@ int main(void) {
 
     /* copy() and reference semantics */
     RUN_TEST(test_e2e_copy_deep);
-    RUN_TEST(test_e2e_literal_embed_alias);
+    RUN_TEST(test_e2e_literal_embed_copies);
 
     /* new() zero values and when ranges */
     RUN_TEST(test_e2e_new_zero_values);

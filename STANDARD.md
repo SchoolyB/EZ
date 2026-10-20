@@ -4939,7 +4939,7 @@ b[0] = 99
 println(a[0])   // 1 - b is an independent copy, not an alias
 ```
 
-The one place a composite gets aliased instead of copied is a **literal that embeds an existing value** — a struct or array/map literal that names an existing variable as one of its fields/elements shares that variable's backing storage rather than copying it:
+A literal that embeds an existing value copies it too — a struct, array or map literal that names an existing variable, element or field as one of its fields/elements/values gets its own independent copy:
 
 ```gray
 const Box struct {
@@ -4947,12 +4947,12 @@ const Box struct {
 }
 
 mut arr [i64] = {1, 2, 3}
-mut box Box = Box{items: arr}   // struct literal embeds arr
+mut box Box = Box{items: arr}   // struct literal embeds a copy of arr
 box.items[0] = 99
-println(arr[0])                  // 99 - box.items aliases arr
+println(arr[0])                  // 1 - box.items is independent of arr
 ```
 
-The same happens for an array or map literal that embeds an existing array/map as one of its elements/values (`{arr}`, `{"key": existing_map}`). A `const` value or a by-value parameter is never aliased this way: a literal that embeds one copies it, so a write through the literal cannot reach the constant or the caller's variable. This aliasing is scope-local: if the literal crosses a scope boundary (returned, or otherwise escaping), ASBAM's escape-copy (11.1) still deep-copies it, so it can't produce a dangling reference — but two literals built from the same source *within* the same scope will unexpectedly share mutable storage. Use `copy()` (11.3) when a literal needs to be independent of the value it was built from.
+The same holds for an array or map literal that embeds an existing array/map as one of its elements/values (`{arr}`, `{"key": existing_map}`).
 
 ### 11.3 Deep Copy
 
