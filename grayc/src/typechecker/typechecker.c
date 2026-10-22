@@ -652,6 +652,10 @@ static int display_name_count(TypeChecker *checker, const char *display) {
             ? checker->enum_display_names[i] : checker->enum_names[i];
         if (display_name && strcmp(display_name, display) == 0) count++;
     }
+    for (int i = 0; i < checker->type_alias_count; i++) {
+        if (checker->type_alias_is_distinct[i] &&
+            strcmp(unqualified_display_name(checker->type_alias_names[i]), display) == 0) count++;
+    }
     return count;
 }
 
@@ -679,6 +683,8 @@ static const char *qualify_ambiguous_name(TypeChecker *checker,
  * e.g. ^myutils_Thing displays as ^Thing. */
 static const char *type_display_name(TypeChecker *checker, GrayType *type) {
     if (!type) return type_name(type);
+    if (type->distinct)
+        return qualify_ambiguous_name(checker, type->distinct, unqualified_display_name(type->distinct));
     if (type->kind == TYPE_KIND_STRUCT && type->name)
         return qualify_ambiguous_name(checker, type->name, struct_display_name(checker, type->name));
     if (type->kind == TYPE_KIND_ENUM && type->name)
@@ -731,7 +737,19 @@ static char *alias_top_level_separator(char *spelling, char separator) {
     return NULL;
 }
 
-static const char *resolve_type_alias(TypeChecker *checker, const char *name);
+static const char *resolve_type_alias_impl(TypeChecker *checker, const char *name, bool keep_distinct);
+
+/* Every alias erased, `distinct alias` ones included: the spelling codegen and
+ * every rule that only needs the representation see. */
+static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
+    return resolve_type_alias_impl(checker, name, false);
+}
+
+/* Aliases erased except `distinct alias` names, which stay as their own
+ * type's name: the spelling that gives a value its distinct type. */
+static const char *resolve_type_alias_keeping_distinct(TypeChecker *checker, const char *name) {
+    return resolve_type_alias_impl(checker, name, true);
+}
 
 /* Resolve every top-level comma-separated type name in `list` (used as a
  * mutable scratch buffer), writing the rebuilt list into `out`. A leading
@@ -739,7 +757,7 @@ static const char *resolve_type_alias(TypeChecker *checker, const char *name);
  * at least one element resolved to a different name, 0 when nothing
  * changed, -1 on buffer overflow (`out` unusable). */
 static int alias_resolve_type_list(TypeChecker *checker, char *list,
-                                   char *resolved_list, size_t out_size) {
+                                   char *resolved_list, size_t out_size, bool keep_distinct) {
     size_t position = 0;
     bool changed = false;
     char *segment = list;
@@ -750,7 +768,7 @@ static int alias_resolve_type_list(TypeChecker *checker, char *list,
         const char *ampersand = "";
         char *type_parameter = segment;
         if (*type_parameter == '&') { ampersand = "&"; type_parameter++; }
-        const char *resolved_part = resolve_type_alias(checker, type_parameter);
+        const char *resolved_part = resolve_type_alias_impl(checker, type_parameter, keep_distinct);
         if (resolved_part != type_parameter) changed = true;
         int part_count = snprintf(resolved_list + position, out_size - position, "%s%s%s",
                          position ? "," : "", ampersand, resolved_part);
@@ -766,12 +784,12 @@ static int alias_resolve_type_list(TypeChecker *checker, char *list,
  * Handles pointer (^Name), array ([Name] / [Name,N]), map (map[K:V]) and
  * func signature (func(P,...)->R) types, recursing into every type slot.
  * Returns the original name if it is not an alias. */
-static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
+static const char *resolve_type_alias_impl(TypeChecker *checker, const char *name, bool keep_distinct) {
     if (!name) return name;
 
     /* Handle pointer types: ^Alias → ^Resolved */
     if (name[0] == '^') {
-        const char *inner = resolve_type_alias(checker, name + 1);
+        const char *inner = resolve_type_alias_impl(checker, name + 1, keep_distinct);
         if (inner != name + 1) {
             size_t length = strlen(inner) + 2;
             char *buffer = arena_allocate(checker->arena, length);
@@ -800,7 +818,7 @@ static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
                     size_suffix = size_text;
                     *size_comma = '\0';
                 }
-                const char *resolved_inner = resolve_type_alias(checker, inner_buffer);
+                const char *resolved_inner = resolve_type_alias_impl(checker, inner_buffer, keep_distinct);
                 if (resolved_inner != inner_buffer) {
                     size_t array_spelling_length = strlen(resolved_inner) + strlen(size_suffix) + 3;
                     char *buffer = arena_allocate(checker->arena, array_spelling_length);
@@ -824,8 +842,8 @@ static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
                 char *colon = alias_top_level_separator(inner_buffer, ':');
                 if (colon) {
                     *colon = '\0';
-                    const char *key_part = resolve_type_alias(checker, inner_buffer);
-                    const char *value_part = resolve_type_alias(checker, colon + 1);
+                    const char *key_part = resolve_type_alias_impl(checker, inner_buffer, keep_distinct);
+                    const char *value_part = resolve_type_alias_impl(checker, colon + 1, keep_distinct);
                     if (key_part != inner_buffer || value_part != colon + 1) {
                         size_t map_spelling_length = strlen(key_part) + strlen(value_part) + 7;
                         char *buffer = arena_allocate(checker->arena, map_spelling_length);
@@ -856,8 +874,8 @@ static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
                 memcpy(parameter_list, name + 5, parameter_list_length);
                 parameter_list[parameter_list_length] = '\0';
                 int parameters_changed =
-                    alias_resolve_type_list(checker, parameter_list, rebuilt, sizeof(rebuilt));
-                const char *resolved_return_text = return_text ? resolve_type_alias(checker, return_text) : NULL;
+                    alias_resolve_type_list(checker, parameter_list, rebuilt, sizeof(rebuilt), keep_distinct);
+                const char *resolved_return_text = return_text ? resolve_type_alias_impl(checker, return_text, keep_distinct) : NULL;
                 bool was_return_changed = (return_text && resolved_return_text != return_text);
                 if (parameters_changed >= 0 && (parameters_changed == 1 || was_return_changed)) {
                     size_t map_spelling_length = strlen(rebuilt) + (resolved_return_text ? strlen(resolved_return_text) : 0) + 10;
@@ -875,6 +893,7 @@ static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
         bool found = false;
         for (int i = 0; i < checker->type_alias_count; i++) {
             if (strcmp(checker->type_alias_names[i], name) == 0) {
+                if (keep_distinct && checker->type_alias_is_distinct[i]) return name;
                 name = checker->type_alias_targets[i];
                 found = true;
                 break;
@@ -886,7 +905,7 @@ static const char *resolve_type_alias(TypeChecker *checker, const char *name) {
          * above, or the alias nested inside it never gets followed. */
         if (name[0] == '^' || name[0] == '[' ||
             strncmp(name, "map[", 4) == 0 || strncmp(name, "func(", 5) == 0)
-            return resolve_type_alias(checker, name);
+            return resolve_type_alias_impl(checker, name, keep_distinct);
     }
     return name;
 }
@@ -5159,8 +5178,9 @@ static GrayType *typechecker_type_from_name_uncached(TypeChecker *checker, const
     /* Map the name as written — "lib.Score", or a bare "Score" naming this
      * module's own or a using'd declaration — onto the registry spelling. */
     name = checker_resolve_type_name(checker, name);
-    /* Resolve type aliases before any type lookup. */
-    if (name) name = resolve_type_alias(checker, name);
+    /* Resolve type aliases before any type lookup. A distinct alias is not
+     * erased: its name stands for its own type. */
+    if (name) name = resolve_type_alias_keeping_distinct(checker, name);
     if (name && is_enum_name(checker, name)) return type_enum(name);
     /* A registered struct is a struct, whatever its registry spelling looks
      * like. type_from_name() has to guess from the spelling, and its guess
@@ -5168,6 +5188,7 @@ static GrayType *typechecker_type_from_name_uncached(TypeChecker *checker, const
      * module whose own name contains one (foo_bar_Baz). */
     if (name && is_struct_name(checker, name)) return type_struct(name);
     GrayType *resolved_type = type_from_name(name);
+    if (resolved_type->distinct) return resolved_type;
     /* try prefixed type names from using-modules so bare
      * "Point" resolves to "shapes_Point" when shapes is using'd.
      * type_from_name returns TYPE_KIND_STRUCT for any capitalized name
@@ -5274,6 +5295,11 @@ static bool types_assignable(TypeChecker *checker, GrayType *destination_type, G
      * explicitly annotated declaration — is handled at the declaration site,
      * not here. */
     if (source_type->kind == TYPE_KIND_C_FUNCTION || destination_type->kind == TYPE_KIND_C_FUNCTION) return false;
+    /* A distinct type converts to nothing and takes nothing but itself; a
+     * value with no type of its own yet (a literal, nil) takes the slot's. */
+    if (!type_same_distinct(destination_type, source_type) && source_type->kind != TYPE_KIND_LITERAL &&
+        source_type->kind != TYPE_KIND_UNKNOWN && source_type->kind != TYPE_KIND_NIL)
+        return false;
     /* Pointer types must match element types (^i64 != ^f64) */
     if (destination_type->kind == TYPE_KIND_POINTER && source_type->kind == TYPE_KIND_POINTER) {
         if (destination_type->element_type && source_type->element_type)
@@ -6148,6 +6174,12 @@ static GrayType *check_expression_as(TypeChecker *checker, AstNode *value, GrayT
     else
         type = resolve_expression(checker, value);
     checker->expected_type = saved_expected;
+
+    /* A bool, char or string literal is accepted by a distinct slot of its kind. */
+    if (typed_target && target->distinct && type && !type->distinct && type->kind == target->kind &&
+        (value->kind == NODE_BOOL_VALUE || value->kind == NODE_CHAR_VALUE ||
+         value->kind == NODE_STRING_VALUE || value->kind == NODE_INTERPOLATED_STRING))
+        return target;
 
     if (typed_target && type && type_kind_is_number(type->kind) && type_kind_is_number(target->kind)) {
         Conversion conversion = type_conversion(type, target);
@@ -7807,7 +7839,7 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
     /* Bind what the name reaches, not the alias spelling. The instantiation is
      * mangled and substituted by binding, so an alias bound as itself gave a
      * return type no annotation of the underlying type would accept. */
-    const char *target = resolve_type_alias(checker, checker_resolve_type_name(checker, label));
+    const char *target = resolve_type_alias_keeping_distinct(checker, checker_resolve_type_name(checker, label));
     if (target && strcmp(target, label) != 0) {
         label = target;
         type_argument->data.label.value = target;
@@ -10751,6 +10783,12 @@ static bool equality_operand_kinds_mismatch(GrayType *left, GrayType *right) {
         !(is_integer_kind(left->kind) && right->kind == TYPE_KIND_ENUM);
 }
 
+/* A bool, char or string literal: the values a distinct type of its kind accepts. */
+static bool is_scalar_literal_node(const AstNode *node) {
+    return node->kind == NODE_BOOL_VALUE || node->kind == NODE_CHAR_VALUE ||
+           node->kind == NODE_STRING_VALUE || node->kind == NODE_INTERPOLATED_STRING;
+}
+
 static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
     GrayType *result = &TYPE_UNKNOWN;
     TokenType operator = node->data.infix.operator;
@@ -10829,6 +10867,26 @@ static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
         }
         if (left->kind == TYPE_KIND_LITERAL) left = check_expression_as(checker, left_node, NULL);
         if (right->kind == TYPE_KIND_LITERAL) right = check_expression_as(checker, right_node, NULL);
+
+        /* Two bool, char or string operands of which one is a distinct type
+         * and the other is not (or is another distinct type): only a literal
+         * on the plain side is accepted, as it takes the distinct type. */
+        bool is_scalar_pair = left->kind == right->kind &&
+            (left->kind == TYPE_KIND_STRING || left->kind == TYPE_KIND_BOOL || left->kind == TYPE_KIND_CHAR);
+        if (is_scalar_pair && !type_same_distinct(left, right)) {
+            AstNode *plain_node = left->distinct ? right_node : left_node;
+            if (left->distinct && right->distinct) plain_node = NULL;
+            if (!plain_node || !is_scalar_literal_node(plain_node)) {
+                if (is_comparison) {
+                    NODE_ERROR_FORMATTED_HELP(checker, node, "E3156",
+                        "convert one side with cast()", type_name(left), type_name(right));
+                } else {
+                    NODE_ERROR_FORMATTED_HELP(checker, node, "E3002",
+                        "convert one side with cast()", operator_display_name(operator), type_name(left), type_name(right));
+                }
+                return &TYPE_UNKNOWN;
+            }
+        }
     }
 
     /* track whether any op-specific check has rejected the
@@ -11212,9 +11270,10 @@ static GrayType *resolve_infix_expression(TypeChecker *checker, AstNode *node) {
         operator == TOKEN_LESS_THAN_OR_EQUAL || operator == TOKEN_GREATER_THAN_OR_EQUAL ||
         operator == TOKEN_AND || operator == TOKEN_OR ||
         operator == TOKEN_IN || operator == TOKEN_NOT_IN) {
-        result = &TYPE_BOOL;
+        bool is_logical = operator == TOKEN_AND || operator == TOKEN_OR;
+        result = is_logical && (left->distinct || right->distinct) ? (left->distinct ? left : right) : &TYPE_BOOL;
     } else if (left->kind == TYPE_KIND_STRING && right->kind == TYPE_KIND_STRING && operator == TOKEN_PLUS) {
-        result = &TYPE_STRING;
+        result = left->distinct ? left : right->distinct ? right : &TYPE_STRING;
     } else if (left->kind == TYPE_KIND_ENUM || right->kind == TYPE_KIND_ENUM) {
         /* #flags enum bitwise ops produce i64 (combined values
          * don't correspond to a single variant). */
@@ -11290,6 +11349,16 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
     bool is_object_type_name = object->kind == NODE_LABEL &&
         !scope_lookup(checker->current_scope, object->data.label.value) &&
         type_name_as_value(checker, object->data.label.value);
+    /* An alias of a primitive has no members; resolving it as a value
+     * reports the type name used as one. */
+    if (is_object_type_name) {
+        const char *aliased_type = resolve_type_alias(checker,
+            checker_resolve_type_name(checker, object->data.label.value));
+        if (!is_struct_name(checker, aliased_type) && !is_enum_name(checker, aliased_type)) {
+            resolve_expression(checker, object);
+            return &TYPE_UNKNOWN;
+        }
+    }
     if (!is_object_type_name) resolve_expression(checker, object);
 
     if (object->kind == NODE_LABEL) {
@@ -12341,7 +12410,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             if (right->kind != TYPE_KIND_BOOL && right->kind != TYPE_KIND_UNKNOWN) {
                 NODE_ERROR_FORMATTED(checker, node, "E3090", type_display_name(checker, right));
             }
-            result = &TYPE_BOOL;
+            result = right->distinct && right->kind == TYPE_KIND_BOOL ? right : &TYPE_BOOL;
         } else if (node->data.prefix.operator == TOKEN_MINUS) {
             if (right->kind != TYPE_KIND_UNKNOWN && !type_is_numeric(right)) {
                 NODE_ERROR_FORMATTED(checker, node, "E3007", type_display_name(checker, right));
@@ -12690,8 +12759,8 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
          * still names the spelling the programmer used. */
         const char *written_target = node->data.cast.target_type;
         reject_private_type(checker, node, written_target);
-        const char *target = resolve_type_alias(checker,
-            checker_resolve_type_name(checker, written_target));
+        const char *resolved_target = checker_resolve_type_name(checker, written_target);
+        const char *target = resolve_type_alias(checker, resolved_target);
         node->data.cast.target_type = target;
         /* E4016: a target that names no type, at any depth. The allowlist
          * below cannot stand in for this: an undefined capitalized name types
@@ -12709,7 +12778,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 break;
             }
         }
-        GrayType *destination_type = typechecker_type_from_name(checker, target);
+        GrayType *destination_type = typechecker_type_from_name(checker, resolved_target);
         /* Resolve user-defined enum types that type_from_name() can't find */
         if (!destination_type && is_enum_name(checker, target))
             destination_type = type_enum(target);
@@ -12732,6 +12801,10 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             if (source_type->kind == destination_type->kind && source_type->kind != TYPE_KIND_ARRAY &&
                 source_type->kind != TYPE_KIND_MAP && source_type->kind != TYPE_KIND_STRUCT &&
                 source_type->kind != TYPE_KIND_STRING)
+                allowed = true;
+            /* A distinct type converts to and from its own kind only by cast. */
+            if ((source_type->distinct || destination_type->distinct) &&
+                source_type->kind == destination_type->kind)
                 allowed = true;
             /* A C interop result carries no Grayscale type; cast() to a
              * C-representable scalar is the inline form of the
@@ -12828,6 +12901,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         /* Resolve the name as written, then aliases — the same order a type
          * annotation goes through, so `new(mod.T)` and `^mod.T` agree. */
         new_type = checker_resolve_type_name(checker, new_type);
+        const char *pointee_type = resolve_type_alias_keeping_distinct(checker, new_type);
         new_type = resolve_type_alias(checker, new_type);
         node->data.new_expression.type_name = new_type;
         typechecker_mark_type_module_used(checker, new_type);
@@ -12847,7 +12921,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         if (!known) {
             typechecker_error_undefined_type(checker, node, unqualified_display_name(new_type));
         }
-        result = type_pointer(new_type);
+        result = type_pointer(pointee_type);
         break;
     }
 
@@ -13661,8 +13735,9 @@ static void check_or_default_fallbacks(TypeChecker *checker, AstNode *block) {
     }
     for (int i = 0; i < fallback_count; i++) {
         AstNode *fallback = assignments->data.block.statements[i]->data.assign.value;
-        GrayType *fallback_type = resolve_expression(checker, fallback);
         GrayType *slot_type = symbol->return_types[i];
+        GrayType *fallback_type = slot_type->distinct ? check_expression_as(checker, fallback, slot_type)
+                                                      : resolve_expression(checker, fallback);
         if (fallback_type && fallback_type->kind != TYPE_KIND_UNKNOWN && !types_assignable(checker, slot_type, fallback_type)) {
             NODE_ERROR_FORMATTED(checker, fallback, "E3208", type_name(fallback_type), type_name(slot_type));
             assignments->data.block.count = 0;
@@ -13848,7 +13923,7 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
     /* Resolve type aliases in the declared type name so downstream
      * checks and codegen see the underlying type. */
     if (node->data.variable_declaration.type_name) {
-        node->data.variable_declaration.type_name = resolve_type_alias(checker, node->data.variable_declaration.type_name);
+        node->data.variable_declaration.type_name = resolve_type_alias_keeping_distinct(checker, node->data.variable_declaration.type_name);
     }
     /* #deprecated: warn when a variable is explicitly annotated with a
      * deprecated struct or enum type. */
@@ -18264,6 +18339,12 @@ static void register_declaration_imports(TypeChecker *checker, AstNode *program)
     }
 }
 
+/* The primitive types a `distinct alias` may target. */
+static bool is_distinct_primitive_name(const char *name) {
+    return is_integer_type_name(name) || strcmp(name, "f32") == 0 || strcmp(name, "f64") == 0 ||
+           strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 || strcmp(name, "string") == 0;
+}
+
 static void register_declaration_aliases(TypeChecker *checker, AstNode *program) {
     /* Register type aliases BEFORE enums/structs so that alias
      * names can be used in struct fields and enum payloads. */
@@ -18320,7 +18401,9 @@ static void register_declaration_aliases(TypeChecker *checker, AstNode *program)
             checker->type_alias_names = xrealloc(checker->type_alias_names, sizeof(const char *) * (size_t)checker->type_alias_capacity);
             checker->type_alias_targets = xrealloc(checker->type_alias_targets, sizeof(const char *) * (size_t)checker->type_alias_capacity);
             checker->type_alias_nodes = xrealloc(checker->type_alias_nodes, sizeof(AstNode *) * (size_t)checker->type_alias_capacity);
+            checker->type_alias_is_distinct = xrealloc(checker->type_alias_is_distinct, sizeof(bool) * (size_t)checker->type_alias_capacity);
         }
+        checker->type_alias_is_distinct[checker->type_alias_count] = statement->data.alias_declaration.is_distinct;
         checker->type_alias_targets[checker->type_alias_count] = target;
         checker->type_alias_nodes[checker->type_alias_count] = statement;
         {
@@ -18365,6 +18448,29 @@ static void register_declaration_aliases(TypeChecker *checker, AstNode *program)
          * names (structs/enums) need registration. Defer this check until
          * after struct/enum registration so aliases to user-defined types
          * don't false-positive during this early pass. We'll check later. */
+    }
+
+    /* A `distinct alias` becomes its own type once its target is known to be
+     * a primitive; any other target is E3215 and the alias stays plain. */
+    for (int i = 0; i < checker->type_alias_count; i++) {
+        if (!checker->type_alias_is_distinct[i]) continue;
+        const char *resolved = resolve_type_alias(checker, checker->type_alias_targets[i]);
+        /* A circular chain never reaches a type; E3133 already reported it. */
+        bool is_circular = false;
+        for (int j = 0; j < checker->type_alias_count; j++) {
+            if (strcmp(checker->type_alias_names[j], resolved) == 0) is_circular = true;
+        }
+        if (is_circular) {
+            checker->type_alias_is_distinct[i] = false;
+        } else if (is_distinct_primitive_name(resolved)) {
+            type_register_distinct(checker->type_alias_names[i], resolved);
+        } else {
+            checker->type_alias_is_distinct[i] = false;
+            AstNode *declaration = checker->type_alias_nodes[i];
+            checker->current_check_file = declaration->token.file;
+            NODE_ERROR_FORMATTED(checker, declaration, "E3215",
+                declaration->data.alias_declaration.name, resolved);
+        }
     }
 }
 
@@ -19428,6 +19534,7 @@ void typechecker_free(TypeChecker *checker) {
     free(checker->type_alias_names);
     free(checker->type_alias_targets);
     free(checker->type_alias_nodes);
+    free(checker->type_alias_is_distinct);
 
     free(checker->const_integer_names);
     free(checker->const_integer_values);

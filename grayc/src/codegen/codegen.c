@@ -4572,7 +4572,10 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
 
     if (strcmp(target, "string") == 0) {
         /* any → string: use to_string functions */
-        if (value_kind == TYPE_KIND_CHAR) {
+        if (value_kind == TYPE_KIND_STRING) {
+            /* string → string, between a string and a distinct string type */
+            emit_expression(codegen, value);
+        } else if (value_kind == TYPE_KIND_CHAR) {
             /* char → string: single-character string, not ASCII value */
             emit(codegen, "gray_string_new(gray_default_arena, (char[]){(char)(");
             emit_expression(codegen, value);

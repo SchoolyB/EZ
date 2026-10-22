@@ -302,7 +302,8 @@
     GRAY_ERROR("E3211", "types", "'%s' requires a function that returns (T, Error); the operand is not a function call") \
     GRAY_ERROR("E3212", "types", "'%s' only works on bool; got '%s'") \
     GRAY_ERROR("E3213", "types", "enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64") \
-    GRAY_ERROR("E3214", "types", "-define:%s: '%s' is not a valid %s value")
+    GRAY_ERROR("E3214", "types", "-define:%s: '%s' is not a valid %s value") \
+    GRAY_ERROR("E3215", "types", "'distinct alias %s' must target a primitive type (an integer, f32, f64, bool, char, or string), not '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define GRAY_REFERENCE_ERRORS \

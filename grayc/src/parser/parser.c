@@ -277,7 +277,7 @@ static void synchronize_parser(Parser *parser) {
         case TOKEN_RETURN: case TOKEN_IF: case TOKEN_FOR:
         case TOKEN_FOR_EACH: case TOKEN_AS_LONG_AS: case TOKEN_LOOP:
         case TOKEN_WHEN: case TOKEN_IMPORT: case TOKEN_USING:
-        case TOKEN_BREAK: case TOKEN_CONTINUE: case TOKEN_ALIAS:
+        case TOKEN_BREAK: case TOKEN_CONTINUE: case TOKEN_ALIAS: case TOKEN_DISTINCT:
         case TOKEN_RIGHT_BRACE:
         case TOKEN_IDENTIFIER:
             return;
@@ -3773,6 +3773,13 @@ static AstNode *parse_statement(Parser *parser) {
         return parse_when_statement(parser);
     case TOKEN_ALIAS:
         return parse_alias_declaration(parser);
+    case TOKEN_DISTINCT: {
+        /* `distinct alias Name = Type` */
+        if (!expect_peek_token(parser, TOKEN_ALIAS)) return NULL;
+        AstNode *declaration = parse_alias_declaration(parser);
+        if (declaration) declaration->data.alias_declaration.is_distinct = true;
+        return declaration;
+    }
     case TOKEN_STRICT: {
         /* #strict; applies to the next when statement */
         bool is_duplicate = reject_duplicate_attribute(parser, ATTRIBUTE_STRICT, "#strict");

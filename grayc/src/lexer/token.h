@@ -135,6 +135,7 @@ typedef enum {
 
     /* Type aliasing */
     TOKEN_ALIAS,
+    TOKEN_DISTINCT,
 
     /* Type conversion */
     TOKEN_CAST,

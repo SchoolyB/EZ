@@ -469,6 +469,7 @@ struct AstNode {
             const char *name;
             const char *target_type;
             bool is_private;
+            bool is_distinct;   /* `distinct alias`: a new type, not interchangeable with its target */
         } alias_declaration;
 
         /* NODE_MODULE_DECLARATION */

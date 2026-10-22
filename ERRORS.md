@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 560 codes** (394 errors, 17 warnings, 149 panics)
+**Total: 561 codes** (395 errors, 17 warnings, 149 panics)
 
 ---
 
@@ -287,6 +287,7 @@
 | `E3212` | types | '%s' only works on bool; got '%s' |
 | `E3213` | types | enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64 |
 | `E3214` | types | -define:%s: '%s' is not a valid %s value |
+| `E3215` | types | 'distinct alias %s' must target a primitive type (an integer, f32, f64, bool, char, or string), not '%s' |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -611,4 +612,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-22 22:31:01 UTC*
+*Generated on 2026-10-22 22:51:45 UTC*

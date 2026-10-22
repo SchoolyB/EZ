@@ -231,8 +231,15 @@ var langManDocs = map[string]LangManEntry{
 	"alias": {
 		Kind:    "keyword",
 		Syntax:  "alias <Name> = <Type>",
-		Desc:    "Creates an interchangeable name for an existing type. Aliases are erased at compile time; type_of() returns the underlying type. Can alias primitives, structs, enums, and collections. File-scope only. Use 'private alias' to restrict to the declaring file.",
+		Desc:    "Creates an interchangeable name for an existing type. Aliases are erased at compile time; type_of() returns the underlying type. Can alias primitives, structs, enums, and collections. File-scope only. Use 'private alias' to restrict to the declaring file. Prefix with 'distinct' for a type that does not convert implicitly.",
 		Example: "alias Meters = f64\nalias Vec2 = Point\nalias Names = [string]\n\ndo main() {\n    mut d Meters = 10.5\n    println(type_of(d))  // f64\n}",
+	},
+
+	"distinct": {
+		Kind:    "keyword",
+		Syntax:  "distinct alias <Name> = <PrimitiveType>",
+		Desc:    "Prefix on 'alias' that declares a new type with the representation of a primitive type but no implicit conversion to or from it, or any other distinct type. Literals of a compatible kind are accepted; every other conversion goes through cast(). Same-type arithmetic and comparison are allowed. Erased in generated C, so it has no runtime cost. Primitive targets only (E3215). Combine with 'private' as 'private distinct alias'.",
+		Example: "distinct alias UserId = i64\ndistinct alias OrderId = i64\n\ndo delete_user(id UserId) { }\n\ndo main() {\n    mut user UserId = 5\n    mut order OrderId = 7\n    delete_user(user)                 // ok\n    delete_user(order)                // error: expected UserId, got OrderId\n    delete_user(cast(order, UserId))  // ok\n}",
 	},
 
 	// ── Keywords: Operators ─────────────────────────────────────────────
@@ -509,7 +516,7 @@ var langCategories = map[string][]langGroup{
 	"keywords": {
 		{Label: "Control flow  ", Names: []string{"if", "else", "otherwise", "or", "elif", "for", "for_each", "while", "as_long_as", "loop", "when", "switch", "is", "case", "break", "continue", "default", "return"}},
 		{Label: "Error handling", Names: []string{"ensure", "defer", "or_return"}},
-		{Label: "Declarations  ", Names: []string{"mut", "const", "do", "fn", "struct", "enum", "alias", "generic", "import", "using", "use", "new", "private"}},
+		{Label: "Declarations  ", Names: []string{"mut", "const", "do", "fn", "struct", "enum", "alias", "distinct", "generic", "import", "using", "use", "new", "private"}},
 		{Label: "Operators     ", Names: []string{"in", "not_in", "bit_and", "bit_or", "bit_xor", "bit_not", "bit_shift_left", "bit_shift_right", "cast", "range"}},
 		{Label: "Literals      ", Names: []string{"true", "false", "nil"}},
 	},

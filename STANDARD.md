@@ -121,9 +121,9 @@ switch       when        while
 
 **Declarations:**
 ```
-alias        const       do          enum        extern      fn
-generic      import      mut         new         private     struct
-unsafe       use*        using
+alias        const       distinct    do          enum        extern
+fn           generic     import      mut         new         private
+struct       unsafe      use*        using
 ```
 
 > 💡 **Tip:** `use*` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
@@ -1174,6 +1174,38 @@ Private aliases restrict access to the declaring file:
 ```gray
 private alias InternalID = i64
 ```
+
+#### 3.5.1 Distinct Aliases
+
+A plain alias is another name for the same type. Prefixing it with `distinct` declares a type with the same representation as its target that the compiler treats as a different type:
+
+```gray
+distinct alias UserId = i64
+distinct alias OrderId = i64
+
+do delete_user(id UserId) { }
+
+do main() {
+    mut user UserId = 5
+    mut order OrderId = 7
+    delete_user(user)                  // ok
+    delete_user(order)                 // error: expected UserId, got OrderId
+    delete_user(cast(order, UserId))   // explicit conversion, ok
+}
+```
+
+**Rules:**
+
+- **Primitive targets only** — `i8`..`i256`, `u8`..`u256`, `f32`, `f64`, `bool`, `char`, and `string`, or a plain alias of one. A `distinct alias` of a struct, enum, array, map, pointer, or other type is `E3215`; `generic` is `E3135`, as for any alias.
+- **Prefix order** — `private distinct alias InternalId = i64`. `distinct` comes directly before `alias`.
+- **No implicit conversion** — a distinct type is not assignable to or from its target, or any other distinct type, including another `distinct alias` of the same target. Assigning, passing, returning, or storing the wrong type is the ordinary type mismatch error.
+- **Literals** — a literal of a compatible kind is accepted: `mut user UserId = 5`, `mut label Name = "ada"`. The literal is range-checked against the underlying type.
+- **`cast`** — `cast` is the only conversion, in both directions: `cast(user, i64)`, `cast(n, UserId)`, `cast(user, OrderId)`.
+- **Operators** — arithmetic, bitwise, and comparison operators between two values of the same distinct type are allowed, and arithmetic yields that distinct type (a comparison yields `bool`). Mixing a distinct type with its target or another distinct type is a type error; a literal on the other side takes the distinct type.
+- **No runtime cost** — a distinct type is erased to its target's C type, with the same overflow and range checking as the target.
+- **`type_of()`** returns the distinct type's name: `type_of(user)` is `"UserId"` and `type_of(order)` is `"OrderId"`. A plain alias is erased, so `type_of()` returns its target's name.
+- **Indexing** — a distinct integer may index an array or string: `items[user_index]` needs no `cast`. Indexing reads the value without converting it to another type.
+- **Generics** — a distinct type is a valid type argument, and a generic function over it sees the distinct type.
 
 ---
 

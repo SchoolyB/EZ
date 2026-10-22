@@ -449,6 +449,7 @@ typedef struct {
     const char **type_alias_names;
     const char **type_alias_targets;
     AstNode **type_alias_nodes;
+    bool *type_alias_is_distinct;
     int type_alias_count;
     int type_alias_capacity;
 

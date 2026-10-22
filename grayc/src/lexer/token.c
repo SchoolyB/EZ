@@ -35,6 +35,7 @@ static const KeywordEntry keywords[] = {
     {"continue",    TOKEN_CONTINUE},
     {"default",     TOKEN_DEFAULT},
     {"defer",       TOKEN_ENSURE},
+    {"distinct",    TOKEN_DISTINCT},
     {"do",          TOKEN_DO},
     {"elif",        TOKEN_OR_KEYWORD},
     {"else",        TOKEN_OTHERWISE},
@@ -229,6 +230,7 @@ const char *token_type_name(TokenType type) {
     case TOKEN_IS:             return "is";
     case TOKEN_DEFAULT:        return "default";
     case TOKEN_ALIAS:          return "alias";
+    case TOKEN_DISTINCT:       return "distinct";
     case TOKEN_CAST:           return "cast";
     case TOKEN_BIT_AND:        return "bit_and";
     case TOKEN_BIT_OR:         return "bit_or";
