@@ -4700,6 +4700,8 @@ Read-only introspection into the compiler-managed arenas (default + heap), execu
 | `version` | `() -> string` | Grayscale version that compiled this binary |
 | `call_depth` | `() -> i64` | Current call stack depth |
 | `call_limit` | `() -> i64` | Maximum allowed call stack depth (10,000) |
+| `function_name` | `() -> string` | Name of the currently executing function (`Type.func` for a struct function), resolved at compile time |
+| `caller_name` | `() -> string` | Name of the function that called the currently executing function; empty string from `main` |
 | `uptime` | `() -> f64` | Seconds elapsed since the program started |
 
 ### 9.29 Chars Module (`@chars`)

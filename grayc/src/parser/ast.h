@@ -399,6 +399,7 @@ struct AstNode {
         struct {
             const char *name;
             const char *original_name; /* pre-prefix name for error messages */
+            const char *runtime_name;  /* `Type.func` for a struct function; NULL otherwise */
             Parameter *parameters;
             int parameter_count;
             const char **return_types;

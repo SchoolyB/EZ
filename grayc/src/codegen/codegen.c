@@ -7400,10 +7400,17 @@ static bool emit_time_call(CodeGen *codegen, AstNode *node, const char *function
 
 /* --- @runtime module --- */
 
+static const char *function_runtime_name(CodeGen *codegen, AstNode *node);
+
 static bool emit_runtime_call(CodeGen *codegen, AstNode *node, const char *function_name) {
     (void)node;
     if (strcmp(function_name, "version") == 0) {
         emit_formatted(codegen, "gray_string_lit(\"%s\")", GRAY_VERSION);
+        return true;
+    }
+    if (strcmp(function_name, "function_name") == 0) {
+        emit_formatted(codegen, "gray_string_lit(\"%s\")",
+            codegen->current_function ? function_runtime_name(codegen, codegen->current_function) : "");
         return true;
     }
     emit_formatted(codegen, "gray_runtime_%s()", function_name);
@@ -13099,6 +13106,15 @@ static const char *function_return_type(CodeGen *codegen, AstNode *node) {
     return buffer;
 }
 
+/* The name function_name() and caller_name() report: `Type.func` for a struct
+ * function, the written name otherwise (never a module or generic mangling). */
+static const char *function_runtime_name(CodeGen *codegen, AstNode *node) {
+    if (node->data.function_declaration.runtime_name) return node->data.function_declaration.runtime_name;
+    if (codegen->renamed_function == node) return codegen->renamed_function_original_name;
+    return node->data.function_declaration.original_name
+        ? node->data.function_declaration.original_name : node->data.function_declaration.name;
+}
+
 static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_main) {
     codegen_enter_node(codegen, node);
     /* The signature belongs to the function's own .gray line. A function is
@@ -13204,7 +13220,8 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
     if (node->data.function_declaration.body) {
         /* Stack depth guard */
         emit_indent(codegen);
-        emit_formatted(codegen, "gray_enter_func(\"%s\", %d);\n", codegen_file_literal(codegen), node->token.line);
+        emit_formatted(codegen, "gray_enter_func(\"%s\", %d, \"%s\");\n", codegen_file_literal(codegen), node->token.line,
+            function_runtime_name(codegen, node));
         emit_block(codegen, node->data.function_declaration.body);
         /* Emit ensure cleanup at end of function (for implicit returns) */
         emit_ensure_cleanup(codegen);
@@ -15148,6 +15165,7 @@ static void codegen_emit_forward_declarations(CodeGen *codegen, const TopLevelSt
     /* Collect all function declarations (including struct-namespaced) */
     for (int i = 0; i < top_level->function_bucket_count; i++) {
         AstNode *statement = top_level->function_bucket[i];
+        statement->data.function_declaration.runtime_name = statement->data.function_declaration.name;
         statement->data.function_declaration.name =
             codegen_declaration_name(codegen, statement, statement->data.function_declaration.name);
         GROW_ARRAY(codegen->all_functions, codegen->function_count, codegen->function_capacity);
@@ -15169,6 +15187,12 @@ static void codegen_emit_forward_declarations(CodeGen *codegen, const TopLevelSt
                 size_t namespace_length = struct_name_length + 1 + function_name_length + 1;
                 char *namespaced_name = malloc(namespace_length);
                 snprintf(namespaced_name, namespace_length, "%s_%s", struct_name, function_name);
+                DeclarationEntry *struct_entry = module_table_entry_for_node(codegen->modules, statement);
+                const char *written_struct_name = struct_entry ? struct_entry->name : struct_name;
+                size_t dotted_length = strlen(written_struct_name) + 1 + function_name_length + 1;
+                char *dotted_name = malloc(dotted_length);
+                snprintf(dotted_name, dotted_length, "%s.%s", written_struct_name, function_name);
+                function_node->data.function_declaration.runtime_name = dotted_name;
                 function_node->data.function_declaration.name = namespaced_name;
                 GROW_ARRAY(codegen->namespaced_function_names, codegen->namespaced_function_name_count,
                     codegen->namespaced_function_name_capacity);

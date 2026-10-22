@@ -370,6 +370,7 @@ void gray_scope_restore(GrayArena *arena, GrayScopeMark mark) {
 /* --- Stack depth guard --- */
 #if !defined(__TINYC__)
 _Thread_local int gray_call_depth = 0;
+_Thread_local const char *gray_call_names[GRAY_MAX_CALL_DEPTH + 1];
 #endif
 
 /* --- Runtime Init/Shutdown --- */

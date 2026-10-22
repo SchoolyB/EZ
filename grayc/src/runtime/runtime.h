@@ -61,6 +61,8 @@ size_t gray_arena_block_count(GrayArena *arena);
  * no runtime to back it in a program it links itself. Under it the per-thread
  * globals below live in one heap block per thread, reached through an
  * accessor; each name expands to an lvalue, so no use site changes. */
+#define GRAY_MAX_CALL_DEPTH 10000
+
 #if defined(__TINYC__)
 typedef struct {
     GrayArena *default_arena;
@@ -69,6 +71,7 @@ typedef struct {
     const char *panic_call_file;
     int panic_call_line;
     int call_depth;
+    const char *call_names[GRAY_MAX_CALL_DEPTH + 1];
 } GrayThreadState;
 
 GrayThreadState *gray_thread_state(void);
@@ -78,6 +81,7 @@ GrayThreadState *gray_thread_state(void);
 #define gray_panic_call_file (gray_thread_state()->panic_call_file)
 #define gray_panic_call_line (gray_thread_state()->panic_call_line)
 #define gray_call_depth (gray_thread_state()->call_depth)
+#define gray_call_names (gray_thread_state()->call_names)
 /* One accessor call for the pair; generated code stamps the location before
  * every statement that can panic. */
 #define gray_set_panic_call(file, line) \
@@ -298,16 +302,17 @@ static inline void *gray_mem_check_live(GrayArena *arena, void *allocation, cons
 
 /* --- Stack depth guard --- */
 
-#define GRAY_MAX_CALL_DEPTH 10000
 #if !defined(__TINYC__)
 extern _Thread_local int gray_call_depth;
+extern _Thread_local const char *gray_call_names[GRAY_MAX_CALL_DEPTH + 1];
 #endif
 
-static inline void gray_enter_func(const char *file, int line) {
+static inline void gray_enter_func(const char *file, int line, const char *name) {
     if (++gray_call_depth > GRAY_MAX_CALL_DEPTH) {
         gray_panic_code_at(file, line, "P0003", "maximum recursion depth exceeded (%d calls deep)",
             GRAY_MAX_CALL_DEPTH);
     }
+    gray_call_names[gray_call_depth] = name;
 }
 
 static inline void gray_exit_func(void) {

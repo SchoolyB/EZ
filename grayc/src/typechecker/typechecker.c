@@ -3409,6 +3409,8 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"runtime", "arena_usage",  0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "i64"},
     {"runtime", "call_depth",   0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "i64"},
     {"runtime", "call_limit",   0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "i64"},
+    {"runtime", "caller_name",  0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "string"},
+    {"runtime", "function_name", 0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "string"},
     {"runtime", "heap_blocks",  0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "i64"},
     {"runtime", "heap_usage",   0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "i64"},
     {"runtime", "peak_usage",   0, 0, false, FALLIBLE_TYPE_NONE, 0, {{0}}, "i64"},
