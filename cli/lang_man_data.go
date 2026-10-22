@@ -484,6 +484,12 @@ var langManDocs = map[string]LangManEntry{
 		Desc:    "Allows callers to ignore the return value of a function without triggering E5011. Cannot be applied to void functions (E5042).",
 		Example: "#discard\ndo tryInsert(value i64) -> bool {\n    return true\n}\n\ndo main() {\n    tryInsert(42)  // OK — no E5011\n}",
 	},
+	"#define": {
+		Kind:    "attribute",
+		Syntax:  "#define",
+		Desc:    "Marks a top-level const of a primitive type so 'gray -define:NAME=VALUE' can override its value at build time. The declared value is the default.",
+		Example: "#define\nconst ROSTER_PATH string = \"./roster.txt\"\n\n// gray build main.gray -define:ROSTER_PATH=./my/path",
+	},
 	"#test": {
 		Kind:    "attribute",
 		Syntax:  "#test",
@@ -520,7 +526,7 @@ var langCategories = map[string][]langGroup{
 		{Label: "Symbols", Names: []string{"^", "&", "->", "@", "#"}},
 	},
 	"attributes": {
-		{Label: "Attributes", Names: []string{"#doc", "#json", "#flags", "#strict", "#discard", "#test"}},
+		{Label: "Attributes", Names: []string{"#doc", "#json", "#flags", "#strict", "#discard", "#test", "#define"}},
 	},
 }
 
@@ -539,6 +545,7 @@ var langSymbolAliases = map[string]string{
 	"strict":  "#strict",
 	"discard": "#discard",
 	"test":    "#test",
+	"define":  "#define",
 }
 
 // langDisplayName strips the _type suffix used to avoid builtin key collisions.

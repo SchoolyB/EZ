@@ -2275,6 +2275,7 @@ const Person struct {
 | `#discard` | functions | Allows callers to ignore the return value without a "return value not used" error |
 | `#deprecated` / `#deprecated("...")` | functions, structs, enums | Warns at every reference to the item, with an optional replacement message |
 | `#test` | functions | Marks a test function, run by `gray test` and stripped from normal builds |
+| `#define` | top-level `const` declarations of a primitive type | Lets `-define:NAME=VALUE` override the constant's value at build time |
 
 #### 7.5.1 `#doc` Attribute
 
@@ -2561,6 +2562,34 @@ do something() { }
   `#[json]` on a function).
 - The container and the stacked form may be mixed on the same declaration.
 - Not supported on struct functions yet — stack the attributes there.
+
+#### 7.5.7 `#define` Attribute
+
+The `#define` attribute marks a top-level `const` so its value can be overridden at build time with the `-define:NAME=VALUE` flag. The override is baked into the binary; it is not a runtime flag, and the program never sees it as an argument.
+
+```gray
+#define
+const ROSTER_PATH string = "./roster.txt"
+
+do main() {
+    println(ROSTER_PATH)
+}
+```
+
+```bash
+gray build main.gray                                   # ROSTER_PATH is "./roster.txt"
+gray build main.gray -define:ROSTER_PATH=./my/path     # ROSTER_PATH is "./my/path"
+```
+
+**Rules:**
+
+- `#define` applies only to a top-level `const` of type `i8`..`i256`, `u8`..`u256`, `f32`, `f64`, `bool`, `char`, or `string`. On a local `const`, a `mut` declaration, or any other type it is rejected with `E2094`.
+- The declaration still requires a value. It is the default, used when no flag names the constant.
+- The flag value replaces the constant's initializer before anything else is evaluated, so a constant initialized from an overridden constant sees the new value. If `BAR` is initialized from `FOO` and both are `#define`, `-define:FOO=...` changes both, and `-define:BAR=...` replaces `BAR` alone.
+- The flag value is the bare value text, with no quotes of its own (the shell strips them): an integer is base-10 with an optional sign, a float is decimal or exponent notation, a `bool` is `true` or `false`, a `char` is one Unicode codepoint, and a `string` is taken verbatim.
+- `-define:` naming a constant the program does not declare is `E4040`. Naming a constant that has no `#define` is `E5066`. A value that does not parse as the constant's type, or is out of range for it, is `E3214`.
+- A `-define:` argument without `=`, or the same name given twice, is a usage error from the `gray` command.
+- Accepted by `gray <file>`, `build`, `check`, `watch`, and `cross build`. Arguments after a bare `--` belong to the program and are not read as flags.
 
 ### 7.6 Function References
 
@@ -5243,6 +5272,7 @@ These flags are available on `gray <file>`, `build`, `check`, and `watch`:
 | `--no-color` | Disable colored diagnostic output. |
 | `--arena-limit=<size>` | Maximum arena memory per program. Accepts a size with unit suffix: `KB`, `MB`, or `GB` (e.g. `512MB`, `1GB`). Defaults to `1GB`. When exceeded at runtime, the program panics. |
 | `--cc <compiler>` | C compiler for this invocation (see [C Compiler](#c-compiler)). |
+| `-define:NAME=VALUE` | Override the value of the `#define` constant `NAME` at build time (see [7.5.7](#757-define-attribute)). May be repeated for different names. |
 
 ### Command Help
 

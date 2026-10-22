@@ -190,6 +190,7 @@ const char *token_type_name(TokenType type) {
     case TOKEN_DEPRECATED:     return "#deprecated";
     case TOKEN_TEST:           return "#test";
     case TOKEN_ERROR_CODE_ATTRIBUTE: return "#error_code";
+    case TOKEN_DEFINE:         return "#define";
     case TOKEN_MUT:            return "mut";
     case TOKEN_CONST:          return "const";
     case TOKEN_DO:             return "do";

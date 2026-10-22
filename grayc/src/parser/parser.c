@@ -69,6 +69,7 @@ typedef enum {
     ATTRIBUTE_DEPRECATED = 1u << 5,
     ATTRIBUTE_DOC        = 1u << 6,
     ATTRIBUTE_ERROR_CODE = 1u << 7,
+    ATTRIBUTE_DEFINE     = 1u << 8,
 } AttributeBit;
 
 /* Returns true when this attribute was already applied to the current
@@ -101,7 +102,33 @@ static AttributeBit attribute_bit_for_name(const char *name) {
     if (strcmp(name, "deprecated") == 0) return ATTRIBUTE_DEPRECATED;
     if (strcmp(name, "doc") == 0)        return ATTRIBUTE_DOC;
     if (strcmp(name, "error_code") == 0) return ATTRIBUTE_ERROR_CODE;
+    if (strcmp(name, "define") == 0)     return ATTRIBUTE_DEFINE;
     return (AttributeBit)0;
+}
+
+/* The types a #define constant may have: the primitives -define: can parse. */
+static bool is_define_type(const char *type_name) {
+    if (!type_name) return false;
+    static const char *const names[] = {
+        "i8", "i16", "i32", "i64", "i128", "i256", "u8", "u16", "u32", "u64", "u128", "u256",
+        "f32", "f64", "bool", "char", "string",
+    };
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        if (strcmp(type_name, names[i]) == 0) return true;
+    }
+    return false;
+}
+
+/* Marks `statement` as a #define constant, or emits E2094 when it is not a
+ * top-level const of a primitive type. */
+static void apply_define_attribute(Parser *parser, AstNode *statement, int line, int column) {
+    if (statement && statement->kind == NODE_VARIABLE_DECLARATION && parser->depth == 0 &&
+        !statement->data.variable_declaration.is_mutable &&
+        is_define_type(statement->data.variable_declaration.type_name)) {
+        statement->data.variable_declaration.is_define = true;
+        return;
+    }
+    emit_attribute_error(parser, arena_copy_string(parser->arena, "#define attribute can only be applied to a top-level const declaration of an integer, float, bool, char, or string type"), line, column);
 }
 
 /* Applies one attribute (identified by its bare name) to the declaration that
@@ -143,6 +170,8 @@ static void apply_named_attribute(Parser *parser, AstNode *statement,
             diagnostic_error_code(parser->diagnostics, "E3144",
                 parser->file, where.line, where.column, 0);
         }
+    } else if (strcmp(name, "define") == 0) {
+        apply_define_attribute(parser, statement, where.line, where.column);
     } else if (strcmp(name, "strict") == 0) {
         if (statement && statement->kind == NODE_WHEN_STATEMENT) {
             statement->data.when_statement.is_strict = true;
@@ -3805,6 +3834,15 @@ static AstNode *parse_statement(Parser *parser) {
         }
         return statement;
     }
+    case TOKEN_DEFINE: {
+        /* #define; applies to the next top-level const declaration */
+        Token site = parser->current_token;
+        bool is_duplicate = reject_duplicate_attribute(parser, ATTRIBUTE_DEFINE, "#define");
+        next_token(parser);
+        AstNode *statement = parse_statement(parser);
+        if (!is_duplicate) apply_define_attribute(parser, statement, site.line, site.column);
+        return statement;
+    }
     case TOKEN_TEST: {
         /* #test; applies to the next function declaration */
         reject_duplicate_attribute(parser, ATTRIBUTE_TEST, "#test");
@@ -3872,7 +3910,7 @@ static AstNode *parse_statement(Parser *parser) {
             if (current_token_is(parser, TOKEN_STRICT) || current_token_is(parser, TOKEN_FLAGS) ||
                 current_token_is(parser, TOKEN_DOC)    || current_token_is(parser, TOKEN_JSON_ATTRIBUTE) ||
                 current_token_is(parser, TOKEN_DISCARD)|| current_token_is(parser, TOKEN_DEPRECATED) ||
-                current_token_is(parser, TOKEN_TEST)) {
+                current_token_is(parser, TOKEN_TEST) || current_token_is(parser, TOKEN_DEFINE)) {
                 diagnostic_error_code_help(parser->diagnostics, "E2093",
                     parser->file, parser->current_token.line, parser->current_token.column, 0,
                     "write attributes without '#' inside '#[...]'");

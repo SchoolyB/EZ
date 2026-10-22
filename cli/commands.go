@@ -224,6 +224,7 @@ func compilerFlagArgs(cmd *cobra.Command) ([]string, error) {
 		}
 		compilerArgs = append(compilerArgs, fmt.Sprintf("--arena-limit=%d", arenaLimit))
 	}
+	compilerArgs = append(compilerArgs, defineArgs()...)
 	if err := applyCompilerFlag(cmd); err != nil {
 		return nil, err
 	}
@@ -271,6 +272,7 @@ func commonBuildOpts(cmd *cobra.Command) (driver.BuildOpts, error) {
 		Time:       showTime,
 		NoColor:    noColor,
 		ArenaLimit: arenaLimit,
+		Defines:    defineOverrides,
 	}
 	if quiet == "all" {
 		opts.Quiet = true
@@ -1089,6 +1091,7 @@ Flags:
   -q, --quiet string       Suppress warnings ('all' or comma-separated codes like W1001,W1002)
       --no-color           Disable colored output
       --arena-limit size   Max arena memory per program (e.g. 512MB, 1GB; default: 1GB)
+      -define:NAME=VALUE   Override the value of a #define constant at build time
       --cc compiler        C compiler to use (a name on PATH or a path)
                            Accepted by: gray <file.gray>, gray build, gray check, gray watch
                            Order: --cc, then GRAY_CC, then CC, then the first of cc, gcc, clang on PATH

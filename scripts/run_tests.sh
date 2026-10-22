@@ -86,6 +86,23 @@ required_marker() {
         | sed -E 's|^[[:space:]]*//[[:space:]]*expect-contains:[[:space:]]*||' | head -1
 }
 
+# load_defines <file>
+#
+# A test may override its #define constants with marker comments:
+#
+#     // define: COUNT=7
+#
+# Each one becomes a -define:COUNT=7 argument in DEFINE_ARGS.
+load_defines() {
+    DEFINE_ARGS=()
+    local override
+    while IFS= read -r override; do
+        [ -n "$override" ] && DEFINE_ARGS+=("-define:$override")
+    done < <(grep -E '^[[:space:]]*//[[:space:]]*define:' "$1" \
+        | sed -E 's|^[[:space:]]*//[[:space:]]*define:[[:space:]]*||')
+    return 0
+}
+
 run_fail_test() {
     local label="$1" entry="$2" marker_file="$3"
     local expected_error expected_count output actual_count forbidden required
@@ -95,13 +112,14 @@ run_fail_test() {
         | grep -oE '[0-9]+' | head -1)
     forbidden=$(forbidden_marker "$marker_file")
     required=$(required_marker "$marker_file")
+    load_defines "$marker_file"
     if [ -n "$expected_error" ]; then
         # expect-build runs the file as a build, for a diagnostic that only a
         # build reports (check requires no main(), for one).
         if grep -qE '^[[:space:]]*//[[:space:]]*expect-build' "$marker_file"; then
-            output=$(run_timeout $TIMEOUT "$GRAY_BIN" build "$entry" 2>&1) || true
+            output=$(run_timeout $TIMEOUT "$GRAY_BIN" build "$entry" "${DEFINE_ARGS[@]}" 2>&1) || true
         else
-            output=$(run_timeout $TIMEOUT "$GRAY_BIN" check "$entry" 2>&1) || true
+            output=$(run_timeout $TIMEOUT "$GRAY_BIN" check "$entry" "${DEFINE_ARGS[@]}" 2>&1) || true
         fi
         actual_count=$(echo "$output" | grep -cE '^error\[' || true)
         if [ -n "$expected_count" ] && [ "$actual_count" != "$expected_count" ]; then
@@ -118,7 +136,7 @@ run_fail_test() {
         else
             fail "$label" "(expected $expected_error)"
         fi
-    elif output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$entry" 2>&1); then
+    elif output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$entry" "${DEFINE_ARGS[@]}" 2>&1); then
         fail "$label" "(expected error, got success)"
     elif ! echo "$output" | grep -qE '(error|warning|panic)\[[EPW][0-9]+\]'; then
         # The compile failed with no Grayscale diagnostic, which means the
@@ -145,7 +163,8 @@ printf "${BOLD}PASS tests:${NC}\n"
 for test_file in "$TEST_DIR"/pass/core/*.gray; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .gray)
-        if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
+        load_defines "$test_file"
+        if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" "${DEFINE_ARGS[@]}" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 fail "core/$test_name" "(assertions failed)"
             else
@@ -161,7 +180,8 @@ done
 for test_file in "$TEST_DIR"/pass/stdlib/*.gray; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .gray)
-        if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" 2>&1); then
+        load_defines "$test_file"
+        if output=$(run_timeout $TIMEOUT "$GRAY_BIN" "$test_file" "${DEFINE_ARGS[@]}" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 fail "stdlib/$test_name" "(assertions failed)"
             else

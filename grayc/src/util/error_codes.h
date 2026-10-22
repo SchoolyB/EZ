@@ -301,7 +301,8 @@
     GRAY_ERROR("E3210", "types", "json.parse() needs a declared target type; use it as the initializer of a typed declaration or as a return value") \
     GRAY_ERROR("E3211", "types", "'%s' requires a function that returns (T, Error); the operand is not a function call") \
     GRAY_ERROR("E3212", "types", "'%s' only works on bool; got '%s'") \
-    GRAY_ERROR("E3213", "types", "enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64")
+    GRAY_ERROR("E3213", "types", "enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64") \
+    GRAY_ERROR("E3214", "types", "-define:%s: '%s' is not a valid %s value")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define GRAY_REFERENCE_ERRORS \
@@ -340,7 +341,8 @@
     GRAY_ERROR("E4036", "names", "function '%s' conflicts with a type of the same name") \
     GRAY_ERROR("E4037", "names", "'%s.%s()' expects a type name as argument %d") \
     GRAY_ERROR("E4038", "names", "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values") \
-    GRAY_ERROR("E4039", "names", "generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list")
+    GRAY_ERROR("E4039", "names", "generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list") \
+    GRAY_ERROR("E4040", "names", "-define: names '%s', but the program declares no such constant")
 
 /* --- E5xxx: Usage Problems --- */
 #define GRAY_USAGE_ERRORS \
@@ -392,7 +394,8 @@
     GRAY_ERROR("E5062", "arguments", "default value for parameter '%s' has wrong type; expected %s, got %s") \
     GRAY_ERROR("E5063", "arguments", "'to_char()' index %lld is out of bounds") \
     GRAY_ERROR("E5064", "arguments", "cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead") \
-    GRAY_ERROR("E5065", "usage", "'%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function")
+    GRAY_ERROR("E5065", "usage", "'%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function") \
+    GRAY_ERROR("E5066", "usage", "-define: names '%s', which is not marked #define")
 
 /* --- E6xxx: Import Problems --- */
 #define GRAY_IMPORT_ERRORS \

@@ -29,6 +29,8 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "parser/imports.h"
+#include "parser/defines.h"
+#include "util/xalloc.h"
 #include "typechecker/typechecker.h"
 #include "codegen/codegen.h"
 #include "fmt/fmt.h"
@@ -66,6 +68,7 @@ static void print_usage(void) {
     fprintf(stderr, "  --quiet         Suppress all warnings\n");
     fprintf(stderr, "  --quiet W1001   Suppress specific warnings (comma-separated)\n");
     fprintf(stderr, "  --arena-limit=<size>  Max arena memory (e.g. 256MB, 1GB; default: 1GB)\n");
+    fprintf(stderr, "  --define=NAME=VALUE   Override the #define constant NAME (repeatable)\n");
     fprintf(stderr, "  --no-color      Disable colored output\n");
     fprintf(stderr, "  --test          Build a test runner from #test functions (used by 'gray test')\n");
     fprintf(stderr, "  -h, --help      Show this help\n");
@@ -1735,6 +1738,8 @@ typedef struct {
     char **program_arguments;     /* run mode: everything after "--", passed to the program */
     int program_argument_count;
     size_t arena_limit;           /* 0 = let codegen use its 1 GB default */
+    const char **defines;         /* --define=NAME=VALUE overrides of #define constants */
+    int define_count;
     bool should_emit_c_only;
     bool is_check_only;
     bool is_directory_input;         /* check: input_file names a directory, checked as one module */
@@ -1840,6 +1845,11 @@ static ArgumentsStatus parse_arguments(int argc, char **argv, CompilerOptions *o
         }
         if (strncmp(argv[i], "--arena-limit=", 14) == 0) {
             options->arena_limit = strtoull(argv[i] + 14, NULL, 10);
+            continue;
+        }
+        if (strncmp(argv[i], "--define=", 9) == 0) {
+            options->defines = xrealloc((void *)options->defines, sizeof(const char *) * (size_t)(options->define_count + 1));
+            options->defines[options->define_count++] = argv[i] + 9;
             continue;
         }
         if (strcmp(argv[i], "--cc") == 0 && i + 1 < argc) {
@@ -2016,6 +2026,18 @@ int main(int argc, char **argv) {
     Parser *parser = parser_create(arena, lexer, options.input_file, diagnostics);
     AstNode *program = parser_parse_program(parser);
 
+    if (diagnostic_has_errors(diagnostics)) {
+        diagnostic_print_all(diagnostics);
+        diagnostic_print_summary(diagnostics);
+        diagnostic_destroy(diagnostics);
+        arena_destroy(arena);
+        free(source);
+        return 1;
+    }
+
+    /* Apply -define: overrides to the entry file's #define constants before
+     * anything reads their values. */
+    defines_apply(arena, diagnostics, program, options.input_file, options.defines, options.define_count);
     if (diagnostic_has_errors(diagnostics)) {
         diagnostic_print_all(diagnostics);
         diagnostic_print_summary(diagnostics);

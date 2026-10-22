@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 557 codes** (391 errors, 17 warnings, 149 panics)
+**Total: 560 codes** (394 errors, 17 warnings, 149 panics)
 
 ---
 
@@ -286,6 +286,7 @@
 | `E3211` | types | '%s' requires a function that returns (T, Error); the operand is not a function call |
 | `E3212` | types | '%s' only works on bool; got '%s' |
 | `E3213` | types | enum '%s': variant '%s' takes the value after the largest i64, which does not fit in i64 |
+| `E3214` | types | -define:%s: '%s' is not a valid %s value |
 | `E4001` | names | undefined variable '%s' |
 | `E4002` | names | undefined function '%s' |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -322,6 +323,7 @@
 | `E4037` | names | '%s.%s()' expects a type name as argument %d |
 | `E4038` | names | cannot take a function reference to '%s.%s'; stdlib functions are not first-class values |
 | `E4039` | names | generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list |
+| `E4040` | names | -define: names '%s', but the program declares no such constant |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | '%s()' expects %s argument(s), got %d |
 | `E5009` | arguments | invalid base %lld for 'strconv.%s'; base must be between 2 and 36 |
@@ -371,6 +373,7 @@
 | `E5063` | arguments | 'to_char()' index %lld is out of bounds |
 | `E5064` | arguments | cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead |
 | `E5065` | usage | '%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function |
+| `E5066` | usage | -define: names '%s', which is not marked #define |
 | `E6001` | imports | unknown module '@%s' |
 | `E6002` | imports | cannot find file or directory '%s' |
 | `E6003` | imports | directory '%s' contains no source files |
@@ -608,4 +611,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-20 19:37:17 UTC*
+*Generated on 2026-10-22 22:31:01 UTC*
