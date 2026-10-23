@@ -811,6 +811,11 @@ static bool type_name_is_function(const char *type_name) {
 static const char *gray_type_to_c_codegen(CodeGen *codegen, const char *type_name) {
     if (!type_name) return "int64_t";
 
+    /* A leading '.' names the entry module's type, already a registry key:
+     * resolving it again from inside another module would find that
+     * module's same-named type. */
+    bool is_entry_module_type = type_name[0] == '.';
+
     /* Resolve type aliases before any type mapping */
     if (codegen) {
         /* Resolve the name as written to its module's spelling first — the
@@ -982,7 +987,7 @@ static const char *gray_type_to_c_codegen(CodeGen *codegen, const char *type_nam
         char *buffer = buffers[slot];
         slot = (slot + 1) & 3;
         const char *resolved = type_name;
-        if (codegen && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
+        if (codegen && !is_entry_module_type && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
             resolved = codegen_resolve_type(codegen, type_name);
             /* Names the table does not hold — stdlib opaque types — keep the
              * using-module search. */

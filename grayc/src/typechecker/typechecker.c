@@ -7912,6 +7912,24 @@ static const char *resolve_type_argument(TypeChecker *checker, AstNode *node, in
     return label;
 }
 
+/* A type argument naming an entry-module type, passed to a generic function of
+ * another module. The function's body resolves the bound name in its own
+ * module, where a bare "Item" would be that module's own `Item`; the leading-dot
+ * spelling ".Item" always names the entry module's. The spelling is written
+ * back onto the argument so codegen binds and mangles the same way. */
+static const char *keep_entry_type_argument_distinct(TypeChecker *checker, const AstNode *declaration,
+                                                     AstNode *type_argument, const char *bound) {
+    if (!bound || !checker->modules || !declaration || type_argument->kind != NODE_LABEL) return bound;
+    ModuleScope *entry_scope = module_table_find(checker->modules, "");
+    const char *callee_module = module_table_module_for_file(checker->modules, declaration->token.file);
+    if (!entry_scope || !callee_module || !*callee_module) return bound;
+    DeclarationEntry *entry = module_scope_lookup(entry_scope, bound);
+    if (!entry || (entry->kind != DECLARATION_STRUCT && entry->kind != DECLARATION_ENUM)) return bound;
+    const char *distinct = arena_copy_string(checker->arena, typechecker_format(checker, ".%s", bound));
+    type_argument->data.label.value = distinct;
+    return distinct;
+}
+
 /* Generic-call handling shared by every call spelling: take the types named for
  * the callee's `generic` parameters, record the instantiation so codegen emits
  * the specialization, check the arguments whose parameter types depend on them,
@@ -7944,6 +7962,8 @@ static GrayType *resolve_generic_call(TypeChecker *checker, AstNode *node,
         for (int argument_index = 0; argument_index < clamped_argument_count; argument_index++) {
             if (!declaration->data.function_declaration.parameters[argument_index].is_type_parameter) continue;
             const char *type_argument = resolve_type_argument(checker, node, argument_index);
+            type_argument = keep_entry_type_argument_distinct(checker, declaration,
+                node->data.call.arguments[argument_index], type_argument);
             if (type_argument) call_bindings->types[bound_count] = strdup(type_argument);
             else is_fully_bound = false;
             bound_count++;
