@@ -11,6 +11,8 @@
 #include "../src/runtime/runtime.h"
 #include "../src/runtime/array.h"
 #include "../src/runtime/map.h"
+#include "../src/runtime/atomic.h"
+#include <pthread.h>
 #include <stdint.h>
 
 /* Global arena used by string, array, and map tests. Arena tests create
@@ -480,6 +482,206 @@ static void test_gray_map_empty(void) {
     ASSERT(gray_map_get(&m, &key) == NULL);
 }
 
+/* ===== atomics ===== */
+
+static void test_atomic_load_store(void) {
+    int64_t cell = 5;
+    ASSERT_EQ(gray_atomic_load(&cell), 5);
+    gray_atomic_store(&cell, -9);
+    ASSERT_EQ(gray_atomic_load(&cell), -9);
+    ASSERT_EQ(cell, -9);
+}
+
+static void test_atomic_add_returns_previous_value(void) {
+    int64_t cell = 10;
+    ASSERT_EQ(gray_atomic_add(&cell, 5), 10);
+    ASSERT_EQ(cell, 15);
+    ASSERT_EQ(gray_atomic_add(&cell, -20), 15);
+    ASSERT_EQ(cell, -5);
+}
+
+static void test_atomic_sub_returns_previous_value(void) {
+    int64_t cell = 10;
+    ASSERT_EQ(gray_atomic_sub(&cell, 3), 10);
+    ASSERT_EQ(cell, 7);
+}
+
+static void test_atomic_exchange_returns_previous_value(void) {
+    int64_t cell = 1;
+    ASSERT_EQ(gray_atomic_exchange(&cell, 2), 1);
+    ASSERT_EQ(cell, 2);
+}
+
+static void test_atomic_cas_succeeds_when_expected_matches(void) {
+    int64_t cell = 4;
+    ASSERT(gray_atomic_cas(&cell, 4, 8));
+    ASSERT_EQ(cell, 8);
+}
+
+static void test_atomic_cas_fails_and_leaves_value_when_expected_differs(void) {
+    int64_t cell = 4;
+    ASSERT(!gray_atomic_cas(&cell, 5, 8));
+    ASSERT_EQ(cell, 4);
+}
+
+static void test_atomic_bitwise_return_previous_value(void) {
+    int64_t cell = 0xF0;
+    ASSERT_EQ(gray_atomic_and(&cell, 0x3C), 0xF0);
+    ASSERT_EQ(cell, 0x30);
+    ASSERT_EQ(gray_atomic_or(&cell, 0x05), 0x30);
+    ASSERT_EQ(cell, 0x35);
+    ASSERT_EQ(gray_atomic_xor(&cell, 0xFF), 0x35);
+    ASSERT_EQ(cell, 0xCA);
+}
+
+static void test_atomic_add_wraps_at_i64_max(void) {
+    int64_t cell = INT64_MAX;
+    ASSERT_EQ(gray_atomic_add(&cell, 1), INT64_MAX);
+    ASSERT_EQ(cell, INT64_MIN);
+}
+
+static void test_atomic_sub_wraps_at_i64_min(void) {
+    int64_t cell = INT64_MIN;
+    ASSERT_EQ(gray_atomic_sub(&cell, 1), INT64_MIN);
+    ASSERT_EQ(cell, INT64_MAX);
+}
+
+static void test_atomic32_load_store(void) {
+    int32_t cell = 5;
+    ASSERT_EQ(gray_atomic_load32(&cell), 5);
+    gray_atomic_store32(&cell, -9);
+    ASSERT_EQ(gray_atomic_load32(&cell), -9);
+}
+
+static void test_atomic32_add_and_sub_return_previous_value(void) {
+    int32_t cell = 10;
+    ASSERT_EQ(gray_atomic_add32(&cell, 5), 10);
+    ASSERT_EQ(cell, 15);
+    ASSERT_EQ(gray_atomic_sub32(&cell, 20), 15);
+    ASSERT_EQ(cell, -5);
+}
+
+static void test_atomic32_add_wraps_at_i32_max(void) {
+    int32_t cell = INT32_MAX;
+    gray_atomic_add32(&cell, 1);
+    ASSERT_EQ(cell, INT32_MIN);
+}
+
+static void test_atomic32_exchange_returns_previous_value(void) {
+    int32_t cell = 1;
+    ASSERT_EQ(gray_atomic_exchange32(&cell, 2), 1);
+    ASSERT_EQ(cell, 2);
+}
+
+static void test_atomic32_cas(void) {
+    int32_t cell = 4;
+    ASSERT(!gray_atomic_cas32(&cell, 5, 8));
+    ASSERT_EQ(cell, 4);
+    ASSERT(gray_atomic_cas32(&cell, 4, 8));
+    ASSERT_EQ(cell, 8);
+}
+
+static void test_atomic32_operations_leave_neighbouring_words_untouched(void) {
+    int32_t cells[3] = {7, 0, 9};
+    gray_atomic_store32(&cells[1], -1);
+    gray_atomic_add32(&cells[1], 1);
+    ASSERT_EQ(cells[0], 7);
+    ASSERT_EQ(cells[1], 0);
+    ASSERT_EQ(cells[2], 9);
+}
+
+static void test_atomic8_load_store(void) {
+    uint8_t cell = 5;
+    ASSERT_EQ(gray_atomic_load8(&cell), 5);
+    gray_atomic_store8(&cell, 250);
+    ASSERT_EQ(gray_atomic_load8(&cell), 250);
+}
+
+static void test_atomic8_exchange_returns_previous_value(void) {
+    uint8_t cell = 1;
+    ASSERT_EQ(gray_atomic_exchange8(&cell, 2), 1);
+    ASSERT_EQ(cell, 2);
+}
+
+static void test_atomic8_cas(void) {
+    uint8_t cell = 4;
+    ASSERT(!gray_atomic_cas8(&cell, 5, 8));
+    ASSERT_EQ(cell, 4);
+    ASSERT(gray_atomic_cas8(&cell, 4, 8));
+    ASSERT_EQ(cell, 8);
+}
+
+static void test_atomic8_operations_leave_neighbouring_bytes_untouched(void) {
+    uint8_t cells[3] = {7, 0, 9};
+    gray_atomic_store8(&cells[1], 255);
+    gray_atomic_exchange8(&cells[1], 0);
+    ASSERT_EQ(cells[0], 7);
+    ASSERT_EQ(cells[1], 0);
+    ASSERT_EQ(cells[2], 9);
+}
+
+static void test_atomic_spinlock_trylock_and_unlock(void) {
+    int32_t lock = 0;
+    ASSERT(gray_spin_trylock(&lock));
+    ASSERT(!gray_spin_trylock(&lock));
+    gray_spin_unlock(&lock);
+    ASSERT(gray_spin_trylock(&lock));
+    gray_spin_unlock(&lock);
+}
+
+static void test_atomic_spin_lock_acquires_free_lock(void) {
+    int32_t lock = 0;
+    gray_spin_lock(&lock);
+    ASSERT(!gray_spin_trylock(&lock));
+    gray_spin_unlock(&lock);
+}
+
+static void test_atomic_fence_returns(void) {
+    gray_atomic_fence();
+}
+
+#define ATOMIC_THREAD_COUNT 4
+#define ATOMIC_THREAD_ITERATIONS 20000
+
+static int64_t shared_atomic_counter;
+static int64_t shared_locked_counter;
+static int32_t shared_spinlock;
+
+static void *atomic_add_worker(void *unused) {
+    (void)unused;
+    for (int i = 0; i < ATOMIC_THREAD_ITERATIONS; i++) gray_atomic_add(&shared_atomic_counter, 1);
+    return NULL;
+}
+
+static void *spinlock_worker(void *unused) {
+    (void)unused;
+    for (int i = 0; i < ATOMIC_THREAD_ITERATIONS; i++) {
+        gray_spin_lock(&shared_spinlock);
+        shared_locked_counter = shared_locked_counter + 1;
+        gray_spin_unlock(&shared_spinlock);
+    }
+    return NULL;
+}
+
+static void run_workers(void *(*worker)(void *)) {
+    pthread_t threads[ATOMIC_THREAD_COUNT];
+    for (int i = 0; i < ATOMIC_THREAD_COUNT; i++) pthread_create(&threads[i], NULL, worker, NULL);
+    for (int i = 0; i < ATOMIC_THREAD_COUNT; i++) pthread_join(threads[i], NULL);
+}
+
+static void test_atomic_add_loses_no_updates_across_threads(void) {
+    shared_atomic_counter = 0;
+    run_workers(atomic_add_worker);
+    ASSERT_EQ(shared_atomic_counter, (int64_t)ATOMIC_THREAD_COUNT * ATOMIC_THREAD_ITERATIONS);
+}
+
+static void test_atomic_spinlock_gives_mutual_exclusion_across_threads(void) {
+    shared_locked_counter = 0;
+    shared_spinlock = 0;
+    run_workers(spinlock_worker);
+    ASSERT_EQ(shared_locked_counter, (int64_t)ATOMIC_THREAD_COUNT * ATOMIC_THREAD_ITERATIONS);
+}
+
 int main(void) {
     arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
 
@@ -536,6 +738,32 @@ int main(void) {
     RUN_TEST(test_gray_map_copy);
     RUN_TEST(test_gray_map_float_normalization);
     RUN_TEST(test_gray_map_empty);
+
+    printf("--- atomics ---\n");
+    RUN_TEST(test_atomic_load_store);
+    RUN_TEST(test_atomic_add_returns_previous_value);
+    RUN_TEST(test_atomic_sub_returns_previous_value);
+    RUN_TEST(test_atomic_exchange_returns_previous_value);
+    RUN_TEST(test_atomic_cas_succeeds_when_expected_matches);
+    RUN_TEST(test_atomic_cas_fails_and_leaves_value_when_expected_differs);
+    RUN_TEST(test_atomic_bitwise_return_previous_value);
+    RUN_TEST(test_atomic_add_wraps_at_i64_max);
+    RUN_TEST(test_atomic_sub_wraps_at_i64_min);
+    RUN_TEST(test_atomic32_load_store);
+    RUN_TEST(test_atomic32_add_and_sub_return_previous_value);
+    RUN_TEST(test_atomic32_add_wraps_at_i32_max);
+    RUN_TEST(test_atomic32_exchange_returns_previous_value);
+    RUN_TEST(test_atomic32_cas);
+    RUN_TEST(test_atomic32_operations_leave_neighbouring_words_untouched);
+    RUN_TEST(test_atomic8_load_store);
+    RUN_TEST(test_atomic8_exchange_returns_previous_value);
+    RUN_TEST(test_atomic8_cas);
+    RUN_TEST(test_atomic8_operations_leave_neighbouring_bytes_untouched);
+    RUN_TEST(test_atomic_spinlock_trylock_and_unlock);
+    RUN_TEST(test_atomic_spin_lock_acquires_free_lock);
+    RUN_TEST(test_atomic_fence_returns);
+    RUN_TEST(test_atomic_add_loses_no_updates_across_threads);
+    RUN_TEST(test_atomic_spinlock_gives_mutual_exclusion_across_threads);
 
     PRINT_RESULTS();
     gray_arena_destroy(arena, __FILE__, __LINE__);

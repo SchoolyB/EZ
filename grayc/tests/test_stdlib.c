@@ -32,6 +32,7 @@
 #include "../src/stdlib/random.h"
 #include "../src/stdlib/mem.h"
 #include "../src/stdlib/runtime_mod.h"
+#include "../src/stdlib/atomic_mod.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2532,6 +2533,88 @@ static void test_builtin_array_to_string_empty(void) {
     ASSERT_GRAY_STR(gray_builtin_array_to_string(arena, &values, 0), "{}");
 }
 
+/* ===== atomic module ===== */
+
+static void test_atomic_mod_load_store(void) {
+    int64_t cell = 3;
+    ASSERT_EQ(gray_atomic_mod_load(&cell), 3);
+    gray_atomic_mod_store(&cell, 11);
+    ASSERT_EQ(cell, 11);
+}
+
+static void test_atomic_mod_add_sub_return_previous_value(void) {
+    int64_t cell = 10;
+    ASSERT_EQ(gray_atomic_mod_add(&cell, 4), 10);
+    ASSERT_EQ(gray_atomic_mod_sub(&cell, 6), 14);
+    ASSERT_EQ(cell, 8);
+}
+
+static void test_atomic_mod_exchange_returns_previous_value(void) {
+    int64_t cell = 1;
+    ASSERT_EQ(gray_atomic_mod_exchange(&cell, 2), 1);
+    ASSERT_EQ(cell, 2);
+}
+
+static void test_atomic_mod_cas_reports_whether_swap_happened(void) {
+    int64_t cell = 4;
+    ASSERT(!gray_atomic_mod_cas(&cell, 5, 8));
+    ASSERT_EQ(cell, 4);
+    ASSERT(gray_atomic_mod_cas(&cell, 4, 8));
+    ASSERT_EQ(cell, 8);
+}
+
+static void test_atomic_mod_bitwise_return_previous_value(void) {
+    int64_t cell = 0xF0;
+    ASSERT_EQ(gray_atomic_mod_and(&cell, 0x3C), 0xF0);
+    ASSERT_EQ(gray_atomic_mod_or(&cell, 0x05), 0x30);
+    ASSERT_EQ(gray_atomic_mod_xor(&cell, 0xFF), 0x35);
+    ASSERT_EQ(cell, 0xCA);
+}
+
+static void test_atomic_mod_spinlock_lifecycle(void) {
+    GraySpinLock lock = gray_atomic_mod_spinlock();
+    ASSERT(gray_atomic_mod_spin_trylock(lock));
+    ASSERT(!gray_atomic_mod_spin_trylock(lock));
+    gray_atomic_mod_spin_unlock(lock);
+    ASSERT(gray_atomic_mod_spin_trylock(lock));
+    gray_atomic_mod_spin_unlock(lock);
+    gray_atomic_mod_spinlock_destroy(&lock);
+}
+
+static void test_atomic_mod_spin_lock_acquires_new_lock(void) {
+    GraySpinLock lock = gray_atomic_mod_spinlock();
+    gray_atomic_mod_spin_lock(lock);
+    ASSERT(!gray_atomic_mod_spin_trylock(lock));
+    gray_atomic_mod_spin_unlock(lock);
+    gray_atomic_mod_spinlock_destroy(&lock);
+}
+
+static void test_atomic_mod_spinlock_copy_shares_the_lock(void) {
+    GraySpinLock lock = gray_atomic_mod_spinlock();
+    GraySpinLock copy = lock;
+    gray_atomic_mod_spin_lock(lock);
+    ASSERT(!gray_atomic_mod_spin_trylock(copy));
+    gray_atomic_mod_spin_unlock(copy);
+    ASSERT(gray_atomic_mod_spin_trylock(lock));
+    gray_atomic_mod_spin_unlock(lock);
+    gray_atomic_mod_spinlock_destroy(&lock);
+}
+
+static void test_atomic_mod_spinlocks_are_independent(void) {
+    GraySpinLock first = gray_atomic_mod_spinlock();
+    GraySpinLock second = gray_atomic_mod_spinlock();
+    gray_atomic_mod_spin_lock(first);
+    ASSERT(gray_atomic_mod_spin_trylock(second));
+    gray_atomic_mod_spin_unlock(second);
+    gray_atomic_mod_spin_unlock(first);
+    gray_atomic_mod_spinlock_destroy(&first);
+    gray_atomic_mod_spinlock_destroy(&second);
+}
+
+static void test_atomic_mod_fence_returns(void) {
+    gray_atomic_mod_fence();
+}
+
 int main(void) {
     arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_default_arena = arena;
@@ -2895,6 +2978,18 @@ int main(void) {
     RUN_TEST(test_builtin_utf8_next_stray_continuation_byte_is_replacement);
     RUN_TEST(test_builtin_array_to_string_integers);
     RUN_TEST(test_builtin_array_to_string_empty);
+
+    printf("--- atomic ---\n");
+    RUN_TEST(test_atomic_mod_load_store);
+    RUN_TEST(test_atomic_mod_add_sub_return_previous_value);
+    RUN_TEST(test_atomic_mod_exchange_returns_previous_value);
+    RUN_TEST(test_atomic_mod_cas_reports_whether_swap_happened);
+    RUN_TEST(test_atomic_mod_bitwise_return_previous_value);
+    RUN_TEST(test_atomic_mod_spinlock_lifecycle);
+    RUN_TEST(test_atomic_mod_spin_lock_acquires_new_lock);
+    RUN_TEST(test_atomic_mod_spinlock_copy_shares_the_lock);
+    RUN_TEST(test_atomic_mod_spinlocks_are_independent);
+    RUN_TEST(test_atomic_mod_fence_returns);
 
     PRINT_RESULTS();
     gray_arena_destroy(arena, __FILE__, __LINE__);

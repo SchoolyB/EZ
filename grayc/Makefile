@@ -248,7 +248,7 @@ tests/test_codegen$(EXE): tests/test_codegen.c
 	$(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200809L $(INCLUDES) -o $@ $< $(LDFLAGS)
 
 tests/test_runtime$(EXE): tests/test_runtime.c $(RT_TEST_DEPS)
-	$(CC) $(RT_CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+	$(CC) $(RT_CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) -lpthread
 
 tests/test_panics$(EXE): tests/test_panics.c $(PANIC_TEST_DEPS)
 	$(CC) $(RT_CFLAGS) -D_DARWIN_C_SOURCE -D_XOPEN_SOURCE=700 $(INCLUDES) -o $@ $^ $(LDFLAGS) -lpthread
@@ -261,7 +261,7 @@ STDLIB_TEST_DEPS = src/runtime/runtime.o src/runtime/array.o src/runtime/map.o \
                    src/stdlib/strconv.o src/stdlib/json.o src/stdlib/io.o \
                    src/stdlib/regex.o src/stdlib/builtins.o src/stdlib/net.o \
                    src/stdlib/csv.o src/stdlib/crypto.o src/stdlib/uuid.o src/stdlib/binary.o \
-                   src/stdlib/random.o src/stdlib/mem.o src/stdlib/runtime_mod.o $(ATOMIC_OBJ)
+                   src/stdlib/random.o src/stdlib/mem.o src/stdlib/runtime_mod.o src/stdlib/atomic.o $(ATOMIC_OBJ)
 
 tests/test_stdlib$(EXE): tests/test_stdlib.c $(STDLIB_TEST_DEPS)
 	$(CC) $(RT_CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) -lpthread
