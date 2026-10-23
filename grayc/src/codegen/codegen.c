@@ -91,6 +91,7 @@ static bool codegen_enum_is_error_code(CodeGen *codegen, const char *name);
 static int codegen_enum_index(CodeGen *codegen, const char *name);
 static void emit_to_string(CodeGen *codegen, AstNode *argument);
 static bool emit_narrowing_cast(CodeGen *codegen, const char *target, AstNode *value, int line);
+static void emit_c_value_to_u64(CodeGen *codegen, AstNode *value, int line);
 static AstNode *find_struct_declaration(CodeGen *codegen, const char *name);
 static const char *codegen_resolve_type(CodeGen *codegen, const char *written);
 static void emit_struct_zero_value_literal(CodeGen *codegen, const char *type_name, int depth);
@@ -4751,12 +4752,13 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             emit_formatted(codegen, "(%s)", gray_type_to_c_codegen(codegen, target));
             emit_range_checked_narrowing(codegen, value_type, value, NULL, source_minimum, source_maximum, is_unsigned,
                                          target, node->token.line);
-        } else if ((strcmp(target, "u64") == 0) &&
-                   (value_kind == TYPE_KIND_SIGNED_INTEGER || value_kind == TYPE_KIND_UNKNOWN || value_kind == TYPE_KIND_C_FUNCTION)) {
-            /* signed integer → u64: panic if value is negative. TYPE_KIND_C_FUNCTION
-             * also covers an extern.call()/extern.CONST C-interop value,
-             * which carries no Grayscale type of its own and so could be
-             * either sign. */
+        } else if (strcmp(target, "u64") == 0 &&
+                   (value_kind == TYPE_KIND_UNKNOWN || value_kind == TYPE_KIND_C_FUNCTION)) {
+            /* An extern.call()/extern.CONST C-interop value carries no
+             * Grayscale type of its own and so could be either sign. */
+            emit_c_value_to_u64(codegen, value, node->token.line);
+        } else if ((strcmp(target, "u64") == 0) && value_kind == TYPE_KIND_SIGNED_INTEGER) {
+            /* signed integer → u64: panic if value is negative. */
             emit_formatted(codegen, "(uint64_t)gray_ucast_check((int64_t)(");
             emit_expression(codegen, value);
             emit_formatted(codegen, "), 18446744073709551615ULL, \"%s\", \"%s\", %d)", target, codegen_file_literal(codegen), node->token.line);
@@ -10449,6 +10451,16 @@ static bool is_nested_array_type(const char *type_name) {
     return type_name && type_name[0] == '[' && type_name[1] == '[';
 }
 
+/* Emit a u64 from a C interop value, whose signedness Grayscale cannot see.
+ * The C type decides: a negative value of a signed type is out of range, but
+ * an unsigned type's 2^63 and up is a valid u64. */
+static void emit_c_value_to_u64(CodeGen *codegen, AstNode *value, int line) {
+    emit(codegen, "({ __auto_type _c_value = (");
+    emit_expression(codegen, value);
+    emit_formatted(codegen, "); (__typeof__(_c_value))-1 < 0 ? gray_ucast_check(_c_value, 18446744073709551615ULL, \"u64\", \"%s\", %d) : (uint64_t)_c_value; })",
+                   codegen_file_literal(codegen), line);
+}
+
 /* Emit a runtime range-check cast for a value of unknown type stored into a
  * sized integer slot (i8/i16/i32/u8/u16/u32). Returns true when a check was
  * emitted; caller should emit val normally when false. */
@@ -10463,6 +10475,7 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
     if (value_type && value_type->kind != TYPE_KIND_UNKNOWN && value_type->kind != TYPE_KIND_C_FUNCTION) return false;
     const char *source_minimum = NULL, *source_maximum = NULL;
     bool is_unsigned = false;
+    bool is_c_u64 = false;
     if      (strcmp(target, "i8")   == 0) { source_minimum = "-128";          source_maximum = "127"; }
     else if (strcmp(target, "i16")  == 0) { source_minimum = "-32768";        source_maximum = "32767"; }
     else if (strcmp(target, "i32")  == 0) { source_minimum = "-2147483648LL"; source_maximum = "2147483647LL"; }
@@ -10483,6 +10496,7 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
          * same two's-complement bit pattern as a negative int64 and would
          * otherwise trip this check on valid input. */
         is_unsigned = true; source_maximum = "18446744073709551615ULL";
+        is_c_u64 = true;
     }
     else return false;
 
@@ -10493,6 +10507,8 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
         emit_formatted(codegen, "(%s)(", c_target);
         emit_expression(codegen, value);
         emit(codegen, ")");
+    } else if (is_c_u64) {
+        emit_c_value_to_u64(codegen, value, line);
     } else {
         emit_formatted(codegen, "(%s)", c_target);
         emit_range_checked_narrowing(codegen, codegen_type_of(codegen, value), value, NULL,
