@@ -1999,10 +1999,17 @@ static void emit_declared_value(CodeGen *codegen, const char *gray_type_name, As
  * explicit argument is. */
 static void emit_parameter_default_value(CodeGen *codegen, AstNode *function, Parameter *parameter) {
     AstNode *previous_target = codegen->default_value_target;
+    const char *caller_module = codegen->current_module;
+    const char *caller_file = codegen->current_file;
     codegen->default_value_target = function;
+    /* The default is an expression from the callee's file, so its names
+     * resolve against the callee's module, not the caller's. */
+    codegen_enter_node(codegen, function);
     if (!emit_wide_integer_coerced(codegen, parameter->type_name, parameter->default_value))
         emit_declared_value(codegen, parameter->type_name, parameter->default_value);
     codegen->default_value_target = previous_target;
+    codegen->current_module = caller_module;
+    codegen->current_file = caller_file;
 }
 
 /* Emit `value` for a map key or value slot whose Grayscale type is `gray_tn`:
