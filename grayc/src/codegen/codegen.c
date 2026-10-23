@@ -92,6 +92,7 @@ static int codegen_enum_index(CodeGen *codegen, const char *name);
 static void emit_to_string(CodeGen *codegen, AstNode *argument);
 static bool emit_narrowing_cast(CodeGen *codegen, const char *target, AstNode *value, int line);
 static void emit_c_value_to_u64(CodeGen *codegen, AstNode *value, int line);
+static void emit_c_value_to_i64(CodeGen *codegen, AstNode *value, int line);
 static AstNode *find_struct_declaration(CodeGen *codegen, const char *name);
 static const char *codegen_resolve_type(CodeGen *codegen, const char *written);
 static void emit_struct_zero_value_literal(CodeGen *codegen, const char *type_name, int depth);
@@ -4774,6 +4775,9 @@ static void emit_cast_expression(CodeGen *codegen, AstNode *node) {
             /* An extern.call()/extern.CONST C-interop value carries no
              * Grayscale type of its own and so could be either sign. */
             emit_c_value_to_u64(codegen, value, node->token.line);
+        } else if (strcmp(target, "i64") == 0 &&
+                   (value_kind == TYPE_KIND_UNKNOWN || value_kind == TYPE_KIND_C_FUNCTION)) {
+            emit_c_value_to_i64(codegen, value, node->token.line);
         } else if ((strcmp(target, "u64") == 0) && value_kind == TYPE_KIND_SIGNED_INTEGER) {
             /* signed integer → u64: panic if value is negative. */
             emit_formatted(codegen, "(uint64_t)gray_ucast_check((int64_t)(");
@@ -10528,6 +10532,15 @@ static void emit_c_value_to_u64(CodeGen *codegen, AstNode *value, int line) {
                    codegen_file_literal(codegen), line);
 }
 
+/* Emit an i64 from a C interop value, whose signedness Grayscale cannot see.
+ * An unsigned C value above INT64_MAX is out of range; any other value fits. */
+static void emit_c_value_to_i64(CodeGen *codegen, AstNode *value, int line) {
+    emit(codegen, "({ __auto_type _c_value = (");
+    emit_expression(codegen, value);
+    emit_formatted(codegen, "); (__typeof__(_c_value))-1 < 0 ? (int64_t)_c_value : gray_u64_to_i64_check((uint64_t)_c_value, \"%s\", %d); })",
+                   codegen_file_literal(codegen), line);
+}
+
 /* Emit a runtime range-check cast for a value of unknown type stored into a
  * sized integer slot (i8/i16/i32/u8/u16/u32). Returns true when a check was
  * emitted; caller should emit val normally when false. */
@@ -10543,12 +10556,19 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
     const char *source_minimum = NULL, *source_maximum = NULL;
     bool is_unsigned = false;
     bool is_c_u64 = false;
+    bool is_c_i64 = false;
     if      (strcmp(target, "i8")   == 0) { source_minimum = "-128";          source_maximum = "127"; }
     else if (strcmp(target, "i16")  == 0) { source_minimum = "-32768";        source_maximum = "32767"; }
     else if (strcmp(target, "i32")  == 0) { source_minimum = "-2147483648LL"; source_maximum = "2147483647LL"; }
     else if (strcmp(target, "u8")   == 0) { is_unsigned = true; source_maximum = "255"; }
     else if (strcmp(target, "u16")  == 0) { is_unsigned = true; source_maximum = "65535"; }
     else if (strcmp(target, "u32")  == 0) { is_unsigned = true; source_maximum = "4294967295ULL"; }
+    else if (strcmp(target, "char") == 0) { is_unsigned = true; source_maximum = CHAR_CODEPOINT_MAX; }
+    else if (strcmp(target, "i64") == 0) {
+        /* A C value of a signed type already fits; an unsigned 64-bit one
+         * above INT64_MAX is the only value that does not. */
+        is_c_i64 = true;
+    }
     else if ((strcmp(target, "u64") == 0) &&
              codegen_type_of(codegen, value) &&
              (codegen_type_of(codegen, value)->kind == TYPE_KIND_UNKNOWN ||
@@ -10576,6 +10596,8 @@ static bool emit_narrowing_cast(CodeGen *codegen, const char *target,
         emit(codegen, ")");
     } else if (is_c_u64) {
         emit_c_value_to_u64(codegen, value, line);
+    } else if (is_c_i64) {
+        emit_c_value_to_i64(codegen, value, line);
     } else {
         emit_formatted(codegen, "(%s)", c_target);
         emit_range_checked_narrowing(codegen, codegen_type_of(codegen, value), value, NULL,
