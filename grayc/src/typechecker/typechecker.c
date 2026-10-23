@@ -14124,8 +14124,24 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
         }
         if (call_name) {
             FunctionSignature *signature = find_function(checker, call_name);
-            if (signature && (signature->return_count < 2 ||
-                signature->return_types[signature->return_count - 1]->kind != TYPE_KIND_ERROR)) {
+            /* A stdlib function or builtin has no signature: it returns an
+             * Error only when the stdlib registry marks it fallible. */
+            bool is_non_fallible_native = false;
+            if (!signature) {
+                if (call_qualifier) {
+                    const StdlibFunctionMetadata *metadata = find_stdlib_metadata(call_qualifier,
+                        call_function->data.member.member);
+                    is_non_fallible_native = metadata && !metadata->is_fallible;
+                } else if (is_reserved_builtin_function_name(call_name)) {
+                    is_non_fallible_native = true;
+                } else {
+                    const char *using_module = find_using_stdlib_module(checker, call_name);
+                    const StdlibFunctionMetadata *metadata = using_module ? find_stdlib_metadata(using_module, call_name) : NULL;
+                    is_non_fallible_native = metadata && !metadata->is_fallible;
+                }
+            }
+            if (is_non_fallible_native || (signature && (signature->return_count < 2 ||
+                signature->return_types[signature->return_count - 1]->kind != TYPE_KIND_ERROR))) {
                 char display[MESSAGE_BUFFER_SIZE];
                 if (call_qualifier)
                     snprintf(display, sizeof(display), "%s.%s",
