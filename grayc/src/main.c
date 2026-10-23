@@ -1130,6 +1130,9 @@ static bool c_pointer_pointee_mismatch(const CFunctionSignature *signature, int 
     bool is_integer_element = strcmp(element, "bool") == 0 || strcmp(element, "char") == 0 ||
         ((element[0] == 'i' || element[0] == 'u') && isdigit((unsigned char)element[1]));
     if (is_floating_point_element) return pointee != C_RETURN_FLOATING_POINT;
+    /* An out-parameter holding an opaque handle (a pthread_t is a pointer on
+     * some platforms and an integer on others) is a pointer-sized integer. */
+    if (pointee == C_RETURN_POINTER && (strcmp(element, "i64") == 0 || strcmp(element, "u64") == 0)) return false;
     if (is_integer_element) return pointee != C_RETURN_INTEGER;
     return pointee != C_RETURN_AGGREGATE;
 }

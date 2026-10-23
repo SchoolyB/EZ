@@ -222,6 +222,12 @@ GrayString gray_string_concat_n(GrayArena *arena, int count, ...);
 /* --- Runtime Init/Shutdown --- */
 
 void gray_runtime_init(size_t arena_limit);
+
+/* Gives the calling thread a default and a heap arena if it has none: a
+ * thread a C library created and then ran a Grayscale callback on. The arenas
+ * are released when the thread exits (the heap arena only if nothing was
+ * allocated from it, since a new() pointer can outlive the thread). */
+void gray_callback_thread_init(void);
 void gray_runtime_shutdown(void);
 
 /* Seconds elapsed since gray_runtime_init() was called */

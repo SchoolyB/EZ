@@ -428,6 +428,9 @@ struct AstNode {
             bool is_test;                    /* #test attribute — test-only function */
             bool is_deprecated;              /* #deprecated attribute */
             const char *deprecated_message;  /* NULL if bare #deprecated */
+            /* Passed to a C function as a callback, so a thread C created may
+             * run it. Set by the typechecker. */
+            bool is_c_callback;
             /* The type arguments each call binds the `generic` parameters to,
              * recorded by the typechecker (see GENERIC_BINDING_SEPARATOR).
              * Codegen emits one specialised C function for each entry.

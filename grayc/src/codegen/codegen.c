@@ -13335,6 +13335,13 @@ static void emit_function_declaration(CodeGen *codegen, AstNode *node, bool is_m
     emit(codegen, " {\n");
     codegen->indent++;
 
+    /* A C library can run a callback on a thread it created, which has no
+     * arenas yet. */
+    if (node->data.function_declaration.is_c_callback) {
+        emit_indent(codegen);
+        emit(codegen, "gray_callback_thread_init();\n");
+    }
+
     /* scope-based memory management.
      * Void functions: save/restore arena watermark to free temporaries.
      * Non-void functions: create a per-function arena so temporaries

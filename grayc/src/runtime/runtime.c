@@ -16,9 +16,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
-#if defined(__TINYC__)
 #include <pthread.h>
-#endif
 
 static inline int panic_use_color(void) {
     return gray_runtime_isatty(gray_runtime_stderr_fileno()) && !getenv("NO_COLOR");
@@ -376,6 +374,41 @@ _Thread_local const char *gray_call_names[GRAY_MAX_CALL_DEPTH + 1];
 #endif
 
 /* --- Runtime Init/Shutdown --- */
+
+typedef struct {
+    GrayArena *default_arena;
+    GrayArena *heap_arena;
+} GrayCallbackThreadArenas;
+
+static pthread_key_t gray_callback_arenas_key;
+static pthread_once_t gray_callback_arenas_once = PTHREAD_ONCE_INIT;
+
+static void gray_callback_thread_exit(void *raw_arenas) {
+    GrayCallbackThreadArenas *arenas = (GrayCallbackThreadArenas *)raw_arenas;
+    gray_arena_destroy(arenas->default_arena, __FILE__, __LINE__);
+    free(arenas->default_arena);
+    if (gray_arena_usage(arenas->heap_arena) == 0) {
+        gray_arena_destroy(arenas->heap_arena, __FILE__, __LINE__);
+        free(arenas->heap_arena);
+    }
+    free(arenas);
+}
+
+static void gray_callback_arenas_make_key(void) {
+    pthread_key_create(&gray_callback_arenas_key, gray_callback_thread_exit);
+}
+
+void gray_callback_thread_init(void) {
+    if (gray_default_arena) return;
+    pthread_once(&gray_callback_arenas_once, gray_callback_arenas_make_key);
+    GrayCallbackThreadArenas *arenas = (GrayCallbackThreadArenas *)malloc(sizeof(GrayCallbackThreadArenas));
+    if (!arenas) abort();
+    arenas->default_arena = gray_capped_arena_create(GRAY_DEFAULT_ARENA_SIZE);
+    arenas->heap_arena = gray_capped_arena_create(GRAY_DEFAULT_ARENA_SIZE);
+    gray_default_arena = arenas->default_arena;
+    gray_heap_arena = arenas->heap_arena;
+    pthread_setspecific(gray_callback_arenas_key, arenas);
+}
 
 static struct timespec gray_runtime_start_time;
 

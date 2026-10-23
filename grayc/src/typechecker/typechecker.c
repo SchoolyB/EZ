@@ -10816,6 +10816,9 @@ static GrayType *resolve_call_expression_once(TypeChecker *checker, AstNode *nod
                 if (callback_target) {
                     FunctionSignature *callback_signature = find_function(checker, callback_target);
                     if (argument_index < EXTERN_CALLBACK_ARGUMENTS) callback_signatures[argument_index] = callback_signature;
+                    if (callback_signature && callback_signature->declaration &&
+                        callback_signature->declaration->kind == NODE_FUNCTION_DECLARATION)
+                        callback_signature->declaration->data.function_declaration.is_c_callback = true;
                     for (int parameter_index = 0; callback_signature && parameter_index < callback_signature->parameter_count; parameter_index++) {
                         GrayType *callback_parameter_type = callback_signature->parameter_types[parameter_index];
                         if (!callback_parameter_type) continue;
