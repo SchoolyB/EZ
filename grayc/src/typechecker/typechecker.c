@@ -8261,6 +8261,12 @@ static GrayType *resolve_struct_or_module_call(TypeChecker *checker, AstNode *no
                 symbol->type->kind == TYPE_KIND_POINTER)) {
                 const char *struct_name = symbol->type->kind == TYPE_KIND_POINTER
                     ? symbol->type->element_type : symbol->type->name;
+                /* A receiver typed by a type parameter no call has bound has no
+                 * struct to look in; each instantiation dispatches it. */
+                if (type_name_has_unbound_generic(struct_name)) {
+                    symbol->was_used = true;
+                    return &TYPE_UNKNOWN;
+                }
                 const char *display_struct_name = struct_display_name(checker, struct_name);
                 /* check if `member_function_name` is a data field of type func
                  * before trying struct-function dispatch. A func-typed
@@ -10188,7 +10194,7 @@ static bool is_printf_values_literal(TypeChecker *checker, AstNode *call, int ar
     return module_name && function_name && strcmp(module_name, "fmt") == 0 && is_printf_function_name(function_name);
 }
 
-static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
+static GrayType *resolve_call_expression_once(TypeChecker *checker, AstNode *node) {
     GrayType *result = &TYPE_UNKNOWN;
     normalize_qualified_enum_call(checker, node);
     normalize_instance_call_on_expression(checker, node);
@@ -10858,6 +10864,36 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
             result = resolve_direct_call(checker, node, function_name);
         }
     }
+    return result;
+}
+
+/* Dispatching a call rewrites it in place: `x.f()` becomes `Struct.f(x)`. A
+ * generic body is checked once per instantiation on the same tree, so the
+ * first instantiation's rewrite would stand for all of them. Each rewrite is
+ * kept under its instantiation's bindings and the call put back as written. */
+static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
+    if (checker->generics.count == 0) return resolve_call_expression_once(checker, node);
+    CallForm written;
+    ast_call_form_capture(node, &written);
+    GrayType *result = resolve_call_expression_once(checker, node);
+    CallForm dispatched;
+    ast_call_form_capture(node, &dispatched);
+    if (dispatched.function == written.function && dispatched.object == written.object &&
+        dispatched.object_label == written.object_label && dispatched.arguments == written.arguments &&
+        dispatched.ignored_receiver == written.ignored_receiver) return result;
+    char *key = generic_bindings_join(&checker->generics);
+    int slot = 0;
+    while (slot < node->data.call.instantiation_form_count && strcmp(node->data.call.instantiation_keys[slot], key) != 0) slot++;
+    if (slot == node->data.call.instantiation_form_count) {
+        int count = ++node->data.call.instantiation_form_count;
+        node->data.call.instantiation_keys = xrealloc(node->data.call.instantiation_keys, sizeof(char *) * (size_t)count);
+        node->data.call.instantiation_forms = xrealloc(node->data.call.instantiation_forms, sizeof(CallForm) * (size_t)count);
+        node->data.call.instantiation_keys[slot] = key;
+    } else {
+        free(key);
+    }
+    node->data.call.instantiation_forms[slot] = dispatched;
+    ast_call_form_apply(node, &written);
     return result;
 }
 

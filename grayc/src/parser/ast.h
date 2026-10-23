@@ -85,6 +85,18 @@ typedef enum {
 /* Forward declaration */
 typedef struct AstNode AstNode;
 
+/* The shape a call takes once the typechecker has dispatched it. A call in a
+ * generic body is dispatched once per instantiation, each to its own struct
+ * function, so the shapes are kept beside the call as written. */
+typedef struct CallForm {
+    AstNode *function;
+    AstNode *object;
+    const char *object_label;
+    AstNode **arguments;
+    int argument_count;
+    AstNode *ignored_receiver;
+} CallForm;
+
 /* Parameter for function declarations */
 typedef struct {
     const char *name;
@@ -270,6 +282,9 @@ struct AstNode {
             /* The receiver of `recv.f(args)` when `f` takes no self: it binds
              * to nothing but is still evaluated, before the call. */
             AstNode *ignored_receiver;
+            /* How each instantiation of the enclosing generic function
+             * dispatched this call, keyed by that instantiation's bindings. */
+            char **instantiation_keys; CallForm *instantiation_forms; int instantiation_form_count;
         } call;
 
         /* NODE_INDEX_EXPRESSION */
@@ -549,6 +564,10 @@ void ast_convert_to_label(AstNode *node, const char *value);
  * "Type" in Type.VARIANT, "v" in v.field — or NULL when the object is not a
  * plain name. */
 const char *ast_member_qualifier(const AstNode *node);
+
+/* Read a call's current shape into `form`, and make a call take a shape. */
+void ast_call_form_capture(const AstNode *call, CallForm *form);
+void ast_call_form_apply(AstNode *call, const CallForm *form);
 
 /* Like ast_member_qualifier, but sees through an explicit deref: `p^.f` is
  * written against `p`. */

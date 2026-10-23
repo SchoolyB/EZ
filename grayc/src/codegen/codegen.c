@@ -10413,6 +10413,23 @@ static bool emit_written_order_call(CodeGen *codegen, AstNode *node, AstNode *ca
 }
 
 static void emit_call_expression(CodeGen *codegen, AstNode *node) {
+    if (codegen->generics.count > 0 && node->data.call.instantiation_form_count > 0) {
+        char *key = generic_bindings_join(&codegen->generics);
+        for (int slot = 0; slot < node->data.call.instantiation_form_count; slot++) {
+            if (strcmp(node->data.call.instantiation_keys[slot], key) != 0) continue;
+            CallForm written;
+            ast_call_form_capture(node, &written);
+            int form_count = node->data.call.instantiation_form_count;
+            node->data.call.instantiation_form_count = 0;
+            ast_call_form_apply(node, &node->data.call.instantiation_forms[slot]);
+            emit_call_expression(codegen, node);
+            ast_call_form_apply(node, &written);
+            node->data.call.instantiation_form_count = form_count;
+            free(key);
+            return;
+        }
+        free(key);
+    }
     AstNode *ignored_receiver = node->data.call.ignored_receiver;
     if (ignored_receiver) {
         node->data.call.ignored_receiver = NULL;
