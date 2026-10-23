@@ -4379,6 +4379,8 @@ An HTTP server module with dynamic handlers and path parameters.
 
 A handler returns an `HttpResponse` (see the HttpResponse Type under `@http`). The server sends every entry in its `headers` map, and sets `Content-Length` and `Connection` itself: a `Content-Length`, `Transfer-Encoding` or `Connection` entry in the map is not sent. A header key or value containing CR or LF panics.
 
+A request has 30 seconds in total to arrive, counted from the connection being accepted. A connection that has not sent a complete request by then is closed without a response, however slowly it is still sending.
+
 #### Request Type
 
 The `HttpRequest` type is only available when `@server` is imported. Importing `@http` alone does not provide this type.
