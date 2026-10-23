@@ -497,6 +497,9 @@ typedef struct {
      * in, an is arm, a copy or assignment, type_of) resolves it. Any other
      * use of a range is E3205. */
     const AstNode *range_use;
+    /* The expression of the expression statement being checked: the one name
+     * or call whose misspelling may be a misspelled statement (E4041). */
+    const AstNode *statement_expression;
 
     /* How many enclosing `unsafe` blocks / `unsafe do` bodies the node being
      * checked sits inside. Non-zero permits raw(), @mem, @threads, and

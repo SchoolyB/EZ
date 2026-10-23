@@ -3690,6 +3690,24 @@ static bool is_assignment_operator(TokenType type) {
            type == TOKEN_ASTERISK_ASSIGN || type == TOKEN_SLASH_ASSIGN || type == TOKEN_PERCENT_ASSIGN;
 }
 
+/* True for `name operand <operator> ...` on one line where `name` is a near
+ * miss of a statement word: no declaration can continue with an operator, so
+ * this is a misspelled statement over an expression such as `retrun x + 1`. */
+static bool is_misspelled_statement_before_operand(Parser *parser) {
+    if (!current_token_is(parser, TOKEN_IDENTIFIER) || !peek_token_is(parser, TOKEN_IDENTIFIER) ||
+        parser->peek_token.line != parser->current_token.line ||
+        !diagnostic_suggest_statement_name(parser->current_token.literal)) return false;
+    ParserSnapshot snapshot;
+    parser_snapshot_save(parser, &snapshot);
+    next_token(parser);
+    TokenType following = parser->peek_token.type;
+    bool is_operator = parser->peek_token.line == parser->current_token.line &&
+        following != TOKEN_LESS_THAN && get_token_precedence(following) > PRECEDENCE_LOWEST &&
+        get_token_precedence(following) < PRECEDENCE_CALL;
+    parser_snapshot_restore(parser, &snapshot);
+    return is_operator;
+}
+
 static AstNode *parse_statement(Parser *parser) {
     switch (parser->current_token.type) {
     case TOKEN_PRIVATE: {
@@ -4093,6 +4111,16 @@ static AstNode *parse_statement(Parser *parser) {
          * Whitespace before '[' disambiguates from index expressions (E2075).
          * The name and what follows it must share a line, so a bare
          * identifier cannot swallow the next statement's first token. */
+        if (is_misspelled_statement_before_operand(parser)) {
+            /* `retrun x + 1`: the typechecker reports the misspelled name, so
+             * keep it as the statement and drop the rest of the line. */
+            AstNode *node = ast_allocate(parser->arena, NODE_EXPRESSION_STATEMENT, parser->current_token);
+            node->data.expression_statement.expression = parse_expression(parser, PRECEDENCE_LOWEST);
+            int statement_line = parser->current_token.line;
+            while (!peek_token_is(parser, TOKEN_END_OF_FILE) && parser->peek_token.line == statement_line)
+                next_token(parser);
+            return node;
+        }
         if (current_token_is(parser, TOKEN_IDENTIFIER) &&
             parser->peek_token.line == parser->current_token.line &&
             (peek_token_is(parser, TOKEN_IDENTIFIER) || peek_token_is(parser, TOKEN_COMMA) ||

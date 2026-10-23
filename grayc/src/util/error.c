@@ -431,3 +431,48 @@ void diagnostic_print_summary(DiagnosticList *diagnostics) {
             color_code(diagnostics, COLOR_BOLD), color_code(diagnostics, COLOR_RESET));
     }
 }
+
+/* --- "Did you mean?" helpers --- */
+
+int diagnostic_edit_distance(const char *left, const char *right) {
+    int left_length = (int)strlen(left), right_length = (int)strlen(right);
+    if (left_length == 0) return right_length;
+    if (right_length == 0) return left_length;
+    int stack_row[256] = {0};
+    int *distance_row = right_length < 256 ? stack_row : xmalloc(sizeof(int) * (right_length + 1));
+    for (int j = 0; j <= right_length; j++) distance_row[j] = j;
+    for (int i = 1; i <= left_length; i++) {
+        int previous_diagonal = distance_row[0];
+        distance_row[0] = i;
+        for (int j = 1; j <= right_length; j++) {
+            int cost = (left[i-1] == right[j-1]) ? 0 : 1;
+            int deletion = distance_row[j] + 1;
+            int insert_index = distance_row[j-1] + 1;
+            int substitution = previous_diagonal + cost;
+            previous_diagonal = distance_row[j];
+            distance_row[j] = deletion < insert_index ? (deletion < substitution ? deletion : substitution) : (insert_index < substitution ? insert_index : substitution);
+        }
+    }
+    int result = distance_row[right_length];
+    if (distance_row != stack_row) free(distance_row);
+    return result;
+}
+
+/* The statement keyword or builtin call a misspelled statement name was
+ * probably meant to be, or NULL. */
+const char *diagnostic_suggest_statement_name(const char *name) {
+    static const char *const statement_names[] = {
+        "return", "break", "continue", "defer", "ensure",
+        "println", "print", "eprintln", "eprint", "panic", "assert",
+    };
+    const char *best = NULL;
+    int best_distance = 3;
+    for (size_t i = 0; i < sizeof(statement_names) / sizeof(statement_names[0]); i++) {
+        int distance = diagnostic_edit_distance(name, statement_names[i]);
+        if (distance > 0 && distance < best_distance) {
+            best_distance = distance;
+            best = statement_names[i];
+        }
+    }
+    return best;
+}

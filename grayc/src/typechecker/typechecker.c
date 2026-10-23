@@ -3910,30 +3910,6 @@ static void typechecker_check_stdlib_argument_types(TypeChecker *checker, const 
 
 /* --- "Did you mean?" suggestion helper --- */
 
-static int levenshtein(const char *left, const char *right) {
-    int left_length = (int)strlen(left), right_length = (int)strlen(right);
-    if (left_length == 0) return right_length;
-    if (right_length == 0) return left_length;
-    int stack_row[256] = {0};
-    int *distance_row = right_length < 256 ? stack_row : xmalloc(sizeof(int) * (right_length + 1));
-    for (int j = 0; j <= right_length; j++) distance_row[j] = j;
-    for (int i = 1; i <= left_length; i++) {
-        int previous_diagonal = distance_row[0];
-        distance_row[0] = i;
-        for (int j = 1; j <= right_length; j++) {
-            int cost = (left[i-1] == right[j-1]) ? 0 : 1;
-            int deletion = distance_row[j] + 1;
-            int insert_index = distance_row[j-1] + 1;
-            int substitution = previous_diagonal + cost;
-            previous_diagonal = distance_row[j];
-            distance_row[j] = deletion < insert_index ? (deletion < substitution ? deletion : substitution) : (insert_index < substitution ? insert_index : substitution);
-        }
-    }
-    int result = distance_row[right_length];
-    if (distance_row != stack_row) free(distance_row);
-    return result;
-}
-
 /* Find closest matching name from scope variables, functions, and builtins */
 static const char *suggest_similar_name(TypeChecker *checker, const char *name) {
     const char *best = NULL;
@@ -3942,7 +3918,7 @@ static const char *suggest_similar_name(TypeChecker *checker, const char *name) 
     /* Check scope variables */
     for (Scope *scope = checker->current_scope; scope; scope = scope->parent) {
         for (int i = 0; i < scope->count; i++) {
-            int distance = levenshtein(name, scope->symbols[i].name);
+            int distance = diagnostic_edit_distance(name, scope->symbols[i].name);
             if (distance > 0 && distance < best_distance) {
                 best_distance = distance;
                 best = scope->symbols[i].name;
@@ -3952,7 +3928,7 @@ static const char *suggest_similar_name(TypeChecker *checker, const char *name) 
 
     /* Check registered functions */
     for (int i = 0; i < checker->function_count; i++) {
-        int distance = levenshtein(name, checker->functions[i].name);
+        int distance = diagnostic_edit_distance(name, checker->functions[i].name);
         if (distance > 0 && distance < best_distance) {
             best_distance = distance;
             best = checker->functions[i].name;
@@ -3962,23 +3938,15 @@ static const char *suggest_similar_name(TypeChecker *checker, const char *name) 
     return best;
 }
 
-/* The statement keyword or builtin call a misspelled statement name was
- * probably meant to be, or NULL. */
-static const char *suggest_statement_name(const char *name) {
-    static const char *const statement_names[] = {
-        "return", "break", "continue", "defer", "ensure",
-        "print", "println", "eprint", "eprintln", "panic", "assert",
-    };
-    const char *best = NULL;
-    int best_distance = 3;
-    for (size_t i = 0; i < sizeof(statement_names) / sizeof(statement_names[0]); i++) {
-        int distance = levenshtein(name, statement_names[i]);
-        if (distance > 0 && distance < best_distance) {
-            best_distance = distance;
-            best = statement_names[i];
-        }
-    }
-    return best;
+/* E4041 for an undefined name or function at statement position that is a
+ * near miss of a statement word. `expression` is the statement's expression
+ * and `site` the node the error points at. */
+static bool report_misspelled_statement(TypeChecker *checker, AstNode *expression, AstNode *site, const char *name) {
+    if (checker->statement_expression != expression) return false;
+    const char *statement_name = diagnostic_suggest_statement_name(name);
+    if (!statement_name) return false;
+    NODE_ERROR_FORMATTED(checker, site, "E4041", name, statement_name);
+    return true;
 }
 
 /* --- Builtin name check --- */
@@ -4106,7 +4074,7 @@ static const char *suggest_similar_module(TypeChecker *checker, const char *name
     int best_distance = 3;
     for (int i = 0; i < checker->import_count; i++) {
         if (!import_in_current_file(checker, i)) continue;
-        int distance = levenshtein(name, checker->imported_modules[i]);
+        int distance = diagnostic_edit_distance(name, checker->imported_modules[i]);
         if (distance > 0 && distance < best_distance) {
             best_distance = distance;
             best = checker->imported_modules[i];
@@ -4127,7 +4095,7 @@ static const char *suggest_similar_module_function(TypeChecker *checker,
         const char *candidate_name = checker->functions[i].name;
         if (strncmp(candidate_name, module_name, module_length) != 0 || candidate_name[module_length] != '_') continue;
         const char *bare = candidate_name + module_length + 1;
-        int distance = levenshtein(function_name, bare);
+        int distance = diagnostic_edit_distance(function_name, bare);
         if (distance > 0 && distance < best_distance) {
             best_distance = distance;
             best = bare;
@@ -9861,7 +9829,7 @@ static GrayType *resolve_direct_call(TypeChecker *checker, AstNode *node, const 
                     /* Arity/type validation for func refs is done
                      * at the earlier func-var branch; avoid
                      * re-emitting the same diagnostic here. */
-                } else {
+                } else if (!report_misspelled_statement(checker, node, node->data.call.function ? node->data.call.function : node, function_name)) {
                     const char *suggestion = suggest_similar_name(checker, function_name);
                     /* Point at the function name, not the ( */
                     AstNode *callee_node = node->data.call.function;
@@ -12399,7 +12367,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                         "'%s' is a named return value in the function signature. Did you forget to declare 'mut %s %s' at function scope?",
                         name, name, narrowed_return_type ? narrowed_return_type : "?");
                     NODE_ERROR_FORMATTED_HELP(checker, node, "E4001", arena_copy_string(checker->arena, help), name);
-                } else {
+                } else if (!report_misspelled_statement(checker, node, node, name)) {
                     const char *suggestion = suggest_similar_name(checker, name);
                     NODE_ERROR_FORMATTED_HELP(checker, node, "E4001",
                         suggestion ? typechecker_format(checker, "did you mean '%s'?", suggestion) : NULL, name);
@@ -14923,7 +14891,7 @@ static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
             node->data.variable_declaration.type_name, leaf, sizeof(leaf));
         const char *statement_name = undefined &&
             strcmp(undefined, node->data.variable_declaration.type_name) == 0
-            ? suggest_statement_name(node->data.variable_declaration.name) : NULL;
+            ? diagnostic_suggest_statement_name(node->data.variable_declaration.name) : NULL;
         if (statement_name) {
             NODE_ERROR_FORMATTED(checker, node, "E4041", node->data.variable_declaration.name, statement_name);
             return;
@@ -16552,7 +16520,9 @@ static void check_expression_statement(TypeChecker *checker, AstNode *node) {
         (written->data.postfix.operator == TOKEN_INCREMENT || written->data.postfix.operator == TOKEN_DECREMENT);
     const char *step_name = is_step ? whole_variable_write_name(written->data.postfix.left) : NULL;
     bool step_was_used = symbol_was_used_before_write(checker, step_name);
+    checker->statement_expression = written;
     GrayType *expression_type = resolve_expression(checker, node->data.expression_statement.expression);
+    checker->statement_expression = NULL;
     restore_symbol_used_flag(checker, step_name, step_was_used);
     /* E3081: bare function name used as statement without call */
     AstNode *expression = node->data.expression_statement.expression;
