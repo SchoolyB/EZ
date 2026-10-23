@@ -591,8 +591,8 @@ static void mangle_generic_name(char *buffer, size_t buffer_size, const char *ba
  * each of its type arguments names, joined as the typechecker spells an
  * instantiation. A type parameter of the instantiation being emitted that is
  * passed on resolves to what it is bound to here. Heap allocated. */
-static char *codegen_call_binding(CodeGen *codegen, const AstNode *function, const AstNode *call,
-                                  int leading_parameters) {
+static void codegen_call_bindings(CodeGen *codegen, const AstNode *function, const AstNode *call,
+                                  int leading_parameters, GenericBindings *bindings_out) {
     GenericBindings bindings;
     generic_bindings_init(&bindings, function, NULL);
     int slot = 0;
@@ -611,6 +611,13 @@ static char *codegen_call_binding(CodeGen *codegen, const AstNode *function, con
         bindings.types[slot++] = strdup(type_text);
     }
     for (; slot < bindings.count; slot++) bindings.types[slot] = strdup("unknown");
+    *bindings_out = bindings;
+}
+
+static char *codegen_call_binding(CodeGen *codegen, const AstNode *function, const AstNode *call,
+                                  int leading_parameters) {
+    GenericBindings bindings;
+    codegen_call_bindings(codegen, function, call, leading_parameters, &bindings);
     char *joined = generic_bindings_join(&bindings);
     generic_bindings_clear(&bindings);
     return joined;
@@ -10128,17 +10135,27 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
             }
         }
         emit(codegen, "({ ");
+        /* A parameter typed by one of the callee's type parameters takes the
+         * type the call binds it to. */
+        GenericBindings callee_bindings = {0};
+        bool is_callee_generic = function_is_generic(target_function);
+        if (is_callee_generic) codegen_call_bindings(codegen, target_function, node, 0, &callee_bindings);
         for (int i = 0; i < node->data.call.argument_count; i++) {
             if (target_function->data.function_declaration.parameters[i].is_type_parameter) continue;
             const char *parameter_name = target_function->data.function_declaration.parameters[i].name;
             const char *parameter_type_spelling = target_function->data.function_declaration.parameters[i].type_name;
+            char *bound_type_spelling = parameter_type_spelling && is_callee_generic
+                ? generic_bindings_substitute(&callee_bindings, parameter_type_spelling) : NULL;
+            if (bound_type_spelling) parameter_type_spelling = bound_type_spelling;
             const char *c_type = parameter_type_spelling ? gray_type_to_c_codegen(codegen, parameter_type_spelling) : "int64_t";
             emit_formatted(codegen, "%s %s = ", c_type, parameter_name ? sanitize_name(parameter_name) : "_arg");
             if (!emit_wide_integer_coerced(codegen, parameter_type_spelling, node->data.call.arguments[i]) &&
                 !emit_narrowing_cast(codegen, parameter_type_spelling, node->data.call.arguments[i], node->token.line))
                 emit_declared_value(codegen, parameter_type_spelling, node->data.call.arguments[i]);
             emit(codegen, "; ");
+            free(bound_type_spelling);
         }
+        if (is_callee_generic) generic_bindings_clear(&callee_bindings);
         emit(codegen, saved_function_name);
         emit(codegen, "(");
         {
