@@ -2933,6 +2933,8 @@ typedef enum {
 
 static bool argument_kind_matches(ExpectedArgumentKind expected, GrayType *actual) {
     if (!actual || actual->kind == TYPE_KIND_UNKNOWN) return true; /* can't validate */
+    /* A distinct type is not its target: a primitive parameter takes only the plain type. */
+    if (actual->distinct && expected != EXPECTED_ARGUMENT_ANY) return false;
     switch (expected) {
     case EXPECTED_ARGUMENT_STRING: return actual->kind == TYPE_KIND_STRING;
     case EXPECTED_ARGUMENT_I64:
@@ -3839,6 +3841,8 @@ static bool argument_mismatches_first_argument_slot(TypeChecker *checker, Expect
            argument_type->kind == TYPE_KIND_ARRAY)));
 }
 
+static bool is_literal_expression(AstNode *node);
+
 static void typechecker_check_stdlib_argument_types(TypeChecker *checker, const char *module_name,
     const char *function_name, AstNode *node)
 {
@@ -3895,7 +3899,9 @@ static void typechecker_check_stdlib_argument_types(TypeChecker *checker, const 
                 typechecker_error_argument_type(checker, argument, argument_index + 1, typechecker_format(checker, "%s.%s", module_name, function_name), type_display_name(checker, slot), type_display_name(checker, argument_type));
                 continue;
             }
-            if (!argument_kind_matches(kind, argument_type)) {
+            /* A literal takes a distinct slot type; only the other arguments are at fault. */
+            bool is_literal_in_distinct_slot = slot && slot->distinct && is_literal_expression(argument);
+            if (!is_literal_in_distinct_slot && !argument_kind_matches(kind, argument_type)) {
                 typechecker_error_argument_type(checker, node->data.call.arguments[argument_index], argument_index + 1, typechecker_format(checker, "%s.%s", module_name, function_name), expected_kind_name(metadata->argument_types[i].kind), type_name(argument_type));
             }
         }
@@ -9150,7 +9156,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
         } else {
             GrayType *first_argument_value_type = resolve_expression(checker, node->data.call.arguments[0]);
             GrayType *second_argument_type = resolve_expression(checker, node->data.call.arguments[1]);
-            if (first_argument_value_type->kind != TYPE_KIND_STRING) {
+            if (first_argument_value_type->kind != TYPE_KIND_STRING || first_argument_value_type->distinct) {
                 typechecker_error_argument_type(checker, node, 1, "to_char", "a string", type_name(first_argument_value_type));
             }
             if (second_argument_type->kind != TYPE_KIND_SIGNED_INTEGER && second_argument_type->kind != TYPE_KIND_UNSIGNED_INTEGER) {
@@ -9188,7 +9194,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             typechecker_error_arity(checker, node, "char_count", "1", node->data.call.argument_count);
         } else {
             GrayType *first_argument_value_type = resolve_expression(checker, node->data.call.arguments[0]);
-            if (first_argument_value_type->kind != TYPE_KIND_STRING) {
+            if (first_argument_value_type->kind != TYPE_KIND_STRING || first_argument_value_type->distinct) {
                 typechecker_error_argument_type(checker, node, 1, "char_count", "a string", type_name(first_argument_value_type));
             }
         }
@@ -9225,7 +9231,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             typechecker_error_arity(checker, node, "to_c_string", "1", node->data.call.argument_count);
         } else {
             GrayType *first_argument_value_type = resolve_expression(checker, node->data.call.arguments[0]);
-            if (first_argument_value_type->kind != TYPE_KIND_STRING) {
+            if (first_argument_value_type->kind != TYPE_KIND_STRING || first_argument_value_type->distinct) {
                 typechecker_error_argument_type(checker, node, 1, "to_c_string", "a string", type_name(first_argument_value_type));
             }
         }
@@ -9324,7 +9330,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
         if (argument_count == 2) {
             AstNode *message_argument = node->data.call.arguments[1];
             GrayType *message_argument_type = resolve_expression(checker, message_argument);
-            if (message_argument_type && message_argument_type->kind != TYPE_KIND_STRING && message_argument_type->kind != TYPE_KIND_UNKNOWN) {
+            if (message_argument_type && (message_argument_type->kind != TYPE_KIND_STRING || message_argument_type->distinct) && message_argument_type->kind != TYPE_KIND_UNKNOWN) {
                 NODE_ERROR_FORMATTED(checker, message_argument, "E5026",
                     2, "error", "a string", type_display_name(checker, message_argument_type));
             }
@@ -9356,29 +9362,29 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
         /* Validate argument types for these builtins */
         if (strcmp(function_name, "exit") == 0 && node->data.call.argument_count >= 1) {
             GrayType *first_argument_type = check_expression_as(checker, node->data.call.arguments[0], &TYPE_I64);
-            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && !is_integer_kind(first_argument_type->kind)) {
+            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && (!is_integer_kind(first_argument_type->kind) || first_argument_type->distinct)) {
                 typechecker_error_argument_type(checker, node, 1, "exit", "an integer", type_name(first_argument_type));
             }
         } else if (strcmp(function_name, "panic") == 0 && node->data.call.argument_count >= 1) {
             GrayType *first_argument_type = resolve_expression(checker, node->data.call.arguments[0]);
-            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && first_argument_type->kind != TYPE_KIND_STRING) {
+            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && (first_argument_type->kind != TYPE_KIND_STRING || first_argument_type->distinct)) {
                 typechecker_error_argument_type(checker, node, 1, "panic", "a string", type_name(first_argument_type));
             }
         } else if (strcmp(function_name, "assert") == 0 && node->data.call.argument_count >= 1) {
             GrayType *condition_type = resolve_expression(checker, node->data.call.arguments[0]);
-            if (condition_type->kind != TYPE_KIND_UNKNOWN && condition_type->kind != TYPE_KIND_BOOL) {
+            if (condition_type->kind != TYPE_KIND_UNKNOWN && (condition_type->kind != TYPE_KIND_BOOL || condition_type->distinct)) {
                 typechecker_error_argument_type(checker, node, 1, "assert", "a bool", type_name(condition_type));
             }
             if (node->data.call.argument_count >= 2) {
                 GrayType *message_type = resolve_expression(checker, node->data.call.arguments[1]);
-                if (message_type->kind != TYPE_KIND_UNKNOWN && message_type->kind != TYPE_KIND_STRING) {
+                if (message_type->kind != TYPE_KIND_UNKNOWN && (message_type->kind != TYPE_KIND_STRING || message_type->distinct)) {
                     typechecker_error_argument_type(checker, node, 2, "assert", "a string", type_display_name(checker, message_type));
                 }
             }
         } else if ((strcmp(function_name, "sleep_s") == 0 || strcmp(function_name, "sleep_ms") == 0 ||
                     strcmp(function_name, "sleep_ns") == 0) && node->data.call.argument_count >= 1) {
             GrayType *first_argument_type = check_expression_as(checker, node->data.call.arguments[0], &TYPE_I64);
-            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && !is_integer_kind(first_argument_type->kind)) {
+            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && (!is_integer_kind(first_argument_type->kind) || first_argument_type->distinct)) {
                 typechecker_error_argument_type(checker, node, 1, function_name, "an integer", type_name(first_argument_type));
             }
         }
@@ -9388,7 +9394,7 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
             typechecker_error_arity(checker, node, "system", "1", node->data.call.argument_count);
         } else {
             GrayType *first_argument_type = resolve_expression(checker, node->data.call.arguments[0]);
-            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && first_argument_type->kind != TYPE_KIND_STRING) {
+            if (first_argument_type->kind != TYPE_KIND_UNKNOWN && (first_argument_type->kind != TYPE_KIND_STRING || first_argument_type->distinct)) {
                 typechecker_error_argument_type(checker, node, 1, "system", "a string", type_name(first_argument_type));
             }
         }
@@ -12737,7 +12743,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
         for (int part_index = 0; part_index < 3; part_index++) {
             if (!parts[part_index]) continue;
             GrayType *parameter_type = check_expression_as(checker, parts[part_index], range_type);
-            if (parameter_type->kind != TYPE_KIND_UNKNOWN && !is_integer_kind(parameter_type->kind)) {
+            if (parameter_type->kind != TYPE_KIND_UNKNOWN && (!is_integer_kind(parameter_type->kind) || parameter_type->distinct)) {
                 typechecker_error_argument_type(checker, parts[part_index], part_index + 1, "range", "an integer", type_name(parameter_type));
             }
         }

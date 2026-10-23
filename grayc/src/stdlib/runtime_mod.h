@@ -163,6 +163,9 @@ int64_t gray_runtime_call_depth(void);
  */
 GrayString gray_runtime_caller_name(void);
 
+/* The running function's own name; codegen emits it for caller_name() in a parameter default. */
+GrayString gray_runtime_current_name(void);
+
 /*@man call_limit
  *@module runtime
  *@group Execution

@@ -1997,9 +1997,12 @@ static void emit_declared_value(CodeGen *codegen, const char *gray_type_name, As
 /* Emits a parameter's default value where a call omits the argument,
  * wrapping it in the wide integer constructor for a wide-integer parameter as an
  * explicit argument is. */
-static void emit_parameter_default_value(CodeGen *codegen, Parameter *parameter) {
+static void emit_parameter_default_value(CodeGen *codegen, AstNode *function, Parameter *parameter) {
+    AstNode *previous_target = codegen->default_value_target;
+    codegen->default_value_target = function;
     if (!emit_wide_integer_coerced(codegen, parameter->type_name, parameter->default_value))
         emit_declared_value(codegen, parameter->type_name, parameter->default_value);
+    codegen->default_value_target = previous_target;
 }
 
 /* Emit `value` for a map key or value slot whose Grayscale type is `gray_tn`:
@@ -7411,9 +7414,15 @@ static bool emit_runtime_call(CodeGen *codegen, AstNode *node, const char *funct
         emit_formatted(codegen, "gray_string_lit(\"%s\")", GRAY_VERSION);
         return true;
     }
+    /* A default value is emitted at the call site but belongs to the callee:
+     * function_name() is the callee, and the caller is the frame running now. */
     if (strcmp(function_name, "function_name") == 0) {
-        emit_formatted(codegen, "gray_string_lit(\"%s\")",
-            codegen->current_function ? function_runtime_name(codegen, codegen->current_function) : "");
+        AstNode *function = codegen->default_value_target ? codegen->default_value_target : codegen->current_function;
+        emit_formatted(codegen, "gray_string_lit(\"%s\")", function ? function_runtime_name(codegen, function) : "");
+        return true;
+    }
+    if (strcmp(function_name, "caller_name") == 0 && codegen->default_value_target) {
+        emit(codegen, "gray_runtime_current_name()");
         return true;
     }
     emit_formatted(codegen, "gray_runtime_%s()", function_name);
@@ -9644,7 +9653,7 @@ static bool emit_namespaced_call(CodeGen *codegen, AstNode *node) {
                         if (any_emitted) emit(codegen, ", ");
                         any_emitted = true;
                         if (namespaced_function->data.function_declaration.parameters[i].default_value) {
-                            emit_parameter_default_value(codegen, &namespaced_function->data.function_declaration.parameters[i]);
+                            emit_parameter_default_value(codegen, namespaced_function, &namespaced_function->data.function_declaration.parameters[i]);
                         } else {
                             emit(codegen, "0");
                         }
@@ -9767,7 +9776,7 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
                                 emit_namespaced_call_argument(codegen, node->data.call.arguments[i],
                                     prefixed_function, i, node->token.line);
                             } else if (i < parameter_count && prefixed_function->data.function_declaration.parameters[i].default_value) {
-                                emit_parameter_default_value(codegen, &prefixed_function->data.function_declaration.parameters[i]);
+                                emit_parameter_default_value(codegen, prefixed_function, &prefixed_function->data.function_declaration.parameters[i]);
                             }
                         }
                         emit(codegen, ")");
@@ -10090,7 +10099,7 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
                     const char *parameter_name = target_function->data.function_declaration.parameters[i].name;
                     emit_formatted(codegen, "%s", parameter_name ? sanitize_name(parameter_name) : "_arg");
                 } else {
-                    emit_parameter_default_value(codegen, &target_function->data.function_declaration.parameters[i]);
+                    emit_parameter_default_value(codegen, target_function, &target_function->data.function_declaration.parameters[i]);
                 }
             }
         }
@@ -10130,7 +10139,7 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
         } else if (target_function && i < parameter_count &&
                    target_function->data.function_declaration.parameters[i].default_value) {
             /* Default value */
-            emit_parameter_default_value(codegen, &target_function->data.function_declaration.parameters[i]);
+            emit_parameter_default_value(codegen, target_function, &target_function->data.function_declaration.parameters[i]);
         } else {
             /* No arg and no default; emit zero */
             emit(codegen, "0");

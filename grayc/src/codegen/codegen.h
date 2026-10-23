@@ -96,6 +96,7 @@ typedef struct {
      * order because emission and several prefix-match scans depend on it. */
     AstNode **functions_by_name;
     bool is_functions_by_name_built;
+    AstNode *default_value_target; /* callee whose parameter default is being emitted, else NULL */
     /* The generic function being emitted under its mangled instantiation name,
      * and the name it is indexed under. A call to the function from its own
      * body (recursion) looks it up by that original name. */
