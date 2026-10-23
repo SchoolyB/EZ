@@ -1393,6 +1393,50 @@ static unsigned long long return_expression_parameter_bits(TypeChecker *checker,
     }
 }
 
+/* True if `node` is a number, bool or char value, so it cannot carry an
+ * address. Structural like return_expression_parameter_bits: the type table
+ * answers when this node was already resolved; otherwise a field read through
+ * a struct or struct-pointer parameter takes the field's declared type, and a
+ * local follows its initializer. */
+static AstNode *find_struct_in_program(TypeChecker *checker, const char *name);
+
+static bool type_kind_is_plain_scalar(GrayType *type) {
+    return type && (type->kind == TYPE_KIND_SIGNED_INTEGER || type->kind == TYPE_KIND_UNSIGNED_INTEGER ||
+                    type->kind == TYPE_KIND_FLOATING_POINT || type->kind == TYPE_KIND_BOOL ||
+                    type->kind == TYPE_KIND_CHAR);
+}
+
+static bool expression_is_plain_scalar(TypeChecker *checker, FunctionSignature *function_signature, AstNode *node) {
+    if (!node || !function_signature->declaration) return false;
+    GrayType *resolved = type_table_get(checker->type_table, node);
+    if (resolved && resolved->kind != TYPE_KIND_UNKNOWN && resolved->kind != TYPE_KIND_LITERAL)
+        return type_kind_is_plain_scalar(resolved);
+    AstNode *declaration = function_signature->declaration;
+    if (node->kind == NODE_LABEL) {
+        AstNode *initializer = local_initializer(declaration->data.function_declaration.body, node->data.label.value);
+        return initializer && initializer != node && expression_is_plain_scalar(checker, function_signature, initializer);
+    }
+    if (node->kind != NODE_MEMBER_EXPRESSION) return false;
+    AstNode *object = node->data.member.object;
+    while (object && object->kind == NODE_POSTFIX_EXPRESSION && object->data.postfix.operator == TOKEN_CARET)
+        object = object->data.postfix.left;
+    if (!object || object->kind != NODE_LABEL) return false;
+    for (int i = 0; i < declaration->data.function_declaration.parameter_count; i++) {
+        Parameter *parameter = &declaration->data.function_declaration.parameters[i];
+        if (!parameter->name || strcmp(parameter->name, object->data.label.value) != 0 || !parameter->type_name) continue;
+        const char *struct_name = parameter->type_name[0] == '^' ? parameter->type_name + 1 : parameter->type_name;
+        AstNode *struct_declaration = find_struct_in_program(checker, struct_name);
+        if (!struct_declaration) return false;
+        for (int j = 0; j < struct_declaration->data.struct_declaration.field_count; j++) {
+            StructField *field = &struct_declaration->data.struct_declaration.fields[j];
+            if (field->name && strcmp(field->name, node->data.member.member) == 0 && field->type_name)
+                return type_kind_is_plain_scalar(type_from_name(field->type_name));
+        }
+        return false;
+    }
+    return false;
+}
+
 /* OR together the param bits of every `return` reachable in a statement
  * subtree, without descending into a nested function declaration. */
 static unsigned long long return_statement_parameter_bits(TypeChecker *checker,
@@ -1846,9 +1890,13 @@ static void escape_walk(TypeChecker *checker, FunctionSignature *function_signat
         AstNode *function_node = node->data.call.function;
         if (function_node && function_node->kind == NODE_MEMBER_EXPRESSION && ast_member_qualifier(function_node) &&
             strcmp(ast_member_qualifier(function_node), "extern") == 0) {
-            for (int i = 0; i < node->data.call.argument_count && i < MAX_TRACKED_PARAMETERS; i++)
+            for (int i = 0; i < node->data.call.argument_count && i < MAX_TRACKED_PARAMETERS; i++) {
+                /* A number, bool or char read out of a pointee is a plain
+                 * value to C, not the parameter's address. */
+                if (expression_is_plain_scalar(checker, function_signature, node->data.call.arguments[i])) continue;
                 function_signature->passes_parameter_to_extern |= return_expression_parameter_bits(checker, function_signature,
                     node->data.call.arguments[i]);
+            }
         }
         FunctionSignature *callee = resolve_call_signature_in_body(checker, body, node);
         if (!callee)
