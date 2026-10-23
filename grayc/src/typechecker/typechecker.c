@@ -6500,6 +6500,17 @@ static void typechecker_check_binary_encode_argument(TypeChecker *checker, const
  * diagnostic site self-describing without a zillion format strings. */
 static AstNode *find_struct_in_program(TypeChecker *checker, const char *name);
 
+/* True if `type_name` spells `void` anywhere other than directly behind a `^`:
+ * `^void` is a C `void *`, but `[void]` and `map[string:void]` hold nothing. */
+static bool type_name_has_value_void(const char *type_name) {
+    for (const char *cursor = strstr(type_name, "void"); cursor; cursor = strstr(cursor + 1, "void")) {
+        bool starts_word = cursor == type_name || !(isalnum((unsigned char)cursor[-1]) || cursor[-1] == '_');
+        bool ends_word = !(isalnum((unsigned char)cursor[4]) || cursor[4] == '_');
+        if (starts_word && ends_word && (cursor == type_name || cursor[-1] != '^')) return true;
+    }
+    return false;
+}
+
 static void reject_void_in_context(TypeChecker *checker, AstNode *expression,
                                     GrayType *type, const char *context) {
     if (!type || type->kind != TYPE_KIND_VOID || !expression) return;
@@ -14026,7 +14037,7 @@ static void check_variable_declaration_annotation(TypeChecker *checker, AstNode 
         const char *type_name_text = node->data.variable_declaration.type_name;
         bool is_typed_function = strncmp(type_name_text, "func(", 5) == 0 ||
                              strncmp(type_name_text, "[func(", 6) == 0;
-        if (!is_typed_function && strstr(type_name_text, "void") != NULL && strcmp(type_name_text, "void") != 0) {
+        if (!is_typed_function && strcmp(type_name_text, "void") != 0 && type_name_has_value_void(type_name_text)) {
             NODE_ERROR_FORMATTED(checker, node, "E3038", "an element type in arrays or maps");
         }
     }
@@ -17018,7 +17029,7 @@ static void check_function_declaration(TypeChecker *checker, AstNode *node) {
                                  strncmp(type_name_text, "[func(", 6) == 0;
             if (strcmp(type_name_text, "void") == 0) {
                 NODE_ERROR_FORMATTED(checker, node, "E3038", "a parameter type");
-            } else if (!is_typed_function && strstr(type_name_text, "void") != NULL) {
+            } else if (!is_typed_function && type_name_has_value_void(type_name_text)) {
                 NODE_ERROR_FORMATTED(checker, node, "E3038", "an element type in arrays or maps");
             }
         }
