@@ -2774,11 +2774,12 @@ static AstNode *parse_import_statement(Parser *parser) {
                     arena_copy_string(parser->arena,"'extern' is reserved for C interop; rename the file or use an alias (e.g., 'import mymod \"./extern.gray\"')"),
                     parser->file, parser->current_token.line, parser->current_token.column, 0);
             }
-        } else if (current_token_is(parser, TOKEN_IDENTIFIER)) {
+        } else {
             char message[MESSAGE_BUFFER_SIZE];
             snprintf(message, sizeof(message),
                 "expected '@module' or '\"path\"' after 'import', got '%s'",
-                parser->current_token.literal);
+                parser->current_token.literal && parser->current_token.literal[0]
+                    ? parser->current_token.literal : token_display_name(parser->current_token));
             diagnostic_error_message(parser->diagnostics, "E6014", arena_copy_string(parser->arena, message),
                 parser->file, parser->current_token.line, parser->current_token.column, 0);
             return node;
