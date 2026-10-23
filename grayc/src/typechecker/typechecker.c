@@ -16660,6 +16660,18 @@ static void check_for_statement(TypeChecker *checker, AstNode *node) {
     if (is_stdlib_module_name(node->data.for_statement.variable_name)) {
         NODE_ERROR_FORMATTED(checker, node, "E5035", node->data.for_statement.variable_name, "a variable");
     }
+    /* W2002: the loop variable shadows an outer variable */
+    {
+        const char *variable_name = node->data.for_statement.variable_name;
+        if (variable_name && strcmp(variable_name, "_") != 0) {
+            Symbol *outer_symbol = scope_lookup(outer, variable_name);
+            if (outer_symbol) {
+                diagnostic_warning_code_formatted(checker->diagnostics, "W2002",
+                    NODE_FILE(checker, node), node->token.line, node->token.column, 0,
+                    "for variable", variable_name, outer_symbol->definition_line);
+            }
+        }
+    }
     allow_range_use(checker, node->data.for_statement.iterable);
     GrayType *iterable_type = resolve_expression(checker, node->data.for_statement.iterable);
     /* The loop variable has the integer type the range runs in. */
