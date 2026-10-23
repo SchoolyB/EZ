@@ -2851,8 +2851,53 @@ static void apply_call_parameter_extern_effects(TypeChecker *checker,
  * through it never sees the const — the pointer is just an opaque parameter.
  * `csig`'s writes_through_parameter summary names which parameters it writes
  * through; this refuses a pointer to a constant for any of them. */
+/* stdlib functions that write through their first argument. They have no
+ * declaration to summarise, so they are listed here. */
+typedef struct {
+    const char *module_name;
+    const char *function_name;
+    const char *parameter_name;
+} PointerWriter;
+
+static const PointerWriter pointer_writers[] = {
+    {"atomic", "add",      "ptr"},
+    {"atomic", "sub",      "ptr"},
+    {"atomic", "exchange", "ptr"},
+    {"atomic", "and",      "ptr"},
+    {"atomic", "or",       "ptr"},
+    {"atomic", "xor",      "ptr"},
+    {"atomic", "store",    "ptr"},
+    {"atomic", "cas",      "ptr"},
+    {"mem",    "zero",     "ptr"},
+    {"mem",    "fill",     "ptr"},
+    {"mem",    "raw_copy", "dest"},
+};
+
+static void reject_const_pointer_to_stdlib_writer(TypeChecker *checker, AstNode *node) {
+    AstNode *function_node = node->data.call.function;
+    if (!function_node || function_node->kind != NODE_MEMBER_EXPRESSION || node->data.call.argument_count < 1) return;
+    const char *qualifier = ast_member_qualifier(function_node);
+    if (!qualifier) return;
+    const char *module_name = typechecker_resolve_alias(checker, qualifier);
+    const char *member_function_name = function_node->data.member.member;
+    if (!module_name || !member_function_name) return;
+    for (size_t i = 0; i < sizeof pointer_writers / sizeof pointer_writers[0]; i++) {
+        if (strcmp(pointer_writers[i].module_name, module_name) != 0 ||
+            strcmp(pointer_writers[i].function_name, member_function_name) != 0) continue;
+        AstNode *argument = node->data.call.arguments[0];
+        if (!expression_points_to_const(checker, argument)) return;
+        char display_name[IDENTIFIER_BUFFER_SIZE];
+        snprintf(display_name, sizeof(display_name), "%s.%s", module_name, member_function_name);
+        NODE_ERROR_FORMATTED_HELP(checker, argument, "E3193",
+            "the function modifies the value through it", pointer_writers[i].parameter_name,
+            arena_copy_string(checker->arena, display_name));
+        return;
+    }
+}
+
 static void apply_call_parameter_write_effects(TypeChecker *checker,
     AstNode *node, FunctionSignature *callee_signature) {
+    reject_const_pointer_to_stdlib_writer(checker, node);
     if (!callee_signature || !callee_signature->declaration || callee_signature->declaration->kind != NODE_FUNCTION_DECLARATION) return;
     ensure_escape_summary(checker, callee_signature);
     if (!callee_signature->writes_through_parameter) return;
