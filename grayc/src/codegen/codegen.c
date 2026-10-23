@@ -3306,7 +3306,7 @@ static void emit_prefix_expression(CodeGen *codegen, AstNode *node) {
     /* Overflow-checked negation for signed integer types; STANDARD §3.1.1
      * promises arithmetic panics rather than silent wrap on overflow. */
     if (node->data.prefix.operator == TOKEN_MINUS) {
-        GrayType *operand_type = codegen_type_of(codegen, node->data.prefix.right);
+        GrayType *operand_type = codegen_effective_type(codegen, codegen_type_of(codegen, node->data.prefix.right));
         if (operand_type && operand_type->kind == TYPE_KIND_SIGNED_INTEGER) {
             emit_checked_negation(codegen, operand_type, node->data.prefix.right, NULL, node->token.line);
             return;
@@ -3861,7 +3861,7 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
  * number. */
 static bool emit_compound_arithmetic(CodeGen *codegen, AstNode *target, TokenType operator,
                                      AstNode *value, AstNode *location_node) {
-    GrayType *target_type = codegen_type_of(codegen, target);
+    GrayType *target_type = codegen_effective_type(codegen, codegen_type_of(codegen, target));
     if (!target_type || (!type_kind_is_number(target_type->kind) && target_type->kind != TYPE_KIND_CHAR))
         return false;
     char c_type[TYPE_NAME_MAX];
