@@ -2926,6 +2926,9 @@ typedef enum {
     /* One of the numbers math.min/max/clamp combine: every such argument is
      * checked as their common type (as a binary operator would type them). */
     EXPECTED_ARGUMENT_COMMON_NUMBER,
+    /* A number of any type, a distinct one included: the function is generic
+     * over its argument's own type. */
+    EXPECTED_ARGUMENT_GENERIC_NUMBER,
     /* A type name, not a value. Declaring the position here is what keeps
      * it out of value resolution — see argument_is_type_position(). */
     EXPECTED_ARGUMENT_TYPE
@@ -2938,7 +2941,9 @@ static bool argument_kind_matches(ExpectedArgumentKind expected, GrayType *actua
     bool is_slot_of_other_argument = expected == EXPECTED_ARGUMENT_ELEMENT_OF_FIRST ||
         expected == EXPECTED_ARGUMENT_SAME_AS_FIRST || expected == EXPECTED_ARGUMENT_KEY_OF_FIRST ||
         expected == EXPECTED_ARGUMENT_VALUE_OF_FIRST;
-    if (actual->distinct && expected != EXPECTED_ARGUMENT_ANY && !is_slot_of_other_argument) return false;
+    bool is_distinct_allowed = expected == EXPECTED_ARGUMENT_ANY || expected == EXPECTED_ARGUMENT_COMMON_NUMBER ||
+        expected == EXPECTED_ARGUMENT_GENERIC_NUMBER;
+    if (actual->distinct && !is_distinct_allowed && !is_slot_of_other_argument) return false;
     switch (expected) {
     case EXPECTED_ARGUMENT_STRING: return actual->kind == TYPE_KIND_STRING;
     case EXPECTED_ARGUMENT_I64:
@@ -2978,6 +2983,7 @@ static bool argument_kind_matches(ExpectedArgumentKind expected, GrayType *actua
     case EXPECTED_ARGUMENT_SAME_AS_FIRST:
     case EXPECTED_ARGUMENT_KEY_OF_FIRST:
     case EXPECTED_ARGUMENT_VALUE_OF_FIRST: return true;
+    case EXPECTED_ARGUMENT_GENERIC_NUMBER:
     case EXPECTED_ARGUMENT_COMMON_NUMBER: return actual->kind == TYPE_KIND_SIGNED_INTEGER || actual->kind == TYPE_KIND_UNSIGNED_INTEGER ||
                                    actual->kind == TYPE_KIND_FLOATING_POINT;
     }
@@ -3014,6 +3020,7 @@ static const char *expected_kind_name(ExpectedArgumentKind kind) {
     case EXPECTED_ARGUMENT_SAME_AS_FIRST: return "an array of the same type";
     case EXPECTED_ARGUMENT_KEY_OF_FIRST: return "a key of the map";
     case EXPECTED_ARGUMENT_VALUE_OF_FIRST: return "a value of the map";
+    case EXPECTED_ARGUMENT_GENERIC_NUMBER:
     case EXPECTED_ARGUMENT_COMMON_NUMBER: return "number";
     }
     return "unknown";
@@ -3312,7 +3319,7 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"maps", "merge",          2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_SAME_AS_FIRST}}, NULL},
     {"maps", "remove_key",     2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_MAP}, {1, EXPECTED_ARGUMENT_KEY_OF_FIRST}}, "void"},
     /* math */
-    {"math", "abs",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_NUMBER}}, "$0"},
+    {"math", "abs",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_GENERIC_NUMBER}}, "$0"},
     {"math", "acos",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "approx_equal", 3, 3, false, FALLIBLE_TYPE_NONE, 3, {{0, EXPECTED_ARGUMENT_F64_NUMBER}, {1, EXPECTED_ARGUMENT_F64_NUMBER}, {2, EXPECTED_ARGUMENT_F64_NUMBER}}, "bool"},
     {"math", "asin",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
@@ -3350,13 +3357,13 @@ static const StdlibFunctionMetadata stdlib_function_metadata[] = {
     {"math", "min",         2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_COMMON_NUMBER}, {1, EXPECTED_ARGUMENT_COMMON_NUMBER}}, "$common"},
     {"math", "mod",         2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_F64_NUMBER}, {1, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "modf",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
-    {"math", "neg",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_NUMBER}}, "$0"},
+    {"math", "neg",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_GENERIC_NUMBER}}, "$0"},
     {"math", "next_power_of_two", 1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_I64}}, "i64"},
     {"math", "pow",         2, 2, false, FALLIBLE_TYPE_NONE, 2, {{0, EXPECTED_ARGUMENT_F64_NUMBER}, {1, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "rad_to_deg",  1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "remap",       5, 5, false, FALLIBLE_TYPE_NONE, 5, {{0, EXPECTED_ARGUMENT_F64_NUMBER}, {1, EXPECTED_ARGUMENT_F64_NUMBER}, {2, EXPECTED_ARGUMENT_F64_NUMBER}, {3, EXPECTED_ARGUMENT_F64_NUMBER}, {4, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "round",       1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
-    {"math", "sign",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_NUMBER}}, "i64"},
+    {"math", "sign",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_GENERIC_NUMBER}}, "i64"},
     {"math", "sin",         1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "sinh",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
     {"math", "sqrt",        1, 1, false, FALLIBLE_TYPE_NONE, 1, {{0, EXPECTED_ARGUMENT_F64_NUMBER}}, "f64"},
