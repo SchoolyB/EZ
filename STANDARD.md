@@ -828,14 +828,14 @@ Enum values are `i64`. An explicit value outside the `i64` range is rejected wit
 | `#error_code`-tagged (and `ErrorCode` itself) | The variant's name (e.g. `"PAYMENT_DECLINED"`) — see [Section 10.5](#105-errorcode) |
 
 ```gray
-const Color enum { RED GREEN BLUE }
+const Color enum { RED; GREEN; BLUE }
 println(Color.RED)              // "0" — plain enums print their integer
 
-const Status enum { TODO = "todo" DONE = "done" }
+const Status enum { TODO = "todo"; DONE = "done" }
 println(Status.TODO)            // "todo" — string enums print their string
 
 #error_code
-const PaymentErrors enum { PAYMENT_DECLINED PAYMENT_CANCELED }
+const PaymentErrors enum { PAYMENT_DECLINED; PAYMENT_CANCELED }
 println(PaymentErrors.PAYMENT_DECLINED)  // "PAYMENT_DECLINED" — error-code enums print their name
 ```
 
@@ -2022,7 +2022,7 @@ do swap(&a, &b i64) {
 
 #### 7.2.4 Default Parameters
 
-Parameters can have default values. Default values are supported for all primitive types (integer and float types, `string`, `bool`, `char`):
+Parameters can have default values. A default may be any value assignable to the parameter's type: a primitive (integer and float types, `string`, `bool`, `char`), a struct literal, an array literal, or an enum member. A default whose type is not assignable to the parameter's type is error E5062:
 
 ```gray
 do greet(name string = "World") -> string {
@@ -2812,6 +2812,8 @@ Rules:
 - Called as `StructName.func_name(args...)`
 - Cross-module: `module.StructName.func_name(args...)`
 - Module-qualified types can be used in variable declarations, parameters, and return types: `mut p module.Point`
+- A struct cannot declare two functions with the same name (E2037). Only the name is compared, so functions with different parameters or return types still collide; Grayscale has no overloading
+- A struct function cannot share a name with a field of the same struct (E2064)
 
 #### Calling a Sibling Function
 
@@ -3092,7 +3094,7 @@ When a directory is imported, all `.gray` files within it are merged into a sing
 - Files within the directory may import each other via relative paths (e.g., `import "./types.gray"`). These sibling cross-references are resolved internally and do not create separate namespaces; all symbols remain under the directory's namespace.
 - Transitive imports inside directory files follow the same rule as everywhere else: they resolve relative to the importing file's location.
 - If a file inside a directory imports its own parent directory (self-referential import), it is rejected.
-- If a directory import is followed by a direct import of a file already in that directory, the compiler warns that the import is redundant; the directory namespace should be used instead.
+- If a directory import is followed by a direct import of a file already in that directory, the compiler warns that the import is redundant (W2015): `import of '<path>' is redundant; already included by directory import`. A file inside a directory that imports a sibling gets no warning.
 - If two files in a directory declare the same symbol name, it is a collision error.
 
 **Deduplication:** If the same file is imported multiple times (e.g., directly by main and transitively through another import), it is only processed once. No error is emitted.
@@ -3382,7 +3384,7 @@ running the child so output is not reordered.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `len` | `(collection T) -> i64` | Length of a string (byte length, not character count), array, map, Channel (values buffered), Builder (bytes written), or range (iteration count) |
+| `len` | `(collection T) -> i64` | Length of a string (byte length, not character count), array, map, Channel (values buffered), Builder (bytes written), or range (iteration count); panics (P0155) if a range has more than `i64.MAX` elements, e.g. `len(range(i64.MIN, i64.MAX))`, including a `u64` or wide-integer range whose count does not fit an `i64` |
 | `type_of` | `(value T) -> string` | Returns the Grayscale type name as a string (e.g. `"i64"`, `"u64"`, `"f64"`, `"string"`, `"i128"`, `"u256"`). Accepts any type. |
 | `size_of` | `(Type) -> i64` | Size of type in bytes |
 | `fields` | `(instance T) -> [string]` | Returns the field names of a struct as an array of strings in declaration order. Accepts struct instances and pointers to structs. |
@@ -3894,6 +3896,8 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `start_of_month` | `(timestamp i64) -> i64` | Unix timestamp of `00:00:00` UTC on the first day of the same month |
 | `end_of_month` | `(timestamp i64) -> i64` | Unix timestamp of `23:59:59` UTC on the last day of the same month; leap-year aware |
 
+These functions panic (P0157) when an intermediate or final result leaves the `i64` range: `diff`, `since`, `add_days`, `add_hours`, `add_minutes`, `add_months`, `add_seconds`, `start_of_day` and `end_of_day`. `add_months`, `start_of_month` and `end_of_month` panic with P0140 instead when the timestamp is outside the range of dates that can be broken into parts.
+
 #### Performance Timing
 
 | Function | Signature | Description |
@@ -3914,7 +3918,7 @@ Unless noted otherwise, all math functions accept any integer or float type (`i8
 | `rand_char` | `(min char, max char) -> char` | Random char [min, max), never a surrogate (U+D800–U+DFFF); panics if `min` is not less than `max` or the range holds only surrogates |
 | `rand_string` | `(length i64, alphabet string) -> string` | String of `length` characters drawn uniformly from `alphabet`; `length` 0 returns `""`; panics if `alphabet` is empty and `length > 0` |
 | `rand_bytes` | `(n i64) -> [u8]` | `n` random bytes from the module's RNG (reproducible with `seed`, not cryptographically secure); `n` 0 returns an empty array; panics if `n` is negative |
-| `roll_dice` | `(count i64, sides i64) -> i64` | Sum of `count` rolls of a `sides`-sided die, each uniform in `1..sides`; panics if `count` or `sides` is less than 1 |
+| `roll_dice` | `(count i64, sides i64) -> i64` | Sum of `count` rolls of a `sides`-sided die, each uniform in `1..sides`; panics if `count` or `sides` is less than 1, or if the sum of the rolls exceeds `i64.MAX` (P0156) |
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n i64) -> [T]` | Return n unique random elements |
