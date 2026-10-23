@@ -4086,7 +4086,12 @@ static void emit_member_expression(CodeGen *codegen, AstNode *node) {
         if (module_name[0] >= 'A' && module_name[0] <= 'Z') {
             /* Resolve unprefixed enum names from 'import and use' */
             const char *resolved_enum = NULL;
-            if (codegen_is_enum(codegen, module_name)) {
+            /* The name as the current module spells it comes first: an
+             * imported module's own `Mode` is not the entry module's. */
+            const char *scoped_name = codegen_resolve_type(codegen, module_name);
+            if (scoped_name != module_name && codegen_is_enum(codegen, scoped_name)) {
+                resolved_enum = scoped_name;
+            } else if (codegen_is_enum(codegen, module_name)) {
                 resolved_enum = module_name;
             } else if (strcmp(module_name, "OpenFlag") == 0 || strcmp(module_name, "Platform") == 0) {
                 /* Stdlib-provided enums have no AST decl in codegen's registry. */
@@ -9295,7 +9300,9 @@ static bool emit_tagged_enum_construction(CodeGen *codegen, AstNode *node) {
         const char *variant_name = node->data.call.function->data.member.member;
         /* Also check using-module-resolved names */
         const char *resolved_enum_name = enum_name;
-        if (!codegen_is_enum(codegen, enum_name)) {
+        {
+            /* The name as the current module spells it comes first: an
+             * imported module's own `Tag` is not the entry module's. */
             const char *resolved_name = codegen_resolve_type(codegen, enum_name);
             if (resolved_name != enum_name && codegen_is_enum(codegen, resolved_name)) resolved_enum_name = resolved_name;
         }

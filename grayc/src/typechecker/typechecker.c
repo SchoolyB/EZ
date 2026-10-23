@@ -448,7 +448,11 @@ static bool path_contains_map_index(TypeChecker *checker, AstNode *expression) {
  * symbol table before either registry can see both halves of it. */
 static bool type_name_already_declared(TypeChecker *checker, const char *name,
                                        const AstNode *statement) {
-    DeclarationEntry *entry = checker_resolve_entry(checker, name);
+    /* Looked up in the module the statement is declared in: the file being
+     * checked may be another module, whose same-named type is no clash. */
+    const char *module = checker->modules ? module_table_module_for_file(checker->modules, statement->token.file) : NULL;
+    ModuleScope *scope = module ? module_table_find(checker->modules, module) : NULL;
+    DeclarationEntry *entry = scope ? module_scope_lookup(scope, name) : checker_resolve_entry(checker, name);
     return entry && entry->ast_node && entry->ast_node != statement &&
            (entry->kind == DECLARATION_STRUCT || entry->kind == DECLARATION_ENUM ||
             entry->kind == DECLARATION_ALIAS);
@@ -18801,6 +18805,15 @@ static void register_declaration_enums(TypeChecker *checker, AstNode *program) {
                 break;
             }
         }
+        /* The registry key this enum is filed under: another module's enum of
+         * the same bare name is filed under its own prefix and is no clash. */
+        const char *own_registry_key = statement->data.enum_declaration.name;
+        {
+            const char *own_module = module_table_module_for_file(checker->modules, statement->token.file);
+            ModuleScope *own_scope = module_table_find(checker->modules, own_module);
+            DeclarationEntry *own_entry = own_scope ? module_scope_lookup(own_scope, own_registry_key) : NULL;
+            own_registry_key = declaration_registry_key(checker, own_entry, own_registry_key);
+        }
         /* E4007: duplicate enum name. An enum named `main` collides with the
          * entry point, but E4026 already says so — don't pile on. A collision
          * with a stdlib-provided enum (io.OpenFlag, os.Platform) is reported by
@@ -18808,8 +18821,8 @@ static void register_declaration_enums(TypeChecker *checker, AstNode *program) {
         if (strcmp(statement->data.enum_declaration.name, "main") != 0 &&
             !stdlib_enum_module(statement->data.enum_declaration.name) &&
             (type_name_already_declared(checker, statement->data.enum_declaration.name, statement) ||
-            is_enum_name(checker, statement->data.enum_declaration.name) ||
-            is_struct_name(checker, statement->data.enum_declaration.name))) {
+            is_enum_name(checker, own_registry_key) ||
+            is_struct_name(checker, own_registry_key))) {
             NODE_ERROR_FORMATTED(checker, statement, "E4007", ENUM_DISPLAY_NAME(statement));
         }
         int variant_count = statement->data.enum_declaration.value_count;
