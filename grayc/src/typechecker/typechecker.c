@@ -6481,7 +6481,7 @@ static bool call_returns_multiple_values(FunctionSignature *signature, const cha
  * path. */
 static void typechecker_check_binary_encode_argument(TypeChecker *checker, const char *function_name, AstNode *node) {
     static const char *const value_types[] = { "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64",
-                                           "i128", "u128", "i256", "u256" };
+                                           "i128", "u128", "i256", "u256", "f32" };
     if (strncmp(function_name, "encode_", 7) != 0 || node->data.call.argument_count != 1) return;
     const char *type_start = function_name + 7;
     size_t type_length = strcspn(type_start, "_");
