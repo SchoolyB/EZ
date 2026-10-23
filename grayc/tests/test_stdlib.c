@@ -29,6 +29,9 @@
 #include "../src/stdlib/crypto.h"
 #include "../src/stdlib/uuid.h"
 #include "../src/stdlib/binary.h"
+#include "../src/stdlib/random.h"
+#include "../src/stdlib/mem.h"
+#include "../src/stdlib/runtime_mod.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1919,6 +1922,616 @@ static void test_binary_float_round_trip(void) {
 
 /* ===== main ===== */
 
+/* ===== random module ===== */
+
+static void test_random_seed_makes_i64_range_reproducible(void) {
+    int64_t first[8];
+    gray_random_seed(42);
+    for (int i = 0; i < 8; i++) first[i] = gray_random_i64_range(0, 1000000);
+    gray_random_seed(42);
+    for (int i = 0; i < 8; i++) ASSERT_EQ(gray_random_i64_range(0, 1000000), first[i]);
+}
+
+static void test_random_seed_makes_f64_unit_reproducible(void) {
+    gray_random_seed(7);
+    double first = gray_random_f64_unit();
+    gray_random_seed(7);
+    ASSERT_FLOAT_EQ(gray_random_f64_unit(), first);
+}
+
+static void test_random_seed_makes_bytes_reproducible(void) {
+    gray_random_seed(99);
+    GrayArray first = gray_random_bytes(arena, 16);
+    gray_random_seed(99);
+    GrayArray second = gray_random_bytes(arena, 16);
+    ASSERT_EQ(first.len, 16);
+    ASSERT_EQ(memcmp(first.data, second.data, 16), 0);
+}
+
+static void test_random_seed_makes_rand_string_reproducible(void) {
+    GrayString alphabet = gray_string_lit("abcdefghijklmnopqrstuvwxyz");
+    gray_random_seed(5);
+    GrayString first = gray_random_string(arena, 20, alphabet);
+    gray_random_seed(5);
+    GrayString second = gray_random_string(arena, 20, alphabet);
+    ASSERT(gray_string_eq(first, second));
+}
+
+static void test_random_seed_makes_shuffle_reproducible(void) {
+    GrayArray source = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    gray_random_seed(11);
+    GrayArray first = gray_random_shuffle(arena, &source);
+    gray_random_seed(11);
+    GrayArray second = gray_random_shuffle(arena, &source);
+    ASSERT_EQ(memcmp(first.data, second.data, 10 * sizeof(int64_t)), 0);
+}
+
+static void test_random_f64_unit_stays_in_unit_interval(void) {
+    gray_random_seed(1);
+    for (int i = 0; i < 2000; i++) {
+        double value = gray_random_f64_unit();
+        ASSERT(value >= 0.0 && value < 1.0);
+    }
+}
+
+static void test_random_f64_range_stays_in_bounds(void) {
+    gray_random_seed(2);
+    for (int i = 0; i < 2000; i++) {
+        double value = gray_random_f64_range(-5.0, 5.0);
+        ASSERT(value >= -5.0 && value < 5.0);
+    }
+}
+
+static void test_random_i64_range_stays_in_bounds(void) {
+    gray_random_seed(3);
+    for (int i = 0; i < 2000; i++) {
+        int64_t value = gray_random_i64_range(-10, 10);
+        ASSERT(value >= -10 && value < 10);
+    }
+}
+
+static void test_random_i64_range_width_one_returns_minimum(void) {
+    for (int i = 0; i < 20; i++) ASSERT_EQ(gray_random_i64_range(7, 8), 7);
+}
+
+static void test_random_i64_range_reaches_both_ends(void) {
+    bool seen_minimum = false, seen_maximum = false;
+    gray_random_seed(4);
+    for (int i = 0; i < 500; i++) {
+        int64_t value = gray_random_i64_range(0, 3);
+        if (value == 0) seen_minimum = true;
+        if (value == 2) seen_maximum = true;
+    }
+    ASSERT(seen_minimum);
+    ASSERT(seen_maximum);
+}
+
+static void test_random_i64_range_spans_full_i64_width(void) {
+    gray_random_seed(6);
+    for (int i = 0; i < 200; i++) {
+        int64_t value = gray_random_i64_range(INT64_MIN, INT64_MAX);
+        ASSERT(value < INT64_MAX);
+    }
+}
+
+static void test_random_choice_index_stays_below_length(void) {
+    gray_random_seed(8);
+    for (int i = 0; i < 500; i++) {
+        int32_t index = gray_random_choice_index(5, __FILE__, __LINE__);
+        ASSERT(index >= 0 && index < 5);
+    }
+}
+
+static void test_random_choice_index_length_one(void) {
+    for (int i = 0; i < 20; i++) ASSERT_EQ(gray_random_choice_index(1, __FILE__, __LINE__), 0);
+}
+
+static void test_random_bool_produces_both_values(void) {
+    bool seen_true = false, seen_false = false;
+    gray_random_seed(9);
+    for (int i = 0; i < 200; i++) {
+        if (gray_random_bool()) seen_true = true; else seen_false = true;
+    }
+    ASSERT(seen_true);
+    ASSERT(seen_false);
+}
+
+static void test_random_u8_covers_more_than_one_value(void) {
+    gray_random_seed(10);
+    uint8_t first = gray_random_u8();
+    bool differs = false;
+    for (int i = 0; i < 50; i++) if (gray_random_u8() != first) differs = true;
+    ASSERT(differs);
+}
+
+static void test_random_bytes_length_and_element_kind(void) {
+    GrayArray bytes = gray_random_bytes(arena, 33);
+    ASSERT_EQ(bytes.len, 33);
+    ASSERT_EQ(bytes.elem_size, 1);
+    ASSERT_EQ(bytes.elem_kind, GRAY_ELEM_U8);
+}
+
+static void test_random_bytes_zero_is_empty(void) {
+    GrayArray bytes = gray_random_bytes(arena, 0);
+    ASSERT_EQ(bytes.len, 0);
+}
+
+static void test_random_roll_dice_two_six_sided_in_range(void) {
+    gray_random_seed(12);
+    for (int i = 0; i < 1000; i++) {
+        int64_t total = gray_random_roll_dice(2, 6);
+        ASSERT(total >= 2 && total <= 12);
+    }
+}
+
+static void test_random_roll_dice_one_sided_die_is_count(void) {
+    ASSERT_EQ(gray_random_roll_dice(5, 1), 5);
+}
+
+static void test_random_roll_dice_single_die_reaches_every_face(void) {
+    bool seen[7] = {false};
+    gray_random_seed(13);
+    for (int i = 0; i < 500; i++) {
+        int64_t roll = gray_random_roll_dice(1, 6);
+        ASSERT(roll >= 1 && roll <= 6);
+        seen[roll] = true;
+    }
+    for (int face = 1; face <= 6; face++) ASSERT(seen[face]);
+}
+
+static void test_random_char_is_printable_ascii(void) {
+    gray_random_seed(14);
+    for (int i = 0; i < 1000; i++) {
+        int32_t codepoint = gray_random_char();
+        ASSERT(codepoint >= 32 && codepoint <= 126);
+    }
+}
+
+static void test_random_char_range_stays_in_bounds(void) {
+    gray_random_seed(15);
+    for (int i = 0; i < 1000; i++) {
+        int32_t codepoint = gray_random_char_range('a', 'f');
+        ASSERT(codepoint >= 'a' && codepoint < 'f');
+    }
+}
+
+static void test_random_char_range_never_yields_surrogate(void) {
+    gray_random_seed(16);
+    for (int i = 0; i < 1000; i++) {
+        int32_t codepoint = gray_random_char_range(0xD7FF, 0xE001);
+        ASSERT(codepoint == 0xD7FF || codepoint == 0xE000);
+    }
+}
+
+static void test_random_string_zero_length_is_empty(void) {
+    GrayString result = gray_random_string(arena, 0, gray_string_lit("abc"));
+    ASSERT_EQ(result.len, 0);
+}
+
+static void test_random_string_draws_only_from_alphabet(void) {
+    GrayString result = gray_random_string(arena, 200, gray_string_lit("xyz"));
+    ASSERT_EQ(result.len, 200);
+    for (int32_t i = 0; i < result.len; i++)
+        ASSERT(result.data[i] == 'x' || result.data[i] == 'y' || result.data[i] == 'z');
+}
+
+static void test_random_string_single_character_alphabet(void) {
+    GrayString result = gray_random_string(arena, 4, gray_string_lit("q"));
+    ASSERT_GRAY_STR(result, "qqqq");
+}
+
+static void test_random_string_length_counts_characters_not_bytes(void) {
+    GrayString result = gray_random_string(arena, 10, gray_string_lit("é€"));
+    ASSERT_EQ(gray_builtin_char_count(result), 10);
+    ASSERT_GT(result.len, 10);
+}
+
+static void test_random_string_multibyte_alphabet_stays_valid(void) {
+    GrayString result = gray_random_string(arena, 100, gray_string_lit("é€"));
+    const uint8_t *cursor = (const uint8_t *)result.data;
+    const uint8_t *end_cursor = cursor + result.len;
+    while (cursor < end_cursor) {
+        int32_t codepoint;
+        cursor += gray_builtin_utf8_next(cursor, end_cursor, &codepoint);
+        ASSERT(codepoint == 0xE9 || codepoint == 0x20AC);
+    }
+}
+
+static int64_t sum_i64_array(GrayArray *array) {
+    int64_t total = 0;
+    for (int32_t i = 0; i < array->len; i++) total += GRAY_ARRAY_GET(*array, int64_t, i);
+    return total;
+}
+
+static void test_random_shuffle_keeps_elements(void) {
+    GrayArray source = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3, 4, 5, 6, 7, 8);
+    GrayArray shuffled = gray_random_shuffle(arena, &source);
+    ASSERT_EQ(shuffled.len, 8);
+    ASSERT_EQ(sum_i64_array(&shuffled), 36);
+    for (int64_t wanted = 1; wanted <= 8; wanted++) {
+        int count = 0;
+        for (int32_t i = 0; i < shuffled.len; i++)
+            if (GRAY_ARRAY_GET(shuffled, int64_t, i) == wanted) count++;
+        ASSERT_EQ(count, 1);
+    }
+}
+
+static void test_random_shuffle_leaves_original_untouched(void) {
+    GrayArray source = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3, 4, 5, 6, 7, 8);
+    gray_random_shuffle(arena, &source);
+    for (int32_t i = 0; i < source.len; i++)
+        ASSERT_EQ(GRAY_ARRAY_GET(source, int64_t, i), i + 1);
+}
+
+static void test_random_shuffle_empty_and_single(void) {
+    GrayArray empty = GRAY_ARRAY_NEW_OF(arena, int64_t, 0);
+    ASSERT_EQ(gray_random_shuffle(arena, &empty).len, 0);
+    GrayArray single = GRAY_ARRAY_FROM_I64(arena, 9);
+    GrayArray result = gray_random_shuffle(arena, &single);
+    ASSERT_EQ(result.len, 1);
+    ASSERT_EQ(GRAY_ARRAY_GET(result, int64_t, 0), 9);
+}
+
+typedef struct { int64_t values[16]; } WideElement;
+
+static void test_random_shuffle_wide_elements_stay_intact(void) {
+    WideElement elements[6];
+    for (int i = 0; i < 6; i++)
+        for (int slot = 0; slot < 16; slot++) elements[i].values[slot] = i * 100 + slot;
+    GrayArray source = GRAY_ARRAY_FROM_OF(arena, WideElement, elements, 6);
+    GrayArray shuffled = gray_random_shuffle(arena, &source);
+    ASSERT_EQ(shuffled.len, 6);
+    for (int32_t i = 0; i < shuffled.len; i++) {
+        WideElement element = GRAY_ARRAY_GET(shuffled, WideElement, i);
+        for (int slot = 1; slot < 16; slot++)
+            ASSERT_EQ(element.values[slot], element.values[0] + slot);
+    }
+}
+
+static void test_random_sample_returns_unique_elements(void) {
+    GrayArray source = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    GrayArray picked = gray_random_sample(arena, &source, 6);
+    ASSERT_EQ(picked.len, 6);
+    for (int32_t i = 0; i < picked.len; i++) {
+        int64_t value = GRAY_ARRAY_GET(picked, int64_t, i);
+        ASSERT(value >= 1 && value <= 10);
+        for (int32_t j = i + 1; j < picked.len; j++)
+            ASSERT_NE(value, GRAY_ARRAY_GET(picked, int64_t, j));
+    }
+}
+
+static void test_random_sample_zero_is_empty(void) {
+    GrayArray source = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3);
+    ASSERT_EQ(gray_random_sample(arena, &source, 0).len, 0);
+}
+
+static void test_random_sample_full_length_is_permutation(void) {
+    GrayArray source = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3, 4);
+    GrayArray picked = gray_random_sample(arena, &source, 4);
+    ASSERT_EQ(picked.len, 4);
+    ASSERT_EQ(sum_i64_array(&picked), 10);
+}
+
+/* ===== mem module ===== */
+
+static void test_mem_arena_starts_empty(void) {
+    GrayArena *scratch = gray_mem_arena(4096);
+    ASSERT_EQ(gray_mem_usage(scratch), 0);
+    gray_mem_destroy(scratch, __FILE__, __LINE__);
+}
+
+static void test_mem_arena_non_positive_size_uses_default(void) {
+    GrayArena *zero_sized = gray_mem_arena(0);
+    GrayArena *negative_sized = gray_mem_arena(-8);
+    ASSERT(zero_sized != NULL);
+    ASSERT(negative_sized != NULL);
+    ASSERT_EQ(gray_mem_usage(zero_sized), 0);
+    ASSERT_EQ(gray_mem_usage(negative_sized), 0);
+    gray_mem_destroy(zero_sized, __FILE__, __LINE__);
+    gray_mem_destroy(negative_sized, __FILE__, __LINE__);
+}
+
+static void test_mem_usage_grows_with_allocation(void) {
+    GrayArena *scratch = gray_mem_arena(4096);
+    gray_arena_alloc(scratch, 100);
+    ASSERT_GE(gray_mem_usage(scratch), 100);
+    int64_t after_first = gray_mem_usage(scratch);
+    gray_arena_alloc(scratch, 100);
+    ASSERT_GE(gray_mem_usage(scratch), after_first + 100);
+    gray_mem_destroy(scratch, __FILE__, __LINE__);
+}
+
+static void test_mem_reset_returns_usage_to_zero(void) {
+    GrayArena *scratch = gray_mem_arena(4096);
+    gray_arena_alloc(scratch, 512);
+    ASSERT_GT(gray_mem_usage(scratch), 0);
+    gray_mem_reset(scratch);
+    ASSERT_EQ(gray_mem_usage(scratch), 0);
+    gray_mem_destroy(scratch, __FILE__, __LINE__);
+}
+
+static void test_mem_arena_is_reusable_after_reset(void) {
+    GrayArena *scratch = gray_mem_arena(4096);
+    gray_arena_alloc(scratch, 512);
+    gray_mem_reset(scratch);
+    gray_arena_alloc(scratch, 64);
+    ASSERT_GE(gray_mem_usage(scratch), 64);
+    gray_mem_destroy(scratch, __FILE__, __LINE__);
+}
+
+static void test_mem_arena_allocations_do_not_count_toward_total(void) {
+    GrayArena *scratch = gray_mem_arena(4096);
+    size_t before = gray_total_alloc_count;
+    gray_arena_alloc(scratch, 64);
+    gray_arena_alloc(scratch, 64);
+    ASSERT_EQ(gray_total_alloc_count, before);
+    gray_mem_destroy(scratch, __FILE__, __LINE__);
+}
+
+static void test_mem_copy_copies_exactly_n_bytes(void) {
+    uint8_t source[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    uint8_t dest[8] = {0};
+    gray_mem_copy(dest, source, 5);
+    for (int i = 0; i < 5; i++) ASSERT_EQ(dest[i], source[i]);
+    for (int i = 5; i < 8; i++) ASSERT_EQ(dest[i], 0);
+}
+
+static void test_mem_copy_zero_bytes_is_noop(void) {
+    uint8_t source[2] = {9, 9};
+    uint8_t dest[2] = {1, 2};
+    gray_mem_copy(dest, source, 0);
+    ASSERT_EQ(dest[0], 1);
+    ASSERT_EQ(dest[1], 2);
+}
+
+static void test_mem_zero_clears_exactly_n_bytes(void) {
+    uint8_t buffer[6] = {7, 7, 7, 7, 7, 7};
+    gray_mem_zero(buffer, 4);
+    for (int i = 0; i < 4; i++) ASSERT_EQ(buffer[i], 0);
+    ASSERT_EQ(buffer[4], 7);
+    ASSERT_EQ(buffer[5], 7);
+}
+
+static void test_mem_set_fills_exactly_n_bytes(void) {
+    uint8_t buffer[6] = {0};
+    gray_mem_set(buffer, 0xAB, 3);
+    for (int i = 0; i < 3; i++) ASSERT_EQ(buffer[i], 0xAB);
+    for (int i = 3; i < 6; i++) ASSERT_EQ(buffer[i], 0);
+}
+
+/* ===== runtime module ===== */
+
+static void test_runtime_arena_usage_tracks_default_arena(void) {
+    int64_t before = gray_runtime_arena_usage();
+    ASSERT_EQ(before, (int64_t)gray_arena_usage(gray_default_arena));
+    gray_arena_alloc(gray_default_arena, 128);
+    ASSERT_GE(gray_runtime_arena_usage(), before + 128);
+}
+
+static void test_runtime_heap_usage_tracks_heap_arena(void) {
+    GrayArena *saved_heap = gray_heap_arena;
+    gray_heap_arena = gray_arena_create(GRAY_MIN_ARENA_SIZE);
+    int64_t before = gray_runtime_heap_usage();
+    gray_arena_alloc(gray_heap_arena, 256);
+    ASSERT_GE(gray_runtime_heap_usage(), before + 256);
+    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+    gray_heap_arena = saved_heap;
+}
+
+static void test_runtime_total_usage_is_arena_plus_heap(void) {
+    GrayArena *saved_heap = gray_heap_arena;
+    gray_heap_arena = gray_arena_create(GRAY_MIN_ARENA_SIZE);
+    gray_arena_alloc(gray_heap_arena, 64);
+    ASSERT_EQ(gray_runtime_total_usage(), gray_runtime_arena_usage() + gray_runtime_heap_usage());
+    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+    gray_heap_arena = saved_heap;
+}
+
+static void test_runtime_peak_usage_is_at_least_total_usage(void) {
+    GrayArena *saved_heap = gray_heap_arena;
+    gray_heap_arena = gray_arena_create(GRAY_MIN_ARENA_SIZE);
+    gray_arena_alloc(gray_default_arena, 64);
+    gray_arena_alloc(gray_heap_arena, 64);
+    ASSERT_GE(gray_runtime_peak_usage(), gray_runtime_total_usage());
+    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+    gray_heap_arena = saved_heap;
+}
+
+static void test_runtime_alloc_count_increases_per_allocation(void) {
+    int64_t before = gray_runtime_alloc_count();
+    gray_arena_alloc(gray_default_arena, 16);
+    gray_arena_alloc(gray_default_arena, 16);
+    ASSERT_EQ(gray_runtime_alloc_count(), before + 2);
+}
+
+static void test_runtime_arena_blocks_counts_chained_blocks(void) {
+    ASSERT_EQ(gray_runtime_arena_blocks(), (int64_t)gray_arena_block_count(gray_default_arena));
+    ASSERT_GE(gray_runtime_arena_blocks(), 1);
+}
+
+static void test_runtime_heap_blocks_counts_chained_blocks(void) {
+    GrayArena *saved_heap = gray_heap_arena;
+    gray_heap_arena = gray_arena_create(GRAY_MIN_ARENA_SIZE);
+    ASSERT_EQ(gray_runtime_heap_blocks(), (int64_t)gray_arena_block_count(gray_heap_arena));
+    ASSERT_GE(gray_runtime_heap_blocks(), 1);
+    gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
+    gray_heap_arena = saved_heap;
+}
+
+static void test_runtime_arena_limit_reports_maximum_bytes(void) {
+    size_t saved_limit = gray_default_arena->maximum_bytes;
+    gray_default_arena->maximum_bytes = 123456;
+    ASSERT_EQ(gray_runtime_arena_limit(), 123456);
+    gray_default_arena->maximum_bytes = saved_limit;
+}
+
+static void test_runtime_call_depth_follows_enter_and_exit(void) {
+    int64_t base = gray_runtime_call_depth();
+    gray_enter_func(__FILE__, __LINE__, "outer");
+    ASSERT_EQ(gray_runtime_call_depth(), base + 1);
+    gray_enter_func(__FILE__, __LINE__, "inner");
+    ASSERT_EQ(gray_runtime_call_depth(), base + 2);
+    gray_exit_func();
+    gray_exit_func();
+    ASSERT_EQ(gray_runtime_call_depth(), base);
+}
+
+static void test_runtime_current_and_caller_name(void) {
+    gray_enter_func(__FILE__, __LINE__, "outer");
+    gray_enter_func(__FILE__, __LINE__, "inner");
+    GrayString current = gray_runtime_current_name();
+    GrayString caller = gray_runtime_caller_name();
+    gray_exit_func();
+    gray_exit_func();
+    ASSERT_GRAY_STR(current, "inner");
+    ASSERT_GRAY_STR(caller, "outer");
+}
+
+static void test_runtime_caller_name_is_empty_at_top_level(void) {
+    int saved_depth = gray_call_depth;
+    gray_call_depth = 1;
+    GrayString caller = gray_runtime_caller_name();
+    gray_call_depth = saved_depth;
+    ASSERT_EQ(caller.len, 0);
+}
+
+static void test_runtime_current_name_is_empty_outside_any_function(void) {
+    int saved_depth = gray_call_depth;
+    gray_call_depth = 0;
+    GrayString current = gray_runtime_current_name();
+    gray_call_depth = saved_depth;
+    ASSERT_EQ(current.len, 0);
+}
+
+/* ===== builtins: conversions and UTF-8 ===== */
+
+static void test_builtin_to_string_i64(void) {
+    ASSERT_GRAY_STR(gray_builtin_to_string_i64(arena, 0), "0");
+    ASSERT_GRAY_STR(gray_builtin_to_string_i64(arena, -42), "-42");
+    ASSERT_GRAY_STR(gray_builtin_to_string_i64(arena, INT64_MAX), "9223372036854775807");
+    ASSERT_GRAY_STR(gray_builtin_to_string_i64(arena, INT64_MIN), "-9223372036854775808");
+}
+
+static void test_builtin_to_string_u64(void) {
+    ASSERT_GRAY_STR(gray_builtin_to_string_u64(arena, 0), "0");
+    ASSERT_GRAY_STR(gray_builtin_to_string_u64(arena, UINT64_MAX), "18446744073709551615");
+}
+
+static void test_builtin_to_string_bool(void) {
+    ASSERT_GRAY_STR(gray_builtin_to_string_bool(arena, true), "true");
+    ASSERT_GRAY_STR(gray_builtin_to_string_bool(arena, false), "false");
+}
+
+static void test_builtin_to_string_floating_point_shortest(void) {
+    ASSERT_GRAY_STR(gray_builtin_to_string_floating_point(arena, 1.5, 64), "1.5");
+    ASSERT_GRAY_STR(gray_builtin_to_string_floating_point(arena, 0.1, 64), "0.1");
+    ASSERT_GRAY_STR(gray_builtin_to_string_floating_point(arena, -2.25, 64), "-2.25");
+}
+
+static void test_builtin_to_string_floating_point_f32_is_shortest_for_f32(void) {
+    ASSERT_GRAY_STR(gray_builtin_to_string_floating_point(arena, (double)0.1f, 32), "0.1");
+}
+
+static void test_builtin_format_floating_point_matches_to_string(void) {
+    GrayString formatted = gray_builtin_format_floating_point(arena, 3.14159, 64);
+    GrayString converted = gray_builtin_to_string_floating_point(arena, 3.14159, 64);
+    ASSERT(gray_string_eq(formatted, converted));
+}
+
+static void test_builtin_string_to_i64(void) {
+    ASSERT_EQ(gray_builtin_string_to_i64(gray_string_lit("0")), 0);
+    ASSERT_EQ(gray_builtin_string_to_i64(gray_string_lit("-17")), -17);
+    ASSERT_EQ(gray_builtin_string_to_i64(gray_string_lit("9223372036854775807")), INT64_MAX);
+    ASSERT_EQ(gray_builtin_string_to_i64(gray_string_lit("-9223372036854775808")), INT64_MIN);
+}
+
+static void test_builtin_string_to_i64_ignores_trailing_spaces(void) {
+    ASSERT_EQ(gray_builtin_string_to_i64(gray_string_lit("12  ")), 12);
+}
+
+static void test_builtin_string_to_u64(void) {
+    ASSERT_EQ(gray_builtin_string_to_u64(gray_string_lit("0")), 0);
+    ASSERT(gray_builtin_string_to_u64(gray_string_lit("18446744073709551615")) == UINT64_MAX);
+}
+
+static void test_builtin_string_to_i128_round_trips_negative(void) {
+    gray_i128 value = gray_builtin_string_to_i128(gray_string_lit("-1"), __FILE__, __LINE__);
+    ASSERT(value.low == UINT64_MAX);
+    ASSERT_EQ(value.high, -1);
+}
+
+static void test_builtin_string_to_u128_above_u64(void) {
+    gray_u128 value = gray_builtin_string_to_u128(gray_string_lit("18446744073709551616"), __FILE__, __LINE__);
+    ASSERT_EQ(value.low, 0);
+    ASSERT_EQ(value.high, 1);
+}
+
+static void test_builtin_string_to_i256_negative_sign_extends(void) {
+    gray_i256 value = gray_builtin_string_to_i256(gray_string_lit("-1"), __FILE__, __LINE__);
+    for (int word = 0; word < 4; word++) ASSERT(value.w[word] == UINT64_MAX);
+}
+
+static void test_builtin_string_to_u256_above_u128(void) {
+    gray_u256 value = gray_builtin_string_to_u256(
+        gray_string_lit("340282366920938463463374607431768211456"), __FILE__, __LINE__);
+    ASSERT_EQ(value.w[0], 0);
+    ASSERT_EQ(value.w[1], 0);
+    ASSERT_EQ(value.w[2], 1);
+    ASSERT_EQ(value.w[3], 0);
+}
+
+static void test_builtin_char_count_counts_codepoints(void) {
+    ASSERT_EQ(gray_builtin_char_count(gray_string_lit("")), 0);
+    ASSERT_EQ(gray_builtin_char_count(gray_string_lit("abc")), 3);
+    ASSERT_EQ(gray_builtin_char_count(gray_string_lit("aé€😀")), 4);
+}
+
+static void test_builtin_char_to_utf8_encodes_each_width(void) {
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, 'A'), "A");
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, 0xE9), "é");
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, 0x20AC), "€");
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, 0x1F600), "😀");
+}
+
+static void test_builtin_char_to_utf8_invalid_scalar_is_replacement(void) {
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, 0xD800), "\xEF\xBF\xBD");
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, 0x110000), "\xEF\xBF\xBD");
+    ASSERT_GRAY_STR(gray_builtin_char_to_utf8(arena, -1), "\xEF\xBF\xBD");
+}
+
+static void test_builtin_utf8_next_reports_width(void) {
+    const char *text = "A\xC3\xA9\xE2\x82\xAC\xF0\x9F\x98\x80";
+    const uint8_t *cursor = (const uint8_t *)text;
+    const uint8_t *end_cursor = cursor + strlen(text);
+    int32_t codepoint;
+    int widths[4] = {1, 2, 3, 4};
+    int32_t expected[4] = {'A', 0xE9, 0x20AC, 0x1F600};
+    for (int i = 0; i < 4; i++) {
+        int width = gray_builtin_utf8_next(cursor, end_cursor, &codepoint);
+        ASSERT_EQ(width, widths[i]);
+        ASSERT_EQ(codepoint, expected[i]);
+        cursor += width;
+    }
+    ASSERT(cursor == end_cursor);
+}
+
+static void test_builtin_utf8_next_stray_continuation_byte_is_replacement(void) {
+    const uint8_t stray[1] = {0x80};
+    int32_t codepoint;
+    ASSERT_EQ(gray_builtin_utf8_next(stray, stray + 1, &codepoint), 1);
+    ASSERT_EQ(codepoint, 0xFFFD);
+}
+
+static void test_builtin_array_to_string_integers(void) {
+    GrayArray values = GRAY_ARRAY_FROM_I64(arena, 1, 2, 3);
+    ASSERT_GRAY_STR(gray_builtin_array_to_string(arena, &values, 0), "{1, 2, 3}");
+}
+
+static void test_builtin_array_to_string_empty(void) {
+    GrayArray values = GRAY_ARRAY_NEW_OF(arena, int64_t, 0);
+    ASSERT_GRAY_STR(gray_builtin_array_to_string(arena, &values, 0), "{}");
+}
+
 int main(void) {
     arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_default_arena = arena;
@@ -2197,6 +2810,91 @@ int main(void) {
     RUN_TEST(test_binary_128bit_byte_order);
     RUN_TEST(test_binary_float_byte_order);
     RUN_TEST(test_binary_float_round_trip);
+
+    printf("--- random ---\n");
+    RUN_TEST(test_random_seed_makes_i64_range_reproducible);
+    RUN_TEST(test_random_seed_makes_f64_unit_reproducible);
+    RUN_TEST(test_random_seed_makes_bytes_reproducible);
+    RUN_TEST(test_random_seed_makes_rand_string_reproducible);
+    RUN_TEST(test_random_seed_makes_shuffle_reproducible);
+    RUN_TEST(test_random_f64_unit_stays_in_unit_interval);
+    RUN_TEST(test_random_f64_range_stays_in_bounds);
+    RUN_TEST(test_random_i64_range_stays_in_bounds);
+    RUN_TEST(test_random_i64_range_width_one_returns_minimum);
+    RUN_TEST(test_random_i64_range_reaches_both_ends);
+    RUN_TEST(test_random_i64_range_spans_full_i64_width);
+    RUN_TEST(test_random_choice_index_stays_below_length);
+    RUN_TEST(test_random_choice_index_length_one);
+    RUN_TEST(test_random_bool_produces_both_values);
+    RUN_TEST(test_random_u8_covers_more_than_one_value);
+    RUN_TEST(test_random_bytes_length_and_element_kind);
+    RUN_TEST(test_random_bytes_zero_is_empty);
+    RUN_TEST(test_random_roll_dice_two_six_sided_in_range);
+    RUN_TEST(test_random_roll_dice_one_sided_die_is_count);
+    RUN_TEST(test_random_roll_dice_single_die_reaches_every_face);
+    RUN_TEST(test_random_char_is_printable_ascii);
+    RUN_TEST(test_random_char_range_stays_in_bounds);
+    RUN_TEST(test_random_char_range_never_yields_surrogate);
+    RUN_TEST(test_random_string_zero_length_is_empty);
+    RUN_TEST(test_random_string_draws_only_from_alphabet);
+    RUN_TEST(test_random_string_single_character_alphabet);
+    RUN_TEST(test_random_string_length_counts_characters_not_bytes);
+    RUN_TEST(test_random_string_multibyte_alphabet_stays_valid);
+    RUN_TEST(test_random_shuffle_keeps_elements);
+    RUN_TEST(test_random_shuffle_leaves_original_untouched);
+    RUN_TEST(test_random_shuffle_empty_and_single);
+    RUN_TEST(test_random_shuffle_wide_elements_stay_intact);
+    RUN_TEST(test_random_sample_returns_unique_elements);
+    RUN_TEST(test_random_sample_zero_is_empty);
+    RUN_TEST(test_random_sample_full_length_is_permutation);
+
+    printf("--- mem ---\n");
+    RUN_TEST(test_mem_arena_starts_empty);
+    RUN_TEST(test_mem_arena_non_positive_size_uses_default);
+    RUN_TEST(test_mem_usage_grows_with_allocation);
+    RUN_TEST(test_mem_reset_returns_usage_to_zero);
+    RUN_TEST(test_mem_arena_is_reusable_after_reset);
+    RUN_TEST(test_mem_arena_allocations_do_not_count_toward_total);
+    RUN_TEST(test_mem_copy_copies_exactly_n_bytes);
+    RUN_TEST(test_mem_copy_zero_bytes_is_noop);
+    RUN_TEST(test_mem_zero_clears_exactly_n_bytes);
+    RUN_TEST(test_mem_set_fills_exactly_n_bytes);
+
+    printf("--- runtime ---\n");
+    RUN_TEST(test_runtime_arena_usage_tracks_default_arena);
+    RUN_TEST(test_runtime_heap_usage_tracks_heap_arena);
+    RUN_TEST(test_runtime_total_usage_is_arena_plus_heap);
+    RUN_TEST(test_runtime_peak_usage_is_at_least_total_usage);
+    RUN_TEST(test_runtime_alloc_count_increases_per_allocation);
+    RUN_TEST(test_runtime_arena_blocks_counts_chained_blocks);
+    RUN_TEST(test_runtime_heap_blocks_counts_chained_blocks);
+    RUN_TEST(test_runtime_arena_limit_reports_maximum_bytes);
+    RUN_TEST(test_runtime_call_depth_follows_enter_and_exit);
+    RUN_TEST(test_runtime_current_and_caller_name);
+    RUN_TEST(test_runtime_caller_name_is_empty_at_top_level);
+    RUN_TEST(test_runtime_current_name_is_empty_outside_any_function);
+
+    printf("--- builtins conversions and utf8 ---\n");
+    RUN_TEST(test_builtin_to_string_i64);
+    RUN_TEST(test_builtin_to_string_u64);
+    RUN_TEST(test_builtin_to_string_bool);
+    RUN_TEST(test_builtin_to_string_floating_point_shortest);
+    RUN_TEST(test_builtin_to_string_floating_point_f32_is_shortest_for_f32);
+    RUN_TEST(test_builtin_format_floating_point_matches_to_string);
+    RUN_TEST(test_builtin_string_to_i64);
+    RUN_TEST(test_builtin_string_to_i64_ignores_trailing_spaces);
+    RUN_TEST(test_builtin_string_to_u64);
+    RUN_TEST(test_builtin_string_to_i128_round_trips_negative);
+    RUN_TEST(test_builtin_string_to_u128_above_u64);
+    RUN_TEST(test_builtin_string_to_i256_negative_sign_extends);
+    RUN_TEST(test_builtin_string_to_u256_above_u128);
+    RUN_TEST(test_builtin_char_count_counts_codepoints);
+    RUN_TEST(test_builtin_char_to_utf8_encodes_each_width);
+    RUN_TEST(test_builtin_char_to_utf8_invalid_scalar_is_replacement);
+    RUN_TEST(test_builtin_utf8_next_reports_width);
+    RUN_TEST(test_builtin_utf8_next_stray_continuation_byte_is_replacement);
+    RUN_TEST(test_builtin_array_to_string_integers);
+    RUN_TEST(test_builtin_array_to_string_empty);
 
     PRINT_RESULTS();
     gray_arena_destroy(arena, __FILE__, __LINE__);
