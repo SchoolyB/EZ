@@ -244,6 +244,17 @@ typedef struct {
     GrayRouter *router;
 } ConnCtx;
 
+/* Sends the whole buffer, looping over partial sends. Returns false on error. */
+static bool send_all(int descriptor, const char *data, size_t length) {
+    size_t sent = 0;
+    while (sent < length) {
+        int written = (int)send(descriptor, data + sent, length - sent, 0);
+        if (written <= 0) return false;
+        sent += (size_t)written;
+    }
+    return true;
+}
+
 static void *cleanup_connection(ConnCtx *connection_context, GrayArena *arena) {
     gray_default_arena = NULL;
     gray_arena_destroy(gray_heap_arena, __FILE__, __LINE__);
@@ -424,25 +435,23 @@ static void *handle_connection(void *argument) {
     char response_headers[GRAY_SERVER_BUFFER_SIZE];
     format_response_headers(&resp.headers, response_headers, sizeof(response_headers));
 
-    char response_buffer[GRAY_SERVER_BUFFER_SIZE];
+    char response_head[GRAY_SERVER_BUFFER_SIZE + GRAY_SERVER_CORS_BUFFER_SIZE + 256];
     int status = (int)resp.status;
-    int response_length = snprintf(response_buffer, sizeof(response_buffer),
+    int head_length = snprintf(response_head, sizeof(response_head),
         "HTTP/1.1 %d %s\r\n"
         "%s"
         "Content-Length: %d\r\n"
         "%s"
         "Connection: close\r\n"
-        "\r\n"
-        "%.*s",
+        "\r\n",
         status, http_reason_phrase(status),
         response_headers,
         (int)resp.body.len,
-        cors_hdrs,
-        (int)resp.body.len, resp.body.data);
+        cors_hdrs);
 
-    size_t send_length = (response_length > 0 && (size_t)response_length < sizeof(response_buffer))
-        ? (size_t)response_length : sizeof(response_buffer) - 1;
-    send(connection_context->client_descriptor, response_buffer, send_length, 0);
+    if (send_all(connection_context->client_descriptor, response_head, (size_t)head_length)) {
+        send_all(connection_context->client_descriptor, resp.body.data, (size_t)resp.body.len);
+    }
     return cleanup_connection(connection_context, arena);
 }
 
