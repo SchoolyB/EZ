@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 562 codes** (396 errors, 17 warnings, 149 panics)
+**Total: 563 codes** (396 errors, 17 warnings, 150 panics)
 
 ---
 
@@ -589,6 +589,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0164` | functions | function reference signature mismatch: expected %s, got %s |
 | `P0165` | net | net: a host contains an embedded null byte |
 | `P0166` | net | net: a host is longer than the maximum hostname length |
+| `P0167` | strings | formatted result exceeds maximum string length |
 
 ---
 
@@ -613,4 +614,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-22 23:14:18 UTC*
+*Generated on 2026-10-23 21:09:17 UTC*

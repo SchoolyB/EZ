@@ -275,7 +275,7 @@ GrayString gray_string_format(GrayArena *arena, const char *format, ...) {
     va_end(arguments);
 
     if (needed < 0) {
-        return gray_string_lit("");
+        gray_panic_code("P0167", "formatted result exceeds maximum string length");
     }
 
     char *data = (char *)gray_arena_alloc_uninitialized(arena, (size_t)needed + 1);
