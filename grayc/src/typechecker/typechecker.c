@@ -10769,6 +10769,7 @@ static GrayType *resolve_call_expression_once(TypeChecker *checker, AstNode *nod
                     }
                 }
             }
+            const FunctionSignature *callback_signatures[EXTERN_CALLBACK_ARGUMENTS] = {0};
             /* Validate arguments; reject types that don't translate to C */
             for (int argument_index = 0; argument_index < node->data.call.argument_count; argument_index++) {
                 /* E3154: a stack address cannot cross into C. The direct
@@ -10814,6 +10815,7 @@ static GrayType *resolve_call_expression_once(TypeChecker *checker, AstNode *nod
                 }
                 if (callback_target) {
                     FunctionSignature *callback_signature = find_function(checker, callback_target);
+                    if (argument_index < EXTERN_CALLBACK_ARGUMENTS) callback_signatures[argument_index] = callback_signature;
                     for (int parameter_index = 0; callback_signature && parameter_index < callback_signature->parameter_count; parameter_index++) {
                         GrayType *callback_parameter_type = callback_signature->parameter_types[parameter_index];
                         if (!callback_parameter_type) continue;
@@ -10895,6 +10897,7 @@ static GrayType *resolve_call_expression_once(TypeChecker *checker, AstNode *nod
                         sizeof(ExternCallSite) * checker->extern_call_capacity);
                 }
                 ExternCallSite *site = &checker->extern_calls[checker->extern_call_count++];
+                memcpy(site->callback_signatures, callback_signatures, sizeof(callback_signatures));
                 site->function_name = member_function_name;
                 site->argument_count = node->data.call.argument_count;
                 site->is_call = true;
@@ -11640,6 +11643,7 @@ static GrayType *resolve_member_expression(TypeChecker *checker, AstNode *node) 
                     sizeof(ExternCallSite) * checker->extern_call_capacity);
             }
             ExternCallSite *call_site = &checker->extern_calls[checker->extern_call_count++];
+            memset(call_site->callback_signatures, 0, sizeof(call_site->callback_signatures));
             call_site->function_name = member;
             call_site->argument_count = 0;
             call_site->is_call = false;

@@ -230,6 +230,8 @@ typedef struct {
  * catching a misspelled C function/constant/macro name. A call whose result
  * is declared or cast to a type also records that type, so the real C return
  * type can be checked against it. */
+#define EXTERN_CALLBACK_ARGUMENTS 8
+
 typedef struct {
     const char *function_name;
     int argument_count;
@@ -240,6 +242,10 @@ typedef struct {
     const AstNode *node;       /* the call expression, to attach an assertion */
     GrayType *asserted_type;        /* type the result is declared or cast to, or NULL */
     bool is_asserted_via_cast;    /* cast() converts explicitly; a declaration asserts */
+    /* The Grayscale function passed as a callback at each of the first
+     * EXTERN_CALLBACK_ARGUMENTS arguments, or NULL, so main.c can compare it
+     * with the function-pointer type the header declares. */
+    const FunctionSignature *callback_signatures[EXTERN_CALLBACK_ARGUMENTS];
 } ExternCallSite;
 
 typedef struct {
