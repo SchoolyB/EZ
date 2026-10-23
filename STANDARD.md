@@ -4531,11 +4531,13 @@ Arena-based memory allocation. Compiler-only feature.
 
 ### 9.25 Atomic Module (`@atomic`)
 
-Lock-free atomic operations backed by hand-written assembly (ARM64 and x86_64). Compiler-only feature.
+Atomic operations implemented with the C compiler's `__atomic` builtins, so they work on every supported ABI, including Windows x64. Under TinyCC snapshots that lack `stdatomic.h` (such as Ubuntu's 0.9.27), every read-modify-write runs under one process-wide mutex instead. Compiler-only feature.
+
+Every operation is sequentially consistent. `cas` is a strong compare-and-swap with no spurious failures.
 
 #### 64-bit Atomics
 
-All pointer arguments must be `^i64` (pointer to i64).
+All pointer arguments must be `^i64` (pointer to i64) and must point to a valid, 8-byte-aligned `i64`; a misaligned pointer is undefined behavior. A `nil` pointer is not diagnosed; the program crashes with a segmentation fault.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -4544,7 +4546,9 @@ All pointer arguments must be `^i64` (pointer to i64).
 | `add` | `(ptr ^i64, val i64) -> i64` | Atomic add; returns previous value |
 | `sub` | `(ptr ^i64, val i64) -> i64` | Atomic subtract; returns previous value |
 | `exchange` | `(ptr ^i64, val i64) -> i64` | Atomic swap; returns previous value |
-| `cas` | `(ptr ^i64, expected i64, desired i64) -> bool` | Compare-and-swap; returns true on success |
+| `cas` | `(ptr ^i64, expected i64, desired i64) -> bool` | Compare-and-swap; returns true if the swap happened, never the previous value |
+
+`add` and `sub` wrap in two's complement on overflow and never panic: `add(ptr, 1)` on `i64.MAX` stores `i64.MIN` and returns `i64.MAX`.
 | `and` | `(ptr ^i64, val i64) -> i64` | Atomic bitwise AND; returns previous value |
 | `or` | `(ptr ^i64, val i64) -> i64` | Atomic bitwise OR; returns previous value |
 | `xor` | `(ptr ^i64, val i64) -> i64` | Atomic bitwise XOR; returns previous value |
@@ -4559,11 +4563,17 @@ All pointer arguments must be `^i64` (pointer to i64).
 | `spin_unlock` | `(lk SpinLock)` | Release a spinlock |
 | `spinlock_destroy` | `(lk SpinLock)` | Destroy a spinlock and free its resources |
 
+A `SpinLock` is a handle to a heap-allocated lock. Copying it copies the handle, so the copy refers to the same lock. After `spinlock_destroy` on one handle, every other copy is dangling and using it is undefined behavior. The destroyed handle itself becomes inert: `spin_lock` and `spin_unlock` do nothing and `spin_trylock` returns `false`. A zero-value `SpinLock` (declared without `atomic.spinlock()`) behaves the same way.
+
+The lock is not recursive: `spin_lock` on a lock the caller already holds spins forever. `spin_unlock` on a lock nobody holds simply marks it free. `spinlock_destroy` on a lock another thread holds frees it anyway, so destroy a lock only after every thread has finished with it.
+
 #### Memory Barrier
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `fence` | `()` | Full memory barrier (sequential consistency) |
+
+The 32-bit and 8-bit atomic primitives in the runtime are internal, used by the runtime's own array and map code. The module exposes no 32-bit or 8-bit functions.
 
 ### 9.26 Fmt Module (`@fmt`)
 
