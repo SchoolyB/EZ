@@ -261,7 +261,7 @@ STDLIB_TEST_DEPS = src/runtime/runtime.o src/runtime/array.o src/runtime/map.o \
                    src/stdlib/strconv.o src/stdlib/json.o src/stdlib/io.o \
                    src/stdlib/regex.o src/stdlib/builtins.o src/stdlib/net.o \
                    src/stdlib/csv.o src/stdlib/crypto.o src/stdlib/uuid.o src/stdlib/binary.o \
-                   src/stdlib/random.o src/stdlib/mem.o src/stdlib/runtime_mod.o src/stdlib/atomic.o $(ATOMIC_OBJ)
+                   src/stdlib/random.o src/stdlib/mem.o src/stdlib/runtime_mod.o src/stdlib/atomic.o src/stdlib/channels.o $(ATOMIC_OBJ)
 
 tests/test_stdlib$(EXE): tests/test_stdlib.c $(STDLIB_TEST_DEPS)
 	$(CC) $(RT_CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) -lpthread

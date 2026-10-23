@@ -33,6 +33,7 @@
 #include "../src/stdlib/mem.h"
 #include "../src/stdlib/runtime_mod.h"
 #include "../src/stdlib/atomic_mod.h"
+#include "../src/stdlib/channels.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2615,6 +2616,171 @@ static void test_atomic_mod_fence_returns(void) {
     gray_atomic_mod_fence();
 }
 
+/* ===== channels module ===== */
+
+static void test_channels_receives_in_send_order(void) {
+    GrayChannel channel = gray_channels_open(4);
+    gray_channels_send(channel, 10);
+    gray_channels_send(channel, 20);
+    gray_channels_send(channel, 30);
+    ASSERT_EQ(gray_channels_receive(channel), 10);
+    ASSERT_EQ(gray_channels_receive(channel), 20);
+    ASSERT_EQ(gray_channels_receive(channel), 30);
+}
+
+static void test_channels_len_counts_buffered_values(void) {
+    GrayChannel channel = gray_channels_open(4);
+    ASSERT_EQ(gray_channels_len(channel), 0);
+    gray_channels_send(channel, 1);
+    gray_channels_send(channel, 2);
+    ASSERT_EQ(gray_channels_len(channel), 2);
+    gray_channels_receive(channel);
+    ASSERT_EQ(gray_channels_len(channel), 1);
+}
+
+static void test_channels_capacity_below_one_opens_capacity_one(void) {
+    GrayChannel zero_capacity = gray_channels_open(0);
+    GrayChannel negative_capacity = gray_channels_open(-5);
+    ASSERT(gray_channels_try_send(zero_capacity, 1));
+    ASSERT(!gray_channels_try_send(zero_capacity, 2));
+    ASSERT(gray_channels_try_send(negative_capacity, 1));
+    ASSERT(!gray_channels_try_send(negative_capacity, 2));
+}
+
+static void test_channels_try_send_fails_when_full(void) {
+    GrayChannel channel = gray_channels_open(2);
+    ASSERT(gray_channels_try_send(channel, 1));
+    ASSERT(gray_channels_try_send(channel, 2));
+    ASSERT(!gray_channels_try_send(channel, 3));
+    ASSERT_EQ(gray_channels_len(channel), 2);
+}
+
+static void test_channels_try_send_succeeds_again_after_a_receive(void) {
+    GrayChannel channel = gray_channels_open(1);
+    ASSERT(gray_channels_try_send(channel, 1));
+    ASSERT(!gray_channels_try_send(channel, 2));
+    ASSERT_EQ(gray_channels_receive(channel), 1);
+    ASSERT(gray_channels_try_send(channel, 3));
+    ASSERT_EQ(gray_channels_receive(channel), 3);
+}
+
+static void test_channels_try_receive_on_empty_reports_failure(void) {
+    GrayChannel channel = gray_channels_open(2);
+    GrayChannelTryRecv result = gray_channels_try_receive(channel);
+    ASSERT(!result.v1);
+    ASSERT_EQ(result.v0, 0);
+}
+
+static void test_channels_try_receive_returns_value_and_success(void) {
+    GrayChannel channel = gray_channels_open(2);
+    gray_channels_send(channel, 77);
+    GrayChannelTryRecv result = gray_channels_try_receive(channel);
+    ASSERT(result.v1);
+    ASSERT_EQ(result.v0, 77);
+    ASSERT_EQ(gray_channels_len(channel), 0);
+}
+
+static void test_channels_buffer_wraps_around(void) {
+    GrayChannel channel = gray_channels_open(3);
+    for (int64_t round = 0; round < 10; round++) {
+        gray_channels_send(channel, round * 2);
+        gray_channels_send(channel, round * 2 + 1);
+        ASSERT_EQ(gray_channels_receive(channel), round * 2);
+        ASSERT_EQ(gray_channels_receive(channel), round * 2 + 1);
+    }
+    ASSERT_EQ(gray_channels_len(channel), 0);
+}
+
+static void test_channels_holds_extreme_values(void) {
+    GrayChannel channel = gray_channels_open(2);
+    gray_channels_send(channel, INT64_MIN);
+    gray_channels_send(channel, INT64_MAX);
+    ASSERT_EQ(gray_channels_receive(channel), INT64_MIN);
+    ASSERT_EQ(gray_channels_receive(channel), INT64_MAX);
+}
+
+static void test_channels_channels_are_independent(void) {
+    GrayChannel first = gray_channels_open(2);
+    GrayChannel second = gray_channels_open(2);
+    gray_channels_send(first, 1);
+    gray_channels_send(second, 2);
+    ASSERT_EQ(gray_channels_receive(second), 2);
+    ASSERT_EQ(gray_channels_receive(first), 1);
+}
+
+static void test_channels_close_keeps_buffered_values_receivable(void) {
+    GrayChannel channel = gray_channels_open(4);
+    gray_channels_send(channel, 5);
+    gray_channels_send(channel, 6);
+    gray_channels_close(channel);
+    ASSERT_EQ(gray_channels_receive(channel), 5);
+    ASSERT_EQ(gray_channels_receive(channel), 6);
+}
+
+static void test_channels_receive_on_closed_empty_channel_returns_zero(void) {
+    GrayChannel channel = gray_channels_open(2);
+    gray_channels_close(channel);
+    ASSERT_EQ(gray_channels_receive(channel), 0);
+}
+
+static void test_channels_send_after_close_is_dropped(void) {
+    GrayChannel channel = gray_channels_open(2);
+    gray_channels_close(channel);
+    gray_channels_send(channel, 9);
+    ASSERT(!gray_channels_try_send(channel, 9));
+    ASSERT_EQ(gray_channels_len(channel), 0);
+}
+
+typedef struct {
+    GrayChannel channel;
+    int64_t count;
+} ChannelProducerArguments;
+
+static void *channel_producer(void *raw) {
+    ChannelProducerArguments *arguments = raw;
+    for (int64_t value = 1; value <= arguments->count; value++) gray_channels_send(arguments->channel, value);
+    return NULL;
+}
+
+static void test_channels_blocking_send_and_receive_across_threads(void) {
+    GrayChannel channel = gray_channels_open(2);
+    ChannelProducerArguments arguments = {channel, 1000};
+    pthread_t producer;
+    pthread_create(&producer, NULL, channel_producer, &arguments);
+    int64_t total = 0;
+    for (int64_t expected = 1; expected <= 1000; expected++) {
+        int64_t value = gray_channels_receive(channel);
+        ASSERT_EQ(value, expected);
+        total += value;
+    }
+    pthread_join(producer, NULL);
+    ASSERT_EQ(total, 500500);
+}
+
+static void *channel_closer(void *raw) {
+    usleep(50000);
+    gray_channels_close(*(GrayChannel *)raw);
+    return NULL;
+}
+
+static void test_channels_close_wakes_a_blocked_receiver(void) {
+    GrayChannel channel = gray_channels_open(2);
+    pthread_t closer;
+    pthread_create(&closer, NULL, channel_closer, &channel);
+    ASSERT_EQ(gray_channels_receive(channel), 0);
+    pthread_join(closer, NULL);
+}
+
+static void test_channels_close_wakes_a_blocked_sender(void) {
+    GrayChannel channel = gray_channels_open(1);
+    gray_channels_send(channel, 1);
+    pthread_t closer;
+    pthread_create(&closer, NULL, channel_closer, &channel);
+    gray_channels_send(channel, 2);
+    pthread_join(closer, NULL);
+    ASSERT_EQ(gray_channels_len(channel), 1);
+}
+
 int main(void) {
     arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_default_arena = arena;
@@ -2990,6 +3156,24 @@ int main(void) {
     RUN_TEST(test_atomic_mod_spinlock_copy_shares_the_lock);
     RUN_TEST(test_atomic_mod_spinlocks_are_independent);
     RUN_TEST(test_atomic_mod_fence_returns);
+
+    printf("--- channels ---\n");
+    RUN_TEST(test_channels_receives_in_send_order);
+    RUN_TEST(test_channels_len_counts_buffered_values);
+    RUN_TEST(test_channels_capacity_below_one_opens_capacity_one);
+    RUN_TEST(test_channels_try_send_fails_when_full);
+    RUN_TEST(test_channels_try_send_succeeds_again_after_a_receive);
+    RUN_TEST(test_channels_try_receive_on_empty_reports_failure);
+    RUN_TEST(test_channels_try_receive_returns_value_and_success);
+    RUN_TEST(test_channels_buffer_wraps_around);
+    RUN_TEST(test_channels_holds_extreme_values);
+    RUN_TEST(test_channels_channels_are_independent);
+    RUN_TEST(test_channels_close_keeps_buffered_values_receivable);
+    RUN_TEST(test_channels_receive_on_closed_empty_channel_returns_zero);
+    RUN_TEST(test_channels_send_after_close_is_dropped);
+    RUN_TEST(test_channels_blocking_send_and_receive_across_threads);
+    RUN_TEST(test_channels_close_wakes_a_blocked_receiver);
+    RUN_TEST(test_channels_close_wakes_a_blocked_sender);
 
     PRINT_RESULTS();
     gray_arena_destroy(arena, __FILE__, __LINE__);
