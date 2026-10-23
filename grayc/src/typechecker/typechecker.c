@@ -2845,6 +2845,46 @@ static void apply_call_parameter_extern_effects(TypeChecker *checker,
     }
 }
 
+/* C library functions that keep a `char *` argument after they return. A
+ * Grayscale string's storage is reclaimed with its scope, so the kept pointer
+ * would dangle. */
+typedef struct {
+    const char *function_name;
+    int argument_index;
+} ExternStringRetainer;
+
+static const ExternStringRetainer extern_string_retainers[] = {
+    {"putenv",  0},
+    {"setbuf",  1},
+    {"setvbuf", 1},
+    {"strtok",  0},
+};
+
+static bool extern_retains_string_argument(const char *function_name, int argument_index) {
+    if (!function_name) return false;
+    for (size_t i = 0; i < sizeof extern_string_retainers / sizeof extern_string_retainers[0]; i++)
+        if (extern_string_retainers[i].argument_index == argument_index &&
+            strcmp(extern_string_retainers[i].function_name, function_name) == 0)
+            return true;
+    return false;
+}
+
+/* A string literal is static data, a file-scope string is not reclaimed with
+ * any function, and to_c_string() copies onto the heap arena. Anything else
+ * may be freed when its scope ends. Only a string-typed argument is checked. */
+static bool string_outlives_extern_call(TypeChecker *checker, AstNode *argument) {
+    GrayType *argument_type = const_walk_expression_type(checker, argument);
+    if (!argument_type || argument_type->kind != TYPE_KIND_STRING) return true;
+    if (argument->kind == NODE_STRING_VALUE) return true;
+    if (argument->kind == NODE_LABEL)
+        return is_module_level_variable(checker, argument->data.label.value) &&
+               !scope_lookup_local(checker->current_scope, argument->data.label.value);
+    if (argument->kind == NODE_CALL_EXPRESSION && argument->data.call.function &&
+        argument->data.call.function->kind == NODE_LABEL &&
+        strcmp(argument->data.call.function->data.label.value, "to_c_string") == 0) return true;
+    return false;
+}
+
 /* E3122, forwarded through a pointer-parameter function boundary: writing
  * through a pointer to a const-declared variable is caught where the write
  * is spelled (`p^ = v`), but a helper that takes a `^T` parameter and writes
@@ -10761,6 +10801,10 @@ static GrayType *resolve_call_expression_once(TypeChecker *checker, AstNode *nod
                  * initializer (`const f func = ()cmp; extern.qsort(..., f)`)
                  * rather than the inline `()cmp`/`ref(cmp)` form; see through
                  * it the same way resolve_call_signature_in_body() does. */
+                if (call_argument && extern_retains_string_argument(member_function_name, argument_index) &&
+                    !string_outlives_extern_call(checker, call_argument)) {
+                    NODE_ERROR_FORMATTED(checker, call_argument, "E3216", member_function_name);
+                }
                 const char *callback_target = function_reference_target_name(call_argument);
                 if (!callback_target && call_argument && call_argument->kind == NODE_LABEL &&
                     checker->current_function_declaration) {
