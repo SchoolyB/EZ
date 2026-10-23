@@ -14916,7 +14916,8 @@ static void check_const_integer_value(TypeChecker *checker, AstNode *node) {
 static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
     /* E4041: `retrun x` parses as a declaration of 'retrun' with type 'x';
      * the misspelled statement is the mistake, not the operand. */
-    if (!node->data.variable_declaration.value && node->data.variable_declaration.type_name) {
+    if (node->data.variable_declaration.is_bare && !node->data.variable_declaration.value &&
+        node->data.variable_declaration.type_name) {
         char leaf[MESSAGE_BUFFER_SIZE];
         const char *undefined = undefined_type_leaf(checker,
             node->data.variable_declaration.type_name, leaf, sizeof(leaf));

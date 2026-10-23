@@ -1816,6 +1816,7 @@ static int multi_variable_counter = 0;
 static AstNode *parse_variable_declaration_common(Parser *parser, bool is_bare) {
     AstNode *node = ast_allocate(parser->arena, NODE_VARIABLE_DECLARATION, parser->current_token);
 
+    node->data.variable_declaration.is_bare = is_bare;
     if (is_bare) {
         node->data.variable_declaration.is_mutable = true;
         /* current_token is already the variable name — don't advance */

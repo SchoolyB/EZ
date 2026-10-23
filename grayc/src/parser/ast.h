@@ -314,6 +314,7 @@ struct AstNode {
             const char *type_name;
             AstNode *value;
             bool is_mutable;
+            bool is_bare;              /* written `name type` with no mut or const */
             bool is_private;
             bool is_synthetic;         /* parser-generated temporary, not user-written */
             bool is_define;            /* top-level const marked #define: -define: may override its value */
