@@ -144,6 +144,8 @@ run_fail_test() {
         # Without this the branch passed on any failure at all, so a leaked
         # C error read as the test doing its job.
         fail "$label" "(no grayscale diagnostic; C compiler error leaked)"
+    elif [ -n "$forbidden" ] && echo "$output" | grep -qF -- "$forbidden"; then
+        fail "$label" "(output contains '$forbidden')"
     elif [ -n "$required" ] && ! echo "$output" | grep -qF -- "$required"; then
         fail "$label" "(output missing '$required')"
     else

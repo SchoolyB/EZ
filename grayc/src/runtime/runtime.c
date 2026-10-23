@@ -406,6 +406,8 @@ double gray_runtime_uptime(void) {
 
 void gray_runtime_shutdown(void) {
     if (gray_default_arena) {
+        /* A panic inside a global arena swap leaves both names on one arena. */
+        if (gray_heap_arena == gray_default_arena) gray_heap_arena = NULL;
         gray_arena_destroy(gray_default_arena, __FILE__, __LINE__);
         gray_default_arena = NULL;
     }
