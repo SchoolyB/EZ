@@ -11951,6 +11951,8 @@ static GrayType *resolve_function_reference(TypeChecker *checker, AstNode *node)
         }
     }
     FunctionSignature *reference_signature = reference_name ? find_function(checker, reference_name) : NULL;
+    if (reference_signature && node->data.function_reference.function->kind == NODE_LABEL)
+        checker_cache_resolution(checker, node->data.function_reference.function, reference_name);
     if (reference_signature) {
         reference_signature->was_used = true;
         warn_if_function_deprecated(checker, node, reference_signature);
@@ -12217,10 +12219,24 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
             Scope *declaration_scope = checker->current_scope;
             while (declaration_scope->parent && !scope_lookup_local(declaration_scope, name))
                 declaration_scope = declaration_scope->parent;
-            if (declaration_scope->parent == NULL)
+            if (declaration_scope->parent == NULL) {
                 node->data.label.is_file_global_reference = true;
-            else
+                /* The bare name is the entry file's global. Inside another
+                 * module it is that module's own declaration of the name,
+                 * bound under the module's spelling, that this names. */
+                DeclarationEntry *own_entry = checker_cache_resolution(checker, node, name);
+                if (own_entry && !own_entry->is_module_entry) {
+                    char own_key[MESSAGE_BUFFER_SIZE];
+                    Symbol *own_symbol = scope_lookup(checker->current_scope,
+                        module_mangle_into(own_entry, own_key, sizeof(own_key)));
+                    if (own_symbol) {
+                        symbol = own_symbol;
+                        node->data.label.is_file_global_reference = false;
+                    }
+                }
+            } else {
                 node->data.label.is_local_reference = true;
+            }
         }
         /* A bare name that names a module-level declaration is bound under
          * that module's spelling, so a reference from inside the module has

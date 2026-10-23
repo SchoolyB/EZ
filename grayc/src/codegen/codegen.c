@@ -9800,15 +9800,16 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
     }
 
     /* Look up function to check if it's a known function or a variable (function pointer) */
-    AstNode *target_function = function_name_text ? find_function(codegen, function_name_text) : NULL;
+    AstNode *target_function = NULL;
 
     /* A name written bare inside its own module, or reachable through a
-     * `using`, names a function registered under its module's spelling. This
-     * used to match on the text after the first underscore of every declared
+     * `using`, names a function registered under its module's spelling, and
+     * that wins over a same-named function of the entry file. This used to
+     * match on the text after the first underscore of every declared
      * function, which claimed any name that happened to be some function's
      * suffix. */
     const char *resolved_function_name = function_name_text;
-    if (!target_function && function_name_text) {
+    if (function_name_text) {
         const char *resolved = codegen_resolve_declaration(codegen, function_name_text);
         if (resolved != function_name_text) {
             AstNode *found = find_function(codegen, resolved);
@@ -9818,6 +9819,7 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
             }
         }
     }
+    if (!target_function && function_name_text) target_function = find_function(codegen, function_name_text);
 
     bool direct_known_call = (function_name_text && target_function);
     if (function_name_text && target_function) {
@@ -9871,7 +9873,9 @@ static void emit_call_expression_body(CodeGen *codegen, AstNode *node) {
                         body_statement->data.variable_declaration.value->kind == NODE_FUNCTION_REFERENCE) {
                         AstNode *function_reference = body_statement->data.variable_declaration.value->data.function_reference.function;
                         if (function_reference->kind == NODE_LABEL) {
-                            referenced_function = find_function(codegen, function_reference->data.label.value);
+                            referenced_function = find_function(codegen, function_reference->resolved_declaration
+                                ? module_mangle(codegen->modules, function_reference->resolved_declaration)
+                                : function_reference->data.label.value);
                         } else if (ast_member_qualifier(function_reference)) {
                             const char *resolved_object = ast_member_qualifier(function_reference);
                             const char *resolved_member = function_reference->data.member.member;
