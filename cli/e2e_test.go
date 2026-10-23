@@ -731,3 +731,23 @@ func TestE2E_Check_DiagnosticsWindowALongSourceLine(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// gray check: redundant directory imports
+// ---------------------------------------------------------------------------
+
+func TestE2E_Check_DirectoryThenFileImportWarnsW2015(t *testing.T) {
+	src := filepath.Join(findRepoRoot(), "integration-tests", "pass", "multi-file", "directory-then-file-redundant", "main.gray")
+
+	stdout, stderr, code := runGray(t, "check", src)
+	if code != 0 {
+		t.Fatalf("gray check exited %d; a redundant import is a warning, not an error:\n%s", code, combinedOutput(stdout, stderr))
+	}
+	out := combinedOutput(stdout, stderr)
+	if !strings.Contains(out, "warning[W2015]") {
+		t.Errorf("expected warning[W2015] for the redundant file import, got:\n%s", out)
+	}
+	if !strings.Contains(out, "import of './lib/helper_a' is redundant; already included by directory import") {
+		t.Errorf("expected the redundant-import message naming './lib/helper_a', got:\n%s", out)
+	}
+}
