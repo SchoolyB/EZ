@@ -163,8 +163,10 @@ typedef struct {
      * source). Same shadow-stack shape as raw_variables/heap_variables. Only
      * registered when the arena argument is a side-effect-free, safely
      * re-evaluable expression (see is_stable_arena_expr in codegen.c) —
+     * has_epoch: a gray_epoch_<name> C variable holds the arena's reset count
+     * at the time the pointer was allocated, so a reset since is caught too. —
      * the same expression is re-emitted at every dereference site. */
-    struct { const char *name; AstNode *arena_expression; } *mem_variables;
+    struct { const char *name; AstNode *arena_expression; bool has_epoch; } *mem_variables;
     int mem_variable_count;
     int mem_variable_capacity;
 

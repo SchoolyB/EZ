@@ -44,6 +44,7 @@ typedef struct {
     size_t peak_bytes;        /* high-water mark of total_allocated */
     size_t alloc_count;       /* cumulative allocations on this arena */
     bool is_destroyed;
+    uint64_t reset_count;     /* bumped by every reset, so a pointer from before it can be told from one after */
     bool counts_toward_total; /* allocations feed gray_total_alloc_count; false for mem.arena() arenas */
 } GrayArena;
 #define GRAY_ARENA_DECLARED
@@ -298,6 +299,17 @@ static inline void *gray_mem_check_live(GrayArena *arena, void *allocation, cons
             "dereferenced a pointer into an arena that has been destroyed or reset");
     }
     return allocation;
+}
+
+/* gray_mem_check_live for a pointer whose arena epoch was recorded when it
+ * was allocated: a reset since then has handed its memory out again. */
+static inline void *gray_mem_check_live_epoch(GrayArena *arena, uint64_t epoch, void *allocation,
+                                              const char *file, int line) {
+    if (arena && arena->reset_count != epoch) {
+        gray_panic_code_at(file, line, "P0117",
+            "dereferenced a pointer into an arena that has been destroyed or reset");
+    }
+    return gray_mem_check_live(arena, allocation, file, line);
 }
 
 /* --- Stack depth guard --- */

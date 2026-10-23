@@ -95,6 +95,7 @@ GrayArena *gray_arena_create(size_t initial_size) {
     arena->peak_bytes = initial_size;
     arena->alloc_count = 0;
     arena->is_destroyed = false;
+    arena->reset_count = 0;
     arena->counts_toward_total = true;
     return arena;
 }
@@ -152,6 +153,7 @@ void gray_arena_reset(GrayArena *arena) {
     }
     arena->current = arena->first;
     arena->total_allocated = arena->first ? arena->first->size : 0;
+    arena->reset_count++;
 }
 
 void gray_arena_destroy(GrayArena *arena, const char *file, int line) {

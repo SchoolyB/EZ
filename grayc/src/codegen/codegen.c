@@ -1638,18 +1638,40 @@ static AstNode *is_mem_tracked_variable(CodeGen *codegen, const char *name) {
     return NULL;
 }
 
-static void register_mem_variable(CodeGen *codegen, const char *name, AstNode *arena_expression) {
+/* Whether the most recent entry for this name, tracked or not, has its
+ * gray_epoch_<name> companion variable in scope. */
+static bool mem_variable_has_epoch(CodeGen *codegen, const char *name) {
+    for (int i = codegen->mem_variable_count - 1; i >= 0; i--) {
+        if (strcmp(codegen->mem_variables[i].name, name) == 0)
+            return codegen->mem_variables[i].has_epoch;
+    }
+    return false;
+}
+
+static void register_mem_variable(CodeGen *codegen, const char *name, AstNode *arena_expression, bool has_epoch) {
     GROW_ARRAY(codegen->mem_variables, codegen->mem_variable_count, codegen->mem_variable_capacity);
     codegen->mem_variables[codegen->mem_variable_count].name = name;
     codegen->mem_variables[codegen->mem_variable_count].arena_expression = arena_expression;
+    codegen->mem_variables[codegen->mem_variable_count].has_epoch = has_epoch;
     codegen->mem_variable_count++;
 }
 
-static void unregister_mem_variable(CodeGen *codegen, const char *name) {
+static void unregister_mem_variable(CodeGen *codegen, const char *name, bool keeps_epoch) {
+    bool has_epoch = keeps_epoch && mem_variable_has_epoch(codegen, name);
     GROW_ARRAY(codegen->mem_variables, codegen->mem_variable_count, codegen->mem_variable_capacity);
     codegen->mem_variables[codegen->mem_variable_count].name = name;
     codegen->mem_variables[codegen->mem_variable_count].arena_expression = NULL;
+    codegen->mem_variables[codegen->mem_variable_count].has_epoch = has_epoch;
     codegen->mem_variable_count++;
+}
+
+/* Emit `uint64_t gray_epoch_<name> = <arena>->reset_count;` or, when the
+ * companion already exists, the assignment that refreshes it. */
+static void emit_mem_epoch_record(CodeGen *codegen, const char *name, AstNode *arena_expression, bool is_declaration) {
+    if (is_declaration) emit(codegen, "uint64_t ");
+    emit_formatted(codegen, "gray_epoch_%s = (", sanitize_name(name));
+    emit_expression(codegen, arena_expression);
+    emit(codegen, ")->reset_count;\n");
 }
 
 /* Wrap `ptr_c_expr` with a call to gray_mem_check_live(arena, ptr, file,
@@ -1657,7 +1679,13 @@ static void unregister_mem_variable(CodeGen *codegen, const char *name) {
  * breaking its lvalue-ness, the same way gray_ptr_check already is. Emits
  * `gray_mem_check_live(<arena_expr>, (void *)(` and leaves the caller to
  * close with `), file, line)` after emitting the pointer expression. */
-static void emit_mem_check_live_open(CodeGen *codegen, AstNode *arena_expression) {
+static void emit_mem_check_live_open(CodeGen *codegen, AstNode *arena_expression, const char *epoch_name) {
+    if (epoch_name) {
+        emit(codegen, "gray_mem_check_live_epoch(");
+        emit_expression(codegen, arena_expression);
+        emit_formatted(codegen, ", gray_epoch_%s, (void *)(", sanitize_name(epoch_name));
+        return;
+    }
     emit(codegen, "gray_mem_check_live(");
     emit_expression(codegen, arena_expression);
     emit(codegen, ", (void *)(");
@@ -3743,10 +3771,12 @@ static void emit_place_address(CodeGen *codegen, AstNode *target) {
         bool is_raw = pointer_node->kind == NODE_LABEL && is_raw_variable(codegen, pointer_node->data.label.value);
         AstNode *mem_arena = (!is_raw && pointer_node->kind == NODE_LABEL)
             ? is_mem_tracked_variable(codegen, pointer_node->data.label.value) : NULL;
+        const char *mem_epoch_name = mem_arena && mem_variable_has_epoch(codegen, pointer_node->data.label.value)
+            ? pointer_node->data.label.value : NULL;
         emit_formatted(codegen, "((%s *)", c_pointee);
         if (!is_raw) emit(codegen, "gray_ptr_check((void *)(");
         else emit(codegen, "(");
-        if (mem_arena) emit_mem_check_live_open(codegen, mem_arena);
+        if (mem_arena) emit_mem_check_live_open(codegen, mem_arena, mem_epoch_name);
         emit_expression(codegen, pointer_node);
         if (mem_arena) emit_mem_check_live_close(codegen, target->token.line);
         if (!is_raw) emit_formatted(codegen, "), \"%s\", %d))", codegen_file_literal(codegen), target->token.line);
@@ -3855,6 +3885,8 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
          * liveness — same philosophy as its existing nil-check bypass. */
         AstNode *mem_arena = (!is_raw_deref && dereferenced_left->kind == NODE_LABEL)
             ? is_mem_tracked_variable(codegen, dereferenced_left->data.label.value) : NULL;
+        const char *mem_epoch_name = mem_arena && mem_variable_has_epoch(codegen, dereferenced_left->data.label.value)
+            ? dereferenced_left->data.label.value : NULL;
         if (is_raw_deref) {
             /* Raw pointer: bare dereference, no nil check */
             emit(codegen, "(*");
@@ -3873,7 +3905,7 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
                 snprintf(c_pointee, sizeof(c_pointee), "%s",
                     gray_type_to_c_codegen(codegen, deref_pointee));
                 emit_formatted(codegen, "(*(%s *)gray_ptr_check((void *)(", c_pointee);
-                if (mem_arena) emit_mem_check_live_open(codegen, mem_arena);
+                if (mem_arena) emit_mem_check_live_open(codegen, mem_arena, mem_epoch_name);
                 emit_expression(codegen, dereferenced_left);
                 if (mem_arena) emit_mem_check_live_close(codegen, node->token.line);
                 emit_formatted(codegen, "), \"%s\", %d))", codegen_file_literal(codegen), node->token.line);
@@ -3882,9 +3914,16 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
                 emit_expression(codegen, dereferenced_left);
                 emit_formatted(codegen, "; if (!_dp) { %s; } ", panic_call(codegen, node, "P0080", ""));
                 if (mem_arena) {
-                    emit(codegen, "*(__typeof__(_dp))gray_mem_check_live(");
-                    emit_expression(codegen, mem_arena);
-                    emit_formatted(codegen, ", (void *)_dp, \"%s\", %d); })", codegen_file_literal(codegen), node->token.line);
+                    if (mem_epoch_name) {
+                        emit(codegen, "*(__typeof__(_dp))gray_mem_check_live_epoch(");
+                        emit_expression(codegen, mem_arena);
+                        emit_formatted(codegen, ", gray_epoch_%s, (void *)_dp, \"%s\", %d); })",
+                            sanitize_name(mem_epoch_name), codegen_file_literal(codegen), node->token.line);
+                    } else {
+                        emit(codegen, "*(__typeof__(_dp))gray_mem_check_live(");
+                        emit_expression(codegen, mem_arena);
+                        emit_formatted(codegen, ", (void *)_dp, \"%s\", %d); })", codegen_file_literal(codegen), node->token.line);
+                    }
                 } else {
                     emit(codegen, "*_dp; })");
                 }
@@ -11021,13 +11060,20 @@ static void emit_variable_declaration(CodeGen *codegen, AstNode *node,
             node->data.variable_declaration.value->data.call.argument_count >= 1) {
             AstNode *arena_argument = node->data.variable_declaration.value->data.call.arguments[0];
             if (is_stable_arena_expression(arena_argument)) {
-                register_mem_variable(codegen, source_name, arena_argument);
+                /* A local pointer records the arena's reset count so a later
+                 * mem.reset() on that arena is caught like mem.destroy(). */
+                bool records_epoch = codegen->indent > 0;
+                if (records_epoch) {
+                    emit_mem_epoch_record(codegen, source_name, arena_argument, true);
+                    emit_indent(codegen);
+                }
+                register_mem_variable(codegen, source_name, arena_argument, records_epoch);
             } else {
-                unregister_mem_variable(codegen, source_name);
+                unregister_mem_variable(codegen, source_name, false);
             }
         } else if (type_name && type_name[0] == '^' && is_mem_tracked_variable(codegen, source_name)) {
             /* Re-declared from a non-mem source; clear shadowed tracking. */
-            unregister_mem_variable(codegen, source_name);
+            unregister_mem_variable(codegen, source_name, false);
         }
     }
 
@@ -11548,7 +11594,7 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
                 node->data.assign.value->data.call.argument_count >= 1) {
                 AstNode *arena_argument = node->data.assign.value->data.call.arguments[0];
                 if (is_stable_arena_expression(arena_argument)) {
-                    register_mem_variable(codegen, declaration_name, arena_argument);
+                    register_mem_variable(codegen, declaration_name, arena_argument, false);
                 }
             }
         }
@@ -11597,12 +11643,17 @@ static void emit_assign_statement(CodeGen *codegen, AstNode *node) {
             node->data.assign.value->data.call.argument_count >= 1) {
             AstNode *arena_argument = node->data.assign.value->data.call.arguments[0];
             if (is_stable_arena_expression(arena_argument)) {
-                register_mem_variable(codegen, variable_name, arena_argument);
+                bool has_epoch = mem_variable_has_epoch(codegen, variable_name);
+                if (has_epoch) {
+                    emit_indent(codegen);
+                    emit_mem_epoch_record(codegen, variable_name, arena_argument, false);
+                }
+                register_mem_variable(codegen, variable_name, arena_argument, has_epoch);
                 is_mem_reinit = true;
             }
         }
         if (!is_mem_reinit && is_mem_tracked_variable(codegen, variable_name)) {
-            unregister_mem_variable(codegen, variable_name);
+            unregister_mem_variable(codegen, variable_name, true);
         }
     }
 
