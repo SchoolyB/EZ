@@ -2933,8 +2933,12 @@ typedef enum {
 
 static bool argument_kind_matches(ExpectedArgumentKind expected, GrayType *actual) {
     if (!actual || actual->kind == TYPE_KIND_UNKNOWN) return true; /* can't validate */
-    /* A distinct type is not its target: a primitive parameter takes only the plain type. */
-    if (actual->distinct && expected != EXPECTED_ARGUMENT_ANY) return false;
+    /* A distinct type is not its target: a primitive parameter takes only the plain type.
+     * A slot taken from another argument is checked against that argument's type instead. */
+    bool is_slot_of_other_argument = expected == EXPECTED_ARGUMENT_ELEMENT_OF_FIRST ||
+        expected == EXPECTED_ARGUMENT_SAME_AS_FIRST || expected == EXPECTED_ARGUMENT_KEY_OF_FIRST ||
+        expected == EXPECTED_ARGUMENT_VALUE_OF_FIRST;
+    if (actual->distinct && expected != EXPECTED_ARGUMENT_ANY && !is_slot_of_other_argument) return false;
     switch (expected) {
     case EXPECTED_ARGUMENT_STRING: return actual->kind == TYPE_KIND_STRING;
     case EXPECTED_ARGUMENT_I64:
