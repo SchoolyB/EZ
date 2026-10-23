@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 565 codes** (398 errors, 17 warnings, 150 panics)
+**Total: 569 codes** (398 errors, 17 warnings, 154 panics)
 
 ---
 
@@ -592,6 +592,10 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0165` | net | net: a host contains an embedded null byte |
 | `P0166` | net | net: a host is longer than the maximum hostname length |
 | `P0167` | strings | formatted result exceeds maximum string length |
+| `P0168` | sync | sync.%s on a mutex that was never created with sync.mutex() or was already destroyed |
+| `P0169` | channels | channels.%s on a channel that was never created with channels.open() |
+| `P0170` | threads | threads.%s on a thread handle that was never returned by threads.spawn() or was already joined or detached |
+| `P0171` | mem | mem.%s on an arena that was never created with mem.arena() or was already destroyed |
 
 ---
 
@@ -616,4 +620,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-23 23:35:54 UTC*
+*Generated on 2026-10-23 23:45:19 UTC*

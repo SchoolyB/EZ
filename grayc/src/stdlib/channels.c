@@ -24,6 +24,11 @@ typedef struct {
     bool closed;
 } GrayChannelInternal;
 
+static GrayChannelInternal *live_channel(GrayChannel handle, const char *function_name) {
+    if (!handle._internal) gray_panic_code("P0169", "channels.%s on a channel that was never created with channels.open()", function_name);
+    return (GrayChannelInternal *)handle._internal;
+}
+
 GrayChannel gray_channels_open(int64_t capacity) {
     if (capacity < 1) capacity = 1;
     if ((uint64_t)capacity > SIZE_MAX / sizeof(int64_t))
@@ -54,8 +59,7 @@ GrayChannel gray_channels_open(int64_t capacity) {
 }
 
 void gray_channels_send(GrayChannel handle, int64_t value) {
-    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
-    if (!channel || channel->closed) return;
+    GrayChannelInternal *channel = live_channel(handle, "send");
 
     pthread_mutex_lock(&channel->mutex);
     while (channel->count == channel->capacity && !channel->closed) {
@@ -73,8 +77,7 @@ void gray_channels_send(GrayChannel handle, int64_t value) {
 }
 
 int64_t gray_channels_receive(GrayChannel handle) {
-    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
-    if (!channel) return 0;
+    GrayChannelInternal *channel = live_channel(handle, "receive");
 
     pthread_mutex_lock(&channel->mutex);
     while (channel->count == 0 && !channel->closed) {
@@ -93,8 +96,7 @@ int64_t gray_channels_receive(GrayChannel handle) {
 }
 
 bool gray_channels_try_send(GrayChannel handle, int64_t value) {
-    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
-    if (!channel || channel->closed) return false;
+    GrayChannelInternal *channel = live_channel(handle, "try_send");
 
     pthread_mutex_lock(&channel->mutex);
     if (channel->count == channel->capacity || channel->closed) {
@@ -111,8 +113,7 @@ bool gray_channels_try_send(GrayChannel handle, int64_t value) {
 
 GrayChannelTryRecv gray_channels_try_receive(GrayChannel handle) {
     GrayChannelTryRecv result = {0, false};
-    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
-    if (!channel) return result;
+    GrayChannelInternal *channel = live_channel(handle, "try_receive");
 
     pthread_mutex_lock(&channel->mutex);
     if (channel->count == 0) {
@@ -129,8 +130,7 @@ GrayChannelTryRecv gray_channels_try_receive(GrayChannel handle) {
 }
 
 void gray_channels_close(GrayChannel handle) {
-    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
-    if (!channel) return;
+    GrayChannelInternal *channel = live_channel(handle, "close");
 
     pthread_mutex_lock(&channel->mutex);
     channel->closed = true;
@@ -140,8 +140,7 @@ void gray_channels_close(GrayChannel handle) {
 }
 
 int64_t gray_channels_len(GrayChannel handle) {
-    GrayChannelInternal *channel = (GrayChannelInternal *)handle._internal;
-    if (!channel) return 0;
+    GrayChannelInternal *channel = live_channel(handle, "len");
 
     pthread_mutex_lock(&channel->mutex);
     int64_t buffered = channel->count;

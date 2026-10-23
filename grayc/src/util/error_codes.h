@@ -592,7 +592,11 @@
     GRAY_PANIC("P0164", "functions",  "function reference signature mismatch: expected %s, got %s") \
     GRAY_PANIC("P0165", "net",        "net: a host contains an embedded null byte") \
     GRAY_PANIC("P0166", "net",        "net: a host is longer than the maximum hostname length") \
-    GRAY_PANIC("P0167", "strings",    "formatted result exceeds maximum string length")
+    GRAY_PANIC("P0167", "strings",    "formatted result exceeds maximum string length") \
+    GRAY_PANIC("P0168", "sync",       "sync.%s on a mutex that was never created with sync.mutex() or was already destroyed") \
+    GRAY_PANIC("P0169", "channels",   "channels.%s on a channel that was never created with channels.open()") \
+    GRAY_PANIC("P0170", "threads",    "threads.%s on a thread handle that was never returned by threads.spawn() or was already joined or detached") \
+    GRAY_PANIC("P0171", "mem",        "mem.%s on an arena that was never created with mem.arena() or was already destroyed")
 
 /* --- Warnings --- */
 #define GRAY_WARNINGS \

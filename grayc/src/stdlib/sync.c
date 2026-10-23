@@ -20,28 +20,28 @@ GrayMutex gray_sync_mutex(void) {
     return result;
 }
 
+/* A zero-value mutex gives no mutual exclusion, so using one is a bug the
+ * program must hear about rather than a silent no-op. */
+static pthread_mutex_t *live_mutex(GrayMutex mutex, const char *function_name) {
+    if (!mutex._internal) gray_panic_code("P0168", "sync.%s on a mutex that was never created with sync.mutex() or was already destroyed", function_name);
+    return (pthread_mutex_t *)mutex._internal;
+}
+
 void gray_sync_lock(GrayMutex mutex) {
-    if (mutex._internal) {
-        pthread_mutex_lock((pthread_mutex_t *)mutex._internal);
-    }
+    pthread_mutex_lock(live_mutex(mutex, "lock"));
 }
 
 void gray_sync_unlock(GrayMutex mutex) {
-    if (mutex._internal) {
-        pthread_mutex_unlock((pthread_mutex_t *)mutex._internal);
-    }
+    pthread_mutex_unlock(live_mutex(mutex, "unlock"));
 }
 
 bool gray_sync_try_lock(GrayMutex mutex) {
-    if (mutex._internal) {
-        return pthread_mutex_trylock((pthread_mutex_t *)mutex._internal) == 0;
-    }
-    return false;
+    return pthread_mutex_trylock(live_mutex(mutex, "try_lock")) == 0;
 }
 
-void gray_sync_destroy(GrayMutex mutex) {
-    if (mutex._internal) {
-        pthread_mutex_destroy((pthread_mutex_t *)mutex._internal);
-        free(mutex._internal);
-    }
+void gray_sync_destroy(GrayMutex *mutex) {
+    pthread_mutex_t *handle = live_mutex(*mutex, "destroy");
+    pthread_mutex_destroy(handle);
+    free(handle);
+    mutex->_internal = NULL;
 }

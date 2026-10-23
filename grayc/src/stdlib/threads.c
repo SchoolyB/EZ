@@ -117,16 +117,22 @@ GrayThread gray_threads_spawn_arg(void (*entry)(int64_t), int64_t argument) {
     return spawn_thread(thread_argument);
 }
 
-void gray_threads_join(GrayThread thread) {
-    if (!thread._internal) return;
-    GrayThreadInternal *state = (GrayThreadInternal *)thread._internal;
+static GrayThreadInternal *live_thread(GrayThread thread, const char *function_name) {
+    if (!thread._internal)
+        gray_panic_code("P0170", "threads.%s on a thread handle that was never returned by threads.spawn() or was already joined or detached", function_name);
+    return (GrayThreadInternal *)thread._internal;
+}
+
+void gray_threads_join(GrayThread *thread) {
+    GrayThreadInternal *state = live_thread(*thread, "join");
+    thread->_internal = NULL;
     pthread_join(state->posix_thread, NULL);
     free(state);
 }
 
-void gray_threads_detach(GrayThread thread) {
-    if (!thread._internal) return;
-    GrayThreadInternal *state = (GrayThreadInternal *)thread._internal;
+void gray_threads_detach(GrayThread *thread) {
+    GrayThreadInternal *state = live_thread(*thread, "detach");
+    thread->_internal = NULL;
     pthread_detach(state->posix_thread);
     /* Rendezvous with thread exit: both sides increment detached, and
      * whichever sees the old value as 1 is last to arrive and frees. */
@@ -134,8 +140,7 @@ void gray_threads_detach(GrayThread thread) {
 }
 
 bool gray_threads_is_alive(GrayThread thread) {
-    if (!thread._internal) return false;
-    GrayThreadInternal *state = (GrayThreadInternal *)thread._internal;
+    GrayThreadInternal *state = live_thread(thread, "is_alive");
     return __atomic_load_n(&state->alive, __ATOMIC_SEQ_CST) != 0;
 }
 

@@ -4487,6 +4487,8 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `yield` | `()` | Hint the scheduler to run another runnable thread |
 | `thread_count` | `() -> i64` | Number of live threads spawned through this module (excludes main and non-Grayscale threads) |
 
+A `Thread` that `spawn` did not return (a zero-value one), or one already passed to `join` or `detach`, is a runtime panic (P0170) in `join`, `detach`, and `is_alive`. `join` and `detach` clear the handle they are given.
+
 ### 9.22 Sync Module (`@sync`)
 
 Synchronization primitives for thread-safe access to shared data. Compiler-only feature; requires POSIX threads.
@@ -4498,6 +4500,8 @@ Synchronization primitives for thread-safe access to shared data. Compiler-only 
 | `unlock` | `(m Mutex)` | Release a mutex |
 | `try_lock` | `(m Mutex) -> bool` | Try to acquire a mutex (non-blocking); true if acquired, false if already locked |
 | `destroy` | `(m Mutex)` | Destroy a mutex |
+
+A `Mutex` that `mutex()` did not create (a zero-value one, such as a `Mutex` field of a struct made with `new()`), or one already destroyed, is a runtime panic (P0168) in every function above, rather than a lock that excludes nothing. `destroy` clears the handle it is given.
 
 ### 9.23 Channels Module (`@channels`)
 
@@ -4516,6 +4520,8 @@ A capacity below 1 opens a channel with capacity 1. A capacity whose buffer cann
 
 Channels are **i64-only**. Sending non-i64 types (`string`, `f64`, `bool`, etc.) is a compile-time error.
 
+A `Channel` that `open` did not create (a zero-value one) is a runtime panic (P0169) in every function above.
+
 ### 9.24 Memory Module (`@mem`)
 
 Arena-based memory allocation. Compiler-only feature.
@@ -4531,6 +4537,8 @@ Arena-based memory allocation. Compiler-only feature.
 | `raw_copy` | `(dest ptr, src ptr, n i64)` | Copy `n` bytes from `src` to `dest` |
 | `zero` | `(p ptr, n i64)` | Zero out `n` bytes at `p` |
 | `fill` | `(p ptr, value i64, n i64)` | Set `n` bytes at `p` to `value` |
+
+An `Arena` that `arena` did not create (a zero-value one), or one already destroyed, is a runtime panic (P0171) in `destroy`, `reset`, `usage`, `init`, and `alloc`. `destroy` clears the handle it is given.
 
 ### 9.25 Atomic Module (`@atomic`)
 

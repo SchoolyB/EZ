@@ -6884,11 +6884,29 @@ static const PassthroughCall mem_passthrough[] = {
     {NULL, 0, NULL},
 };
 
+/* Emits `&handle` for a runtime function that clears the caller's handle once
+ * it is destroyed, joined or detached, so a second call finds a zero-value
+ * handle. A handle that is not a variable (a call result) has nothing to
+ * clear, so a temporary stands in for it. */
+static void emit_cleared_handle_argument(CodeGen *codegen, AstNode *handle, const char *c_type) {
+    bool is_lvalue = handle->kind == NODE_LABEL || handle->kind == NODE_MEMBER_EXPRESSION ||
+                     handle->kind == NODE_INDEX_EXPRESSION || handle->kind == NODE_POSTFIX_EXPRESSION;
+    if (is_lvalue) {
+        emit(codegen, "&(");
+        emit_expression(codegen, handle);
+        emit(codegen, ")");
+        return;
+    }
+    emit_formatted(codegen, "&(%s){", c_type);
+    emit_expression(codegen, handle);
+    emit(codegen, "}");
+}
+
 static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_name) {
     if (emit_passthrough_call(codegen, node, function_name, mem_passthrough)) return true;
     if (strcmp(function_name, "destroy") == 0 && node->data.call.argument_count == 1) {
         emit(codegen, "gray_mem_destroy(");
-        emit_expression(codegen, node->data.call.arguments[0]);
+        emit_cleared_handle_argument(codegen, node->data.call.arguments[0], "GrayArena *");
         emit_formatted(codegen, ", \"%s\", %d)", codegen_file_literal(codegen), node->token.line);
         return true;
     }
@@ -6899,9 +6917,9 @@ static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_
         if (type_argument->kind == NODE_LABEL) {
             type_spelling = gray_type_to_c_codegen(codegen, type_argument->data.label.value);
         }
-        emit_formatted(codegen, "(%s *)gray_arena_alloc(", type_spelling);
+        emit_formatted(codegen, "(%s *)gray_arena_alloc(gray_mem_live(", type_spelling);
         emit_expression(codegen, arena_argument);
-        emit_formatted(codegen, ", sizeof(%s))", type_spelling);
+        emit_formatted(codegen, ", \"init\"), sizeof(%s))", type_spelling);
         return true;
     }
     if (strcmp(function_name, "alloc") == 0 && node->data.call.argument_count == 2) {
@@ -6933,9 +6951,9 @@ static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_
             }
             alloc_value_needs_deep_copy = copied_name && type_needs_deep_copy(codegen, copied_name);
         }
-        emit_formatted(codegen, "({ GrayArena *_aa%d = ", unique_id);
+        emit_formatted(codegen, "({ GrayArena *_aa%d = gray_mem_live(", unique_id);
         emit_expression(codegen, arena_argument);
-        emit_formatted(codegen, "; %s _av%d = ", c_value_type, unique_id);
+        emit_formatted(codegen, ", \"alloc\"); %s _av%d = ", c_value_type, unique_id);
         if (value_type && value_type->kind == TYPE_KIND_STRING) {
             emit_formatted(codegen, "({ GrayString _s%d = ", unique_id);
             emit_expression(codegen, value_argument);
@@ -9050,13 +9068,13 @@ static bool emit_threads_call(CodeGen *codegen, AstNode *node, const char *funct
     }
     if (strcmp(function_name, "join") == 0) {
         emit(codegen, "gray_threads_join(");
-        emit_expression(codegen, node->data.call.arguments[0]);
+        emit_cleared_handle_argument(codegen, node->data.call.arguments[0], "GrayThread");
         emit(codegen, ")");
         return true;
     }
     if (strcmp(function_name, "detach") == 0) {
         emit(codegen, "gray_threads_detach(");
-        emit_expression(codegen, node->data.call.arguments[0]);
+        emit_cleared_handle_argument(codegen, node->data.call.arguments[0], "GrayThread");
         emit(codegen, ")");
         return true;
     }
@@ -9162,7 +9180,7 @@ static bool emit_sync_call(CodeGen *codegen, AstNode *node, const char *function
     }
     if (strcmp(function_name, "destroy") == 0) {
         emit(codegen, "gray_sync_destroy(");
-        emit_expression(codegen, node->data.call.arguments[0]);
+        emit_cleared_handle_argument(codegen, node->data.call.arguments[0], "GrayMutex");
         emit(codegen, ")");
         return true;
     }
