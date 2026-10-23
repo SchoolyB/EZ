@@ -5410,6 +5410,20 @@ static void test_threads_many_threads_all_run(void) {
     ASSERT_EQ(gray_atomic_load(&thread_test_flag), 1);
 }
 
+/* ===== math: logarithms ===== */
+
+static void test_math_log2_of_powers_of_two(void) {
+    ASSERT_FLOAT_EQ(gray_math_log2(1.0), 0.0);
+    ASSERT_FLOAT_EQ(gray_math_log2(8.0), 3.0);
+    ASSERT_FLOAT_EQ(gray_math_log2(0.5), -1.0);
+}
+
+static void test_math_log10_of_powers_of_ten(void) {
+    ASSERT_FLOAT_EQ(gray_math_log10(1.0), 0.0);
+    ASSERT_FLOAT_EQ(gray_math_log10(1000.0), 3.0);
+    ASSERT_FLOAT_EQ(gray_math_log10(0.01), -2.0);
+}
+
 int main(void) {
     arena = gray_arena_create(GRAY_DEFAULT_ARENA_SIZE);
     gray_default_arena = arena;
@@ -6152,6 +6166,10 @@ int main(void) {
     RUN_TEST(test_threads_yield_returns);
     RUN_TEST(test_threads_a_zeroed_handle_is_ignored);
     RUN_TEST(test_threads_many_threads_all_run);
+
+    printf("--- math (logarithms) ---\n");
+    RUN_TEST(test_math_log2_of_powers_of_two);
+    RUN_TEST(test_math_log10_of_powers_of_ten);
 
     PRINT_RESULTS();
     gray_arena_destroy(arena, __FILE__, __LINE__);

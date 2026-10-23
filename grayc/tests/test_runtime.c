@@ -915,6 +915,11 @@ static void test_elem_to_i64_and_to_u64(void) {
 
 /* ===== gray test runner protocol ===== */
 
+#ifdef _WIN32
+#define setenv(name, value, overwrite) _putenv_s((name), (value))
+#define unsetenv(name) _putenv_s((name), "")
+#endif
+
 static char runner_output[4096];
 
 static const char *capture_runner_output(void (*emit)(void)) {

@@ -14,10 +14,14 @@
 #include "../src/typechecker/types.h"
 #include "../src/fmt/fmt.h"
 #include "../src/util/error.h"
+#include "../src/util/xalloc.h"
 #include "../src/util/platform.h"
 #include <sys/stat.h>
 #include <stdint.h>
 #include <unistd.h>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 #include <stdio.h>
 
 /* ===== Arena Tests ===== */
@@ -1143,6 +1147,121 @@ static void test_platform_spawn_capture_stderr_keeps_only_stderr(void) {
 }
 #endif
 
+/* ===== xalloc ===== */
+
+static void test_xmalloc_returns_writable_memory(void) {
+    char *block = xmalloc(64);
+    ASSERT_NOT_NULL(block);
+    memset(block, 'x', 64);
+    ASSERT_EQ(block[63], 'x');
+    free(block);
+}
+
+static void test_xcalloc_returns_zeroed_memory(void) {
+    int64_t *values = xcalloc(16, sizeof(int64_t));
+    ASSERT_NOT_NULL(values);
+    for (int i = 0; i < 16; i++) ASSERT_EQ(values[i], 0);
+    free(values);
+}
+
+static void test_xrealloc_grows_and_keeps_contents(void) {
+    char *block = xmalloc(4);
+    memcpy(block, "abc", 4);
+    block = xrealloc(block, 4096);
+    ASSERT_NOT_NULL(block);
+    ASSERT_STR_EQ(block, "abc");
+    free(block);
+}
+
+static void test_xrealloc_from_null_allocates(void) {
+    void *block = xrealloc(NULL, 32);
+    ASSERT_NOT_NULL(block);
+    free(block);
+}
+
+static void test_read_file_to_string_returns_the_whole_file(void) {
+    char path[] = "/tmp/grayc_xalloc_testXXXXXX";
+    int descriptor = mkstemp(path);
+    ASSERT_NE(descriptor, -1);
+    const char *contents = "line one\nline two\n";
+    ASSERT_EQ((long long)write(descriptor, contents, strlen(contents)), (long long)strlen(contents));
+    close(descriptor);
+    char *read_back = read_file_to_string(path);
+    remove(path);
+    ASSERT_NOT_NULL(read_back);
+    ASSERT_STR_EQ(read_back, contents);
+    free(read_back);
+}
+
+static void test_read_file_to_string_empty_file(void) {
+    char path[] = "/tmp/grayc_xalloc_emptyXXXXXX";
+    int descriptor = mkstemp(path);
+    ASSERT_NE(descriptor, -1);
+    close(descriptor);
+    char *read_back = read_file_to_string(path);
+    remove(path);
+    ASSERT_NOT_NULL(read_back);
+    ASSERT_EQ(strlen(read_back), 0);
+    free(read_back);
+}
+
+static void test_read_file_to_string_missing_file_is_null(void) {
+    ASSERT(read_file_to_string("/no/such/grayc/file") == NULL);
+}
+
+/* ===== xalloc: allocation failure ===== */
+
+#ifndef _WIN32
+static int exit_status_of_child(void (*body)(void), char *stderr_text, size_t stderr_size) {
+    int pipe_descriptors[2];
+    if (pipe(pipe_descriptors) != 0) return -1;
+    fflush(stdout);
+    fflush(stderr);
+    pid_t child = fork();
+    if (child == 0) {
+        close(pipe_descriptors[0]);
+        dup2(pipe_descriptors[1], fileno(stderr));
+        close(pipe_descriptors[1]);
+        body();
+        _exit(0);
+    }
+    close(pipe_descriptors[1]);
+    size_t length = 0;
+    ssize_t received;
+    while (length + 1 < stderr_size && (received = read(pipe_descriptors[0], stderr_text + length, stderr_size - 1 - length)) > 0)
+        length += (size_t)received;
+    stderr_text[length] = '\0';
+    close(pipe_descriptors[0]);
+    int status = 0;
+    waitpid(child, &status, 0);
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+}
+
+static void *volatile kept_allocation;
+
+static void allocate_too_much_with_xmalloc(void) { kept_allocation = xmalloc((size_t)-1); }
+static void allocate_too_much_with_xcalloc(void) { kept_allocation = xcalloc((size_t)-1 / 2, 4); }
+static void allocate_too_much_with_xrealloc(void) { kept_allocation = xrealloc(NULL, (size_t)-1); }
+
+static void test_xmalloc_failure_reports_out_of_memory_and_exits(void) {
+    char message[128];
+    ASSERT_EQ(exit_status_of_child(allocate_too_much_with_xmalloc, message, sizeof(message)), 1);
+    ASSERT(strstr(message, "grayc: out of memory") != NULL);
+}
+
+static void test_xcalloc_failure_reports_out_of_memory_and_exits(void) {
+    char message[128];
+    ASSERT_EQ(exit_status_of_child(allocate_too_much_with_xcalloc, message, sizeof(message)), 1);
+    ASSERT(strstr(message, "grayc: out of memory") != NULL);
+}
+
+static void test_xrealloc_failure_reports_out_of_memory_and_exits(void) {
+    char message[128];
+    ASSERT_EQ(exit_status_of_child(allocate_too_much_with_xrealloc, message, sizeof(message)), 1);
+    ASSERT(strstr(message, "grayc: out of memory") != NULL);
+}
+#endif
+
 int main(void) {
     printf("\n");
 
@@ -1255,6 +1374,22 @@ int main(void) {
     RUN_TEST(test_platform_spawn_quiet_discards_output);
     RUN_TEST(test_platform_spawn_capture_stdout_keeps_only_stdout);
     RUN_TEST(test_platform_spawn_capture_stderr_keeps_only_stderr);
+
+    printf("--- xalloc ---\n");
+    RUN_TEST(test_xmalloc_returns_writable_memory);
+    RUN_TEST(test_xcalloc_returns_zeroed_memory);
+    RUN_TEST(test_xrealloc_grows_and_keeps_contents);
+    RUN_TEST(test_xrealloc_from_null_allocates);
+    RUN_TEST(test_read_file_to_string_returns_the_whole_file);
+    RUN_TEST(test_read_file_to_string_empty_file);
+    RUN_TEST(test_read_file_to_string_missing_file_is_null);
+
+    printf("--- xalloc failure ---\n");
+#ifndef _WIN32
+    RUN_TEST(test_xmalloc_failure_reports_out_of_memory_and_exits);
+    RUN_TEST(test_xcalloc_failure_reports_out_of_memory_and_exits);
+    RUN_TEST(test_xrealloc_failure_reports_out_of_memory_and_exits);
+#endif
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
