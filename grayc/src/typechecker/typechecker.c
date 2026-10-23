@@ -16948,6 +16948,18 @@ static void check_function_declaration(TypeChecker *checker, AstNode *node) {
             }
             generic_bindings_clear(&declared_later);
         }
+        /* E3038: void cannot be used as a parameter type, bare or inside an
+         * array/map type. It is legal as a typed-func return type. */
+        if (parameter->type_name) {
+            const char *type_name_text = parameter->type_name;
+            bool is_typed_function = strncmp(type_name_text, "func(", 5) == 0 ||
+                                 strncmp(type_name_text, "[func(", 6) == 0;
+            if (strcmp(type_name_text, "void") == 0) {
+                NODE_ERROR_FORMATTED(checker, node, "E3038", "a parameter type");
+            } else if (!is_typed_function && strstr(type_name_text, "void") != NULL) {
+                NODE_ERROR_FORMATTED(checker, node, "E3038", "an element type in arrays or maps");
+            }
+        }
         /* W2008: parameter shadows an enum variant name */
         for (int enum_index = 0; enum_index < checker->enum_count; enum_index++) {
             bool found_variant = false;
