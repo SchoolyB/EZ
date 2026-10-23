@@ -457,7 +457,28 @@ static const char *parse_bracketed_type(Parser *parser) {
     return built_type_name;
 }
 
+static const char *parse_complex_type_unbounded(Parser *parser);
+
+/* `[T]` and `^T` count their own nesting; `map[K:V]` and `func(...)` nest
+ * through here. */
 static const char *parse_complex_type(Parser *parser) {
+    bool nests_through_wrapper = current_token_is(parser, TOKEN_IDENTIFIER) &&
+        ((strcmp(parser->current_token.literal, "map") == 0 && peek_token_is(parser, TOKEN_LEFT_BRACKET)) ||
+         strcmp(parser->current_token.literal, "func") == 0);
+    if (!nests_through_wrapper) return parse_complex_type_unbounded(parser);
+    if (++parser->type_nesting > 64) {
+        diagnostic_error_message(parser->diagnostics, "E2001",
+            arena_copy_string(parser->arena,"type nesting is too deep; maximum depth is 64"),
+            parser->file, parser->current_token.line, parser->current_token.column, 0);
+        parser->type_nesting--;
+        return NULL;
+    }
+    const char *parsed_type = parse_complex_type_unbounded(parser);
+    parser->type_nesting--;
+    return parsed_type;
+}
+
+static const char *parse_complex_type_unbounded(Parser *parser) {
     if (current_token_is(parser, TOKEN_GENERIC)) return reject_generic_type(parser);
     if (current_token_is(parser, TOKEN_LEFT_BRACKET)) {
         /* Array type [T] or fixed-size [T, N] for any element type T, or the
