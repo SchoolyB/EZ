@@ -343,7 +343,8 @@
     GRAY_ERROR("E4037", "names", "'%s.%s()' expects a type name as argument %d") \
     GRAY_ERROR("E4038", "names", "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values") \
     GRAY_ERROR("E4039", "names", "generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list") \
-    GRAY_ERROR("E4040", "names", "-define: names '%s', but the program declares no such constant")
+    GRAY_ERROR("E4040", "names", "-define: names '%s', but the program declares no such constant") \
+    GRAY_ERROR("E4041", "names", "'%s' is not a known statement; did you mean '%s'?")
 
 /* --- E5xxx: Usage Problems --- */
 #define GRAY_USAGE_ERRORS \

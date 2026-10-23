@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 561 codes** (395 errors, 17 warnings, 149 panics)
+**Total: 562 codes** (396 errors, 17 warnings, 149 panics)
 
 ---
 
@@ -325,6 +325,7 @@
 | `E4038` | names | cannot take a function reference to '%s.%s'; stdlib functions are not first-class values |
 | `E4039` | names | generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list |
 | `E4040` | names | -define: names '%s', but the program declares no such constant |
+| `E4041` | names | '%s' is not a known statement; did you mean '%s'? |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | '%s()' expects %s argument(s), got %d |
 | `E5009` | arguments | invalid base %lld for 'strconv.%s'; base must be between 2 and 36 |
@@ -612,4 +613,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-22 22:51:45 UTC*
+*Generated on 2026-10-22 23:14:18 UTC*

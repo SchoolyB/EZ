@@ -3956,6 +3956,25 @@ static const char *suggest_similar_name(TypeChecker *checker, const char *name) 
     return best;
 }
 
+/* The statement keyword or builtin call a misspelled statement name was
+ * probably meant to be, or NULL. */
+static const char *suggest_statement_name(const char *name) {
+    static const char *const statement_names[] = {
+        "return", "break", "continue", "defer", "ensure",
+        "print", "println", "eprint", "eprintln", "panic", "assert",
+    };
+    const char *best = NULL;
+    int best_distance = 3;
+    for (size_t i = 0; i < sizeof(statement_names) / sizeof(statement_names[0]); i++) {
+        int distance = levenshtein(name, statement_names[i]);
+        if (distance > 0 && distance < best_distance) {
+            best_distance = distance;
+            best = statement_names[i];
+        }
+    }
+    return best;
+}
+
 /* --- Builtin name check --- */
 
 /* True when the file being checked imports `name`. */
@@ -14889,6 +14908,20 @@ static void check_const_integer_value(TypeChecker *checker, AstNode *node) {
 }
 
 static void check_variable_declaration(TypeChecker *checker, AstNode *node) {
+    /* E4041: `retrun x` parses as a declaration of 'retrun' with type 'x';
+     * the misspelled statement is the mistake, not the operand. */
+    if (!node->data.variable_declaration.value && node->data.variable_declaration.type_name) {
+        char leaf[MESSAGE_BUFFER_SIZE];
+        const char *undefined = undefined_type_leaf(checker,
+            node->data.variable_declaration.type_name, leaf, sizeof(leaf));
+        const char *statement_name = undefined &&
+            strcmp(undefined, node->data.variable_declaration.type_name) == 0
+            ? suggest_statement_name(node->data.variable_declaration.name) : NULL;
+        if (statement_name) {
+            NODE_ERROR_FORMATTED(checker, node, "E4041", node->data.variable_declaration.name, statement_name);
+            return;
+        }
+    }
     check_variable_declaration_annotation(checker, node);
 
     GrayType *declared = node->data.variable_declaration.type_name
