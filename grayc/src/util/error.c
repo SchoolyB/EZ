@@ -234,6 +234,47 @@ int diagnostic_warning_count(DiagnosticList *diagnostics) {
 
 /* --- Rendering --- */
 
+/* Source text reaches the terminal in diagnostics: the quoted line, and names
+ * and values copied into messages. A control byte in it (ESC, BEL, CR, a C1
+ * control encoded as UTF-8) would be run by the terminal rather than shown, so
+ * each is printed as a visible escape. A tab, and a newline when
+ * `allow_newline`, pass through. Returns how many columns the text takes. */
+static int write_visible(const char *text, int length, bool allow_newline) {
+    int columns = 0;
+    for (int index = 0; index < length; index++) {
+        unsigned char byte = (unsigned char)text[index];
+        bool is_c1 = byte == 0xC2 && index + 1 < length && ((unsigned char)text[index + 1] & 0xE0) == 0x80;
+        if (is_c1) {
+            columns += fprintf(stderr, "\\u{%02x}", (unsigned char)text[index + 1]);
+            index++;
+        } else if (byte == '\t' || (byte == '\n' && allow_newline)) {
+            fputc(byte, stderr);
+            columns++;
+        } else if (byte < 0x20 || byte == 0x7F) {
+            columns += fprintf(stderr, "\\x%02x", byte);
+        } else {
+            fputc(byte, stderr);
+            columns++;
+        }
+    }
+    return columns;
+}
+
+/* The columns write_visible() takes for the first `length` bytes of `text`,
+ * counting each byte of a multi-byte character as one, as the underline's
+ * padding always has. */
+static int visible_width(const char *text, int length) {
+    int columns = 0;
+    for (int index = 0; index < length; index++) {
+        unsigned char byte = (unsigned char)text[index];
+        bool is_c1 = byte == 0xC2 && index + 1 < length && ((unsigned char)text[index + 1] & 0xE0) == 0x80;
+        if (is_c1) { columns += 6; index++; }
+        else if (byte != '\t' && (byte < 0x20 || byte == 0x7F)) columns += 4;
+        else columns++;
+    }
+    return columns;
+}
+
 static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *diagnostic_entry) {
     const char *severity_label;
     const char *severity_color;
@@ -255,13 +296,15 @@ static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *diagnostic
     if (diagnostic_entry->code) {
         fprintf(stderr, "%s%s[%s]%s", color_code(diagnostics, COLOR_BOLD), color_code(diagnostics, severity_color), diagnostic_entry->code, color_code(diagnostics, COLOR_RESET));
     }
-    fprintf(stderr, "%s: %s%s\n", color_code(diagnostics, COLOR_BOLD), diagnostic_entry->message, color_code(diagnostics, COLOR_RESET));
+    fprintf(stderr, "%s: %s", color_code(diagnostics, COLOR_BOLD), "");
+    write_visible(diagnostic_entry->message, (int)strlen(diagnostic_entry->message), true);
+    fprintf(stderr, "%s\n", color_code(diagnostics, COLOR_RESET));
 
     /* Line 2: --> file:line:column */
     if (diagnostic_entry->file && diagnostic_entry->line > 0) {
-        fprintf(stderr, "  %s-->%s %s:%d:%d\n",
-            color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET),
-            diagnostic_entry->file, diagnostic_entry->line, diagnostic_entry->column);
+        fprintf(stderr, "  %s-->%s ", color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET));
+        write_visible(diagnostic_entry->file, (int)strlen(diagnostic_entry->file), false);
+        fprintf(stderr, ":%d:%d\n", diagnostic_entry->line, diagnostic_entry->column);
     }
 
     /* Lines 3-4: source context with underline */
@@ -332,15 +375,19 @@ static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *diagnostic
 
         /* Line number gutter */
         fprintf(stderr, "   %s|%s\n", color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET));
-        fprintf(stderr, "%s%3d%s %s|%s %s%.*s%s\n",
+        fprintf(stderr, "%s%3d%s %s|%s %s",
             color_code(diagnostics, COLOR_BLUE), diagnostic_entry->line, color_code(diagnostics, COLOR_RESET),
             color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET),
-            is_cut_left ? DIAGNOSTIC_ELISION_MARKER : "",
-            window_end - window_start, source_line_text + window_start,
-            is_cut_right ? DIAGNOSTIC_ELISION_MARKER : "");
+            is_cut_left ? DIAGNOSTIC_ELISION_MARKER : "");
+        write_visible(source_line_text + window_start, window_end - window_start, false);
+        fprintf(stderr, "%s\n", is_cut_right ? DIAGNOSTIC_ELISION_MARKER : "");
 
         /* Underline, aligned to the (possibly cut) text above and clipped to it */
-        int padding = start - 1 - window_start + (is_cut_left ? DIAGNOSTIC_ELISION_COLUMNS : 0);
+        int before_error = start - 1 - window_start;
+        if (before_error < 0) before_error = 0;
+        if (before_error > window_end - window_start) before_error = window_end - window_start;
+        int padding = (start - 1 - window_start) - before_error + visible_width(source_line_text + window_start, before_error) +
+                      (is_cut_left ? DIAGNOSTIC_ELISION_COLUMNS : 0);
         int maximum_padding = DIAGNOSTIC_SOURCE_WINDOW_COLUMNS + DIAGNOSTIC_ELISION_COLUMNS;
         if (padding < 0) padding = 0;
         if (padding > maximum_padding) padding = maximum_padding;
@@ -362,10 +409,11 @@ static void print_diagnostic(DiagnosticList *diagnostics, Diagnostic *diagnostic
     /* Help text */
     if (diagnostic_entry->help) {
         fprintf(stderr, "   %s|%s\n", color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET));
-        fprintf(stderr, "   %s=%s %shelp%s: %s\n",
+        fprintf(stderr, "   %s=%s %shelp%s: ",
             color_code(diagnostics, COLOR_BLUE), color_code(diagnostics, COLOR_RESET),
-            color_code(diagnostics, COLOR_CYAN), color_code(diagnostics, COLOR_RESET),
-            diagnostic_entry->help);
+            color_code(diagnostics, COLOR_CYAN), color_code(diagnostics, COLOR_RESET));
+        write_visible(diagnostic_entry->help, (int)strlen(diagnostic_entry->help), true);
+        fputc('\n', stderr);
     }
 
     fprintf(stderr, "\n");
