@@ -538,7 +538,7 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 | `P0109` | threads | threads.spawn: out of memory allocating thread state |
 | `P0110` | strconv | strconv.format_i64: invalid base %lld; must be between 2 and 36 |
 | `P0111` | strconv | strconv.format_u64: invalid base %lld; must be between 2 and 36 |
-| `P0113` | bounds | binary.%s: byte array too short to decode; need %d bytes but have %d |
+| `P0113` | bounds | binary.%s: byte array has the wrong length to decode; need %d bytes but have %d |
 | `P0115` | runtime | read of '%s' on a nil Error; check the error is non-nil before reading its fields |
 | `P0116` | strings | string builder size exceeds maximum string length |
 | `P0117` | memory | dereferenced a pointer into an arena that has been destroyed or reset |
@@ -614,4 +614,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-23 21:13:53 UTC*
+*Generated on 2026-10-23 21:55:22 UTC*

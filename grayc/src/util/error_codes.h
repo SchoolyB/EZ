@@ -539,7 +539,7 @@
     GRAY_PANIC("P0109", "threads",    "threads.spawn: out of memory allocating thread state") \
     GRAY_PANIC("P0110", "strconv",    "strconv.format_i64: invalid base %lld; must be between 2 and 36") \
     GRAY_PANIC("P0111", "strconv",    "strconv.format_u64: invalid base %lld; must be between 2 and 36") \
-    GRAY_PANIC("P0113", "bounds",     "binary.%s: byte array too short to decode; need %d bytes but have %d") \
+    GRAY_PANIC("P0113", "bounds",     "binary.%s: byte array has the wrong length to decode; need %d bytes but have %d") \
     GRAY_PANIC("P0115", "runtime",    "read of '%s' on a nil Error; check the error is non-nil before reading its fields") \
     GRAY_PANIC("P0116", "strings",    "string builder size exceeds maximum string length") \
     GRAY_PANIC("P0117", "memory",     "dereferenced a pointer into an arena that has been destroyed or reset") \
