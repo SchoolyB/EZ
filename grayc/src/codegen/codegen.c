@@ -6920,6 +6920,15 @@ static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_
                  (value_type && value_type->kind != TYPE_KIND_UNKNOWN && type_name(value_type))
                      ? gray_type_to_c_codegen(codegen, type_name(value_type))
                      : (value_argument->kind == NODE_ARRAY_VALUE ? "GrayArray" : "__auto_type"));
+        bool alloc_value_needs_deep_copy = false;
+        if (value_type && value_type->kind != TYPE_KIND_UNKNOWN && value_type->kind != TYPE_KIND_STRING &&
+            type_name(value_type)) {
+            const char *copied_name = type_name(value_type);
+            if (value_argument->kind == NODE_ARRAY_VALUE) {
+                copied_name = value_type->element_type;
+            }
+            alloc_value_needs_deep_copy = copied_name && type_needs_deep_copy(codegen, copied_name);
+        }
         emit_formatted(codegen, "({ GrayArena *_aa%d = ", unique_id);
         emit_expression(codegen, arena_argument);
         emit_formatted(codegen, "; %s _av%d = ", c_value_type, unique_id);
@@ -6928,6 +6937,18 @@ static bool emit_mem_call(CodeGen *codegen, AstNode *node, const char *function_
             emit_expression(codegen, value_argument);
             emit_formatted(codegen, "; gray_string_new(_aa%d, _s%d.data, _s%d.len); })",
                            unique_id, unique_id, unique_id);
+        } else if (alloc_value_needs_deep_copy) {
+            /* The value's strings, arrays and maps point into the scope that
+             * built it. Evaluate it there, then copy every level into the
+             * target arena by pointing the default arena at it. */
+            emit_formatted(codegen, "({ %s _src%d = ", c_value_type, unique_id);
+            emit_expression(codegen, value_argument);
+            emit_formatted(codegen, "; GrayArena *_cs%d = gray_default_arena; gray_default_arena = _aa%d; "
+                           "%s _cd%d = ", unique_id, unique_id, c_value_type, unique_id);
+            char source_name[SHORT_VARIABLE_BUFFER_SIZE];
+            snprintf(source_name, sizeof(source_name), "_src%d", unique_id);
+            emit_value_deep_copy(codegen, type_name(value_type), source_name);
+            emit_formatted(codegen, "; gray_default_arena = _cs%d; _cd%d; })", unique_id, unique_id);
         } else if (value_argument->kind == NODE_ARRAY_VALUE) {
             int count = value_argument->data.array_value.count;
             GrayType *element_type = (count > 0 && codegen->type_table)
