@@ -6080,6 +6080,7 @@ static GrayType *check_array_literal_as(TypeChecker *checker, AstNode *node, Gra
         GrayType *entry_type = check_expression_as(checker, element, element_type);
         check_fixed_array_element_size(checker, target->element_type, element);
         reject_multi_return_in_single_position(checker, element);
+        reject_void_in_context(checker, element, entry_type, "array element");
         mark_immutable_literal_source(checker, element);
         if (literal_entry_mismatches(checker, element_type, entry_type)) {
             NODE_ERROR_FORMATTED(checker, element, "E3053",
@@ -12589,6 +12590,7 @@ static GrayType *resolve_expression_inner(TypeChecker *checker, AstNode *node) {
                 AstNode *element = node->data.array_value.elements[i];
                 GrayType *type = resolve_untyped(checker, element);
                 reject_multi_return_in_single_position(checker, element);
+                reject_void_in_context(checker, element, type, "array element");
                 if (type->kind == TYPE_KIND_LITERAL) {
                     any_decimal = any_decimal || type->is_decimal;
                 } else if (!element_type) {
