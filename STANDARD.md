@@ -3284,6 +3284,8 @@ do main() {
 
 The pointer addresses a NUL-terminated copy that lives for the rest of the program, so it stays valid after the string, loop iteration, or function that created it is gone; writing through it does not change the string.
 
+**Pointer arguments:** an argument for a C pointer parameter is checked against what the parameter points at (E5054). A `string` fits a `char *` or a `const void *`; a `^T` fits a pointer to the same kind of value (integer, floating-point, pointer, or struct). `nil`, `^void`, and `^u8` — the way an opaque handle such as a `FILE *` is held — fit any pointer. A number is never a pointer.
+
 **Callbacks:** a Grayscale function can be passed to a C function as a callback with a func-ref (`()cmp`). Its parameters and return type must have a C layout: numbers, `bool`, `char`, `u8`, and pointers (`^T` is `T*`, so `^void` or `^i64` fits a `void *` parameter). A `string`, array, map, or struct parameter or return type is rejected.
 
 **Return types:** a C function's return type is known only to the C compiler. Grayscale gives the result of an `extern.` call — and the value of an `extern.` constant or macro — no type of its own, so it may only be used where the type is supplied or where the raw C value is handled directly:

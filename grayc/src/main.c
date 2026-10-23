@@ -906,7 +906,37 @@ typedef struct {
     int parameter_count;                        /* entries of parameter_* filled in */
     CReturnClass parameter_class[C_SIGNATURE_PARAMETERS];
     char parameter_text[C_SIGNATURE_PARAMETERS][64];
+    /* For a pointer parameter: what it points at. C_RETURN_UNKNOWN when the
+     * pointee is a spelling this does not recognise or the parameter is not
+     * a plain data pointer (a function pointer, a typedef'd pointer). */
+    CReturnClass pointee_class[C_SIGNATURE_PARAMETERS];
+    bool pointee_is_byte[C_SIGNATURE_PARAMETERS];     /* char, signed char, unsigned char */
+    bool pointee_is_const[C_SIGNATURE_PARAMETERS];
 } CFunctionSignature;
+
+/* Removes the words clang and gcc add to a parameter or return type that say
+ * nothing about its kind (_Nonnull, restrict, ...), so the rest classifies
+ * and prints as the header author wrote it. */
+static void strip_c_qualifier_noise(char *text) {
+    static const char *const noise[] = {"_Nonnull", "_Nullable", "_Null_unspecified", "__restrict", "restrict", "__restrict__"};
+    char result[128];
+    size_t result_length = 0;
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%s", text);
+    for (char *save = NULL, *word = strtok_r(buffer, " ", &save); word; word = strtok_r(NULL, " ", &save)) {
+        bool is_noise = false;
+        for (size_t i = 0; i < sizeof(noise) / sizeof(noise[0]); i++)
+            if (strcmp(word, noise[i]) == 0) is_noise = true;
+        if (is_noise) continue;
+        size_t word_length = strlen(word);
+        if (result_length + word_length + 2 > sizeof(result)) break;
+        if (result_length) result[result_length++] = ' ';
+        memcpy(result + result_length, word, word_length);
+        result_length += word_length;
+    }
+    result[result_length] = '\0';
+    strcpy(text, result);
+}
 
 /* Classifies a C return type spelled the way clang's AST dump prints it
  * ("unsigned long", "void *", "enum E", "struct tm"). */
@@ -936,7 +966,7 @@ static CReturnClass classify_c_return(const char *spelling) {
  * which spells the type as written ('struct div_t') and, when that differs, the
  * fully resolved type after a colon ('__darwin_size_t':'unsigned long'). The
  * written spelling is tried first, then the resolved one. */
-static CReturnClass classify_c_typedef(const char *dump, const char *name) {
+static CReturnClass classify_c_typedef_text(const char *dump, const char *name, char *classified_text, size_t classified_size) {
     size_t name_length = strlen(name);
     for (const char *cursor = dump; (cursor = strstr(cursor, name)) != NULL; cursor += name_length) {
         if (cursor == dump || cursor[-1] != ' ' || cursor[name_length] != ' ' || cursor[name_length + 1] != '\'') continue;
@@ -954,7 +984,10 @@ static CReturnClass classify_c_typedef(const char *dump, const char *name) {
             memcpy(text, spelling, text_length);
             text[text_length] = '\0';
             CReturnClass return_class = classify_c_return(text);
-            if (return_class != C_RETURN_UNKNOWN) return return_class;
+            if (return_class != C_RETURN_UNKNOWN) {
+                if (classified_text) snprintf(classified_text, classified_size, "%s", text);
+                return return_class;
+            }
             if (pass == 1 || spelling_end[1] != ':' || spelling_end[2] != '\'') break;
             spelling = spelling_end + 3;
             spelling_end = strchr(spelling, '\'');
@@ -963,6 +996,46 @@ static CReturnClass classify_c_typedef(const char *dump, const char *name) {
         return C_RETURN_UNKNOWN;
     }
     return C_RETURN_UNKNOWN;
+}
+
+static CReturnClass classify_c_typedef(const char *dump, const char *name) {
+    return classify_c_typedef_text(dump, name, NULL, 0);
+}
+
+/* What a plain data-pointer parameter such as "FILE *", "const char *" or
+ * "char **" points at. The words after the last '*' are qualifiers of the
+ * pointer itself. */
+static void classify_c_pointee(const char *dump, const char *parameter_text, CReturnClass *pointee_class,
+                               bool *is_byte, bool *is_const) {
+    *pointee_class = C_RETURN_UNKNOWN;
+    *is_byte = false;
+    *is_const = false;
+    const char *last_star = strrchr(parameter_text, '*');
+    if (!last_star || strchr(parameter_text, '(') || strchr(parameter_text, '[')) return;
+    char pointee[128];
+    size_t pointee_length = (size_t)(last_star - parameter_text);
+    if (pointee_length >= sizeof(pointee)) return;
+    memcpy(pointee, parameter_text, pointee_length);
+    pointee[pointee_length] = '\0';
+    if (strchr(pointee, '*')) { *pointee_class = C_RETURN_POINTER; return; }
+
+    char name[128];
+    name[0] = '\0';
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%s", pointee);
+    for (char *save = NULL, *word = strtok_r(buffer, " ", &save); word; word = strtok_r(NULL, " ", &save)) {
+        if (strcmp(word, "const") == 0) { *is_const = true; continue; }
+        if (strcmp(word, "volatile") == 0) continue;
+        size_t used = strlen(name);
+        snprintf(name + used, sizeof(name) - used, "%s%s", used ? " " : "", word);
+    }
+    CReturnClass pointee_kind = classify_c_return(name);
+    char resolved[128];
+    snprintf(resolved, sizeof(resolved), "%s", name);
+    if (pointee_kind == C_RETURN_UNKNOWN && name[0])
+        pointee_kind = classify_c_typedef_text(dump, name, resolved, sizeof(resolved));
+    *pointee_class = pointee_kind;
+    *is_byte = pointee_kind == C_RETURN_INTEGER && strstr(resolved, "char") != NULL;
 }
 
 /* True when a C result of class `rc` may be declared as, or cast to,
@@ -982,16 +1055,46 @@ static bool c_return_fits(CReturnClass return_class, const GrayType *asserted, b
     return return_class == C_RETURN_INTEGER || via_cast;
 }
 
+/* True when `argument_type` is a pointer or string whose pointee C cannot
+ * accept for the data pointer parameter `parameter_index`: a string for
+ * anything but a char pointer (or a read-only void pointer), or a ^T for a
+ * pointee of another kind (a number where C wants a FILE, a struct where it
+ * wants an int). nil, ^void and ^u8 — the way an opaque C handle is held — fit
+ * any pointer. */
+static bool c_pointer_pointee_mismatch(const CFunctionSignature *signature, int parameter_index, const GrayType *argument_type) {
+    CReturnClass pointee = signature->pointee_class[parameter_index];
+    if (pointee == C_RETURN_UNKNOWN) return false;
+    if (argument_type->kind == TYPE_KIND_STRING) {
+        if (signature->pointee_is_byte[parameter_index]) return false;
+        return !(pointee == C_RETURN_VOID && signature->pointee_is_const[parameter_index]);
+    }
+    if (argument_type->kind != TYPE_KIND_POINTER || !argument_type->element_type) return false;
+    if (pointee == C_RETURN_VOID) return false;
+    const char *element = argument_type->element_type;
+    if (strcmp(element, "void") == 0 || strcmp(element, "u8") == 0) return false;
+    if (element[0] == '^') return pointee != C_RETURN_POINTER;
+    bool is_floating_point_element = strcmp(element, "f32") == 0 || strcmp(element, "f64") == 0;
+    bool is_integer_element = strcmp(element, "bool") == 0 || strcmp(element, "char") == 0 ||
+        ((element[0] == 'i' || element[0] == 'u') && isdigit((unsigned char)element[1]));
+    if (is_floating_point_element) return pointee != C_RETURN_FLOATING_POINT;
+    if (is_integer_element) return pointee != C_RETURN_INTEGER;
+    return pointee != C_RETURN_AGGREGATE;
+}
+
 /* True when a Grayscale argument cannot be converted by C to a parameter of
  * class `param`: a string, nil or pointer where C wants a number, or a number
  * where C wants a pointer. Any other argument kind, or a parameter of a kind
  * this does not recognise, is left to the C compiler. */
-static bool c_argument_kind_mismatch(CReturnClass parameter_class, const GrayType *argument_type) {
+static bool c_argument_kind_mismatch(const CFunctionSignature *signature, int parameter_index, const GrayType *argument_type) {
+    CReturnClass parameter_class = signature->parameter_class[parameter_index];
     bool is_argument_number = argument_type->kind == TYPE_KIND_SIGNED_INTEGER || argument_type->kind == TYPE_KIND_UNSIGNED_INTEGER || argument_type->kind == TYPE_KIND_FLOATING_POINT ||
                          argument_type->kind == TYPE_KIND_BOOL || argument_type->kind == TYPE_KIND_CHAR;
     bool is_argument_pointer = argument_type->kind == TYPE_KIND_STRING || argument_type->kind == TYPE_KIND_POINTER || argument_type->kind == TYPE_KIND_NIL;
     if (parameter_class == C_RETURN_INTEGER || parameter_class == C_RETURN_FLOATING_POINT) return is_argument_pointer;
-    if (parameter_class == C_RETURN_POINTER) return is_argument_number;
+    if (parameter_class == C_RETURN_POINTER) {
+        if (is_argument_number) return true;
+        return c_pointer_pointee_mismatch(signature, parameter_index, argument_type);
+    }
     return false;
 }
 
@@ -1085,6 +1188,7 @@ static bool count_c_parameters(const char *signature_text, CFunctionSignature *o
         if (return_length > 0 && return_length < sizeof(output->return_text)) {
             memcpy(output->return_text, signature_text, return_length);
             output->return_text[return_length] = '\0';
+            strip_c_qualifier_noise(output->return_text);
             output->return_class = classify_c_return(output->return_text);
         }
     }
@@ -1115,6 +1219,7 @@ static bool count_c_parameters(const char *signature_text, CFunctionSignature *o
                 if (count < C_SIGNATURE_PARAMETERS && segment_length < sizeof(output->parameter_text[0])) {
                     memcpy(output->parameter_text[count], segment, segment_length);
                     output->parameter_text[count][segment_length] = '\0';
+                    strip_c_qualifier_noise(output->parameter_text[count]);
                     output->parameter_class[count] = classify_c_return(output->parameter_text[count]);
                     output->parameter_count = count + 1;
                 }
@@ -1182,6 +1287,9 @@ static bool find_c_function_signature(const char *dump, const char *name, CFunct
     for (int i = 0; i < output->parameter_count; i++) {
         if (output->parameter_class[i] == C_RETURN_UNKNOWN)
             output->parameter_class[i] = classify_c_typedef(dump, output->parameter_text[i]);
+        if (output->parameter_class[i] == C_RETURN_POINTER)
+            classify_c_pointee(dump, output->parameter_text[i], &output->pointee_class[i],
+                               &output->pointee_is_byte[i], &output->pointee_is_const[i]);
     }
     return true;
 }
@@ -1703,7 +1811,7 @@ static void validate_c_extern_signatures(AstNode *program, TypeChecker *checker,
             for (int argument_index = 0; argument_index < actual && argument_index < signature.parameter_count; argument_index++) {
                 AstNode *argument = calls[i].node->data.call.arguments[argument_index];
                 GrayType *argument_type = type_table_get(type_table, argument);
-                if (!argument_type || !c_argument_kind_mismatch(signature.parameter_class[argument_index], argument_type)) continue;
+                if (!argument_type || !c_argument_kind_mismatch(&signature, argument_index, argument_type)) continue;
                 diagnostic_error_code_formatted(diagnostics, "E5054",
                     argument->token.file ? argument->token.file : (calls[i].file ? calls[i].file : entry_file),
                     argument->token.line, argument->token.column, 0,
