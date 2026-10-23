@@ -18253,47 +18253,74 @@ static AstNode *find_struct_in_program(TypeChecker *checker, const char *name) {
     return NULL;
 }
 
-/* depth-first walk of a struct's by-value field graph, testing
- * whether `target` appears transitively. Pointer fields (^T), arrays
- * ([T]), and maps (map[K:V]) are treated as heap-indirected; they
- * break the chain since the inner type lives behind a fat-pointer
- * header, not inline. `visited` is a stack of struct names on the
- * current DFS path used to short-circuit cycles that don't touch
+/* The struct or tagged-enum declaration named `name`, or NULL. Enums are few,
+ * so they are found by a scan of the program. */
+static AstNode *find_struct_or_enum_in_program(TypeChecker *checker, const char *name) {
+    AstNode *declaration = find_struct_in_program(checker, name);
+    if (declaration || !checker->program) return declaration;
+    for (int i = 0; i < checker->program->data.program.statement_count; i++) {
+        AstNode *statement = checker->program->data.program.statements[i];
+        if (statement && statement->kind == NODE_ENUM_DECLARATION && statement->data.enum_declaration.name &&
+            statement->data.enum_declaration.is_tagged && strcmp(statement->data.enum_declaration.name, name) == 0)
+            return statement;
+    }
+    return NULL;
+}
+
+static bool type_contains_by_value(TypeChecker *checker, const char *type_name, const char *target,
+                                   const char **visited, int *visited_count, int visited_capacity);
+
+/* depth-first walk of a struct's or tagged enum's by-value member graph
+ * (fields, or variant payloads), testing whether `target` appears
+ * transitively. Pointer (^T), array ([T]), and map (map[K:V]) members are
+ * heap-indirected: the inner type lives behind a fat-pointer header, not
+ * inline, so they break the chain. `visited` is a stack of declaration names
+ * on the current DFS path used to short-circuit cycles that don't touch
  * `target` directly. */
 static bool struct_contains_by_value(TypeChecker *checker, AstNode *declaration,
                                       const char *target,
                                       const char **visited, int *visited_count,
                                       int visited_capacity) {
-    if (!declaration || declaration->kind != NODE_STRUCT_DECLARATION) return false;
+    if (!declaration) return false;
+    bool is_enum = declaration->kind == NODE_ENUM_DECLARATION;
+    if (!is_enum && declaration->kind != NODE_STRUCT_DECLARATION) return false;
+    const char *declaration_name = is_enum ? declaration->data.enum_declaration.name
+                                           : declaration->data.struct_declaration.name;
     for (int i = 0; i < *visited_count; i++) {
-        if (strcmp(visited[i], declaration->data.struct_declaration.name) == 0) return false;
+        if (strcmp(visited[i], declaration_name) == 0) return false;
     }
     if (*visited_count >= visited_capacity) return false;
-    visited[(*visited_count)++] = declaration->data.struct_declaration.name;
+    visited[(*visited_count)++] = declaration_name;
 
-    for (int i = 0; i < declaration->data.struct_declaration.field_count; i++) {
-        const char *field_type_name = declaration->data.struct_declaration.fields[i].type_name;
-        if (!field_type_name || !*field_type_name) continue;
-        /* A field whose type is written as an alias is resolved here: the
-         * enclosing struct's own fields are rewritten before this walk, but
-         * a struct reached transitively is visited with its AST field names
-         * still as written, so an alias hid the cycle. */
-        field_type_name = resolve_type_alias(checker, checker_resolve_type_name(checker, field_type_name));
-        /* Pointer, array, map; heap-indirected, size doesn't propagate. */
-        if (field_type_name[0] == '^' || field_type_name[0] == '[' || strncmp(field_type_name, "map[", 4) == 0) continue;
-        if (strcmp(field_type_name, target) == 0) {
-            (*visited_count)--;
-            return true;
+    bool contains = false;
+    if (is_enum) {
+        for (int i = 0; i < declaration->data.enum_declaration.value_count && !contains; i++) {
+            EnumValue *variant = &declaration->data.enum_declaration.values[i];
+            for (int j = 0; j < variant->payload_count && !contains; j++)
+                contains = type_contains_by_value(checker, variant->payload_types[j], target,
+                                                  visited, visited_count, visited_capacity);
         }
-        AstNode *child = find_struct_in_program(checker, field_type_name);
-        if (child && struct_contains_by_value(checker, child, target,
-                                               visited, visited_count, visited_capacity)) {
-            (*visited_count)--;
-            return true;
-        }
+    } else {
+        for (int i = 0; i < declaration->data.struct_declaration.field_count && !contains; i++)
+            contains = type_contains_by_value(checker, declaration->data.struct_declaration.fields[i].type_name,
+                                              target, visited, visited_count, visited_capacity);
     }
     (*visited_count)--;
-    return false;
+    return contains;
+}
+
+static bool type_contains_by_value(TypeChecker *checker, const char *type_name, const char *target,
+                                   const char **visited, int *visited_count, int visited_capacity) {
+    if (!type_name || !*type_name) return false;
+    /* A member whose type is written as an alias is resolved here: the
+     * enclosing declaration's own members are rewritten before this walk, but
+     * one reached transitively is visited with its AST names still as
+     * written, so an alias hid the cycle. */
+    type_name = resolve_type_alias(checker, checker_resolve_type_name(checker, type_name));
+    if (type_name[0] == '^' || type_name[0] == '[' || strncmp(type_name, "map[", 4) == 0) return false;
+    if (strcmp(type_name, target) == 0) return true;
+    return struct_contains_by_value(checker, find_struct_or_enum_in_program(checker, type_name), target,
+                                    visited, visited_count, visited_capacity);
 }
 
 /* Recursively validate that every named type inside a field's type string
@@ -18804,6 +18831,32 @@ static void register_declaration_enums(TypeChecker *checker, AstNode *program) {
         if (statement->data.enum_declaration.is_flags && has_tagged) {
             NODE_ERROR(checker, statement, "E3112");
         }
+        /* E3061: a payload cannot be the enum itself by value, directly or
+         * through another enum or struct. */
+        for (int j = 0; j < variant_count; j++) {
+            bool is_cycle = false;
+            const char *self_name = statement->data.enum_declaration.name;
+            const char *cycle_type = NULL;
+            for (int index = 0; index < payload_counts[j] && !is_cycle; index++) {
+                const char *payload_type = resolve_type_alias(checker, payload_types[j][index]);
+                if (payload_type[0] == '^' || payload_type[0] == '[' || strncmp(payload_type, "map[", 4) == 0) continue;
+                if (strcmp(payload_type, self_name) == 0) {
+                    is_cycle = true;
+                } else {
+                    const char *visited[MAX_STRUCT_DEPTH];
+                    int visited_count = 0;
+                    is_cycle = struct_contains_by_value(checker, find_struct_or_enum_in_program(checker, payload_type),
+                                                        self_name, visited, &visited_count, MAX_STRUCT_DEPTH);
+                }
+                if (is_cycle) cycle_type = payload_type;
+            }
+            if (!is_cycle) continue;
+            char *help = strcmp(cycle_type, self_name) == 0
+                ? typechecker_format(checker, "use a pointer payload '^%s' for recursive types", enum_name)
+                : typechecker_format(checker, "break the cycle through '%s' with a pointer payload '^%s'", cycle_type, cycle_type);
+            NODE_ERROR_FORMATTED_HELP(checker, statement, "E3061", help, "enum", enum_name);
+            break;
+        }
         /* E3143: flags enum with more than 63 variants. Codegen assigns each
          * unvalued variant `1LL << j`; bit 63 is int64's sign bit and bits
          * 64+ are undefined shifts in C. */
@@ -18992,7 +19045,7 @@ static void register_declaration_structs(TypeChecker *checker, AstNode *program)
                 if (strcmp(field_type_name, self_name) == 0) {
                     is_cycle = true;
                 } else {
-                    AstNode *child = find_struct_in_program(checker, field_type_name);
+                    AstNode *child = find_struct_or_enum_in_program(checker, field_type_name);
                     if (child) {
                         const char *visited[MAX_STRUCT_DEPTH];
                         int variant_count = 0;
@@ -19006,7 +19059,7 @@ static void register_declaration_structs(TypeChecker *checker, AstNode *program)
                         ? typechecker_format(checker, "use a pointer field '^%s' for recursive types", display)
                         : typechecker_format(checker, "break the cycle through '%s' with a pointer field '^%s'",
                               field_type_name, field_type_name);
-                    NODE_ERROR_FORMATTED_HELP(checker, statement, "E3061", help, display);
+                    NODE_ERROR_FORMATTED_HELP(checker, statement, "E3061", help, "struct", display);
                 }
             }
             /* Validate all named types within the field type recursively. */

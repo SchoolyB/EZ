@@ -156,7 +156,7 @@
     GRAY_ERROR("E3057", "types", "type '%s' cannot be used as a map key; only primitive types (integers, floats, string, bool, char) and enums are hashable") \
     GRAY_ERROR("E3058", "types", "in instantiation of generic function '%s' with %s") \
     GRAY_ERROR("E3059", "types", "maps cannot be declared const; use 'mut' for maps or a struct for fixed data") \
-    GRAY_ERROR("E3061", "types", "struct '%s' cannot contain itself by value") \
+    GRAY_ERROR("E3061", "types", "%s '%s' cannot contain itself by value") \
     GRAY_ERROR("E3062", "types", "'%s' cannot be declared const; use 'mut' (every operation on a '%s' mutates its state)") \
     GRAY_ERROR("E3066", "types", "function reference signature mismatch: expected %s, got %s") \
     GRAY_ERROR("E3068", "types", "'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value") \

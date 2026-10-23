@@ -140,7 +140,7 @@
 | `E3057` | types | type '%s' cannot be used as a map key; only primitive types (integers, floats, string, bool, char) and enums are hashable |
 | `E3058` | types | in instantiation of generic function '%s' with %s |
 | `E3059` | types | maps cannot be declared const; use 'mut' for maps or a struct for fixed data |
-| `E3061` | types | struct '%s' cannot contain itself by value |
+| `E3061` | types | %s '%s' cannot contain itself by value |
 | `E3062` | types | '%s' cannot be declared const; use 'mut' (every operation on a '%s' mutates its state) |
 | `E3066` | types | function reference signature mismatch: expected %s, got %s |
 | `E3068` | types | 'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value |
@@ -614,4 +614,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-23 21:09:17 UTC*
+*Generated on 2026-10-23 21:13:53 UTC*
