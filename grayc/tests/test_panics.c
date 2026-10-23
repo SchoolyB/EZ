@@ -319,6 +319,18 @@ static void test_panic_P0157_add_seconds(void) { ASSERT_PANICS("P0157", trigger_
 static void trigger_P0157_add_months(void) { gray_time_add_months(0, INT64_MAX); }
 static void test_panic_P0157_add_months(void) { ASSERT_PANICS("P0157", trigger_P0157_add_months); }
 
+static void trigger_P0157_start_of_day(void) { gray_time_start_of_day(INT64_MIN); }
+static void test_panic_P0157_start_of_day(void) { ASSERT_PANICS("P0157", trigger_P0157_start_of_day); }
+
+static void trigger_P0140_add_months(void) { gray_time_add_months(INT64_MAX, 1); }
+static void test_panic_P0140_add_months(void) { ASSERT_PANICS("P0140", trigger_P0140_add_months); }
+
+static void trigger_P0140_start_of_month(void) { gray_time_start_of_month(INT64_MAX); }
+static void test_panic_P0140_start_of_month(void) { ASSERT_PANICS("P0140", trigger_P0140_start_of_month); }
+
+static void trigger_P0140_end_of_month(void) { gray_time_end_of_month(INT64_MAX); }
+static void test_panic_P0140_end_of_month(void) { ASSERT_PANICS("P0140", trigger_P0140_end_of_month); }
+
 static void trigger_P0157_end_of_day(void) { gray_time_end_of_day(INT64_MAX); }
 static void test_panic_P0157_end_of_day(void) { ASSERT_PANICS("P0157", trigger_P0157_end_of_day); }
 
@@ -549,7 +561,11 @@ int main(void) {
     RUN_TEST(test_panic_P0157_add_minutes);
     RUN_TEST(test_panic_P0157_add_seconds);
     RUN_TEST(test_panic_P0157_add_months);
+    RUN_TEST(test_panic_P0157_start_of_day);
     RUN_TEST(test_panic_P0157_end_of_day);
+    RUN_TEST(test_panic_P0140_add_months);
+    RUN_TEST(test_panic_P0140_start_of_month);
+    RUN_TEST(test_panic_P0140_end_of_month);
 
     printf("--- Strings ---\n");
     RUN_TEST(test_panic_P0071);
