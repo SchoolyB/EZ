@@ -1679,13 +1679,19 @@ static void unregister_mem_variable(CodeGen *codegen, const char *name, bool kee
     codegen->mem_variable_count++;
 }
 
-/* Emit `uint64_t gray_epoch_<name> = <arena>->reset_count;` or, when the
- * companion already exists, the assignment that refreshes it. */
+/* Emit `GrayArena *gray_arena_<name> = <arena>; uint64_t gray_epoch_<name> =
+ * gray_arena_<name>->reset_count;` or, when the companions already exist, the
+ * assignments that refresh them. The arena is kept because mem.destroy()
+ * clears the handle the arena expression names. */
 static void emit_mem_epoch_record(CodeGen *codegen, const char *name, AstNode *arena_expression, bool is_declaration) {
-    if (is_declaration) emit(codegen, "uint64_t ");
-    emit_formatted(codegen, "gray_epoch_%s = (", sanitize_name(name));
+    const char *safe_name = sanitize_name(name);
+    if (is_declaration) emit(codegen, "GrayArena *");
+    emit_formatted(codegen, "gray_arena_%s = (", safe_name);
     emit_expression(codegen, arena_expression);
-    emit(codegen, ")->reset_count;\n");
+    emit(codegen, ");\n");
+    emit_indent(codegen);
+    if (is_declaration) emit(codegen, "uint64_t ");
+    emit_formatted(codegen, "gray_epoch_%s = gray_arena_%s->reset_count;\n", safe_name, safe_name);
 }
 
 /* Wrap `ptr_c_expr` with a call to gray_mem_check_live(arena, ptr, file,
@@ -1695,9 +1701,8 @@ static void emit_mem_epoch_record(CodeGen *codegen, const char *name, AstNode *a
  * close with `), file, line)` after emitting the pointer expression. */
 static void emit_mem_check_live_open(CodeGen *codegen, AstNode *arena_expression, const char *epoch_name) {
     if (epoch_name) {
-        emit(codegen, "gray_mem_check_live_epoch(");
-        emit_expression(codegen, arena_expression);
-        emit_formatted(codegen, ", gray_epoch_%s, (void *)(", sanitize_name(epoch_name));
+        emit_formatted(codegen, "gray_mem_check_live_epoch(gray_arena_%s, gray_epoch_%s, (void *)(",
+            sanitize_name(epoch_name), sanitize_name(epoch_name));
         return;
     }
     emit(codegen, "gray_mem_check_live(");
@@ -3974,10 +3979,8 @@ static void emit_postfix_expression(CodeGen *codegen, AstNode *node) {
                 emit_formatted(codegen, "; if (!_dp) { %s; } ", panic_call(codegen, node, "P0080", ""));
                 if (mem_arena) {
                     if (mem_epoch_name) {
-                        emit(codegen, "*(__typeof__(_dp))gray_mem_check_live_epoch(");
-                        emit_expression(codegen, mem_arena);
-                        emit_formatted(codegen, ", gray_epoch_%s, (void *)_dp, \"%s\", %d); })",
-                            sanitize_name(mem_epoch_name), codegen_file_literal(codegen), node->token.line);
+                        emit_formatted(codegen, "*(__typeof__(_dp))gray_mem_check_live_epoch(gray_arena_%s, gray_epoch_%s, (void *)_dp, \"%s\", %d); })",
+                            sanitize_name(mem_epoch_name), sanitize_name(mem_epoch_name), codegen_file_literal(codegen), node->token.line);
                     } else {
                         emit(codegen, "*(__typeof__(_dp))gray_mem_check_live(");
                         emit_expression(codegen, mem_arena);
@@ -6934,7 +6937,8 @@ static const PassthroughCall mem_passthrough[] = {
 /* Emits `&handle` for a runtime function that clears the caller's handle once
  * it is destroyed, joined or detached, so a second call finds a zero-value
  * handle. A handle that is not a variable (a call result) has nothing to
- * clear, so a temporary stands in for it. */
+ * clear, so a one-element temporary stands in for it (a plain compound
+ * literal would feed a struct-typed handle to its first member). */
 static void emit_cleared_handle_argument(CodeGen *codegen, AstNode *handle, const char *c_type) {
     bool is_lvalue = handle->kind == NODE_LABEL || handle->kind == NODE_MEMBER_EXPRESSION ||
                      handle->kind == NODE_INDEX_EXPRESSION || handle->kind == NODE_POSTFIX_EXPRESSION;
@@ -6944,7 +6948,7 @@ static void emit_cleared_handle_argument(CodeGen *codegen, AstNode *handle, cons
         emit(codegen, ")");
         return;
     }
-    emit_formatted(codegen, "&(%s){", c_type);
+    emit_formatted(codegen, "(%s[1]){", c_type);
     emit_expression(codegen, handle);
     emit(codegen, "}");
 }

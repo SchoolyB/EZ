@@ -11035,6 +11035,10 @@ static GrayType *resolve_call_expression(TypeChecker *checker, AstNode *node) {
     if (dispatched.function == written.function && dispatched.object == written.object &&
         dispatched.object_label == written.object_label && dispatched.arguments == written.arguments &&
         dispatched.ignored_receiver == written.ignored_receiver) return result;
+    if (!checker->generics.types[0]) {
+        ast_call_form_apply(node, &written);
+        return result;
+    }
     char *key = generic_bindings_join(&checker->generics);
     int slot = 0;
     while (slot < node->data.call.instantiation_form_count && strcmp(node->data.call.instantiation_keys[slot], key) != 0) slot++;
