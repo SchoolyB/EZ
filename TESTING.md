@@ -70,8 +70,8 @@ Integration tests compile and run `.gray` programs end-to-end through the full c
 ```bash
 make test-integration
 
-# With verbose output on failures
-bash scripts/run_tests.sh --verbose
+# Run the runner directly
+./grayc/grayc scripts/run_tests.gray && ./run_tests
 ```
 
 ### Sanitizer Tests
@@ -108,14 +108,14 @@ TinyCC does not support the sanitizers. Homebrew GCC on macOS does not ship with
 
 ### Vendored Dependency Checks
 
-`scripts/check_vendor.sh` verifies the recorded SHA256 of every third-party C
+`scripts/check_vendor.gray` verifies the recorded SHA256 of every third-party C
 source file under `grayc/src/vendor/` against `grayc/src/vendor/MANIFEST.toml`
 and reports OSV.dev advisories for each pinned version. It exits non-zero on a
 hash mismatch, a missing file, or a tracked-directory file the manifest does not
 list; advisories are informational and do not fail it.
 
 ```bash
-bash scripts/check_vendor.sh
+./grayc/grayc scripts/check_vendor.gray && ./check_vendor
 ```
 
 ---
@@ -156,7 +156,7 @@ All tests run automatically on push to `main` via GitHub Actions:
 CI workflow: `.github/workflows/ci.yml`
 
 A separate **Vendor Audit** workflow (`.github/workflows/vendor-audit.yml`) runs
-`check_vendor.sh` monthly, on manual dispatch, and on any pull request that
+`check_vendor` monthly, on manual dispatch, and on any pull request that
 touches `grayc/src/vendor/**` or the check script.
 
 ---
