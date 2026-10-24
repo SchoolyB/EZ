@@ -15520,12 +15520,13 @@ static void codegen_emit_forward_declarations(CodeGen *codegen, const TopLevelSt
                 size_t struct_name_length = strlen(struct_name);
                 size_t function_name_length = strlen(function_name);
                 size_t namespace_length = struct_name_length + 1 + function_name_length + 1;
-                char *namespaced_name = malloc(namespace_length);
-                snprintf(namespaced_name, namespace_length, "%s_%s", struct_name, function_name);
                 DeclarationEntry *struct_entry = module_table_entry_for_node(codegen->modules, statement);
                 const char *written_struct_name = struct_entry ? struct_entry->name : struct_name;
                 size_t dotted_length = strlen(written_struct_name) + 1 + function_name_length + 1;
-                char *dotted_name = malloc(dotted_length);
+                /* Both names share one allocation, freed through namespaced_function_names. */
+                char *namespaced_name = malloc(namespace_length + dotted_length);
+                snprintf(namespaced_name, namespace_length, "%s_%s", struct_name, function_name);
+                char *dotted_name = namespaced_name + namespace_length;
                 snprintf(dotted_name, dotted_length, "%s.%s", written_struct_name, function_name);
                 function_node->data.function_declaration.runtime_name = dotted_name;
                 function_node->data.function_declaration.name = namespaced_name;
