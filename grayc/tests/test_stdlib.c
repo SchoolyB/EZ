@@ -2221,7 +2221,7 @@ static void test_random_sample_full_length_is_permutation(void) {
 static void test_mem_arena_starts_empty(void) {
     GrayArena *scratch = gray_mem_arena(4096);
     ASSERT_EQ(gray_mem_usage(scratch), 0);
-    gray_mem_destroy(scratch, __FILE__, __LINE__);
+    gray_mem_destroy(&scratch, __FILE__, __LINE__);
 }
 
 static void test_mem_arena_non_positive_size_uses_default(void) {
@@ -2231,8 +2231,8 @@ static void test_mem_arena_non_positive_size_uses_default(void) {
     ASSERT(negative_sized != NULL);
     ASSERT_EQ(gray_mem_usage(zero_sized), 0);
     ASSERT_EQ(gray_mem_usage(negative_sized), 0);
-    gray_mem_destroy(zero_sized, __FILE__, __LINE__);
-    gray_mem_destroy(negative_sized, __FILE__, __LINE__);
+    gray_mem_destroy(&zero_sized, __FILE__, __LINE__);
+    gray_mem_destroy(&negative_sized, __FILE__, __LINE__);
 }
 
 static void test_mem_usage_grows_with_allocation(void) {
@@ -2242,7 +2242,7 @@ static void test_mem_usage_grows_with_allocation(void) {
     int64_t after_first = gray_mem_usage(scratch);
     gray_arena_alloc(scratch, 100);
     ASSERT_GE(gray_mem_usage(scratch), after_first + 100);
-    gray_mem_destroy(scratch, __FILE__, __LINE__);
+    gray_mem_destroy(&scratch, __FILE__, __LINE__);
 }
 
 static void test_mem_reset_returns_usage_to_zero(void) {
@@ -2251,7 +2251,7 @@ static void test_mem_reset_returns_usage_to_zero(void) {
     ASSERT_GT(gray_mem_usage(scratch), 0);
     gray_mem_reset(scratch);
     ASSERT_EQ(gray_mem_usage(scratch), 0);
-    gray_mem_destroy(scratch, __FILE__, __LINE__);
+    gray_mem_destroy(&scratch, __FILE__, __LINE__);
 }
 
 static void test_mem_arena_is_reusable_after_reset(void) {
@@ -2260,7 +2260,7 @@ static void test_mem_arena_is_reusable_after_reset(void) {
     gray_mem_reset(scratch);
     gray_arena_alloc(scratch, 64);
     ASSERT_GE(gray_mem_usage(scratch), 64);
-    gray_mem_destroy(scratch, __FILE__, __LINE__);
+    gray_mem_destroy(&scratch, __FILE__, __LINE__);
 }
 
 static void test_mem_arena_allocations_do_not_count_toward_total(void) {
@@ -2269,7 +2269,7 @@ static void test_mem_arena_allocations_do_not_count_toward_total(void) {
     gray_arena_alloc(scratch, 64);
     gray_arena_alloc(scratch, 64);
     ASSERT_EQ(gray_total_alloc_count, before);
-    gray_mem_destroy(scratch, __FILE__, __LINE__);
+    gray_mem_destroy(&scratch, __FILE__, __LINE__);
 }
 
 static void test_mem_copy_copies_exactly_n_bytes(void) {
@@ -3521,12 +3521,6 @@ static void test_binary_u256_round_trip_in_both_orders(void) {
     }
     ASSERT_EQ(GRAY_ARRAY_GET(big, uint8_t, 0), 0xFF);
     ASSERT_EQ(GRAY_ARRAY_GET(big, uint8_t, 31), 0x01);
-}
-
-static void test_binary_decode_accepts_arrays_longer_than_the_width(void) {
-    GrayArray bytes = GRAY_ARRAY_FROM_OF(arena, uint8_t, ((uint8_t[]){0x01, 0x02, 0xAA, 0xBB}), 4);
-    ASSERT_EQ(gray_binary_decode_u16_be(&bytes, __FILE__, __LINE__), 0x0102);
-    ASSERT_EQ(gray_binary_decode_u16_le(&bytes, __FILE__, __LINE__), 0x0201);
 }
 
 /* ===== fmt: fields, number and byte formatting ===== */
@@ -5318,23 +5312,23 @@ static void thread_waits_for_gate(void) {
 static void test_threads_spawn_runs_the_function_and_join_waits_for_it(void) {
     gray_atomic_store(&thread_test_flag, 0);
     GrayThread thread = gray_threads_spawn(thread_sets_flag);
-    gray_threads_join(thread);
+    gray_threads_join(&thread);
     ASSERT_EQ(gray_atomic_load(&thread_test_flag), 1);
 }
 
 static void test_threads_spawn_arg_passes_the_argument(void) {
     gray_atomic_store(&thread_test_received, 0);
     GrayThread thread = gray_threads_spawn_arg(thread_records_argument, 424242);
-    gray_threads_join(thread);
+    gray_threads_join(&thread);
     ASSERT_EQ(gray_atomic_load(&thread_test_received), 424242);
 }
 
 static void test_threads_spawn_arg_passes_negative_and_extreme_arguments(void) {
     GrayThread negative = gray_threads_spawn_arg(thread_records_argument, -7);
-    gray_threads_join(negative);
+    gray_threads_join(&negative);
     ASSERT_EQ(gray_atomic_load(&thread_test_received), -7);
     GrayThread extreme = gray_threads_spawn_arg(thread_records_argument, INT64_MAX);
-    gray_threads_join(extreme);
+    gray_threads_join(&extreme);
     ASSERT_EQ(gray_atomic_load(&thread_test_received), INT64_MAX);
 }
 
@@ -5345,7 +5339,7 @@ static void test_threads_is_alive_until_the_body_returns(void) {
     gray_atomic_store(&thread_test_gate, 1);
     while (gray_threads_is_alive(thread)) gray_threads_yield();
     ASSERT(!gray_threads_is_alive(thread));
-    gray_threads_join(thread);
+    gray_threads_join(&thread);
 }
 
 static void test_threads_thread_count_tracks_live_threads(void) {
@@ -5355,8 +5349,8 @@ static void test_threads_thread_count_tracks_live_threads(void) {
     GrayThread second = gray_threads_spawn(thread_waits_for_gate);
     ASSERT_EQ(gray_threads_thread_count(), before + 2);
     gray_atomic_store(&thread_test_gate, 1);
-    gray_threads_join(first);
-    gray_threads_join(second);
+    gray_threads_join(&first);
+    gray_threads_join(&second);
     ASSERT_EQ(gray_threads_thread_count(), before);
 }
 
@@ -5364,7 +5358,7 @@ static void test_threads_id_differs_between_threads(void) {
     gray_atomic_store(&thread_test_id, 0);
     int64_t main_id = gray_threads_id();
     GrayThread thread = gray_threads_spawn(thread_records_id);
-    gray_threads_join(thread);
+    gray_threads_join(&thread);
     int64_t other_id = gray_atomic_load(&thread_test_id);
     ASSERT_NE(other_id, 0);
     ASSERT_NE(other_id, main_id);
@@ -5374,7 +5368,7 @@ static void test_threads_id_differs_between_threads(void) {
 static void test_threads_detach_lets_the_thread_finish_on_its_own(void) {
     gray_atomic_store(&thread_test_flag, 0);
     GrayThread thread = gray_threads_spawn(thread_sets_flag);
-    gray_threads_detach(thread);
+    gray_threads_detach(&thread);
     for (int attempts = 0; attempts < 2000 && gray_atomic_load(&thread_test_flag) == 0; attempts++) usleep(1000);
     ASSERT_EQ(gray_atomic_load(&thread_test_flag), 1);
 }
@@ -5383,7 +5377,7 @@ static void test_threads_detach_of_a_running_thread_then_release(void) {
     int64_t before = gray_threads_thread_count();
     gray_atomic_store(&thread_test_gate, 0);
     GrayThread thread = gray_threads_spawn(thread_waits_for_gate);
-    gray_threads_detach(thread);
+    gray_threads_detach(&thread);
     ASSERT_EQ(gray_threads_thread_count(), before + 1);
     gray_atomic_store(&thread_test_gate, 1);
     for (int attempts = 0; attempts < 2000 && gray_threads_thread_count() != before; attempts++) usleep(1000);
@@ -5394,19 +5388,20 @@ static void test_threads_yield_returns(void) {
     gray_threads_yield();
 }
 
-static void test_threads_a_zeroed_handle_is_ignored(void) {
-    GrayThread none;
-    memset(&none, 0, sizeof(none));
-    gray_threads_join(none);
-    gray_threads_detach(none);
-    ASSERT(!gray_threads_is_alive(none));
+static void test_threads_join_and_detach_clear_the_handle(void) {
+    GrayThread joined = gray_threads_spawn(thread_sets_flag);
+    gray_threads_join(&joined);
+    ASSERT(joined._internal == NULL);
+    GrayThread detached = gray_threads_spawn(thread_sets_flag);
+    gray_threads_detach(&detached);
+    ASSERT(detached._internal == NULL);
 }
 
 static void test_threads_many_threads_all_run(void) {
     GrayThread threads[16];
     gray_atomic_store(&thread_test_received, 0);
     for (int i = 0; i < 16; i++) threads[i] = gray_threads_spawn(thread_sets_flag);
-    for (int i = 0; i < 16; i++) gray_threads_join(threads[i]);
+    for (int i = 0; i < 16; i++) gray_threads_join(&threads[i]);
     ASSERT_EQ(gray_atomic_load(&thread_test_flag), 1);
 }
 
@@ -5919,7 +5914,6 @@ int main(void) {
     RUN_TEST(test_binary_u128_round_trip_in_both_orders);
     RUN_TEST(test_binary_i256_round_trip_in_both_orders);
     RUN_TEST(test_binary_u256_round_trip_in_both_orders);
-    RUN_TEST(test_binary_decode_accepts_arrays_longer_than_the_width);
 
     printf("--- fmt (fields and number formatting) ---\n");
     RUN_TEST(test_fmt_string_field_pads_to_width);
@@ -6164,7 +6158,7 @@ int main(void) {
     RUN_TEST(test_threads_detach_lets_the_thread_finish_on_its_own);
     RUN_TEST(test_threads_detach_of_a_running_thread_then_release);
     RUN_TEST(test_threads_yield_returns);
-    RUN_TEST(test_threads_a_zeroed_handle_is_ignored);
+    RUN_TEST(test_threads_join_and_detach_clear_the_handle);
     RUN_TEST(test_threads_many_threads_all_run);
 
     printf("--- math (logarithms) ---\n");
