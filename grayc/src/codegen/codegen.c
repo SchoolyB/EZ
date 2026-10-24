@@ -12390,6 +12390,37 @@ static void emit_loop_exit_unwind(CodeGen *codegen) {
     }
 }
 
+/* Leave every loop inside `target` for a labeled break or continue: restore
+ * the arena pointer and destroy each scratch arena opened since the target's
+ * body began, and release the iteration guards of the for_each loops left. The
+ * target's own iteration arena and guard stay live. */
+static void emit_labeled_exit_unwind(CodeGen *codegen, const LabeledLoop *target) {
+    for (int i = codegen->scope_arena_count - 1; i >= target->arena_floor; i--) {
+        ScopeArena *entry = &codegen->scope_arenas[i];
+        emit_formatted(codegen, "gray_default_arena = %s; ", entry->saved_variable);
+        if (target->has_iteration_arena && i == target->arena_floor) break;
+        emit_formatted(codegen, "gray_arena_destroy(%s, __FILE__, __LINE__); free(%s); ",
+              entry->arena_variable, entry->arena_variable);
+    }
+    for (int i = codegen->iteration_guard_count - 1; i >= target->guard_floor; i--)
+        emit_formatted(codegen, "gray_atomic_sub32(&%s.iterating, 1); ", codegen->iteration_guards[i]);
+}
+
+static void emit_labeled_loop_jump(CodeGen *codegen, AstNode *node, bool is_break) {
+    const char *label = node->data.loop_jump.label;
+    for (int i = codegen->labeled_loop_count - 1; i >= 0; i--) {
+        LabeledLoop *target = &codegen->labeled_loops[i];
+        if (strcmp(target->label, label) != 0) continue;
+        emit_labeled_exit_unwind(codegen, target);
+        if (is_break) target->is_break_used = true;
+        else target->is_continue_used = true;
+        emit_formatted(codegen, "goto _gray_%s_%d;\n", is_break ? "break" : "continue", target->id);
+        return;
+    }
+    codegen_internal_error("labeled break or continue names no enclosing loop",
+                           codegen_file_literal(codegen), node->token.line);
+}
+
 /* emit escape + cleanup for a non-void function return.
  * Escapes the return value (_ret) to _func_saved, then unwinds any
  * nested scratch arenas live at this exit point, then
@@ -13008,12 +13039,45 @@ static void emit_loop_arena_epilogue(CodeGen *codegen, bool no_arena) {
 /* Emit the per-iteration arena reset and the loop body.
  * Caller is responsible for indent++ before and indent--/closing brace after,
  * and for emit_loop_arena_prologue/epilogue around the loop. */
-static void emit_loop_body_with_arena(CodeGen *codegen, AstNode *body, bool no_arena) {
+/* Where `continue name` lands: the end of the labeled loop's body, so the
+ * loop goes on to its next iteration. */
+static void emit_labeled_continue_target(CodeGen *codegen, AstNode *loop) {
+    if (!loop->loop_label) return;
+    LabeledLoop *frame = &codegen->labeled_loops[codegen->labeled_loop_count - 1];
+    if (!frame->is_continue_used) return;
+    emit_indent(codegen);
+    emit_formatted(codegen, "_gray_continue_%d: ;\n", frame->id);
+}
+
+/* Where `break name` lands: just after the labeled loop. Closes the frame the
+ * body opened. */
+static void emit_labeled_break_target(CodeGen *codegen, AstNode *loop) {
+    if (!loop->loop_label) return;
+    LabeledLoop *frame = &codegen->labeled_loops[--codegen->labeled_loop_count];
+    if (!frame->is_break_used) return;
+    emit_indent(codegen);
+    emit_formatted(codegen, "_gray_break_%d: ;\n", frame->id);
+}
+
+static void emit_loop_body_with_arena(CodeGen *codegen, AstNode *loop, AstNode *body, bool no_arena) {
     int previous_raw_variable_count = codegen->raw_variable_count;
+    bool has_arena = !(no_arena || current_function_uses_caller_arena(codegen));
+    if (loop->loop_label) {
+        GROW_ARRAY(codegen->labeled_loops, codegen->labeled_loop_count, codegen->labeled_loop_capacity);
+        LabeledLoop *frame = &codegen->labeled_loops[codegen->labeled_loop_count++];
+        frame->label = loop->loop_label;
+        frame->id = codegen_next_id(codegen);
+        frame->arena_floor = codegen->scope_arena_count;
+        frame->has_iteration_arena = has_arena;
+        frame->guard_floor = codegen->iteration_guard_count;
+        frame->is_break_used = false;
+        frame->is_continue_used = false;
+    }
     if (no_arena || current_function_uses_caller_arena(codegen)) {
         bool was_in_no_arena_loop = codegen->is_in_no_arena_loop;
         codegen->is_in_no_arena_loop = true;
         emit_block(codegen, body);
+        emit_labeled_continue_target(codegen, loop);
         codegen->is_in_no_arena_loop = was_in_no_arena_loop;
         codegen->raw_variable_count = previous_raw_variable_count;
         return;
@@ -13029,6 +13093,7 @@ static void emit_loop_body_with_arena(CodeGen *codegen, AstNode *body, bool no_a
         scope_arena_push(codegen, arena_variable, saved_variable);
     }
     emit_block(codegen, body);
+    emit_labeled_continue_target(codegen, loop);
     codegen->loop_scope_depth--;
     codegen->raw_variable_count = previous_raw_variable_count;
     scope_arena_pop(codegen);
@@ -13247,11 +13312,12 @@ static void emit_for_statement(CodeGen *codegen, AstNode *node) {
     if (wide)
         register_wide_integer_variable(codegen, node->data.for_statement.variable_name, wide_integer_type_name(wide));
     codegen->indent++;
-    emit_loop_body_with_arena(codegen, node->data.for_statement.body, no_arena);
+    emit_loop_body_with_arena(codegen, node, node->data.for_statement.body, no_arena);
     codegen->indent--;
     codegen->wide_integer_variable_count = previous_wide_integer_variable_count;
     emit_indent(codegen);
     emit(codegen, "}\n");
+    emit_labeled_break_target(codegen, node);
     emit_loop_arena_epilogue(codegen, no_arena);
 }
 
@@ -13264,10 +13330,11 @@ static void emit_while_statement(CodeGen *codegen, AstNode *node) {
     emit(codegen, ") {\n");
 
     codegen->indent++;
-    emit_loop_body_with_arena(codegen, node->data.while_statement.body, no_arena);
+    emit_loop_body_with_arena(codegen, node, node->data.while_statement.body, no_arena);
     codegen->indent--;
     emit_indent(codegen);
     emit(codegen, "}\n");
+    emit_labeled_break_target(codegen, node);
     emit_loop_arena_epilogue(codegen, no_arena);
 }
 
@@ -13278,10 +13345,11 @@ static void emit_loop_statement(CodeGen *codegen, AstNode *node) {
     emit(codegen, "for (;;) {\n");
 
     codegen->indent++;
-    emit_loop_body_with_arena(codegen, node->data.loop_statement.body, no_arena);
+    emit_loop_body_with_arena(codegen, node, node->data.loop_statement.body, no_arena);
     codegen->indent--;
     emit_indent(codegen);
     emit(codegen, "}\n");
+    emit_labeled_break_target(codegen, node);
     emit_loop_arena_epilogue(codegen, no_arena);
 }
 
@@ -13972,12 +14040,13 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
                                &collection_needs_temporary, array_temporary_name, sizeof(array_temporary_name));
         }
 
-        emit_loop_body_with_arena(codegen, node->data.for_each.body, false);
+        emit_loop_body_with_arena(codegen, node, node->data.for_each.body, false);
         codegen->wide_integer_variable_count = previous_wide_integer_variable_count;
         codegen->resolved_loop_variable_count = previous_resolved_loop_variable_count;
         codegen->indent--;
         emit_indent(codegen);
         emit(codegen, "}\n");
+        emit_labeled_break_target(codegen, node);
         /* Decrement map iteration guard */
         if (is_map_iteration) {
             iteration_guard_pop(codegen);
@@ -14017,11 +14086,19 @@ static void emit_statement(CodeGen *codegen, AstNode *node) {
         break;
     case NODE_BREAK_STATEMENT:
         emit_indent(codegen);
+        if (node->data.loop_jump.label) {
+            emit_labeled_loop_jump(codegen, node, true);
+            break;
+        }
         emit_loop_exit_unwind(codegen);
         emit(codegen, "break;\n");
         break;
     case NODE_CONTINUE_STATEMENT:
         emit_indent(codegen);
+        if (node->data.loop_jump.label) {
+            emit_labeled_loop_jump(codegen, node, false);
+            break;
+        }
         emit_loop_exit_unwind(codegen);
         emit(codegen, "continue;\n");
         break;
@@ -14438,6 +14515,9 @@ CodeGen codegen_create(const char *file) {
     codegen.scope_arenas = NULL;
     codegen.scope_arena_count = 0;
     codegen.scope_arena_capacity = 0;
+    codegen.labeled_loops = NULL;
+    codegen.labeled_loop_count = 0;
+    codegen.labeled_loop_capacity = 0;
     codegen.iteration_guards = NULL;
     codegen.iteration_guard_count = 0;
     codegen.iteration_guard_capacity = 0;
@@ -15723,6 +15803,7 @@ void codegen_destroy(CodeGen *codegen) {
     free(codegen->c_headers);
     free(codegen->is_c_header_local);
     free(codegen->scope_arenas);
+    free(codegen->labeled_loops);
     for (int i = 0; i < codegen->iteration_guard_count; i++)
         free(codegen->iteration_guards[i]);
     free(codegen->iteration_guards);

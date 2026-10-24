@@ -1804,6 +1804,22 @@ for i in range(0, 100) {
 }
 ```
 
+A loop can take a label written before it, and `break` followed by that label terminates the labeled loop from inside any loop nested in it:
+
+```gray
+mut found bool = false
+outer: for y in range(0, height) {
+    for x in range(0, width) {
+        if grid[y][x] == target {
+            found = true
+            break outer
+        }
+    }
+}
+```
+
+A label can go on `for`, `for_each`, `as_long_as` (or `while`) and `loop`; it is a compile error on any other statement (E2103). The label must be written on the same line as the `break`. It must name a loop that encloses the statement, in the same function (E4043), and it can't repeat the label of an enclosing loop (E4042). Labels are not values and live in their own namespace, so a label can share a name with a variable. A `when` is never a target: `break outer` inside a `when` inside the labeled loop leaves the labeled loop.
+
 #### 6.4.2 Continue
 
 The `continue` statement skips to the next iteration of the innermost enclosing loop:
@@ -1814,6 +1830,18 @@ for i in range(0, 10) {
         continue
     }
     println("${i}")  // Prints odd numbers only
+}
+```
+
+`continue` followed by a loop's label skips to the next iteration of that loop, leaving every loop nested inside it:
+
+```gray
+outer: for y in range(0, height) {
+    for x in range(0, width) {
+        if grid[y][x] == 0 {
+            continue outer
+        }
+    }
 }
 ```
 
@@ -5233,7 +5261,7 @@ When a value created inside a scoped block needs to survive — for example, app
 
 #### Early Exits
 
-When `return`, `break`, or `continue` exits through nested scopes, the runtime unwinds all live arenas in reverse order. A `break` inside an `if` inside a loop will clean up the if-block arena and the loop iteration arena before jumping out. This ensures no memory is leaked regardless of control flow.
+When `return`, `break`, or `continue` exits through nested scopes, the runtime unwinds all live arenas in reverse order. A `break` inside an `if` inside a loop will clean up the if-block arena and the loop iteration arena before jumping out. A labeled `break` or `continue` also cleans up the arenas of every loop it leaves. This ensures no memory is leaked regardless of control flow.
 
 #### Growth
 

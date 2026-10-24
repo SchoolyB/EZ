@@ -163,6 +163,10 @@ struct AstNode {
      * by the parser, which has no symbol table. */
     struct DeclarationEntry_ *resolved_declaration;
 
+    /* The label written before a loop (`outer: for ...`); NULL when the loop
+     * has none and on every node that is not a loop. */
+    const char *loop_label;
+
     /* Set by the type checker on a value stored into a fixed-size [T,N]
      * struct field when the value's length can't be proven at compile time:
      * holds N, and codegen checks the length at runtime. 0 otherwise. */
@@ -411,6 +415,9 @@ struct AstNode {
 
         /* NODE_LOOP_STATEMENT */
         struct { AstNode *body; } loop_statement;
+
+        /* NODE_BREAK_STATEMENT, NODE_CONTINUE_STATEMENT */
+        struct { const char *label; } loop_jump;  /* the loop it names; NULL when unlabeled */
 
         /* NODE_FUNCTION_DECLARATION */
         struct {

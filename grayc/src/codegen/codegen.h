@@ -21,6 +21,18 @@ typedef struct {
     char saved_variable[32];
 } ScopeArena;
 
+/* A labeled loop being emitted, which `break name` and `continue name` jump
+ * out of or back into. */
+typedef struct {
+    const char *label;
+    int id;                   /* names the C labels `_gray_break_<id>` and `_gray_continue_<id>` */
+    int arena_floor;          /* scope_arenas entries below this belong to enclosing scopes */
+    bool has_iteration_arena; /* entry arena_floor is the loop's own _iter_arena_, which stays live */
+    int guard_floor;          /* iteration_guards entries below this belong to the loop and its enclosers */
+    bool is_break_used;
+    bool is_continue_used;
+} LabeledLoop;
+
 /* One function function_uses_watermark is scanning, linked innermost first. */
 typedef struct WatermarkProbe {
     AstNode *function;
@@ -268,6 +280,10 @@ typedef struct {
     ScopeArena *scope_arenas;
     int scope_arena_count;
     int scope_arena_capacity;
+
+    LabeledLoop *labeled_loops;
+    int labeled_loop_count;
+    int labeled_loop_capacity;
 
     /* Stack of active for_each iteration guards. Each entry holds the C
      * expression whose .iterating counter was incremented. On early return,

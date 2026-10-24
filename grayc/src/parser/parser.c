@@ -3730,6 +3730,33 @@ static bool is_misspelled_statement_before_operand(Parser *parser) {
     return is_operator;
 }
 
+/* `name: for ...` — a label before a loop. Current token is the name. */
+static AstNode *parse_labeled_statement(Parser *parser) {
+    Token label_token = parser->current_token;
+    next_token(parser);  /* ':' */
+    next_token(parser);  /* first token of the loop */
+    TokenType kind = parser->current_token.type;
+    bool is_loop = kind == TOKEN_FOR || kind == TOKEN_FOR_EACH || kind == TOKEN_AS_LONG_AS || kind == TOKEN_LOOP;
+    if (!is_loop) {
+        diagnostic_error_code_formatted(parser->diagnostics, "E2103", parser->file,
+            label_token.line, label_token.column, 0, label_token.literal);
+        return kind == TOKEN_LEFT_BRACE ? parse_block_statement(parser) : parse_statement(parser);
+    }
+    AstNode *loop = parse_statement(parser);
+    if (loop) loop->loop_label = label_token.literal;
+    return loop;
+}
+
+/* `break` / `continue`, with the label of the loop it leaves on the same line. */
+static AstNode *parse_loop_jump_statement(Parser *parser, NodeKind kind) {
+    AstNode *node = ast_allocate(parser->arena, kind, parser->current_token);
+    if (peek_token_is(parser, TOKEN_IDENTIFIER) && parser->peek_token.line == parser->current_token.line) {
+        next_token(parser);
+        node->data.loop_jump.label = parser->current_token.literal;
+    }
+    return node;
+}
+
 static AstNode *parse_statement(Parser *parser) {
     switch (parser->current_token.type) {
     case TOKEN_PRIVATE: {
@@ -3807,9 +3834,9 @@ static AstNode *parse_statement(Parser *parser) {
     case TOKEN_LOOP:
         return parse_loop_statement(parser);
     case TOKEN_BREAK:
-        return ast_allocate(parser->arena, NODE_BREAK_STATEMENT, parser->current_token);
+        return parse_loop_jump_statement(parser, NODE_BREAK_STATEMENT);
     case TOKEN_CONTINUE:
-        return ast_allocate(parser->arena, NODE_CONTINUE_STATEMENT, parser->current_token);
+        return parse_loop_jump_statement(parser, NODE_CONTINUE_STATEMENT);
     case TOKEN_WHEN:
         return parse_when_statement(parser);
     case TOKEN_ALIAS:
@@ -4133,6 +4160,9 @@ static AstNode *parse_statement(Parser *parser) {
          * Whitespace before '[' disambiguates from index expressions (E2075).
          * The name and what follows it must share a line, so a bare
          * identifier cannot swallow the next statement's first token. */
+        if (current_token_is(parser, TOKEN_IDENTIFIER) && peek_token_is(parser, TOKEN_COLON)) {
+            return parse_labeled_statement(parser);
+        }
         if (is_misspelled_statement_before_operand(parser)) {
             /* `retrun x + 1`: the typechecker reports the misspelled name, so
              * keep it as the statement and drop the rest of the line. */

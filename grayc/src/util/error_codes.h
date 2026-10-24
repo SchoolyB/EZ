@@ -105,7 +105,8 @@
     GRAY_ERROR("E2099", "syntax", "a mutable (&) parameter cannot have a default value; the caller must pass a variable to modify") \
     GRAY_ERROR("E2100", "syntax", "%d names but %d values in declaration; give one value per name, or a single value for all of them") \
     GRAY_ERROR("E2101", "syntax", "a declaration with a list of values takes one shared type after the last name; per-name types are not supported") \
-    GRAY_ERROR("E2102", "syntax", "'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback'")
+    GRAY_ERROR("E2102", "syntax", "'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback'") \
+    GRAY_ERROR("E2103", "syntax", "a label can only be placed before a loop; '%s' is followed by something that is not 'for', 'for_each', 'as_long_as' or 'loop'")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define GRAY_TYPE_ERRORS \
@@ -345,7 +346,9 @@
     GRAY_ERROR("E4038", "names", "cannot take a function reference to '%s.%s'; stdlib functions are not first-class values") \
     GRAY_ERROR("E4039", "names", "generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list") \
     GRAY_ERROR("E4040", "names", "-define: names '%s', but the program declares no such constant") \
-    GRAY_ERROR("E4041", "names", "'%s' is not a known statement; did you mean '%s'?")
+    GRAY_ERROR("E4041", "names", "'%s' is not a known statement; did you mean '%s'?") \
+    GRAY_ERROR("E4042", "names", "loop label '%s' is already used by an enclosing loop") \
+    GRAY_ERROR("E4043", "names", "no enclosing loop is labeled '%s'")
 
 /* --- E5xxx: Usage Problems --- */
 #define GRAY_USAGE_ERRORS \

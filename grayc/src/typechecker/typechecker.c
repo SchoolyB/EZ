@@ -13601,25 +13601,36 @@ static bool expression_contains_call(AstNode *node) {
 /* Check if ALL paths through a block end in a return statement */
 static bool block_has_return(AstNode *node); /* forward declaration */
 
-/* True when `node` holds a `break` that leaves the enclosing loop. A nested
- * loop owns its own breaks, so it is not entered. */
-static bool contains_loop_break(AstNode *node) {
+/* True when `node` holds a `break` that leaves the loop being checked, whose
+ * label is `label` (NULL when unlabeled). An unlabeled `break` in a nested
+ * loop leaves that loop, so only a `break label` is looked for there. */
+static bool contains_loop_break(AstNode *node, const char *label, bool is_nested) {
     if (!node) return false;
-    if (node->kind == NODE_BREAK_STATEMENT) return true;
+    if (node->kind == NODE_BREAK_STATEMENT) {
+        const char *target = node->data.loop_jump.label;
+        if (!target) return !is_nested;
+        return label && strcmp(target, label) == 0;
+    }
     if (node->kind == NODE_BLOCK_STATEMENT) {
         for (int i = 0; i < node->data.block.count; i++) {
-            if (contains_loop_break(node->data.block.statements[i])) return true;
+            if (contains_loop_break(node->data.block.statements[i], label, is_nested)) return true;
         }
     }
     if (node->kind == NODE_IF_STATEMENT) {
-        return contains_loop_break(node->data.if_statement.consequence) ||
-               contains_loop_break(node->data.if_statement.alternative);
+        return contains_loop_break(node->data.if_statement.consequence, label, is_nested) ||
+               contains_loop_break(node->data.if_statement.alternative, label, is_nested);
     }
     if (node->kind == NODE_WHEN_STATEMENT) {
         for (int i = 0; i < node->data.when_statement.case_count; i++) {
-            if (contains_loop_break(node->data.when_statement.cases[i].body)) return true;
+            if (contains_loop_break(node->data.when_statement.cases[i].body, label, is_nested)) return true;
         }
-        return contains_loop_break(node->data.when_statement.default_body);
+        return contains_loop_break(node->data.when_statement.default_body, label, is_nested);
+    }
+    if (label) {
+        if (node->kind == NODE_FOR_STATEMENT) return contains_loop_break(node->data.for_statement.body, label, true);
+        if (node->kind == NODE_FOR_EACH_STATEMENT) return contains_loop_break(node->data.for_each.body, label, true);
+        if (node->kind == NODE_WHILE_STATEMENT) return contains_loop_break(node->data.while_statement.body, label, true);
+        if (node->kind == NODE_LOOP_STATEMENT) return contains_loop_break(node->data.loop_statement.body, label, true);
     }
     return false;
 }
@@ -13660,7 +13671,7 @@ static bool all_paths_return(AstNode *node) {
      * unless a break can leave it. */
     if (node->kind == NODE_LOOP_STATEMENT) {
         return block_has_return(node->data.loop_statement.body) &&
-               !contains_loop_break(node->data.loop_statement.body);
+               !contains_loop_break(node->data.loop_statement.body, node->loop_label, false);
     }
     return false;
 }
@@ -16942,6 +16953,32 @@ static const char *range_wide_type(TypeChecker *checker, AstNode *range) {
     return NULL;
 }
 
+static void enter_loop(TypeChecker *checker, LoopFrame *frame, AstNode *loop) {
+    frame->label = loop->loop_label;
+    frame->enclosing = checker->innermost_loop;
+    if (frame->label) {
+        for (LoopFrame *enclosing = frame->enclosing; enclosing; enclosing = enclosing->enclosing) {
+            if (enclosing->label && strcmp(enclosing->label, frame->label) == 0) {
+                NODE_ERROR_FORMATTED(checker, loop, "E4042", frame->label);
+                break;
+            }
+        }
+    }
+    checker->innermost_loop = frame;
+}
+
+static void check_loop_jump(TypeChecker *checker, AstNode *node) {
+    const char *label = node->data.loop_jump.label;
+    if (!label) {
+        if (!checker->innermost_loop) NODE_ERROR(checker, node, "E2050");
+        return;
+    }
+    for (LoopFrame *frame = checker->innermost_loop; frame; frame = frame->enclosing) {
+        if (frame->label && strcmp(frame->label, label) == 0) return;
+    }
+    NODE_ERROR_FORMATTED(checker, node, "E4043", label);
+}
+
 static void check_for_statement(TypeChecker *checker, AstNode *node) {
     Scope *loop_scope = scope_create(checker->current_scope);
     Scope *outer = checker->current_scope;
@@ -17002,10 +17039,11 @@ static void check_for_statement(TypeChecker *checker, AstNode *node) {
             }
         }
     }
-    checker->loop_depth++;
+    LoopFrame loop_frame;
+    enter_loop(checker, &loop_frame, node);
     pointer_checker_premark_loop_body(checker, node->data.for_statement.body, node->data.for_statement.body);
     check_block(checker, node->data.for_statement.body);
-    checker->loop_depth--;
+    checker->innermost_loop = loop_frame.enclosing;
     checker->current_scope = outer;
     if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
     scope_destroy(loop_scope);
@@ -17139,10 +17177,11 @@ static void check_for_each_statement(TypeChecker *checker, AstNode *node) {
             scope_lookup_local(loop_scope, node->data.for_each.variable_name),
             node->data.for_each.collection);
 
-    checker->loop_depth++;
+    LoopFrame loop_frame;
+    enter_loop(checker, &loop_frame, node);
     pointer_checker_premark_loop_body(checker, node->data.for_each.body, node->data.for_each.body);
     check_block(checker, node->data.for_each.body);
-    checker->loop_depth--;
+    checker->innermost_loop = loop_frame.enclosing;
     checker->current_scope = outer;
     if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
     scope_destroy(loop_scope);
@@ -17167,10 +17206,11 @@ static void check_while_statement(TypeChecker *checker, AstNode *node) {
     Scope *while_outer_scope = checker->current_scope;
     Scope *while_scope = scope_create(while_outer_scope);
     checker->current_scope = while_scope;
-    checker->loop_depth++;
+    LoopFrame loop_frame;
+    enter_loop(checker, &loop_frame, node);
     pointer_checker_premark_loop_body(checker, node->data.while_statement.body, node->data.while_statement.body);
     check_block(checker, node->data.while_statement.body);
-    checker->loop_depth--;
+    checker->innermost_loop = loop_frame.enclosing;
     checker->current_scope = while_outer_scope;
     if (checker->current_function_declaration) report_unused_variables(checker, while_scope, checker->current_function_declaration);
     scope_destroy(while_scope);
@@ -18316,10 +18356,11 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
         Scope *loop_outer_scope = checker->current_scope;
         Scope *loop_scope = scope_create(loop_outer_scope);
         checker->current_scope = loop_scope;
-        checker->loop_depth++;
+        LoopFrame loop_frame;
+        enter_loop(checker, &loop_frame, node);
         pointer_checker_premark_loop_body(checker, node->data.loop_statement.body, node->data.loop_statement.body);
         check_block(checker, node->data.loop_statement.body);
-        checker->loop_depth--;
+        checker->innermost_loop = loop_frame.enclosing;
         checker->current_scope = loop_outer_scope;
         if (checker->current_function_declaration) report_unused_variables(checker, loop_scope, checker->current_function_declaration);
         scope_destroy(loop_scope);
@@ -18328,9 +18369,7 @@ static void check_statement_kind(TypeChecker *checker, AstNode *node) {
 
     case NODE_BREAK_STATEMENT:
     case NODE_CONTINUE_STATEMENT:
-        if (checker->loop_depth == 0) {
-            NODE_ERROR(checker, node, "E2050");
-        }
+        check_loop_jump(checker, node);
         break;
 
     case NODE_FUNCTION_DECLARATION:

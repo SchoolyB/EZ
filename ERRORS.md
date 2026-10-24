@@ -3,7 +3,7 @@
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 570 codes** (399 errors, 17 warnings, 154 panics)
+**Total: 573 codes** (402 errors, 17 warnings, 154 panics)
 
 ---
 
@@ -93,6 +93,7 @@
 | `E2100` | syntax | %d names but %d values in declaration; give one value per name, or a single value for all of them |
 | `E2101` | syntax | a declaration with a list of values takes one shared type after the last name; per-name types are not supported |
 | `E2102` | syntax | 'or_default' needs a binding to substitute into; write 'mut value = call() or_default fallback' |
+| `E2103` | syntax | a label can only be placed before a loop; '%s' is followed by something that is not 'for', 'for_each', 'as_long_as' or 'loop' |
 | `E3001` | types | type mismatch: cannot assign %s to %s |
 | `E3002` | types | invalid operands: cannot use '%s' with %s and %s |
 | `E3003` | types | %s index must be an integer, got %s |
@@ -327,6 +328,8 @@
 | `E4039` | names | generic parameter '%s' is used in the type of parameter '%s' before it is declared; declare it earlier in the parameter list |
 | `E4040` | names | -define: names '%s', but the program declares no such constant |
 | `E4041` | names | '%s' is not a known statement; did you mean '%s'? |
+| `E4042` | names | loop label '%s' is already used by an enclosing loop |
+| `E4043` | names | no enclosing loop is labeled '%s' |
 | `E5007` | usage | cannot modify immutable %s '%s'; declare with 'mut' to allow modification |
 | `E5008` | arguments | '%s()' expects %s argument(s), got %d |
 | `E5009` | arguments | invalid base %lld for 'strconv.%s'; base must be between 2 and 36 |
@@ -621,4 +624,4 @@ Runtime panics are fatal errors that terminate the program immediately. They are
 
 ---
 
-*Generated on 2026-10-24 01:51:00 UTC*
+*Generated on 2026-10-24 13:21:06 UTC*

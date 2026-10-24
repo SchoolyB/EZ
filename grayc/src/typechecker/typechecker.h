@@ -248,6 +248,12 @@ typedef struct {
     const FunctionSignature *callback_signatures[EXTERN_CALLBACK_ARGUMENTS];
 } ExternCallSite;
 
+/* One enclosing loop; `break name` and `continue name` look the name up here. */
+typedef struct LoopFrame {
+    const char *label;             /* NULL when the loop is unlabeled */
+    struct LoopFrame *enclosing;
+} LoopFrame;
+
 typedef struct {
     DiagnosticList *diagnostics;
     Scope *current_scope;
@@ -288,7 +294,7 @@ typedef struct {
     int error_code_enum_count;
 
     /* Control flow tracking */
-    int loop_depth;               /* >0 means inside a loop */
+    LoopFrame *innermost_loop;  /* NULL outside a loop */
     int function_depth;               /* >0 means inside a function body */
     bool is_in_file_scope_initializer;      /* checking a file-scope declaration's initializer */
     const char **hidden_group_names;        /* names the file-scope initializer being checked cannot see */

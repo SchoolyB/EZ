@@ -99,15 +99,15 @@ var langManDocs = map[string]LangManEntry{
 	},
 	"break": {
 		Kind:    "keyword",
-		Syntax:  "break",
-		Desc:    "Terminates the innermost enclosing loop immediately.",
-		Example: "for i in range(0, 100) {\n    if i == 5 { break }\n}",
+		Syntax:  "break [label]",
+		Desc:    "Terminates the innermost enclosing loop immediately, or the enclosing loop named by a label.",
+		Example: "outer: for y in range(0, 10) {\n    for x in range(0, 10) {\n        if x == y { break outer }\n    }\n}",
 	},
 	"continue": {
 		Kind:    "keyword",
-		Syntax:  "continue",
-		Desc:    "Skips the remainder of the current loop iteration and begins the next.",
-		Example: "for i in range(0, 10) {\n    if i % 2 == 0 { continue }\n    println(i)\n}",
+		Syntax:  "continue [label]",
+		Desc:    "Skips the remainder of the current loop iteration and begins the next, of the innermost enclosing loop or of the loop named by a label.",
+		Example: "outer: for y in range(0, 10) {\n    for x in range(0, 10) {\n        if x == y { continue outer }\n    }\n}",
 	},
 	"default": {
 		Kind:    "keyword",
