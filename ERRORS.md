@@ -1,7 +1,7 @@
 # Grayscale Error Code Reference
 
 > Auto-generated from `grayc/src/util/error_codes.h`. Do not edit manually.
-> Run `./scripts/generate_errors.sh` to regenerate.
+> Run `./grayc/grayc scripts/generate_errors.gray && ./generate_errors` to regenerate.
 
 **Total: 573 codes** (402 errors, 17 warnings, 154 panics)
 
