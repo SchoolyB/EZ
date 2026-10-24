@@ -399,7 +399,8 @@
     GRAY_ERROR("E5064", "arguments", "cannot call a bare 'func' value; its signature is not known, so pass it to a function with a typed 'func(...) -> T' parameter instead") \
     GRAY_ERROR("E5065", "usage", "'%s' is unsafe; use it inside an 'unsafe' block or an 'unsafe' function") \
     GRAY_ERROR("E5066", "usage", "-define: names '%s', which is not marked #define") \
-    GRAY_ERROR("E5067", "arguments", "callback '%s' passed as argument %d of C function '%s' does not match the function pointer type '%s' the imported header declares")
+    GRAY_ERROR("E5067", "arguments", "callback '%s' passed as argument %d of C function '%s' does not match the function pointer type '%s' the imported header declares") \
+    GRAY_ERROR("E5068", "arguments", "'%s' wraps integers only; got %s and %s")
 
 /* --- E6xxx: Import Problems --- */
 #define GRAY_IMPORT_ERRORS \

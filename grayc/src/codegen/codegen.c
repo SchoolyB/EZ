@@ -3454,6 +3454,51 @@ static void emit_arithmetic(CodeGen *codegen, TokenType operator, GrayType *type
     emit(codegen, ")");
 }
 
+/* wrap_add, wrap_sub, wrap_mult and wrap_div. Narrow types compute in
+ * uint64_t, where wrapping is defined, and truncate to the type's width;
+ * signed overflow is undefined behavior in C. The wide types' own
+ * add/sub/mul helpers already wrap. Division by zero still panics. */
+static bool emit_wrapping_call(CodeGen *codegen, AstNode *node, const char *function_name) {
+    const char *operation = function_name + strlen("wrap_");
+    if (strcmp(operation, "add") != 0 && strcmp(operation, "sub") != 0 &&
+        strcmp(operation, "mult") != 0 && strcmp(operation, "div") != 0)
+        return false;
+    if (node->data.call.argument_count != 2) return false;
+    GrayType *type = codegen_operation_type(codegen, node);
+    if (!type || !type->name) return false;
+    AstNode *left = node->data.call.arguments[0];
+    AstNode *right = node->data.call.arguments[1];
+    bool is_division = strcmp(operation, "div") == 0;
+    if (is_wide_integer_type_name(type->name)) {
+        emit_formatted(codegen, "%s_%s(", wide_integer_prefix(type->name), strcmp(operation, "mult") == 0 ? "mul" : operation);
+        emit_arithmetic_operand(codegen, left, NULL, type);
+        emit(codegen, ", ");
+        emit_arithmetic_operand(codegen, right, NULL, type);
+        if (is_division) emit_formatted(codegen, ", \"%s\", %d", codegen_file_literal(codegen), node->token.line);
+        emit(codegen, ")");
+        return true;
+    }
+    int width = atoi(type->name + 1);
+    const char *c_type = gray_type_to_c_codegen(codegen, type->name);
+    if (!is_division) {
+        emit_formatted(codegen, "((%s)(uint%d_t)((uint64_t)(uint%d_t)", c_type, width, width);
+        emit_arithmetic_operand(codegen, left, NULL, type);
+        emit_formatted(codegen, " %s (uint64_t)(uint%d_t)", strcmp(operation, "add") == 0 ? "+" : strcmp(operation, "sub") == 0 ? "-" : "*", width);
+        emit_arithmetic_operand(codegen, right, NULL, type);
+        emit(codegen, "))");
+        return true;
+    }
+    emit_formatted(codegen, "({ %s _wd = ", c_type);
+    emit_arithmetic_operand(codegen, right, NULL, type);
+    emit_formatted(codegen, "; if (!_wd) { %s; } %s _wn = ", panic_call(codegen, node, "P0078", ""), c_type);
+    emit_arithmetic_operand(codegen, left, NULL, type);
+    if (type->kind == TYPE_KIND_SIGNED_INTEGER)
+        emit_formatted(codegen, "; _wd == -1 ? (%s)(uint%d_t)(0 - (uint64_t)(uint%d_t)_wn) : (%s)(_wn / _wd); })", c_type, width, width, c_type);
+    else
+        emit_formatted(codegen, "; (%s)(_wn / _wd); })", c_type);
+    return true;
+}
+
 static void emit_arrays_value_call(CodeGen *codegen, const char *function_name, AstNode *array_argument,
                                    AstNode *value_argument);
 
@@ -6438,6 +6483,8 @@ static bool emit_builtin_call(CodeGen *codegen, AstNode *node, const char *funct
         if (wrapped) emit(codegen, "; })");
         return true;
     }
+
+    if (strncmp(function_name, "wrap_", 5) == 0 && emit_wrapping_call(codegen, node, function_name)) return true;
 
     if (strcmp(function_name, "size_of") == 0 && node->data.call.argument_count == 1) {
         AstNode *type_argument = node->data.call.arguments[0];

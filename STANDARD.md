@@ -37,7 +37,7 @@ Grayscale is a programming language for software that's simple to write and safe
 - **Simplicity** — Readable, opinionated syntax — bitwise and membership operators are real keywords (`bit_and`, `bit_xor`, `not_in`), not punctuation — with familiar per-file aliases (`fn`, `switch`/`case`, `elif`/`else`, `while`, `defer`) for devs who prefer them. Helpful compile-time errors & warnings and runtime panics. Useful CLI commands like `gray man`, `gray check`, `gray new`, and `gray watch`.
 - **Flexibility** — Build scripts and dev tooling, cross-platform CLI utilities, HTTP/JSON backend services, SQLite-backed apps, network daemons, and batch data processing, or learning systems programming fundamentals.
 - **Modularity** — Beyond a small builtin core, everything else needs an import. Stdlib modules, your own `.gray` files, and C headers can all be imported.
-- **Safety** — An automatic scope-based arena management memory model, bounds-checked arrays, strings, and maps, overflow-checked arithmetic, division-by-zero protection, nil pointer checks, stack depth guards, no implicit narrowing, **NO** pointer arithmetic. The guardrails are on unless you explicitly opt in to unsafe operations like raw pointers (`raw()`), manual memory management (`@mem`), threading (`@threads`), or C interop (`extern import`)
+- **Safety** — An automatic scope-based arena management memory model, bounds-checked arrays, strings, and maps, overflow-checked arithmetic, division-by-zero protection, nil pointer checks, stack depth guards, no implicit narrowing, **NO** pointer arithmetic. The guardrails are on unless you explicitly opt in to unsafe operations like raw pointers (`raw()`), manual memory management (`@mem`), threading (`@threads`), wrapping arithmetic (`wrap_add()`), or C interop (`extern import`)
 
 ---
 
@@ -327,7 +327,7 @@ Grayscale's integer types are named by signedness and width:
 | `u32` | 32-bit | no | 0 to 2^32-1 |
 | `u64` | 64-bit | no | 0 to 2^64-1 |
 
-An integer literal with no other type to take is an `i64`. Arithmetic is overflow-checked: overflow or underflow produces a runtime panic rather than silent wrapping.
+An integer literal with no other type to take is an `i64`. Arithmetic is overflow-checked: overflow or underflow produces a runtime panic rather than silent wrapping. Code that needs modular arithmetic, such as a hash or a random number generator, uses `wrap_add`, `wrap_sub`, `wrap_mult` and `wrap_div`, which only an `unsafe` block or an unsafe function may call (see 11.7).
 
 ```gray
 mut small i64 = 42
@@ -448,7 +448,7 @@ mut x i64 = cast(c, i64)           // cast back to i64
 mut s string = string(c)     // convert to string
 ```
 
-Wide integers use the same overflow-checked arithmetic as `i64` and `u64`; overflow produces a runtime panic.
+Wide integers use the same overflow-checked arithmetic as `i64` and `u64`; overflow produces a runtime panic, unless the operation is a `wrap_add`, `wrap_sub`, `wrap_mult` or `wrap_div` call.
 
 
 #### 3.1.7 Pointer Type (`^Type`)
@@ -3314,7 +3314,7 @@ Using an `extern.` call result or constant anywhere else — interpolating it, r
 
 #### Safety
 
-`extern import` is an opt-out from Grayscale's memory safety. ASBAM, the pointer escape checks (11.7), and bounds checking reason only about Grayscale code — they cannot analyze a C function, so their guarantees stop at the `extern.` call. Once a program calls into C, "memory safe by default" no longer holds for anything that crosses the boundary.
+`extern import` is an opt-in to unsafe operations outside Grayscale's memory safety. ASBAM, the pointer escape checks (11.7), and bounds checking reason only about Grayscale code — they cannot analyze a C function, so their guarantees stop at the `extern.` call. Once a program calls into C, "memory safe by default" no longer holds for anything that crosses the boundary.
 
 - **Pointers returned from C are unmanaged.** ASBAM does not track them, their lifetime is whatever the C library defines, and dereferencing one carries no nil-check unless you first route it through normal `^T` handling.
 - **`addr()` of a local passed to C is unchecked.** If the C function retains the pointer past the enclosing Grayscale scope, the pointee is freed and the retained pointer dangles. The escape checks only match addresses that escape through Grayscale code.
@@ -3396,6 +3396,10 @@ running the child so output is not reordered.
 | `ref` | `(variable T) -> T` | Create a transparent reference (alias) to a variable. The return type is inferred and cannot be explicitly annotated. Reads and writes through the reference affect the original. Mutability is determined by the declaration (`mut` or `const`). |
 | `addr` | `(variable T) -> ^T` | Get memory address of a variable |
 | `raw` | `(variable T) -> ^T` | Get unchecked pointer — skips nil-check panics and const-source write protection |
+| `wrap_add` | `(a T, b T) -> T` | Wrapping addition on any integer type: the true sum modulo 2^N, in two's complement for signed types. Never panics. Operands type as for a binary operator. Unsafe: requires an `unsafe` block or an unsafe function (see 11.7) |
+| `wrap_sub` | `(a T, b T) -> T` | Wrapping subtraction on any integer type. Wrapping negation is `wrap_sub(0, x)`. Unsafe, like `wrap_add` |
+| `wrap_mult` | `(a T, b T) -> T` | Wrapping multiplication on any integer type. Unsafe, like `wrap_add` |
+| `wrap_div` | `(a T, b T) -> T` | Division on any integer type that returns `MIN` for `MIN / -1` instead of panicking (P0079). Division by zero still panics (P0078). Unsafe, like `wrap_add` |
 | `error` | `(code ErrorCode, message string = "") -> Error` | Create error value |
 | `assert` | `(condition bool, message string = "")` | Terminate if condition is false. Message is optional. |
 | `panic` | `(message string)` | Terminate with error message |
@@ -5148,7 +5152,7 @@ Grayscale is **memory safe by default**. ASBAM prevents common memory errors aut
 | Array out-of-bounds | Runtime panic |
 | Map key not found | Runtime panic |
 | Division by zero | Runtime panic |
-| Integer overflow | Runtime panic (checked arithmetic) |
+| Integer overflow | Runtime panic (checked arithmetic); `wrap_add`, `wrap_sub`, `wrap_mult` and `wrap_div` wrap instead and are unsafe |
 | Stack overflow (deep recursion) | Detected and reported |
 | Double-`destroy` on a `@mem` arena the checker can't trace to a named arena parameter | Runtime panic |
 | Allocating (`mem.init()`/`mem.alloc()`) from a `@mem` arena the checker can't trace as already destroyed | Runtime panic |
@@ -5170,9 +5174,9 @@ Grayscale is **memory safe by default**. ASBAM prevents common memory errors aut
 | Out-of-bounds write by a C function | A C function writes past the end of a buffer passed from Grayscale. Bounds checking does not cross the `extern.` call. |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For programs that stay in the safe subset — no `@mem`, no `raw()`, no threading, no C interop — the pointer checker makes use-after-free a compile error, not a runtime hazard. `@mem`, `raw()`, threading, and `extern import` are Grayscale's explicit unsafe opt-outs; reaching for one of them is what puts memory safety back in the programmer's hands.
+For programs that stay in the safe subset — no `@mem`, no `raw()`, no threading, no wrapping arithmetic, no C interop — the pointer checker makes use-after-free a compile error, not a runtime hazard. `@mem`, `raw()`, threading, wrapping arithmetic, and `extern import` are Grayscale's explicit unsafe opt-ins; reaching for one of them is what puts memory safety back in the programmer's hands.
 
-**The `unsafe` marker.** The four opt-outs are lexically marked. `raw()`, every function of the `@mem` and `@threads` modules, and every `extern.` call is a compile error (E5065) unless it sits inside an `unsafe { ... }` block or an unsafe function:
+**The `unsafe` marker.** The five opt-ins are lexically marked. `raw()`, `wrap_add()`, `wrap_sub()`, `wrap_mult()`, `wrap_div()`, every function of the `@mem` and `@threads` modules, and every `extern.` call is a compile error (E5065) unless it sits inside an `unsafe { ... }` block or an unsafe function:
 
 ```gray
 import @mem

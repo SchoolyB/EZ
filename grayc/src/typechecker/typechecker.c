@@ -4399,6 +4399,7 @@ static bool typechecker_is_builtin(const char *name) {
         "range", "raw", "ref", "size_of", "sleep_ms", "sleep_ns", "sleep_s",
         "string", "system", "to_c_string", "to_char", "type_of",
         "u128", "u16", "u256", "u32", "u64", "u8",
+        "wrap_add", "wrap_div", "wrap_mult", "wrap_sub",
     };
     return string_set_contains(builtins, (int)(sizeof(builtins)/sizeof(builtins[0])), name);
 }
@@ -7666,11 +7667,60 @@ static GrayType *resolve_fmt_call(TypeChecker *checker, AstNode *node, const cha
 }
 
 /* E5065: raw(), the whole mem and threads modules, and extern calls are
- * Grayscale's unsafe opt-outs; each must sit inside an `unsafe` block or an
+ * Grayscale's unsafe opt-ins; each must sit inside an `unsafe` block or an
  * unsafe function. `operation` is the name as the user wrote it. */
 static void require_unsafe_context(TypeChecker *checker, AstNode *node, const char *operation) {
     if (checker->unsafe_depth > 0) return;
     NODE_ERROR_FORMATTED(checker, node, "E5065", operation);
+}
+
+/* wrap_add, wrap_sub, wrap_mult and wrap_div: integer arithmetic that wraps
+ * instead of panicking. */
+static bool is_wrapping_builtin_name(const char *name) {
+    return strcmp(name, "wrap_add") == 0 || strcmp(name, "wrap_sub") == 0 ||
+           strcmp(name, "wrap_mult") == 0 || strcmp(name, "wrap_div") == 0;
+}
+
+/* The operands type like those of a binary operator: a literal takes the
+ * other operand's type, and the result is the common type. Only integers
+ * wrap, so anything else is E5068. */
+static GrayType *resolve_wrapping_call(TypeChecker *checker, AstNode *node, const char *display_name) {
+    AstNode *left_node = node->data.call.arguments[0];
+    AstNode *right_node = node->data.call.arguments[1];
+    GrayType *left = resolve_untyped(checker, left_node);
+    GrayType *right = resolve_untyped(checker, right_node);
+    if (left->kind == TYPE_KIND_UNKNOWN || right->kind == TYPE_KIND_UNKNOWN) return &TYPE_UNKNOWN;
+    GrayType *common = (left->kind == TYPE_KIND_LITERAL || type_kind_is_number(left->kind)) &&
+                       (right->kind == TYPE_KIND_LITERAL || type_kind_is_number(right->kind))
+        ? type_binary_result(TOKEN_PLUS, left, right) : NULL;
+    if (common) {
+        if (left->kind == TYPE_KIND_LITERAL && right->kind == TYPE_KIND_LITERAL) {
+            left = check_expression_as(checker, left_node, NULL);
+            right = check_expression_as(checker, right_node, NULL);
+        } else if (left->kind == TYPE_KIND_LITERAL) {
+            left = check_expression_as(checker, left_node, right);
+        } else if (right->kind == TYPE_KIND_LITERAL) {
+            right = check_expression_as(checker, right_node, left);
+        }
+        common = type_binary_result(TOKEN_PLUS, left, right);
+    }
+    if (!common) {
+        GrayType *left_shown = left->kind == TYPE_KIND_LITERAL ? check_expression_as(checker, left_node, NULL) : left;
+        GrayType *right_shown = right->kind == TYPE_KIND_LITERAL ? check_expression_as(checker, right_node, NULL) : right;
+        if (type_kind_is_number(left_shown->kind) && type_kind_is_number(right_shown->kind))
+            NODE_ERROR_FORMATTED_HELP(checker, node, "E3002",
+                "convert one side with cast()", display_name, type_name(left_shown), type_name(right_shown));
+        else
+            NODE_ERROR_FORMATTED(checker, node, "E5068",
+                display_name, type_display_name(checker, left_shown), type_display_name(checker, right_shown));
+        return &TYPE_UNKNOWN;
+    }
+    if (common->kind != TYPE_KIND_SIGNED_INTEGER && common->kind != TYPE_KIND_UNSIGNED_INTEGER) {
+        NODE_ERROR_FORMATTED(checker, node, "E5068",
+            display_name, type_display_name(checker, left), type_display_name(checker, right));
+        return &TYPE_UNKNOWN;
+    }
+    return common;
 }
 
 static GrayType *resolve_stdlib_call(TypeChecker *checker, AstNode *node, const char *module_name, const char *member_function_name) {
@@ -9079,6 +9129,15 @@ static GrayType *resolve_builtin_call(TypeChecker *checker, AstNode *node, const
         }
         GrayType *argument_type = resolve_expression(checker, argument);
         result = type_pointer(type_name(argument_type));
+    } else if (is_wrapping_builtin_name(function_name)) {
+        char display_name[MESSAGE_BUFFER_SIZE];
+        snprintf(display_name, sizeof(display_name), "%s()", function_name);
+        require_unsafe_context(checker, node, display_name);
+        if (node->data.call.argument_count != 2) {
+            typechecker_error_arity(checker, node, function_name, "2", node->data.call.argument_count);
+            return &TYPE_UNKNOWN;
+        }
+        result = resolve_wrapping_call(checker, node, display_name);
     } else if (strcmp(function_name, "ref") == 0 && node->data.call.argument_count == 1) {
         AstNode *argument = node->data.call.arguments[0];
         /* ref(func_name) returns func type; resolve the
