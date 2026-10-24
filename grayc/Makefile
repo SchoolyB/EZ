@@ -298,7 +298,7 @@ test-integration: build
 	@powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_tests.ps1 -NoBuild
 else
 test-integration: build
-	@../scripts/run_tests.sh
+	@cd .. && ./grayc/grayc scripts/run_tests.gray -o run_tests && { ./run_tests; status=$$?; rm -f run_tests; exit $$status; }
 endif
 
 # Sanitizer builds — catch undefined behavior (and memory bugs on Linux)
