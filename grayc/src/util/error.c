@@ -475,7 +475,7 @@ void diagnostic_print_summary(DiagnosticList *diagnostics) {
     }
 
     if (warnings > 0 && !diagnostics->should_suppress_all_warnings && diagnostics->suppressed_count == 0) {
-        fprintf(stderr, "%shint:%s suppress warnings with -q <W1001,W1002,...> or -q 'all'\n",
+        fprintf(stderr, "%shint:%s suppress warnings with -q <W1001,W1002,...> or -q all\n",
             color_code(diagnostics, COLOR_BOLD), color_code(diagnostics, COLOR_RESET));
     }
 }

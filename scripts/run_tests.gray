@@ -561,8 +561,8 @@ do main() {
     // Directory check tests: gray check on a directory, and on dir/... for the
     // directory and each subdirectory as their own modules, must both pass.
     for_each sub in sub_directories("${test_dir}/pass/check-directory") {
-        mut as_directory, directory_ok = run_gray(runner, {"check", "${sub}/"})
-        mut as_tree, tree_ok = run_gray(runner, {"check", "${sub}/..."})
+        mut _, directory_ok = run_gray(runner, {"check", "${sub}/"})
+        mut _, tree_ok = run_gray(runner, {"check", "${sub}/..."})
         if directory_ok && tree_ok {
             pass(addr(tally), "check-directory/${base_name(sub)}")
         } otherwise {
